@@ -5,7 +5,7 @@ description: |
   Модули бизнес-логики проекта Family Budget.
   Каждый модуль содержит services, models, endpoints и зависимости.
 
-total_modules: 12
+total_modules: 14
 
 modules:
   # Core Budget
@@ -35,6 +35,12 @@ modules:
     file: "./transfers.yaml"
     description: "Переводы между счетами (paired facts)"
     services: []  # Logic in endpoints
+
+  - name: recurring_plans
+    file: "./recurring-plans.yaml"
+    description: "Регламентные платежи (auto-generate facts)"
+    services: [recurring_plan_service]
+    notes: "Scheduler job daily at 02:00 UTC"
 
   # Shopping
   - name: shopping_lists
@@ -81,6 +87,18 @@ modules:
     services: []  # Frontend-only
     frontend_only: true
 
+  # Operations
+  - name: backup_restore
+    file: "./backup-restore.yaml"
+    description: "Резервное копирование PostgreSQL, S3 upload, restore"
+    services: []  # Shell scripts (backup.sh, restore.sh, s3_backup.py)
+    scripts:
+      - scripts/backup.sh
+      - scripts/restore.sh
+      - scripts/s3_backup.py
+      - scripts/check_backup_health.sh
+    operational: true
+
 # Dependency Graph (high-level)
 dependency_order:
   - authentication          # No dependencies
@@ -88,6 +106,7 @@ dependency_order:
   - financial_centers       # Depends on: authentication
   - cost_centers            # Depends on: authentication
   - transfers               # Depends on: financial_centers, budget_management
+  - recurring_plans         # Depends on: budget_management, financial_centers, cost_centers
   - shopping_lists          # Depends on: authentication
   - csv_import              # Depends on: budget_management, financial_centers
   - notifications           # Depends on: authentication
@@ -95,3 +114,4 @@ dependency_order:
   - admin                   # Depends on: authentication (admin only)
   - realtime                # Depends on: budget_management, shopping_lists
   - offline                 # Depends on: budget_management, shopping_lists (frontend)
+  - backup_restore          # No runtime dependencies (operational tool)

@@ -17,14 +17,12 @@
                 <div class="flex flex-col gap-3 mb-3">
                     <div class="flex justify-between items-center">
                         <h2 class="card-title text-2xl">📦 Группы товаров</h2>
-                        {% if user.is_admin %}
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
                             Новая группа
                         </button>
-                        {% endif %}
                     </div>
                     <div class="flex flex-wrap gap-2 items-center">
                         <div class="form-control flex-1 min-w-[200px] max-w-xs">
@@ -47,7 +45,6 @@
     </div>
 </div>
 
-{% if user.is_admin %}
 <!-- Create Product Group Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -75,8 +72,8 @@
                 <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
             </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">✅ Создать</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -112,9 +109,18 @@
                 </label>
                 <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
+            <div class="modal-action mt-3 flex flex-row gap-2">
+                <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteProductGroupFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Разделитель (пустое пространство) -->
+                <div class="flex-1 md:hidden"></div>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -122,7 +128,6 @@
         <button>close</button>
     </form>
 </dialog>
-{% endif %}
 
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
@@ -218,7 +223,7 @@ function renderProductGroupsTree() {
                         <th>📝 Название</th>
                         <th>🔢 Код</th>
                         <th>✅ Статус</th>
-                        ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -269,33 +274,32 @@ function renderTreeNodes(nodes, level) {
             ? '<span class="badge badge-success badge-xs">✓</span>'
             : '<span class="badge badge-ghost badge-xs">📦</span>';
 
-        let actionsCell = '';
+        // Actions column - Edit for all users, Archive/Delete only for admins
+        let actions = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${node.id})" title="Редактировать">✏️</button>`;
+
+        // Admin-only buttons: Archive/Restore and Delete
         if (isAdmin) {
-            const actions = node.is_active
-                ? `
-                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${node.id})" title="Редактировать">
-                        ✏️
-                    </button>
-                    <button class="btn btn-xs btn-warning" onclick="archiveProductGroup(${node.id})" title="Архивировать">
-                        📦
-                    </button>
-                    <button class="btn btn-xs btn-error" onclick="deleteProductGroup(${node.id})" title="Удалить">
-                        🗑️
-                    </button>
-                `
-                : `
-                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${node.id})" title="Редактировать">
-                        ✏️
-                    </button>
-                    <button class="btn btn-xs btn-success" onclick="restoreProductGroup(${node.id})" title="Восстановить">
-                        ♻️
-                    </button>
-                    <button class="btn btn-xs btn-error" onclick="deleteProductGroup(${node.id})" title="Удалить">
-                        🗑️
+            if (node.is_active) {
+                actions += `
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveProductGroup(${node.id})" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                     </button>
                 `;
-            actionsCell = `<td class="space-x-1">${actions}</td>`;
+            } else {
+                actions += `
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreProductGroup(${node.id})" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            }
         }
+        const actionsCell = `<td class="space-x-1">${actions}</td>`;
 
         html += `
             <tr>
@@ -439,6 +443,13 @@ function showEditModal(groupId) {
 // Close edit modal
 function closeEditModal() {
     document.getElementById('edit-modal').close();
+}
+
+// Delete product group from edit modal (mobile only)
+function deleteProductGroupFromEditModal() {
+    const productGroupId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deleteProductGroup(productGroupId);
 }
 
 // Update product group

@@ -12,7 +12,11 @@ routes:
     request:
       body:
         from_financial_center_id: "integer (required)"
+        from_article_id: "integer (required, type=debit)"
+        from_cost_center_id: "integer (optional, DEPRECATED - always null from UI)"
         to_financial_center_id: "integer (required)"
+        to_article_id: "integer (required, type=credit)"
+        to_cost_center_id: "integer (optional, DEPRECATED - always null from UI)"
         amount: "decimal (required, > 0)"
         transfer_date: "YYYY-MM-DD (required)"
         description: "string (optional)"

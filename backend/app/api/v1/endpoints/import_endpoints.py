@@ -519,6 +519,9 @@ async def analyze_file(
 
     Returns CSV analysis results from file upload metadata.
 
+    NOTE: This endpoint should complete in <1s for most files. If you see
+    slow queries here, check CSVAnalyzer performance.
+
     **Parameters:**
     - file_id: File upload ID
 
@@ -538,6 +541,9 @@ async def analyze_file(
     }
     ```
     """
+    import time
+    start_time = time.time()
+
     logger.info(f"Analyzing file {file_id} for user {current_user.id}")
 
     file_upload = await session.get(ImportFileUpload, file_id)
@@ -546,6 +552,13 @@ async def analyze_file(
 
     if file_upload.status != "analyzed":
         raise HTTPException(400, f"File not analyzed (status: {file_upload.status})")
+
+    elapsed = time.time() - start_time
+    if elapsed > 5.0:  # Warn if slower than 5s
+        logger.warning(
+            f"SLOW QUERY: analyze_file took {elapsed:.2f}s for file {file_id}. "
+            "This should be <1s. Check database indexes or CSVAnalyzer."
+        )
 
     return AnalyzeResponse(
         file_id=file_upload.id,
@@ -654,15 +667,16 @@ async def get_mapping(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get saved mapping for bank (or default).
+    Get saved mapping for user+bank (or default if not found).
 
-    Returns user's saved mapping if exists, otherwise returns 404 with default mapping.
+    Returns saved mapping for this user and bank, or returns 404 with
+    default mapping in error response if no saved mapping exists.
 
     **Parameters:**
     - bank_provider_id: Bank provider ID
 
     **Returns:**
-    - mapping_id, bank_provider_id, mapping, transformations
+    - Saved mapping (if exists) or 404 with default_mapping
 
     **Example (saved mapping exists):**
     ```
@@ -718,10 +732,13 @@ async def save_mapping(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Save or update mapping (SCD Type 1).
+    Save or update mapping (SCD Type 1, per-user per-bank).
 
-    If mapping exists for this bank+user → UPDATE in-place.
-    If mapping doesn't exist → INSERT new record.
+    If mapping exists for this (user, bank) → UPDATE in-place
+    If mapping doesn't exist → INSERT new record
+
+    Mappings are per-user. Each user has their own mapping which doesn't
+    affect other users' mappings.
 
     **Request Body:**
     ```json
@@ -829,9 +846,9 @@ async def parse_file(
     if not file_upload or file_upload.user_id != current_user.id:
         raise HTTPException(404, "File not found")
 
-    # Get mapping
+    # Get mapping (shared per bank, any user can use)
     mapping_record = await session.get(ImportColumnMapping, request.mapping_id)
-    if not mapping_record or mapping_record.user_id != current_user.id:
+    if not mapping_record:
         raise HTTPException(404, "Mapping not found")
 
     # Check if temp file exists

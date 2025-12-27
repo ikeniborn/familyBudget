@@ -228,3 +228,106 @@ configure_docker_firewall() {
 
     return 0
 }
+
+# Configure UFW rules for PostgreSQL external access
+# Automatically creates/deletes UFW rules based on POSTGRES_EXTERNAL_ACCESS and POSTGRES_ALLOWED_IP
+configure_ufw_for_postgres() {
+    step "Configuring UFW Rules for PostgreSQL"
+
+    # Check if UFW is available
+    if ! command_exists ufw; then
+        warning "UFW is not installed, skipping PostgreSQL firewall configuration"
+        return 0
+    fi
+
+    # Check UFW status
+    if ! sudo ufw status 2>/dev/null | grep -q "Status: active"; then
+        warning "UFW is not active, skipping PostgreSQL firewall configuration"
+        info "To enable UFW: sudo ufw enable"
+        return 0
+    fi
+
+    # Get current UFW rules for port 5432
+    local current_rules=$(sudo ufw status numbered 2>/dev/null | grep "5432" || true)
+
+    info "Current PostgreSQL UFW rules:"
+    if [[ -z "$current_rules" ]]; then
+        echo "  (no rules configured)"
+    else
+        echo "$current_rules" | sed 's/^/  /'
+    fi
+    echo ""
+
+    # Check configuration
+    if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then
+        # External access enabled
+        if [[ -z "${POSTGRES_ALLOWED_IP:-}" ]]; then
+            error "POSTGRES_EXTERNAL_ACCESS=true but POSTGRES_ALLOWED_IP is not set!"
+            error "This would allow PostgreSQL access from ANY IP (security risk)."
+            error "Please set POSTGRES_ALLOWED_IP in .env to a specific IP address."
+            echo ""
+            warning "Skipping PostgreSQL UFW configuration for security."
+            warning "To fix: Add POSTGRES_ALLOWED_IP=<your-ip> to .env and re-run deploy"
+            return 1
+        fi
+
+        info "PostgreSQL external access: ENABLED"
+        info "Allowed IP: ${POSTGRES_ALLOWED_IP}"
+        echo ""
+
+        # Check if rule already exists for this IP
+        if echo "$current_rules" | grep -q "from ${POSTGRES_ALLOWED_IP}.*5432"; then
+            success "✓ UFW rule already exists for ${POSTGRES_ALLOWED_IP}"
+            return 0
+        fi
+
+        # Delete old rules (if any)
+        if [[ -n "$current_rules" ]]; then
+            info "Removing old PostgreSQL UFW rules..."
+            # Extract rule numbers in reverse order (to avoid shifting)
+            local rule_numbers=$(echo "$current_rules" | grep -oP '^\[\s*\K\d+' | sort -rn)
+            for rule_num in $rule_numbers; do
+                echo "yes" | sudo ufw delete "$rule_num" >> "$LOG_FILE" 2>&1 || true
+            done
+            success "✓ Old rules removed"
+        fi
+
+        # Create new rule
+        info "Creating UFW rule: allow from ${POSTGRES_ALLOWED_IP} to any port 5432..."
+        if sudo ufw allow from "${POSTGRES_ALLOWED_IP}" to any port 5432 comment "PostgreSQL external access" >> "$LOG_FILE" 2>&1; then
+            success "✓ UFW rule created successfully"
+
+            # Verify rule was created
+            local new_rule=$(sudo ufw status numbered 2>/dev/null | grep "5432" || true)
+            if [[ -n "$new_rule" ]]; then
+                info "Verified rule:"
+                echo "$new_rule" | sed 's/^/  /'
+            fi
+        else
+            error "Failed to create UFW rule"
+            return 1
+        fi
+
+    else
+        # External access disabled
+        info "PostgreSQL external access: DISABLED (internal only)"
+        echo ""
+
+        # Remove all UFW rules for port 5432
+        if [[ -n "$current_rules" ]]; then
+            info "Removing all PostgreSQL UFW rules..."
+            # Extract rule numbers in reverse order (to avoid shifting)
+            local rule_numbers=$(echo "$current_rules" | grep -oP '^\[\s*\K\d+' | sort -rn)
+            for rule_num in $rule_numbers; do
+                echo "yes" | sudo ufw delete "$rule_num" >> "$LOG_FILE" 2>&1 || true
+            done
+            success "✓ All PostgreSQL UFW rules removed (internal access only)"
+        else
+            success "✓ No PostgreSQL UFW rules to remove (already internal only)"
+        fi
+    fi
+
+    echo ""
+    success "PostgreSQL UFW configuration completed"
+    return 0
+}

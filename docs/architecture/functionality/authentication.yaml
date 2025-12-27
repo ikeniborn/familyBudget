@@ -137,6 +137,22 @@ module:
     telegram_oauth:
       validation: "HMAC-SHA256 with bot token"
       note: "User must exist before login (no auto-registration)"
+      widget_loading:
+        description: "Telegram Login Widget loading with error handling"
+        preload: "link rel=preload for widget script"
+        detection: "MutationObserver for iframe injection"
+        timeout: "15 seconds"
+        state_machine:
+          states: ["loading", "success", "error"]
+          guarantee: "One UI element always visible (no empty space)"
+        error_handling:
+          retry_mechanism: "Script re-injection with cache-busting timestamp"
+          max_retries: 3
+          cooldown: "2 seconds between retries"
+          fallback: "Direct t.me/bot_username link"
+        ui_elements:
+          loading: "#telegram-placeholder (inline HTML, visible immediately)"
+          error: "#telegram-error (warning alert + retry button + fallback link)"
 
     password:
       algorithm: "Argon2id"

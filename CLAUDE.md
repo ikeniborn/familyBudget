@@ -4,32 +4,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Family Budget - это система управления семейным бюджетом с поддержкой Telegram бота и веб-интерфейса. Приложение построено на FastAPI (backend), PostgreSQL (database), и использует Docker для деплоя.
+Family Budget is a family budget management system with Telegram bot and web interface support. Built on FastAPI (backend), PostgreSQL (database), using Docker for deployment.
 
-**Ключевые особенности:**
-- 🔐 Аутентификация через Telegram OAuth
-- 📊 Иерархические категории бюджета (статьи)
-- 💰 Отслеживание транзакций (доходы/расходы)
-- 🤖 Telegram бот с Web Apps интерфейсом
-- 🌐 Веб-интерфейс (HTMX + Tailwind CSS + DaisyUI)
-- 📈 Отчеты и статистика
-- 🔄 История изменений (SCD Type 1 + History tables)
-- 📱 Transfer поддержка (переводы между счетами)
+**Key Features:**
+- 🔐 Authentication via Telegram OAuth
+- 📊 Hierarchical budget categories (articles)
+- 💰 Transaction tracking (income/expenses)
+- 🤖 Telegram bot with Web Apps interface
+- 🌐 Web interface (HTMX + Tailwind CSS + DaisyUI)
+- 📈 Reports and statistics
+- 🔄 Change history (SCD Type 1 + History tables)
+- 📱 Transfer support (transfers between accounts)
 
-## Терминология (UI ↔ Код)
+## Terminology (UI ↔ Code)
 
-| UI (русский) | Код (английский) | Таблица БД | Описание |
-|--------------|------------------|------------|----------|
-| **Счет** | `FinancialCenter` | `t_d_financial_center` | Банковские счета, кошельки, наличные |
-| **Место затрат** | `CostCenter` | `t_d_cost_center` | Проекты, отделы, категории расходов |
-| **Статья** | `Article` | `t_d_article` | Категории бюджета (иерархические) |
-| **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Доходы, расходы, переводы |
+| UI (Russian) | Code (English) | DB Table | Description |
+|--------------|----------------|----------|-------------|
+| **Счет** | `FinancialCenter` | `t_d_financial_center` | Bank accounts, wallets, cash |
+| **Место затрат** | `CostCenter` | `t_d_cost_center` | Projects, departments, expense categories |
+| **Статья** | `Article` | `t_d_article` | Budget categories (hierarchical) |
+| **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Income, expenses, transfers |
 
-**Примечание:** В UI используются русские термины, в коде и БД — английские (industry standard).
-Ранее использовались термины "ЦФО" (Центр финансовой ответственности) и "МВЗ" (Место возникновения затрат),
-которые были заменены на более понятные "Счет" и "Место затрат" в commit `53b4c284`.
-
-## Архитектура
+## Architecture
 
 ### Stack
 - **Backend**: FastAPI 0.121.2 + SQLModel + asyncpg
@@ -39,64 +35,10 @@ Family Budget - это система управления семейным бю
 - **Deployment**: Docker Compose + bash scripts
 - **Authentication**: JWT (httpOnly cookies) + Telegram OAuth
 
-### Структура директорий
-
-```
-familyBudget/
-├── backend/                 # FastAPI приложение
-│   ├── app/
-│   │   ├── api/            # API endpoints
-│   │   │   ├── v1/         # REST API v1
-│   │   │   └── web/        # HTMX web pages
-│   │   ├── core/           # Конфигурация, логирование
-│   │   ├── db/             # Database session
-│   │   ├── models/         # SQLModel модели
-│   │   ├── schemas/        # Pydantic схемы
-│   │   ├── services/       # Бизнес-логика
-│   │   ├── middleware/     # JWT, logging, CSP
-│   │   └── utils/          # Вспомогательные функции
-│   ├── db/                 # Alembic migrations
-│   │   └── migrations/
-│   │       └── versions/   # Migration файлы
-│   ├── tests/              # Backend тесты
-│   └── requirements.txt
-├── bot/                     # Telegram бот
-│   ├── utils/              # API client, auth, validators
-│   ├── jobs/               # Background jobs (scheduler)
-│   ├── config/             # Bot settings
-│   └── tests/
-├── frontend/                # Frontend статика
-│   ├── web/                # Веб-интерфейс (HTMX)
-│   │   ├── templates/      # Jinja2 шаблоны
-│   │   └── static/         # CSS, JS, vendor
-│   ├── webapp/             # Telegram Web Apps
-│   │   └── static/         # HTML, JS, CSS
-│   └── shared/             # Общие модули
-│       └── static/js/      # Shared JS (category tree, calendar)
-├── scripts/                 # Деплой и утилиты
-│   ├── lib/                # Shared bash functions
-│   ├── backup.sh           # Backup PostgreSQL
-│   ├── restore.sh          # Restore backup
-│   └── ssl_certificate_manager.sh
-├── sql/                     # SQL скрипты и запросы
-│   ├── queries/            # Полезные SQL запросы
-│   └── scripts/            # SQL утилиты
-├── tests/                   # Интеграционные/E2E тесты
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── nginx/                   # Nginx конфигурация
-├── docker-compose.yml       # Docker services
-├── install.sh               # Системные зависимости
-├── setup.sh                 # Настройка .env
-├── deploy.sh                # Деплой приложения
-└── logs.sh                  # Диагностика и логи
-```
-
-### Основные компоненты
+### Key Components
 
 **1. Backend (FastAPI)**
-- `backend/app/main.py` - Точка входа приложения
+- `backend/app/main.py` - Application entry point
 - `backend/app/api/v1/router.py` - API v1 router
 - `backend/app/api/web/router.py` - Web pages router
 - `backend/app/core/config.py` - Settings (Pydantic Settings)
@@ -104,68 +46,26 @@ familyBudget/
 - `backend/app/middleware/` - JWT auth, logging, CSP, validation
 
 **2. Database Models (SQLModel)**
-
-Все модели используют **SCD Type 1** (in-place updates) + отдельные **History tables** (SCD Type 2):
-- `Article` - Категории бюджета (иерархические, shared across users)
-- `ArticleHistory` - История изменений Article (SCD Type 2)
-- `BudgetFact` - Факты (fact table)
-- `BudgetFactHistory` - История изменений BudgetFact (SCD Type 2)
-- `User` - Пользователи (SCD Type 1 + UserHistory)
-- `FinancialCenter` - Финансовые центры (счета, кошельки)
-- `CostCenter` - Центры затрат (проекты, отделы)
-- `ArticleHierarchy` - Closure table для иерархии категорий
-- `Notification` - Уведомления (broadcast support)
-- `ImportStaging` - Staging table для импорта из Tinkoff
-
-**2a. PostgreSQL Data Directory (Docker Managed Volume)**
-
-PostgreSQL использует Docker managed volume для хранения данных:
-
-```yaml
-# docker-compose.yml
-volumes:
-  postgres_data:
-    external: true
-    name: budget_postgres_data  # Docker managed volume
-```
-
-**Преимущества Docker managed volume:**
-- Автоматическое управление permissions (нет необходимости в repair-функциях)
-- Лучшая изоляция данных от host системы
-- Упрощённый deploy без сложной логики восстановления директорий
-- Docker гарантирует целостность volume при перезапусках
-
-**Расположение данных:**
-- Volume name: `budget_postgres_data`
-- Физически: `/var/lib/docker/volumes/budget_postgres_data/_data/`
-
-**Troubleshooting:**
-
-```bash
-# Проверить volume
-docker volume inspect budget_postgres_data
-
-# Проверить данные в volume
-docker run --rm -v budget_postgres_data:/data alpine ls -la /data/
-
-# Логи PostgreSQL
-docker compose logs postgres --tail 50
-
-# Создать volume вручную (если отсутствует)
-docker volume create budget_postgres_data
-```
-
-**История:** v6.0 - миграция с bind mount на Docker managed volume завершена.
-Legacy repair функции удалены (см. git history для справки).
+All models use **SCD Type 1** (in-place updates) + separate **History tables** (SCD Type 2):
+- `Article` - Budget categories (hierarchical, shared across users)
+- `ArticleHistory` - Article change history (SCD Type 2)
+- `BudgetFact` - Facts (fact table)
+- `BudgetFactHistory` - BudgetFact change history (SCD Type 2)
+- `User` - Users (SCD Type 1 + UserHistory)
+- `FinancialCenter` - Financial centers (accounts, wallets)
+- `CostCenter` - Cost centers (projects, departments)
+- `ArticleHierarchy` - Closure table for category hierarchy
+- `Notification` - Notifications (broadcast support)
+- `ImportStaging` - Staging table for Tinkoff import
 
 **3. Database Migrations (Alembic)**
 - `backend/db/migrations/env.py` - Alembic environment
 - `backend/db/migrations/versions/` - Migration files
-- Формат: `YYYYMMDD_hash_description.py`
-- **Важно**: Migration 20251110 - baseline v5.1.0 (consolidated)
+- Format: `YYYYMMDD_hash_description.py`
+- **Important**: Migration 20251110 - baseline v5.1.0 (consolidated)
 
 **4. Telegram Bot**
-- `bot/bot.py` - Основной bot handler
+- `bot/bot.py` - Main bot handler
 - `bot/utils/api_client.py` - Backend API client
 - `bot/utils/telegram_auth.py` - Telegram OAuth
 - `bot/utils/notification_service.py` - Push notifications
@@ -173,139 +73,391 @@ Legacy repair функции удалены (см. git history для справ
 
 **5. Frontend**
 - **Web UI**: HTMX + Jinja2 templates + Tailwind CSS + DaisyUI
-- **Telegram Web Apps**: Standalone HTML pages для Menu Button
+- **Telegram Web Apps**: Standalone HTML pages for Menu Button
 - **Shared modules**: Category tree (Choices.js), calendar widget, date formatter
 
-## Команды для разработки
+## Installation Script Architecture
 
-### Локальная разработка
+**Main Script:** `install.sh` - System dependencies installation (Docker, Node.js, utilities)
+
+**Since version 1.0.0:** Installation Resilience Framework added
+
+### Resilience Components
+
+**1. Timeout & Retry Infrastructure** (`scripts/lib/timeout.sh`)
+- **Exponential backoff**: 5s → 10s → 20s → 40s → 60s (capped)
+- **Configurable timeouts** via environment variables:
+  - `TIMEOUT_APT_UPDATE=300` (5 min)
+  - `TIMEOUT_APT_UPGRADE=600` (10 min)
+  - `TIMEOUT_APT_INSTALL=600` (10 min)
+  - `TIMEOUT_NPM_INSTALL=900` (15 min)
+- **Retry configuration**:
+  - `MAX_RETRY_ATTEMPTS=3`
+  - `RETRY_BASE_DELAY=5`
+  - `RETRY_MAX_DELAY=60`
+
+**2. Network Pre-flight Checks** (`scripts/lib/network_health.sh`)
+- Internet connectivity (ICMP ping to 8.8.8.8, 1.1.1.1, 208.67.222.222)
+- DNS resolution (google.com, github.com, download.docker.com)
+- Repository accessibility (archive.ubuntu.com, download.docker.com, deb.nodesource.com)
+
+**3. Enhanced Error Reporting** (`scripts/lib/utils.sh`)
+- Context-aware error messages with recovery suggestions
+- Last 5 error lines extracted from log
+- Operation-specific troubleshooting (APT, NPM, Docker)
+
+### Core Functions
 
 ```bash
-# Python виртуальное окружение
+# Timeout & Retry
+apt_with_retry install -y nodejs          # APT with retry + exponential backoff
+npm_with_retry ci                         # NPM with timeout + retry
+curl_with_retry -fsSL https://...         # Curl with timeout + retry
+
+# Network Checks
+network_preflight_check "false"           # Run pre-flight (warn mode)
+suggest_network_fixes                     # Show troubleshooting steps
+
+# Error Reporting
+get_last_error_lines "$LOG_FILE" 5        # Last 5 errors from log
+suggest_fix_apt_update                    # APT troubleshooting
+suggest_fix_npm_install                   # NPM troubleshooting
+```
+
+### Usage Examples
+
+**Basic installation** (uses defaults):
+```bash
+sudo ./install.sh
+```
+
+**Custom timeouts** (slow network):
+```bash
+TIMEOUT_APT_INSTALL=1200 TIMEOUT_NPM_INSTALL=1800 sudo -E ./install.sh
+```
+
+**Manual network check**:
+```bash
+source scripts/lib/network_health.sh
+network_preflight_check "false"
+```
+
+### Docker GPG Key Validation (v1.1.0)
+
+**Since version 1.1.0**: Comprehensive GPG key validation with retry and binary verification.
+
+**Problem Solved:**
+- Installation hung on interactive prompt "File exists. Overwrite? (y/N)"
+- "gpg: no valid OpenPGP data found" error from corrupted key files
+- No validation of existing keys before deletion
+
+**Validation Pipeline (5 checkpoints):**
+
+1. **Check existing key** → validate before removing (keep if valid, skip re-download)
+2. **Download to temp file** → validate text format (not HTML error page)
+3. **Convert to binary** (`gpg --dearmor`) → monitor stderr for errors
+4. **Validate binary result** → check structure + gpg --list-keys
+5. **Install to final location** → cleanup temp files
+
+**Retry Strategy:**
+- Max 3 attempts with exponential backoff (5s → 10s → 20s)
+- Validates at EACH step (download, conversion, installation)
+- Creates backup before replacing valid keys
+
+**Functions:**
+
+```bash
+# Validate binary GPG key file structure
+validate_gpg_key_file /etc/apt/keyrings/docker.gpg
+# Returns: 0 if valid, 1 if invalid
+# Checks: binary signature (magic bytes) + gpg --list-keys + error keywords
+
+# Create timestamped backup
+backup_gpg_key /etc/apt/keyrings/docker.gpg
+# Creates: docker.gpg.backup.YYYYMMDD_HHMMSS
+# Auto-cleanup: keeps only 5 most recent backups
+
+# Setup Docker GPG key with comprehensive validation
+setup_docker_gpg_key
+# Full pipeline with retry: validate existing → download → convert → validate binary → install
+```
+
+**Usage:**
+
+```bash
+# Standard installation (automatic validation)
+sudo ./install.sh
+
+# Manual GPG key check
+validate_gpg_key_file /etc/apt/keyrings/docker.gpg && echo "Valid" || echo "Invalid"
+
+# Force fresh GPG key download (remove existing first)
+sudo rm -f /etc/apt/keyrings/docker.gpg
+sudo ./install.sh
+```
+
+**Location:** install.sh:241-632
+
+### Repository Detection (v1.1.0)
+
+**Since version 1.1.0**: Smart repository directory detection for error recovery.
+
+**Problem Solved:**
+- Confusing "Required template files are missing" error when install.sh run from wrong directory
+- No guidance on how to fix template file issues
+- Manual troubleshooting required to find correct repository path
+
+**Detection Methods (priority order):**
+
+1. **Git repository root** (`git rev-parse --show-toplevel`) - MOST RELIABLE
+2. **Walk up directory tree** (max 5 levels) looking for marker files - FALLBACK
+3. **Common locations** (`~/familyBudget`, `~/Documents/familyBudget`, etc.) - LAST RESORT
+
+**Marker Files:**
+- `install.sh` (installation script)
+- `.env.example` (environment template)
+- `nginx/conf.d/app-http.conf.template` (nginx config template)
+
+**Functions:**
+
+```bash
+# Auto-detect repository directory
+detect_repo_directory "$(pwd)"
+# Returns: repository path if found
+# Exit code: 0 if found, 1 if not found
+```
+
+**Usage:**
+
+```bash
+# Auto-detection in error messages (automatic)
+cd /wrong/directory
+sudo ./install.sh
+# Output: [SUCCESS] Repository found: /home/user/familyBudget
+#         Suggested fix: cd /home/user/familyBudget && sudo ./install.sh
+
+# Manual repository override via CLI
+sudo ./install.sh --repo-dir ~/familyBudget
+
+# Show help
+./install.sh --help
+```
+
+**Location:** scripts/lib/utils.sh:202-349
+
+### Troubleshooting Installation Failures
+
+**Check installation log:**
+```bash
+tail -f /var/log/familybudget_install.log
+```
+
+**Common issues:**
+1. **Network timeouts** → Increase timeout: `TIMEOUT_APT_INSTALL=1200 sudo -E ./install.sh`
+2. **DNS failures** → Check /etc/resolv.conf, add `nameserver 8.8.8.8`
+3. **Repository 404** → Check /etc/apt/sources.list for invalid repos
+4. **npm hangs** → Kill zombie processes: `sudo pkill -9 -f npm`
+5. **Docker GPG key** → Remove and retry: `sudo rm -f /etc/apt/keyrings/docker.gpg`
+
+**See:** `/docs/architecture/installation-resilience.md` for comprehensive guide
+
+## Development Commands
+
+### Local Development
+
+```bash
+# Python virtual environment
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Запуск backend локально (требуется PostgreSQL)
+# Run backend locally (requires PostgreSQL)
 uvicorn backend.app.main:app --reload --port 8000
 
-# Запуск бота локально
+# Run bot locally
 cd bot
 python bot.py
 ```
 
-### База данных (Alembic)
+### Database (Alembic)
 
 ```bash
-# Создать новую миграцию (из директории backend/)
+# Create new migration (from backend/ directory)
 cd backend
-alembic revision --autogenerate -m "описание изменений"
+alembic revision --autogenerate -m "description of changes"
 
-# Применить миграции
+# Apply migrations
 alembic upgrade head
 
-# Откатить миграцию
+# Rollback migration
 alembic downgrade -1
 
-# Показать текущую версию
+# Show current version
 alembic current
 
-# Показать историю миграций
+# Show migration history
 alembic history
 
-# ВАЖНО: Перед созданием миграции проверьте env.py - он импортирует все модели
+# IMPORTANT: Before creating migration check env.py - it imports all models
 ```
 
 ### Frontend (Tailwind CSS + JS)
 
 ```bash
-# Сборка Tailwind CSS
+# Build Tailwind CSS
 npm run build:css
 
-# Watch режим (автоматическая пересборка)
+# Watch mode (automatic rebuild)
 npm run watch:css
 
-# Минификация JS
+# Minify JS
 npm run minify:js
 
-# Минификация CSS
+# Minify CSS
 npm run minify:css
 
-# Полная сборка (CSS + JS + minify)
+# Full build (CSS + JS + minify)
 npm run build
 
-# Валидация минифицированных файлов
+# Validate minified files
 npm run validate:minified
 ```
 
-### PWA Icons (Генерация иконок)
+### Build System & Optimization (v5.6.0)
 
-**ВАЖНО:** PWA иконки НЕ хранятся в git - они генерируются автоматически при деплое из SVG файла.
+**Build pipeline** (as of 2025-12-26):
+- **Minification**: Terser (JS) + cssnano (CSS) with advanced configs
+- **Pre-compression**: Gzip -9 for all assets (60-70% delivery reduction)
+- **Bundling**: budgetShared.js combines DateFormatter, CalendarWidget, ChoicesCategoryTree
+- **Cache busting**: Automatic versioning via query parameters
 
+**Configuration files:**
+- `.terserrc.json` - Advanced JS minification (3-pass, toplevel mangling, unsafe optimizations)
+- `postcss.config.js` - Advanced CSS minification (advanced preset, identifier reduction)
+
+**Build commands:**
 ```bash
-# Регенерировать PWA иконки локально (для тестирования)
-./scripts/generate_pwa_icons.sh
-
-# Или указать конкретный SVG файл
-./scripts/generate_pwa_icons.sh path/to/icon.svg
+npm run build:css       # Tailwind CSS compilation
+npm run bundle          # Bundle shared modules
+npm run minify:js       # Minify JavaScript (uses .terserrc.json)
+npm run minify:css      # Minify CSS (uses postcss.config.js)
+npm run precompress     # Gzip pre-compression for all assets
+npm run build           # Full build pipeline (all of the above)
 ```
 
-**Автоматическая регенерация при деплое:**
+**Performance benchmarks:**
+- JS: 60-70% raw reduction, 75-80% gzipped
+- CSS: 50-60% raw reduction, 70-75% gzipped
+- Delivery: 60-70% reduction via pre-compressed .gz files
+- Build time: ~15-20 seconds (full build)
 
-1. **Добавить новую иконку в репозиторий:**
-   ```bash
-   # Скопировать новую SVG иконку в tmp/
-   cp new-icon.svg tmp/budget-icon-v3.svg
-   git add tmp/budget-icon-v3.svg
-   git commit -m "chore: update PWA icon source"
-   git push
-   ```
+**See:** `/docs/architecture/build-system.md` for detailed documentation
 
-2. **При деплое автоматически:**
-   - `tmp/budget-icon-v3.svg` копируется в `/opt/budget/tmp/`
-   - `deploy.sh` обнаруживает триггер файл
-   - Вызывается `generate_pwa_icons.sh` для регенерации всех иконок
-   - Триггер файл удаляется после успешной генерации
-   - Service Worker cache обновляется с новыми иконками
+### Logging System (v5.6.0)
 
-3. **Сгенерированные файлы:**
-   - `frontend/web/static/icons/icon-192.png` (192x192)
-   - `frontend/web/static/icons/icon-512.png` (512x512)
-   - `frontend/web/static/icons/icon-maskable-512.png` (512x512 с safe zone)
-   - `frontend/web/static/icons/apple-touch-icon.png` (180x180)
-   - `frontend/web/static/icons/favicon.ico` (16x16, 32x32, 48x48)
-   - `frontend/web/static/icons/icon.svg` (копия источника)
+**Browser logging** (as of 2025-12-26):
+- **Centralized Logger class** with environment-based control
+- **Module-specific prefixes**: [PWA], [SW], [DB], [SYNC], [API], [PERF], [FORM]
+- **Environment detection**: Auto-disable in production, full logging in development
+- **Pre-configured loggers**: `window.logAPI`, `window.logDB`, `window.logSync`, etc.
 
-**Примечания:**
-- Если `tmp/budget-icon-v3.svg` НЕ существует при деплое → иконки не регенерируются
-- Это экономит время деплоя когда иконки не изменялись
-- Service Worker CACHE_VERSION автоматически обновляется при каждом деплое
-- `sw.js` в репозитории содержит `CACHE_VERSION_PLACEHOLDER` - реальная версия генерируется при деплое
+**Configuration:** `frontend/web/static/js/config/logging.js`
 
-### Тестирование
+**Usage:**
+```javascript
+// Use pre-configured logger
+logAPI.info('Request started');
+logAPI.time('API call');
+// ... operation ...
+logAPI.timeEnd('API call');
+
+// Create custom logger
+const logCustom = new Logger('[CUSTOM]', 'CUSTOM');
+logCustom.info('Custom log message');
+
+// Runtime control (debugging)
+setLoggingLevel('API', false);  // Disable API logging
+getLoggingStatus();             // Get current config
+```
+
+**Performance monitoring:**
+- **PerformanceMonitor**: Automatic page load metrics + Core Web Vitals
+- **Metrics tracked**: DNS, TCP, Request, Response, DOM processing, LCP, FID, CLS
+- **Available via**: `window.perfMonitor.getMetrics()`
+
+**See:** Logger class (`frontend/web/static/js/utils/logger.js`) and PerformanceMonitor (`frontend/web/static/js/utils/performanceMonitor.js`)
+
+### Web Workers
+
+**Location:** `frontend/web/static/js/workers/`
+
+**Status:** Phases 1-5 Complete ✅
+- ✅ Phase 1: Core Infrastructure (workerWrapper.js, cache busting)
+- ✅ Phase 2: Hierarchy Worker (category tree processing)
+- ✅ Phase 3: CSV Worker (Base64 encoding, CSV parsing)
+- ✅ Phase 4: Sync Worker (parallel batch processing)
+- ✅ Phase 5: Pending Records Worker (main page HTML generation)
+- ❌ Analytics Worker (created but NOT integrated - async overhead issue)
+
+**Performance Improvements:**
+- Category hierarchy: 200-300ms → 50-100ms (70% faster)
+- CSV 10MB encoding: 2-5s → 100-500ms (80-90% faster)
+- Sync queue (100 items): Sequential 10-15s → Parallel 3-4s (4-6x faster)
+- Pending records (50+ items): 50-200ms → 10-40ms (70-80% faster)
+
+**Workers:**
+- `workerWrapper.js` - Core wrapper with cache busting, feature flags, memory monitoring
+- `hierarchyWorker.js` - Category tree processing (integrated in choicesCategoryTree.js)
+- `csvWorker.js` - CSV parsing + Base64 encoding (integrated in csvImporter.js)
+- `syncWorker.js` - Parallel sync processing (integrated in offlineManager.js)
+- `pendingRecordsWorker.js` - Pending records HTML generation (integrated in index.html)
+- `analyticsWorker.js` - Chart data processing (**REMOVED v5.6.0** - never integrated, async overhead issue)
+
+**Feature Flag:**
+```bash
+# In .env
+ENABLE_WEB_WORKERS=true  # Default: enabled
+```
+
+**Cache Busting:**
+Workers automatically load with version parameter:
+```html
+<script src="/static/js/workers/core/workerWrapper.min.js?v=20251225_1830"></script>
+```
+
+**Testing:**
+```bash
+# Workers minified automatically with npm run minify:js
+# Check worker status in browser console:
+# ChoicesCategoryTree._workerWrapper.getStatus()
+```
+
+**See:** `/docs/architecture/web-workers.md` for detailed architecture
+
+### Testing
 
 ```bash
-# Все тесты
+# All tests
 pytest
 
-# Только unit тесты
+# Only unit tests
 pytest -m unit
 
-# Только integration тесты
+# Only integration tests
 pytest -m integration
 
-# E2E тесты (Playwright)
+# E2E tests (Playwright)
 npx playwright test
 npx playwright test --ui  # Interactive mode
 
-# С покрытием
+# With coverage
 pytest --cov=backend --cov=bot --cov-report=html
 
-# Конкретный тест
+# Specific test
 pytest tests/unit/test_article_service.py::test_create_article
 
-# Verbose режим
+# Verbose mode
 pytest -v -s
 ```
 
@@ -323,48 +475,78 @@ black --check backend/  # Check only
 # Type checking (mypy)
 mypy backend/
 
-# Все проверки сразу
+# All checks together
 ruff check backend/ && black --check backend/ && mypy backend/
 ```
 
-### Docker (Деплой)
+### Docker (Deployment)
 
 ```bash
-# ВАЖНО: Запускайте из директории репозитория (~/familyBudget), НЕ из /opt/budget
+# IMPORTANT: Run from repository directory (~/familyBudget), NOT from /opt/budget
 
-# Базовый деплой (postgres + backend)
+# Basic deployment (postgres + backend)
 ./deploy.sh
 
-# Полный деплой (+ nginx + bot + certbot)
+# Full deployment (+ nginx + bot + certbot)
 ./deploy.sh --profile full
 
-# Пересборка образов
+# Rebuild images
 ./deploy.sh --build
 
-# Foreground режим (логи в реальном времени)
+# Foreground mode (real-time logs)
 ./deploy.sh --foreground
 
-# Чистый деплой (УДАЛЯЕТ ВСЕ ДАННЫЕ!)
+# Clean deployment (DELETES ALL DATA!)
 ./deploy.sh --clean
 
-# Без миграций
+# Without migrations
 ./deploy.sh --no-migrate
 
-# Docker Compose команды (из /opt/budget)
+# Docker Compose commands (from /opt/budget)
 cd /opt/budget
-docker compose ps                    # Статус
-docker compose logs -f backend       # Логи backend
-docker compose restart backend       # Перезапуск
-docker compose down                  # Остановка
-docker compose exec backend bash     # Shell в контейнере
+docker compose ps                    # Status
+docker compose logs -f backend       # Backend logs
+docker compose restart backend       # Restart
+docker compose down                  # Stop
+docker compose exec backend bash     # Shell in container
 
-# Диагностика и логи
-./logs.sh                   # Полная диагностика
-./logs.sh --save            # Сохранить в файл
-./logs.sh --quick           # Только статус
-./logs.sh --alert           # Критичные проблемы
+# Diagnostics and logs
+./logs.sh                   # Full diagnostics
+./logs.sh --save            # Save to file
+./logs.sh --quick           # Status only
+./logs.sh --alert           # Critical issues only
 ./logs.sh --follow backend  # Live tail
 ```
+
+### Docker Volume Management
+
+**Since version 1.2.0:** PostgreSQL Docker volume создается автоматически при деплое.
+
+**Автоматическое создание:**
+```bash
+# deploy.sh автоматически проверяет и создает volume если отсутствует
+cd ~/familyBudget
+sudo ./deploy.sh
+# Output: "PostgreSQL volume created: budget_postgres_data" (только при первом запуске)
+```
+
+**Ручное управление:**
+```bash
+# Проверить существование volume
+docker volume inspect budget_postgres_data
+
+# Список всех volumes проекта
+docker volume ls --filter "name=budget"
+
+# Проверить размер и использование
+docker system df -v | grep budget_postgres_data
+```
+
+**Troubleshooting:**
+- **Сбой создания volume:** Проверьте Docker daemon status, disk space, permissions
+- **Volume не найден после создания:** Проверьте `docker volume ls` (убедитесь что создание прошло успешно)
+
+Смотрите `/docs/BACKUP_RESTORE.md` для процедур disaster recovery.
 
 ### Backup & Restore
 
@@ -375,584 +557,1047 @@ docker compose exec backend bash     # Shell в контейнере
 # Restore backup
 ./scripts/restore.sh /opt/budget/backups/backup_20251120.sql
 
-# S3 backup (если настроен S3)
+# S3 backup (if S3 configured)
 ./scripts/s3_backup.py
 ```
 
-### SSL Certificates
+### UFW Firewall for PostgreSQL
+
+**Automatic Configuration:** `deploy.sh` automatically configures UFW rules for PostgreSQL based on `.env` variables.
+
+**Environment Variables:**
+- `POSTGRES_EXTERNAL_ACCESS` - Enable external PostgreSQL access (default: `false`)
+- `POSTGRES_ALLOWED_IP` - IP address allowed to connect (required if `POSTGRES_EXTERNAL_ACCESS=true`)
+
+**Behavior:**
 
 ```bash
-# Управление SSL сертификатами
-./scripts/ssl_certificate_manager.sh
+# Scenario 1: External access DISABLED (default, most secure)
+POSTGRES_EXTERNAL_ACCESS=false
 
-# Проверка сертификатов
-./scripts/check_certificates.sh
+# Result: All UFW rules for port 5432 are removed (internal Docker only)
+# PostgreSQL accessible ONLY from Docker containers
 
-# Очистка старых сертификатов
-./scripts/clean_old_certificates.sh
+# Scenario 2: External access ENABLED with specific IP
+POSTGRES_EXTERNAL_ACCESS=true
+POSTGRES_ALLOWED_IP=192.168.1.100
+
+# Result: UFW rule created: allow from 192.168.1.100 to any port 5432
+# Old rules automatically removed, new rule created
+
+# Scenario 3: External access ENABLED but IP not set (ERROR)
+POSTGRES_EXTERNAL_ACCESS=true
+POSTGRES_ALLOWED_IP=
+
+# Result: ERROR - deployment fails for security
+# Message: "POSTGRES_ALLOWED_IP is not set! This would allow from ANY IP (security risk)"
 ```
 
-## Важные концепции и паттерны
+**Manual Management:**
+
+```bash
+# Test UFW configuration function (without deploy)
+cd ~/familyBudget
+source scripts/lib/config.sh
+source scripts/lib/utils.sh
+source scripts/lib/firewall.sh
+configure_ufw_for_postgres
+
+# Check current UFW rules
+sudo ufw status numbered
+# Look for rules with port 5432
+
+# Manually add rule (if not using deploy.sh)
+sudo ufw allow from 192.168.1.100 to any port 5432 comment "PostgreSQL external access"
+
+# Manually remove rule
+sudo ufw status numbered  # Find rule number for port 5432
+sudo ufw delete <rule-number>
+
+# Verify PostgreSQL external connectivity
+psql -h <server-ip> -U familybudget -d familybudget
+# Should connect if IP allowed, timeout if blocked
+```
+
+**Security Notes:**
+- ✅ **Recommended:** `POSTGRES_EXTERNAL_ACCESS=false` (internal only via Docker)
+- ⚠️ **Use sparingly:** External access only for remote administration
+- ❌ **Never:** Leave `POSTGRES_ALLOWED_IP` empty when `POSTGRES_EXTERNAL_ACCESS=true`
+- 🔒 **Defense in depth:** UFW rules + Docker firewall (DOCKER-USER chain) both protect PostgreSQL
+
+**Troubleshooting:**
+
+```bash
+# Check UFW status
+sudo ufw status verbose
+
+# Check Docker firewall (iptables)
+sudo iptables -L DOCKER-USER -n -v --line-numbers
+
+# Test PostgreSQL connectivity from external IP
+# From allowed IP:
+psql -h <server-ip> -U familybudget -d familybudget
+# Should connect if rules correct
+
+# From blocked IP:
+psql -h <server-ip> -U familybudget -d familybudget
+# Should timeout (no route / connection refused)
+
+# Logs
+tail -f /opt/budget/logs/deploy.log
+# Look for "Configuring UFW Rules for PostgreSQL"
+```
+
+**See also:**
+- `scripts/lib/firewall.sh` - Firewall configuration functions
+- `deploy.sh` lines 1447-1456 - Automatic UFW configuration during deployment
+
+## Testing Environment Workflow
+
+**CRITICAL:** This is the ONLY approved process for testing changes on the test server (budget-test).
+
+### Standard Testing Procedure
+
+**Prerequisites:**
+- SSH access configured for `budget-test` server
+- Changes committed to `test` branch in local repository
+- Test server has `~/familyBudget` repository cloned
+
+**Step-by-Step Process:**
+
+```bash
+# 1. Connect to test server
+ssh budget-test
+
+# 2. Pull latest changes in test branch
+cd ~/familyBudget
+git pull origin test
+
+# 3. Execute deployment with patch mode
+sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch
+
+# 4. Analyze terminal output during deployment
+# Watch for:
+# - Build errors
+# - Migration failures
+# - Container startup issues
+# - Port conflicts
+
+# 5. After successful completion, review deployment log
+cat /opt/budget/logs/deploy.log
+# Look for:
+# - WARNING/ERROR entries
+# - Failed health checks
+# - Incomplete operations
+
+# 6. Analyze running container logs
+cd /opt/budget
+docker compose logs -f backend     # Backend application logs
+docker compose logs -f postgres    # Database logs
+docker compose logs -f nginx       # Web server logs
+docker compose logs -f bot         # Telegram bot logs
+
+# Check for:
+# - Python exceptions/tracebacks
+# - SQL errors
+# - Connection failures
+# - Resource warnings (memory, CPU)
+```
+
+### Issue Resolution Workflow
+
+**When issues are found:**
+
+```bash
+# 1. Document the issue
+# - Screenshot error messages
+# - Copy relevant log excerpts
+# - Note reproduction steps
+
+# 2. Fix locally in repository (NOT on server)
+cd ~/familyBudget  # Local machine
+# Edit files
+# Test locally if possible
+
+# 3. Commit and push to test branch
+git add .
+git commit -m "fix: description of fix"
+git push origin test
+
+# 4. Return to Step 1 (deploy on test server again)
+```
+
+### Post-Deployment Verification
+
+**CRITICAL:** Always check for orphaned processes after deployment.
+
+```bash
+# Check for processes that should have stopped
+ps aux | grep -E "(uvicorn|gunicorn|python.*bot\.py)" | grep -v grep
+
+# Check Docker container status
+docker compose ps
+
+# Verify only expected containers are running:
+# - postgres (always)
+# - backend (always)
+# - nginx (if --profile full)
+# - bot (if --profile full)
+# - certbot (if --profile full, may be stopped after cert renewal)
+
+# Check for port conflicts
+sudo netstat -tlnp | grep -E ":(5432|8000|80|443)"
+
+# Check system resources
+docker stats --no-stream
+
+# Verify application health
+curl -s http://localhost:8000/health | jq
+curl -s http://localhost:8000/ready | jq
+```
+
+### Common Issues and Diagnostics
+
+**Issue: Container fails to start**
+```bash
+# Check container logs
+docker compose logs --tail=100 <container-name>
+
+# Inspect container state
+docker compose ps -a
+
+# Check for port conflicts
+sudo lsof -i :<port-number>
+```
+
+**Issue: Migration fails**
+```bash
+# Check migration status
+docker compose exec backend alembic current
+docker compose exec backend alembic history
+
+# View migration logs
+grep -A20 "Migration" /opt/budget/logs/deploy.log
+
+# Manually run migrations (if safe)
+docker compose exec backend alembic upgrade head
+```
+
+**Issue: Orphaned processes**
+```bash
+# Find orphaned Python processes
+ps aux | grep python | grep -v docker
+
+# Kill orphaned processes (be careful!)
+sudo pkill -f "uvicorn.*familybudget"
+sudo pkill -f "python.*bot\.py"
+
+# Verify clean state
+ps aux | grep -E "(uvicorn|gunicorn|python.*bot)" | grep -v grep
+# Should return nothing
+```
+
+### Deployment Flags Explained
+
+**Flags used in standard testing workflow:**
+
+- `--sync-mode update`: Sync only changed files from repository to /opt/budget
+  - Faster than full sync
+  - Preserves .env and other local configs
+  - Safe for incremental updates
+
+- `--cleanup-mode smart`: Intelligent cleanup of old artifacts
+  - Removes old Docker images (not used by running containers)
+  - Cleans up temporary files
+  - Preserves backups and logs
+  - Safe for regular deployments
+
+- `--patch`: Patch deployment (no rebuild unless necessary)
+  - Restarts only changed services
+  - Fast deployment (2-5 minutes vs 10-15 for full rebuild)
+  - Preserves database and volumes
+  - **Use for:** Code changes, config updates, minor fixes
+  - **Don't use for:** Dependency changes, Dockerfile changes, major refactoring
+
+### Test Branch Workflow
+
+**IMPORTANT:** The `test` branch is for testing only. Never merge untested code to `main`.
+
+```bash
+# Local development workflow:
+git checkout test
+# Make changes
+git add .
+git commit -m "type: description"
+git push origin test
+
+# Test on budget-test server (see Standard Testing Procedure above)
+
+# If tests pass, merge to main
+git checkout main
+git merge test
+git push origin main
+
+# If tests fail, return to development
+git checkout test
+# Fix issues
+# Repeat cycle
+```
+
+### Performance Benchmarks (budget-test)
+
+**Expected deployment times:**
+- Patch deployment (`--patch`): 2-5 minutes
+- Full rebuild (`--build`): 10-15 minutes
+- Clean deployment (`--clean`): 15-20 minutes
+
+**Expected container startup times:**
+- postgres: 5-10 seconds
+- backend: 10-15 seconds (includes migrations)
+- nginx: 2-5 seconds
+- bot: 5-10 seconds
+
+**If deployment takes longer:** Check logs for issues (network, disk I/O, resource constraints).
+
+### Emergency Procedures
+
+**If deployment fails catastrophically:**
+
+```bash
+# 1. Stop all containers
+cd /opt/budget
+docker compose down
+
+# 2. Check system resources
+df -h          # Disk space
+free -h        # Memory
+docker system df  # Docker disk usage
+
+# 3. Clean Docker system (if space issue)
+docker system prune -a --volumes  # ⚠️ DELETES ALL DATA
+
+# 4. Restore from backup (if data corrupted)
+cd ~/familyBudget
+./scripts/restore.sh /opt/budget/backups/latest.sql
+
+# 5. Clean redeployment
+sudo bash deploy.sh --clean --profile full
+```
+
+**If test server becomes unresponsive:**
+
+```bash
+# From local machine
+ssh budget-test "sudo reboot"
+
+# Wait 2-3 minutes, then reconnect
+ssh budget-test
+
+# Check services after reboot
+cd /opt/budget
+docker compose ps
+```
+
+### Checklist: Before Leaving Test Server
+
+**Always verify before disconnecting SSH:**
+
+- [ ] All expected containers are running (`docker compose ps`)
+- [ ] No orphaned processes (`ps aux | grep python`)
+- [ ] Application responds to health checks (`curl localhost:8000/health`)
+- [ ] Logs show no errors (`docker compose logs --tail=50`)
+- [ ] Disk space is adequate (`df -h`)
+- [ ] No port conflicts (`sudo netstat -tlnp`)
+
+**Clean exit:**
+```bash
+# Review final state
+cd /opt/budget
+docker compose ps
+docker stats --no-stream
+
+# Exit SSH
+exit
+```
+
+## Important Concepts and Patterns
 
 ### SCD Type 1 + History Tables
 
-**С версии 5.1.0 изменилась архитектура:**
-- **Main tables** (Article, User, etc.) содержат ТОЛЬКО текущее состояние (SCD Type 1)
-- **History tables** (ArticleHistory, UserHistory, etc.) хранят ВСЮ историю (SCD Type 2)
-- **Преимущества**: Stable PK в fact tables, simple queries, performance
+**Since version 5.1.0 architecture changed:**
+- **Main tables** (Article, User, etc.) contain ONLY current state (SCD Type 1)
+- **History tables** (ArticleHistory, UserHistory, etc.) store ALL history (SCD Type 2)
+- **Benefits**: Stable PK in fact tables, simple queries, performance
 
-**Примеры:**
+**Examples:**
 ```python
-# Обновление Article (in-place)
+# Update Article (in-place)
 article.name = "New Name"
-await session.commit()  # UPDATE, не INSERT
+await session.commit()  # UPDATE, not INSERT
 
-# История автоматически записывается через database triggers или service layer
+# History is automatically recorded via database triggers or service layer
 ```
 
 ### Hierarchical Categories (Closure Table)
 
-Articles используют **Closure Table** pattern для эффективных иерархических запросов:
+Articles use **Closure Table** pattern for efficient hierarchical queries:
 - `ArticleHierarchy` - Closure table (ancestor_id, descendant_id, depth)
-- Позволяет быстро получить: subtree, ancestors, breadcrumbs, depth
+- Allows fast retrieval of: subtree, ancestors, breadcrumbs, depth
 
-**Примеры:**
+**Examples:**
 ```python
-# Получить все дочерние категории
+# Get all child categories
 subtree = await article_service.get_subtree(article_id)
 
-# Получить все родительские категории
+# Get all parent categories
 ancestors = await article_service.get_ancestors(article_id)
 
-# Breadcrumbs (от root до article)
+# Breadcrumbs (from root to article)
 breadcrumbs = await article_service.get_breadcrumbs(article_id)
 ```
 
 ### Shared Family Budget Model
 
-**Модель данных:** Проект использует "Shared Family Budget" - все пользователи видят ВСЕ данные.
+**Data Model:** Project uses "Shared Family Budget" - all users see ALL data.
 
-**Важные особенности:**
+**Important features:**
 - **Articles**: Shared across all users (READ for all, WRITE for admin only)
-- **BudgetFact**: Shared - все пользователи видят все транзакции семьи
-- **FinancialCenter, CostCenter**: Shared - общие справочники для всей семьи
-- **user_id в BudgetFact**: Указывает КТО создал запись, но НЕ ограничивает доступ
+- **BudgetFact**: Shared - all users see all family transactions
+- **FinancialCenter, CostCenter**: Shared - common directories for entire family
+- **user_id in BudgetFact**: Indicates WHO created record, but does NOT restrict access
 
-**Примеры:**
+### Admin Authentication Bypass (v6.3.0+)
+
+**Since version 6.3.0**: Admin users can login via email/password WITHOUT 2FA requirement.
+
+**Purpose**: Emergency access for system recovery if 2FA device lost.
+
+**Implementation**: `/api/v1/auth/login` endpoint checks `is_admin` flag after email/password validation. If admin, generates JWT tokens directly and skips 2FA session creation.
+
+**Security**: Regular users ALWAYS require 2FA. Admin bypass restricted to `is_admin=True` only.
+
+**Configuration**: Set ADMIN_EMAIL and ADMIN_PASSWORD in .env during setup.sh. Admin user created automatically by scripts/create_admin_user.py during deployment.
+
+**Code Example:**
 ```python
-# ✅ ПРАВИЛЬНО - Shared Budget (все видят всё)
-facts = await session.exec(select(BudgetFact))
+# backend/app/api/v1/endpoints/auth.py
+@router.post("/login")
+async def login_email(
+    request: Request,
+    response: Response,
+    data: EmailLoginRequest,
+    ...
+) -> EmailLoginResponse | AuthResponse:
+    user = await authenticate_with_password(session, data.email, data.password)
 
-# ✅ ПРАВИЛЬНО - фильтр по автору (необязательный)
-my_facts = await session.exec(
-    select(BudgetFact)
-    .where(BudgetFact.user_id == current_user.id)
-)
+    # Admin bypass: Skip 2FA for emergency access
+    if user.is_admin:
+        logger.info(f"[AUTH_EMAIL] Admin login bypass: user_id={user.id}, bypassing 2FA")
+        access_token = create_access_token(user_id=user.id, ...)
+        refresh_token, expires = create_refresh_token(user_id=user.id)
+        # ... set cookies, store refresh token in DB
+        return AuthResponse(
+            user=...,
+            message="Admin authentication successful (2FA bypassed)",
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
 
-# Articles - shared (no filter needed for READ)
-articles = await session.exec(select(Article))
+    # Regular users: Require 2FA (existing logic)
+    session_token = await create_2fa_session(session, user.id)
+    return EmailLoginResponse(requires_2fa=True, session_token=session_token)
 ```
 
-**При написании тестов:** НЕ ожидать 404 для чужих записей - в Shared Budget все записи доступны всем.
+**Logging**: All admin logins logged with `[AUTH_EMAIL]` prefix. Failed attempts logged with IP address.
+
+**Frontend Detection:**
+```javascript
+// frontend/web/templates/login_email.html
+const data = await response.json();
+
+// Admin bypass: AuthResponse has access_token + refresh_token
+if (data.access_token && data.refresh_token) {
+    console.log('[AUTH_EMAIL] Admin bypass detected - redirecting to dashboard');
+    window.location.href = '/';
+    return;
+}
+
+// Regular user: EmailLoginResponse has session_token + requires_2fa
+if (data.session_token && data.requires_2fa) {
+    console.log('[AUTH_EMAIL] Regular user - 2FA required');
+    window.location.href = '/2fa-verify';
+}
+```
+
+**Security Measures:**
+- Strong password requirements (OWASP 2023: 24 chars, uppercase, lowercase, digit, special)
+- Rate limiting (5 attempts/minute)
+- Argon2id password hashing
+- Comprehensive logging (success + failures with IP)
+
+**See**: `/docs/architecture/authentication.md` for complete architecture and `/docs/architecture/admin-setup.md` for setup guide.
+
+### Recurring Plans: Yearly Frequency Encoding
+
+**Since version 6.2.0**: Yearly recurring plans use MMDD encoding for `frequency_value`.
+
+**Encoding scheme**:
+- Format: `(month * 100) + day`
+- Range: 101 (Jan 1) to 1231 (Dec 31)
+- Examples: 115 = Jan 15, 315 = Mar 15, 615 = Jun 15, 1231 = Dec 31
+
+**Validation**:
+- Pydantic validator checks month (1-12) and day validity for month
+- PostgreSQL CHECK constraint enforces range 101-1231 for yearly
+- February 29 NOT allowed (avoids leap year complexity)
+- Invalid dates rejected: Apr 31, Feb 30, month 13, etc.
+
+**Frontend Implementation**:
+- Yearly uses separate month/day selects (not single number input)
+- JavaScript encodes to MMDD via `updateYearlyFrequencyValue()`
+- JavaScript decodes for display via `getFrequencyDisplayText()`
+- Preview shows: "Ежегодно, 15 марта"
+- Client-side validation prevents invalid combinations (e.g., Feb 31)
+
+**Backend Implementation**:
+- `_calculate_next_occurrence()` decodes MMDD, calculates next year's date
+- Algorithm: If current date >= target date this year, use next year
+- `_get_frequency_display()` decodes to human-readable Russian text
+- Comprehensive logging with `[CALC_NEXT]` and `[VALIDATION]` prefixes
+
+**Example calculation**:
+```python
+# March 15 every year (frequency_value=315)
+_calculate_next_occurrence(from_date=date(2025, 1, 1))
+# → date(2025, 3, 15)  # Before March 15 this year
+
+_calculate_next_occurrence(from_date=date(2025, 3, 20))
+# → date(2026, 3, 15)  # After March 15 this year
+```
+
+**Logging**:
+```python
+# Backend validation
+logger.info("[VALIDATION] yearly frequency_value=315 validated (month=3, day=15)")
+
+# Backend calculation
+logger.info("[CALC_NEXT] Yearly: decoded frequency_value=315 → month=3, day=15, from_date=2025-01-01")
+logger.info("[CALC_NEXT] Yearly: 2025-01-01 → 2025-03-15")
+
+# Frontend
+console.log('[PLAN] updateYearlyFrequencyValue: month=3, day=15')
+console.log('[PLAN] Encoded frequency_value: 315 (MMDD format)')
+console.log('[PLAN] Yearly decoded: 315 → 15 марта')
+```
+
+**Related Files**:
+- Backend: `backend/app/schemas/recurring_plan.py` (lines 127-175)
+- Backend: `backend/app/services/recurring_plan_service.py` (lines 756-807)
+- Frontend: `frontend/web/templates/components/modal_plan.html` (lines 155-187)
+- Frontend: `frontend/web/templates/plan.html` (lines 2722-2743, 4358-4424, 4486-4516)
+- Migration: `backend/db/migrations/versions/20251226_e8e69b30e4db_*.py`
+- Documentation: `/docs/architecture/recurring-plans.md`
+
+**Supported frequency types** (as of v6.2.0):
+- `monthly` - Every Nth day of month (1-28)
+- `quarterly` - Every Nth day of quarter (1-28)
+- `yearly` - Every year on specific date (MMDD format)
+
+**Removed frequency types** (as of v6.2.0):
+- `daily` - Removed (too granular for budget planning)
+- `weekly` - Removed (too granular for budget planning)
+
+### Transfer Deduplication (Offline Sync & Duplicate Prevention)
+
+**Added in version 5.4.1** - Critical fix to prevent duplicate transfer creation.
+
+**Problem Solved:**
+- Frontend double-submission (multiple clicks, network retries, race conditions)
+- Offline sync repeated clicks
+- Multiple form submissions creating duplicate transfers
+
+**Architecture:**
+
+Transfers use **sync_hash + content_hash** deduplication pattern (same as Facts):
+
+```python
+# Migration: 20251214_v7h8i9j0k1l2_add_deduplication_hashes.py
+# Added to t_f_budget_fact and t_f_budget_fact_history:
+- sync_hash: VARCHAR(32) NULL - MD5(content_hash|user_id|created_date)
+- content_hash: VARCHAR(32) NULL - MD5(article_id|amount|fact_date|description|record_type)
+```
+
+**Deduplication Logic in transfers.py:143-241:**
+
+1. **Check for duplicate** (if `is_offline_sync=true` AND `sync_hash` provided):
+   ```python
+   # Search for existing transfer with same sync_hash < 24 hours
+   duplicate_stmt = select(BudgetFact).where(
+       BudgetFact.sync_hash == transfer.sync_hash,
+       BudgetFact.is_offline_sync == True,
+       BudgetFact.transfer_id.isnot(None),
+       BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
+   )
+   ```
+
+2. **Return existing transfer** (idempotent response):
+   ```python
+   if existing_fact:
+       # Load both expense and income facts via transfer_id
+       # Return TransferResponse with existing transfer_id + fact IDs
+       return TransferResponse(
+           transfer_id=existing_transfer_id,
+           expense_fact_id=expense_fact.id,
+           income_fact_id=income_fact.id,
+           ...
+       )
+   ```
+
+3. **Create new transfer** (if no duplicate found):
+   ```python
+   # Save sync_hash and content_hash to BOTH facts (expense + income)
+   expense_fact = BudgetFact(
+       ...,
+       sync_hash=transfer.sync_hash,
+       content_hash=transfer.content_hash,
+   )
+   income_fact = BudgetFact(
+       ...,
+       sync_hash=transfer.sync_hash,  # Same hash for both facts
+       content_hash=transfer.content_hash,
+   )
+   ```
+
+**Why sync_hash is SAME for both facts:**
+- Transfer creates 2 BudgetFact records (expense + income)
+- Both facts belong to same logical transfer operation
+- Same `sync_hash` allows duplicate detection on EITHER fact
+- Both facts share same `transfer_id` for linking
+
+**Testing Deduplication:**
+
+```bash
+# 1. Create transfer with sync_hash
+curl -X POST http://localhost:8000/api/v1/transfers \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_financial_center_id": 1,
+    "to_financial_center_id": 2,
+    "from_article_id": 10,
+    "to_article_id": 20,
+    "amount": 100.00,
+    "transfer_date": "2025-12-25",
+    "is_offline_sync": true,
+    "sync_hash": "abc123unique456hash789"
+  }'
+
+# Response: {"transfer_id": 100, "expense_fact_id": 200, "income_fact_id": 201, ...}
+
+# 2. Repeat SAME request → should return EXISTING transfer
+curl -X POST ... (same payload)
+
+# Response: {"transfer_id": 100, ...}  # Same IDs (no new transfer created!)
+
+# 3. Check database - should have exactly 2 BudgetFact records
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT id, transfer_id, sync_hash FROM t_f_budget_fact WHERE transfer_id = 100;"
+
+# Expected: 2 rows (expense + income), both with same sync_hash
+
+# 4. Check logs - second request should log deduplication
+docker compose logs backend | grep "\[DEDUP\]"
+# Expected: [DEDUP] Transfer duplicate detected: sync_hash=abc123..., existing_transfer_id=100
+```
+
+**Comparison with facts.py:**
+
+| Feature | facts.py (single record) | transfers.py (2 records) |
+|---------|--------------------------|--------------------------|
+| Deduplication check | ✅ Yes (lines 111-173) | ✅ Yes (lines 173-241) |
+| sync_hash usage | ✅ Per-record hash | ✅ Same hash for expense + income |
+| content_hash usage | ✅ Per-record content | ✅ Same content for both facts |
+| Idempotent response | ✅ Returns existing fact | ✅ Returns existing transfer |
+| Time window | ✅ 24 hours | ✅ 24 hours |
+| Write-Behind support | ✅ Yes (async via Redis) | ⚠️ No (sync write only) |
+
+**Future Enhancement:**
+- Add Write-Behind pattern to transfers.py for async writes (like facts.py)
+- Would reduce latency from ~50ms to ~10ms for transfer creation
+
+**Related Files:**
+- `backend/app/schemas/transfer.py:69-78` - sync_hash/content_hash fields
+- `backend/app/api/v1/endpoints/transfers.py:173-241` - Deduplication logic
+- `backend/db/migrations/versions/20251214_v7h8i9j0k1l2_add_deduplication_hashes.py` - Migration
 
 ### JWT Authentication
 
-- JWT tokens в **httpOnly cookies** (security)
-- Middleware `JWTAuthMiddleware` автоматически проверяет токены
-- Refresh tokens в БД (`RefreshToken` model)
-- Telegram OAuth для входа (`/auth/telegram` endpoint)
-
-**Защищенные endpoints:**
-```python
-@router.get("/protected")
-async def protected_route(current_user: User = Depends(get_current_user)):
-    # current_user автоматически из JWT
-    return {"user_id": current_user.id}
-```
+- JWT tokens in **httpOnly cookies** (security)
+- Middleware `JWTAuthMiddleware` automatically validates tokens
+- Refresh tokens in DB (`RefreshToken` model)
+- Telegram OAuth for login (`/auth/telegram` endpoint)
 
 ### Background Jobs (Scheduler)
 
-- APScheduler для периодических задач
-- `backend/app/scheduler.py` - Конфигурация scheduler
-- `bot/jobs/` - Job функции
+- APScheduler for periodic tasks
+- `backend/app/scheduler.py` - Scheduler configuration
+- `bot/jobs/` - Job functions
 
-**Примеры jobs:**
-- Weekly report (каждый понедельник)
+**Example jobs:**
+- Weekly report (every Monday)
 - Database cleanup
 - SSL certificate renewal check
 
-### Validation & Error Handling
-
-**Validation layers:**
-1. **Pydantic schemas** - Input validation (API level)
-2. **Database constraints** - Data integrity (DB level)
-3. **Service layer** - Business logic validation
-
-**Error handling:**
-- Custom `APIException` для business errors
-- Middleware для обработки всех exceptions
-- Structured JSON logging с correlation IDs
-
-### CORS & Security
-
-**CORS:**
-```bash
-# .env
-CORS_ORIGINS=["https://your-domain.com","https://web.telegram.org","https://oauth.telegram.org"]
-```
-
-**Security middleware:**
-- CSP (Content Security Policy)
-- XSS protection headers
-- HSTS (Strict Transport Security)
-- JWT token validation
-
-## Best Practices & Common Pitfalls
+## Critical Best Practices
 
 ### SQLAlchemy 2.0 AsyncSession
 
-**КРИТИЧЕСКИ ВАЖНО:** Всегда используйте `await` для всех async методов AsyncSession.
+**CRITICALLY IMPORTANT:** Always use `await` for all async AsyncSession methods.
 
-**Правильно:**
+**Correct:**
 ```python
-# Async методы требуют await
+# Async methods require await
 await session.execute(query)
 await session.commit()
 await session.delete(obj)
 await session.refresh(obj)
 ```
 
-**НЕПРАВИЛЬНО (RuntimeWarning):**
+**INCORRECT (RuntimeWarning):**
 ```python
-# ❌ БЕЗ await - корутина создается, но НЕ выполняется!
+# ❌ WITHOUT await - coroutine created but NOT executed!
 session.delete(obj)  # RuntimeWarning: coroutine 'AsyncSession.delete' was never awaited
-await session.commit()  # Коммит пустой транзакции - ничего не удалено!
+await session.commit()  # Commits empty transaction - nothing deleted!
 ```
 
-**Последствия пропуска `await`:**
-- RuntimeWarning в логах
-- Корутины не выполняются
-- `commit()` коммитит пустую транзакцию
-- Данные остаются в БД (несмотря на success логи)
-- Очень сложно отловить (код работает, логи пишутся, но ничего не происходит)
+**Consequences of missing `await`:**
+- RuntimeWarning in logs
+- Coroutines don't execute
+- `commit()` commits empty transaction
+- Data remains in DB (despite success logs)
+- Very difficult to catch (code runs, logs write, but nothing happens)
 
-**См. также:** `backend/app/api/v1/endpoints/facts.py`, `financial_centers.py`, `cost_centers.py` - примеры правильного использования.
+### History Tables: Complete Field Copying
 
----
+**Rule:** When creating records in History tables (`BudgetFactHistory`, `ArticleHistory`, etc.) MUST copy ALL fields from main table, including nullable fields.
 
-### SSE Single Worker Requirement
+**Why this is important:**
+- History tables should preserve data snapshot at time of change
+- NOT NULL constraints in History table are stricter than in main table (for data quality)
+- Missing field = constraint violation = transaction rollback
 
-**CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).
-
-The SSE implementation uses in-memory BudgetConnectionManager which does NOT share state between workers. Running with multiple workers will cause SSE events to be lost (users on different workers won't receive each other's events).
-
-**Почему это критично:**
-- SSE используется для real-time обновлений на главной странице (метрики, последние записи)
-- Каждый uvicorn worker имеет СВОЙ экземпляр `BudgetConnectionManager`
-- При multi-worker: пользователь A на worker 1 создает транзакцию → broadcast идет только клиентам worker 1
-- Пользователь B на worker 2 НЕ получает событие → не видит изменения без перезагрузки
-
-**Конфигурация:**
-- `docker-compose.yml`: `--workers 1` (захардкожено)
-- `setup.sh`: WORKERS=1 (без возможности изменения)
-- Dockerfile: `--workers 1` (дефолт)
-
-**Для масштабирования:** Необходимо внедрение Redis Pub/Sub для синхронизации SSE событий между воркерами.
-
-**Reference:** `backend/app/api/v1/endpoints/budget_sse.py:9-11`
-
----
-
-### History Tables: Полное копирование полей
-
-**Правило:** При создании записей в History tables (`BudgetFactHistory`, `ArticleHistory`, etc.) ОБЯЗАТЕЛЬНО копировать ВСЕ поля из основной таблицы, включая nullable поля.
-
-**Почему это важно:**
-- History таблицы должны сохранять snapshot данных на момент изменения
-- NOT NULL constraints в History таблице строже, чем в основной (для data quality)
-- Пропущенное поле = constraint violation = rollback транзакции
-
-**Пример (BudgetFactHistory):**
+**Example (BudgetFactHistory):**
 ```python
-# ✅ ПРАВИЛЬНО - все поля скопированы
+# ✅ CORRECT - all fields copied
 fact_history = BudgetFactHistory(
     fact_id=fact.id,
     user_id=fact.user_id,
     article_id=fact.article_id,
-    financial_center_id=fact.financial_center_id,  # nullable, но копируем
-    cost_center_id=fact.cost_center_id,            # nullable, но копируем
+    financial_center_id=fact.financial_center_id,  # nullable, but copy
+    cost_center_id=fact.cost_center_id,            # nullable, but copy
     amount=fact.amount,
     fact_date=fact.fact_date,
     description=fact.description,
-    record_type=fact.record_type,  # ⚠️ ОБЯЗАТЕЛЬНО! NOT NULL в history
-    transfer_id=fact.transfer_id,  # nullable, но копируем для полноты
+    record_type=fact.record_type,  # ⚠️ REQUIRED! NOT NULL in history
+    transfer_id=fact.transfer_id,  # nullable, but copy for completeness
     valid_from=datetime.utcnow(),
     is_current=True,
     change_type="CREATE",
 )
 
-# ❌ НЕПРАВИЛЬНО - пропущено record_type
-fact_history = BudgetFactHistory(
-    fact_id=fact.id,
-    # ... другие поля ...
-    # record_type НЕ скопировано → IntegrityError: null value in column "record_type"
-)
+# ❌ INCORRECT - record_type missing
+# → IntegrityError: null value in column "record_type"
 ```
 
-**Checklist при добавлении полей в основную таблицу:**
-1. Добавить поле в основную таблицу (например, `BudgetFact`)
-2. ✅ Добавить поле в History таблицу (`BudgetFactHistory`)
-3. ✅ Обновить ВСЕ места создания History записей
-4. ✅ Создать Alembic миграцию для обеих таблиц
+### SSE Single Worker Requirement
 
-**См. также:** `backend/app/models/budget_fact_history.py:64-84` - docstring с примерами.
+**CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).
 
----
+The SSE implementation uses in-memory BudgetConnectionManager which does NOT share state between workers. Running with multiple workers will cause SSE events to be lost.
 
-### RuntimeWarnings: Не игнорировать!
+**Why this is critical:**
+- SSE is used for real-time updates on main page (metrics, recent records)
+- Each uvicorn worker has its OWN instance of `BudgetConnectionManager`
+- In multi-worker: user A on worker 1 creates transaction → broadcast only goes to worker 1 clients
+- User B on worker 2 does NOT receive event → doesn't see changes without reload
 
-**Правило:** RuntimeWarnings в логах Python/FastAPI ВСЕГДА указывают на проблему в коде.
+**Configuration:**
+- `docker-compose.yml`: `--workers 1` (hardcoded)
+- `setup.sh`: WORKERS=1 (no option to change)
+- Dockerfile: `--workers 1` (default)
 
-**Типичные warnings и их значения:**
+**For scaling:** Need to implement Redis Pub/Sub for SSE event synchronization between workers.
 
-| Warning | Root Cause | Последствия |
-|---------|-----------|-------------|
-| `coroutine ... was never awaited` | Пропущен `await` для async функции | Код не выполняется |
-| `Enable tracemalloc to get the object allocation traceback` | Следствие первого warning | Помогает найти место проблемы |
-| `ResourceWarning: unclosed ...` | Не закрыт file/socket/connection | Memory leak |
+### Testing: Verify DB After Operations
 
-**Как отлавливать:**
-```bash
-# Мониторинг логов на warnings
-docker compose logs backend | grep -i "warning"
+**Rule:** After data modification operations (CREATE/UPDATE/DELETE) ALWAYS verify actual DB state, not just HTTP status codes.
 
-# Включить tracemalloc для debugging (добавить в backend/app/main.py)
-import tracemalloc
-tracemalloc.start()
-```
-
-**⚠️ ВАЖНО:** Если в логах `status_code: 200` И одновременно RuntimeWarning → операция НЕ выполнилась, несмотря на success response!
-
----
-
-### Testing: Проверять БД после операций
-
-**Правило:** После операций изменения данных (CREATE/UPDATE/DELETE) ВСЕГДА проверять фактическое состояние БД, а не только HTTP статус коды.
-
-**Почему HTTP 200 != Successful Operation:**
-- Async корутины могут не выполниться (см. выше)
-- Логирование происходит ДО commit (может rollback после)
-- Middleware может перехватить ошибки и вернуть 200
+**Why HTTP 200 != Successful Operation:**
+- Async coroutines may not execute (see above)
+- Logging happens BEFORE commit (may rollback after)
+- Middleware may catch errors and return 200
 
 **Best practice testing workflow:**
 
 ```bash
-# 1. Выполнить операцию через API
+# 1. Execute operation via API
 curl -X DELETE https://example.com/api/v1/admin/articles/45
 
-# 2. ✅ ОБЯЗАТЕЛЬНО: Проверить БД
+# 2. ✅ REQUIRED: Verify DB
 docker compose exec postgres psql -U familybudget -d familybudget -c \
   "SELECT COUNT(*) FROM t_d_article WHERE id = 45;"
 
-# 3. Проверить логи на warnings/errors
+# 3. Check logs for warnings/errors
 docker compose logs backend | grep -A10 "DELETE.*articles/45" | grep -i "warning\|error"
 
-# 4. Для DELETE операций: проверить History tables
+# 4. For DELETE operations: check History tables
 docker compose exec postgres psql -U familybudget -d familybudget -c \
   "SELECT change_type, COUNT(*) FROM t_d_article_history WHERE article_id = 45 GROUP BY change_type;"
 ```
 
-**SQL запросы для проверки:**
-```sql
--- После DELETE: проверить что записи удалены
-SELECT COUNT(*) FROM t_f_budget_fact WHERE article_id = 45;  -- Должно быть 0
+### Service Worker Updates
 
--- Проверить что History записи созданы
-SELECT COUNT(*) FROM t_f_budget_fact_history
-WHERE article_id = 45 AND change_type = 'DELETE';  -- Должно быть > 0
+**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate and reload automatically.
 
--- Проверить что все поля заполнены (нет NULL в NOT NULL колонках)
-SELECT COUNT(*) FROM t_f_budget_fact_history
-WHERE article_id = 45 AND record_type IS NULL;  -- Должно быть 0
+**Why this is critical:**
+- All users must be on same version for data consistency
+- Bug fixes and security patches deploy immediately
+- No manual user intervention required
+- Mobile app-like update experience
+- Zero user interaction needed
+
+**Implementation (since v5.4.0, updated v5.5.0):**
+1. Service worker calls `skipWaiting()` on install (immediate activation)
+2. Service worker calls `clients.claim()` on activate (take control of all tabs)
+3. Update checks run every **1 hour** (plus on every page load)
+4. Version tracking via localStorage + MessageChannel prevents unnecessary reloads
+5. Page requests CACHE_VERSION from SW via postMessage + MessageChannel
+6. Page **conditionally reloads** only if CACHE_VERSION changed
+7. All tabs reload independently when they detect version change
+
+**Update Flow:**
+
+```bash
+# 1. Deploy new version
+./deploy.sh --profile full
+
+# 2. Service worker version updated automatically via scripts/update-sw-version.sh
+# CACHE_VERSION set to: v20251224_2029 (timestamp)
+
+# 3. Users trigger update check (page reload OR hourly check)
+# Console logs (if version changed):
+[PWA] Checking for updates...
+[PWA] New service worker found, installing...
+[SW] Installing version: v20251225_1530
+[SW] CRITICAL: Forcing immediate activation via skipWaiting()
+[SW] Activating version: v20251225_1530
+[SW] Deleted 1 old caches
+[SW] Clients claimed
+[SW] Notifying 1 clients about SW update
+[PWA] New service worker activated
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1530
+[PWA] New SW CACHE_VERSION: v20251225_1530
+[PWA] Saved CACHE_VERSION: v20251225_1430
+[PWA] ⚡ Version changed, reloading page...
+[PWA] Previous CACHE_VERSION: v20251225_1430
+[PWA] New CACHE_VERSION: v20251225_1530
+[Page reloads automatically - NO notification, NO countdown]
+
+# Alternative: If version unchanged (prevents reload loop)
+[PWA] New service worker activated
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1430
+[PWA] New SW CACHE_VERSION: v20251225_1430
+[PWA] Saved CACHE_VERSION: v20251225_1430
+[PWA] ✓ Version unchanged, skipping reload
+[PWA] Application already on latest version
+[No reload occurs]
+
+# 4. Result: User on new version immediately (< 1 second), no unnecessary reloads
 ```
 
-**Integration тесты должны:**
-1. ✅ Вызвать API endpoint
-2. ✅ Проверить HTTP статус код
-3. ✅ **Проверить БД напрямую** (SELECT после INSERT/UPDATE/DELETE)
-4. ✅ Проверить History tables (для SCD Type 2)
-5. ✅ Проверить логи на warnings
+**Testing Update Flow:**
 
-**См. также:** `tests/integration/test_article_deletion.py` (если создан).
-
----
-
-## Workflow для обновления приложения
-
-**Критически важно понимать три директории:**
-1. **Репозиторий** (`~/familyBudget`) - Исходный код, git clone
-2. **Deployment** (`/opt/budget`) - Рабочая копия для Docker
-3. **Docker volumes** - Данные БД, логи (персистентные)
-
-**Правильный workflow:**
 ```bash
-# 1. Обновить код в репозитории
+# Manual testing (local development)
+cd ~/familyBudget
+
+# 1. Note current version in browser console
+# [SW] Activating version: v20251224_1500
+
+# 2. Update CACHE_VERSION in sw.js
+scripts/update-sw-version.sh
+
+# 3. Minify service worker
+npm run minify:js
+
+# 4. Reload page in browser
+# Observe console logs (should show update flow above)
+
+# 5. Verify new version active
+# [SW] Activating version: v20251224_1530
+```
+
+**Multi-Tab Testing:**
+
+```bash
+# 1. Open app in 3 different browser tabs
+# 2. Deploy new version (or update sw.js locally)
+# 3. Reload any tab
+# 4. Verify: Tab that reloaded detects update and reloads automatically
+# 5. Wait for other tabs' update checks (max 1 hour)
+# 6. Verify: Each tab reloads automatically when it detects update
+# 7. Result: All tabs on new version (within 1 hour max)
+```
+
+**Debugging:**
+
+```bash
+# Check current service worker version
+# DevTools → Console:
+navigator.serviceWorker.controller.scriptURL
+# Should show: /sw.min.js
+
+# Check cache version
+# DevTools → Application → Cache Storage:
+# Should have exactly 1 cache: budget-vXXXXXXXX_XXXX
+
+# Check update registration
+# DevTools → Application → Service Workers:
+# Status: "activated and is running"
+# Update on reload: (toggle for testing)
+
+# Force update check (in console)
+navigator.serviceWorker.getRegistration().then(reg => reg.update());
+```
+
+**Important Notes:**
+- **No state preservation:** Users should save work before reload
+- **First-time install:** Does NOT trigger reload (shows toast "Приложение готово к работе офлайн")
+- **Offline functionality:** Unchanged (IndexedDB, background sync, push notifications all work)
+- **Update frequency:** Max 1-hour delay for 99% of users
+
+**Risks:**
+- User may lose unsaved form data during update → Mitigation: Display UI warning
+- Update may interrupt transaction submission → Future: Add check to delay reload
+
+**See also:**
+- `/docs/architecture/pwa.md` - Comprehensive PWA documentation
+- `sw.js` lines 75-163 - Service worker install/activate events
+- `frontend/web/templates/base.html` lines 1309-1407 - Frontend registration
+
+### Wake Detection for Mobile (v5.7.0+)
+
+**Purpose:** Service Worker participates in WebSocket recovery after long sleep on iOS/mobile devices.
+
+**Problem:** iOS suspends JavaScript when screen is off 5+ minutes, WebSocket dies but recovery mechanisms may not fire.
+
+**Solution:** Service Worker acts as backup wake detection mechanism (Layer 2 of 5-layer strategy).
+
+**How it works:**
+1. Page sends `pageWake` message to SW on visibility change
+2. SW broadcasts `PAGE_WAKE` to all clients via `postMessage`
+3. Clients trigger `_performWakeHealthCheck()` to verify/restore WebSocket
+
+**Implementation (sw.js:324-338):**
+```javascript
+if (event.data.action === 'pageWake') {
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'PAGE_WAKE',
+                timestamp: Date.now(),
+                source: 'sw'
+            });
+        });
+    });
+}
+```
+
+**Client-side (budgetWSClient.js:110-122):**
+```javascript
+// Listen for SW wake messages
+navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data.type === 'PAGE_WAKE') {
+        if (this.isLeader && document.visibilityState === 'visible') {
+            this._performWakeHealthCheck();
+        }
+    }
+});
+
+// Notify SW on visibility change
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.controller.postMessage({
+            action: 'pageWake',
+            timestamp: Date.now()
+        });
+    }
+});
+```
+
+**Benefit:** Backup mechanism if Visibility API doesn't fire after long sleep.
+
+**Complete 5-layer strategy:** See `/docs/architecture/pwa.md` → "WebSocket Recovery After Long Sleep"
+
+### WebSocket Diagnostics Modal (v5.7.0+)
+
+**Since version 5.7.0:** WebSocket diagnostic alert replaced with scrollable DaisyUI modal.
+
+**Problem Solved:**
+- Native `alert()` didn't support scrolling on iOS Safari 18+ / Yandex Browser
+- Close button appeared below viewport (inaccessible)
+
+**Solution:**
+- DaisyUI modal with 90dvh max-height
+- Singleton pattern (modal created once, content updated)
+- Comprehensive logging via Logger class ([WS_DIAG] prefix)
+
+**Trigger:** Triple-tap on WebSocket badge (#budget-sse-status-indicator)
+
+**Implementation:**
+- Modal HTML: `base.html` (around line 1993)
+- JavaScript: `budgetWSClient.js`, `showDiagnostics()` method (line 2032)
+- Logging: Uses existing Logger class (logger.js)
+
+**Key Features:**
+- Mobile-first design (works on iOS Safari, Yandex Browser)
+- Dark mode compatible
+- Graceful fallback to alert() if modal unavailable
+- Console logging for remote debugging
+
+**See:** `/docs/architecture/pwa.md` → "WebSocket Diagnostics Modal" for detailed documentation
+
+## Workflow for Updating Application
+
+**Critical to understand three directories:**
+1. **Repository** (`~/familyBudget`) - Source code, git clone
+2. **Deployment** (`/opt/budget`) - Working copy for Docker
+3. **Docker volumes** - DB data, logs (persistent)
+
+**Correct workflow:**
+```bash
+# 1. Update code in repository
 cd ~/familyBudget
 git pull origin main
 
-# 2. Синхронизировать в /opt/budget
+# 2. Sync to /opt/budget
 ./setup.sh
 
-# 3. Применить изменения
+# 3. Apply changes
 ./deploy.sh --profile full
 ```
 
-**Частые ошибки:**
+**Common mistakes:**
 ```bash
-# ❌ НЕПРАВИЛЬНО (копирует сам в себя)
+# ❌ INCORRECT (copies itself to itself)
 cd /opt/budget
 ./setup.sh
 
-# ✅ ПРАВИЛЬНО
-cd ~/familyBudget  # Репозиторий
-./setup.sh         # Копирует в /opt/budget
-```
-
-## Тестирование и деплой на удаленный сервер (SSH)
-
-**ВАЖНО**: Всегда тестируйте изменения на тестовом сервере `budget-test` перед деплоем в production.
-
-### Workflow: Обновление существующего деплоя
-
-Используется для тестирования изменений на уже работающем сервере.
-
-```bash
-# 1. Подключиться по SSH к тестовому серверу
-ssh budget-test
-
-# 2. Обновить код из репозитория
-cd ~/familyBudget
-git pull origin main
-# или для конкретной ветки:
-# git pull origin feature-branch
-
-# 3. Деплой с умными опциями
-sudo bash deploy.sh --sync-mode update --cleanup-mode smart
-
-# Опции deploy.sh:
-# --sync-mode update     - Синхронизировать только измененные файлы
-# --cleanup-mode smart   - Умная очистка (удалить старые сети, сохранить данные)
-# --profile full         - Запустить все сервисы (backend + bot + nginx)
-# --build                - Пересобрать Docker образы
-# --no-migrate           - Пропустить миграции БД
-
-# 4. ВАЖНО: Анализ результатов деплоя
-# Проанализировать логи терминала процесса установки
-# После успешного завершения проанализировать:
-cat /opt/budget/logs/deploy.log
-
-# Ключевые моменты в логах:
-# - Успешная синхронизация файлов
-# - Docker build без ошибок
-# - Контейнеры запустились и стали healthy
-# - Миграции БД применились без ошибок
-# - Health checks проходят
-
-# 5. Запустить полную диагностику
-cd ~/familyBudget
-sudo bash logs.sh
-
-# Проанализировать вывод:
-# ✓ Container Status - все контейнеры в состоянии "healthy"
-# ✓ Health Checks - все endpoints отвечают
-# ✓ Backend Errors - нет critical errors
-# ✓ Database Status - подключение работает
-# ✓ Bot Status - бот активен
-# ✓ Nginx Status - проксирование работает
-# ✓ Resource Usage - нет превышения лимитов
-# ⚠ Warnings - проанализировать предупреждения
-
-# 6. Проанализировать логи запущенных контейнеров
-cd /opt/budget
-
-# Логи backend (последние 100 строк)
-docker compose logs --tail=100 backend
-
-# Логи с ошибками
-docker compose logs backend | grep -i error
-docker compose logs backend | grep -i critical
-
-# Логи PostgreSQL
-docker compose logs --tail=50 postgres
-
-# Логи бота
-docker compose logs --tail=50 bot
-
-# Логи Nginx (если используется)
-docker compose logs --tail=50 nginx
-
-# Live tail (следить в реальном времени)
-docker compose logs -f backend
-
-# 7. Функциональное тестирование
-# - Проверить веб-интерфейс: http://<server-ip>:8000
-# - Проверить Swagger docs: http://<server-ip>:8000/docs
-# - Проверить health endpoint: http://<server-ip>:8000/health
-# - Проверить Telegram бота (отправить /start)
-# - Проверить Telegram Web Apps (Menu Button)
-# - Создать тестовую транзакцию
-# - Проверить отчеты и статистику
-
-# 8. Если обнаружены проблемы:
-# - Зафиксировать проблемы из логов (скопировать stack traces)
-# - Сохранить диагностику: sudo bash logs.sh --save
-# - Выйти с сервера (exit)
-# - Исправить проблемы локально в скриптах/коде
-# - Сделать коммит и пуш:
-#   git add .
-#   git commit -m "fix: описание исправления"
-#   git push origin main
-# - Вернуться к шагу 1 (SSH и git pull)
-
-# 9. Если всё работает:
-# - Пометить тест как успешный
-# - Можно деплоить в production
-```
-
-### Типичные проблемы и их диагностика
-
-**1. Контейнер не запускается**
-```bash
-# Проверить статус
-docker compose ps
-
-# Проверить логи
-docker compose logs <service-name>
-
-# Проверить конфигурацию
-docker compose config
-
-# Проверить переменные окружения
-docker compose exec <service-name> env
-```
-
-**2. Миграции БД не применяются**
-```bash
-# Проверить текущую версию БД
-docker compose exec backend alembic current
-
-# Применить вручную
-docker compose exec backend alembic upgrade head
-
-# Логи миграций
-grep -i "alembic\|migration" /opt/budget/logs/deploy.log
-```
-
-**3. Backend возвращает 500 ошибки**
-```bash
-# Проверить логи backend
-docker compose logs backend | grep -i "error\|exception"
-
-# Проверить подключение к БД
-docker compose exec backend env | grep DATABASE_URL
-docker compose exec postgres psql -U familybudget -c "SELECT 1;"
-
-# Проверить health endpoint
-curl http://localhost:8000/health
-```
-
-**4. Telegram бот не отвечает**
-```bash
-# Проверить статус бота
-docker compose logs bot | tail -50
-
-# Проверить токен
-docker compose exec bot env | grep TELEGRAM_BOT_TOKEN
-
-# Проверить подключение к backend
-docker compose exec bot curl http://backend:8000/health
-```
-
-**5. Frontend не обновляется после изменений**
-```bash
-# Проверить синхронизацию файлов
-ls -la /opt/budget/frontend/web/static/css/
-
-# Пересобрать образы
-cd ~/familyBudget
-./deploy.sh --build --profile full
-
-# Очистить кеш браузера (Ctrl+Shift+R)
-```
-
-### Чеклист перед деплоем в production
-
-После успешного тестирования на `budget-test`:
-
-- [ ] Все контейнеры запустились и healthy
-- [ ] Health checks проходят (/health, /ready, /ping)
-- [ ] Нет critical/error в логах backend
-- [ ] PostgreSQL подключение работает
-- [ ] Миграции БД применились успешно
-- [ ] Telegram бот отвечает на команды
-- [ ] Telegram Web Apps открываются
-- [ ] Можно создать/прочитать транзакцию
-- [ ] Отчеты и статистика загружаются
-- [ ] SSL сертификаты валидны (если используется)
-- [ ] Resource usage в пределах нормы
-- [ ] Логи не содержат memory leaks/performance issues
-- [ ] Backup/restore работают
-
-**После прохождения всех проверок** - можно деплоить в production.
-
-## База данных
-
-### Важные таблицы
-
-```sql
--- Dimensions (SCD Type 1 + History)
-t_d_article                -- Категории (current)
-t_d_article_history        -- Категории (history)
-t_d_user                   -- Пользователи (current)
-t_d_user_history           -- Пользователи (history)
-t_d_financial_center       -- Финансовые центры
-t_d_cost_center            -- Центры затрат
-
--- Facts
-t_f_budget_fact            -- Транзакции
-t_f_budget_fact_history    -- Транзакции (history)
-
--- Hierarchy
-t_d_article_hierarchy      -- Closure table
-
--- Service tables
-t_refresh_token            -- JWT refresh tokens
-t_notification             -- Уведомления
-t_import_staging           -- Staging для импорта
-```
-
-### Полезные SQL запросы
-
-```sql
--- Проверить миграции
-SELECT version_num FROM alembic_version;
-
--- Размеры таблиц
-SELECT relname, pg_size_pretty(pg_total_relation_size(relid))
-FROM pg_catalog.pg_statio_user_tables
-ORDER BY pg_total_relation_size(relid) DESC;
-
--- Медленные запросы (требуется pg_stat_statements)
-SELECT query, calls, total_exec_time, mean_exec_time
-FROM pg_stat_statements
-ORDER BY mean_exec_time DESC
-LIMIT 10;
-
--- Неиспользуемые индексы
-SELECT schemaname, tablename, indexname
-FROM pg_stat_user_indexes
-WHERE idx_scan = 0
-AND indexrelname NOT LIKE 'pg_toast%';
+# ✅ CORRECT
+cd ~/familyBudget  # Repository
+./setup.sh         # Copies to /opt/budget
 ```
 
 ## API Endpoints
@@ -963,10 +1608,10 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - `POST /auth/logout` - Logout
 
 ### REST API v1
-- `/api/v1/articles` - CRUD категорий
-- `/api/v1/facts` - CRUD транзакций
-- `/api/v1/financial-centers` - CRUD финансовых центров
-- `/api/v1/cost-centers` - CRUD центров затрат
+- `/api/v1/articles` - CRUD categories
+- `/api/v1/facts` - CRUD transactions
+- `/api/v1/financial-centers` - CRUD financial centers
+- `/api/v1/cost-centers` - CRUD cost centers
 - `/api/v1/users` - User management (admin)
 
 ### Web Pages (HTMX)
@@ -987,11 +1632,12 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - `/ready` - Readiness probe
 - `/health/detailed` - Detailed diagnostics
 
-## Дополнительные ресурсы
+## Documentation
 
-- **START.md** - Полная инструкция по деплою
-- **docs/prd/** - Product Requirements Documents
-- **docs/api/API_DOCUMENTATION.md** - API документация
-- **scripts/README.md** - Документация скриптов
-- **tests/README.md** - Testing guide
-- **sql/README.md** - SQL queries documentation
+| Document | For |
+|----------|-----|
+| [START.md](START.md) | 🔧 Administrators (installation) |
+| [CLAUDE.md](CLAUDE.md) | 👨‍💻 Developers |
+| [docs/prd/](docs/prd/) | 📋 Product Requirements |
+| [docs/guides/](docs/guides/) | 📖 User guides |
+| `/docs` (Swagger) | 🔌 API documentation |

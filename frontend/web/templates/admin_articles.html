@@ -22,14 +22,12 @@
                 <div class="flex flex-col gap-3 mb-3">
                     <div class="flex justify-between items-center">
                         <h2 class="card-title text-2xl">📊 Категории</h2>
-                        {% if user.is_admin %}
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
                             Новая категория
                         </button>
-                        {% endif %}
                     </div>
                     <div class="flex flex-wrap gap-2 items-center">
                         <select id="filter-type" class="select select-bordered" onchange="toggleTypeFilter(this.value)">
@@ -60,7 +58,6 @@
 </div>
 </div>
 
-{% if user.is_admin %}
 <!-- Create Article Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -104,8 +101,8 @@
                 </p>
             </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">✅ Создать</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -169,9 +166,17 @@
                     ⚠️ Привязка к счёту доступна только для листовых категорий (без подкатегорий).
                 </p>
             </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            <div class="modal-action mt-3 flex flex-row gap-2">
+                <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteArticleFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Разделитель (пустое пространство) -->
+                <div class="flex-1 md:hidden"></div>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -179,7 +184,6 @@
         <button>close</button>
     </form>
 </dialog>
-{% endif %}
 
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
@@ -236,17 +240,22 @@ document.addEventListener('DOMContentLoaded', function() {
     loadArticles();
     loadFinancialCenters();
 
-    // Search input event listener for real-time filtering
+    // Search input event listener for real-time filtering (with null check)
     const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('input', function(e) {
-        updateSearchFilter(e.target.value);
-    });
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            updateSearchFilter(e.target.value);
+        });
+    }
 
     // Добавляем обработчик изменения типа в модальном окне создания
-    // для динамического обновления списка родительских статей
-    document.getElementById('create-type').addEventListener('change', function() {
-        populateParentSelect('create-parent', this.value);
-    });
+    // для динамического обновления списка родительских статей (with null check)
+    const createType = document.getElementById('create-type');
+    if (createType) {
+        createType.addEventListener('change', function() {
+            populateParentSelect('create-parent', this.value);
+        });
+    }
 });
 
 // Load financial centers for multiselect
@@ -330,7 +339,13 @@ async function loadArticles() {
     try {
         // Determine include_inactive based on status filter
         const includeInactive = currentStatusFilter !== 'active'; // 'all' and 'archived' need inactive articles
-        let url = `/api/v1/admin/articles?include_inactive=${includeInactive}`;
+        // Admin uses admin endpoint with full features, non-admin uses user endpoint
+        let url;
+        if (isAdmin) {
+            url = `/api/v1/admin/articles?include_inactive=${includeInactive}`;
+        } else {
+            url = `/api/v1/articles?flat=true&include_inactive=${includeInactive}`;
+        }
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -340,7 +355,12 @@ async function loadArticles() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        articlesData = await response.json();
+        const responseData = await response.json();
+        if (isAdmin) {
+            articlesData = responseData;  // Direct array for admin
+        } else {
+            articlesData = responseData.articles;  // Extract nested array for non-admin
+        }
         renderArticlesTable(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -392,7 +412,7 @@ function renderArticlesTable(articles) {
                         <th>🏦 Счет</th>
                         <th>🔢 Код</th>
                         <th>👤 Владелец</th>
-                        ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -489,22 +509,32 @@ function renderTreeNodes(nodes, level) {
             ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
             : '';
 
-        // Action buttons (icon-only) - show Archive or Restore depending on is_active status
-        let actionsCell = '';
+        // Action buttons (icon-only) - Edit for all users, Archive/Delete only for admins
+        let actionButtons = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>`;
+
+        // Admin-only buttons: Archive/Restore and Delete
         if (isAdmin) {
-            const actionButtons = node.is_active
-                ? `
-                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                    <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
-                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
-                  `
-                : `
-                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                    <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
-                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
-                  `;
-            actionsCell = `<td><div class="flex gap-1">${actionButtons}</div></td>`;
+            if (node.is_active) {
+                actionButtons += `
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            } else {
+                actionButtons += `
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            }
         }
+        const actionsCell = `<td><div class="flex gap-1">${actionButtons}</div></td>`;
 
         html += `
             <tr data-article-id="${node.id}">
@@ -607,7 +637,7 @@ async function createArticle(event) {
     };
 
     try {
-        const response = await fetch('/api/v1/admin/articles', {
+        const response = await fetch('/api/v1/articles', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -727,6 +757,13 @@ function closeEditModal() {
     document.getElementById('edit-form').reset();
 }
 
+// Delete article from edit modal (mobile only)
+function deleteArticleFromEditModal() {
+    const articleId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deactivateArticle(articleId);
+}
+
 // Update article
 async function updateArticle(event) {
     event.preventDefault();
@@ -750,7 +787,7 @@ async function updateArticle(event) {
     };
 
     try {
-        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+        const response = await fetch(`/api/v1/articles/${articleId}`, {
             method: 'PUT',
             credentials: 'include',
             headers: {

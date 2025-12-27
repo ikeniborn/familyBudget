@@ -122,6 +122,14 @@ class BudgetFact(SQLModel, table=True):
         description="Links paired expense/income transactions for transfers between financial centers"
     )
 
+    # Recurring plan support (no FK due to partitioning)
+    recurring_plan_id: Optional[int] = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Reference to recurring plan template (t_d_recurring_plan.id)"
+    )
+
     # Offline sync flag
     is_offline_sync: bool = Field(
         default=False,

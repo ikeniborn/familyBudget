@@ -21,23 +21,23 @@ routes:
     response:
       status: 200
       body:
-        items:
-          - id: "integer"
-            user_id: "integer"
-            article_id: "integer"
-            article_name: "string"
-            financial_center_id: "integer"
-            cost_center_id: "integer"
-            amount: "decimal"
-            fact_date: "YYYY-MM-DD"
-            description: "string"
-            record_type: "fact | plan"
-            transfer_id: "UUID (nullable)"
-            created_at: "datetime"
-        total: "integer"
-        page: "integer"
-        per_page: "integer"
-        pages: "integer"
+        facts: "array of fact objects"
+        total: "integer - total count"
+        limit: "integer - page size"
+        offset: "integer - skip count"
+      fact_object:
+        - id: "integer"
+          user_id: "integer"
+          article_id: "integer"
+          article_name: "string"
+          financial_center_id: "integer"
+          cost_center_id: "integer"
+          amount: "decimal"
+          fact_date: "YYYY-MM-DD"
+          description: "string"
+          record_type: "fact | plan"
+          transfer_id: "UUID (nullable)"
+          created_at: "datetime"
 
   # ---------------------------------------------------------------------------
   # CREATE

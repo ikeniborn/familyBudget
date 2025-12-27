@@ -1,8 +1,8 @@
 """
 Import Column Mapping Model
 
-Stores user-defined column mappings for CSV imports (per bank, per user).
-Allows reusing mappings for repeated imports.
+Stores column mappings for CSV imports (one mapping per user per bank).
+Allows reusing mappings for repeated imports while preserving user customizations.
 
 Pattern: Configuration table (SCD Type 1)
 Table: t_import_column_mapping
@@ -17,14 +17,17 @@ from sqlmodel import Field, SQLModel
 
 class ImportColumnMapping(SQLModel, table=True):
     """
-    User-defined CSV column mapping (per bank).
+    CSV column mapping (one mapping per user per bank).
 
     Stores column mapping configuration (CSV column → budget field).
-    One mapping per bank per user (SCD Type 1 - updates in-place).
+    One mapping per (user, bank) pair (SCD Type 1 - updates in-place).
 
     Table: t_import_column_mapping
     Pattern: Configuration table (SCD Type 1)
     Constraint: Unique (bank_provider_id, user_id)
+
+    NOTE: Each user has their own mapping per bank. This preserves user
+    customizations and prevents users from overwriting each other's mappings.
 
     Mapping structure:
         {
@@ -46,7 +49,7 @@ class ImportColumnMapping(SQLModel, table=True):
     Examples:
         >>> mapping = ImportColumnMapping(
         ...     bank_provider_id=1,
-        ...     user_id=123,
+        ...     user_id=123,  # Who last updated
         ...     mapping={
         ...         "fact_date": "Дата операции",
         ...         "amount": "Сумма операции",
@@ -77,7 +80,7 @@ class ImportColumnMapping(SQLModel, table=True):
     user_id: int = Field(
         nullable=False,
         foreign_key="t_d_user.id",
-        description="User who created this mapping"
+        description="User who owns this mapping (part of unique key)"
     )
 
     # Mapping configuration

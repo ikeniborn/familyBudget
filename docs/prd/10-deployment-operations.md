@@ -287,7 +287,7 @@ echo "✅ Old backups cleaned (retention: 7 days)"
 if [ $(date +%u) -eq 7 ] && [ -n "$AWS_ACCESS_KEY_ID" ]; then
   echo "Uploading to S3..."
   aws s3 cp "$BACKUP_PATH" \
-    "s3://$S3_BUCKET_NAME/$(date +%Y/%m)/$BACKUP_FILE" \
+    "s3://$S3_BUCKET_NAME/postgresql-backups/$(date +%Y/%m)/$BACKUP_FILE" \
     --endpoint-url "$S3_ENDPOINT_URL"
   
   if [ $? -eq 0 ]; then

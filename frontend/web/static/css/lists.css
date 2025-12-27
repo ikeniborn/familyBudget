@@ -1296,14 +1296,38 @@ img[loading="lazy"] {
         right: 1rem;
     }
 
+    /* FAB для создания списка (Landing View) */
+    #create-list-fab {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        aspect-ratio: 1/1;
+        bottom: 1rem !important;
+        right: 1rem !important;
+    }
+
+    /* FAB для массовых операций (Detail View) */
     .fab-main {
-        width: 48px;
-        height: 48px;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        aspect-ratio: 1/1;
     }
 
     .fab-item button {
-        width: 40px;
-        height: 40px;
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        aspect-ratio: 1/1;
     }
 
     .fab-item .badge {

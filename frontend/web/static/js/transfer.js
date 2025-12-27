@@ -507,10 +507,12 @@ function initTransferModal() {
     setupPeriodButtons();
 
     // 6. Attach form submit handler
-    const form = document.querySelector('#form_transfer');
-    if (form) {
-        form.addEventListener('submit', handleTransferSubmit);
-    }
+    // DISABLED: Submit handler now registered in index.html (lines 4815+)
+    // This prevents double registration which causes duplicate validation errors
+    // const form = document.querySelector('#form_transfer');
+    // if (form) {
+    //     form.addEventListener('submit', handleTransferSubmit);
+    // }
 
     // 7. Load Financial Centers and Cost Centers dynamically
     loadTransferData();
@@ -601,39 +603,11 @@ async function loadTransferData() {
         allFinancialCenters = financialCenters;
         populateFinancialCenterDropdowns();
 
-        // Save all cost centers for filtering
+        // Save all cost centers for filtering (kept for potential future use)
         allCostCenters = costCenters;
 
-        // Populate Cost Centers
-        // Populate FROM dropdown
-        const fromCCSelect = document.querySelector('#from_cost_center');
-        if (fromCCSelect) {
-            // Clear existing options (keep placeholder)
-            while (fromCCSelect.options.length > 1) {
-                fromCCSelect.remove(1);
-            }
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                fromCCSelect.appendChild(option);
-            });
-        }
-
-        // Populate TO dropdown
-        const toCCSelect = document.querySelector('#to_cost_center');
-        if (toCCSelect) {
-            // Clear existing options (keep placeholder)
-            while (toCCSelect.options.length > 1) {
-                toCCSelect.remove(1);
-            }
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                toCCSelect.appendChild(option);
-            });
-        }
+        // Note: Cost center dropdowns removed from transfer modal UI
+        // Both from_cost_center_id and to_cost_center_id are always null for transfers
     } catch (error) {
         console.error('[Transfer] Error loading data:', error);
         // Try cache as last resort
@@ -647,29 +621,10 @@ async function loadTransferData() {
                     populateFinancialCenterDropdowns();
                 }
 
+                // Note: Cost center dropdowns removed from transfer modal UI
+                // Both from_cost_center_id and to_cost_center_id are always null for transfers
                 if (cachedCC) {
-                    const fromCCSelect = document.querySelector('#from_cost_center');
-                    const toCCSelect = document.querySelector('#to_cost_center');
-
-                    if (fromCCSelect) {
-                        while (fromCCSelect.options.length > 1) fromCCSelect.remove(1);
-                        cachedCC.forEach(cc => {
-                            const option = document.createElement('option');
-                            option.value = cc.id;
-                            option.textContent = cc.name;
-                            fromCCSelect.appendChild(option);
-                        });
-                    }
-
-                    if (toCCSelect) {
-                        while (toCCSelect.options.length > 1) toCCSelect.remove(1);
-                        cachedCC.forEach(cc => {
-                            const option = document.createElement('option');
-                            option.value = cc.id;
-                            option.textContent = cc.name;
-                            toCCSelect.appendChild(option);
-                        });
-                    }
+                    allCostCenters = cachedCC;
                 }
             }
         } catch (cacheError) {
@@ -820,8 +775,7 @@ function setupCFOFiltering() {
             if (fromCategoryTree) {
                 await fromCategoryTree.updateFinancialCenter(fcId);
             }
-            // Filter FROM cost center dropdown
-            await filterCostCenterDropdown('from_cost_center', fcId);
+            // Note: from_cost_center removed from UI (not needed for transfers)
             // Reload FROM hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -839,8 +793,7 @@ function setupCFOFiltering() {
             if (toCategoryTree) {
                 await toCategoryTree.updateFinancialCenter(fcId);
             }
-            // Filter TO cost center dropdown
-            await filterCostCenterDropdown('to_cost_center', fcId);
+            // Note: to_cost_center removed from UI (not needed for transfers)
             // Reload TO hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');
@@ -956,6 +909,16 @@ async function openTransferModal() {
         const fromFCSelect = document.querySelector('#from_financial_center');
         const toFCSelect = document.querySelector('#to_financial_center');
 
+        // CRITICAL: Reset FC filter state for create modals (not edit modals)
+        // This ensures isInitialFiltering works correctly on modal reopening
+        // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+        if (fromCategoryTree) {
+            fromCategoryTree.options.financialCenterId = null;
+        }
+        if (toCategoryTree) {
+            toCategoryTree.options.financialCenterId = null;
+        }
+
         if (fromCategoryTree && fromFCSelect) {
             const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
             await fromCategoryTree.updateFinancialCenter(fcId);
@@ -972,6 +935,20 @@ async function openTransferModal() {
         }
 
         modal.showModal();
+
+        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+        if (!modal.dataset.backdropHandlerAdded) {
+            modal.addEventListener('click', (e) => {
+                // Close only if click is OUTSIDE modal-box
+                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
+                const modalBox = modal.querySelector('.modal-box');
+                if (modalBox && !modalBox.contains(e.target)) {
+                    modal.close();
+                }
+            });
+            modal.dataset.backdropHandlerAdded = 'true';
+        }
     }
 }
 
@@ -1051,17 +1028,17 @@ async function handleTransferSubmit(event) {
         from_financial_center_name: getSelectedText('#from_financial_center'), // For offline display
         from_article_id: parseInt(formData.get('from_article_id')),
         from_article_name: fromArticleName, // For offline display
-        from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
+        from_cost_center_id: null,  // Removed from UI - always null for transfers
         to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
         to_financial_center_name: getSelectedText('#to_financial_center'), // For offline display
         to_article_id: parseInt(formData.get('to_article_id')),
         to_article_name: toArticleName, // For offline display
-        to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
+        to_cost_center_id: null,  // Removed from UI - always null for transfers
         description: formData.get('description') || null
     };
 
     // 2. Client-side validation
-    const validationError = validateTransferData(data);
+    const validationError = validateTransferData(data, formData);
     if (validationError) {
         if (typeof showToast === 'function') {
             showToast(validationError, 'error');
@@ -1196,7 +1173,7 @@ async function handleTransferSubmit(event) {
 /**
  * Validate Transfer Data (client-side)
  */
-function validateTransferData(data) {
+function validateTransferData(data, formData) {
     // Amount validation
     if (data.amount <= 0) {
         return 'Сумма должна быть больше 0';
@@ -1207,11 +1184,18 @@ function validateTransferData(data) {
         return 'Финансовые центры "откуда" и "куда" должны быть разными';
     }
 
-    // Required fields
-    if (!data.transfer_date) {
-        return data.record_type === 'plan'
-            ? 'Выберите период планирования'
-            : 'Укажите дату перевода';
+    // Date/Period validation - check actual source field based on record type
+    if (data.record_type === 'plan') {
+        // For plan transfers, check transfer_plan_month from form
+        const planMonth = formData ? formData.get('transfer_plan_month') : null;
+        if (!planMonth || planMonth === 'null' || planMonth === 'undefined') {
+            return 'Выберите период планирования';
+        }
+    } else {
+        // For fact transfers, check transfer_date
+        if (!data.transfer_date) {
+            return 'Укажите дату перевода';
+        }
     }
 
     if (!data.from_article_id || !data.to_article_id) {

@@ -347,7 +347,7 @@ try:
     )
 
     paginator = s3_client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME')
+    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix='postgresql-backups/')
 
     backups = []
     for page in pages:
@@ -457,7 +457,7 @@ try:
     )
 
     paginator = s3_client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME')
+    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix='postgresql-backups/')
 
     backups = []
     for page in pages:

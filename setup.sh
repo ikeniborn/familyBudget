@@ -237,7 +237,7 @@ check_deploy_dir() {
     fi
 
     # Ensure required subdirectories exist
-    local required_dirs=("data" "backups" "logs" "nginx/conf.d")
+    local required_dirs=("backups" "logs" "nginx/conf.d")
     for dir in "${required_dirs[@]}"; do
         if [[ ! -d "$DEPLOY_DIR/$dir" ]]; then
             info "Creating directory: $DEPLOY_DIR/$dir"
@@ -260,16 +260,72 @@ check_deploy_dir() {
     done
 
     if [[ ${#missing_templates[@]} -gt 0 ]]; then
-        error "Required template files are missing:"
+        error "Required template files are missing from $DEPLOY_DIR:"
         for template in "${missing_templates[@]}"; do
             echo "  ✗ $template"
         done
         echo ""
         warning "This typically means install.sh was not run correctly."
-        info "Please run install.sh from the repository directory:"
-        echo "  cd ~/familyBudget  # (or your repository location)"
-        echo "  sudo ./install.sh"
         echo ""
+
+        # ENHANCEMENT v1.1.0: Attempt auto-detection of repository directory
+        info "Attempting to auto-detect repository directory..."
+
+        # Source utils.sh to get detect_repo_directory function
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+        if [[ -f "$script_dir/scripts/lib/utils.sh" ]]; then
+            source "$script_dir/scripts/lib/utils.sh"
+        elif [[ -f "scripts/lib/utils.sh" ]]; then
+            source "scripts/lib/utils.sh"
+        else
+            warning "Could not find scripts/lib/utils.sh - skipping auto-detection"
+        fi
+
+        # Try auto-detection if function is available
+        if command -v detect_repo_directory &>/dev/null; then
+            local detected_repo
+            detected_repo=$(detect_repo_directory "$(pwd)" 2>/dev/null)
+
+            if [[ $? -eq 0 ]] && [[ -n "$detected_repo" ]]; then
+                # Auto-detection succeeded
+                echo ""
+                success "Repository found: $detected_repo"
+                echo ""
+                info "OPTION 1 - Re-run install.sh from correct directory (RECOMMENDED):"
+                echo ""
+                echo "  cd $detected_repo"
+                echo "  sudo ./install.sh"
+                echo ""
+                info "OPTION 2 - Manual copy of template files (ADVANCED):"
+                echo ""
+                echo "  sudo cp $detected_repo/nginx/conf.d/app-http.conf.template $DEPLOY_DIR/nginx/conf.d/"
+                echo "  sudo cp $detected_repo/nginx/conf.d/app-https.conf.template $DEPLOY_DIR/nginx/conf.d/"
+                echo "  sudo cp $detected_repo/.env.example $DEPLOY_DIR/"
+                echo ""
+                echo "  Then re-run setup.sh:"
+                echo "  ./setup.sh"
+                echo ""
+            else
+                # Auto-detection failed
+                echo ""
+                info "Please run install.sh from the repository directory:"
+                echo ""
+                echo "  cd ~/familyBudget  # (or your repository location)"
+                echo "  sudo ./install.sh"
+                echo ""
+            fi
+        else
+            # Function not available
+            echo ""
+            info "Please run install.sh from the repository directory:"
+            echo ""
+            echo "  cd ~/familyBudget  # (or your repository location)"
+            echo "  sudo ./install.sh"
+            echo ""
+        fi
+
         exit 1
     fi
 
@@ -442,35 +498,30 @@ import json
 try:
     from py_vapid import Vapid
     import base64
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
     # Generate new VAPID keys
     vapid = Vapid()
     vapid.generate_keys()
 
-    # Get raw key bytes
-    private_key_raw = vapid._private_key.private_bytes(
-        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
-        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PrivateFormat']).PrivateFormat.Raw,
-        encryption_algorithm=__import__('cryptography.hazmat.primitives.serialization', fromlist=['NoEncryption']).NoEncryption()
+    # Public key: UncompressedPoint format (includes 0x04 prefix)
+    # Works with cryptography 41.x (X962+UncompressedPoint instead of Raw)
+    public_key_bytes = vapid.public_key.public_bytes(
+        encoding=Encoding.X962,
+        format=PublicFormat.UncompressedPoint
     )
 
-    public_key_raw = vapid._private_key.public_key().public_bytes(
-        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
-        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PublicFormat']).PublicFormat.Raw
-    )
+    # Private key: extract raw 32 bytes via private_numbers
+    private_numbers = vapid.private_key.private_numbers()
+    private_key_bytes = private_numbers.private_value.to_bytes(32, byteorder='big')
 
     # Encode to base64url (no padding, URL-safe)
     def base64url_encode(data):
         return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
 
-    # Public key needs to be uncompressed point (0x04 prefix + x + y coordinates)
-    public_key_uncompressed = b'\x04' + public_key_raw
-    public_key_b64 = base64url_encode(public_key_uncompressed)
-    private_key_b64 = base64url_encode(private_key_raw)
-
     print(json.dumps({
-        "public_key": public_key_b64,
-        "private_key": private_key_b64
+        "public_key": base64url_encode(public_key_bytes),
+        "private_key": base64url_encode(private_key_bytes)
     }))
 except ImportError:
     # pywebpush not installed
@@ -491,6 +542,40 @@ PYTHON_SCRIPT
 
     echo "$vapid_output"
     return 0
+}
+
+# Ensure pywebpush is available for VAPID key generation
+# Returns 0 if installed/installed successfully, exits with error if cannot install
+ensure_pywebpush_installed() {
+    if python3 -c "import py_vapid" 2>/dev/null; then
+        return 0  # Already installed
+    fi
+
+    info "Installing pywebpush for VAPID key generation..."
+
+    # Try standard pip install
+    if pip3 install pywebpush >/dev/null 2>&1; then
+        success "pywebpush installed successfully"
+        return 0
+    fi
+
+    # Try with --break-system-packages for Debian 12+
+    if pip3 install --break-system-packages pywebpush >/dev/null 2>&1; then
+        success "pywebpush installed successfully"
+        return 0
+    fi
+
+    # STRICT MODE: Fail if cannot install
+    error "Failed to install pywebpush!"
+    error "Push notifications require pywebpush package."
+    echo ""
+    info "Please install manually:"
+    echo "  sudo pip3 install pywebpush"
+    echo "  # or"
+    echo "  pip3 install --user pywebpush"
+    echo ""
+    info "Then run setup.sh again."
+    exit 1
 }
 
 # Get bot information from Telegram API
@@ -597,16 +682,31 @@ collect_configuration() {
     generated_postgres_password=$(generate_password 32)
 
     # Generate VAPID keys for Web Push notifications
+    info "Preparing VAPID keys for push notifications..."
+
+    # STRICT: pywebpush is REQUIRED - will exit if cannot install
+    ensure_pywebpush_installed
+
     local generated_vapid_public_key=""
     local generated_vapid_private_key=""
     local vapid_json
-    if vapid_json=$(generate_vapid_keys 2>/dev/null); then
+
+    # Generate VAPID keys
+    if vapid_json=$(generate_vapid_keys 2>&1); then
         generated_vapid_public_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['public_key'])" 2>/dev/null)
         generated_vapid_private_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['private_key'])" 2>/dev/null)
-        info "VAPID keys generated for Web Push notifications"
+
+        if [[ -n "$generated_vapid_public_key" && -n "$generated_vapid_private_key" ]]; then
+            info "VAPID keys generated for Web Push notifications"
+        else
+            error "VAPID key generation returned empty values"
+            error "Output was: $vapid_json"
+            exit 1
+        fi
     else
-        warning "VAPID keys not generated (pywebpush not installed)"
-        info "Push notifications will be disabled. Install pywebpush and run setup.sh again to enable."
+        error "VAPID key generation failed!"
+        error "Error: $vapid_json"
+        exit 1
     fi
     success "Secrets generated"
 
@@ -634,21 +734,14 @@ collect_configuration() {
     echo ""
 
     # VAPID configuration for Push Notifications
+    # NOTE: At this point VAPID keys are always available (setup exits earlier if generation fails)
     print_message "$CYAN" "▶ Push Notifications (VAPID)"
-    if [[ -n "$generated_vapid_public_key" && -n "$generated_vapid_private_key" ]]; then
-        info "VAPID keys auto-generated for Web Push"
-        CONFIG["VAPID_PUBLIC_KEY"]=$generated_vapid_public_key
-        CONFIG["VAPID_PRIVATE_KEY"]=$generated_vapid_private_key
-        # Use LETSENCRYPT_EMAIL if set, otherwise use default
-        local default_vapid_email="${CONFIG[LETSENCRYPT_EMAIL]:-admin@example.com}"
-        prompt "VAPID contact email (for push service notifications)" "VAPID_CONTACT_EMAIL" "$default_vapid_email"
-    else
-        warning "VAPID keys not available - push notifications disabled"
-        info "To enable: pip install pywebpush && run setup.sh again"
-        CONFIG["VAPID_PUBLIC_KEY"]=""
-        CONFIG["VAPID_PRIVATE_KEY"]=""
-        CONFIG["VAPID_CONTACT_EMAIL"]=""
-    fi
+    info "VAPID keys auto-generated for Web Push"
+    CONFIG["VAPID_PUBLIC_KEY"]=$generated_vapid_public_key
+    CONFIG["VAPID_PRIVATE_KEY"]=$generated_vapid_private_key
+    # Use LETSENCRYPT_EMAIL if set, otherwise use default
+    local default_vapid_email="${CONFIG[LETSENCRYPT_EMAIL]:-admin@example.com}"
+    prompt "VAPID contact email (for push service notifications)" "VAPID_CONTACT_EMAIL" "$default_vapid_email"
 
     echo ""
 
@@ -702,16 +795,81 @@ collect_configuration() {
 
     echo ""
 
+    # Admin Email Authentication (optional - emergency access)
+    print_message "$CYAN" "▶ Admin Email Authentication (Optional - Emergency Access)"
+    info "Admin can login via email/password WITHOUT 2FA (security exception)"
+    info "Regular users ALWAYS require 2FA for email/password login"
+    info "Leave blank to use Telegram authentication only"
+    echo ""
+
+    prompt_yes_no "Configure admin email login?" "SETUP_ADMIN_EMAIL" "n"
+
+    if [[ "${CONFIG[SETUP_ADMIN_EMAIL]}" == "y" ]]; then
+        prompt "Admin email (optional)" "ADMIN_EMAIL" ""
+
+        if [[ -n "${CONFIG[ADMIN_EMAIL]}" ]]; then
+            # Validate email format
+            if ! validate_email "${CONFIG[ADMIN_EMAIL]}"; then
+                error "Invalid email format"
+                CONFIG["ADMIN_EMAIL"]=""
+            else
+                echo ""
+                info "Password requirements (OWASP 2023):"
+                echo "  ✓ Minimum 12 characters"
+                echo "  ✓ At least one uppercase letter (A-Z)"
+                echo "  ✓ At least one lowercase letter (a-z)"
+                echo "  ✓ At least one digit (0-9)"
+                echo "  ✓ At least one special character (!@#$%^&*...)"
+                echo ""
+
+                # Generate secure password
+                local generated_password
+                generated_password=$(generate_admin_password)
+
+                success "Auto-generated secure password: $generated_password"
+                info "Accept this or enter your own (hidden input)"
+                echo ""
+
+                prompt "Admin password (or press Enter for auto-generated)" "ADMIN_PASSWORD" "$generated_password" true
+
+                success "Admin email authentication configured"
+                info "Admin: ${CONFIG[ADMIN_EMAIL]}"
+                warning "SECURITY: Password is for INITIAL login only"
+                warning "Change password after first login (optional)"
+            fi
+        fi
+    else
+        info "Admin email authentication disabled (Telegram only)"
+        CONFIG["ADMIN_EMAIL"]=""
+        CONFIG["ADMIN_PASSWORD"]=""
+    fi
+
+    echo ""
+
     # Application settings
     print_message "$CYAN" "▶ Application Settings"
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
     # Domain will be set based on deployment profile (localhost for basic, prompted for full)
     prompt "Backend port" "BACKEND_PORT" "8000"
-    # WORKERS fixed to 1 for SSE compatibility
-    # SSE uses in-memory ConnectionManager which requires single-instance deployment
-    # See: backend/app/api/v1/endpoints/budget_sse.py:9
-    CONFIG["WORKERS"]=1
-    info "Uvicorn workers: 1 (fixed for SSE compatibility)"
+
+    # Uvicorn workers configuration
+    # With Redis Pub/Sub enabled, multi-worker deployment is supported
+    # Workers share WebSocket events via Redis Pub/Sub channel (budget:events)
+    echo ""
+    info "Uvicorn workers configuration:"
+    echo "  - 1: Development/low resources"
+    echo "  - 2: Recommended for most deployments"
+    echo "  - 4: High-traffic production"
+    echo ""
+    info "Note: Multi-worker requires Redis for WebSocket sync"
+    prompt "Number of Uvicorn workers" "WORKERS" "2"
+
+    # Validate workers (must be positive integer)
+    if ! [[ "${CONFIG[WORKERS]}" =~ ^[1-9][0-9]*$ ]]; then
+        warning "Invalid workers count. Using default: 2"
+        CONFIG["WORKERS"]="2"
+    fi
+
     prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
 
     success "Configuration collected"
@@ -1135,6 +1293,102 @@ configure_s3_backup() {
     fi
 }
 
+# Configure Redis caching
+configure_redis() {
+    section "Redis Configuration"
+
+    echo ""
+    info "Redis is used for caching and WebSocket synchronization across workers"
+    info "This improves performance and enables multi-worker deployments"
+    echo ""
+    info "Redis configuration:"
+    echo "  - Password: Authentication for Redis (recommended)"
+    echo "  - Memory limit: Controls maximum memory usage"
+    echo "  - Cache TTL: How long cached data is kept"
+    echo "  - Write-Behind: Async writes to PostgreSQL for lower latency"
+    echo ""
+
+    # Generate Redis password
+    info "Generating Redis password..."
+    local generated_redis_password
+    generated_redis_password=$(generate_password 16)
+
+    echo ""
+    info "Generated Redis password: $generated_redis_password"
+    echo ""
+    read -p "Redis password [Enter to accept generated, or type your own]: " custom_redis_password
+
+    if [[ -n "$custom_redis_password" ]]; then
+        CONFIG["REDIS_PASSWORD"]="$custom_redis_password"
+        success "Using custom Redis password"
+    else
+        CONFIG["REDIS_PASSWORD"]="$generated_redis_password"
+        success "Using generated Redis password"
+    fi
+
+    echo ""
+
+    # Redis memory limit
+    echo "Redis memory limit examples:"
+    echo "  - 256mb: Suitable for low-traffic applications"
+    echo "  - 512mb: Recommended for production"
+    echo "  - 1gb: High-traffic applications"
+    echo ""
+    read -p "Redis memory limit [default: 256mb]: " redis_maxmemory
+    CONFIG["REDIS_MAXMEMORY"]="${redis_maxmemory:-256mb}"
+
+    # Validate memory format
+    if ! [[ "${CONFIG[REDIS_MAXMEMORY]}" =~ ^[0-9]+(mb|gb)$ ]]; then
+        warning "Invalid format. Using default: 256mb"
+        CONFIG["REDIS_MAXMEMORY"]="256mb"
+    fi
+
+    # Cache TTL settings (use defaults, advanced users can edit .env)
+    CONFIG["REDIS_CACHE_TTL_DEFAULT"]="60"
+    CONFIG["REDIS_CACHE_TTL_REFERENCE"]="300"
+    CONFIG["REDIS_CACHE_TTL_DASHBOARD"]="30"
+
+    # Write-Behind feature
+    echo ""
+    info "Write-Behind mode enables async writes to PostgreSQL for lower latency"
+    info "Recommended for production deployments with Redis"
+    echo ""
+    prompt_yes_no "Enable Write-Behind mode?" "WRITE_BEHIND_ENABLED_PROMPT" "y"
+
+    if [[ "${CONFIG[WRITE_BEHIND_ENABLED_PROMPT]}" == "y" ]]; then
+        CONFIG["WRITE_BEHIND_ENABLED"]="true"
+        # DLQ settings (use defaults from .env.example)
+        CONFIG["WRITE_BEHIND_DLQ_TTL_DAYS"]="${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]:-7}"
+        CONFIG["WRITE_BEHIND_DLQ_MAX_SIZE"]="${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]:-100}"
+    else
+        CONFIG["WRITE_BEHIND_ENABLED"]="false"
+        CONFIG["WRITE_BEHIND_DLQ_TTL_DAYS"]="7"
+        CONFIG["WRITE_BEHIND_DLQ_MAX_SIZE"]="100"
+    fi
+
+    # Redis CPU limits (auto-calculated based on CPU count)
+    local cpu_count="${CONFIG[CPU_COUNT]:-1}"
+    if [[ $cpu_count -eq 1 ]]; then
+        CONFIG["REDIS_CPU_LIMIT"]="0.1"
+        CONFIG["REDIS_CPU_RESERVATION"]="0.02"
+    else
+        CONFIG["REDIS_CPU_LIMIT"]="0.2"
+        CONFIG["REDIS_CPU_RESERVATION"]="0.05"
+    fi
+
+    echo ""
+    success "Redis configured"
+    echo ""
+    info "Summary:"
+    echo "  ✓ Memory limit: ${CONFIG[REDIS_MAXMEMORY]}"
+    echo "  ✓ Write-Behind: ${CONFIG[WRITE_BEHIND_ENABLED]}"
+    echo "  ✓ DLQ TTL: ${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]} days"
+    echo "  ✓ DLQ max size: ${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]}"
+    echo "  ✓ CPU limit: ${CONFIG[REDIS_CPU_LIMIT]}"
+    echo "  ✓ Cache TTL (default): ${CONFIG[REDIS_CACHE_TTL_DEFAULT]}s"
+    echo ""
+}
+
 # Create .env file
 create_env_file() {
     section "Creating .env File"
@@ -1182,6 +1436,10 @@ create_env_file() {
     sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" "$env_file"
     sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" "$env_file"
 
+    # Admin email authentication
+    sed -i "s/^ADMIN_EMAIL=.*/ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}/" "$env_file"
+    sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}/" "$env_file"
+
     sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
     sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"
     sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=${CONFIG[BACKEND_PORT]}/" "$env_file"
@@ -1202,6 +1460,18 @@ create_env_file() {
     sed -i "s|^S3_SECRET_ACCESS_KEY=.*|S3_SECRET_ACCESS_KEY=${CONFIG[S3_SECRET_ACCESS_KEY]}|" "$env_file"
     sed -i "s|^S3_BUCKET_NAME=.*|S3_BUCKET_NAME=${CONFIG[S3_BUCKET_NAME]}|" "$env_file"
     sed -i "s|^S3_REGION=.*|S3_REGION=${CONFIG[S3_REGION]}|" "$env_file"
+
+    # Redis configuration
+    sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${CONFIG[REDIS_PASSWORD]}|" "$env_file"
+    sed -i "s|^REDIS_MAXMEMORY=.*|REDIS_MAXMEMORY=${CONFIG[REDIS_MAXMEMORY]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_DEFAULT=.*|REDIS_CACHE_TTL_DEFAULT=${CONFIG[REDIS_CACHE_TTL_DEFAULT]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_REFERENCE=.*|REDIS_CACHE_TTL_REFERENCE=${CONFIG[REDIS_CACHE_TTL_REFERENCE]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_DASHBOARD=.*|REDIS_CACHE_TTL_DASHBOARD=${CONFIG[REDIS_CACHE_TTL_DASHBOARD]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_ENABLED=.*|WRITE_BEHIND_ENABLED=${CONFIG[WRITE_BEHIND_ENABLED]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_DLQ_TTL_DAYS=.*|WRITE_BEHIND_DLQ_TTL_DAYS=${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_DLQ_MAX_SIZE=.*|WRITE_BEHIND_DLQ_MAX_SIZE=${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]}|" "$env_file"
+    sed -i "s|^REDIS_CPU_LIMIT=.*|REDIS_CPU_LIMIT=${CONFIG[REDIS_CPU_LIMIT]}|" "$env_file"
+    sed -i "s|^REDIS_CPU_RESERVATION=.*|REDIS_CPU_RESERVATION=${CONFIG[REDIS_CPU_RESERVATION]}|" "$env_file"
 
     # Docker CPU limits (auto-detected based on available CPUs)
     sed -i "s/^CPU_COUNT=.*/CPU_COUNT=${CONFIG[CPU_COUNT]}/" "$env_file"
@@ -1494,6 +1764,9 @@ main() {
     echo ""
 
     configure_s3_backup
+    echo ""
+
+    configure_redis
     echo ""
 
     create_env_file

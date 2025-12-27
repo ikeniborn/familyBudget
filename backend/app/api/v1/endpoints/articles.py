@@ -48,6 +48,7 @@ from backend.app.services.article_service import (
     create_initial_history,
     update_article_profile,
 )
+from backend.app.services.cache_service import cache_service
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
@@ -68,7 +69,7 @@ async def create_article(
 
     **Shared References Architecture:**
     - All articles are shared across all users
-    - Only administrators can create articles
+    - All authenticated users can create articles
     - Article is created with current user as creator (audit trail)
 
     **Validation:**
@@ -78,16 +79,8 @@ async def create_article(
 
     **Returns:**
     - 201 Created: Article created successfully
-    - 403 Forbidden: Non-admin trying to create OR parent article not found
     - 404 Not Found: Parent article not found
     """
-
-    # Check: Only admins can create articles
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create articles"
-        )
 
     # Validate: Parent article must exist and be accessible
     if article_data.parent_id:
@@ -115,6 +108,9 @@ async def create_article(
 
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, article=article, change_type="CREATE")
+
+    # Invalidate articles cache
+    await cache_service.invalidate_articles()
 
     return article
 
@@ -375,7 +371,7 @@ async def update_article(
     - If is_active + other fields change: both operations execute
 
     **Shared References Architecture:**
-    - Only administrators can update articles
+    - All authenticated users can update articles
     - All articles are shared across all users
 
     **Validation:**
@@ -385,20 +381,12 @@ async def update_article(
 
     **Returns:**
     - 200 OK: Article updated (in-place update with history)
-    - 403 Forbidden: Non-admin trying to update
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
     """
     import logging
     logger = logging.getLogger(__name__)
     logger.info(f"[UPDATE_ARTICLE] ENTRY: article_id={article_id}")
-
-    # Check: Only admins can update articles
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update articles"
-        )
 
     # Validate: At least one field provided
     update_data = article_data.model_dump(exclude_unset=True)
@@ -498,10 +486,14 @@ async def update_article(
             change_type="UPDATE",
         )
         logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
+        # Invalidate articles cache
+        await cache_service.invalidate_articles()
         return updated_article
     else:
         # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
         logger.info(f"[ARTICLE UPDATE] Only is_active changed, returning updated article")
+        # Invalidate articles cache (is_active change affects listing)
+        await cache_service.invalidate_articles()
         return old_article
 
 
@@ -558,6 +550,9 @@ async def delete_article(
 
     # Soft delete: archive article and all descendants
     await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
+
+    # Invalidate articles cache
+    await cache_service.invalidate_articles()
 
     return None
 

@@ -17,6 +17,11 @@ routes:
     response:
       status: 200
       body:
+        articles: "array of article objects"
+        total: "integer - total count"
+        limit: "integer - page size"
+        offset: "integer - skip count"
+      article_object:
         - id: "integer"
           name: "string"
           type: "income | expense"
@@ -28,11 +33,48 @@ routes:
       $ref: "../functionality/budget-management.yaml#/module/services/1"
 
   # ---------------------------------------------------------------------------
-  # CREATE (ADMIN ONLY)
+  # LIST (ADMIN - NON-PAGINATED)
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/admin/articles"
+    method: GET
+    auth: admin
+    description: "List all articles with full details (admin only, non-paginated)"
+    query_params:
+      include_inactive: "boolean (default: true - includes archived categories)"
+      type: "income | expense (optional)"
+    response:
+      status: 200
+      body: "List[ArticleResponse] - Direct array (NOT paginated object)"
+      article_object:
+        - id: "integer"
+          name: "string"
+          type: "income | expense"
+          parent_id: "integer (nullable)"
+          code: "string (optional)"
+          is_active: "boolean"
+          user_id: "integer"
+          user_name: "string - first_name from joined User"
+          financial_center_ids: "array of integers - linked FCs"
+          is_leaf: "boolean - has no children"
+          created_at: "datetime"
+          updated_at: "datetime"
+    note: |
+      IMPORTANT: Response format differs from /api/v1/articles:
+      - /api/v1/admin/articles returns: List[ArticleResponse] (direct array)
+      - /api/v1/articles returns: ArticleListResponse (paginated object with .articles property)
+
+      Frontend (admin_articles.html:350-356) handles both formats:
+      - if (isAdmin): articlesData = responseData (direct array)
+      - else: articlesData = responseData.articles (extract nested array)
+    service:
+      $ref: "../functionality/admin.yaml#/module/services/0"
+
+  # ---------------------------------------------------------------------------
+  # CREATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/articles"
     method: POST
-    auth: admin
+    auth: user
     description: "Create new article"
     request:
       body:
@@ -81,11 +123,11 @@ routes:
         detail: "Article not found"
 
   # ---------------------------------------------------------------------------
-  # UPDATE (ADMIN ONLY)
+  # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/articles/{id}"
     method: PUT
-    auth: admin
+    auth: user
     description: "Update article"
     path_params:
       id: "integer"

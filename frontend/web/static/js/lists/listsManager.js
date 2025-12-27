@@ -150,8 +150,12 @@ class ListsManager {
         this.currentItems = [];
         this.selectedItemIds.clear();
 
-        // Hide FAB menu (only visible in detail view)
+        // CRITICAL: Close import wizard when returning to landing view
+        closeImportWizard();
+
+        // Hide detail view FAB menu, show create list FAB
         this.hideFAB();
+        this.showCreateListFAB();
 
         // Show landing view, hide detail view
         document.getElementById('landing-view').classList.remove('hidden');
@@ -173,6 +177,10 @@ class ListsManager {
         this.currentItems = [];  // Clear items immediately
         this.selectedItemIds.clear();
         this.currentListId = listId;
+
+        // CRITICAL: Close import wizard to prevent data isolation breach
+        // (CSV import from List A must not leak into List B)
+        closeImportWizard();
 
         // Reset search query for new list
         this.searchQuery = '';
@@ -216,11 +224,11 @@ class ListsManager {
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('detail-view').classList.remove('hidden');
 
+        // Hide create list FAB (only visible in landing view)
+        this.hideCreateListFAB();
+
         // Load items for this list
         await this.loadShoppingListItems(listId);
-
-        // Update delete completed button visibility
-        this.updateFABVisibility();
 
         // Restore saved view preference from localStorage
         let savedView = 'table'; // default
@@ -240,6 +248,9 @@ class ListsManager {
         } else {
             this.switchView('table');
         }
+
+        // Update FAB visibility AFTER switchView to ensure it's visible in all views
+        this.updateFABVisibility();
 
         // Initialize Choices.js for store and product group selectors in modal
         this.initStoreChoices();
@@ -875,6 +886,7 @@ class ListsManager {
 
         this.updateHideCompletedButton();
         this.renderCurrentView();
+        this.updateFABButtons();
     }
 
     /**
@@ -904,21 +916,75 @@ class ListsManager {
 
     /**
      * Update FAB visibility
-     * Shows FAB only when in detail view and there are items
+     * Shows FAB when in detail view (regardless of item count)
      */
     updateFABVisibility() {
         const fabMenu = document.getElementById('lists-fab-menu');
         const fabBackdrop = document.getElementById('lists-fab-backdrop');
         if (!fabMenu) return;
 
-        // Show FAB only when there are items in the list
-        if (this.currentItems.length > 0 && this.currentListId) {
+        // Show FAB when viewing a list (even if empty)
+        if (this.currentListId) {
             fabMenu.classList.remove('hidden');
         } else {
             fabMenu.classList.add('hidden');
             // Also hide backdrop if FAB is hidden
             if (fabBackdrop) {
                 fabBackdrop.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
+     * Update FAB button visibility based on item completion state
+     *
+     * Visibility rules:
+     * - Delete completed (🗑️): Show only if at least 1 completed item exists
+     * - Mark all completed (✅): Hide if ALL items are completed
+     * - Unmark all completed (❌): Hide if ALL items are NOT completed
+     */
+    updateFABButtons() {
+        // Early exit if no items
+        if (!this.currentItems || this.currentItems.length === 0) {
+            // Hide all action button containers when list is empty
+            document.getElementById('fab-item-delete-completed')?.classList.add('hidden');
+            document.getElementById('fab-item-mark-all-completed')?.classList.add('hidden');
+            document.getElementById('fab-item-unmark-all-completed')?.classList.add('hidden');
+            return;
+        }
+
+        // Count item states
+        const completedCount = this.currentItems.filter(item => item.is_completed).length;
+        const totalCount = this.currentItems.length;
+        const uncompletedCount = totalCount - completedCount;
+
+        // Delete completed container (🗑️): Show only if there are completed items
+        const deleteItem = document.getElementById('fab-item-delete-completed');
+        if (deleteItem) {
+            if (completedCount > 0) {
+                deleteItem.classList.remove('hidden');
+            } else {
+                deleteItem.classList.add('hidden');
+            }
+        }
+
+        // Mark all completed container (✅): Hide if all items are already completed
+        const markAllItem = document.getElementById('fab-item-mark-all-completed');
+        if (markAllItem) {
+            if (uncompletedCount > 0) {
+                markAllItem.classList.remove('hidden');
+            } else {
+                markAllItem.classList.add('hidden');
+            }
+        }
+
+        // Unmark all completed container (❌): Hide if all items are uncompleted
+        const unmarkAllItem = document.getElementById('fab-item-unmark-all-completed');
+        if (unmarkAllItem) {
+            if (completedCount > 0) {
+                unmarkAllItem.classList.remove('hidden');
+            } else {
+                unmarkAllItem.classList.add('hidden');
             }
         }
     }
@@ -935,6 +1001,26 @@ class ListsManager {
         }
         if (fabBackdrop) {
             fabBackdrop.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+        }
+    }
+
+    /**
+     * Show create list FAB (landing view only)
+     */
+    showCreateListFAB() {
+        const createListFAB = document.getElementById('create-list-fab');
+        if (createListFAB) {
+            createListFAB.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Hide create list FAB (when switching to detail view)
+     */
+    hideCreateListFAB() {
+        const createListFAB = document.getElementById('create-list-fab');
+        if (createListFAB) {
+            createListFAB.classList.add('hidden');
         }
     }
 
@@ -1323,6 +1409,7 @@ class ListsManager {
         this.renderCurrentView();
         this.updateProgressBadge();
         this.updateFABVisibility();
+        this.updateFABButtons();
 
         try {
             // 2. Send to server or queue for offline
@@ -1489,6 +1576,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1538,6 +1626,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
         } catch (error) {
@@ -1584,6 +1673,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1641,6 +1731,9 @@ class ListsManager {
                 showToast('Иерархический вид недоступен', 'error');
             }
         }
+
+        // Ensure FAB remains visible after view switch
+        this.updateFABVisibility();
     }
 
     /**
@@ -1767,6 +1860,7 @@ class ListsManager {
         this.renderCurrentView();
         this.updateProgressBadge();
         this.updateFABVisibility();
+        this.updateFABButtons();
         this.updateItemsCache();
 
         // Show notification
@@ -1804,6 +1898,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
     }
@@ -1841,6 +1936,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
 
@@ -1882,6 +1978,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
     }
@@ -1895,6 +1992,7 @@ class ListsManager {
             await this.loadShoppingListItems(this.currentListId);
             this.renderCurrentView();
             this.updateProgressBadge();
+            this.updateFABButtons();
         }
     }
 
@@ -2558,6 +2656,7 @@ async function handleSaveItem(event) {
                 Object.assign(item, data);
                 manager.renderCurrentView();
                 manager.updateProgressBadge();
+                manager.updateFABButtons();
                 await manager.updateItemsCache();
             }
         } else if (result.tempId && !result.id) {
@@ -2578,6 +2677,7 @@ async function handleSaveItem(event) {
             manager.currentItems.push(newItem);
             manager.renderCurrentView();
             manager.updateProgressBadge();
+            manager.updateFABButtons();
             await manager.updateItemsCache();
         }
         // CREATE online (result.id exists): do nothing, WebSocket will add the item
@@ -2839,20 +2939,22 @@ function initializeImportWizard() {
 }
 
 /**
- * Toggle import wizard accordion (open/close)
- * Handles opening/closing the import wizard container and updating the visual indicator
+ * Close import wizard (helper function for list switching)
+ * CRITICAL: Prevents data isolation breach when switching lists during import
  */
-function toggleImportWizard() {
+function closeImportWizard() {
     const container = document.getElementById('import-wizard-container');
     const icon = document.getElementById('import-toggle-icon');
     const hint = document.getElementById('import-toggle-hint');
     const wizardContainer = document.getElementById('import-wizard');
+
+    if (!container) return;
+
     const isOpen = !container.classList.contains('hidden');
 
     if (isOpen) {
-        // Closing - hide wizard and reset state
         container.classList.add('hidden');
-        icon.textContent = '▶';
+        if (icon) icon.textContent = '▶';
         if (hint) hint.classList.remove('hidden');
 
         if (wizardContainer) {
@@ -2862,11 +2964,27 @@ function toggleImportWizard() {
             window.importManager.container = null;
             window.importManager.currentMethod = null;
         }
-        debugLog('[ImportWizard] Closed and reset');
+        debugLog('[ImportWizard] Closed and reset (auto-close on list switch)');
+    }
+}
+
+/**
+ * Toggle import wizard accordion (open/close)
+ * Handles opening/closing the import wizard container and updating the visual indicator
+ */
+function toggleImportWizard() {
+    const container = document.getElementById('import-wizard-container');
+    const icon = document.getElementById('import-toggle-icon');
+    const hint = document.getElementById('import-toggle-hint');
+    const isOpen = container && !container.classList.contains('hidden');
+
+    if (isOpen) {
+        // Closing - use closeImportWizard helper
+        closeImportWizard();
     } else {
         // Opening - show wizard and initialize
         container.classList.remove('hidden');
-        icon.textContent = '▼';
+        if (icon) icon.textContent = '▼';
         if (hint) hint.classList.add('hidden');
         initializeImportWizard();
     }

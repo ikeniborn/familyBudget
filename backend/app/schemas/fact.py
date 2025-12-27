@@ -12,6 +12,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.app.utils.timezone import now_local
+from backend.app.schemas.recurring_plan import RecurringPlanResponse
 
 
 class FactCreate(BaseModel):
@@ -269,21 +270,29 @@ class FactUpdate(BaseModel):
     @field_validator("fact_date")
     @classmethod
     def date_validation(cls, v: Optional[date]) -> Optional[date]:
-        """Validate transaction date if provided."""
+        """Validate transaction date if provided.
+
+        Note: Plans (record_type='plan') can have future dates up to 5 years ahead.
+        Since we don't know record_type at schema level during updates,
+        we allow future dates for all FactUpdate operations.
+        """
         if v is None:
             return None
 
         today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
-
-        # Allow +1 day tolerance for timezone differences
-        if v > today + timedelta(days=1):
-            raise ValueError("Fact date cannot be in the future")
 
         # Check if date is too old (more than 10 years ago)
         ten_years_ago = today - timedelta(days=365 * 10)
         if v < ten_years_ago:
             raise ValueError(
                 f"Fact date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
+            )
+
+        # Check if date is too far in the future (more than 5 years)
+        five_years_future = today + timedelta(days=365 * 5)
+        if v > five_years_future:
+            raise ValueError(
+                f"Fact date cannot be more than 5 years in the future (latest: {five_years_future.isoformat()})"
             )
 
         return v
@@ -419,6 +428,23 @@ class FactResponse(BaseModel):
         examples=[False, True]
     )
 
+    recurring_plan_id: Optional[int] = Field(
+        default=None,
+        description="ID of recurring plan that generated this fact (None for manual entries)",
+        examples=[None, 1, 5]
+    )
+
+    recurring_plan: Optional['RecurringPlanResponse'] = Field(
+        default=None,
+        description="Full recurring plan details when recurring_plan_id is set (null for manual entries)",
+        examples=[None, {
+            "id": 1,
+            "frequency_display": "Ежемесячно",
+            "next_generation_date": "2026-01-15",
+            "is_active": True
+        }]
+    )
+
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
@@ -448,6 +474,9 @@ class FactResponse(BaseModel):
                 "cost_center_id": None,
                 "cost_center_name": None,
                 "record_type": "fact",
+                "is_offline_sync": False,
+                "recurring_plan_id": None,
+                "recurring_plan": None,
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
             }

@@ -24,7 +24,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
-    <!-- Tailwind CSS + DaisyUI (Local Build) -->
+    <!-- Tailwind CSS + DaisyUI -->
     <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
 
     <!-- Custom Styles -->
@@ -151,6 +151,283 @@
         }
     </style>
 
+    <!-- PWA Splash Screen Styles (inline for immediate render) -->
+    <style>
+        .pwa-splash {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            /* Fallback for when DaisyUI CSS not yet loaded */
+            background: #ffffff;
+            /* DaisyUI theme colors (will apply when CSS loads) */
+            background: linear-gradient(135deg, oklch(var(--b1, 100% 0 0)) 0%, oklch(var(--b2, var(--b1, 100% 0 0))) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+        /* Dark mode fallback */
+        @media (prefers-color-scheme: dark) {
+            .pwa-splash {
+                background: #1d232a;
+                background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
+            }
+        }
+        .pwa-splash.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .splash-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            animation: splash-fade-in 0.5s ease-out;
+        }
+        .splash-icon {
+            width: 96px;
+            height: 96px;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            animation: splash-bounce 1s ease-in-out infinite alternate;
+        }
+        @keyframes splash-fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes splash-bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .splash-icon, .splash-content {
+                animation: none;
+            }
+            .pwa-splash {
+                transition: none;
+            }
+        }
+
+        /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) */
+        .navigation-progress {
+            position: fixed;
+            top: 4rem; /* 64px - DaisyUI navbar height одинаков на всех экранах */
+            left: 0;
+            width: 0%;
+            height: 3px;
+            /* Fallback for Safari < 15.4 (no oklch support) */
+            background: #36d399; /* DaisyUI success green fallback */
+            background: oklch(var(--su)); /* DaisyUI success color (green) */
+            z-index: 39; /* под navbar (z-40) */
+            transition: width 0.15s ease-out;
+            -webkit-transition: width 0.15s ease-out;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 8px rgba(54, 211, 153, 0.5); /* Fallback */
+            box-shadow: 0 0 8px oklch(var(--su) / 0.5);
+
+            /* GPU acceleration for iOS Safari (prevents flickering) */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-perspective: 1000;
+            perspective: 1000;
+            will-change: width, opacity;
+        }
+
+        .navigation-progress.active {
+            opacity: 1;
+        }
+
+        .navigation-progress.complete {
+            width: 100%;
+            transition: width 0.1s ease-out, opacity 0.6s ease-out 0.2s;
+            opacity: 0;
+        }
+
+        /* Shimmer effect for active loading */
+        .navigation-progress.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.4) 50%,
+                transparent 100%
+            );
+            animation: progress-shimmer 1.5s infinite;
+
+            /* GPU acceleration for shimmer animation (iOS Safari) */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        @keyframes progress-shimmer {
+            0% { transform: translate3d(-100%, 0, 0); }
+            100% { transform: translate3d(100%, 0, 0); }
+        }
+
+        @-webkit-keyframes progress-shimmer {
+            0% { -webkit-transform: translate3d(-100%, 0, 0); }
+            100% { -webkit-transform: translate3d(100%, 0, 0); }
+        }
+
+        /* Reduced motion for progress bar */
+        @media (prefers-reduced-motion: reduce) {
+            .navigation-progress {
+                transition: none;
+            }
+            .navigation-progress::after {
+                animation: none;
+            }
+        }
+
+        /* Navigation Transition Overlay - скрывает DOM cleanup при переходе */
+        .navigation-overlay {
+            position: fixed;
+            /* Fallback for Safari < 14.1 (no inset support) */
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            inset: 0;
+            z-index: 99998; /* под toasts (99999), над всем остальным */
+            /* Fallback for Safari < 15.4 (no oklch support) */
+            background: #ffffff; /* Light mode fallback */
+            background: oklch(var(--b1)); /* DaisyUI base background (light/dark aware) */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            pointer-events: none;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+        }
+
+        .navigation-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .navigation-overlay .loading-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Reduced motion for overlay */
+        @media (prefers-reduced-motion: reduce) {
+            .navigation-overlay {
+                transition: none;
+            }
+        }
+
+        /* ========================================
+           View Transitions API (Safari 18+, iOS 18+)
+           Progressive enhancement - graceful degradation for older Safari
+           ======================================== */
+        @supports (view-transition-name: root) {
+            /* Enable automatic view transitions for cross-document navigation */
+            @view-transition {
+                navigation: auto;
+            }
+
+            /* Smooth fade transition for page content */
+            ::view-transition-old(root) {
+                animation: view-fade-out 1.1s ease-out;
+            }
+
+            ::view-transition-new(root) {
+                animation: view-fade-in 1.1s ease-in;
+            }
+
+            /* Fade out animation */
+            @keyframes view-fade-out {
+                from {
+                    opacity: 1;
+                }
+                to {
+                    opacity: 0;
+                }
+            }
+
+            /* Fade in animation */
+            @keyframes view-fade-in {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            /* Respect user's motion preferences */
+            @media (prefers-reduced-motion: reduce) {
+                ::view-transition-old(root),
+                ::view-transition-new(root) {
+                    animation: none !important;
+                }
+            }
+        }
+
+        /* Disable View Transitions for dialog elements (modals) */
+        @supports (view-transition-name: root) {
+            dialog, dialog *, dialog::backdrop {
+                view-transition-name: none;
+            }
+        }
+
+        /* ========================================
+           iOS Safari Performance Optimizations
+           ======================================== */
+
+        /* GPU acceleration for main content (reduces flickering) */
+        main, #main-content {
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        /* Prevent text selection and tap highlight on interactive elements */
+        a, button, [role="button"] {
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            tap-highlight-color: transparent;
+        }
+
+        /* Allow text selection in content areas */
+        p, li, td, th, span, .content-area, [contenteditable] {
+            -webkit-user-select: auto;
+            user-select: auto;
+        }
+
+        /* Optimize scrolling performance on iOS */
+        @supports (-webkit-overflow-scrolling: touch) {
+            * {
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+
     <!-- Offline mode detection BEFORE body renders (prevents flash) -->
     <script>
         (function() {
@@ -164,6 +441,14 @@
             } catch(e) {}
         })();
     </script>
+
+    <!-- Feature Flags Configuration (Web Workers, Debug Mode) -->
+    <script>
+        window.FEATURE_FLAGS = {
+            ENABLE_WEB_WORKERS: {{ 'true' if config.ENABLE_WEB_WORKERS else 'false' }},
+            DEBUG_MODE: {{ 'true' if config.DEBUG else 'false' }}
+        };
+    </script>
     <style>
         /* Hide offline elements BEFORE JavaScript runs */
         html.offline-mode [data-offline-hidden="true"] {
@@ -172,7 +457,7 @@
     </style>
 
     <!-- Choices.js -->
-    <link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+    <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
 
     <!-- Extra Styles (from child templates) -->
@@ -185,7 +470,7 @@
     <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER"></script>
 
     <!-- Choices.js JS -->
-    <script src="/static/js/vendor/choices.min.js"></script>
+    <script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
 
     <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
     <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
@@ -204,6 +489,131 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen flex flex-col">
+    <!-- PWA Splash Screen (icon only, no loader) -->
+    <div id="pwa-splash" class="pwa-splash" aria-hidden="true" role="presentation">
+        <div class="splash-content">
+            <img src="/static/icons/icon-192.png" alt="" class="splash-icon" width="96" height="96">
+        </div>
+    </div>
+    <script>
+    // PWA Splash Screen Controller - inline for immediate execution
+    // Shows splash on EVERY cold start (app closed and reopened), not on F5 or in-app navigation
+    (function() {
+        var splashEl = document.getElementById('pwa-splash');
+        if (!splashEl) return;
+
+        // Only show splash in PWA mode (standalone)
+        var isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                    window.navigator.standalone === true;
+
+        if (!isPWA) {
+            splashEl.remove();
+            return;
+        }
+
+        // Detect page reload (F5) using Performance API
+        var navEntry = window.performance && window.performance.getEntriesByType &&
+                       window.performance.getEntriesByType('navigation')[0];
+        var isReload = navEntry && navEntry.type === 'reload';
+
+        // Session-based detection: cold start = no sessionStorage flag yet
+        var SPLASH_SESSION_KEY = 'pwa_splash_shown';
+        var isColdStart = false;
+
+        // Try sessionStorage (may fail in private browsing mode)
+        try {
+            isColdStart = !sessionStorage.getItem(SPLASH_SESSION_KEY);
+        } catch (e) {
+            console.warn('[PWA_SPLASH] sessionStorage unavailable (private mode?), fallback to always show:', e);
+            isColdStart = true; // Fallback: show splash if storage unavailable
+        }
+
+        // Console logging for debugging
+        console.log('[PWA_SPLASH] Display check:', {
+            isPWA: isPWA,
+            isColdStart: isColdStart,
+            isReload: isReload,
+            navType: navEntry ? navEntry.type : 'unknown',
+            timestamp: Date.now()
+        });
+
+        // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
+        if (!isColdStart || isReload) {
+            try {
+                console.log('[PWA_SPLASH] Skipping splash:', {
+                    reason: !isColdStart ? 'session active' : 'page reload',
+                    sessionFlag: sessionStorage.getItem(SPLASH_SESSION_KEY),
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                console.log('[PWA_SPLASH] Skipping splash (storage unavailable)');
+            }
+            splashEl.remove();
+            return;
+        }
+
+        // Mark session as splash-shown (persists until tab close)
+        var startTimestamp = Date.now();
+        try {
+            sessionStorage.setItem(SPLASH_SESSION_KEY, startTimestamp.toString());
+        } catch (e) {
+            console.warn('[PWA_SPLASH] Failed to set sessionStorage:', e);
+        }
+
+        console.log('[PWA_SPLASH] Cold start detected, showing splash', {
+            startTimestamp: startTimestamp,
+            duration: '3s'
+        });
+
+        // Show splash for 3 seconds on cold start
+        var MIN_DISPLAY_TIME = 3000;
+        var pageLoaded = false;
+        var timerDone = false;
+
+        function tryHideSplash() {
+            if (timerDone && pageLoaded) {
+                var hideTimestamp = Date.now();
+                var actualDuration = hideTimestamp - startTimestamp;
+
+                console.log('[PWA_SPLASH] Hiding splash', {
+                    timerDone: timerDone,
+                    pageLoaded: pageLoaded,
+                    plannedDuration: '3s',
+                    actualDuration: actualDuration + 'ms',
+                    hideTimestamp: hideTimestamp
+                });
+
+                splashEl.classList.add('hidden');
+                setTimeout(function() {
+                    splashEl.remove();
+                    console.log('[PWA_SPLASH] Splash removed from DOM', {
+                        totalTime: (Date.now() - startTimestamp) + 'ms'
+                    });
+                }, 300);
+            }
+        }
+
+        setTimeout(function() {
+            timerDone = true;
+            tryHideSplash();
+        }, MIN_DISPLAY_TIME);
+
+        console.log('[PWA_SPLASH] DOMContentLoaded fired');
+
+        if (document.readyState === 'complete') {
+            pageLoaded = true;
+            console.log('[PWA_SPLASH] Page already loaded (readyState: complete)');
+            tryHideSplash();
+        } else {
+            window.addEventListener('load', function() {
+                pageLoaded = true;
+                console.log('[PWA_SPLASH] Page loaded, checking if ready to hide');
+                tryHideSplash();
+            });
+        }
+    })();
+    </script>
+
     <!-- Skip to main content for accessibility -->
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 btn btn-primary btn-sm">Skip to main content</a>
 
@@ -269,13 +679,6 @@
                 </div>
             </div>
 
-            <!-- Budget WebSocket Status Indicator (real-time sync status) -->
-            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
-                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
-                    <span class="loading loading-ring loading-xs sm:loading-sm"></span>
-                </span>
-            </div>
-
             <!-- Push Notification Bell Button -->
             <div id="push-bell-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center">
                 <button id="push-bell-btn"
@@ -287,6 +690,13 @@
                     </svg>
                 </button>
                 <span id="push-bell-tooltip" class="hidden">Push-уведомления</span>
+            </div>
+
+            <!-- Budget WebSocket Status Indicator (real-time sync status) -->
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
+                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
+                    <span class="loading loading-ring loading-xs sm:loading-sm"></span>
+                </span>
             </div>
 
             {% endif %}
@@ -494,6 +904,17 @@
         </div>
     </header>
 
+    <!-- Navigation Progress Bar -->
+    <div id="navigation-progress" class="navigation-progress" role="progressbar" aria-hidden="true"></div>
+
+    <!-- Navigation Transition Overlay (скрывает DOM cleanup при переходе) -->
+    <div id="navigation-overlay" class="navigation-overlay" aria-hidden="true">
+        <div class="loading-indicator">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <span class="text-base-content/70">Загрузка...</span>
+        </div>
+    </div>
+
     <!-- Pending Sync Badge -->
     <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
         <div class="badge badge-error gap-2 p-3 shadow-lg">
@@ -509,6 +930,9 @@
     <main id="main-content" class="flex-1 container mx-auto px-4 py-8 max-w-7xl" role="main">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- FAB Buttons (outside main container for proper fixed positioning) -->
+    {% block fab_buttons %}{% endblock %}
 
     <!-- Cookie Consent Banner (GDPR Compliance) -->
     {% if user %}
@@ -609,6 +1033,9 @@
     {% if user %}
     <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
 
+    <!-- ✅ FIX 4: Shared reminder utilities -->
+    <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
+
     {% block extra_scripts %}{% endblock %}
     {% endif %}
 
@@ -642,6 +1069,7 @@
         // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
         // (HTML5 <dialog> creates a "top layer" that ignores z-index)
         function showToast(message, type = 'info', duration = 2000) {
+            console.log('[showToast] Called:', {message, type, stack: new Error().stack});
             let container;
 
             // Check if there's an open dialog (modal)
@@ -808,14 +1236,49 @@
 
             if (isLoading) {
                 submitBtn.disabled = true;
-                submitBtn.classList.add('loading');
                 submitBtn.dataset.originalHtml = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
+                // Use loading-xs for btn-sm, loading-sm otherwise
+                const spinnerSize = submitBtn.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
+                submitBtn.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
             } else {
                 submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
                 if (submitBtn.dataset.originalHtml) {
                     submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+                }
+            }
+        }
+
+        // Button loading state management (prevents double submit)
+        // Similar to setSubmitLoading but accepts button directly
+        function setButtonLoading(button, isLoading) {
+            console.log('[setButtonLoading] Called with:', {button: !!button, isLoading});
+
+            if (!button) {
+                console.warn('[setButtonLoading] ⚠️ Button is null/undefined, returning');
+                return;
+            }
+
+            if (isLoading) {
+                console.log('[setButtonLoading] Setting loading=true');
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                // Use loading-xs for btn-sm, loading-sm otherwise
+                const spinnerSize = button.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
+                button.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
+                console.log('[setButtonLoading] ✅ Button in loading state, originalHtml saved');
+            } else {
+                console.log('[setButtonLoading] Setting loading=false, hasOriginal:', !!button.dataset.originalHtml);
+                button.disabled = false;
+                if (button.dataset.originalHtml) {
+                    button.innerHTML = button.dataset.originalHtml;
+                    delete button.dataset.originalHtml;  // ← CRITICAL: Delete to prevent memory leak
+                    console.log('[setButtonLoading] ✅ Button restored from originalHtml');
+                } else {
+                    console.warn('[setButtonLoading] ⚠️ No originalHtml found, forcing default button text');
+                    // DEFENSIVE FIX: Restore default button text to prevent stuck spinner
+                    // This happens if modal was closed/reopened between setLoading(true) and setLoading(false)
+                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
+                    console.log('[setButtonLoading] ✅ Fallback: Button restored to default text');
                 }
             }
         }
@@ -941,35 +1404,143 @@
         })();
     </script>
 
-    <!-- Service Worker Registration (PWA) -->
+    <!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
     <script>
         // Service Worker регистрация для Progressive Web App
+        // Стратегия: Aggressive Auto-Update с автоматической перезагрузкой при обновлении
         if ('serviceWorker' in navigator) {
+            let refreshing = false;
+            const SW_VERSION_KEY = 'pwa_sw_version';
+
+            /**
+             * Получить CACHE_VERSION из Service Worker через MessageChannel
+             * @param {ServiceWorker} controller - Service Worker controller
+             * @returns {Promise<string|null>} CACHE_VERSION или null
+             */
+            async function getSWVersion(controller) {
+                if (!controller) return null;
+
+                return new Promise((resolve) => {
+                    const messageChannel = new MessageChannel();
+                    const timeout = setTimeout(() => {
+                        console.warn('[PWA] Timeout getting SW version');
+                        resolve(null);
+                    }, 5000); // 5 second timeout
+
+                    messageChannel.port1.onmessage = (event) => {
+                        clearTimeout(timeout);
+                        if (event.data.type === 'VERSION_RESPONSE') {
+                            console.log('[PWA] Received SW version:', event.data.version);
+                            resolve(event.data.version);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+
+                    controller.postMessage(
+                        { action: 'getVersion' },
+                        [messageChannel.port2]
+                    );
+                });
+            }
+
+            // CRITICAL: Listen for controllerchange event (new SW activated)
+            // При обновлении SW автоматически перезагружаем страницу
+            navigator.serviceWorker.addEventListener('controllerchange', async () => {
+                if (refreshing) return; // Предотвращаем множественные перезагрузки
+
+                const newController = navigator.serviceWorker.controller;
+                if (!newController) {
+                    console.log('[PWA] No controller available after controllerchange');
+                    return;
+                }
+
+                // Получаем CACHE_VERSION из нового Service Worker
+                console.log('[PWA] New service worker activated');
+                console.log('[PWA] Requesting CACHE_VERSION from new SW...');
+
+                const newVersion = await getSWVersion(newController);
+                const savedVersion = localStorage.getItem(SW_VERSION_KEY);
+
+                console.log('[PWA] New SW CACHE_VERSION:', newVersion);
+                console.log('[PWA] Saved CACHE_VERSION:', savedVersion);
+
+                // Если не удалось получить версию, перезагружаем для безопасности
+                if (!newVersion) {
+                    console.warn('[PWA] ⚠️ Failed to get CACHE_VERSION, reloading for safety...');
+                    refreshing = true;
+                    window.location.reload();
+                    return;
+                }
+
+                // Проверяем, изменилась ли версия
+                if (newVersion === savedVersion) {
+                    console.log('[PWA] ✓ Version unchanged, skipping reload');
+                    console.log('[PWA] Application already on latest version');
+                    return;
+                }
+
+                // Версия изменилась - перезагружаем
+                refreshing = true;
+                console.log('[PWA] ⚡ Version changed, reloading page...');
+                console.log('[PWA] Previous CACHE_VERSION:', savedVersion);
+                console.log('[PWA] New CACHE_VERSION:', newVersion);
+
+                // Сохраняем новую версию перед перезагрузкой
+                localStorage.setItem(SW_VERSION_KEY, newVersion);
+
+                // Автоматическая перезагрузка без уведомления
+                window.location.reload();
+            });
+
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.min.js')
-                    .then((registration) => {
-                        debugLog('[PWA] Service Worker registered:', registration.scope);
+                    .then(async (registration) => {
+                        console.log('[PWA] Service Worker registered:', registration.scope);
+
+                        // Сохраняем текущую версию SW при загрузке
+                        if (navigator.serviceWorker.controller) {
+                            console.log('[PWA] Getting current CACHE_VERSION from SW...');
+                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                            if (currentVersion) {
+                                localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                                console.log('[PWA] Current CACHE_VERSION saved:', currentVersion);
+                            } else {
+                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                            }
+                        }
 
                         // Проверка обновлений при каждой загрузке страницы
                         registration.update();
 
-                        // Автоматическая проверка обновлений каждые 24 часа
+                        // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
                         setInterval(() => {
-                            registration.update();
-                        }, 24 * 60 * 60 * 1000);
+                            console.log('[PWA] Running hourly update check...');
+                            registration.update(); // Silent check
+                        }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
                         // Обработка обновлений SW
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
                             if (!newWorker) return;
 
+                            console.log('[PWA] New service worker found, installing...');
+
                             newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Новая версия доступна - показываем уведомление
-                                    debugLog('[PWA] New version available, waiting for user action');
-                                    showToast('Доступна новая версия. Обновите страницу.', 'info', 5000);
-                                    // НЕ вызываем skipWaiting автоматически - это предотвращает двойную загрузку
-                                    // Новая версия активируется при следующей навигации или ручном refresh
+                                console.log('[PWA] Service worker state:', newWorker.state);
+
+                                if (newWorker.state === 'installed') {
+                                    if (navigator.serviceWorker.controller) {
+                                        // Update available - will auto-activate via skipWaiting()
+                                        console.log('[PWA] Update available, auto-activating...');
+                                        // skipWaiting() уже вызван в SW install event
+                                        // controllerchange event триггерит reload
+                                    } else {
+                                        // First install - just log, no toast (silent UX)
+                                        console.log('[PWA] Service worker installed for the first time');
+                                        // Note: Version will be saved on controllerchange or next page load
+                                        // (cannot get CACHE_VERSION from installing worker via postMessage)
+                                    }
                                 }
                             });
                         });
@@ -977,17 +1548,9 @@
                     .catch((err) => {
                         console.error('[PWA] Service Worker registration failed:', err);
                     });
-
-                // Обработка контроллера SW
-                // НЕ делаем автоматический reload при controllerchange
-                // Это предотвращает двойную загрузку страницы при обновлении SW
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    debugLog('[PWA] Controller changed - new SW is now active');
-                    // Пользователь сам решает когда обновить страницу
-                });
             });
         } else {
-            debugLog('[PWA] Service Worker not supported in this browser');
+            console.log('[PWA] Service Worker not supported in this browser');
         }
     </script>
 
@@ -1474,5 +2037,43 @@
         })();
     </script>
     {% endif %}
+
+    <!-- Navigation Progress Bar -->
+    <script src="/static/js/navigationProgress.min.js?v=PLACEHOLDER"></script>
+
+    <!-- Web Workers (Phase 1: Core Infrastructure) -->
+    <script src="/static/js/workers/core/workerWrapper.min.js?v=PLACEHOLDER"></script>
+
+    <!-- WebSocket Diagnostics Modal (for debugging) -->
+    <dialog id="ws-diagnostics-modal" class="modal">
+        <div class="modal-box w-full max-w-2xl">
+            <!-- Header with close button -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg">
+                    <span class="mr-2">🔍</span>WebSocket Diagnostics
+                </h3>
+                <form method="dialog">
+                    <button type="button" class="btn btn-sm btn-circle btn-ghost" onclick="document.getElementById('ws-diagnostics-modal').close()">✕</button>
+                </form>
+            </div>
+
+            <!-- Diagnostic Content (populated by JavaScript) -->
+            <div id="ws-diagnostics-content" class="space-y-3 text-sm font-mono">
+                <!-- Content injected by showDiagnostics() -->
+            </div>
+
+            <!-- Footer with close button (for accessibility) -->
+            <div class="modal-action">
+                <form method="dialog">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('ws-diagnostics-modal').close()">Закрыть</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Backdrop (click to close) -->
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 </body>
 </html>

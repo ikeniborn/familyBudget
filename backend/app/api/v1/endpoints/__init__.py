@@ -37,6 +37,7 @@ from backend.app.api.v1.endpoints.product_groups import (
     router as product_groups_router,
 )
 from backend.app.api.v1.endpoints.push import router as push_router
+from backend.app.api.v1.endpoints.recurring_plans import router as recurring_plans_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router
 from backend.app.api.v1.endpoints.shopping_list_items import (
     router as shopping_list_items_router,
@@ -51,6 +52,7 @@ from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_
 from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
 from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
+from backend.app.api.v1.endpoints.staging import router as staging_router
 
 __all__ = [
     "auth_router",
@@ -64,6 +66,7 @@ __all__ = [
     "import_router",
     "transfers_router",
     "push_router",
+    "recurring_plans_router",
     "reminders_router",
     "stores_router",
     "product_groups_router",
@@ -73,4 +76,5 @@ __all__ = [
     "import_templates_router",
     "google_sheets_import_router",
     "budget_ws_router",
+    "staging_router",
 ]

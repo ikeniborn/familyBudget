@@ -116,20 +116,12 @@ async def create_store(
     """
     Create a new store.
 
-    Shared references architecture: Only admins can create stores.
+    Shared references architecture: All authenticated users can create stores.
     Store is created with current_user.id as creator_id (audit trail).
     """
     # Debug logging for validation troubleshooting
-    logger.debug(f"create_store called by user {current_user.id} (is_admin={current_user.is_admin})")
+    logger.debug(f"create_store called by user {current_user.id}")
     logger.debug(f"store_data received: {store_data.model_dump()}")
-
-    # Check: Only admins can create stores
-    if not current_user.is_admin:
-        logger.warning(f"Non-admin user {current_user.id} attempted to create store")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create stores",
-        )
 
     # Generate code for store
     from backend.app.utils.code_generator import generate_code
@@ -209,15 +201,8 @@ async def update_store(
     - Creates StoreHistory snapshot (SCD Type 2 for audit)
     - FK in ShoppingListItem remain unchanged
 
-    Shared references architecture: Only admins can update stores.
+    Shared references architecture: All authenticated users can update stores.
     """
-    # Check: Only admins can update stores
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update stores",
-        )
-
     # Fetch store
     query = select(Store).where(Store.id == store_id)
 

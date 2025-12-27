@@ -20,6 +20,27 @@ const _offlineLog = window.DEBUG_MODE ? console.log.bind(console) : function() {
 const _offlineWarn = window.DEBUG_MODE ? console.warn.bind(console) : function() {};
 
 class OfflineManager {
+    // Web Worker for sync hash generation (Phase 4: Performance Optimization)
+    static _workerWrapper = null;
+
+    /**
+     * Initialize Web Worker for sync processing.
+     * Called automatically on first use.
+     */
+    static initializeWorker() {
+        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+            try {
+                this._workerWrapper = new WorkerWrapper('/static/js/workers/syncWorker.min.js', {
+                    idleTimeout: 60000,  // 60s for sync operations
+                    debugMode: window.DEBUG_MODE || false
+                });
+            } catch (error) {
+                console.warn('[OfflineManager] Failed to initialize worker:', error);
+                this._workerWrapper = null;
+            }
+        }
+    }
+
     constructor() {
         this.db = new IndexedDBManager();
         this.syncInProgress = false;
@@ -27,14 +48,48 @@ class OfflineManager {
         this.maxRetries = 5;
         this.isInitialized = false;
         this.lastToastTime = 0;
-        this.toastDebounceMs = 3000; // Prevent toast spam
+        this.toastDebounceMs = 10000; // 10s to prevent spam during rapid transitions
         this.lastOfflineToastTime = 0; // For debounce offline save toast
+
+        // Track navigation state to suppress false positive warnings
+        this._isNavigating = false;
+        this._navigationTimeout = null;
+
+        // Listen for navigation events
+        window.addEventListener('beforeunload', () => {
+            this._isNavigating = true;
+        });
+
+        // HTMX navigation (if used)
+        if (typeof htmx !== 'undefined') {
+            document.body.addEventListener('htmx:beforeRequest', () => {
+                this._isNavigating = true;
+                clearTimeout(this._navigationTimeout);
+                this._navigationTimeout = setTimeout(() => {
+                    this._isNavigating = false;
+                }, 8000); // Clear after 8s
+            });
+
+            document.body.addEventListener('htmx:afterSettle', () => {
+                clearTimeout(this._navigationTimeout);
+                this._navigationTimeout = setTimeout(() => {
+                    this._isNavigating = false;
+                }, 1000); // 1s grace period after page loads
+            });
+        }
 
         // ✅ Request-level deduplication cache (prevent concurrent duplicate creates)
         this.pendingCreates = new Map(); // operationKey → Promise
 
         // ✅ NEW: Timeout ID for scheduled retry sync
         this.retryTimeout = null;
+
+        // ✅ Adaptive timeout for cold backend (after restart)
+        // First request after page load gets longer timeout because connection pools may be cold
+        this._isFirstRequest = true;
+        this._firstRequestTimeout = 8000;  // 8s for cold backend (DB/Redis warmup)
+        this._normalTimeout = 3000;        // 3s for warm backend
+        this._optimizedTimeout = 2000;     // 2s after confirmed successful request
 
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
@@ -220,7 +275,10 @@ class OfflineManager {
             }
         } else if (newStatus === 'degraded' && oldStatus === 'online') {
             // Соединение ухудшилось
-            this._showToastDebounced('Медленное соединение', 'warning');
+            // Suppress warning during navigation (RTT spikes are normal)
+            if (!this._isNavigating) {
+                this._showToastDebounced('Медленное соединение', 'warning');
+            }
         }
 
         // Обновить UI индикаторы
@@ -357,9 +415,20 @@ class OfflineManager {
             return await this.createFactOffline(data);
         }
 
-        // Try to send online with short timeout (2 sec)
+        // Adaptive timeout: longer for first request (cold backend), shorter after success
+        const timeout = this._isFirstRequest
+            ? this._firstRequestTimeout
+            : this._normalTimeout;
+
+        // Try to send online with adaptive timeout
         try {
-            return await this.createFactOnline(data, 2000);
+            const result = await this.createFactOnline(data, timeout);
+
+            // Success - backend is warm, reduce timeout for future requests
+            this._isFirstRequest = false;
+            this._normalTimeout = this._optimizedTimeout;
+
+            return result;
         } catch (error) {
             // Error - automatically save offline
             _offlineWarn('[OfflineManager] Online create failed, falling back to offline:', error);
@@ -447,9 +516,12 @@ class OfflineManager {
 
     /**
      * Internal implementation of createFactOffline (with duplicate detection)
+     * Uses Web Worker for hash generation when available.
      * @private
      */
     async _createFactOfflineInternal(data) {
+        const startTime = performance.now();
+
         // Generate content hash for duplicate detection
         const contentHash = this.db.generateContentHash(data);
 
@@ -468,12 +540,36 @@ class OfflineManager {
 
         const tempId = `offline_fact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // Generate syncHash for backend deduplication (same format as in syncItem)
+        // Generate syncHash for backend deduplication (worker-based for batch, sync for single)
         // syncHash = MD5(content_hash|user_id|created_date)
         const userId = await this.getCurrentUserId();
         const createdDate = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
-        const syncHashContent = `${contentHash}|${userId}|${createdDate}`;
-        const syncHash = this.db._md5(syncHashContent);
+
+        let syncHash;
+        // Use worker for hash generation if available
+        if (OfflineManager._workerWrapper) {
+            try {
+                OfflineManager.initializeWorker();
+                syncHash = await OfflineManager._workerWrapper.execute({
+                    action: 'generateSyncHash',
+                    data: { contentHash, userId, createdDate }
+                });
+
+                const duration = Math.round(performance.now() - startTime);
+                if (window.DEBUG_MODE && duration > 50) {
+                    _offlineLog(`[OfflineManager] Worker hash generation: ${duration}ms`);
+                }
+            } catch (error) {
+                _offlineWarn('[OfflineManager] Worker hash generation failed, using synchronous:', error);
+                // Fall back to synchronous
+                const syncHashContent = `${contentHash}|${userId}|${createdDate}`;
+                syncHash = this.db._md5(syncHashContent);
+            }
+        } else {
+            // Synchronous fallback
+            const syncHashContent = `${contentHash}|${userId}|${createdDate}`;
+            syncHash = this.db._md5(syncHashContent);
+        }
 
         // 1. Save to IndexedDB with contentHash and syncHash
         await this.db.addFact({
@@ -799,6 +895,95 @@ class OfflineManager {
         };
     }
 
+    // ==================== RECURRING PLANS ====================
+
+    /**
+     * Create recurring plan (online-preferred with offline fallback)
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Created recurring plan with _offline flag if created offline
+     */
+    async createRecurringPlan(data) {
+        if (this.isOnline) {
+            try {
+                return await this.createRecurringPlanOnline(data);
+            } catch (error) {
+                _offlineLog('[OfflineManager] Online recurring plan creation failed, falling back to offline:', error.message);
+                return await this.createRecurringPlanOffline(data);
+            }
+        } else {
+            return await this.createRecurringPlanOffline(data);
+        }
+    }
+
+    /**
+     * Create recurring plan online
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Created recurring plan from server
+     */
+    async createRecurringPlanOnline(data) {
+        const response = await fetch('/api/v1/recurring-plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || error.message || 'Failed to create recurring plan');
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * Create recurring plan offline (queued for later sync)
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Offline recurring plan with tempId
+     */
+    async createRecurringPlanOffline(data) {
+        const tempId = `offline_recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        await this.db.addRecurringPlan({
+            tempId,
+            data,
+            synced: false,
+            createdAt: Date.now(),
+            error: null,
+            serverId: null
+        });
+
+        await this.db.addToSyncQueue({
+            operation: 'create',
+            entity: 'recurring',
+            tempId,
+            data,
+            status: 'pending',
+            timestamp: Date.now(),
+            retryCount: 0,
+            error: null
+        });
+
+        _offlineLog('[OfflineManager] Recurring plan saved offline:', tempId);
+
+        return {
+            id: null,
+            tempId,
+            ...data,
+            _offline: true,
+            _synced: false,
+            _pendingSync: true
+        };
+    }
+
+    /**
+     * Get all pending (unsynced) recurring plans
+     * @returns {Promise<Array>} Array of pending recurring plans
+     */
+    async getPendingRecurringPlans() {
+        return await this.db.getAllRecurringPlans(false);
+    }
+
     // ==================== SYNC ====================
 
     /**
@@ -826,56 +1011,14 @@ class OfflineManager {
         try {
             const queue = await this.db.getSyncQueue('pending');
 
-            for (const item of queue) {
-                try {
-                    const syncResult = await this.syncItem(item);
-                    // Check if item was skipped (already processed by SW)
-                    if (syncResult === null) {
-                        _offlineLog(`[OfflineManager] Item ${item.id} was skipped (already processed)`);
-                        continue;
-                    }
-                    results.synced++;
-                    results.items.push({ ...item, status: 'synced' });
-                } catch (error) {
-                    const retryCount = (item.retryCount || 0) + 1;
-
-                    // Wrap in try-catch to handle race conditions with SW
-                    try {
-                        if (retryCount >= this.maxRetries) {
-                            // Max retries reached, mark as failed
-                            await this.db.updateSyncQueueItem(item.id, {
-                                status: 'failed',
-                                error: error.message,
-                                retryCount
-                            });
-                            results.failed++;
-                            results.items.push({ ...item, status: 'failed', error: error.message });
-                        } else {
-                            // NON-BLOCKING RETRY: Mark for retry but don't wait here
-                            _offlineLog(`[OfflineManager] Item ${item.id} failed (attempt ${retryCount}/${this.maxRetries}), marking for retry`);
-
-                            // Update retry count and keep status as 'pending' for next sync session
-                            await this.db.updateSyncQueueItem(item.id, {
-                                status: 'pending',
-                                error: error.message,
-                                retryCount,
-                                lastRetryAttempt: Date.now()
-                            });
-
-                            // Mark that we need to schedule a retry sync
-                            results.needsRetry = true;
-                            results.items.push({ ...item, status: 'retry', retryCount });
-                        }
-                    } catch (updateError) {
-                        // Item was already deleted by SW or another process - just log and continue
-                        if (updateError.message && updateError.message.includes('not found')) {
-                            _offlineLog(`[OfflineManager] Item ${item.id} already processed by another sync - skipping`);
-                        } else {
-                            _offlineWarn(`[OfflineManager] Could not update item ${item.id}: ${updateError.message}`);
-                            results.failed++;
-                        }
-                    }
-                }
+            // For large queues (>10 items), use parallel batch processing
+            if (queue.length > 10) {
+                _offlineLog(`[OfflineManager] Using parallel batch processing for ${queue.length} items`);
+                await this._syncQueueParallel(queue, results);
+            } else {
+                // For small queues, use sequential processing (simpler, faster for <10 items)
+                _offlineLog(`[OfflineManager] Using sequential processing for ${queue.length} items`);
+                await this._syncQueueSequential(queue, results);
             }
 
             // Clear completed items
@@ -913,6 +1056,184 @@ class OfflineManager {
         } finally {
             this.syncInProgress = false;
         }
+    }
+
+    /**
+     * Process sync queue sequentially (for small queues <10 items)
+     * @private
+     */
+    async _syncQueueSequential(queue, results) {
+        for (const item of queue) {
+            try {
+                _offlineLog(`[OfflineManager] Syncing item ${item.id} (${item.operation} ${item.entity})...`);
+                const response = await this.syncItem(item);
+
+                // If syncItem returned null, it means item was already processed by SW
+                if (response === null) {
+                    _offlineLog(`[OfflineManager] Item ${item.id} skipped (already processed)`);
+                    continue;
+                }
+
+                results.synced++;
+                results.items.push({
+                    id: item.id,
+                    status: 'success',
+                    entity: item.entity,
+                    operation: item.operation
+                });
+
+                _offlineLog(`[OfflineManager] Successfully synced item ${item.id}`);
+            } catch (error) {
+                console.error(`[OfflineManager] Failed to sync item ${item.id}:`, error);
+
+                results.failed++;
+                results.items.push({
+                    id: item.id,
+                    status: 'error',
+                    error: error.message,
+                    entity: item.entity,
+                    operation: item.operation
+                });
+
+                // Mark item for retry if it's a network error
+                const isNetworkError = error.message &&
+                    (error.message.includes('NetworkError') ||
+                     error.message.includes('Failed to fetch') ||
+                     error.message.includes('timeout'));
+
+                if (isNetworkError) {
+                    try {
+                        await this.db.updateSyncQueueItem(item.id, {
+                            status: 'pending',
+                            retryCount: (item.retryCount || 0) + 1
+                        });
+                        results.needsRetry = true;
+                        _offlineLog(`[OfflineManager] Item ${item.id} marked for retry (attempt ${(item.retryCount || 0) + 1})`);
+                    } catch (e) {
+                        console.error(`[OfflineManager] Failed to mark item for retry:`, e);
+                    }
+                } else {
+                    // Non-network error - mark as failed permanently
+                    try {
+                        await this.db.updateSyncQueueItem(item.id, { status: 'failed' });
+                        _offlineLog(`[OfflineManager] Item ${item.id} marked as permanently failed`);
+                    } catch (e) {
+                        console.error(`[OfflineManager] Failed to update status:`, e);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Process sync queue in parallel batches (for large queues >10 items)
+     * Processes 4 items concurrently with 100ms delay between batches
+     * @private
+     */
+    async _syncQueueParallel(queue, results) {
+        const BATCH_SIZE = 4;
+        const BATCH_DELAY = 100; // ms
+
+        for (let i = 0; i < queue.length; i += BATCH_SIZE) {
+            const batch = queue.slice(i, i + BATCH_SIZE);
+            const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+            const totalBatches = Math.ceil(queue.length / BATCH_SIZE);
+
+            _offlineLog(`[OfflineManager] Processing batch ${batchNum}/${totalBatches} (${batch.length} items)...`);
+
+            // Process batch in parallel
+            const batchPromises = batch.map(async (item) => {
+                try {
+                    _offlineLog(`[OfflineManager] [Batch ${batchNum}] Syncing item ${item.id} (${item.operation} ${item.entity})...`);
+                    const response = await this.syncItem(item);
+
+                    // If syncItem returned null, it means item was already processed by SW
+                    if (response === null) {
+                        _offlineLog(`[OfflineManager] [Batch ${batchNum}] Item ${item.id} skipped (already processed)`);
+                        return { success: true, skipped: true, item };
+                    }
+
+                    _offlineLog(`[OfflineManager] [Batch ${batchNum}] Successfully synced item ${item.id}`);
+                    return { success: true, item, response };
+                } catch (error) {
+                    console.error(`[OfflineManager] [Batch ${batchNum}] Failed to sync item ${item.id}:`, error);
+                    return { success: false, item, error };
+                }
+            });
+
+            // Wait for all items in batch to complete
+            const batchResults = await Promise.allSettled(batchPromises);
+
+            // Process batch results
+            for (const promiseResult of batchResults) {
+                if (promiseResult.status === 'fulfilled') {
+                    const itemResult = promiseResult.value;
+
+                    if (itemResult.skipped) {
+                        // Item was already processed by SW - don't count
+                        continue;
+                    }
+
+                    if (itemResult.success) {
+                        results.synced++;
+                        results.items.push({
+                            id: itemResult.item.id,
+                            status: 'success',
+                            entity: itemResult.item.entity,
+                            operation: itemResult.item.operation
+                        });
+                    } else {
+                        // Sync failed - handle error
+                        results.failed++;
+                        results.items.push({
+                            id: itemResult.item.id,
+                            status: 'error',
+                            error: itemResult.error.message,
+                            entity: itemResult.item.entity,
+                            operation: itemResult.item.operation
+                        });
+
+                        // Mark item for retry if it's a network error
+                        const isNetworkError = itemResult.error.message &&
+                            (itemResult.error.message.includes('NetworkError') ||
+                             itemResult.error.message.includes('Failed to fetch') ||
+                             itemResult.error.message.includes('timeout'));
+
+                        if (isNetworkError) {
+                            try {
+                                await this.db.updateSyncQueueItem(itemResult.item.id, {
+                                    status: 'pending',
+                                    retryCount: (itemResult.item.retryCount || 0) + 1
+                                });
+                                results.needsRetry = true;
+                                _offlineLog(`[OfflineManager] [Batch ${batchNum}] Item ${itemResult.item.id} marked for retry (attempt ${(itemResult.item.retryCount || 0) + 1})`);
+                            } catch (e) {
+                                console.error(`[OfflineManager] [Batch ${batchNum}] Failed to mark item for retry:`, e);
+                            }
+                        } else {
+                            // Non-network error - mark as failed permanently
+                            try {
+                                await this.db.updateSyncQueueItem(itemResult.item.id, { status: 'failed' });
+                                _offlineLog(`[OfflineManager] [Batch ${batchNum}] Item ${itemResult.item.id} marked as permanently failed`);
+                            } catch (e) {
+                                console.error(`[OfflineManager] [Batch ${batchNum}] Failed to update status:`, e);
+                            }
+                        }
+                    }
+                } else {
+                    // Promise rejected (shouldn't happen with try-catch above, but handle defensively)
+                    console.error(`[OfflineManager] [Batch ${batchNum}] Batch item promise rejected:`, promiseResult.reason);
+                }
+            }
+
+            // Add delay between batches (except for last batch) to prevent API rate limiting
+            if (i + BATCH_SIZE < queue.length) {
+                _offlineLog(`[OfflineManager] Waiting ${BATCH_DELAY}ms before next batch...`);
+                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+            }
+        }
+
+        _offlineLog(`[OfflineManager] Parallel batch processing complete. Synced: ${results.synced}, Failed: ${results.failed}`);
     }
 
     /**
@@ -986,6 +1307,8 @@ class OfflineManager {
                     await this.db.deleteTransfer(item.tempId);
                 } else if (item.entity === 'plan') {
                     await this.db.deletePlan(item.tempId);
+                } else if (item.entity === 'recurring') {
+                    await this.db.deleteRecurringPlan(item.tempId);
                 }
                 _offlineLog(`[OfflineManager] Deleted synced ${item.entity} ${item.tempId} from offline store`);
             } catch (e) {
@@ -998,9 +1321,10 @@ class OfflineManager {
     }
 
     async syncCreate(item) {
-        // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+        // Route to appropriate API endpoint based on entity type
         const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
                          item.entity === 'transfer' ? '/api/v1/transfers' :
+                         item.entity === 'recurring' ? '/api/v1/recurring-plans' :
                          '/api/v1/facts';
 
         // Clean data: remove display-only fields not expected by API
@@ -1025,8 +1349,17 @@ class OfflineManager {
             delete cleanData.to_article_name;
         }
 
-        // Mark as offline sync (for all entity types: fact, plan, transfer)
-        cleanData.is_offline_sync = true;
+        // Recurring plan-specific display-only fields
+        if (item.entity === 'recurring') {
+            delete cleanData.frequency_label;
+            delete cleanData.duration_label;
+        }
+
+        // Mark as offline sync (for facts, plans, transfers - NOT recurring plans)
+        // RecurringPlan model doesn't have is_offline_sync field
+        if (item.entity !== 'recurring') {
+            cleanData.is_offline_sync = true;
+        }
 
         // Add deduplication hashes for facts and plans
         if (item.entity === 'fact' || item.entity === 'plan') {

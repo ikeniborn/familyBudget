@@ -6,7 +6,7 @@ description: |
   REST API v1 + HTMX HTML endpoints.
 
 base_path: "/api/v1"
-total_endpoints: 55+
+total_endpoints: 67+
 
 auth_levels:
   public: "No authentication required"
@@ -62,6 +62,16 @@ groups:
     endpoints_count: 6
     auth_level: "user"
 
+  - name: staging
+    file: "./staging.yaml"
+    prefix: "/api/v1/staging"
+    endpoints_count: 7
+    auth_level: "user"
+    notes: |
+      User-level staging endpoints for import enrichment.
+      Users can only access their own staging records.
+      Admin staging (/api/v1/admin/staging) also available for admins.
+
   - name: analytics
     file: "./analytics.yaml"
     prefix: "/api/v1/analytics"
@@ -76,6 +86,15 @@ groups:
     notes: |
       Route order is critical: GET / must be defined before GET /{fact_id}
       See fix in backend/app/api/v1/endpoints/reminders.py
+
+  - name: recurring_plans
+    file: "./recurring-plans.yaml"
+    prefix: "/api/v1/recurring-plans"
+    endpoints_count: 5
+    auth_level: "user"
+    notes: |
+      Recurring payment templates with auto-generation of BudgetFact records.
+      Scheduler job runs daily at 02:00 UTC.
 
   - name: admin
     file: "./admin.yaml"

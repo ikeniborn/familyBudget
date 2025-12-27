@@ -33,6 +33,7 @@ from backend.app.utils.date_helpers import (
     get_rolling_weeks,
     get_week_bounds,
 )
+from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
 
 logger = logging.getLogger(__name__)
 
@@ -353,7 +354,15 @@ async def get_quick_stats_html(
 
     Returns today's and current month's income/expense summary as HTML.
     Uses DaisyUI stats components for beautiful display.
+
+    Caching: TTL 30s, invalidated on any fact CRUD.
     """
+    # Check cache first
+    cache_key = str(CacheKey.quick_stats())
+    cached_html = await cache_service.get(cache_key)
+    if cached_html is not None:
+        return cached_html
+
     today = date.today()
     month_start = date(today.year, today.month, 1)
 
@@ -677,6 +686,9 @@ async def get_quick_stats_html(
     </div>
     """
 
+    # Cache the generated HTML (TTL 30s)
+    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
+
     return html
 
 
@@ -695,7 +707,15 @@ async def get_account_balances_html(
 
     Only shows active Financial Centers (is_active=True).
     Shared family budget - all users see all accounts.
+
+    Caching: TTL 30s, invalidated on any fact CRUD or FC changes.
     """
+    # Check cache first
+    cache_key = str(CacheKey.account_balances())
+    cached_html = await cache_service.get(cache_key)
+    if cached_html is not None:
+        return cached_html
+
     from backend.app.models.financial_center import FinancialCenter
 
     today = date.today()
@@ -808,6 +828,8 @@ async def get_account_balances_html(
             <span>Нет активных счетов</span>
         </div>
         """
+        # Cache empty state too (TTL 30s)
+        await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
         return html
 
     # Generate unified responsive cards
@@ -948,6 +970,9 @@ async def get_account_balances_html(
 {balance_cards}
     </div>
     """
+
+    # Cache the generated HTML (TTL 30s)
+    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
 
     return html
 

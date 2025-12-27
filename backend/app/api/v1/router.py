@@ -25,10 +25,12 @@ from backend.app.api.v1.endpoints import (
     notifications_router,
     product_groups_router,
     push_router,
+    recurring_plans_router,
     reminders_router,
     shopping_csv_import_router,
     shopping_list_items_router,
     shopping_lists_router,
+    staging_router,
     stores_router,
     transfers_router,
     users_router,
@@ -83,6 +85,9 @@ api_router.include_router(admin_export_router)
 # Import endpoints (FR-080 Enhanced - Multi-Bank CSV Import) ✅
 api_router.include_router(import_router)
 
+# User Staging endpoints (FR-080 - User-level staging access) ✅
+api_router.include_router(staging_router)
+
 # Transfers endpoints (Transfer Feature) ✅
 api_router.include_router(transfers_router)
 
@@ -94,6 +99,9 @@ api_router.include_router(consent_router)
 
 # Scheduled Reminders endpoints (Plan Reminders Feature) ✅
 api_router.include_router(reminders_router)
+
+# Recurring Plans endpoints (Recurring Payments Feature) ✅
+api_router.include_router(recurring_plans_router)
 
 # Stores endpoints (Shopping Lists Feature) ✅
 api_router.include_router(stores_router)

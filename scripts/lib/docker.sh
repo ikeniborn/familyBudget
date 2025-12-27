@@ -727,22 +727,34 @@ cleanup_old_deployment() {
         return 0
     fi
 
-    # Check if cleanup mode preset via environment
+    # Check if cleanup mode preset via environment or health check
     local cleanup_mode="${CLEANUP_MODE:-}"
 
+    # If preset (from --cleanup-mode flag or health check), show info message
+    if [[ -n "$cleanup_mode" ]]; then
+        info "Cleanup mode preset: $cleanup_mode"
+        if [[ "$cleanup_mode" == "full" ]]; then
+            info "  (auto-selected by PostgreSQL health check or --clean flag)"
+        fi
+        echo ""
     # If no preset and we have interactive terminal, ask user
-    if [[ -z "$cleanup_mode" ]] && [[ -t 0 ]]; then
-        # Offer cleanup options
+    elif [[ -t 0 ]]; then
+        # Show STEP 2 header (moved from collect_deployment_params)
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_message "$BLUE" "  STEP 2: Choose Cleanup Action"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
         warning "Old deployments may cause network conflicts!"
         echo ""
-        echo "Choose cleanup action:"
         echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
         echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
         echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
         echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
         echo "      ✓ Full restart for DB migrations or config changes"
-        echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+        echo "  [3] Full cleanup - stop all services + repair corrupted data"
+        echo "      ✓ Stops all containers, removes networks"
+        echo "      ✓ Repairs PostgreSQL data directory if corrupted"
+        echo "      ✓ DATA IS PRESERVED (volumes NOT deleted unless you confirm 'DELETE')"
         echo "      ⚠️  Requires sudo/root privileges"
         echo ""
 
@@ -766,10 +778,14 @@ cleanup_old_deployment() {
                 exit 1
                 ;;
         esac
-    elif [[ -z "$cleanup_mode" ]]; then
+
+        success "Cleanup mode selected: $cleanup_mode"
+        echo ""
+    else
         # Non-interactive mode (no TTY) - use smart cleanup as default
         cleanup_mode="smart"
         info "Non-interactive mode detected: using default cleanup mode 'smart'"
+        echo ""
     fi
 
     # Execute cleanup based on selected mode

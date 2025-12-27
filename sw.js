@@ -26,7 +26,18 @@ const STATIC_CACHE = [
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
-  '/static/icons/favicon.ico'
+  '/static/icons/favicon.ico',
+  // iOS Splash - ALL 10 images for comprehensive device coverage
+  '/static/icons/splash/splash-750x1334.png',   // iPhone SE/7/8
+  '/static/icons/splash/splash-828x1792.png',   // iPhone XR/11
+  '/static/icons/splash/splash-1080x2340.png',  // Android (1080x2340)
+  '/static/icons/splash/splash-1125x2436.png',  // iPhone X/XS/11 Pro
+  '/static/icons/splash/splash-1170x2532.png',  // iPhone 12/13/14
+  '/static/icons/splash/splash-1179x2556.png',  // iPhone 14/15 Pro
+  '/static/icons/splash/splash-1242x2208.png',  // iPhone 6+/7+/8+
+  '/static/icons/splash/splash-1242x2688.png',  // iPhone XS Max/11 Pro Max
+  '/static/icons/splash/splash-1284x2778.png',  // iPhone 14/15 Pro Max
+  '/static/icons/splash/splash-1290x2796.png'   // iPhone 14/15 Pro Max
 ];
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
@@ -52,13 +63,6 @@ const OFFLINE_PAGE_ASSETS = [
   // JS - shared (used by lists)
   '/shared/static/js/choicesProductGroupTree.min.js'
 ];
-
-// Страницы для быстрой загрузки (кэшируем при первом посещении, но требуют сети)
-// Эти страницы кэшируются для ускорения повторной загрузки, но не работают offline
-const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/register'];
-
-// Файлы с cache busting - кешируются RUNTIME (не в install event)
-// Service Worker будет кешировать их при первом запросе
 
 // Install event - кешируем критическую статику и ресурсы offline страниц
 self.addEventListener('install', (event) => {
@@ -104,7 +108,7 @@ self.addEventListener('install', (event) => {
         });
       })
       .then(() => {
-        if (DEBUG) console.log('[SW] Skip waiting');
+        console.log('[SW] CRITICAL: Forcing immediate activation via skipWaiting()');
         return self.skipWaiting();
       })
       .catch((err) => {
@@ -113,26 +117,41 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - удаляем старые кеши
+// Activate event - удаляем старые кеши и уведомляем клиентов
 self.addEventListener('activate', (event) => {
   if (DEBUG) console.log('[SW] Activating version:', CACHE_VERSION);
 
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
-            .map((name) => {
-              if (DEBUG) console.log('[SW] Deleting old cache:', name);
-              return caches.delete(name);
-            })
-        );
-      })
-      .then(() => {
-        if (DEBUG) console.log('[SW] Claiming clients');
-        return self.clients.claim();
-      })
+    (async () => {
+      // Удаляем старые кеши
+      const cacheNames = await caches.keys();
+      const deletedCaches = await Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
+          .map((name) => {
+            if (DEBUG) console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+
+      if (DEBUG) console.log('[SW] Deleted', deletedCaches.length, 'old caches');
+
+      // CRITICAL: Take control of all clients immediately
+      await self.clients.claim();
+      if (DEBUG) console.log('[SW] Clients claimed');
+
+      // Notify all clients about update with VERSION
+      const clients = await self.clients.matchAll({ type: 'window' });
+      if (DEBUG) console.log('[SW] Notifying', clients.length, 'clients about SW update');
+
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'SW_UPDATED',
+          version: CACHE_VERSION,
+          timestamp: new Date().toISOString()
+        });
+      });
+    })()
   );
 });
 
@@ -202,65 +221,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Стратегия 2a: Страницы для быстрой загрузки - Cache First + Network Update
-  // Эти страницы кэшируются для ускорения, но требуют сети для работы
-  if (CACHE_FIRST_PAGES.includes(url.pathname)) {
-    event.respondWith(
-      caches.match(request)
-        .then((cachedResponse) => {
-          // Всегда делаем сетевой запрос в фоне для обновления кэша
-          const fetchPromise = fetch(request).then((networkResponse) => {
-            if (networkResponse.ok) {
-              const clonedResponse = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, clonedResponse);
-              });
-            }
-            return networkResponse;
-          });
-
-          // Если есть в кэше - возвращаем сразу (stale-while-revalidate)
-          if (cachedResponse) {
-            if (DEBUG) console.log('[SW] Serving cached login page:', url.pathname);
-            return cachedResponse;
-          }
-
-          // Если нет в кэше - ждём сеть
-          return fetchPromise;
-        })
-        .catch(() => {
-          // Fallback на кэш при ошибке сети
-          return caches.match(request)
-            .then(cachedResponse => {
-              if (cachedResponse) {
-                return cachedResponse;
-              }
-              // Нет кэша и нет сети - показываем сообщение
-              return new Response(
-                `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Нет подключения</title>
-</head>
-<body>
-  <h1>Нет подключения к интернету</h1>
-  <p>Для входа через Telegram требуется подключение к интернету.</p>
-  <a href="/">Вернуться на главную</a>
-</body>
-</html>`,
-                {
-                  status: 503,
-                  headers: { 'Content-Type': 'text/html; charset=utf-8' }
-                }
-              );
-            });
-        })
-    );
-    return;
-  }
-
-  // Стратегия 2b: HTML страницы - Network First (актуальный контент)
+  // Стратегия 2: HTML страницы - Network First (актуальный контент)
   if (url.pathname === '/' || url.pathname.match(/\.html$/) || !url.pathname.includes('.')) {
     event.respondWith(
       fetch(request)
@@ -280,20 +241,9 @@ self.addEventListener('fetch', (event) => {
           if (!OFFLINE_PAGES.includes(url.pathname)) {
             if (DEBUG) console.log('[SW] Page not available offline, redirecting to home:', url.pathname);
             // Редирект на главную страницу для недоступных страниц
-            // Используем JavaScript redirect т.к. SW не может сделать HTTP 302
+            // Используем meta refresh т.к. SW не может сделать HTTP 302
             return new Response(
-              `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=/">
-  <title>Redirect</title>
-  <script>window.location.replace('/');</script>
-</head>
-<body>
-  <p>Эта страница недоступна в offline режиме. <a href="/">Перейти на главную</a></p>
-</body>
-</html>`,
+              `<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/"><title>Redirect</title></head></html>`,
               {
                 status: 200,
                 headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -308,34 +258,9 @@ self.addEventListener('fetch', (event) => {
                 return cachedResponse;
               }
               // Страница в OFFLINE_PAGES, но не закеширована
-              // Показываем информативное сообщение вместо тихого редиректа на /
               if (DEBUG) console.log('[SW] Page in OFFLINE_PAGES but not cached:', url.pathname);
               return new Response(
-                `<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Страница не загружена</title>
-    <style>
-        body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; background: #f3f4f6; }
-        .container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .icon { font-size: 3rem; margin-bottom: 1rem; }
-        h1 { color: #374151; margin-bottom: 0.5rem; font-size: 1.25rem; }
-        p { color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem; }
-        a { display: inline-block; padding: 0.75rem 1.5rem; background: #3b82f6; color: white; text-decoration: none; border-radius: 0.5rem; }
-        a:hover { background: #2563eb; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="icon">📡</div>
-        <h1>Страница недоступна offline</h1>
-        <p>Для работы в offline режиме откройте страницу "${url.pathname}" при наличии интернета.</p>
-        <a href="/">← На главную</a>
-    </div>
-</body>
-</html>`,
+                `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Offline</title></head><body><h1>📡 Страница недоступна</h1><p>Откройте ${url.pathname} при наличии интернета.</p><a href="/">На главную</a></body></html>`,
                 {
                   status: 200,
                   headers: { 'Content-Type': 'text/html; charset=utf-8' }
@@ -355,32 +280,6 @@ self.addEventListener('fetch', (event) => {
         .then((cachedResponse) => {
           if (cachedResponse) {
             if (DEBUG) console.log('[SW] Serving from cache:', url.pathname);
-
-            // Stale-while-revalidate: обновляем кеш в фоне
-            // Оптимизация: файлы с query string (?v=...) используют cache busting,
-            // поэтому background fetch не нужен - версия уже закодирована в URL.
-            // Для файлов без query string проверяем ETag для обновления.
-            if (!url.search) {
-              // Нет query string - нужен background fetch с проверкой ETag
-              fetch(request).then((response) => {
-                if (response.ok) {
-                  const cachedETag = cachedResponse.headers.get('etag');
-                  const newETag = response.headers.get('etag');
-
-                  // Обновляем кеш только если ETag изменился
-                  if (!cachedETag || cachedETag !== newETag) {
-                    caches.open(CACHE_NAME).then((cache) => {
-                      if (DEBUG) console.log('[SW] Updating cache (ETag changed):', url.pathname);
-                      cache.put(request, response);
-                    });
-                  }
-                }
-              }).catch(() => {
-                // Игнорируем ошибки фонового обновления (offline mode)
-              });
-            }
-            // Файлы с ?v=... не требуют background fetch - cache busting работает
-
             return cachedResponse;
           }
 
@@ -412,6 +311,30 @@ self.addEventListener('message', (event) => {
 
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  // Запрос текущей версии SW
+  if (event.data.action === 'getVersion') {
+    event.ports[0].postMessage({
+      type: 'VERSION_RESPONSE',
+      version: CACHE_VERSION
+    });
+  }
+
+  // Layer 2: Page wake detection (для iOS/mobile recovery)
+  // Уведомляет все вкладки что страница вернулась из sleep режима
+  if (event.data.action === 'pageWake') {
+    if (DEBUG) console.log('[SW] Page wake detected, notifying all clients');
+
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PAGE_WAKE',
+          timestamp: Date.now(),
+          source: 'sw'
+        });
+      });
+    });
   }
 
   if (event.data.action === 'clearCache') {
@@ -447,25 +370,13 @@ self.addEventListener('message', (event) => {
  * Схема управляется в frontend/web/static/js/offline/idb.js
  */
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 4;  // ✅ Синхронизировано с idb.js (v4 - Current version)
+const DB_VERSION = 5;  // ✅ Синхронизировано с idb.js (v5 - Added offline_recurring_plans)
 
 async function openIndexedDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => {
-      // Handle VersionError: requested version < existing version
-      // This can happen when old SW tries to open upgraded DB
-      if (request.error.name === 'VersionError') {
-        if (DEBUG) console.log('[SW] VersionError - opening DB without version');
-        // Retry without version (opens current version)
-        const retryRequest = indexedDB.open(DB_NAME);
-        retryRequest.onsuccess = () => resolve(retryRequest.result);
-        retryRequest.onerror = () => reject(retryRequest.error);
-      } else {
-        reject(request.error);
-      }
-    };
+    request.onerror = () => reject(request.error);
   });
 }
 
@@ -536,13 +447,14 @@ async function clearCompletedSyncQueue() {
 
 /**
  * Delete record from offline store after successful sync
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
  * @param {string|number} tempId - Temporary ID of the offline record
  */
 async function deleteFromOfflineStore(entity, tempId) {
   const db = await openIndexedDB();
   const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+                    entity === 'plan' ? 'offline_plans' :
+                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([storeName], 'readwrite');
@@ -559,14 +471,15 @@ async function deleteFromOfflineStore(entity, tempId) {
 
 /**
  * Get record from offline store (for retrieving contentHash and syncHash)
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
  * @param {string|number} tempId - Temporary ID of the offline record
  * @returns {Promise<Object|null>} Offline record or null if not found
  */
 async function getOfflineRecord(entity, tempId) {
   const db = await openIndexedDB();
   const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+                    entity === 'plan' ? 'offline_plans' :
+                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([storeName], 'readonly');
@@ -726,38 +639,60 @@ async function syncItem(item) {
   return response;
 }
 
-async function syncCreate(item) {
-  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
-  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
-                   item.entity === 'transfer' ? '/api/v1/transfers' :
-                   '/api/v1/facts';
+function cleanEntityData(entity, data) {
+  const cleaned = { ...data };
+  delete cleaned.article_name;
+  delete cleaned.financial_center_name;
+  delete cleaned.cost_center_name;
+  delete cleaned.plan_date;
+  delete cleaned.fact_type;
+  delete cleaned.notification_enabled;
+  delete cleaned.reminder_datetime;
 
-  // Clean data: remove display-only fields not expected by API
-  const cleanData = { ...item.data };
-
-  // Common display-only fields for facts/plans
-  delete cleanData.article_name;
-  delete cleanData.financial_center_name;
-  delete cleanData.cost_center_name;
-  delete cleanData.plan_date;
-  delete cleanData.fact_type;
-  // Notification fields are stored for display but not sent to API
-  delete cleanData.notification_enabled;
-  delete cleanData.reminder_datetime;
-
-  // Transfer-specific display-only fields
-  if (item.entity === 'transfer') {
-    delete cleanData.from_financial_center_name;
-    delete cleanData.to_financial_center_name;
-    delete cleanData.from_article_name;
-    delete cleanData.to_article_name;
+  if (entity === 'transfer') {
+    delete cleaned.from_financial_center_name;
+    delete cleaned.to_financial_center_name;
+    delete cleaned.from_article_name;
+    delete cleaned.to_article_name;
   }
 
-  // Mark as offline sync (for all entity types: fact, plan, transfer)
-  cleanData.is_offline_sync = true;
+  if (entity === 'recurring') {
+    delete cleaned.frequency_label;
+    delete cleaned.duration_label;
+  }
+
+  return cleaned;
+}
+
+async function handleSyncError(response) {
+  let errorDetail = `HTTP ${response.status}`;
+  try {
+    const error = await response.json();
+    errorDetail = error.detail || errorDetail;
+  } catch (e) {
+    errorDetail = response.statusText || errorDetail;
+  }
+  throw new Error(errorDetail);
+}
+
+async function syncCreate(item) {
+  // Route to appropriate API endpoint based on entity type
+  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
+                   item.entity === 'transfer' ? '/api/v1/transfers' :
+                   item.entity === 'recurring' ? '/api/v1/recurring-plans' :
+                   '/api/v1/facts';
+
+  const cleanData = cleanEntityData(item.entity, item.data);
+
+  // Mark as offline sync (for facts, plans, transfers - NOT recurring plans)
+  // RecurringPlan model doesn't have is_offline_sync field
+  if (item.entity !== 'recurring') {
+    cleanData.is_offline_sync = true;
+  }
 
   // Add content_hash and sync_hash for backend deduplication (prevents duplicate records)
   // These hashes were generated when the offline record was created and stored in IndexedDB
+  // Note: Only for facts and plans, not for recurring plans or transfers
   if ((item.entity === 'fact' || item.entity === 'plan') && item.tempId) {
     try {
       const offlineRecord = await getOfflineRecord(item.entity, item.tempId);
@@ -788,16 +723,7 @@ async function syncCreate(item) {
     credentials: 'include'
   });
 
-  if (!response.ok) {
-    let errorDetail = `HTTP ${response.status}`;
-    try {
-      const error = await response.json();
-      errorDetail = error.detail || errorDetail;
-    } catch (e) {
-      errorDetail = response.statusText || errorDetail;
-    }
-    throw new Error(errorDetail);
-  }
+  if (!response.ok) await handleSyncError(response);
 
   return await response.json();
 }
@@ -809,26 +735,7 @@ async function syncUpdate(item) {
                    item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
                    `/api/v1/facts/${id}`;
 
-  // Clean data: remove display-only fields
-  const cleanData = { ...item.data };
-
-  // Common display-only fields for facts/plans
-  delete cleanData.article_name;
-  delete cleanData.financial_center_name;
-  delete cleanData.cost_center_name;
-  delete cleanData.plan_date;
-  delete cleanData.fact_type;
-  // Notification fields are stored for display but not sent to API
-  delete cleanData.notification_enabled;
-  delete cleanData.reminder_datetime;
-
-  // Transfer-specific display-only fields
-  if (item.entity === 'transfer') {
-    delete cleanData.from_financial_center_name;
-    delete cleanData.to_financial_center_name;
-    delete cleanData.from_article_name;
-    delete cleanData.to_article_name;
-  }
+  const cleanData = cleanEntityData(item.entity, item.data);
 
   if (DEBUG) console.log(`[SW] Updating ${item.entity} at ${endpoint}:`, cleanData);
 
@@ -839,16 +746,7 @@ async function syncUpdate(item) {
     credentials: 'include'
   });
 
-  if (!response.ok) {
-    let errorDetail = `HTTP ${response.status}`;
-    try {
-      const error = await response.json();
-      errorDetail = error.detail || errorDetail;
-    } catch (e) {
-      errorDetail = response.statusText || errorDetail;
-    }
-    throw new Error(errorDetail);
-  }
+  if (!response.ok) await handleSyncError(response);
 
   return await response.json();
 }
@@ -865,16 +763,7 @@ async function syncDelete(item) {
     credentials: 'include'
   });
 
-  if (!response.ok) {
-    let errorDetail = `HTTP ${response.status}`;
-    try {
-      const error = await response.json();
-      errorDetail = error.detail || errorDetail;
-    } catch (e) {
-      errorDetail = response.statusText || errorDetail;
-    }
-    throw new Error(errorDetail);
-  }
+  if (!response.ok) await handleSyncError(response);
 
   // DELETE returns 204 No Content, so no JSON body
   return { success: true };

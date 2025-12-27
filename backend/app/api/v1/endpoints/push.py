@@ -52,11 +52,14 @@ def is_vapid_configured() -> bool:
 
 
 @router.get("/vapid-key", response_model=VAPIDKeyResponse)
-async def get_vapid_key(
-    current_user: User = Depends(get_current_user)
-) -> Dict[str, str]:
+async def get_vapid_key() -> Dict[str, str]:
     """
     Get VAPID public key for push subscription.
+
+    PUBLIC ENDPOINT - No authentication required.
+    VAPID public key is meant to be publicly accessible (like SSL certificates).
+    Only the subscription endpoint requires authentication to associate the
+    push endpoint with a specific user.
 
     Returns:
         Dict containing the VAPID public key
@@ -67,7 +70,7 @@ async def get_vapid_key(
             "configured": true
         }
     """
-    logger.info(f"[Push] User {current_user.id} requested VAPID key")
+    logger.info("[Push] VAPID key requested (public endpoint)")
 
     if not is_vapid_configured():
         logger.warning("[Push] VAPID keys not configured - push notifications disabled")

@@ -14,6 +14,15 @@
  * @version 2.0.0
  */
 
+// WebSocket Diagnostic Logger
+const logWSDiag = typeof Logger !== 'undefined' ? new Logger('[WS_DIAG]', 'WS_DIAG') : {
+    info: () => {},
+    error: () => {},
+    table: () => {},
+    groupCollapsed: () => {},
+    groupEnd: () => {}
+};
+
 class BudgetWSClient {
     constructor() {
         this.ws = null;
@@ -74,6 +83,12 @@ class BudgetWSClient {
         this._indicatorDebounceTimer = null;
         this.INDICATOR_DEBOUNCE_MS = 500;  // Minimum 500ms between visual updates
 
+        // iOS wake from sleep recovery
+        // Prevents reconnection loops after screen wake from sleep
+        this._reconnecting = false;  // Guard against parallel reconnection attempts
+        this._lastVisibilityChange = 0;  // Timestamp of last visibility change
+        this._iosWakeRecoveryMode = false;  // Increased delays after code 1005
+
         // iOS device detection (for special handling)
         // All iOS browsers (Safari, Chrome, Firefox, Yandex) use WebKit and have same issues
         this._iosDeviceMode = this._detectIOSDevice();
@@ -86,6 +101,33 @@ class BudgetWSClient {
         if (this._iosDeviceMode) {
             this._iosWebSocketTimeout = 5000;  // 5 sec timeout (vs 10 sec default)
             this.CLIENT_PING_INTERVAL = 8000;  // 8 seconds (vs 15 default) - keep iOS connection alive
+        }
+
+        // ==================== WAKE RECOVERY ENHANCEMENTS ====================
+        // Layer 3: Periodic health check (60s interval when visible)
+        this._healthCheckInterval = null;
+        this.HEALTH_CHECK_INTERVAL = 60000;  // 60 seconds
+
+        // Layer 4: Pong timeout enforcement (force close if no pong)
+        this._pongTimeoutTimer = null;
+        this.PONG_TIMEOUT = 20000;  // 20 seconds
+
+        // Layer 5: Enhanced logging (always enabled on iOS for debugging)
+        this._enableDetailedLogging = this._iosDeviceMode;
+
+        // Layer 2: Service Worker wake detection (backup mechanism)
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data.type === 'PAGE_WAKE') {
+                    this._log('SW', 'info', 'Service Worker detected page wake', {
+                        timestamp: event.data.timestamp,
+                        source: event.data.source
+                    });
+                    if (this.isLeader && document.visibilityState === 'visible') {
+                        this._performWakeHealthCheck();
+                    }
+                }
+            });
         }
 
         // Close connection on page unload
@@ -106,29 +148,30 @@ class BudgetWSClient {
                     debugLog('[BudgetWS] Tab hidden, leader keeping connection active');
                 }
             } else if (document.visibilityState === 'visible') {
+                // iOS: debounce rapid visibility changes after wake from sleep
+                // Multiple visibility change events can fire in quick succession
+                // which causes the reconnection loop
+                if (this._iosDeviceMode) {
+                    const now = Date.now();
+                    if (now - this._lastVisibilityChange < 2000) {
+                        debugLog('[BudgetWS] iOS: Debouncing visibility change');
+                        return;
+                    }
+                    this._lastVisibilityChange = now;
+                }
 
+                // Layer 2: Notify Service Worker about page wake
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        action: 'pageWake',
+                        timestamp: Date.now()
+                    });
+                }
+
+                // Layer 1: Enhanced Visibility API Recovery
+                // Perform aggressive health check on wake
                 if (this.isLeader) {
-                    if (this._isConnectionStale()) {
-                        debugLog('[BudgetWS] Connection stale, forcing reconnect');
-                        this._forceReconnect();
-                        return;
-                    }
-
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.isConnected = true;
-                        this._updateStatusIndicator();
-                        return;
-                    }
-
-                    if (this.useLongPolling && this._pollingActive) {
-                        this._updateStatusIndicator();
-                        return;
-                    }
-
-                    if (!this.isConnected && this.enabled) {
-                        debugLog('[BudgetWS] Tab visible, leader reconnecting');
-                        this._forceReconnect();
-                    }
+                    this._performWakeHealthCheck();
                 }
 
                 if (!this.isLeader && this.channel) {
@@ -197,6 +240,193 @@ class BudgetWSClient {
         } catch (e) {
             return false;
         }
+    }
+
+    // ==================== WAKE RECOVERY METHODS ====================
+
+    /**
+     * Layer 5: Structured logging for debugging
+     * Logs WebSocket events with context for easy production debugging
+     * @param {string} category - Log category (WAKE, HEALTH, PING, PONG, etc.)
+     * @param {string} level - Log level (error, warn, info, debug)
+     * @param {string} message - Log message
+     * @param {Object} data - Additional data
+     * @private
+     */
+    _log(category, level, message, data = {}) {
+        if (!this._enableDetailedLogging && level !== 'error') return;
+
+        const prefix = `[WS-${category}]`;
+        const timestamp = new Date().toISOString();
+
+        const logData = {
+            timestamp,
+            category,
+            level,
+            message,
+            ...data,
+            // Context
+            isConnected: this.isConnected,
+            wsState: this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'NO_WS',
+            lastServerPing: this.lastServerPing ? ((Date.now() - this.lastServerPing) + 'ms ago') : 'never',
+            lastPong: this.lastPongReceived ? ((Date.now() - this.lastPongReceived) + 'ms ago') : 'never'
+        };
+
+        switch (level) {
+            case 'error':
+                console.error(prefix, message, logData);
+                break;
+            case 'warn':
+                console.warn(prefix, message, logData);
+                break;
+            case 'info':
+                console.log(prefix, message, logData);
+                break;
+            case 'debug':
+                if (this._enableDetailedLogging) {
+                    console.log(prefix, message, logData);
+                }
+                break;
+        }
+
+        // Store in history for debugging
+        this._logHistory(`${category}:${level}:${message}`);
+    }
+
+    /**
+     * Layer 1: Enhanced Visibility API Recovery
+     * Performs aggressive connection health check when page becomes visible
+     * Handles cases where WebSocket died during long sleep (5+ minutes)
+     * @private
+     */
+    _performWakeHealthCheck() {
+        console.group('[WS-WAKE] Wake Health Check');
+        this._log('WAKE', 'info', 'Visibility: visible', {
+            timestamp: new Date().toISOString()
+        });
+
+        // Check 1: WebSocket readyState
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            this._log('WAKE', 'warn', 'WebSocket not OPEN, reconnecting', {
+                wsState: this.ws ? this.ws.readyState : 'null'
+            });
+            console.groupEnd();
+            this._forceReconnect();
+            return;
+        }
+
+        // Check 2: Stale connection (no ping > PING_TIMEOUT)
+        if (this._isConnectionStale()) {
+            this._log('WAKE', 'warn', 'Connection stale, reconnecting', {
+                timeSinceLastPing: Date.now() - this.lastServerPing
+            });
+            console.groupEnd();
+            this._forceReconnect();
+            return;
+        }
+
+        // Check 3: Send ping to verify bidirectional communication
+        this._log('WAKE', 'info', 'Sending verification ping');
+        this._sendMessage({ type: 'ping' });
+
+        // Set timeout to check if pong received
+        setTimeout(() => {
+            const timeSincePong = Date.now() - this.lastPongReceived;
+            if (timeSincePong > 10000) {
+                this._log('WAKE', 'warn', 'No pong response within 3s, reconnecting', {
+                    timeSincePong
+                });
+                console.groupEnd();
+                this._forceReconnect();
+            } else {
+                this._log('WAKE', 'info', 'Connection verified ✓');
+                console.groupEnd();
+            }
+        }, 3000);
+    }
+
+    /**
+     * Layer 3: Start periodic health check
+     * Checks connection health every 60 seconds when page is visible
+     * Catches cases where connection died but visibility change didn't trigger
+     * @private
+     */
+    _startHealthCheck() {
+        if (this._healthCheckInterval) return;
+
+        this._log('HEALTH', 'info', 'Starting periodic health checks', {
+            interval: `${this.HEALTH_CHECK_INTERVAL}ms`
+        });
+
+        this._healthCheckInterval = setInterval(() => {
+            // Only check if visible and leader
+            if (document.visibilityState !== 'visible' || !this.isLeader) {
+                return;
+            }
+
+            console.group('[WS-HEALTH] Periodic Check');
+            this._log('HEALTH', 'debug', 'Periodic health check running');
+
+            if (this._isConnectionStale()) {
+                this._log('HEALTH', 'warn', 'Connection stale');
+                console.groupEnd();
+                this._forceReconnect();
+                return;
+            }
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this._log('HEALTH', 'debug', 'Connection healthy ✓');
+                // Send ping for verification
+                this._sendMessage({ type: 'ping' });
+            } else {
+                this._log('HEALTH', 'warn', 'WebSocket not OPEN');
+                console.groupEnd();
+                this._forceReconnect();
+                return;
+            }
+
+            console.groupEnd();
+        }, this.HEALTH_CHECK_INTERVAL);
+    }
+
+    /**
+     * Layer 3: Stop periodic health check
+     * @private
+     */
+    _stopHealthCheck() {
+        if (this._healthCheckInterval) {
+            clearInterval(this._healthCheckInterval);
+            this._healthCheckInterval = null;
+            this._log('HEALTH', 'info', 'Stopped periodic health checks');
+        }
+    }
+
+    /**
+     * Layer 4: Reset pong timeout timer
+     * Sets timeout to force close WebSocket if pong not received
+     * Detects "zombie" connections where WebSocket is OPEN but TCP is dead
+     * @private
+     */
+    _resetPongTimeout() {
+        // Clear existing timeout
+        if (this._pongTimeoutTimer) {
+            clearTimeout(this._pongTimeoutTimer);
+        }
+
+        // Set new timeout
+        this._pongTimeoutTimer = setTimeout(() => {
+            console.group('[WS-PONG-TIMEOUT]');
+            this._log('PONG-TIMEOUT', 'error', 'No pong received, force closing', {
+                timeout: `${this.PONG_TIMEOUT}ms`,
+                lastPong: this.lastPongReceived ? (Date.now() - this.lastPongReceived) : 'never'
+            });
+            console.groupEnd();
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                // Force close (will trigger onclose → reconnect)
+                this.ws.close(1000, 'Pong timeout');
+            }
+        }, this.PONG_TIMEOUT);
     }
 
     // ==================== MULTI-TAB SUPPORT ====================
@@ -591,12 +821,20 @@ class BudgetWSClient {
      * @private
      */
     _isConnectionStale() {
+        // Check if WebSocket exists but is not in OPEN state
+        // This can happen after iOS wake from sleep when TCP is dead but WS object exists
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+            return true;
+        }
+
+        // Check if we haven't received a server ping in PING_TIMEOUT
         if (!this.lastServerPing) return false;
         return Date.now() - this.lastServerPing > this.PING_TIMEOUT;
     }
 
     /**
      * Close existing connection cleanly
+     * Layer 3: Stops health check
      * @private
      */
     _closeExistingConnection() {
@@ -616,6 +854,10 @@ class BudgetWSClient {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
         }
+
+        // Layer 3: Stop periodic health check
+        this._stopHealthCheck();
+
         this._pollingActive = false;
         this.isConnected = false;
         this.connectionId = null;
@@ -623,15 +865,31 @@ class BudgetWSClient {
 
     /**
      * Force reconnection
+     * Guards against parallel reconnection attempts (especially important for iOS wake from sleep)
      * @private
      */
     _forceReconnect() {
+        // Guard: prevent parallel reconnection attempts
+        // This prevents the reconnection loop seen on iOS after wake from sleep
+        if (this._reconnecting) {
+            debugLog('[BudgetWS] Already reconnecting, skip');
+            return;
+        }
+        this._reconnecting = true;
+
         this._closeExistingConnection();
         this.reconnectAttempts = 0;
         this.limitReached = false;
         this.useLongPolling = false;
         this._multiTabInitialized = false;
-        this.connect();
+
+        // For iOS: give network time to stabilize after wake from sleep
+        // TCP connections may have been killed while screen was off
+        const delay = this._iosDeviceMode ? 500 : 100;
+        setTimeout(() => {
+            this._reconnecting = false;
+            this.connect();
+        }, delay);
     }
 
     /**
@@ -813,6 +1071,9 @@ class BudgetWSClient {
                 this._updateStatusIndicator();
                 this._notifyHandlers('connect', {});
                 this._startClientPing();
+
+                // Layer 3: Start periodic health check
+                this._startHealthCheck();
             };
 
             this.ws.onmessage = (event) => {
@@ -840,6 +1101,10 @@ class BudgetWSClient {
                 this.isConnected = false;
                 this.connectionId = null;
                 this._stopClientPing();
+
+                // Layer 3: Stop periodic health check
+                this._stopHealthCheck();
+
                 this._updateStatusIndicator();
 
                 // Handle specific close codes
@@ -856,6 +1121,19 @@ class BudgetWSClient {
                     this.reconnectAttempts = this.maxReconnectAttempts;
                     this._notifyHandlers('limit_reached', {});
                     return;
+                }
+
+                // iOS-specific: code 1005 (No Status Received) after wake from sleep
+                // means TCP connection was killed while screen was off
+                // Network may not be fully stable yet, so increase reconnection delays
+                if (this._iosDeviceMode && event.code === 1005) {
+                    this._logHistory('ios_1005_wake_recovery');
+                    this._iosWakeRecoveryMode = true;
+                    // Reset wake recovery mode after 5 seconds
+                    // This gives network time to fully stabilize
+                    setTimeout(() => {
+                        this._iosWakeRecoveryMode = false;
+                    }, 5000);
                 }
 
                 // Schedule reconnect
@@ -923,7 +1201,15 @@ class BudgetWSClient {
             case 'pong':
                 // Response to our client ping
                 this.lastPongReceived = Date.now();
-                debugLog('[BudgetWS] Pong received');
+                const rtt = this.lastServerPing ? (Date.now() - this.lastServerPing) : 0;
+                this._log('PONG', 'debug', 'Pong received', { rtt: `${rtt}ms` });
+                debugLog('[BudgetWS] Pong received, RTT:', rtt, 'ms');
+
+                // Layer 4: Clear pong timeout on successful response
+                if (this._pongTimeoutTimer) {
+                    clearTimeout(this._pongTimeoutTimer);
+                    this._pongTimeoutTimer = null;
+                }
                 break;
 
             case 'online_status':
@@ -999,6 +1285,7 @@ class BudgetWSClient {
 
     /**
      * Start client ping interval
+     * Layer 4: Sets pong timeout after each ping
      * @private
      */
     _startClientPing() {
@@ -1006,19 +1293,30 @@ class BudgetWSClient {
 
         this.pingInterval = setInterval(() => {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this._log('PING', 'debug', 'Sending client ping');
                 this._sendMessage({ type: 'ping' });
+
+                // Layer 4: Set pong timeout
+                this._resetPongTimeout();
             }
         }, this.CLIENT_PING_INTERVAL);
     }
 
     /**
      * Stop client ping interval
+     * Layer 4: Clears pong timeout
      * @private
      */
     _stopClientPing() {
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
+        }
+
+        // Layer 4: Clear pong timeout
+        if (this._pongTimeoutTimer) {
+            clearTimeout(this._pongTimeoutTimer);
+            this._pongTimeoutTimer = null;
         }
     }
 
@@ -1263,6 +1561,7 @@ class BudgetWSClient {
 
     /**
      * Silent close (for page unload)
+     * Layer 3: Stops health check
      * @private
      */
     _silentClose() {
@@ -1281,6 +1580,9 @@ class BudgetWSClient {
         }
         this.isLeader = false;
         this._multiTabInitialized = false;
+
+        // Layer 3: Stop periodic health check
+        this._stopHealthCheck();
 
         // Notify server via sendBeacon
         if (this.connectionId) {
@@ -1353,6 +1655,7 @@ class BudgetWSClient {
             window.addEventListener('online', () => {
                 debugLog('[BudgetWS] Back online, reconnecting');
                 this.reconnectAttempts = 0;
+                this.useLongPolling = false;  // Reset long polling flag
                 this._createConnection();
             }, { once: true });
             return;
@@ -1368,7 +1671,15 @@ class BudgetWSClient {
         }
 
         // Calculate delay with exponential backoff and jitter to prevent thundering herd
-        const baseDelay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+        let baseDelay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+
+        // iOS wake recovery mode: increase minimum delay to let network stabilize
+        // After code 1005 (TCP killed during sleep), network may not be fully ready
+        if (this._iosDeviceMode && this._iosWakeRecoveryMode) {
+            baseDelay = Math.max(baseDelay, 3000); // Minimum 3 seconds
+            debugLog('[BudgetWS] iOS wake recovery: using minimum 3s delay');
+        }
+
         const jitter = baseDelay * 0.2 * Math.random(); // ±10% jitter
         const delay = Math.min(baseDelay + jitter, this.maxReconnectDelay);
 
@@ -1378,6 +1689,11 @@ class BudgetWSClient {
             this.reconnectTimeout = null;
             this.reconnectAttempts++;
             this._updateStatusIndicator();
+
+            // CRITICAL: Reset long polling flag to allow WebSocket retry
+            // Without this, once fallback to long polling occurs, WebSocket is never attempted again
+            this.useLongPolling = false;
+
             this._createConnection();
         }, delay);
     }
@@ -1568,10 +1884,21 @@ class BudgetWSClient {
             return;
         }
 
-        // Debounce rapid state changes to prevent visual flickering
-        // Exception: always show 'connected' immediately (good news should show fast)
-        if (state !== 'connected' && state !== 'connected_via_leader' && this._indicatorDebounceTimer) {
-            return;
+        // iOS wake recovery: debounce ALL state changes to prevent rapid flickering
+        // During wake from sleep, states can rapidly cycle: connected → connecting → connected
+        // Standard behavior: allow connected states through immediately
+        const isConnectedState = state === 'connected' || state === 'connected_via_leader';
+
+        if (this._iosDeviceMode) {
+            // iOS: debounce ALL states if timer is active (prevent any flickering)
+            if (this._indicatorDebounceTimer) {
+                return;
+            }
+        } else {
+            // Non-iOS: allow connected states through immediately (good news fast)
+            if (!isConnectedState && this._indicatorDebounceTimer) {
+                return;
+            }
         }
 
         this._lastIndicatorState = state;
@@ -1585,11 +1912,15 @@ class BudgetWSClient {
         // Apply the visual update
         this._applyIndicatorState(indicator, state);
 
-        // Set debounce timer for next update (except for connected states)
-        if (state !== 'connected' && state !== 'connected_via_leader') {
+        // Set debounce timer for next update
+        // iOS: debounce ALL states with longer interval (1s vs 500ms)
+        // Non-iOS: only debounce non-connected states
+        const shouldDebounce = this._iosDeviceMode || !isConnectedState;
+        if (shouldDebounce) {
+            const debounceMs = this._iosDeviceMode ? 1000 : this.INDICATOR_DEBOUNCE_MS;
             this._indicatorDebounceTimer = setTimeout(() => {
                 this._indicatorDebounceTimer = null;
-            }, this.INDICATOR_DEBOUNCE_MS);
+            }, debounceMs);
         }
     }
 
@@ -1695,33 +2026,132 @@ class BudgetWSClient {
     }
 
     /**
-     * Show visual diagnostic alert (for iOS Safari debugging)
+     * Show visual diagnostic modal (for iOS Safari debugging)
      * Tap status indicator 3 times quickly to trigger
      */
     showDiagnostics() {
+        logWSDiag.info('Opening diagnostic modal');
+
         const diag = this.diagnose();
-        const lines = [
-            `Connected: ${diag.isConnected}`,
-            `Enabled: ${diag.enabled}`,
-            `WS State: ${diag.wsState}`,
-            `Long Polling: ${diag.useLongPolling}`,
-            `Polling Active: ${diag.pollingActive}`,
-            ``,
-            `Safari iOS: ${diag.safariIOSMode}`,
-            `Leader: ${diag.isLeader}`,
-            `MultiTab Init: ${diag.multiTabInitialized}`,
-            `MultiTab Supported: ${diag.multiTabSupported}`,
-            `Has Channel: ${diag.hasChannel}`,
-            ``,
-            `Reconnects: ${diag.reconnectAttempts}`,
-            `Limit Reached: ${diag.limitReached}`,
-            ``,
-            `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`,
-            ``,
-            `History (${diag.history.length}):`,
-            ...diag.history.slice(-10).map(h => `  ${new Date(h.time).toLocaleTimeString()}: ${h.event}`)
+
+        // Log full diagnostic data to console for debugging
+        logWSDiag.groupCollapsed('WebSocket Diagnostic Data');
+        logWSDiag.table(diag);
+        logWSDiag.groupEnd();
+
+        // Build HTML content for modal (structured sections)
+        const sections = [
+            {
+                title: 'Connection Status',
+                items: [
+                    { label: 'Connected', value: diag.isConnected, highlight: !diag.isConnected },
+                    { label: 'Enabled', value: diag.enabled },
+                    { label: 'WS State', value: diag.wsState },
+                    { label: 'Long Polling', value: diag.useLongPolling, highlight: diag.useLongPolling },
+                    { label: 'Polling Active', value: diag.pollingActive }
+                ]
+            },
+            {
+                title: 'Browser Detection',
+                items: [
+                    { label: 'Safari iOS Mode', value: diag.safariIOSMode, highlight: diag.safariIOSMode },
+                    { label: 'Needs Longer Timeout', value: diag.needsLongerTimeout }
+                ]
+            },
+            {
+                title: 'Multi-Tab Coordination',
+                items: [
+                    { label: 'Leader', value: diag.isLeader, highlight: diag.isLeader },
+                    { label: 'MultiTab Initialized', value: diag.multiTabInitialized },
+                    { label: 'MultiTab Supported', value: diag.multiTabSupported },
+                    { label: 'Has Channel', value: diag.hasChannel },
+                    { label: 'Last Leader Heartbeat', value: diag.lastLeaderHeartbeat || 'none' }
+                ]
+            },
+            {
+                title: 'Reconnection State',
+                items: [
+                    { label: 'Reconnect Attempts', value: `${diag.reconnectAttempts} / ${diag.maxReconnectAttempts}`, highlight: diag.reconnectAttempts > 0 },
+                    { label: 'Limit Reached', value: diag.limitReached, highlight: diag.limitReached },
+                    { label: 'Approaching Limit', value: diag.approachingLimit, highlight: diag.approachingLimit }
+                ]
+            },
+            {
+                title: 'Error Tracking',
+                items: [
+                    { label: 'Last Error', value: diag.lastError ? diag.lastError.message : 'none', highlight: !!diag.lastError }
+                ]
+            }
         ];
-        alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
+
+        // Build HTML
+        let contentHTML = '';
+
+        sections.forEach(section => {
+            contentHTML += `<div class="border-l-4 border-primary pl-3">`;
+            contentHTML += `<h4 class="font-bold text-base mb-2">${section.title}</h4>`;
+            contentHTML += `<dl class="space-y-1">`;
+
+            section.items.forEach(item => {
+                const valueClass = item.highlight ? 'text-warning font-bold' : 'text-base-content/70';
+                contentHTML += `<div class="flex justify-between gap-4">`;
+                contentHTML += `<dt class="font-semibold">${item.label}:</dt>`;
+                contentHTML += `<dd class="${valueClass}">${item.value}</dd>`;
+                contentHTML += `</div>`;
+            });
+
+            contentHTML += `</dl></div>`;
+        });
+
+        // Add connection history
+        if (diag.history && diag.history.length > 0) {
+            contentHTML += `<div class="border-l-4 border-secondary pl-3">`;
+            contentHTML += `<h4 class="font-bold text-base mb-2">Connection History (last ${diag.history.length})</h4>`;
+            contentHTML += `<ul class="space-y-1 text-xs">`;
+
+            diag.history.slice(-10).forEach(h => {
+                const time = new Date(h.time).toLocaleTimeString();
+                contentHTML += `<li><span class="text-base-content/50">${time}:</span> ${h.event}</li>`;
+            });
+
+            contentHTML += `</ul></div>`;
+        }
+
+        // Add user agent
+        contentHTML += `<div class="border-l-4 border-accent pl-3">`;
+        contentHTML += `<h4 class="font-bold text-base mb-2">Browser Info</h4>`;
+        contentHTML += `<p class="text-xs break-all text-base-content/70">${diag.userAgent}</p>`;
+        contentHTML += `</div>`;
+
+        // Update modal content
+        const contentElement = document.getElementById('ws-diagnostics-content');
+        if (!contentElement) {
+            logWSDiag.error('Modal content element not found (#ws-diagnostics-content)');
+            // Fallback to alert if modal not available
+            const lines = [
+                `Connected: ${diag.isConnected}`,
+                `Enabled: ${diag.enabled}`,
+                `WS State: ${diag.wsState}`,
+                `Long Polling: ${diag.useLongPolling}`,
+                `Safari iOS: ${diag.safariIOSMode}`,
+                `Leader: ${diag.isLeader}`,
+                `Reconnects: ${diag.reconnectAttempts}`,
+                `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`
+            ];
+            alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
+            return;
+        }
+
+        contentElement.innerHTML = contentHTML;
+
+        // Show modal
+        const modal = document.getElementById('ws-diagnostics-modal');
+        if (modal) {
+            modal.showModal();
+            logWSDiag.info('Diagnostic modal opened');
+        } else {
+            logWSDiag.error('Modal element not found (#ws-diagnostics-modal)');
+        }
     }
 
     /**

@@ -216,6 +216,54 @@ module:
   # UI FEATURES
   # ---------------------------------------------------------------------------
   ui_features:
+    fab_buttons:
+      landing_view_fab:
+        id: "create-list-fab"
+        description: "FAB кнопка для создания нового списка"
+        icon: "➕ (plus sign)"
+        position: "bottom-6 right-6 (fixed, всегда в правом нижнем углу viewport)"
+        visibility: "Visible только в landing view"
+        function: "openCreateListModal()"
+        css_class: "btn btn-success btn-circle btn-lg shadow-xl"
+        dom_location: "ПОСЛЕ {% endblock %} (вне блока content)"
+        implementation:
+          show: "listsManager.showCreateListFAB() в showLandingView()"
+          hide: "listsManager.hideCreateListFAB() в showDetailView()"
+          positioning: "position: fixed относительно viewport, НЕ относительно content"
+
+      detail_view_fab:
+        id: "lists-fab-menu"
+        description: "FAB Speed Dial для массовых операций со списком"
+        icon: "⋮ (vertical dots, rotates 90° when open)"
+        position: "bottom-6 right-6 (fixed, всегда в правом нижнем углу viewport)"
+        visibility: "Visible всегда в detail view (независимо от количества items)"
+        type: "Speed Dial (expandable menu)"
+        dom_location: "ПОСЛЕ {% endblock %} (вне блока content)"
+        items:
+          - action: "deleteCompletedWithConfirm()"
+            icon: "🗑️"
+            label: "Удалить выполненные"
+            color: "btn-error"
+          - action: "markAllCompletedWithConfirm()"
+            icon: "✅"
+            label: "Отметить все"
+            color: "btn-success"
+          - action: "unmarkAllCompletedWithConfirm()"
+            icon: "❌"
+            label: "Снять все отметки"
+            color: "btn-warning"
+        implementation:
+          show: |
+            - listsManager.updateFABVisibility() в showDetailView() (после switchView)
+            - listsManager.updateFABVisibility() в switchView() (в конце метода)
+          hide: "listsManager.hideFAB() в showLandingView()"
+          toggle: "toggleListsFAB() - открыть/закрыть speed dial"
+          notes: |
+            ВАЖНО: updateFABVisibility() вызывается ПОСЛЕ switchView(), чтобы
+            FAB был виден в обоих режимах (table и hierarchy).
+            Без этого FAB может не показаться в table view.
+        backdrop: "lists-fab-backdrop (closes menu on click)"
+        css: "frontend/web/static/css/lists.css:1236-1344"
     form_selectors:
       description: "Селекторы в форме добавления/редактирования товара"
       store_selector:

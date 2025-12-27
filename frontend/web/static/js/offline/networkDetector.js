@@ -40,10 +40,10 @@ class SmartNetworkDetector {
         this.lastCheck = 0;
 
         // Network Information API thresholds
-        // Note: RTT threshold increased from 1000ms to 2500ms to reduce
-        // false positives on mobile networks, VPN, and slower connections
+        // Note: RTT threshold increased from 1000ms → 2500ms → 5000ms to reduce
+        // false positives on mobile networks, VPN connections, and page transitions
         this.slowConnectionTypes = ['slow-2g', '2g'];
-        this.degradedRtt = options.degradedRtt || 2500; // RTT > 2500ms = degraded
+        this.degradedRtt = options.degradedRtt || 5000; // RTT > 5000ms = degraded
 
         // Callbacks
         this.onStatusChange = options.onStatusChange || null;

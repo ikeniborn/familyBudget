@@ -497,6 +497,108 @@ chmod 640 /opt/budget/.env
 
 ## Troubleshooting
 
+### Проблемы при установке (install.sh)
+
+**Версия 1.0.0+** включает автоматические механизмы восстановления:
+- Автоматические повторные попытки с экспоненциальной задержкой
+- Проверка сети перед установкой
+- Подробные сообщения об ошибках с решениями
+
+#### Ошибка: "apt-get update failed or timed out"
+
+**Причина:** Медленная сеть, проблемы с DNS или заблокированные репозитории
+
+**Решение 1:** Увеличить таймауты
+```bash
+TIMEOUT_APT_UPDATE=600 TIMEOUT_APT_INSTALL=1200 sudo -E ./install.sh
+```
+
+**Решение 2:** Проверить сеть вручную
+```bash
+# Проверка интернета
+ping -c 3 8.8.8.8
+
+# Проверка DNS
+ping -c 3 google.com
+
+# Проверка репозиториев
+curl -I http://archive.ubuntu.com/ubuntu
+```
+
+**Решение 3:** Очистить кэш APT
+```bash
+sudo apt-get clean
+sudo rm -rf /var/lib/apt/lists/*
+sudo apt-get update
+```
+
+#### Ошибка: "npm ci failed after retries"
+
+**Причина:** Медленная сеть, нехватка места на диске, проблемы с npm registry
+
+**Решение 1:** Увеличить таймаут npm
+```bash
+TIMEOUT_NPM_INSTALL=1800 sudo -E ./install.sh
+```
+
+**Решение 2:** Проверить место на диске
+```bash
+df -h
+# Нужно минимум 1GB свободного места для /opt/budget
+```
+
+**Решение 3:** Очистить кэш npm
+```bash
+npm cache clean --force
+rm -rf /opt/budget/node_modules
+```
+
+#### Ошибка: "Network issues detected" при pre-flight проверке
+
+**Причина:** Нет доступа к интернету, проблемы с DNS, заблокированы порты
+
+**Решение 1:** Проверить настройки DNS
+```bash
+cat /etc/resolv.conf
+# Должно быть: nameserver 8.8.8.8 или другой DNS
+```
+
+**Решение 2:** Проверить фаервол
+```bash
+sudo ufw status
+sudo iptables -L -n | grep -E "80|443"
+```
+
+**Решение 3:** Проверить прокси (если используется)
+```bash
+echo $HTTP_PROXY
+echo $HTTPS_PROXY
+```
+
+#### Ошибка: "Failed to download Docker GPG key"
+
+**Причина:** Проблемы с сертификатами, заблокирован download.docker.com
+
+**Решение 1:** Проверить доступ к Docker репозиторию
+```bash
+curl -I https://download.docker.com
+```
+
+**Решение 2:** Удалить старый GPG ключ и повторить
+```bash
+sudo rm -f /etc/apt/keyrings/docker.gpg
+sudo ./install.sh
+```
+
+#### Полный лог установки
+
+Все ошибки записываются в лог:
+```bash
+tail -f /var/log/familybudget_install.log
+```
+
+**См. подробную документацию:** `/docs/architecture/installation-resilience.md`
+
 ### Ошибка: "Pool overlaps with other one on this address space"
 
 **Решение:** Используйте новую функцию очистки и автоматического подбора подсетей:
@@ -660,8 +762,8 @@ docker inspect <container-name> | grep Health -A 10
 
 **Решение:**
 ```bash
-# Проверить права на директорию
-ls -la /opt/budget/data/postgres
+# Проверить PostgreSQL Docker volume
+docker volume inspect budget_postgres_data
 
 # Проверить логи PostgreSQL
 docker compose logs postgres

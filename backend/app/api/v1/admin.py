@@ -1946,6 +1946,7 @@ async def get_all_facts(
     session: AsyncSession = Depends(get_session),
     user_id: int | None = Query(None, description="Filter by user ID"),
     article_id: int | None = Query(None, description="Filter by article ID"),
+    article_type: str | None = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
     date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
     record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
@@ -1994,6 +1995,9 @@ async def get_all_facts(
 
     if article_id is not None:
         query = query.where(Fact.article_id == article_id)
+
+    if article_type is not None:
+        query = query.where(Article.type == article_type)
 
     if record_type is not None:
         query = query.where(Fact.record_type == record_type)
@@ -2062,6 +2066,7 @@ async def get_facts_count(
     session: AsyncSession = Depends(get_session),
     user_id: int | None = Query(None, description="Filter by user ID"),
     article_id: int | None = Query(None, description="Filter by article ID"),
+    article_type: str | None = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
     date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
     date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
     record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
@@ -2089,7 +2094,8 @@ async def get_facts_count(
     """
     from datetime import date
 
-    query = select(func.count(Fact.id))
+    # Build query with join to Article for article_type filtering
+    query = select(func.count(Fact.id)).join(Article, Fact.article_id == Article.id)
 
     # Apply same filters as get_all_facts
     if user_id is not None:
@@ -2097,6 +2103,9 @@ async def get_facts_count(
 
     if article_id is not None:
         query = query.where(Fact.article_id == article_id)
+
+    if article_type is not None:
+        query = query.where(Article.type == article_type)
 
     if record_type is not None:
         query = query.where(Fact.record_type == record_type)

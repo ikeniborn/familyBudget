@@ -1,0 +1,281 @@
+"""
+Redis Pub/Sub service for multi-worker WebSocket broadcasting.
+
+This module provides Redis Pub/Sub functionality for synchronizing
+WebSocket events across multiple uvicorn workers.
+
+Architecture:
+    Worker 1: [local WS connections] ─┬─> publish ─> Redis Pub/Sub
+    Worker 2: [local WS connections] ─┼─> publish ─> Redis Pub/Sub
+    Worker N: [local WS connections] ─┴─> publish ─> Redis Pub/Sub
+                                          │
+                                          ▼
+    Redis Pub/Sub channel: budget:events
+                                          │
+                                          ▼
+    Worker 1: subscribe ─> forward to local connections
+    Worker 2: subscribe ─> forward to local connections
+    Worker N: subscribe ─> forward to local connections
+
+Usage:
+    # On app startup:
+    await start_pubsub_listener(local_broadcast_callback)
+
+    # On app shutdown:
+    await stop_pubsub_listener()
+
+    # To broadcast (from any worker):
+    await publish_event("fact_created", {"id": 123, ...})
+"""
+
+import asyncio
+import json
+import logging
+import time
+from datetime import datetime
+from typing import Any, Callable, Coroutine
+
+import redis.exceptions
+from redis.asyncio import Redis
+
+from backend.app.services.redis_service import get_redis, is_redis_available
+
+logger = logging.getLogger(__name__)
+
+# Redis channel for budget events
+BUDGET_EVENTS_CHANNEL = "budget:events"
+
+# Redis key for event buffer (ZSET with timestamp as score)
+EVENT_BUFFER_KEY = "budget:event_buffer"
+EVENT_BUFFER_MAX_AGE = 60  # Seconds to keep events in buffer
+EVENT_BUFFER_MAX_SIZE = 1000  # Maximum events in buffer
+
+# Subscriber task reference
+_subscriber_task: asyncio.Task | None = None
+_local_broadcast_callback: Callable[[str, dict], Coroutine] | None = None
+
+
+async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
+    """
+    Publish event to Redis Pub/Sub channel and add to event buffer.
+
+    This is called when a local worker creates/updates/deletes data.
+    The event will be received by ALL workers (including this one).
+
+    Args:
+        event_type: Event type (fact_created, fact_updated, etc.)
+        data: Event data
+
+    Returns:
+        True if published successfully, False otherwise
+    """
+    if not is_redis_available():
+        logger.debug("Redis not available, skipping publish")
+        return False
+
+    event = {
+        "type": event_type,
+        "data": data,
+        "timestamp": datetime.utcnow().isoformat(),
+        "ts": time.time(),  # Unix timestamp for sorting
+    }
+    message = json.dumps(event, default=str)
+
+    try:
+        async with get_redis() as redis:
+            # Publish to Pub/Sub channel
+            await redis.publish(BUDGET_EVENTS_CHANNEL, message)
+
+            # Add to event buffer (ZSET with timestamp as score)
+            await redis.zadd(EVENT_BUFFER_KEY, {message: event["ts"]})
+
+            # Trim old events from buffer
+            cutoff = time.time() - EVENT_BUFFER_MAX_AGE
+            await redis.zremrangebyscore(EVENT_BUFFER_KEY, "-inf", cutoff)
+
+            # Also trim by size (keep only MAX_SIZE newest)
+            buffer_size = await redis.zcard(EVENT_BUFFER_KEY)
+            if buffer_size > EVENT_BUFFER_MAX_SIZE:
+                # Remove oldest events
+                to_remove = buffer_size - EVENT_BUFFER_MAX_SIZE
+                await redis.zremrangebyrank(EVENT_BUFFER_KEY, 0, to_remove - 1)
+
+        logger.debug(f"Published event: {event_type}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Failed to publish event: {e}")
+        return False
+
+
+async def get_events_since(since_timestamp: float) -> list[dict]:
+    """
+    Get events from Redis buffer since timestamp.
+
+    Used by long polling fallback.
+
+    Args:
+        since_timestamp: Unix timestamp to get events since
+
+    Returns:
+        List of events with type, data, and timestamp
+    """
+    if not is_redis_available():
+        return []
+
+    try:
+        async with get_redis() as redis:
+            # Get events with score (timestamp) > since_timestamp
+            # ZRANGEBYSCORE returns events ordered by timestamp
+            events_raw = await redis.zrangebyscore(
+                EVENT_BUFFER_KEY,
+                min=since_timestamp,
+                max="+inf",
+                withscores=False
+            )
+
+            events = []
+            for event_json in events_raw:
+                try:
+                    event = json.loads(event_json)
+                    # Only include events after the requested timestamp
+                    if event.get("ts", 0) > since_timestamp:
+                        events.append({
+                            "type": event["type"],
+                            "data": event["data"],
+                            "timestamp": event["ts"],
+                        })
+                except json.JSONDecodeError:
+                    continue
+
+            return events
+
+    except Exception as e:
+        logger.error(f"Failed to get events from buffer: {e}")
+        return []
+
+
+async def _subscriber_loop():
+    """
+    Background task that subscribes to Redis Pub/Sub and forwards events.
+
+    This runs in each worker and forwards received events to local
+    WebSocket connections via the registered callback.
+    """
+    global _local_broadcast_callback
+
+    logger.info("Starting Redis Pub/Sub subscriber...")
+
+    while True:
+        try:
+            if not is_redis_available():
+                logger.warning("Redis not available, waiting...")
+                await asyncio.sleep(5)
+                continue
+
+            async with get_redis() as redis:
+                pubsub = redis.pubsub()
+                await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
+
+                logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
+
+                # Use get_message() in a loop instead of listen()
+                # This prevents blocking and allows proper context manager handling
+                while True:
+                    message = await pubsub.get_message(ignore_subscribe_messages=False, timeout=1.0)
+
+                    if message is None:
+                        # No message within timeout - continue
+                        await asyncio.sleep(0.01)
+                        continue
+
+                    if message["type"] == "message":
+                        try:
+                            event = json.loads(message["data"])
+                            event_type = event.get("type")
+                            event_data = event.get("data", {})
+
+                            logger.debug(f"Received Pub/Sub event: {event_type}")
+
+                            # Forward to local connections via callback
+                            if _local_broadcast_callback:
+                                await _local_broadcast_callback(event_type, event_data)
+                            else:
+                                logger.warning(f"No callback registered, event {event_type} dropped")
+
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
+                        except Exception as e:
+                            logger.error(f"Error processing Pub/Sub message: {e}", exc_info=True)
+
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub subscriber cancelled")
+            raise
+        except asyncio.TimeoutError:
+            # Timeout is normal when no messages - just reconnect
+            continue
+        except redis.exceptions.TimeoutError:
+            # Redis timeout is normal when no messages - just reconnect
+            continue
+        except redis.exceptions.ConnectionError as e:
+            logger.warning(f"Redis connection lost, reconnecting in 5s: {e}")
+            await asyncio.sleep(5)
+        except Exception as e:
+            # Only log unexpected errors
+            error_msg = str(e)
+            if "Timeout" in error_msg or "timeout" in error_msg:
+                # Timeout during listen is normal - just reconnect
+                continue
+            logger.error(f"Redis Pub/Sub error: {e}")
+            await asyncio.sleep(5)  # Wait before reconnecting
+
+
+async def start_pubsub_listener(
+    local_broadcast_callback: Callable[[str, dict], Coroutine]
+) -> bool:
+    """
+    Start the Redis Pub/Sub subscriber background task.
+
+    Args:
+        local_broadcast_callback: Async function to call when event received.
+            Signature: async def callback(event_type: str, data: dict)
+
+    Returns:
+        True if started successfully, False otherwise
+    """
+    global _subscriber_task, _local_broadcast_callback
+
+    if not is_redis_available():
+        logger.warning("Redis not available, Pub/Sub listener not started")
+        return False
+
+    if _subscriber_task is not None:
+        logger.warning("Pub/Sub listener already running")
+        return True
+
+    _local_broadcast_callback = local_broadcast_callback
+    _subscriber_task = asyncio.create_task(_subscriber_loop())
+
+    logger.info("Redis Pub/Sub listener started")
+    return True
+
+
+async def stop_pubsub_listener():
+    """Stop the Redis Pub/Sub subscriber background task."""
+    global _subscriber_task, _local_broadcast_callback
+
+    if _subscriber_task is not None:
+        _subscriber_task.cancel()
+        try:
+            await _subscriber_task
+        except asyncio.CancelledError:
+            pass
+        _subscriber_task = None
+
+    _local_broadcast_callback = None
+    logger.info("Redis Pub/Sub listener stopped")
+
+
+def is_pubsub_running() -> bool:
+    """Check if Pub/Sub listener is running."""
+    return _subscriber_task is not None and not _subscriber_task.done()

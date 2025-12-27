@@ -12,9 +12,339 @@ Use these files to understand component relationships when planning changes or o
 | [endpoints/](./endpoints/) | API endpoints | 13 |
 | [database/](./database/) | Database objects | 9 |
 | [flows/](./flows/) | Data flow diagrams | 6 |
-| [guides/](./guides/) | Development guides | 5 |
+| [guides/](./guides/) | Development guides | 7 |
 
-**Total: 53 files**
+**Total: 56 files + 3 architecture docs**
+
+### Core Architecture Documents
+
+| Document | Description |
+|----------|-------------|
+| [backup-system.md](./backup-system.md) | Backup system architecture (local + S3) |
+| [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
+| [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
+
+## Recent Changes
+
+### 2025-12-25: Transfer System Critical Bug Fixes (v5.3.0)
+- **Change:** Fixed three critical bugs in transfer modal validation and submission
+- **Problems:**
+  1. **Double submit handler registration** - Red error "Укажите дату перевода" appeared on plan transfers despite period being selected
+  2. **Wrong date in transfer_date** - Plan transfers had current date (25.12.2025) instead of empty value
+  3. **Incorrect validation logic** - `validateTransferData()` checked `transfer_date` for BOTH fact and plan transfers
+- **Root Causes:**
+  1. **Double registration**: Both `transfer.js:512` and `index.html:4815` registered submit handlers on `#form_transfer`
+     - Caused duplicate validation errors and double toast notifications
+     - User saw conflicting validation from two different handlers
+  2. **Date clearing**: `setTransferRecordType('plan')` disabled but did NOT clear `transfer_date.value`
+     - Comment said "DON'T clear value" but this was incorrect for plan transfers
+     - Plan transfers use `transfer_plan_month` (YYYY-MM), NOT `transfer_date`
+     - Sending current date (25th) to backend caused validation mismatch
+  3. **Validation logic**: Function checked `!data.transfer_date` for both types
+     - For plan transfers, `transfer_date` is correctly null, but validation failed anyway
+     - Should check `transfer_plan_month` for plans, `transfer_date` for facts
+- **Solutions:**
+  1. **Disabled transfer.js handler** (Commit 7ca1f426):
+     - Commented out lines 510-515 in transfer.js
+     - Made index.html handler authoritative (lines 4815-4983)
+     - Added explanatory comment about double registration prevention
+  2. **Clear transfer_date for plans** (Commit 7ca1f426):
+     - Changed line 495 from "DON'T clear" to `transferDateInput.value = ''`
+     - Added CRITICAL comment explaining why clearing is necessary
+     - Plan transfers now send empty date, backend uses `plan_month`
+  3. **Conditional validation** (Commit eb70521e):
+     - Updated `validateTransferData(data, formData)` signature
+     - Added conditional: if `record_type === 'plan'` check `transfer_plan_month`, else check `transfer_date`
+     - Validates actual source field based on transfer type
+- **Evidence from user logs:**
+  ```javascript
+  // Before fix: Two handlers executing
+  [showToast] {message: 'Укажите дату перевода', stack: '...onclick (:7836:43)'}  // transfer.js (ERROR)
+  [Transfer Submit] Plan month: 2026-01  // index.html (SUCCESS)
+
+  // Wrong date in plan modal
+  [openPlanTransferModal] transfer_date state: {value: '25.12.2025', disabled: true}  // ❌ Should be empty
+  ```
+- **Files changed:**
+  - `frontend/web/static/js/transfer.js` (+5 lines, -5 lines) - Disabled submit handler registration
+  - `frontend/web/templates/index.html` (+3 lines, -2 lines) - Clear transfer_date for plans
+  - `frontend/web/static/js/transfer.js` (+14 lines, -7 lines) - Conditional validation logic
+  - `docs/architecture/transfers-system.md` (NEW, +867 lines) - Comprehensive architecture documentation
+  - `docs/architecture/README.md` (this changelog entry)
+- **Testing results (budget-dev.ikeniborn.ru):**
+  - ✅ Plan transfer: NO red validation error (was: "Укажите дату перевода")
+  - ✅ Plan transfer: Only ONE toast notification (was: two toasts)
+  - ✅ Plan transfer: `transfer_date.value = ''` (was: '25.12.2025')
+  - ✅ Plan transfer: Creates with `fact_date='2026-01-01'` (1st of selected month)
+  - ✅ Fact transfer: Works as before with selected date
+- **Impact:**
+  - User can now create plan transfers without confusing validation errors
+  - No more double notifications (cleaner UX)
+  - Backend receives correct data format for plan transfers
+  - Button state management improved with fallback logic
+- **Architecture documentation:** New comprehensive doc at `docs/architecture/transfers-system.md` covering:
+  - Data flow, components, validation architecture
+  - Record types (fact vs plan)
+  - Bug fix details with code examples
+  - State management, SSE integration
+  - Testing strategy, performance considerations
+  - Migration notes, future improvements
+
+---
+
+### 2025-12-25: Category State Reset on Create Modal Reopening
+- **Change:** Fixed category auto-fill with previous values when reopening create modals (Add Transaction, Add Plan, Transfer)
+- **Problem:**
+  - When reopening create modals after creating first record, categories auto-filled with previous selection
+  - Occurred in: Transfer modals (Fact/Plan Transfer), Add Transaction modal, Add Plan modal
+  - UX confusion - user expected empty category field on modal reopening
+- **Root Cause:**
+  - `ChoicesCategoryTree` instances are global variables (e.g., `fromCategoryTree`, `planCategoryTreeSelect`)
+  - Their state (`options.financialCenterId`) persisted between modal openings
+  - On second modal open: `previousFcId !== null` → `isInitialFiltering = false` → category preserved (phantom auto-selection)
+- **Solution:**
+  - Added explicit state reset (`financialCenterId = null`) before opening create modals
+  - Leveraged existing `isInitialFiltering` logic in `updateFinancialCenter()`:
+    - `previousFcId === null` → clear category (initial filtering)
+    - `previousFcId !== null` → preserve category if available (FC change inside modal)
+  - This ensures correct behavior for BOTH scenarios:
+    - **Modal reopening**: Categories empty ✅
+    - **FC change inside modal**: Category preserved if available ✅
+- **Implementation:**
+  - Added reset code to 5 modal open functions:
+    - `openTransferModal()` - Transfer modal (transfer.js:915-920)
+    - `openFactTransferModal()` - Fact Transfer modal (index.html:592-600)
+    - `openPlanTransferModal()` - Plan Transfer modal (index.html:653-661)
+    - `openAddTransactionModal()` - Add Transaction modal (index.html:2314-2319)
+    - `openAddPlanModal()` - Add Plan modal (index.html:4607-4612)
+  - No changes to `choicesCategoryTree.js` - existing `isInitialFiltering` logic already correct
+- **Files changed:**
+  - `frontend/web/static/js/transfer.js:915-920` (Transfer modal reset)
+  - `frontend/web/templates/index.html:592-600,653-661,2314-2319,4607-4612` (3 modal reset functions)
+  - `docs/architecture/frontend/javascript-patterns.yaml` (+77 lines) - added `reset_state_on_create_modal_open` pattern
+  - `docs/architecture/web/js-modules.yaml` (+16 lines) - updated `choicesCategoryTree` usage examples
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Create modals now behave consistently: empty on first AND second opening
+  - Category selection still preserved when user changes FC inside modal (if available for new FC)
+  - Better UX - no phantom auto-selection confusion
+- **Pattern:** Create modals MUST reset global state on open; Edit modals preserve context
+- **Testing:** Verified on budget-test with all 3 modal types (Transfer, Add Transaction, Add Plan)
+- **Related commits:**
+  - `eb70521e` - Reset FC filter state on Transfer modal reopening
+  - `c067bf4f` - Reset FC filter state on Add Plan/Transaction modal reopening
+  - `c0465bdd` - Revert incorrect category clearing on FC change (preserves selection correctly)
+
+---
+
+### 2025-12-25: Автоматическое Создание Docker Volume для PostgreSQL
+- **Change:** Добавлено автоматическое создание Docker volume `budget_postgres_data` при деплое
+- **Problem:** При первом деплое на чистом сервере возникала ошибка "external volume not found"
+  - docker-compose.yml использует `external: true` для postgres_data
+  - Механизм автоматического создания volume отсутствовал
+  - Требовалось ручное создание перед первым деплоем
+- **Root Cause:**
+  - `external: true` требует предварительного создания volume
+  - install.sh, setup.sh, deploy.sh НЕ создавали volume
+  - Создание упоминалось только в disaster recovery документации
+- **Solution:**
+  - Новая функция `ensure_postgres_volume_exists()` в scripts/lib/postgres.sh
+  - Idempotent проверка: создает если отсутствует, пропускает если существует
+  - Вызывается из deploy.sh ДО start_postgres_only()
+  - Подробное логирование создания/проверки volume
+- **Implementation:**
+  - scripts/lib/postgres.sh:377+ (новая функция, ~80 строк)
+  - deploy.sh:1378-1389 (интеграция, ~12 строк)
+  - CLAUDE.md (новая секция "Docker Volume Management")
+  - docs/BACKUP_RESTORE.md:410 (обновление disaster recovery секции)
+  - docs/architecture/guides/disaster-recovery.md:151 (обновление)
+- **Files changed:**
+  - scripts/lib/postgres.sh (+80 lines) - ensure_postgres_volume_exists()
+  - deploy.sh (+12 lines) - volume check before PostgreSQL start
+  - CLAUDE.md (+30 lines) - Docker Volume Management documentation
+  - docs/BACKUP_RESTORE.md (~15 lines modified)
+  - docs/architecture/guides/disaster-recovery.md (~15 lines modified)
+  - docs/architecture/README.md (this changelog entry)
+- **Impact:**
+  - Первый деплой на чистом сервере теперь работает автоматически
+  - Существующие деплои: нет изменений (idempotent проверка)
+  - Улучшена документация по управлению Docker volumes
+  - Добавлено подробное логирование для troubleshooting
+- **Testing:** Проверено на budget-test сервере (чистая установка + существующий volume)
+
+---
+
+### 2025-12-25: Category and Cost Center Filtering on Edit Modal Open
+- **Change:** Fixed category and cost center filtering to work correctly when opening edit modals
+- **Problem:**
+  - Categories were not filtered by financial center when opening edit modal
+  - When changing financial center, category reset even if it was available for the new account
+  - Cost centers were not filtered by financial center when opening edit modal
+- **Root Cause:**
+  - `ChoicesCategoryTree` initialized WITHOUT `financialCenterId` parameter in edit modals
+  - This loaded ALL categories initially (ignoring financial center whitelist)
+  - `filterEditCostCenters()` was not called after modal open
+  - When user changed FC, `updateFinancialCenter()` loaded filtered categories, but existing selection logic didn't work without initial filter
+- **Solution:**
+  - Initialize `ChoicesCategoryTree` WITH `financialCenterId` parameter in edit modals (pass `fact.financial_center_id`)
+  - Call `filterEditCostCenters(fact.financial_center_id)` after category selection
+  - Leverage existing `updateFinancialCenter()` logic which already preserves selection when category is available
+- **Implementation:**
+  - Added `financialCenterId: fact.financial_center_id` to ChoicesCategoryTree initialization in 3 edit modal functions
+  - Added `await filterEditCostCenters(fact.financial_center_id)` after category selection in 3 edit modal functions
+  - No changes to `choicesCategoryTree.js` - existing logic already correct
+- **Files changed:**
+  - `frontend/web/templates/index.html:1179-1196` (openEditFromDashboard - dashboard edit modal)
+  - `frontend/web/templates/facts.html:1579-1619` (showEditModal - facts page edit modal)
+  - `frontend/web/templates/plan.html:2439-2479` (showEditModal - plan page edit modal)
+  - `docs/architecture/frontend/javascript-patterns.yaml` (+46 lines) - added category_filtering_on_modal_open pattern
+  - `docs/architecture/web/js-modules.yaml` (+31 lines) - updated choicesCategoryTree documentation
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Categories now filter correctly by financial center when opening edit modals
+  - When changing financial center, category selection is preserved if category is available for new FC
+  - Cost centers filter correctly by financial center when opening edit modals
+  - Better UX - users only see relevant categories/cost centers for selected account
+- **Pattern:** Edit modals initialize WITH context (FC filter), create modals initialize WITHOUT context (user selects FC first)
+
+---
+
+### 2025-12-25: Modal Button Loading State Fix (v6.2)
+- **Change:** Introduced `setButtonLoading()` helper function to replace direct DaisyUI `.loading` class usage
+- **Problem:** Using `.classList.add('loading')` caused button expansion and horizontal scrolling in narrow modals
+  - DaisyUI adds spinner inline: `[Icon] Сохранить` → `[Spinner] [Icon] Сохранить`
+  - Button width increases, causing horizontal scroll in modals
+- **Solution:** Replace entire button innerHTML with controlled content
+  - `[Icon] Сохранить` → `[Spinner] Сохранение...`
+  - Fixed button width, no expansion
+- **Implementation:**
+  - New helper: `setButtonLoading(button, isLoading)` in `base.html`
+  - Adaptive spinner sizing: `loading-xs` for `btn-sm`, `loading-sm` for regular buttons
+  - Preserves original button HTML in `dataset.originalHtml`
+- **Files changed:**
+  - `frontend/web/templates/base.html` (+17 lines) - new `setButtonLoading()` function
+  - `frontend/web/templates/index.html` (29 replacements) - wrapper functions, form handlers, modal opens
+  - `frontend/web/templates/facts.html` (7 replacements) - wrapper functions, form handlers, modal open
+  - `frontend/web/templates/plan.html` (7 replacements) - wrapper functions, form handlers, modal opens
+  - `docs/architecture/frontend-loading-patterns.md` (v6.1 → v6.2) - updated documentation and migration guide
+  - `docs/architecture/README.md` (this changelog entry)
+- **Total changes:** 43 replacements across 3 template files
+- **Impact:** Cleaner modal UI, no horizontal scrolling, better UX on mobile
+- **Breaking:** Direct `.loading` class usage deprecated, use `setButtonLoading()` instead
+- **Migration guide:** See `/docs/architecture/frontend-loading-patterns.md` section "Migration Guide (v6.1 → v6.2)"
+
+---
+
+### 2025-12-25: Service Worker Optimization and Deployment Safety
+- **Change:** Comprehensive sw.js optimization and deployment safeguards
+- **Size Reduction:** 986 lines → 812 lines (-174 lines, -17.6%)
+- **Code Optimization:**
+  - Removed excessive comments (~69 lines)
+  - Removed CACHE_FIRST_PAGES strategy (~60 lines) - login pages now use Network First
+  - Simplified inline HTML fallbacks (~36 lines) - minimal offline messages
+  - Extracted duplicated code to functions (`cleanEntityData`, `handleSyncError`) (~40 lines)
+  - Removed unnecessary ETag checks (~24 lines) - cache busting via query string is sufficient
+  - Simplified VersionError handling (~10 lines)
+- **Production Logging:**
+  - Wrapped all console.log in DEBUG guards (9 statements)
+  - Only CRITICAL messages and errors remain visible in production
+  - Reduced console pollution by ~90%
+- **UX Improvements:**
+  - Removed intrusive "готово к работе офлайн" toast on first install
+  - Silenced hourly update check logs
+  - Added deduplication flag to prevent duplicate update notifications
+- **Deployment Safety:**
+  - SW version update failures now fatal (exit 1) instead of warnings
+  - Prevents deployment with CACHE_VERSION_PLACEHOLDER
+  - Critical safeguard against broken PWA updates
+- **Files changed:**
+  - `sw.js` (-174 lines)
+  - `deploy.sh` (fatal error on SW update failure)
+  - `frontend/web/templates/base.html` (notification deduplication)
+- **Impact:** Cleaner production logs, smaller file size, safer deployments, better UX
+
+---
+
+### 2025-12-24: Cache Busting Coverage Extended to Vendor Libraries
+- **Change:** Added `?v=PLACEHOLDER` to vendor Choices.js library (choices.min.css, choices.min.js)
+- **Reason:** Ensure browser cache invalidation for all static assets, including third-party libraries
+- **Coverage:** All minified files now have cache busting (11 file references across 7 templates updated)
+- **Service Worker:** Documented separate versioning strategy (internal CACHE_VERSION vs query params)
+- **Files changed:**
+  - 7 templates: base.html, index.html, plan.html, lists.html (web), add.html, addplan.html, edit.html (webapp)
+  - `docs/architecture/caching-strategy.md` (expanded Cache Busting section with +120 lines)
+  - `docs/architecture/README.md` (this changelog entry)
+- **Developer guideline:** Always add `?v=PLACEHOLDER` to new static file references
+- **Architecture decision:** Service Worker delivery via nginx (not backend) - optimal for gzip pre-compression
+
+---
+
+### 2025-12-24: UI Button Reorganization and Standardization
+- **Change:** Separated edit/delete buttons into individual columns and standardized delete button styling
+- **Reason:** Cleaner UI layout, consistent delete button styling across all templates, better mobile UX
+- **Pending Records Card:**
+  - Edit button in first column (before Тип)
+  - Delete button in last column (after Статус)
+- **Recent Transactions Card:**
+  - Edit button in first column (before Тип)
+  - Delete button in last column (after offline indicator ☁️)
+- **Delete Button Standard Format:**
+  - Classes: `btn btn-xs btn-error btn-square hidden md:inline-flex`
+  - Icon: SVG trash icon (h-4 w-4)
+  - Event: `onclick="event.stopPropagation(); deleteFunction(id)"`
+  - Mobile: Hidden on mobile (users delete via edit modal)
+- **Files changed:**
+  - `frontend/web/templates/index.html:253-254,3342-3493` (pending records header + 3 JS sections)
+  - `frontend/web/templates/partials/recent_transactions.html:38-94` (header + table body)
+  - `frontend/web/templates/facts.html:1373-1377` (delete button format)
+  - `frontend/web/templates/plan.html:2096-2100` (delete button format)
+  - `frontend/web/templates/admin_articles.html:512-525` (2 delete buttons)
+  - `frontend/web/templates/admin_financial_centers.html:200-213` (2 delete buttons)
+  - `frontend/web/templates/admin_cost_centers.html:273-286` (2 delete buttons)
+  - `frontend/web/templates/admin_stores.html:215-228` (2 delete buttons)
+  - `frontend/web/templates/admin_product_groups.html:276-289` (2 delete buttons)
+  - `frontend/web/templates/admin_import.html:2359-2366` (staging table delete button)
+  - `docs/architecture/README.md` (this file)
+  - `docs/architecture/web/templates.yaml` (template descriptions)
+- **Impact:**
+  - Visual layout changes (buttons separated into individual columns)
+  - Mobile UX improved (delete hidden on mobile, cleaner interface)
+  - All delete buttons now have consistent styling
+  - `event.stopPropagation()` prevents row click when deleting
+
+---
+
+### 2025-12-25: Emoji Icon Table Header Centering
+- **Change:** Added `text-center` class to emoji-only table headers (5 instances)
+- **Reason:** Visual consistency - icon-only headers should be centered, matching `index.html:247` reference
+- **Pattern:**
+  - Emoji-only headers: `<th class="text-center" title="...">EMOJI</th>` (centered)
+  - Text+emoji headers: `<th>EMOJI Text</th>` (left-aligned, unchanged)
+- **Files changed:**
+  - `frontend/web/templates/partials/recent_transactions.html:47` (☁️ offline indicator)
+  - `frontend/web/templates/facts.html:1339` (☁️ offline indicator)
+  - `frontend/web/templates/plan.html:2141` (🔔 notification)
+  - `frontend/web/templates/plan.html:2142` (🔄 recurring payment)
+  - `frontend/web/templates/plan.html:2143` (☁️ offline indicator)
+  - `docs/architecture/README.md` (this changelog)
+- **Impact:**
+  - Visual layout: Emoji icons centered in table header cells
+  - No functional changes
+  - Desktop-only (mobile uses card layout)
+  - Accessibility maintained (all have `title` attributes)
+
+---
+
+### 2025-12-24: Navbar Icon Order Adjustment
+- **Change:** Moved Push Notification bell icon left of SSE status in navbar
+- **Reason:** Improved visual priority - push notifications are user-facing, SSE is background sync
+- **Files changed:**
+  - `frontend/web/templates/base.html:632-650` (HTML reorder)
+  - `docs/architecture/web/templates.yaml` (navbar_order documentation)
+- **Impact:** Visual only - no functional changes, all IDs preserved
+- **Order:** Offline Icon → **Push Bell** → SSE Status → Telegram → Theme Toggle
+
+---
 
 ## File Format
 
@@ -71,6 +401,7 @@ Use dependency graph to verify:
 docs/architecture/
 ├── README.md                    # This file
 ├── index.yaml                   # Main index with links to all sections
+├── backup-system.md             # Backup system architecture
 │
 ├── functionality/               # Business logic (12 modules)
 │   ├── _index.yaml              # Module summary
@@ -128,11 +459,17 @@ docs/architecture/
 │   ├── offline-sync.yaml        # Offline → online sync
 │   └── csv-import.yaml          # Import workflow
 │
-└── guides/                      # Development guides
-    ├── _index.yaml              # Guide summary
-    ├── change-checklist.yaml    # What to check when changing
-    ├── critical-paths.yaml      # High-impact dependencies
-    └── impact-analysis.yaml     # How to analyze changes
+├── guides/                      # Development guides
+│   ├── _index.yaml              # Guide summary
+│   ├── change-checklist.yaml    # What to check when changing
+│   ├── critical-paths.yaml      # High-impact dependencies
+│   ├── impact-analysis.yaml     # How to analyze changes
+│   ├── disaster-recovery.md     # Emergency backup/restore procedures
+│   └── backup-operations.md     # Daily/weekly/monthly backup tasks
+│
+├── backup-system.md             # Backup system architecture
+├── caching-strategy.md          # HTTP caching, Redis, Service Worker
+└── frontend-loading-patterns.md # Frontend data loading patterns
 ```
 
 ## Legend
@@ -257,6 +594,237 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-24**: Edit Modal UI Improvements (Field Reordering + Toggle):
+  - **Field reordering**: Moved financial center field above category type, moved amount field below cost center
+    - New logical order: Date → Account → Category Type → Category → Cost Center → Amount → Description
+    - Improved UX with natural data entry flow (context → what → how much)
+  - **Reminder UI**: Changed checkbox to toggle switch in edit plan modal (modal_edit_plan.html)
+    - Changed classes: `checkbox checkbox-sm checkbox-primary` → `toggle toggle-sm toggle-primary`
+    - More modern iOS-style toggle instead of square checkbox
+  - **Bug fix**: Fixed financial center value disappearing in edit modal (race condition with dropdown loading)
+    - **Root Cause**: `showEditModal()` set dropdown values before async `loadFinancialCenters()` completed
+    - **Solution**: Added explicit checks for dropdown loaded state before setting values
+    - **Fix**: Verify option exists in dropdown, await load if needed, log warnings for missing options
+    - **Applied to**: Both facts page AND plan page (same race condition in both)
+  - **Files modified**:
+    - `frontend/web/templates/components/modal_edit_fact.html` (field reordering)
+    - `frontend/web/templates/components/modal_edit_plan.html` (field reordering + toggle)
+    - `frontend/web/templates/facts.html:1493-1529` (financial center/cost center loading fix)
+    - `frontend/web/templates/plan.html:2219-2255` (same race condition fix as facts.html)
+    - `docs/architecture/web/templates.yaml:945-1068` (updated field order documentation)
+  - **Result**: Improved UX with logical field order, modern toggle UI, and reliable dropdown value persistence on both pages
+- **2025-12-24**: PWA Issues Fixed (v6.2):
+  - **Splash Screen (CRITICAL)**: Added all 10 splash images to Service Worker STATIC_CACHE (previously only 5)
+    - Comprehensive device coverage: iPhone SE/7/8, XR/11, X/XS/11 Pro, 12/13/14, 14/15 Pro, 6+/7+/8+, XS Max/11 Pro Max, 14/15 Pro Max, Android 1080x2340
+    - Fixed white screen on PWA launch - all devices now show proper splash screen
+  - **Splash Screen (CRITICAL)**: Added CRITICAL deployment validation with exit 1
+    - Prevents deploying broken PWA if Service Worker cache version contains PLACEHOLDER
+    - Deployment ABORTS if sw.min.js has invalid cache version
+    - Ensures PWA caching always works correctly
+  - **Network Detection**: Increased RTT threshold from 2500ms to 5000ms
+    - Reduces false positives on mobile 4G, VPN connections, and page transitions
+    - Prevents "Медленное соединение" warnings during normal usage
+  - **Network Detection**: Added navigation tracking to suppress warnings during page transitions
+    - Detects HTMX navigation and beforeunload events
+    - 8-second timeout covers slow page loads
+    - 1-second grace period after page settles
+  - **Network Detection**: Increased toast debounce from 3s to 10s
+    - Prevents toast spam during rapid page transitions (shopping flows)
+    - Covers typical navigation flows without annoying users
+  - **FAB Visibility**: Fixed FAB buttons missing on /lists page
+    - **Root Cause**: FAB elements were outside {% block content %} and not rendered by Jinja2
+    - Moved FAB buttons inside content block (lines 205-247 in lists.html)
+    - FAB now accessible to all users (not admin-only)
+  - **Files modified**:
+    - `sw.js:30-40` - Added 5 missing splash images
+    - `deploy.sh:1170-1195` - CRITICAL validation with exit 1
+    - `frontend/web/static/js/offline/networkDetector.js:46` - RTT 5000ms
+    - `frontend/web/static/js/offline/offlineManager.js:30,33-58,257-260` - Navigation tracking + toast debounce 10s
+    - `frontend/web/templates/lists.html:200-247` - FAB moved inside content block
+  - **Result**: Stable PWA experience with proper splash screens, minimal false network warnings, visible FAB buttons
+- **2025-12-23**: Edit Modal UI Improvements:
+  - **Recurring template info**: Converted to DaisyUI collapse component (default: collapsed)
+    - Improves UX by reducing visual clutter when editing recurring plan records
+    - Users can expand to view/edit recurring plan details when needed
+  - **Spacing improvement**: Added mb-4 margin between date field and category type badge
+    - Improved visual separation for better readability
+  - **Reminder field**: Hidden for recurring plan records (complementing setEditModalMode)
+    - Prevents confusion - reminders managed at recurring plan template level, not individual instances
+    - Carefully implemented to avoid duplicating setEditModalMode logic
+  - **Race condition fix**: Category loading moved out of Promise.all to sequential execution
+    - **Problem**: ChoicesCategoryTree initialization started before allCategories array populated
+    - **Error**: "[ChoicesCategoryTree] Category not found in choices after 3 attempts: 2"
+    - **Solution**: Load categories sequentially with separate performance marks before widget init
+    - Ensures categoryMap is fully populated before setSelectedCategory call
+  - **Delete buttons**: Added to desktop view in dashboard cards
+    - recent-transactions card: Delete button next to edit button (hidden on mobile)
+    - pending-records card: Delete buttons for all record types (transfers + regular facts)
+    - JavaScript handlers: deleteRecordFromDashboard, deletePendingRecord
+  - **Files modified**:
+    - `modal_edit_plan.html:11-77` (collapse structure)
+    - `modal_edit_plan.html:100` (mb-4 margin)
+    - `index.html:879-889` (reminder hiding logic)
+    - `index.html:845-859` (race condition fix - sequential category load)
+    - `index.html:1791-1848` (delete handlers)
+    - `index.html:2953-2974,2999-3020,3073-3097` (pending records delete buttons)
+    - `recent_transactions.html:59-78` (desktop delete button)
+- **2025-12-23**: PWA Icon Redesign - Material Green Color Scheme:
+  - **Change**: Redesigned all PWA icons with Material Green gradient to match application branding
+  - **Old colors**: Indigo gradient (#6366F1 → #4F46E5)
+  - **New colors**: Green gradient (#4CAF50 → #388E3C)
+  - **Rationale**: Align icon visual identity with app's primary green theme (used in buttons, success states, income indicators)
+  - **Design**: Preserved existing elements (bar chart + ruble symbol) - only background color changed
+  - **Generated files**:
+    - 6 icon variants: icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png, favicon.ico, icon.svg
+    - 10 iOS splash screens: 750x1334 to 1290x2796 (all iPhone models from 7+ to 15 Pro Max)
+  - **PWA Manifest**: Updated theme_color from #6366F1 to #4CAF50
+  - **Service Worker**: Cache version auto-increments on deployment
+  - **Deploy trigger**: tmp/budget-icon-v3.svg added to repository
+  - **Technical Fix**: Fixed gradient rendering issue
+    - **Problem**: ImageMagick was converting SVG gradients to grayscale (black/gray icons)
+    - **Root Cause**: ImageMagick 6.9.12 SVG parser doesn't properly handle linearGradient with CSS style attributes
+    - **Solution**: Switched to `rsvg-convert` (librsvg2-bin) for SVG→PNG conversion
+    - **Result**: Icons now display correct Material Green gradient (#47A64B verified)
+  - **Files modified**:
+    - `frontend/web/static/icons/icon.svg` - Source SVG with green gradient (attribute-based syntax)
+    - `frontend/web/static/icons/*.png` - Regenerated all icons (now RGB instead of grayscale)
+    - `frontend/web/static/icons/splash/*.png` - Generated splash screens
+    - `manifest.json` - Updated theme_color
+    - `tmp/budget-icon-v3.svg` - Deployment trigger file
+    - `scripts/generate_pwa_icons.sh` - Updated to use rsvg-convert + ImageMagick pipeline
+  - **Dependencies**: Added `librsvg2-bin` (provides rsvg-convert) - required for deployment
+  - **Visual consistency**: Green icons now match primary buttons, success badges, income categories throughout the app
+- **2025-12-23**: Added comprehensive backup and restore documentation:
+  - **backup-system.md** (400 lines): Technical architecture, component diagrams, performance metrics, security
+  - **guides/disaster-recovery.md** (350 lines): 5 disaster scenarios with RTO/RPO, emergency procedures
+  - **guides/backup-operations.md** (400 lines): Daily/weekly/monthly operational tasks, health checks
+  - **../BACKUP_RESTORE.md** (750 lines): User-facing manual for local and S3 backup/restore
+  - Coverage: pg_dump workflows, S3 integration, lock mechanisms, validation, troubleshooting
+  - Files: backup-system.md, disaster-recovery.md, backup-operations.md, ../BACKUP_RESTORE.md
+- **2025-12-23**: Improved PWA page transitions smoothness (v3.3.1):
+  - **Problem #1**: Progress bar disappeared too quickly (~650ms total fade-out), making page transitions feel abrupt
+  - **Problem #2**: View Transitions created flash effect after progress bar (250ms too fast)
+  - **User Feedback**: Requested smoother, more relaxed transitions - increased multiple times for premium feel
+  - **Solution Evolution**:
+    - **v3.3.0**: Progress bar 200ms → 500ms delay, 0.3s → 0.6s fade
+    - **v3.3.0**: View Transitions 0.25s → 0.6s (eliminated flash)
+    - **v3.3.1**: View Transitions 0.6s → 1.1s (extra smooth, relaxed UX)
+  - **Final Timings**:
+    - **Progress Bar**: fadeOutDelay 500ms, opacity fade 600ms
+    - **View Transitions**: fade-out 1.1s, fade-in 1.1s
+    - Total navigation flow: ~3s (progress bar 1.3s + page transition 2.2s)
+  - **Files**:
+    - `navigationProgress.js:37,240` (progress bar JS)
+    - `base.html:261` (progress bar CSS)
+    - `base.html:366,370` (View Transitions API)
+    - `templates.yaml:103-170` (documentation)
+  - **Result**: Extra smooth, premium page transitions optimized for PWA
+  - **UX Impact**: Relaxed, luxurious feel - perfect for standalone app experience
+- **2025-12-23**: Fixed category dropdown reset in edit modals on iOS Safari PWA:
+  - **Problem**: Selected category periodically resets in edit modals (facts, plan) on iOS Safari 26 PWA
+  - **Root Cause**: View Transitions API (commit 792b361e) caused DOM reconstruction during Choices.js initialization
+  - **Sequence**: setSelectedCategory() called at ~150ms (inside View Transition fade-in 125-250ms)
+  - **Fix**: Disabled View Transitions for `<dialog>` elements (modals remain instant without animation)
+  - **CSS**: Added `dialog, dialog *, dialog::backdrop { view-transition-name: none; }`
+  - **Files**: `base.html:402-407`
+  - **Result**: Modals open instantly, category selection stable on iOS Safari
+- **2025-12-23**: Fixed modal closing when clicking Choices.js dropdown after switching from native select (iOS Safari):
+  - **Problem**: Modal closes on first click when trying to open category dropdown after using financial center/cost center selects
+  - **Root Cause**: `<form method="dialog">` has built-in HTMLDialogElement behavior that auto-closes dialog on submit
+  - **Why stopPropagation failed**: form method="dialog" submit → dialog.close() is built into browser DOM API, NOT event propagation
+  - **Previous Failed Fix**: Commit 448aada9 tried `stopPropagation()` - didn't work because it can't prevent DOM API behavior
+  - **Sequence**: iOS Safari synthesizes click after blur → click triggers form submit → browser calls dialog.close() → modal closes
+  - **Fix**: Replaced `<form method="dialog">` with `<div class="modal-backdrop">` + explicit JavaScript handler checking `e.target === modal`
+  - **Files**:
+    - `modal_edit_fact.html:101` (removed form method="dialog")
+    - `modal_edit_plan.html:227` (removed form method="dialog")
+    - `facts.html:1592-1606` (explicit backdrop handler)
+    - `plan.html:2352-2366` (explicit backdrop handler)
+  - **Result**: Modal stays open during Choices.js interaction, closes only on backdrop click
+- **2025-12-23**: Applied same fix to transfer_modal and modal_add_plan (iOS Safari):
+  - **Modals affected**: Transfer modal (fact and plan transfers), Add Plan modal (regular/recurring/reminder)
+  - **Fix**: Replaced `<form method="dialog">` with `<div class="modal-backdrop">` + explicit JavaScript handlers
+  - **Files**:
+    - `modal_transfer.html:204` (removed form method="dialog")
+    - `modal_plan.html:314` (removed form method="dialog")
+    - `transfer.js:927-938` (openTransferModal - explicit backdrop handler)
+    - `plan.html:960-971` (openPlanTransferModal - explicit backdrop handler)
+    - `plan.html:3468-3479` (openAddPlanModal - explicit backdrop handler)
+  - **Result**: All modals with Choices.js now immune to iOS Safari synthetic click issue
+- **2025-12-23**: Fixed category auto-selection and visual flicker when changing financial center:
+  - **Problem #1**: When selecting financial center, first category in filtered list was auto-selected (if no previous selection)
+  - **Problem #2**: When changing financial center with existing selection, visible flicker (clear → restore old value)
+  - **Root Cause**:
+    - Choices.js auto-selects first item after setChoices() in next event loop tick
+    - Code cleared selection BEFORE checking if restoration needed (clear → restore = flicker)
+  - **Sequence (old)**: setChoices() → clear ALL → check if restore → restore if needed (visible flicker!)
+  - **Fix**: Changed order of operations - check FIRST, then either restore OR clear (no unnecessary operations)
+  - **Sequence (new)**: setChoices() → await next tick → check if restore needed → IF yes: restore, ELSE: clear
+  - **Files**:
+    - `choicesCategoryTree.js:890-911` (updateFinancialCenter - fixed logic order)
+    - `choicesCategoryTree.js:793` (updateType - already correct, always clears)
+  - **Impact**:
+    - No visual flicker when changing financial center ✅
+    - Category stays empty when no previous selection ✅
+    - Previous selection preserved if still available ✅
+- **2025-12-23**: Category type in edit modals changed to read-only badge:
+  - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
+  - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise
+  - **Fix**: Replaced interactive elements with static badge display
+  - **Files**: `modal_edit_plan.html:97-102`, `modal_edit_fact.html:29-34`, `plan.html`, `facts.html`
+  - **Visual Changes**:
+    - Removed `collapse-arrow` class and checkbox input
+    - Removed radio button grid
+    - Centered badge display with `justify-center`
+    - Consistent design across facts and plan modals
+  - **JS Changes**:
+    - Removed `setupEditCategoryTypeButtons()` function (plan.html)
+    - Removed click handlers for `.edit-category-type-btn`
+    - Added `updateEditCategoryTypeBadge(type)` function (facts.html)
+- **2025-12-23**: Fixed import wizard step 2 form reset:
+  - **Problem**: Upload form not visible when restarting wizard (step 1 → step 2), especially after confirming staging deletion
+  - **Root Cause**: `proceedToUpload()` toggled visibility without clearing Step 2 state (forms, radio buttons, file inputs)
+  - **Fix**: Added state reset in `proceedToUpload()` and enhanced `resetWorkflow()` to clear upload source visibility
+  - Files: `admin_import.html:1318-1334,1069-1078`, `import-wizard.md`
+- **2025-12-23**: Fixed duplicate calendar icon in recurring plan modal:
+  - **Problem**: Duplicate calendar icon buttons for `recurring_end_date` field, calendar doesn't open
+  - **Root Cause**: Manual `<div class="relative">` wrapper in HTML conflicted with CalendarWidget's automatic wrapper creation
+  - **Fix**: Removed manual wrapper from `modal_plan.html:200`, CalendarWidget now creates wrapper automatically
+  - **Pattern**: Consistent with `reminder_date` field - no manual wrappers for CalendarWidget inputs
+  - Files: `frontend/web/templates/components/modal_plan.html:196-206`
+- **2025-12-22**: modal_add_plan UI improvements:
+  - Increased select height to 3rem (h-12) for frequency_type, frequency_value_monthday, recurring_reminder_hour, recurring_reminder_minute, duration_type
+  - Replaced duration_type radio buttons with select dropdown
+  - Files: `modal_plan.html`, `plan.html`, `index.html`
+- **2025-12-22**: Plan page: moved User column after Description
+  - Reordered table columns in facts table (desktop view)
+  - New order: ID, Date, Account, Cost Center, Category, Amount, **Description, User**, Reminder, Recurring, Offline, Actions
+  - Files: `frontend/web/templates/plan.html:2003-2006,2049-2052`
+- **2025-12-22**: Fixed article_type filter on plan page:
+  - **Problem**: `filter-article-type` dropdown did not filter facts table
+  - **Root Cause #1**: Frontend handler only called `reloadArticleFilter()`, missing `loadFacts()` and sync to analytics
+  - **Root Cause #2**: Backend `/admin/facts` and `/admin/facts/count` endpoints did not support `article_type` parameter
+  - **Fix (Frontend)**: Updated handler to: 1) update `filters.article_type`, 2) reset category dropdown, 3) reload facts table, 4) sync to analytics
+  - **Fix (Backend)**: Added `article_type` query parameter with validation `^(income|expense|debit|credit)$` and filter by `Article.type`
+  - Files: `frontend/web/templates/plan.html:1202-1230`, `backend/app/api/v1/admin.py:1949,2069,1999-2000,2107-2108`
+- **2025-12-22**: PWA Splash Screen - Instant Display Fix:
+  - **Problem**: Splash appeared after ~2s delay due to render-blocking CSS (174KB tailwind-daisyui.min.css)
+  - **iOS Native Splash**: Added 10 `apple-touch-startup-image` links for iPhone 7+ (instant display before HTML loads)
+  - **Simplified UI**: Removed loader animation, only icon remains on splash
+  - **Service Worker**: Added 5 most common iPhone splash images to STATIC_CACHE for precaching
+  - **Icon Generator**: Added `generate_splash()` function to `scripts/generate_pwa_icons.sh`
+  - **Note**: Deferred CSS loading (rel=preload) was tested but caused FOUC in Safari, reverted to blocking
+  - Files: `base.html`, `sw.js`, `generate_pwa_icons.sh`, `templates.yaml`
+  - Generated: `frontend/web/static/icons/splash/` (10 PNG files, 40-88KB each)
+- **2025-12-22**: Fixed deploy script regex for Alembic head revision detection
+  - Bug: regex `[a-f0-9]{12}` expected only hex chars, but Alembic uses full alphabet `[a-z0-9]`
+  - Fix: Changed to `[a-zA-Z0-9]{12}` to match all valid revision IDs
+  - Files: `scripts/lib/migrations.sh:67`
+- **2025-12-22**: Transfer modal: removed cost center fields from both sections
+  - Removed `from_cost_center` from FROM (debit) section
+  - Removed `to_cost_center` from TO (credit) section
+  - Cost center fields not needed for transfers - both always null in database
+  - Files: `modal_transfer.html`, `transfer.js`, `endpoints/transfers.yaml`
 - **2025-12-21**: Bidirectional Filter Synchronization (plan.html):
   - Implemented automatic bidirectional sync between Analytics Section (charts) and Filters Section (facts table)
   - Added mutex-based loop prevention (`isSyncInProgress`) for safe concurrent updates
@@ -291,7 +859,7 @@ When adding new components:
 - **2025-12-19**: Added Mobile Quick Actions (Mini Cards Row pattern) - responsive 4-column grid for mobile, preserving 3-column desktop layout (index.html:55-117)
 - **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)
 
-## Known Issues & Fixes (2025-12-20)
+## Known Issues & Fixes (2025-12-22)
 
 ### Fixed Issues
 
@@ -307,6 +875,7 @@ When adding new components:
 | 409 Conflict для дат вне 2010-2040 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_fix_auto_partition_trigger.py` |
 | Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
 | Excessive console errors in offline mode | 🟡 MEDIUM | ✅ Fixed | `budgetWSClient.js`, `offlineManager.js` |
+| iOS WebSocket reconnection loop after wake | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 
 ### Issue Details
 
@@ -390,6 +959,40 @@ When adding new components:
   4. HTTP 503 ошибки логируются как `console.warn` вместо `console.error`
 - **Files**: `frontend/web/static/js/budget/budgetWSClient.js`, `frontend/web/static/js/offline/offlineManager.js`
 - **Result**: В офлайн-режиме нет лишних ERROR-сообщений, только предупреждения для ожидаемого поведения
+
+**10. iOS WebSocket reconnection loop after wake from sleep (MEDIUM)**
+- **Problem**: After screen wake from sleep (2+ minutes), badge flickers indefinitely between yellow and green every ~3 seconds. Diagnostics show `ws_connected` → `token_fetch_start` → `ws_closed_code=1005` → cycle repeats.
+- **Root cause**: Race condition during wake from sleep:
+  1. iOS kills TCP connections while screen is off to save battery
+  2. Multiple `visibilitychange` events fire in quick succession when screen wakes
+  3. No guard against parallel reconnection attempts leads to overlapping connections
+  4. Network not fully stabilized leads to code 1005 (No Status Received) and immediate retry
+- **Fix**: Five changes in `budgetWSClient.js`:
+  1. Added `_reconnecting` flag to prevent parallel reconnection attempts in `_forceReconnect()`
+  2. Added 2-second visibility change debounce for iOS devices
+  3. Added iOS wake recovery mode (`_iosWakeRecoveryMode`) with 3-second minimum delay after code 1005
+  4. Improved status indicator debouncing: 1s for iOS (vs 500ms), debounce ALL states including 'connected'
+  5. Updated `_isConnectionStale()` to check WebSocket readyState
+- **Related**: This is a more specific case of issue #5 (iOS badge flickers) that occurs specifically after wake from sleep
+- **Files**: `frontend/web/static/js/budget/budgetWSClient.js`
+- **Result**: Stable reconnection after wake from sleep with no flickering
+
+**11. Modal double-tap на iOS Safari при выборе категории (MEDIUM)**
+- **Problem**: В modal_add_transaction требуется два тапа для выбора категории после смены счета (Safari 18+, Yandex)
+- **Root cause**: Устаревший паттерн `<form method="dialog">` для backdrop вызывает автоматическое закрытие при Choices.js dropdown interaction
+  - iOS Safari синтезирует "click outside" событие при клике на dropdown item
+  - `<form method="dialog">` интерпретирует это как submit → `dialog.close()`
+  - Choices.js не успевает зафиксировать выбор → требуется второй тап
+- **Fix**: Три изменения:
+  1. HTML: Заменили `<form method="dialog">` на `<div class="modal-backdrop"></div>`
+  2. JavaScript: Добавили explicit backdrop handler с проверкой `e.target === modal`
+  3. Logging: Добавили детальное логирование для отладки мобильных проблем
+- **Files affected**:
+  - `frontend/web/templates/components/modal_transaction.html` (строки 120-122)
+  - `frontend/web/templates/index.html` (функция `openAddTransactionModal`)
+  - `frontend/shared/static/js/choicesCategoryTree.js` (метод `initChoices`)
+- **Result**: Choices.js dropdown работает с первого тапа на всех браузерах
+- **Related**: Аналогичная проблема была исправлена ранее в modal_edit_fact, modal_transfer, modal_plan
 
 ### Known Limitations (Deferred)
 

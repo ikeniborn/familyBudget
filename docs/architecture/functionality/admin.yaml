@@ -53,38 +53,73 @@ module:
     $ref: "../endpoints/admin.yaml#/routes"
 
   # ---------------------------------------------------------------------------
-  # ADMIN OPERATIONS
+  # ADMIN OPERATIONS (admin only)
   # ---------------------------------------------------------------------------
   operations:
-    user_management:
-      - "List all users (includes has_password field)"
-      - "Create user"
-      - "Update user role (admin/user)"
-      - "Deactivate/reactivate user"
-      - "View user history"
-      - "Reset password (requires has_password=true)"
-      - "Reset 2FA (requires two_factor_enabled=true)"
+    admin_only:
+      user_management:
+        - "List all users (includes has_password field)"
+        - "Create user"
+        - "Update user role (admin/user)"
+        - "Deactivate/reactivate user"
+        - "View user history"
+        - "Reset password (requires has_password=true)"
+        - "Reset 2FA (requires two_factor_enabled=true)"
 
-    article_management:
-      - "Create/update/archive/restore articles"
-      - "Bulk archive subtree"
-      - "Merge articles"
+      article_management:
+        - "Archive/restore/delete articles"
+        - "Bulk archive subtree"
+        - "Merge articles"
 
-    financial_center_management:
-      - "Create/update/delete financial centers"
-      - "Set initial balance"
+      financial_center_management:
+        - "Archive/restore/delete financial centers"
 
-    cost_center_management:
-      - "Create/update/delete cost centers"
+      cost_center_management:
+        - "Archive/restore/delete cost centers"
 
-    import_management:
-      - "Review staged imports"
-      - "Approve/reject import batches"
-      - "View import history"
+      store_management:
+        - "Archive/restore/delete stores"
 
-    data_export:
-      - "Export transactions to CSV"
-      - "Export full database backup"
+      product_group_management:
+        - "Archive/restore/delete/move product groups"
+
+      import_management:
+        - "Review staged imports"
+        - "Approve/reject import batches"
+        - "View import history"
+
+      data_export:
+        - "Export transactions to CSV"
+        - "Export full database backup"
+
+    # ---------------------------------------------------------------------------
+    # ALL USERS OPERATIONS (any authenticated user)
+    # ---------------------------------------------------------------------------
+    all_users:
+      article_management:
+        - "View articles"
+        - "Create articles"
+        - "Edit articles"
+
+      financial_center_management:
+        - "View financial centers"
+        - "Create financial centers"
+        - "Edit financial centers"
+
+      cost_center_management:
+        - "View cost centers"
+        - "Create cost centers"
+        - "Edit cost centers"
+
+      store_management:
+        - "View stores"
+        - "Create stores"
+        - "Edit stores"
+
+      product_group_management:
+        - "View product groups"
+        - "Create product groups"
+        - "Edit product groups"
 
   # ---------------------------------------------------------------------------
   # AUTHORIZATION
@@ -124,8 +159,18 @@ module:
     3. User.is_active == True
 
     Admin-only operations:
-    - Creating new users (no auto-registration)
-    - Creating/modifying articles
-    - Creating/modifying financial centers
-    - Creating/modifying cost centers
-    - Viewing all user data
+    - User management (create, deactivate, role changes)
+    - Archive/restore/delete articles
+    - Archive/restore/delete financial centers
+    - Archive/restore/delete cost centers
+    - Archive/restore/delete stores
+    - Archive/restore/delete/move product groups
+    - Import management
+    - Data export
+
+    All authenticated users can:
+    - View/create/edit articles
+    - View/create/edit financial centers
+    - View/create/edit cost centers
+    - View/create/edit stores
+    - View/create/edit product groups

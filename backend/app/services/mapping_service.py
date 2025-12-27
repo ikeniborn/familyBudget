@@ -1,7 +1,8 @@
 """
 Mapping Service
 
-Service for managing user column mappings (CSV column → budget field).
+Service for managing column mappings (CSV column → budget field).
+Mappings are per-user per-bank (one mapping per user per bank).
 Supports SCD Type 1 (in-place updates) and default mappings for known banks.
 
 Pattern: Service layer (business logic)
@@ -17,22 +18,25 @@ from backend.app.models.import_column_mapping import ImportColumnMapping
 
 class MappingService:
     """
-    Service for managing column mappings.
+    Service for managing column mappings (per-user per-bank).
 
     Provides:
-    - Get saved mapping for bank+user
-    - Save/update mapping (SCD Type 1 - in-place update)
+    - Get saved mapping for user+bank (per-user isolation)
+    - Save/update mapping (SCD Type 1 - in-place update per user)
     - Get default mapping for known banks
 
+    NOTE: Mappings are per-user per-bank. Each user has their own mapping
+    which doesn't affect other users' mappings.
+
     Examples:
-        # Get saved mapping
-        >>> mapping = await MappingService.get_mapping(session, bank_id=1, user_id=123)
+        # Get saved mapping for specific user
+        >>> mapping = await MappingService.get_mapping(session, bank_provider_id=1, user_id=123)
         >>> mapping.mapping
         {'fact_date': 'Дата операции', 'amount': 'Сумма операции'}
 
-        # Save new mapping
+        # Save new mapping (per-user, doesn't affect other users)
         >>> mapping = await MappingService.save_mapping(
-        ...     session, bank_id=1, user_id=123,
+        ...     session, bank_provider_id=1, user_id=123,
         ...     mapping={'fact_date': 'Date', 'amount': 'Amount'}
         ... )
 
@@ -49,12 +53,12 @@ class MappingService:
         user_id: int
     ) -> ImportColumnMapping | None:
         """
-        Get saved mapping for bank and user.
+        Get saved mapping for user+bank (per-user).
 
         Args:
             session: AsyncSession for database operations
             bank_provider_id: Bank provider ID
-            user_id: User ID
+            user_id: User ID (owner of mapping)
 
         Returns:
             ImportColumnMapping record or None if not found
@@ -80,15 +84,15 @@ class MappingService:
         transformations: dict | None = None
     ) -> ImportColumnMapping:
         """
-        Save or update mapping (SCD Type 1).
+        Save or update mapping (SCD Type 1, per-user per-bank).
 
-        If mapping exists for this bank+user → UPDATE in-place
+        If mapping exists for this (user, bank) → UPDATE in-place
         If mapping doesn't exist → INSERT new record
 
         Args:
             session: AsyncSession for database operations
             bank_provider_id: Bank provider ID
-            user_id: User ID
+            user_id: User ID (owner of mapping)
             mapping: Column mapping dict (CSV column → budget field)
             transformations: Optional transformations dict (date format, etc.)
 
@@ -96,21 +100,23 @@ class MappingService:
             Saved/updated ImportColumnMapping record
 
         Examples:
-            # Create new mapping
-            >>> mapping = await MappingService.save_mapping(
+            # User 123 creates mapping
+            >>> mapping1 = await MappingService.save_mapping(
             ...     session, 1, 123,
-            ...     mapping={'fact_date': 'Date', 'amount': 'Amount'}
+            ...     mapping={'fact_date': 'Date1', 'amount': 'Amount1'}
             ... )
-            >>> mapping.id
+            >>> mapping1.id
             1
 
-            # Update existing mapping (SCD1)
-            >>> mapping = await MappingService.save_mapping(
-            ...     session, 1, 123,
+            # User 456 creates different mapping (does NOT overwrite user 123)
+            >>> mapping2 = await MappingService.save_mapping(
+            ...     session, 1, 456,  # Different user, same bank
             ...     mapping={'fact_date': 'Date2', 'amount': 'Amount2'}
             ... )
-            >>> mapping.id  # Same ID
-            1
+            >>> mapping2.id  # Different ID (separate mapping)
+            2
+            >>> mapping1.id != mapping2.id  # Each user has their own
+            True
         """
         existing = await MappingService.get_mapping(session, bank_provider_id, user_id)
 
@@ -118,6 +124,7 @@ class MappingService:
             # Update (SCD Type 1)
             existing.mapping = mapping
             existing.transformations = transformations
+            existing.user_id = user_id  # Update who last modified
             existing.updated_at = datetime.utcnow()
             await session.commit()
             await session.refresh(existing)

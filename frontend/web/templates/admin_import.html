@@ -387,7 +387,7 @@ body.resizing-columns * {
             <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка данных</h2>
 
             <!-- Radio buttons для выбора источника данных -->
-            <div class="form-control mb-4">
+            <div id="upload-source-selector" class="form-control mb-4">
                 <label class="label">
                     <span class="label-text font-semibold">Источник данных:</span>
                 </label>
@@ -508,10 +508,14 @@ body.resizing-columns * {
                         <label class="label">
                             <span class="label-text font-semibold">🔤 Разделитель колонок</span>
                         </label>
-                        <select id="mapping-delimiter" class="select select-bordered w-48" onchange="onDelimiterChange()">
+                        <select id="mapping-delimiter" class="select select-bordered w-64" onchange="onDelimiterChange()">
+                            <option value="auto" selected>Автоопределение</option>
                             <option value=";">Точка с запятой (;)</option>
                             <option value=",">Запятая (,)</option>
                             <option value="tab">Табуляция (Tab)</option>
+                            <option value="|">Вертикальная черта (|)</option>
+                            <option value=":">Двоеточие (:)</option>
+                            <option value=" ">Пробел ( )</option>
                         </select>
                     </div>
                     <div class="form-control">
@@ -742,27 +746,27 @@ body.resizing-columns * {
                             <div class="flex gap-3 flex-wrap items-center">
                                 <!-- Группа: Тип + Категория -->
                                 <div class="flex items-center gap-1">
-                                    <select id="bulk-filtered-type" class="select select-sm w-28" onchange="updateBulkFilteredArticles()">
+                                    <select id="bulk-filtered-type" class="select select-bordered select-sm w-28" onchange="updateBulkFilteredArticles()">
                                         <option value="">Тип</option>
                                         <option value="expense">💸 Расход</option>
                                         <option value="income">💰 Доход</option>
                                     </select>
-                                    <select id="bulk-filtered-article" class="select select-sm w-64">
+                                    <select id="bulk-filtered-article" class="select select-bordered select-sm w-96">
                                         <option value="">Категория</option>
                                     </select>
                                 </div>
                                 <!-- Группа: Счёт + МЗ -->
                                 <div class="flex items-center gap-1">
-                                    <select id="bulk-filtered-fc" class="select select-sm w-32">
+                                    <select id="bulk-filtered-fc" class="select select-bordered select-sm w-32">
                                         <option value="">Счёт</option>
                                     </select>
-                                    <select id="bulk-filtered-cc" class="select select-sm w-32">
+                                    <select id="bulk-filtered-cc" class="select select-bordered select-sm w-32">
                                         <option value="">МЗ</option>
                                     </select>
                                 </div>
                                 <!-- Группа: Тип записи + Кнопки -->
                                 <div class="flex items-center gap-1">
-                                    <select id="bulk-filtered-record-type" class="select select-sm w-24">
+                                    <select id="bulk-filtered-record-type" class="select select-bordered select-sm w-24">
                                         <option value="">Тип</option>
                                         <option value="fact">Факт</option>
                                         <option value="plan">План</option>
@@ -831,12 +835,6 @@ body.resizing-columns * {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
                             Импортировать
-                        </button>
-                        <button class="btn btn-error btn-outline gap-2" onclick="clearStaging()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Очистить staging
                         </button>
                         <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1061,8 +1059,22 @@ function resetWorkflow() {
 
     // Reset forms
     document.getElementById('upload-form').reset();
-    document.getElementById('upload-form').style.display = 'block';
+    document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('post-upload-actions').style.display = 'none';
+
+    // 🔧 FIX: Reset upload source visibility (containers manage form visibility)
+    document.getElementById('upload-source-csv').style.display = 'block';
+    document.getElementById('upload-source-google-sheets').style.display = 'none';
+
+    // Reset radio buttons to default (CSV)
+    document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
+
+    // Clear file inputs (redundant with reset(), but explicit for clarity)
+    document.getElementById('csv-file').value = '';
+    document.getElementById('google-sheets-url').value = '';
+
+    // 🔧 FIX: Restore radio buttons container visibility
+    document.getElementById('upload-source-selector').style.display = 'block';
 
     // Clear staging table
     document.getElementById('staging-table-body').innerHTML = '';
@@ -1241,7 +1253,7 @@ async function onBankSelected() {
 
 async function checkStagingAndUpdateUI() {
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -1291,7 +1303,7 @@ function hideStagingInfo() {
 async function proceedToUpload() {
     // Check if staging has data for selected bank
     try {
-        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        const response = await fetch('/api/v1/staging', { credentials: 'include' });
         if (response.ok) {
             const stagingData = await response.json();
             const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
@@ -1315,6 +1327,27 @@ async function proceedToUpload() {
         console.error('Error checking staging:', error);
     }
 
+    // 🔧 FIX: Clear Step 2 state before showing
+    document.getElementById('upload-form').reset();
+    document.getElementById('upload-form-google-sheets').reset();
+    document.getElementById('post-upload-actions').style.display = 'none';
+
+    // Reset upload source to default (CSV)
+    document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
+    document.getElementById('upload-source-csv').style.display = 'block';
+    document.getElementById('upload-source-google-sheets').style.display = 'none';
+
+    // Clear file inputs (redundant with reset(), but explicit for clarity)
+    document.getElementById('csv-file').value = '';
+    document.getElementById('google-sheets-url').value = '';
+
+    // 🔧 FIX: Restore radio buttons container visibility
+    document.getElementById('upload-source-selector').style.display = 'block';
+
+    // Reset global state
+    uploadedFileId = null;
+    savedMappingId = null;
+
     // Hide Step 1, Show Step 2 upload form
     document.getElementById('step-1-bank-selection').style.display = 'none';
     document.getElementById('step-2-upload').style.display = 'block';
@@ -1332,7 +1365,7 @@ async function skipToEnrichment() {
 async function clearStagingByBank() {
     // Clear staging records for selected bank only (silent - no notifications)
     try {
-        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        const response = await fetch('/api/v1/staging', { credentials: 'include' });
         if (!response.ok) return;
 
         const stagingData = await response.json();
@@ -1345,7 +1378,7 @@ async function clearStagingByBank() {
         // Bulk delete with single API request
         const stagingIds = bankStagingData.map(r => r.id);
 
-        await fetch('/api/v1/admin/staging/bulk-delete', {
+        await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1363,7 +1396,7 @@ async function clearStagingByBank() {
 async function loadStagingTableByBank() {
     // Load staging filtered by selected bank
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -1391,23 +1424,6 @@ async function loadStagingTableByBank() {
     }
 }
 
-async function clearStaging() {
-    try {
-        const response = await fetch('/api/v1/admin/staging', {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (response.ok) {
-            showNotification('Staging очищен', 'success');
-        } else {
-            showNotification('Ошибка очистки staging', 'error');
-        }
-    } catch (error) {
-        console.error('Error clearing staging:', error);
-        showNotification('Ошибка очистки staging', 'error');
-    }
-}
 
 function showConfirmDialog(message, title = 'Подтверждение') {
     return new Promise((resolve) => {
@@ -1475,20 +1491,33 @@ async function loadSavedMapping(bankId) {
 
             // Enable Apply Mapping button if mapping exists
             updateApplyMappingButtonState();
-        } else {
-            // No saved mapping - will use default or empty
+        } else if (response.status === 404) {
+            // 404 is expected when user has no saved mapping yet (first import)
+            // This is normal behavior, not an error
             savedMappingId = null;
             savedTransformations = null;
-            const errorData = await response.json();
-            if (errorData.detail && errorData.detail.default_mapping) {
-                currentMapping = errorData.detail.default_mapping;
+
+            // Try to extract default mapping from 404 response
+            try {
+                const errorData = await response.json();
+                if (errorData.detail && errorData.detail.default_mapping) {
+                    currentMapping = errorData.detail.default_mapping;
+                }
+            } catch (e) {
+                // Ignore JSON parse errors for 404 response
             }
 
             // Disable Apply Mapping button since no saved mapping
             updateApplyMappingButtonState();
+        } else {
+            // Unexpected error (not 404)
+            console.error(`Error loading mapping: ${response.status} ${response.statusText}`);
+            savedMappingId = null;
+            savedTransformations = null;
+            updateApplyMappingButtonState();
         }
     } catch (error) {
-        console.error('Error loading saved mapping:', error);
+        console.error('Network error loading saved mapping:', error);
         savedMappingId = null;
         savedTransformations = null;
         updateApplyMappingButtonState();
@@ -1567,8 +1596,7 @@ async function uploadFromGoogleSheets(event) {
         document.getElementById('upload-source-google-sheets').style.display = 'none';
 
         // Hide radio buttons container
-        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-        if (radioContainer) radioContainer.style.display = 'none';
+        document.getElementById('upload-source-selector').style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);
@@ -1633,9 +1661,8 @@ async function uploadCSV(event) {
         // Hide upload forms and radio buttons
         document.getElementById('upload-source-csv').style.display = 'none';
         document.getElementById('upload-source-google-sheets').style.display = 'none';
-        // Hide radio buttons container (first .form-control.mb-4 in step-2-upload)
-        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-        if (radioContainer) radioContainer.style.display = 'none';
+        // Hide radio buttons container
+        document.getElementById('upload-source-selector').style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);
@@ -1659,6 +1686,9 @@ async function showPostUploadActions() {
     const createMappingBtn = document.getElementById('create-mapping-btn');
     const updateMappingBtn = document.getElementById('update-mapping-btn');
     const useExistingBtn = document.getElementById('use-existing-mapping-btn');
+
+    // 🔧 FIX: Load mapping BEFORE checking if it exists
+    await loadSavedMapping(selectedBankId);
 
     // Check if saved mapping exists
     if (savedMappingId) {
@@ -1713,23 +1743,59 @@ async function checkAndSkipToEnrichment() {
 }
 
 async function analyzeFile(fileId) {
+    // Show loading notification immediately
+    showNotification('Анализ файла...', 'loading');
+
     try {
+        // Create AbortController for 30s timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);  // 30 seconds
+
         const response = await fetch(`/api/v1/import/files/${fileId}/analyze`, {
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal  // Add abort signal for timeout
         });
 
-        if (!response.ok) throw new Error('Failed to analyze file');
+        // Clear timeout if fetch completes
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to analyze file');
+        }
 
         const data = await response.json();
         csvHeaders = data.headers;
         csvSampleRows = data.sample_rows;
         csvDelimiter = data.delimiter;  // Save detected delimiter
 
-        // Don't show mapping step automatically - wait for user to click button
+        // Remove loading notification
+        const loadingNotification = document.getElementById('notification-toast');
+        if (loadingNotification) {
+            loadingNotification.remove();
+        }
+
+        // Show success message briefly
+        showNotification('Файл успешно проанализирован', 'success');
+        setTimeout(() => {
+            const successNotification = document.getElementById('notification-toast');
+            if (successNotification) successNotification.remove();
+        }, 2000);
 
     } catch (error) {
         console.error('Analyze error:', error);
-        showNotification(`Ошибка анализа: ${error.message}`, 'error');
+
+        // Handle different error types with appropriate messages
+        let errorMessage;
+        if (error.name === 'AbortError') {
+            errorMessage = 'Превышено время ожидания (30 сек). Попробуйте загрузить файл меньшего размера или проверьте подключение к серверу.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Ошибка сети. Проверьте подключение к интернету.';
+        } else {
+            errorMessage = `Ошибка анализа: ${error.message}`;
+        }
+
+        showNotification(errorMessage, 'error');
     }
 }
 
@@ -1744,7 +1810,7 @@ async function showMappingStep(isUpdateMode = false) {
     document.getElementById('step-3-mapping').style.display = 'block';
     updateProgressIndicator(3);
 
-    // Set initial delimiter from saved transformations or file analysis
+    // Set initial delimiter from saved transformations or use "auto"
     const delimiterSelect = document.getElementById('mapping-delimiter');
     const dateFormatSelect = document.getElementById('mapping-date-format');
 
@@ -1752,13 +1818,9 @@ async function showMappingStep(isUpdateMode = false) {
         // Use saved delimiter from mapping
         const delimValue = savedTransformations.delimiter === '\t' ? 'tab' : savedTransformations.delimiter;
         delimiterSelect.value = delimValue;
-    } else if (csvDelimiter) {
-        // Fallback to detected delimiter from file analysis
-        const delimValue = csvDelimiter === '\t' ? 'tab' : csvDelimiter;
-        const option = Array.from(delimiterSelect.options).find(o => o.value === delimValue);
-        if (option) {
-            delimiterSelect.value = delimValue;
-        }
+    } else {
+        // Default to "auto" (no saved mapping)
+        delimiterSelect.value = 'auto';
     }
 
     // Set initial date format from saved transformations (if available)
@@ -1814,23 +1876,57 @@ async function loadCsvPreview() {
     statusEl.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Загрузка...';
 
     try {
-        const response = await fetch(
-            `/api/v1/import/files/${uploadedFileId}/preview?delimiter=${encodeURIComponent(delimiter)}`,
-            { credentials: 'include' }
-        );
+        let response, data;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Preview failed');
+        if (delimiter === 'auto') {
+            // Use /analyze endpoint for auto-detection
+            response = await fetch(
+                `/api/v1/import/files/${uploadedFileId}/analyze`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Analysis failed');
+            }
+
+            data = await response.json();
+            csvHeaders = data.headers;
+            csvSampleRows = data.sample_rows;
+            csvDelimiter = data.delimiter;
+
+            // Show detected delimiter in status
+            const delimiterLabel =
+                data.delimiter === ';' ? 'точка с запятой (;)' :
+                data.delimiter === ',' ? 'запятая (,)' :
+                data.delimiter === '\t' ? 'табуляция (Tab)' :
+                data.delimiter === '|' ? 'вертикальная черта (|)' :
+                data.delimiter === ':' ? 'двоеточие (:)' :
+                data.delimiter === ' ' ? 'пробел ( )' :
+                data.delimiter;
+
+            renderCsvPreview();
+            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`;
+        } else {
+            // Use /preview endpoint for specific delimiter
+            response = await fetch(
+                `/api/v1/import/files/${uploadedFileId}/preview?delimiter=${encodeURIComponent(delimiter)}`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Preview failed');
+            }
+
+            data = await response.json();
+            csvHeaders = data.headers;
+            csvSampleRows = data.sample_rows;
+            csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
+
+            renderCsvPreview();
+            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
         }
-
-        const data = await response.json();
-        csvHeaders = data.headers;
-        csvSampleRows = data.sample_rows;
-        csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
-
-        renderCsvPreview();
-        statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
 
     } catch (error) {
         console.error('Preview error:', error);
@@ -1987,9 +2083,14 @@ async function saveMapping() {
         }
 
         // Collect transformations (delimiter, date format, number format)
-        const delimiterValue = document.getElementById('mapping-delimiter').value;
+        let delimiterValue = document.getElementById('mapping-delimiter').value;
         const dateFormatValue = document.getElementById('mapping-date-format').value;
         const numberFormatValue = document.getElementById('mapping-number-format').value;
+
+        // If delimiter is "auto", save the actual detected delimiter
+        if (delimiterValue === 'auto') {
+            delimiterValue = csvDelimiter || ';';  // Fallback to semicolon
+        }
 
         const transformations = {
             delimiter: delimiterValue,
@@ -2069,7 +2170,7 @@ async function parseWithMapping() {
 // ========== Step 4: Enrichment ==========
 async function loadStagingTable() {
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -2255,9 +2356,14 @@ function createStagingRow(record, index) {
     const actionsCell = document.createElement('td');
     actionsCell.dataset.col = 'actions';
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn btn-xs btn-error btn-outline';
-    deleteBtn.innerHTML = '🗑️';
-    deleteBtn.onclick = () => deleteStagingRecord(record.id);
+    deleteBtn.className = 'btn btn-xs btn-error btn-square hidden md:inline-flex';
+    deleteBtn.title = 'Удалить';
+    deleteBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+    `;
+    deleteBtn.onclick = (e) => { e.stopPropagation(); deleteStagingRecord(record.id); };
     actionsCell.appendChild(deleteBtn);
 
     row.appendChild(checkboxCell);
@@ -2382,7 +2488,7 @@ function createRecordTypeSelect(record) {
 
 async function updateStagingRecordType(stagingId, value) {
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2558,7 +2664,7 @@ async function updateStagingField(stagingId, fieldName, value) {
             [fieldName]: value ? parseInt(value) : null
         };
 
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2629,7 +2735,7 @@ async function deleteStagingRecord(stagingId) {
     if (!confirm('Удалить эту запись?')) return;
 
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -2662,7 +2768,7 @@ async function deleteSelectedRecords() {
     if (!confirmed) return;
 
     try {
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+        const response = await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -2687,7 +2793,7 @@ async function deleteSelectedRecords() {
 
 async function updateStagingComment(stagingId, comment) {
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2722,7 +2828,7 @@ async function executeImport() {
     if (!confirm(`Импортировать ${selectedIds.length} записей в бюджет?`)) return;
 
     try {
-        const response = await fetch('/api/v1/admin/staging/import', {
+        const response = await fetch('/api/v1/staging/import', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2730,23 +2836,45 @@ async function executeImport() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Import API error:', errorData);
-
-            // Extract error message from different possible formats
             let errorMessage = 'Ошибка импорта';
-            if (typeof errorData.detail === 'string') {
-                errorMessage = errorData.detail;
-            } else if (errorData.detail && errorData.detail.message) {
-                errorMessage = errorData.detail.message;
-            } else if (errorData.message) {
-                errorMessage = errorData.message;
+
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    console.error('Import API error:', errorData);
+
+                    // Extract error message from different possible formats
+                    if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else if (errorData.detail && errorData.detail.message) {
+                        errorMessage = errorData.detail.message;
+                    } else if (errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+
+                    // Translate common backend error messages to Russian
+                    errorMessage = translateImportError(errorMessage);
+                } else {
+                    // Server returned non-JSON (likely HTML error page)
+                    const text = await response.text();
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    errorMessage = `Ошибка сервера (${response.status}). Проверьте логи backend.`;
+                }
+            } catch (parseError) {
+                console.error('Error parsing server response:', parseError);
+                errorMessage = `Ошибка связи с сервером (${response.status})`;
             }
 
-            // Translate common backend error messages to Russian
-            errorMessage = translateImportError(errorMessage);
-
             throw new Error(errorMessage);
+        }
+
+        // Parse successful response
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Server returned non-JSON success response:', text.substring(0, 200));
+            throw new Error('Сервер вернул некорректный ответ. Проверьте логи backend.');
         }
 
         const result = await response.json();
@@ -2799,69 +2927,6 @@ function translateImportError(message) {
     return message;
 }
 
-async function clearStaging() {
-    // Clear only records for selected bank (from current stagingRecords)
-    const recordCount = stagingRecords.length;
-
-    if (recordCount === 0) {
-        showNotification('Нет записей для удаления', 'info');
-        return;
-    }
-
-    const bankName = selectedBankId ? 'выбранного банка' : 'staging';
-    const confirmed = await showConfirmDialog(
-        `Удалить ${recordCount} записей ${bankName}?`,
-        'Подтверждение'
-    );
-    if (!confirmed) return;
-
-    // Force close modal dialog
-    const modal = document.getElementById('confirm-dialog');
-    if (modal) {
-        modal.close();
-    }
-
-    // Small delay to ensure modal is fully closed
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Show notification with dynamic loader
-    showNotification(`Удаление ${recordCount} записей...`, 'loading');
-
-    // Copy records to delete and clear the array immediately to prevent double-deletion
-    const recordsToDelete = [...stagingRecords];
-    stagingRecords = [];
-
-    try {
-        // Bulk delete with single API request
-        const stagingIds = recordsToDelete.map(r => r.id);
-
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ staging_ids: stagingIds })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Ошибка сервера: ${response.status}`);
-        }
-
-        const result = await response.json();
-        showNotification(result.message, 'success');
-
-        // Return to step 1 after clearing
-        resetWorkflow();
-
-    } catch (error) {
-        console.error('Clear staging error:', error);
-        showNotification(`Ошибка удаления: ${error.message}`, 'error');
-
-        // Restore records if deletion failed
-        stagingRecords = recordsToDelete;
-    }
-}
 
 // ========== Helper Functions ==========
 function getSelectedIds() {
@@ -3171,7 +3236,7 @@ async function applyBulkToFiltered() {
         try {
             showNotification('Обновление записей...', 'loading');
 
-            const response = await fetch('/api/v1/admin/staging/bulk-update', {
+            const response = await fetch('/api/v1/staging/bulk-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
@@ -3213,47 +3278,50 @@ async function applyBulkToFiltered() {
     }
 
     // Re-render table to reflect changes
-    renderStagingTable();
-    updateStats();
+    // Use setTimeout to prevent blocking UI (avoid performance warnings)
+    setTimeout(() => {
+        renderStagingTable();
+        updateStats();
 
-    // Reset header checkbox after bulk operation
-    document.getElementById('header-select-all').checked = false;
+        // Reset header checkbox after bulk operation
+        document.getElementById('header-select-all').checked = false;
 
-    // Highlight updated rows
-    ids.forEach(id => {
-        const row = document.getElementById(`staging-row-${id}`);
-        if (row) {
-            row.classList.add('highlight-row');
-            setTimeout(() => row.classList.remove('highlight-row'), 500);
-        }
-    });
+        // Highlight updated rows
+        ids.forEach(id => {
+            const row = document.getElementById(`staging-row-${id}`);
+            if (row) {
+                row.classList.add('highlight-row');
+                setTimeout(() => row.classList.remove('highlight-row'), 500);
+            }
+        });
+    }, 10);
 }
 
 /**
- * Delete all filtered records
+ * Delete selected (checked) records
  */
 async function deleteFilteredRecords() {
-    if (filteredRecords.length === 0) {
-        showNotification('Нет отфильтрованных записей для удаления', 'warning');
+    const selectedIds = getSelectedIds();
+
+    if (selectedIds.length === 0) {
+        showNotification('Не выбраны записи для удаления', 'warning');
         return;
     }
 
     const confirmed = await showConfirmDialog(
-        `Удалить ${filteredRecords.length} отфильтрованных записей?`,
+        `Удалить ${selectedIds.length} выбранных записей?`,
         'Подтверждение удаления'
     );
     if (!confirmed) return;
 
-    const ids = filteredRecords.map(r => r.id);
-
     try {
         showNotification('Удаление записей...', 'loading');
 
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+        const response = await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ staging_ids: ids })
+            body: JSON.stringify({ staging_ids: selectedIds })
         });
 
         if (!response.ok) {
@@ -3262,13 +3330,13 @@ async function deleteFilteredRecords() {
         }
 
         const result = await response.json();
-        showNotification(result.message || `Удалено ${ids.length} записей`, 'success');
+        showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
 
         // Reload table
         await loadStagingTable();
 
     } catch (error) {
-        console.error('Delete filtered error:', error);
+        console.error('Delete selected records error:', error);
         showNotification(`Ошибка: ${error.message}`, 'error');
     }
 }
@@ -4109,7 +4177,7 @@ async function applySpreadsheetUpdates(updates) {
 
         if (Object.keys(payload).length > 0) {
             try {
-                const response = await fetch(`/api/v1/admin/staging/${id}`, {
+                const response = await fetch(`/api/v1/staging/${id}`, {
                     method: 'PATCH',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },

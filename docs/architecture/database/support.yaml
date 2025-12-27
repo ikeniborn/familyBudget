@@ -291,29 +291,47 @@ tables:
   t_import_column_mapping:
     model: ImportColumnMapping
     file: "backend/app/models/import_column_mapping.py"
-    description: "User-defined column mappings for import"
+    description: "Column mappings for CSV import (shared per bank)"
+
+    note: |
+      Mappings are SHARED per bank (one mapping per bank_provider_id).
+      All users share the same mapping for a given bank.
+      user_id tracks who last updated the mapping (informational only).
 
     columns:
       - name: id
         type: SERIAL PRIMARY KEY
-      - name: upload_id
+      - name: bank_provider_id
         type: INTEGER NOT NULL
         fk:
-          $ref: "#/tables/t_import_file_upload"
+          $ref: "./dimensions.yaml#/tables/t_d_bank_provider"
         on_delete: CASCADE
-      - name: source_column
-        type: VARCHAR(255) NOT NULL
-        description: "CSV column name"
-      - name: target_field
-        type: VARCHAR(50) NOT NULL
-        check: "target_field IN ('date', 'amount', 'description', 'category', 'ignore')"
-      - name: transform_rule
-        type: VARCHAR(100)
-        description: "Optional transformation (e.g., date format)"
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+        description: "Who last updated this mapping (informational only)"
+      - name: mapping
+        type: JSONB NOT NULL
+        description: "Column mapping (CSV column → budget field)"
+      - name: transformations
+        type: JSONB
+        description: "Optional transformations (date format, decimal separator)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    constraints:
+      - name: uq_bank_mapping
+        type: UNIQUE
+        columns: [bank_provider_id]
+        description: "One mapping per bank (shared across all users)"
 
     indexes:
-      - name: idx_icm_upload_id
-        columns: [upload_id]
+      - name: idx_icm_bank_provider_id
+        columns: [bank_provider_id]
 
     services:
       - $ref: "../functionality/csv-import.yaml#/module/services/6"

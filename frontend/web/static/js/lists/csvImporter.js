@@ -12,6 +12,27 @@
  */
 
 class CSVImporter {
+    // Web Worker for CSV processing (Phase 3: Performance Optimization)
+    static _workerWrapper = null;
+
+    /**
+     * Initialize Web Worker for CSV processing.
+     * Called automatically on first use.
+     */
+    static initializeWorker() {
+        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+            try {
+                this._workerWrapper = new WorkerWrapper('/static/js/workers/csvWorker.min.js', {
+                    idleTimeout: 60000,  // 60s for CSV (files may be large)
+                    debugMode: window.DEBUG_MODE || false
+                });
+            } catch (error) {
+                console.warn('[CSVImporter] Failed to initialize worker:', error);
+                this._workerWrapper = null;
+            }
+        }
+    }
+
     constructor(listsManager) {
         this.listsManager = listsManager;
         this.currentStep = 1;
@@ -63,6 +84,55 @@ class CSVImporter {
 
         // All preview rows (for client-side filtering/pagination)
         this.allPreviewRows = [];
+    }
+
+    /**
+     * Encode content to Base64 using Web Worker.
+     * Falls back to synchronous encoding on error.
+     *
+     * @param {string} content - UTF-8 string content
+     * @returns {Promise<string>} Base64 encoded string
+     */
+    async encodeBase64(content) {
+        const contentSizeKB = Math.round(content.length / 1024);
+        const startTime = performance.now();
+
+        // For large files (>1MB), use worker
+        if (content.length > 1_000_000 && CSVImporter._workerWrapper) {
+            try {
+                CSVImporter.initializeWorker();
+
+                // Show initial progress
+                if (typeof showToast !== 'undefined') {
+                    showToast(`Кодирование файла (${contentSizeKB}KB)...`, 'info', 1000);
+                }
+
+                const result = await CSVImporter._workerWrapper.execute({
+                    action: 'encodeBase64',
+                    data: { content }
+                });
+
+                const duration = Math.round(performance.now() - startTime);
+                if (window.DEBUG_MODE) {
+                    console.log(`[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+                }
+
+                return result;
+            } catch (error) {
+                console.warn('[CSVImporter] Worker Base64 encoding failed, using synchronous:', error);
+                // Fall through to synchronous
+            }
+        }
+
+        // Synchronous fallback (original implementation)
+        const result = btoa(unescape(encodeURIComponent(content)));
+        const duration = Math.round(performance.now() - startTime);
+
+        if (window.DEBUG_MODE && duration > 100) {
+            console.log(`[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+        }
+
+        return result;
     }
 
     /**
@@ -212,8 +282,8 @@ class CSVImporter {
      */
     async analyzeFile() {
         try {
-            // Encode file content to base64
-            const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+            // Encode file content to base64 (worker-based for large files)
+            const fileContent = await this.encodeBase64(this.fileContent);
 
             // Call backend API for auto-detection
             const response = await fetch('/api/v1/shopping-lists/import/analyze', {
@@ -606,8 +676,8 @@ class CSVImporter {
      * @param {boolean} options.aggregate_duplicates - Aggregate duplicate rows
      */
     async callPreviewAPI(options = {}) {
-        // Encode file content to base64
-        const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+        // Encode file content to base64 (worker-based for large files)
+        const fileContent = await this.encodeBase64(this.fileContent);
 
         // Prepare request payload
         const requestData = {
@@ -693,6 +763,39 @@ class CSVImporter {
             console.error('[CSVImporter] Error revalidating:', error);
             showToast(`Ошибка пересчёта: ${error.message}`, 'error');
         }
+    }
+
+    /**
+     * Handle Skip Duplicates checkbox state change.
+     * Implements mutually exclusive behavior: Skip and Aggregate are incompatible.
+     * When Skip is enabled, Aggregate is auto-disabled and hidden.
+     */
+    handleSkipDuplicatesChange() {
+        // Get DOM elements
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
+
+        // Read current state
+        const skipDuplicatesEnabled = skipDuplicatesCheckbox ?
+            skipDuplicatesCheckbox.checked : false;
+
+        // Save to importOptions
+        this.importOptions.skipDuplicates = skipDuplicatesEnabled;
+
+        // Debug log
+        debugLog('[CSVImporter] Skip Duplicates toggled:', skipDuplicatesEnabled);
+
+        // Auto-uncheck Aggregate if incompatible (both can't be true)
+        if (skipDuplicatesEnabled && aggregateDuplicatesCheckbox &&
+            aggregateDuplicatesCheckbox.checked) {
+            aggregateDuplicatesCheckbox.checked = false;
+            this.importOptions.aggregateDuplicates = false;
+            debugLog('[CSVImporter] Auto-disabled Aggregate Duplicates (incompatible with Skip)');
+        }
+
+        // Re-render UI with updated visibility logic
+        // NOTE: Does NOT call API - just updates UI (skip is a final import option, not preview)
+        this.renderPreviewResults();
     }
 
     /**
@@ -1065,6 +1168,56 @@ class CSVImporter {
     }
 
     /**
+     * Check if there are any reference errors in validation result.
+     * Reference errors occur when store/product_group not found in DB.
+     *
+     * IMPORTANT: Returns true if createMissingReferences is already enabled,
+     * to keep checkbox visible (otherwise user can't disable it).
+     *
+     * @param {Object} result - Preview API result
+     * @returns {boolean} True if there are reference errors OR option is enabled
+     */
+    hasReferenceErrors(result) {
+        // Keep checkbox visible if user already enabled the option
+        if (this.importOptions.createMissingReferences) {
+            return true;
+        }
+
+        // Show checkbox if there are reference errors in current result
+        if (!result.errors || result.errors.length === 0) {
+            return false;
+        }
+        return result.errors.some(e => e.error_type === 'reference');
+    }
+
+    /**
+     * Check if there are any duplicate warnings in validation result.
+     *
+     * IMPORTANT: Returns true if aggregateDuplicates is already enabled,
+     * to keep checkbox visible (otherwise user can't disable it).
+     *
+     * NOTE: Skip and Aggregate are mutually exclusive - when Skip is enabled,
+     * Aggregate must be hidden to prevent user confusion.
+     *
+     * @param {Object} result - Preview API result
+     * @returns {boolean} True if there are duplicate warnings OR aggregation is enabled
+     */
+    hasDuplicateWarnings(result) {
+        // Hide aggregate checkbox if skip duplicates is enabled (mutually exclusive)
+        if (this.importOptions.skipDuplicates) {
+            return false;
+        }
+
+        // Keep checkbox visible if user already enabled the option
+        if (this.importOptions.aggregateDuplicates) {
+            return true;
+        }
+
+        // Show checkbox if there are duplicate warnings
+        return result.warnings && result.warnings.length > 0;
+    }
+
+    /**
      * Render preview results with validation
      */
     renderPreviewResults() {
@@ -1186,7 +1339,7 @@ class CSVImporter {
 
                 <!-- Import Options -->
                 ${result.invalid_rows > 0 ? `
-                <div class="form-control mb-4">
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary"
                                ${this.importOptions.skipInvalid ? 'checked' : ''} />
@@ -1196,17 +1349,19 @@ class CSVImporter {
                 ` : ''}
 
                 ${result.warnings.length > 0 ? `
-                <div class="form-control mb-4">
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning"
-                               ${this.importOptions.skipDuplicates ? 'checked' : ''} />
+                               ${this.importOptions.skipDuplicates ? 'checked' : ''}
+                               onchange="window.${varName}.handleSkipDuplicatesChange()" />
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
                 ` : ''}
 
-                <!-- Aggregate duplicates - always visible -->
-                <div class="form-control mb-4">
+                <!-- Aggregate duplicates - conditional display -->
+                ${this.hasDuplicateWarnings(result) ? `
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info"
                                ${this.importOptions.aggregateDuplicates ? 'checked' : ''}
@@ -1217,9 +1372,11 @@ class CSVImporter {
                         <span class="label-text-alt text-xs opacity-70">Суммировать количество, объединить комментарии через запятую</span>
                     </label>
                 </div>
+                ` : ''}
 
-                <!-- Create missing references option -->
-                <div class="form-control mb-4">
+                <!-- Create missing references - conditional display -->
+                ${this.hasReferenceErrors(result) ? `
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success"
                                ${this.importOptions.createMissingReferences ? 'checked' : ''}
@@ -1230,6 +1387,7 @@ class CSVImporter {
                         <span class="label-text-alt text-xs opacity-70">Автоматически создавать отсутствующие магазины и группы товаров</span>
                     </label>
                 </div>
+                ` : ''}
 
                 <div class="flex gap-2">
                     <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
@@ -1364,8 +1522,8 @@ class CSVImporter {
             // Show loading
             showToast('Импорт данных...', 'info');
 
-            // Encode file content to base64
-            const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+            // Encode file content to base64 (worker-based for large files)
+            const fileContent = await this.encodeBase64(this.fileContent);
 
             // Prepare request payload
             const requestData = {

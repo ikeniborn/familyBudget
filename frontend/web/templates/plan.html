@@ -7,9 +7,9 @@
 <!-- CalendarWidget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
 <!-- Choices.js for Transfer Modal -->
-<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
-<script src="/static/js/vendor/choices.min.js"></script>
+<script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
 <!-- ECharts library for analytics charts -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
@@ -147,6 +147,22 @@
                             <span class="label-text font-medium">🔍 Поиск по комментариям</span>
                         </label>
                         <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию плановой записи (trigram search)">
+                    </div>
+
+                    <!-- Checkbox filters for recurring and reminder -->
+                    <div class="flex flex-wrap gap-4 pt-2">
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-recurring" class="checkbox checkbox-sm checkbox-secondary" onchange="applyFilters()">
+                                <span class="label-text">🔄 Регламентные записи</span>
+                            </label>
+                        </div>
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-with-reminder" class="checkbox checkbox-sm checkbox-primary" onchange="applyFilters()">
+                                <span class="label-text">🔔 С напоминанием</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -328,6 +344,25 @@
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
 
+<!-- Recurring Delete Dialog -->
+<dialog id="recurring-delete-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+        <p class="mb-6">
+            Эта запись является частью регламентного платежа.<br>
+            Что вы хотите удалить?
+        </p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="recurringDeleteResolve(null)">Отмена</button>
+            <button type="button" class="btn btn-primary" onclick="recurringDeleteResolve('single')">Только эту запись</button>
+            <button type="button" class="btn btn-error" onclick="recurringDeleteResolve('all')">Все регламентные</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="recurringDeleteResolve(null)">close</button>
+    </form>
+</dialog>
+
 {% endblock %}
 
 {% block extra_styles %}
@@ -489,6 +524,8 @@ let factsData = [];
 let selectedFactIds = new Set();
 let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
 let remindersMap = new Map(); // Map<factId, reminder> for reminder status display
+let currentRecurringPlan = null; // Текущий редактируемый recurring plan (загружается при открытии модалки)
+let editTemplateEndDateCalendar = null; // CalendarWidget для даты окончания шаблона
 
 // КОНСТАНТЫ - дефолтный период (текущий месяц)
 // Используем LOCAL time (не UTC!) как в DateFormatter.todayISO()
@@ -499,7 +536,15 @@ const DEFAULT_DATE_FROM = (() => {
     return `${year}-${month}-01`;  // Первый день текущего месяца (YYYY-MM-DD)
 })();
 
-const DEFAULT_DATE_TO = BudgetShared.DateFormatter.todayISO(); // Сегодня (YYYY-MM-DD)
+const DEFAULT_DATE_TO = (() => {
+    // For plan page: show plans for next 3 months (current + 3)
+    const now = new Date();
+    const futureDate = new Date(now.getFullYear(), now.getMonth() + 3, 0); // Last day of month +3
+    const year = futureDate.getFullYear();
+    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+    const day = String(futureDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+})();
 
 // Filter state - инициализировать с дефолтным периодом
 let filters = {
@@ -762,9 +807,13 @@ async function syncAnalyticsToFilters(options = {}) {
                 console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
                 filterArticleType.value = newValue;
 
+                // Update filters object immediately
+                filters.article_type = newValue || null;
+
                 // Reset article filter (category list changed)
                 if (filterArticle) {
                     filterArticle.value = '';
+                    filters.article_id = null;
                     console.log('[syncAnalyticsToFilters] Article filter reset due to type change');
                 }
 
@@ -808,7 +857,11 @@ async function syncAnalyticsToFilters(options = {}) {
 
         // 6. Reload facts table if any value changed
         if (needsReload && !skipReload) {
-            console.log('[syncAnalyticsToFilters] Reloading facts table...');
+            console.log('[syncAnalyticsToFilters] Reloading facts table with filters:', {
+                article_type: filters.article_type,
+                article_id: filters.article_id,
+                financial_center_id: filters.financial_center_id
+            });
             currentPage = 0;
             await loadFacts();
             updateFilterIndicator();
@@ -901,7 +954,97 @@ function initDefaultPeriodFilter() {
  * Open transfer modal in plan mode
  * Sets record_type to 'plan' and shows the modal
  */
+/**
+ * Set transfer record type (plan) and toggle UI sections.
+ * @param {string} type - 'plan' (facts not used in plan.html)
+ */
+function setTransferRecordType(type) {
+    const recordTypeInput = document.getElementById('transfer_record_type');
+    const factSection = document.getElementById('transfer-date-section-fact');
+    const planSection = document.getElementById('transfer-period-section-plan');
+
+    if (!recordTypeInput) {
+        console.warn('transfer_record_type input not found');
+        return;
+    }
+
+    // Set record type
+    recordTypeInput.value = type;
+
+    // Toggle sections
+    if (type === 'fact') {
+        factSection?.classList.remove('hidden');
+        planSection?.classList.add('hidden');
+    } else if (type === 'plan') {
+        factSection?.classList.add('hidden');
+        planSection?.classList.remove('hidden');
+
+        // Initialize period buttons for plan transfers
+        setupTransferPeriodButtons();
+    }
+}
+
+/**
+ * Initialize period buttons for plan transfers (similar to setupPlanPeriodButtons).
+ */
+function setupTransferPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.transfer-period-btn');
+    const hiddenInput = document.querySelector('#transfer_plan_month');
+
+    if (!hiddenInput || periodButtons.length === 0) return;
+
+    // Initialize button labels and data attributes (current month +0, +1, +2)
+    const today = new Date();
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        btn.textContent = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+    });
+
+    // Set default value for first button (active by default)
+    const firstButton = periodButtons[0];
+    if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
+        hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+        debugLog('Default transfer plan period:', hiddenInput.value);
+    }
+
+    // Click handlers (avoid duplicates)
+    periodButtons.forEach(button => {
+        // Skip if listener already attached
+        if (button.dataset.listenerAttached === 'true') return;
+
+        button.addEventListener('click', function() {
+            // Remove btn-active from all buttons
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Add btn-active to current button
+            this.classList.add('btn-active');
+
+            // Set value in hidden input (YYYY-MM)
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            hiddenInput.value = `${year}-${month}`;
+
+            debugLog('Selected transfer plan period:', hiddenInput.value);
+        });
+
+        // Mark listener as attached
+        button.dataset.listenerAttached = 'true';
+    });
+}
+
 function openPlanTransferModal() {
+    // Reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Set transfer record type to plan
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('plan');
@@ -930,6 +1073,20 @@ function openPlanTransferModal() {
         }
 
         modal.showModal();
+
+        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+        if (!modal.dataset.backdropHandlerAdded) {
+            modal.addEventListener('click', (e) => {
+                // Close only if click is OUTSIDE modal-box
+                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
+                const modalBox = modal.querySelector('.modal-box');
+                if (modalBox && !modalBox.contains(e.target)) {
+                    modal.close();
+                }
+            });
+            modal.dataset.backdropHandlerAdded = 'true';
+        }
     }
 }
 // Ensure function is globally accessible for onclick handlers
@@ -1154,6 +1311,31 @@ document.addEventListener('DOMContentLoaded', function() {
         await createPlan(e);
     });
 
+    // Transfer form submit handler (online only)
+    // CRITICAL: Guard against duplicate event listener registration
+    // Problem: Multiple pages (index.html, facts.html, plan.html) include modal_transfer.html
+    // Each page's DOMContentLoaded can register its own handler on the same form element
+    // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
+    const transferForm = document.getElementById('form_transfer');
+    console.log('[plan.html] Transfer form guard check:', {
+        formExists: !!transferForm,
+        alreadyRegistered: transferForm?.dataset?.submitHandlerRegistered,
+        timestamp: new Date().toISOString()
+    });
+
+    if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
+        transferForm.dataset.submitHandlerRegistered = 'true';
+        console.log('[plan.html] ✅ Transfer form submit handler REGISTERED');
+
+        transferForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('[plan.html] 🚀 Transfer form submit handler EXECUTING');
+            await createTransfer(e);
+        });
+    } else if (transferForm) {
+        console.warn('[plan.html] ⚠️ Transfer form submit handler already registered, skipping duplicate registration');
+    }
+
     // Initialize CalendarWidget for filter date range (with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
@@ -1166,19 +1348,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Инициализация CalendarWidget для edit modal (Single Date Picker)
-    new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('edit-date'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата для edit modal:', date);
-        }
-    });
+    // CalendarWidget для edit modal инициализируется в openEditModal()
+    // чтобы избежать дублирования иконки при повторном открытии
 
-    // Event listener for article_type filter change - reload categories
-    document.getElementById('filter-article-type').addEventListener('change', function(e) {
+    // Event listener for article_type filter change - reload categories AND apply filter
+    document.getElementById('filter-article-type').addEventListener('change', async function(e) {
         const selectedType = e.target.value;
-        reloadArticleFilter(selectedType);
+
+        // 1. Update filters object
+        filters.article_type = selectedType || null;
+
+        // 2. Reset article filter (category list will change)
+        const filterArticle = document.getElementById('filter-article');
+        if (filterArticle) {
+            filterArticle.value = '';
+            filters.article_id = null;
+        }
+
+        // 3. Reload article dropdown with new type
+        await reloadArticleFilter(selectedType);
+
+        // 4. Reset page and reload facts table
+        currentPage = 0;
+        await loadFacts();
+
+        // 5. Update filter indicator
+        updateFilterIndicator();
+
+        // 6. Sync to analytics section
+        await syncFiltersToAnalytics();
+
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
 
@@ -1197,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load users for filter dropdown
 async function loadUsers() {
     try {
-        const response = await fetch('/api/v1/admin/users');
+        const response = await fetch('/api/v1/users');
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1222,8 +1421,9 @@ async function loadUsers() {
 // Load articles for filter and edit dropdowns with tree structure
 async function loadArticles() {
     try {
-        const response = await fetch('/api/v1/admin/articles');
-        const articles = await response.json();
+        const response = await fetch('/api/v1/articles');
+        const data = await response.json();
+        const articles = data.articles || [];
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
@@ -1344,7 +1544,7 @@ function initializeCreateModalCategories() {
 async function reloadArticleFilter(type) {
     try {
         // Fetch articles filtered by type
-        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
+        let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
         if (type) {
             url += `&type=${type}`;
         }
@@ -1711,6 +1911,13 @@ async function applyFilters() {
     // Trigram search by description
     filters.search = document.getElementById('filter-search').value.trim() || null;
 
+    // Recurring and reminder filters
+    const filterRecurring = document.getElementById('filter-recurring');
+    filters.has_recurring_plan = filterRecurring && filterRecurring.checked ? true : null;
+
+    const filterWithReminder = document.getElementById('filter-with-reminder');
+    filters.has_reminder = filterWithReminder && filterWithReminder.checked ? true : null;
+
     currentPage = 0;
     await loadFacts();
 
@@ -1738,6 +1945,12 @@ async function resetFilters() {
         document.getElementById('filter-cost-center').value = '';
         document.getElementById('filter-search').value = '';
 
+        // Reset checkbox filters
+        const filterRecurring = document.getElementById('filter-recurring');
+        if (filterRecurring) filterRecurring.checked = false;
+        const filterWithReminder = document.getElementById('filter-with-reminder');
+        if (filterWithReminder) filterWithReminder.checked = false;
+
         // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
         filters = {
             user_id: null,
@@ -1747,7 +1960,9 @@ async function resetFilters() {
             date_to: DEFAULT_DATE_TO,
             financial_center_id: null,
             cost_center_id: null,
-            search: null
+            search: null,
+            has_recurring_plan: null,
+            has_reminder: null
         };
 
         // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
@@ -1857,18 +2072,21 @@ async function loadFacts() {
         if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
         if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
         if (filters.search) params.append('search', filters.search);
+        if (filters.has_recurring_plan) params.append('has_recurring_plan', 'true');
+        if (filters.has_reminder) params.append('has_reminder', 'true');
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
-            fetch(`/api/v1/admin/facts?${params}`),
-            fetch(`/api/v1/admin/facts/count?${params}`)
+            fetch(`/api/v1/facts?${params}`),
+            fetch(`/api/v1/facts/count?${params}`)
         ]);
 
         if (!factsResponse.ok || !countResponse.ok) {
             throw new Error('Failed to load facts');
         }
 
-        factsData = await factsResponse.json();
+        const factsResponseData = await factsResponse.json();
+        factsData = factsResponseData.facts || [];
         const countData = await countResponse.json();
         totalFacts = countData.total;
 
@@ -1906,6 +2124,13 @@ function formatMobileAmount(amount, type) {
     return `${sign}${value}`;
 }
 
+// Format amount with sign for desktop view
+function formatDesktopAmount(amount, type) {
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const sign = (type === 'income' || type === 'credit') ? '+' : '-';
+    return `${sign}${value}`;
+}
+
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
     selectedFactIds.clear();
@@ -1930,9 +2155,10 @@ function renderFactsTable(facts) {
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
-                        <th>🔔</th>
                         <th>👤 Пользователь</th>
-                        <th title="Создано offline">☁️</th>
+                        <th class="text-center" title="Напоминание">🔔</th>
+                        <th class="text-center" title="Регламентный платеж">🔄</th>
+                        <th class="text-center" title="Создано offline">☁️</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -1943,9 +2169,7 @@ function renderFactsTable(facts) {
     let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
 
     facts.forEach(fact => {
-        const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
-
-        // Get color class for article type
+        // Get color class for article type (4 цвета: income=зелёный, expense=красный, debit=синий, credit=оранжевый)
         let articleColorClass = '';
         if (fact.article_type === 'expense') {
             articleColorClass = 'text-error';
@@ -1975,15 +2199,20 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td><span class="${articleColorClass}">${articleName}</span></td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                <td class="${articleColorClass} font-bold">${formatDesktopAmount(fact.amount, fact.article_type)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
-                <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
+                <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
+                <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
                 <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
-                        <button class="btn btn-xs btn-outline btn-error gap-1" data-fact-id="${fact.id}" onclick="deleteFact(${fact.id})">🗑️</button>
+                        <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="${fact.id}" onclick="event.stopPropagation(); deleteFact(${fact.id})" title="Удалить">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -1994,6 +2223,7 @@ function renderFactsTable(facts) {
         const mobileAmount = formatMobileAmount(fact.amount, fact.article_type);
         const reminderIcon = remindersMap.has(fact.id) ? '<span class="text-info text-xs" title="Напоминание">🔔</span>' : '';
         const offlineIcon = fact.is_offline_sync ? '<span class="text-xs" title="Создано offline">☁️</span>' : '';
+        const recurringIcon = fact.recurring_plan_id ? '<span class="text-secondary text-xs" title="Регламентный">🔄</span>' : '';
 
         mobileHtml += `
             <div class="transaction-item py-2" data-plan-id="${fact.id}" onclick="showEditModal(${fact.id})">
@@ -2002,6 +2232,7 @@ function renderFactsTable(facts) {
                     <span class="badge badge-info badge-xs shrink-0">План</span>
                     <span class="flex-1 font-medium truncate">${articleName}</span>
                     <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+                    ${recurringIcon}
                     ${reminderIcon}
                     ${offlineIcon}
                 </div>
@@ -2103,24 +2334,125 @@ async function showEditModal(factId) {
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
     document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
     document.getElementById('edit-description').value = fact.description || '';
-    document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
-    document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
+
+    // ✅ FIX: Ensure financial center dropdown is loaded before setting value (race condition fix)
+    const fcDropdown = document.getElementById('edit-financial-center');
+    if (fcDropdown.options.length <= 1) {
+        debugLog('[Edit Modal] Financial center dropdown not loaded, loading now...');
+        await loadFinancialCenters();
+    }
+    // Verify the option exists before setting
+    if (fact.financial_center_id) {
+        const fcOption = Array.from(fcDropdown.options).find(opt => opt.value == fact.financial_center_id);
+        if (fcOption) {
+            fcDropdown.value = fact.financial_center_id;
+            debugLog('[Edit Modal] Set financial center to:', fact.financial_center_id);
+        } else {
+            console.warn('[Edit Modal] Financial center not found in dropdown:', fact.financial_center_id, '(may be archived/inactive)');
+        }
+    } else {
+        fcDropdown.value = '';  // Explicitly set to empty if no FC
+    }
+
+    // ✅ FIX: Ensure cost center dropdown is loaded before setting value (race condition fix)
+    const ccDropdown = document.getElementById('edit-cost-center');
+    if (ccDropdown.options.length <= 1) {
+        debugLog('[Edit Modal] Cost center dropdown not loaded, loading now...');
+        await loadCostCenters();
+    }
+    // Verify the option exists before setting (cost center is optional)
+    if (fact.cost_center_id) {
+        const ccOption = Array.from(ccDropdown.options).find(opt => opt.value == fact.cost_center_id);
+        if (ccOption) {
+            ccDropdown.value = fact.cost_center_id;
+            debugLog('[Edit Modal] Set cost center to:', fact.cost_center_id);
+        } else {
+            console.warn('[Edit Modal] Cost center not found in dropdown:', fact.cost_center_id, '(may be archived/inactive)');
+        }
+    } else {
+        ccDropdown.value = '';  // Explicitly set to empty if no CC
+    }
+
+    // Handle recurring plan info and reminder container visibility
+    const recurringPlanIdField = document.getElementById('edit-recurring-plan-id');
+    const recurringInfoDiv = document.getElementById('edit-recurring-info');
+    const reminderContainer = document.getElementById('edit-reminder-container');
+    const templateFieldsDiv = document.getElementById('edit-template-fields');
+
+    // Reset recurring plan state
+    currentRecurringPlan = null;
+
+    if (recurringPlanIdField) {
+        recurringPlanIdField.value = fact.recurring_plan_id || '';
+    }
+
+    console.log('[EDIT MODAL] Fact loaded:', fact);
+    console.log('[EDIT MODAL] record_type:', fact.record_type);
+    console.log('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
+
+    // Определение типа записи на основе record_type
+    if (fact.record_type === 'plan') {
+        console.log('[EDIT MODAL] Record type is PLAN');
+    } else if (fact.record_type === 'fact') {
+        console.log('[EDIT MODAL] Record type is FACT');
+    } else {
+        console.warn('[EDIT MODAL] Unknown record_type:', fact.record_type);
+    }
+
+    if (fact.recurring_plan_id) {
+        // Это запись из recurring плана
+        console.log('[EDIT MODAL] Fact has recurring_plan_id, loading plan details...');
+
+        if (recurringInfoDiv) recurringInfoDiv.classList.remove('hidden');
+        if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
+
+        // Reset scope to 'single' by default
+        const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
+
+        // Загрузить данные recurring плана
+        try {
+            const planResponse = await fetch(`/api/v1/recurring-plans/${fact.recurring_plan_id}`, {
+                credentials: 'include'
+            });
+
+            console.log('[EDIT MODAL] Recurring plan API response status:', planResponse.status);
+
+            if (!planResponse.ok) {
+                console.error('[EDIT MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+                if (planResponse.status === 403) {
+                    console.error('[EDIT MODAL] 403 Forbidden - check user permissions');
+                } else if (planResponse.status === 404) {
+                    console.error('[EDIT MODAL] 404 Not Found - plan may have been deleted');
+                }
+                // Скрыть секцию при ошибке
+                if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
+            } else {
+                currentRecurringPlan = await planResponse.json();
+                console.log('[EDIT MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+                populateRecurringPlanInfo(currentRecurringPlan);
+                console.log('[EDIT MODAL] Recurring plan info populated');
+            }
+        } catch (error) {
+            console.error('[EDIT MODAL] Error loading recurring plan:', error);
+            // Скрыть секцию при ошибке
+            if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
+        }
+    } else {
+        // Обычная запись (не recurring)
+        console.log('[EDIT MODAL] Fact has NO recurring_plan_id, hiding recurring info');
+        if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
+        if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+    }
 
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
     const categoryType = selectedArticle ? selectedArticle.type : 'expense';
 
-    // Set category type radio buttons
-    document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
-        const radio = btn.querySelector('input[type="radio"]');
-        if (btn.dataset.type === categoryType) {
-            btn.classList.add('btn-active');
-            radio.checked = true;
-        } else {
-            btn.classList.remove('btn-active');
-            radio.checked = false;
-        }
-    });
+    // Update category type badge
+    updateEditCategoryTypeBadge(categoryType);
 
     // Destroy previous ChoicesCategoryTree instance if exists
     if (editCategoryTreeSelect) {
@@ -2137,6 +2469,7 @@ async function showEditModal(factId) {
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
             showLeafOnly: true,
+            financialCenterId: fact.financial_center_id,
             onCategoryChange: (category) => {
                 debugLog('Category changed in edit modal:', category);
             }
@@ -2171,6 +2504,9 @@ async function showEditModal(factId) {
                         console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
                         // Leave default "-- Выберите категорию --" selected
                     }
+
+                    // Filter cost centers by financial center
+                    await filterEditCostCenters(fact.financial_center_id);
                 }
             }
         }, 150); // Check every 150ms
@@ -2188,6 +2524,32 @@ async function showEditModal(factId) {
                 storeChoicesCount: editCategoryTreeSelect?.choices?._store?.choices?.length
             });
         }, 10000);
+    }
+
+    // Setup financial center change handler for edit modal
+    const editFcSelect = document.getElementById('edit-financial-center');
+    if (editFcSelect && editCategoryTreeSelect) {
+        // Remove previous listener if exists (prevent duplicates)
+        const newEditFcSelect = editFcSelect.cloneNode(true);
+        editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+
+        newEditFcSelect.addEventListener('change', async () => {
+            const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+            console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
+                newFcId: fcId,
+                currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
+            });
+
+            // Filter categories by selected FC (will preserve selection if category is still available)
+            if (editCategoryTreeSelect) {
+                await editCategoryTreeSelect.updateFinancialCenter(fcId);
+            }
+            // Filter cost centers by selected FC
+            await filterEditCostCenters(fcId);
+
+            console.log(`[plan.html] ✅ Filtering complete. New category value:`,
+                editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
+        });
     }
 
     // Initialize CalendarWidget for edit modal date input
@@ -2243,47 +2605,210 @@ async function showEditModal(factId) {
         }
     }
 
-    // Setup category type buttons handlers
-    setupEditCategoryTypeButtons();
+    const modal = document.getElementById('edit-modal');
+    modal.showModal();
 
-    document.getElementById('edit-modal').showModal();
+    // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+    // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+    if (!modal.dataset.backdropHandlerAdded) {
+        modal.addEventListener('click', (e) => {
+            // Close only if click is directly on dialog (backdrop area)
+            // NOT if click is on modal-box or its children
+            if (e.target === modal) {
+                modal.close();
+            }
+        });
+        modal.dataset.backdropHandlerAdded = 'true';
+    }
 }
 
 // Close edit modal
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+    // Reset recurring plan state
+    currentRecurringPlan = null;
+    // Destroy template end date calendar if exists
+    if (editTemplateEndDateCalendar) {
+        editTemplateEndDateCalendar.destroy();
+        editTemplateEndDateCalendar = null;
+    }
 }
 
-// Setup category type buttons handlers for edit modal
-function setupEditCategoryTypeButtons() {
-    const typeButtons = document.querySelectorAll('.edit-category-type-btn');
+/**
+ * Populate recurring plan info in edit modal
+ * @param {Object} plan - Recurring plan data from API
+ */
+function populateRecurringPlanInfo(plan) {
+    console.log('[POPULATE] populating recurring plan info:', plan);
 
-    typeButtons.forEach(button => {
-        button.addEventListener('click', async function() {
-            // Remove btn-active from all buttons
-            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+    if (!plan) {
+        console.warn('[POPULATE] Plan is null/undefined, skipping');
+        return;
+    }
 
-            // Add btn-active to current button
-            this.classList.add('btn-active');
+    // Update status badge
+    const statusBadge = document.getElementById('edit-recurring-status');
+    if (statusBadge) {
+        if (plan.is_active) {
+            statusBadge.textContent = 'Активен';
+            statusBadge.className = 'badge badge-sm badge-success';
+        } else {
+            statusBadge.textContent = 'Приостановлен';
+            statusBadge.className = 'badge badge-sm badge-warning';
+        }
+    }
 
-            // Check corresponding radio button
-            const radio = this.querySelector('input[type="radio"]');
-            if (radio) {
-                radio.checked = true;
-            }
+    // Update frequency display
+    const frequencyEl = document.getElementById('edit-recurring-frequency');
+    if (frequencyEl) {
+        frequencyEl.textContent = plan.frequency_display || getFrequencyDisplayText(plan.frequency_type, plan.frequency_value);
+    }
 
-            // Reload categories with new type
-            const newType = this.dataset.type;
-            debugLog('Edit modal category type changed to:', newType);
+    // Update next generation date
+    const nextDateEl = document.getElementById('edit-recurring-next-date');
+    if (nextDateEl) {
+        if (plan.next_generation_date) {
+            nextDateEl.textContent = BudgetShared.DateFormatter.formatForDisplay(plan.next_generation_date);
+        } else {
+            nextDateEl.textContent = plan.is_active ? '—' : 'Приостановлено';
+        }
+    }
 
-            if (editCategoryTreeSelect && allCategories.length > 0) {
-                // Use updateType() method instead of destroy + recreate
-                // This prevents Choices.js "multiple instances" error
-                editCategoryTreeSelect.updateType(newType);
-            }
-        });
-    });
+    // Update period (start_date - end_date)
+    const periodEl = document.getElementById('edit-recurring-period');
+    if (periodEl) {
+        const startStr = BudgetShared.DateFormatter.formatForDisplay(plan.start_date);
+        if (plan.end_date) {
+            const endStr = BudgetShared.DateFormatter.formatForDisplay(plan.end_date);
+            periodEl.textContent = `${startStr} — ${endStr}`;
+        } else if (plan.occurrences_count) {
+            periodEl.textContent = `с ${startStr} (${plan.occurrences_count} повторений)`;
+        } else {
+            periodEl.textContent = `с ${startStr} (бессрочно)`;
+        }
+    }
+
+    // Update generated count
+    const generatedEl = document.getElementById('edit-recurring-generated');
+    if (generatedEl) {
+        if (plan.occurrences_count) {
+            generatedEl.textContent = `${plan.occurrences_generated} / ${plan.occurrences_count}`;
+        } else {
+            generatedEl.textContent = String(plan.occurrences_generated);
+        }
+    }
+
+    // Pre-fill template fields
+    const endDateInput = document.getElementById('edit-template-end-date');
+    if (endDateInput && plan.end_date) {
+        endDateInput.value = BudgetShared.DateFormatter.formatForDisplay(plan.end_date);
+    } else if (endDateInput) {
+        endDateInput.value = '';
+    }
+
+    const isActiveCheckbox = document.getElementById('edit-template-is-active');
+    if (isActiveCheckbox) {
+        isActiveCheckbox.checked = plan.is_active;
+    }
+}
+
+/**
+ * Get human-readable frequency text
+ * @param {string} type - Frequency type (monthly, quarterly, yearly)
+ * @param {number|null} value - Frequency value (1-28 for monthly/quarterly, 101-1231 for yearly)
+ * @returns {string} Human-readable text
+ */
+function getFrequencyDisplayText(type, value) {
+    console.log(`[PLAN] getFrequencyDisplayText: type=${type}, value=${value}`);
+
+    switch (type) {
+        case 'monthly':
+            return value ? `Каждое ${value}-е число месяца` : 'Ежемесячно';
+        case 'quarterly':
+            return value ? `Каждое ${value}-е число квартала` : 'Ежеквартально';
+        case 'yearly':
+            if (!value) return 'Ежегодно';
+            const month = Math.floor(value / 100);
+            const day = value % 100;
+            const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+            const monthName = monthNames[month - 1] || '';
+            console.log(`[PLAN] Yearly decoded: ${value} → ${day} ${monthName}`);
+            return `Ежегодно, ${day} ${monthName}`;
+        default:
+            console.warn(`[PLAN] Unknown frequency type: ${type}`);
+            return type;
+    }
+}
+
+/**
+ * Handle edit scope change (single vs template)
+ * @param {string} scope - 'single' or 'template'
+ */
+function handleEditScopeChange(scope) {
+    const templateFieldsDiv = document.getElementById('edit-template-fields');
+    const dateContainer = document.getElementById('edit-date-container');
+    const categoryTypeContainer = document.getElementById('edit-category-type-container');
+    const articleContainer = document.getElementById('edit-article-container');
+    const financialCenterContainer = document.getElementById('edit-financial-center-container');
+    const dateInput = document.getElementById('edit-date');
+
+    if (scope === 'template') {
+        // Показать поля редактирования шаблона
+        if (templateFieldsDiv) templateFieldsDiv.classList.remove('hidden');
+        // Скрыть поля которые нельзя менять для шаблона
+        if (dateContainer) dateContainer.classList.add('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.add('hidden');
+        if (articleContainer) articleContainer.classList.add('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.add('hidden');
+        // Убрать required с даты (иначе форма не отправится)
+        if (dateInput) dateInput.removeAttribute('required');
+
+        // Initialize CalendarWidget for template end date
+        const endDateInput = document.getElementById('edit-template-end-date');
+        if (endDateInput && !editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                inputElement: endDateInput,
+                onSelect: (date) => {
+                    debugLog('Выбрана дата окончания шаблона:', date);
+                }
+            });
+        }
+    } else {
+        // Показать все стандартные поля
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+        if (dateContainer) dateContainer.classList.remove('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.remove('hidden');
+        if (articleContainer) articleContainer.classList.remove('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.remove('hidden');
+        // Вернуть required на дату
+        if (dateInput) dateInput.setAttribute('required', '');
+
+        // Destroy template end date calendar
+        if (editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar.destroy();
+            editTemplateEndDateCalendar = null;
+        }
+    }
+}
+
+// Helper to update category type badge in edit modal
+function updateEditCategoryTypeBadge(type) {
+    const badge = document.getElementById('edit-category-type-label');
+    if (!badge) return;
+
+    const typeConfig = {
+        expense: { text: 'Расход', class: 'badge-error' },
+        income: { text: 'Доход', class: 'badge-success' },
+        debit: { text: 'Списание', class: 'badge-info' },
+        credit: { text: 'Пополнение', class: 'badge-warning' }
+    };
+
+    const config = typeConfig[type] || typeConfig.expense;
+    badge.textContent = config.text;
+    badge.className = `badge badge-sm ${config.class}`;
 }
 
 // Delete plan from edit modal (for mobile users without batch delete)
@@ -2291,49 +2816,13 @@ async function deleteFromEditModal() {
     const factId = document.getElementById('edit-id').value;
     if (!factId) return;
 
-    // Show confirm dialog while edit modal is still open
-    const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
-        '🗑️ Удаление транзакции'
-    );
-
-    if (!confirmed) {
-        return; // User cancelled - stay in edit modal
-    }
-
-    // Close edit modal and perform deletion
-    closeEditModal();
-
     const parsedFactId = parseInt(factId);
 
-    // Prevent multiple simultaneous deletes
-    if (deletingFactIds.has(parsedFactId)) {
-        console.warn('Delete already in progress for fact:', parsedFactId);
-        return;
-    }
+    // Close edit modal before showing dialog
+    closeEditModal();
 
-    deletingFactIds.add(parsedFactId);
-
-    try {
-        const response = await fetch(`/api/v1/facts/${parsedFactId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
-        }
-
-        deletingFactIds.delete(parsedFactId);
-        await loadFacts();
-        showToast('Транзакция успешно удалена', 'success');
-    } catch (error) {
-        console.error('Error deleting fact:', error);
-        deletingFactIds.delete(parsedFactId);
-        await loadFacts();
-        showToast('Ошибка: ' + (error?.message || String(error)), 'error');
-    }
+    // Use main deleteFact() which handles both regular and recurring facts
+    await deleteFact(parsedFactId);
 }
 
 // Update fact
@@ -2344,16 +2833,26 @@ async function updateFact(event) {
     const factId = formData.get('id');
     const displayDate = formData.get('fact_date');
 
+    // Get recurring plan settings FIRST (needed for validation)
+    const recurringPlanId = formData.get('recurring_plan_id');
+    const editScope = formData.get('edit_scope');
+
     // VALIDATION: Check date format BEFORE calling formatForAPI
-    if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
-        showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
-        return;
+    // Skip validation for template scope (date field is hidden)
+    if (editScope !== 'template') {
+        if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
+            showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+            return;
+        }
     }
+
+    // ========== ALL VALIDATION PASSED - SHOW LOADING ==========
+    setSubmitLoading(event.target, true);
 
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: BudgetShared.DateFormatter.formatForAPI(displayDate),
+        fact_date: editScope !== 'template' ? BudgetShared.DateFormatter.formatForAPI(displayDate) : null,
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };
@@ -2375,11 +2874,64 @@ async function updateFact(event) {
     const reminderDatetime = formData.get('reminder_datetime');
 
     try {
-        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
+        // Логирование вызова updateFact
+        console.log('[EDIT MODAL] updateFact called:', {
+            factId: factId,
+            recordType: factsData.find(f => f.id == factId)?.record_type,
+            recurringPlanId: recurringPlanId,
+            editScope: editScope
         });
+
+        let response;
+        let successMessage = '✅ Факт успешно обновлен!';
+
+        // Check if editing recurring plan template
+        if (recurringPlanId && editScope === 'template') {
+            console.log('[EDIT MODAL] Updating RECURRING PLAN TEMPLATE');
+            // Update recurring plan template
+            // Fields that can be updated: amount, description, cost_center_id, end_date, is_active
+            const templateData = {
+                amount: data.amount,
+                description: data.description
+            };
+
+            // cost_center_id is optional (send null to clear)
+            if (costCenterId) {
+                templateData.cost_center_id = parseInt(costCenterId);
+            } else {
+                templateData.cost_center_id = null;
+            }
+
+            // Get template-specific fields
+            const templateEndDate = formData.get('template_end_date');
+            const templateIsActive = formData.get('template_is_active') === 'on';
+
+            // Add end_date if provided (convert from display format to API format)
+            if (templateEndDate && BudgetShared.DateFormatter.isValidDisplayFormat(templateEndDate)) {
+                templateData.end_date = BudgetShared.DateFormatter.formatForAPI(templateEndDate);
+            }
+
+            // Add is_active status
+            templateData.is_active = templateIsActive;
+
+            // Update recurring plan with regenerate_future=true to update existing future facts
+            response = await fetch(`/api/v1/recurring-plans/${recurringPlanId}?regenerate_future=true`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify(templateData)
+            });
+            successMessage = '✅ Шаблон обновлен, будущие записи пересозданы!';
+        } else {
+            console.log('[EDIT MODAL] Updating SINGLE FACT');
+            // Update single fact
+            response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        }
 
         if (!response.ok) {
             const error = await response.json();
@@ -2415,39 +2967,81 @@ async function updateFact(event) {
             throw new Error(errorMsg);
         }
 
-        // Handle reminder update (use pre-loaded map instead of fetching)
-        const existingReminder = remindersMap.get(parseInt(factId));
+        // Handle reminder update (only for single fact scope, not template)
+        if (editScope !== 'template') {
+            const existingReminder = remindersMap.get(parseInt(factId));
 
-        if (enableReminder && reminderDatetime) {
-            // Create or update reminder
-            if (existingReminder) {
-                // Update existing reminder
-                const updated = await updateReminder(factId, reminderDatetime);
-                if (!updated) {
-                    showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+            if (enableReminder && reminderDatetime) {
+                // Create or update reminder
+                if (existingReminder) {
+                    // Update existing reminder
+                    const updated = await BudgetShared.Reminders.updateReminder(factId, reminderDatetime);
+                    if (!updated) {
+                        showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+                    }
+                } else {
+                    // Create new reminder
+                    const created = await BudgetShared.Reminders.createReminder(factId, reminderDatetime);
+                    if (!created) {
+                        showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+                    }
                 }
-            } else {
-                // Create new reminder
-                const created = await createReminder(factId, reminderDatetime);
-                if (!created) {
-                    showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+            } else if (!enableReminder && existingReminder) {
+                // Delete reminder if checkbox is unchecked
+                const deleted = await BudgetShared.Reminders.deleteReminder(factId);
+                if (!deleted) {
+                    showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
                 }
-            }
-        } else if (!enableReminder && existingReminder) {
-            // Delete reminder if checkbox is unchecked
-            const deleted = await deleteReminder(factId);
-            if (!deleted) {
-                showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
             }
         }
 
         closeEditModal();
         await loadFacts();
-        showNotification('✅ Факт успешно обновлен!', 'success');
+        showNotification(successMessage, 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    } finally {
+        // ========== ALWAYS RESTORE BUTTON ==========
+        setSubmitLoading(event.target, false);
+    }
+}
+
+// Recurring delete dialog
+let recurringDeleteResolveCallback = null;
+
+/**
+ * Show recurring delete dialog to ask user whether to delete single or all recurring facts
+ * @returns {Promise<string|null>} - 'single', 'all', or null (cancelled)
+ */
+function showRecurringDeleteDialog() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('recurring-delete-modal');
+        if (!modal) {
+            console.error('Recurring delete modal not found');
+            resolve(null);
+            return;
+        }
+
+        recurringDeleteResolveCallback = resolve;
+        modal.showModal();
+    });
+}
+
+/**
+ * Resolve recurring delete dialog with user's choice
+ * @param {string|null} choice - 'single', 'all', or null (cancelled)
+ */
+function recurringDeleteResolve(choice) {
+    const modal = document.getElementById('recurring-delete-modal');
+    if (modal) {
+        modal.close();
+    }
+
+    if (recurringDeleteResolveCallback) {
+        recurringDeleteResolveCallback(choice);
+        recurringDeleteResolveCallback = null;
     }
 }
 
@@ -2459,13 +3053,30 @@ async function deleteFact(factId) {
         return;
     }
 
-    const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
-        '🗑️ Удаление транзакции'
-    );
+    // Find fact in factsData to check if it's recurring
+    const fact = factsData.find(f => f.id === factId);
+    let deleteMode = 'single'; // default: delete just this fact
 
-    if (!confirmed) {
-        return;
+    if (fact && fact.recurring_plan_id) {
+        // This is a recurring fact - ask user what to delete
+        const choice = await showRecurringDeleteDialog();
+
+        if (!choice) {
+            // User cancelled
+            return;
+        }
+
+        deleteMode = choice; // 'single' or 'all'
+    } else {
+        // Regular fact - show standard confirmation
+        const confirmed = await showConfirmDialog(
+            'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
+            '🗑️ Удаление транзакции'
+        );
+
+        if (!confirmed) {
+            return;
+        }
     }
 
     // Find button by data-fact-id attribute
@@ -2481,21 +3092,51 @@ async function deleteFact(factId) {
     }
 
     try {
-        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
-            method: 'DELETE'
-        });
+        if (deleteMode === 'all' && fact && fact.recurring_plan_id) {
+            // Delete all facts with same recurring_plan_id
+            const recurringPlanId = fact.recurring_plan_id;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            // Find all fact IDs with this recurring_plan_id
+            const factIdsToDelete = factsData
+                .filter(f => f.recurring_plan_id === recurringPlanId)
+                .map(f => f.id);
+
+            console.log(`Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
+
+            // Use batch delete endpoint
+            const response = await fetch('/api/v1/facts/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(factIdsToDelete)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload and show success
+            deletingFactIds.delete(factId);
+            await loadFacts();
+            showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
+        } else {
+            // Delete single fact
+            const response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload BEFORE showing toast (non-blocking)
+            deletingFactIds.delete(factId);
+            await loadFacts();
+
+            // Non-blocking toast notification
+            showToast('Факт успешно удален', 'success');
         }
-
-        // Reload BEFORE showing toast (non-blocking)
-        deletingFactIds.delete(factId);
-        await loadFacts();
-
-        // Non-blocking toast notification
-        showToast('Факт успешно удален', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
@@ -2523,7 +3164,7 @@ async function batchDelete() {
     }
 
     try {
-        const response = await fetch('/api/v1/admin/facts/batch-delete', {
+        const response = await fetch('/api/v1/facts/batch-delete', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(Array.from(selectedFactIds))
@@ -2661,18 +3302,13 @@ function showNotification(message, type) {
     });
 }
 
-// Export filtered facts (system-wide for admins)
+// Export filtered facts (user endpoint - CSV only)
 function exportFilteredFacts(format) {
-    // Build admin export URL with current filters
-    let url = `/api/v1/admin/export/all-facts/${format}?`;
+    // Build user export URL with date filters only
+    // Note: User endpoint only supports start_date and end_date
+    let url = `/api/v1/export/facts/csv?`;
 
-    // Add all filters if set
-    if (filters.user_id) {
-        url += `user_id=${filters.user_id}&`;
-    }
-    if (filters.article_id) {
-        url += `article_id=${filters.article_id}&`;
-    }
+    // Add date filters if set
     if (filters.date_from) {
         url += `start_date=${filters.date_from}&`;
     }
@@ -2783,26 +3419,161 @@ async function createPlan(event) {
     setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
+    const modalId = 'modal_add_plan';
 
-    // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
-    const planMonth = formData.get('plan_month'); // "2025-11"
-    const factDate = `${planMonth}-01`; // "2025-11-01"
+    // Check plan mode from radio buttons
+    const planMode = formData.get('plan_mode') || 'regular';
+    const isRecurring = (planMode === 'recurring');
+    const enableReminder = (planMode === 'reminder');
 
-    const data = {
-        record_type: 'plan',
-        amount: parseFloat(formData.get('amount')),
-        article_id: parseInt(formData.get('article_id')),
-        financial_center_id: parseInt(formData.get('financial_center_id')),
-        cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-        fact_date: factDate, // Обязательное поле - первое число месяца плана
-        description: formData.get('description') || null
-    };
+    // Get reminder datetime (only relevant if in reminder mode)
+    const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
-    // Get reminder settings
-    const enableReminder = formData.get('enable_reminder') === 'on';
-    const reminderDatetime = formData.get('reminder_datetime');
+    console.log('[createPlan] Form submitted:', {
+        planMode,
+        isRecurring,
+        enableReminder,
+        amount: formData.get('amount'),
+        article_id: formData.get('article_id'),
+        plan_month: formData.get('plan_month')
+    });
 
     try {
+        if (isRecurring) {
+            // ===== RECURRING PLAN CREATION =====
+            console.log('[createPlan] Collecting recurring settings for modalId:', modalId);
+            const recurringSettings = collectRecurringSettings(modalId);
+            console.log('[createPlan] Collected recurringSettings:', recurringSettings);
+
+            if (!recurringSettings) {
+                console.error('[createPlan] collectRecurringSettings() returned null!');
+                showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
+                setSubmitLoading(event.target, false);
+                return;
+            }
+
+            // Get start date from plan_month
+            const planMonth = formData.get('plan_month'); // "2025-11"
+            const startDate = `${planMonth}-01`; // "2025-11-01"
+
+            // Get names from select elements for offline display
+            const articleId = parseInt(formData.get('article_id'));
+            const financialCenterId = parseInt(formData.get('financial_center_id'));
+            const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null;
+
+            const articleSelect = document.querySelector(`#${modalId} select[name="article_id"]`);
+            const financialCenterSelect = document.querySelector(`#${modalId} select[name="financial_center_id"]`);
+            const costCenterSelect = document.querySelector(`#${modalId} select[name="cost_center_id"]`);
+
+            const articleName = articleSelect?.selectedOptions[0]?.textContent || null;
+            const financialCenterName = financialCenterSelect?.selectedOptions[0]?.textContent || null;
+            const costCenterName = costCenterId ? (costCenterSelect?.selectedOptions[0]?.textContent || null) : null;
+
+            // Try to get article type from data attribute or fetch (for offline display color)
+            let articleType = articleSelect?.selectedOptions[0]?.dataset?.type || null;
+            if (!articleType && articleId) {
+                try {
+                    const articleResp = await fetch(`/api/v1/articles/${articleId}`, { credentials: 'include' });
+                    if (articleResp.ok) {
+                        const articleData = await articleResp.json();
+                        articleType = articleData.type;
+                    }
+                } catch (err) {
+                    // Ignore error - type is optional for offline display
+                    console.warn('[createPlan] Failed to fetch article type:', err);
+                }
+            }
+
+            // Build recurring plan data
+            const recurringData = {
+                article_id: articleId,
+                financial_center_id: financialCenterId,
+                cost_center_id: costCenterId,
+                amount: parseFloat(formData.get('amount')),
+                description: formData.get('description') || null,
+                record_type: 'plan',
+                frequency_type: recurringSettings.frequency_type,
+                frequency_value: recurringSettings.frequency_value,
+                start_date: startDate,
+                end_date: recurringSettings.end_date,
+                occurrences_count: recurringSettings.occurrences_count,
+                // Add names, type, and date for offline display in pending-records-card
+                article_name: articleName,
+                article_type: articleType,
+                financial_center_name: financialCenterName,
+                cost_center_name: costCenterName,
+                plan_date: startDate  // For pending records date display
+            };
+
+            debugLog('[createPlan] Creating recurring plan:', recurringData);
+
+            // Use OfflineManager if available for offline support
+            if (window.offlineManager) {
+                const result = await window.offlineManager.createRecurringPlan(recurringData);
+
+                if (result._offline) {
+                    showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
+                    debugLog('[createPlan] Recurring plan saved offline:', result);
+                } else {
+                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                    debugLog('[createPlan] Recurring plan created:', result);
+                }
+
+                modal_add_plan.close();
+                event.target.reset();
+                // Reset recurring settings
+                resetRecurringSettings(modalId);
+                // Reset reminder settings
+                const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings) reminderSettings.classList.add('hidden');
+                resetReminderFields(modalId);
+                await loadFacts();
+                setupCreatePlanPeriodButtons();
+            } else {
+                // Fallback to direct fetch if OfflineManager not available
+                const response = await fetch('/api/v1/recurring-plans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recurringData)
+                });
+
+                if (response.ok) {
+                    const createdPlan = await response.json();
+                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                    debugLog('[createPlan] Recurring plan created:', createdPlan);
+
+                    modal_add_plan.close();
+                    event.target.reset();
+                    // Reset recurring settings
+                    resetRecurringSettings(modalId);
+                    // Reset reminder settings
+                    const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings) reminderSettings.classList.add('hidden');
+                    resetReminderFields(modalId);
+                    await loadFacts();
+                    setupCreatePlanPeriodButtons();
+                } else {
+                    const error = await response.json();
+                    showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+                }
+            }
+            return;
+        }
+
+        // ===== REGULAR PLAN CREATION =====
+        // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
+        const planMonth = formData.get('plan_month'); // "2025-11"
+        const factDate = `${planMonth}-01`; // "2025-11-01"
+
+        const data = {
+            record_type: 'plan',
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            fact_date: factDate, // Обязательное поле - первое число месяца плана
+            description: formData.get('description') || null
+        };
         // Use OfflineManager if available, otherwise fallback to direct fetch
         if (window.offlineManager) {
             const result = await window.offlineManager.createPlan(data);
@@ -2816,8 +3587,10 @@ async function createPlan(event) {
 
                 // Create reminder if enabled (only for online plans)
                 if (enableReminder && reminderDatetime && result.id) {
-                    const reminderCreated = await createReminder(result.id, reminderDatetime);
+                    const reminderCreated = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                     if (reminderCreated) {
+                        // ✅ FIX 2: Update remindersMap to show icon in table
+                        remindersMap.set(result.id, reminderCreated);
                         showToast('Напоминание установлено', 'success');
                     } else {
                         showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
@@ -2851,8 +3624,10 @@ async function createPlan(event) {
 
                 // Create reminder if enabled
                 if (enableReminder && reminderDatetime && createdPlan.id) {
-                    const reminderCreated = await createReminder(createdPlan.id, reminderDatetime);
+                    const reminderCreated = await BudgetShared.Reminders.createReminder(createdPlan.id, reminderDatetime);
                     if (reminderCreated) {
+                        // ✅ FIX 2: Update remindersMap to show icon in table
+                        remindersMap.set(createdPlan.id, reminderCreated);
                         showToast('Напоминание установлено', 'success');
                     } else {
                         showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
@@ -2879,6 +3654,83 @@ async function createPlan(event) {
         showToast('Ошибка при создании плана: ' + error.message, 'error');
     } finally {
         setSubmitLoading(event.target, false);
+    }
+}
+
+// Create transfer (online only)
+async function createTransfer(event) {
+    const formData = new FormData(event.target);
+
+    // Validate FROM ≠ TO
+    const fromFC = parseInt(formData.get('from_financial_center_id'));
+    const toFC = parseInt(formData.get('to_financial_center_id'));
+
+    if (fromFC === toFC) {
+        showToast('Ошибка: счет отправления и получения должны различаться', 'error');
+        const submitBtn = event.target.querySelector('.save-btn');
+        setButtonLoading(submitBtn, false);
+        return;
+    }
+
+    // Get record_type from hidden field (set by openPlanTransferModal)
+    const recordType = formData.get('record_type') || 'plan'; // Default to 'plan' for plan.html
+
+    // Determine transfer date based on record_type
+    let transferDate;
+    if (recordType === 'plan') {
+        // For plan transfers: use transfer_plan_month (YYYY-MM) and convert to YYYY-MM-01
+        const planMonth = formData.get('transfer_plan_month'); // "2025-12"
+        transferDate = `${planMonth}-01`; // "2025-12-01"
+    } else {
+        // For fact transfers: use transfer_date (DD.MM.YYYY) and format to YYYY-MM-DD
+        transferDate = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+    }
+
+    const data = {
+        from_financial_center_id: fromFC,
+        to_financial_center_id: toFC,
+        from_article_id: parseInt(formData.get('from_article_id')),
+        to_article_id: parseInt(formData.get('to_article_id')),
+        amount: parseFloat(formData.get('amount')),
+        transfer_date: transferDate,
+        description: formData.get('description') || null,
+        record_type: recordType  // 'plan' (or 'fact' if facts are supported in future)
+    };
+
+    // ========== DEDUPLICATION: Generate sync_hash and content_hash ==========
+    const contentString = `${data.from_financial_center_id}|${data.to_financial_center_id}|${data.from_article_id}|${data.to_article_id}|${data.amount}|${data.transfer_date}|${data.description || ''}|${data.record_type}`;
+    const contentHash = window.offlineManager?.db?._md5(contentString) || null;
+    const createdDate = new Date().toISOString().split('T')[0];
+    const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
+
+    data.sync_hash = syncHash;
+    data.content_hash = contentHash;
+
+    console.log('[Transfer plan.html] Deduplication enabled:', {sync_hash: syncHash?.substring(0, 8) + '...'});
+
+    try {
+        const response = await fetch('/api/v1/transfers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            transfer_modal.close();
+            event.target.reset();
+            showToast('Перевод успешно сохранен!', 'success');
+            await loadPlans(); // Reload plans table
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || error.message), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating transfer:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        const submitBtn = event.target.querySelector('.save-btn');
+        setButtonLoading(submitBtn, false);
     }
 }
 
@@ -3005,13 +3857,16 @@ function resetReminderFields(modalId) {
 }
 
 /**
- * Get current time rounded to nearest 5 minutes.
+ * Get current time + 1 hour, rounded to nearest 5 minutes.
+ * Used as default reminder time.
  * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
  */
 function getCurrentTimeRounded() {
     const now = new Date();
-    const hour = now.getHours();
-    const minutes = now.getMinutes();
+    // Add 1 hour
+    const futureTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const hour = futureTime.getHours();
+    const minutes = futureTime.getMinutes();
     const roundedMinutes = Math.round(minutes / 5) * 5;
 
     // Handle overflow (55 rounds to 60)
@@ -3062,6 +3917,14 @@ function prefillReminderDateTime(modalId) {
 function openAddPlanModal() {
     const modalId = 'modal_add_plan';
 
+    // Reset button state
+    const form = document.getElementById('form_modal_add_plan');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
 
@@ -3069,6 +3932,24 @@ function openAddPlanModal() {
     const modal = document.getElementById(modalId);
     if (modal && modal.showModal) {
         modal.showModal();
+
+        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+        if (!modal.dataset.backdropHandlerAdded) {
+            modal.addEventListener('click', (e) => {
+                // Close only if click is OUTSIDE modal-box
+                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
+                const modalBox = modal.querySelector('.modal-box');
+                if (modalBox && !modalBox.contains(e.target)) {
+                    modal.close();
+                }
+            });
+            modal.dataset.backdropHandlerAdded = 'true';
+        }
+
+        // ✅ FIX: Initialize plan mode on modal open
+        // Without this, form validation fails until user manually changes plan mode
+        togglePlanMode(modalId);
     }
 }
 // Ensure function is globally accessible for onclick handlers
@@ -3218,96 +4099,7 @@ function resetEditReminderFields() {
     if (hiddenInput) hiddenInput.value = '';
 }
 
-// Create reminder for a plan
-async function createReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to create reminder:', error);
-            return false;
-        }
-
-        debugLog('[Reminder] Created reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error creating reminder:', error);
-        return false;
-    }
-}
-
-// Get reminder for a plan
-async function getReminder(factId) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`);
-
-        if (response.status === 404) {
-            return null; // No reminder exists
-        }
-
-        if (!response.ok) {
-            console.error('Failed to get reminder, status:', response.status);
-            return null;
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Error getting reminder:', error);
-        return null;
-    }
-}
-
-// Update reminder for a plan
-async function updateReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to update reminder:', error);
-            return false;
-        }
-
-        debugLog('[Reminder] Updated reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error updating reminder:', error);
-        return false;
-    }
-}
-
-// Delete reminder for a plan
-async function deleteReminder(factId) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.status === 404) {
-            return true; // Already deleted or doesn't exist
-        }
-
-        if (!response.ok) {
-            console.error('Failed to delete reminder, status:', response.status);
-            return false;
-        }
-
-        debugLog('[Reminder] Deleted reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error deleting reminder:', error);
-        return false;
-    }
-}
+// Reminder functions moved to BudgetShared.Reminders module (frontend/shared/static/js/reminders.js)
 
 // Format datetime for display in input
 function formatDatetimeForInput(isoString) {
@@ -3344,6 +4136,510 @@ function showToast(message, type = 'info') {
         toast.remove();
     }, 3000);
 }
+
+// ==================== Recurring Plans Functions ====================
+
+// Calendar widget instance for recurring end date
+let recurringEndDateCalendarWidget = null;
+
+/**
+ * Toggle plan mode based on radio button selection
+ * Modes: 'regular' | 'recurring' | 'reminder'
+ */
+function togglePlanMode(modalId) {
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    const mode = selectedMode ? selectedMode.value : 'regular';
+
+    const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
+
+    // Get recurring-specific required fields
+    const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+
+    // Hide all panels first
+    if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
+    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+
+    switch (mode) {
+        case 'recurring':
+            // Hide reminder radio button for recurring plans (not supported)
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.add('hidden');
+            }
+            if (recurringSettingsDiv) {
+                recurringSettingsDiv.classList.remove('hidden');
+                initRecurringFields(modalId);
+                updateRecurringPreview(modalId);
+            }
+            // Enable validation for recurring fields
+            if (durationTypeSelect) {
+                durationTypeSelect.setAttribute('required', 'required');
+            }
+            break;
+
+        case 'reminder':
+            // Show reminder radio button
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
+            if (onetimeReminderSection) {
+                onetimeReminderSection.classList.remove('hidden');
+
+                // ✅ FIX: Also remove 'hidden' from child div (added on modal close)
+                const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+                if (reminderSettings) {
+                    reminderSettings.classList.remove('hidden');
+                }
+
+                initReminderCalendarWidget(modalId);
+
+                // Set default time (current time + 1 hour, rounded to 5 minutes)
+                // ALWAYS set default when switching to reminder mode (override old values)
+                const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+                const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+                if (hourSelect && minuteSelect) {
+                    const defaultTime = getCurrentTimeRounded();
+                    hourSelect.value = defaultTime.hour;
+                    minuteSelect.value = defaultTime.minute;
+                    // Update hidden field after setting default values
+                    updateReminderDatetime(modalId);
+                }
+            }
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
+            }
+            break;
+
+        case 'regular':
+        default:
+            // Show reminder radio button for regular plans
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
+            // Both panels hidden - reset fields
+            resetRecurringOnlyFields(modalId);
+            resetReminderFields(modalId);
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
+            }
+            break;
+    }
+}
+window.togglePlanMode = togglePlanMode;
+
+/**
+ * Initialize modal state on open
+ * Fixes: UI подвисание при переоткрытии modal
+ */
+function initializePlanModal(modalId) {
+    // Reset to regular mode
+    const regularModeRadio = document.querySelector(`#${modalId} input[name="plan_mode"][value="regular"]`);
+    if (regularModeRadio) {
+        regularModeRadio.checked = true;
+    }
+
+    // Hide recurring and reminder blocks by calling togglePlanMode
+    togglePlanMode(modalId);
+
+    // Reset form fields
+    resetRecurringOnlyFields(modalId);
+
+    debugLog(`[Plan Modal] Initialized ${modalId} to regular mode`);
+}
+window.initializePlanModal = initializePlanModal;
+
+// Hook into modal open event using MutationObserver
+(function setupModalObserver() {
+    const modalAddPlan = document.getElementById('modal_add_plan');
+    if (modalAddPlan) {
+        // Listen for <dialog> open attribute changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                    if (modalAddPlan.hasAttribute('open')) {
+                        debugLog('[Plan Modal] modal_add_plan opened');
+                        initializePlanModal('modal_add_plan');
+                    }
+                }
+            });
+        });
+
+        observer.observe(modalAddPlan, { attributes: true });
+        debugLog('[Plan Modal] Observer attached to modal_add_plan');
+    }
+})();
+
+/**
+ * Reset only recurring-specific fields (not the mode selector)
+ */
+function resetRecurringOnlyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) frequencySelect.value = 'monthly';
+
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach((btn, i) => btn.classList.toggle('btn-active', i === 0));
+
+    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+    if (weekdayHidden) weekdayHidden.value = '0';
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) monthdaySelect.value = '1';
+
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    if (durationSelect) durationSelect.value = ''; // Reset to empty (no selection)
+
+    document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
+    document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
+
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.checked = false;
+        document.getElementById(`recurring-reminder-settings-${modalId}`)?.classList.add('hidden');
+    }
+}
+window.resetRecurringOnlyFields = resetRecurringOnlyFields;
+
+/**
+ * Initialize recurring fields (weekday buttons, calendar widget)
+ */
+function initRecurringFields(modalId) {
+    // Initialize weekday button handlers
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach(btn => {
+        btn.onclick = () => {
+            // Toggle active state
+            weekdayButtons.forEach(b => b.classList.remove('btn-active'));
+            btn.classList.add('btn-active');
+            // Update hidden field
+            const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+            if (hiddenInput) {
+                hiddenInput.value = btn.dataset.day;
+            }
+            updateRecurringPreview(modalId);
+        };
+    });
+
+    // CalendarWidget for end date is initialized in updateDurationFields() when field becomes visible
+
+    // Add change listeners to update preview
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) {
+        frequencySelect.onchange = () => updateFrequencyFields(modalId);
+    }
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) {
+        monthdaySelect.onchange = () => updateRecurringPreview(modalId);
+    }
+
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) {
+        occurrencesInput.oninput = () => updateRecurringPreview(modalId);
+    }
+
+    // Initialize recurring reminder checkbox handler
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.onchange = () => {
+            const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
+            if (recurringReminderSettings) {
+                recurringReminderSettings.classList.toggle('hidden', !recurringReminderCheckbox.checked);
+            }
+        };
+    }
+
+    // Initialize fields visibility based on default values (v6.1)
+    updateFrequencyFields(modalId);
+    updateDurationFields(modalId);
+}
+
+/**
+ * Update frequency-specific fields visibility
+ */
+function updateFrequencyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
+    const yearlyPicker = document.getElementById(`yearly-picker-${modalId}`);
+
+    console.log('[PLAN] updateFrequencyFields called, modalId:', modalId);
+
+    if (!frequencySelect) return;
+
+    const frequency = frequencySelect.value;
+    console.log('[PLAN] Selected frequency:', frequency);
+
+    // Show/hide appropriate picker based on frequency
+    if (monthdayPicker) {
+        monthdayPicker.classList.toggle('hidden', frequency !== 'monthly' && frequency !== 'quarterly');
+    }
+
+    if (yearlyPicker) {
+        yearlyPicker.classList.toggle('hidden', frequency !== 'yearly');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateFrequencyFields = updateFrequencyFields;
+
+/**
+ * Update yearly frequency_value (encode month + day to MMDD format)
+ */
+function updateYearlyFrequencyValue(modalId) {
+    const monthSelect = document.querySelector(`#${modalId} select[name="frequency_value_month"]`);
+    const daySelect = document.querySelector(`#${modalId} select[name="frequency_value_day"]`);
+    const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_yearly"]`);
+
+    const month = parseInt(monthSelect.value);
+    const day = parseInt(daySelect.value);
+
+    console.log(`[PLAN] updateYearlyFrequencyValue: month=${month}, day=${day}`);
+
+    if (!month || !day) {
+        hiddenInput.value = '';
+        updateRecurringPreview(modalId);
+        return;
+    }
+
+    // Validate day for month
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const maxDay = daysInMonth[month - 1];
+
+    if (day > maxDay) {
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        alert(`${monthNames[month - 1]} имеет только ${maxDay} дней. Выберите день 1-${maxDay}.`);
+        daySelect.value = '';
+        hiddenInput.value = '';
+        console.warn(`[PLAN] Invalid day ${day} for month ${month}`);
+        return;
+    }
+
+    // Encode MMDD
+    const frequencyValue = (month * 100) + day;
+    hiddenInput.value = frequencyValue;
+
+    console.log(`[PLAN] Encoded frequency_value: ${frequencyValue} (MMDD format)`);
+
+    updateRecurringPreview(modalId);
+}
+window.updateYearlyFrequencyValue = updateYearlyFrequencyValue;
+
+/**
+ * Update duration-specific fields visibility
+ * Also initializes/destroys CalendarWidget for end date field
+ */
+function updateDurationFields(modalId) {
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+
+    if (!durationSelect) return;
+
+    const type = durationSelect.value;
+    console.log('[updateDurationFields] Duration type selected:', type);
+
+    // Hide both fields if no selection (empty string)
+    if (!type || type === '') {
+        if (occurrencesField) occurrencesField.classList.add('hidden');
+        if (endDateField) endDateField.classList.add('hidden');
+        return;
+    }
+
+    if (occurrencesField) {
+        occurrencesField.classList.toggle('hidden', type !== 'count');
+    }
+
+    if (endDateField) {
+        endDateField.classList.toggle('hidden', type !== 'end_date');
+
+        // Initialize/destroy CalendarWidget based on visibility
+        const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+        if (type === 'end_date' && endDateInput) {
+            // Initialize CalendarWidget when field becomes visible
+            if (!recurringEndDateCalendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
+                    inputElement: endDateInput,
+                    mode: 'single',
+                    minDate: new Date(),
+                    onSelect: () => updateRecurringPreview(modalId)
+                });
+            }
+        } else {
+            // Destroy CalendarWidget when field is hidden
+            if (recurringEndDateCalendarWidget) {
+                recurringEndDateCalendarWidget.destroy();
+                recurringEndDateCalendarWidget = null;
+            }
+        }
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateDurationFields = updateDurationFields;
+
+/**
+ * Update recurring schedule preview text
+ */
+function updateRecurringPreview(modalId) {
+    const previewText = document.getElementById(`recurring-preview-text-${modalId}`);
+    if (!previewText) return;
+
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const frequency = frequencySelect ? frequencySelect.value : 'monthly';
+
+    // Build frequency text
+    let frequencyText = '';
+
+    switch (frequency) {
+        case 'monthly':
+            const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const monthDay = monthdaySelect ? monthdaySelect.value : '1';
+            frequencyText = `Ежемесячно, ${monthDay}-го числа`;
+            break;
+        case 'quarterly':
+            const qMonthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const qMonthDay = qMonthdaySelect ? qMonthdaySelect.value : '1';
+            frequencyText = `Ежеквартально, ${qMonthDay}-го числа`;
+            break;
+        case 'yearly':
+            const yearlyHiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_yearly"]`);
+            const yearlyValue = yearlyHiddenInput ? parseInt(yearlyHiddenInput.value) : null;
+            if (yearlyValue) {
+                frequencyText = getFrequencyDisplayText('yearly', yearlyValue);
+            } else {
+                frequencyText = 'Ежегодно (выберите дату)';
+            }
+            break;
+    }
+
+    // Build duration text
+    let durationText = '';
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    const type = durationSelect ? durationSelect.value : 'indefinite';
+
+    switch (type) {
+        case 'indefinite':
+            durationText = 'бессрочно';
+            break;
+        case 'count':
+            const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+            const count = occurrencesInput ? occurrencesInput.value : '';
+            durationText = count ? `${count} повторений` : 'укажите количество';
+            break;
+        case 'end_date':
+            const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+            const endDate = endDateInput ? endDateInput.value : '';
+            durationText = endDate ? `до ${endDate}` : 'укажите дату';
+            break;
+    }
+
+    previewText.textContent = `${frequencyText}, ${durationText}`;
+}
+window.updateRecurringPreview = updateRecurringPreview;
+
+/**
+ * Collect recurring settings from form
+ * @returns {Object|null} Recurring settings or null if not recurring
+ */
+function collectRecurringSettings(modalId) {
+    console.log('[collectRecurringSettings] Called with modalId:', modalId);
+
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    console.log('[collectRecurringSettings] Selected mode radio:', selectedMode);
+    console.log('[collectRecurringSettings] Mode value:', selectedMode?.value);
+
+    if (!selectedMode || selectedMode.value !== 'recurring') {
+        console.warn('[collectRecurringSettings] Not in recurring mode, returning null');
+        return null;
+    }
+
+    const form = document.getElementById(`form_${modalId}`);
+    if (!form) {
+        console.error('[collectRecurringSettings] Form not found!');
+        return null;
+    }
+
+    const frequencyType = form.querySelector('select[name="frequency_type"]').value;
+    console.log('[collectRecurringSettings] Frequency type:', frequencyType);
+
+    // Get frequency value based on type
+    let frequencyValue = null;
+    if (frequencyType === 'weekly') {
+        frequencyValue = parseInt(form.querySelector('input[name="frequency_value_weekday"]').value) || 0;
+    } else if (frequencyType === 'monthly' || frequencyType === 'quarterly') {
+        frequencyValue = parseInt(form.querySelector('select[name="frequency_value_monthday"]').value) || 1;
+    }
+    console.log('[collectRecurringSettings] Frequency value:', frequencyValue);
+
+    // Get duration settings
+    const durationSelect = form.querySelector('select[name="duration_type"]');
+    const durationType = durationSelect ? durationSelect.value : 'count'; // Default to count
+    console.log('[collectRecurringSettings] Duration type:', durationType);
+
+    let occurrencesCount = null;
+    let endDate = null;
+
+    if (durationType === 'count') {
+        const occurrencesInput = form.querySelector('input[name="occurrences_count"]');
+        occurrencesCount = occurrencesInput ? parseInt(occurrencesInput.value) || null : null;
+        console.log('[collectRecurringSettings] Occurrences count:', occurrencesCount);
+    } else if (durationType === 'end_date') {
+        const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
+        if (endDateValue) {
+            // Convert DD.MM.YYYY to YYYY-MM-DD
+            endDate = BudgetShared.DateFormatter.formatForAPI(endDateValue);
+        }
+        console.log('[collectRecurringSettings] End date:', endDate);
+    } else {
+        console.warn('[collectRecurringSettings] Unknown duration type, no limit set');
+    }
+
+    // Validate that at least one duration limit is set
+    if (!occurrencesCount && !endDate) {
+        console.error('[collectRecurringSettings] Neither occurrences_count nor end_date is set!');
+        console.error('[collectRecurringSettings] This would create an unbounded recurring plan.');
+        return null;
+    }
+
+    const result = {
+        frequency_type: frequencyType,
+        frequency_value: frequencyValue,
+        occurrences_count: occurrencesCount,
+        end_date: endDate
+    };
+    console.log('[collectRecurringSettings] Returning:', result);
+
+    return result;
+}
+window.collectRecurringSettings = collectRecurringSettings;
+
+/**
+ * Reset recurring settings form
+ */
+function resetRecurringSettings(modalId) {
+    // Reset to 'regular' mode (default)
+    const regularRadio = document.querySelector(`#${modalId} input[name="plan_mode"][value="regular"]`);
+    if (regularRadio) regularRadio.checked = true;
+
+    // Hide both panels
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    if (settingsDiv) settingsDiv.classList.add('hidden');
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+
+    // Reset recurring fields
+    resetRecurringOnlyFields(modalId);
+
+    // Reset reminder fields
+    resetReminderFields(modalId);
+
+    // Update visibility
+    updateFrequencyFields(modalId);
+}
+window.resetRecurringSettings = resetRecurringSettings;
 
 // ==================== Plan Analytics ====================
 
@@ -3438,7 +4734,7 @@ async function loadAnalyticsCFOFilter() {
 // Load article filter options for analytics
 async function loadAnalyticsArticleFilter(articleType = null) {
     try {
-        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
+        let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
         if (articleType) {
             url += `&type=${articleType}`;
         }
@@ -3907,16 +5203,14 @@ function updateSaveButtonsVisibility() {
  */
 function savePlan(button) {
     if (button.disabled) return; // Already processing - prevent double-click
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -3928,16 +5222,14 @@ function savePlan(button) {
  */
 function saveTransfer(button) {
     if (button.disabled) return; // Already processing - prevent double-click
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -3952,5 +5244,72 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial update with delay to ensure offlineManager is initialized
     setTimeout(updateSaveButtonsVisibility, 1000);
 });
+
+// ============================================================
+// WebSocket Event Handlers для real-time обновлений
+// ============================================================
+
+// План создан
+window.budgetWSClient.on('plan_created', async (data) => {
+    console.log('[plan.html] plan_created event:', data);
+
+    // Если текущие фильтры соответствуют новому плану - обновить таблицу
+    if (shouldReloadOnPlanCreated(data)) {
+        await loadFacts(); // Перезагрузить таблицу
+        showToast('success', '✅ Добавлена новая плановая запись');
+    }
+});
+
+// План обновлен
+window.budgetWSClient.on('plan_updated', async (data) => {
+    console.log('[plan.html] plan_updated event:', data);
+
+    // Всегда перезагружать таблицу (план мог изменить видимость из-за фильтров)
+    await loadFacts();
+    showToast('info', '🔄 Плановая запись обновлена');
+});
+
+// План удален
+window.budgetWSClient.on('plan_deleted', async (data) => {
+    console.log('[plan.html] plan_deleted event:', data);
+
+    // Перезагрузить таблицу
+    await loadFacts();
+    showToast('warning', '🗑️ Плановая запись удалена');
+});
+
+// Регламентный план создан (генерирует несколько фактов)
+window.budgetWSClient.on('recurring_plan_created', async (data) => {
+    console.log('[plan.html] recurring_plan_created event:', data);
+
+    // Перезагрузить таблицу (появилось несколько новых записей)
+    await loadFacts();
+    showToast('success', `✅ Регламентный платеж создан (${data.facts_generated || '?'} записей)`);
+});
+
+// Helper: Проверка нужна ли перезагрузка при создании плана
+function shouldReloadOnPlanCreated(planData) {
+    // Всегда перезагружать если нет активных фильтров
+    if (!filters.article_id && !filters.article_type && !filters.date_from && !filters.has_recurring_plan) {
+        return true;
+    }
+
+    // Если фильтр по категории - проверить совпадение
+    if (filters.article_id && planData.article_id !== filters.article_id) {
+        return false;
+    }
+
+    // Если фильтр по типу категории - проверить совпадение
+    if (filters.article_type && planData.article_type !== filters.article_type) {
+        return false;
+    }
+
+    // Если фильтр по регламентным - проверить наличие recurring_plan_id
+    if (filters.has_recurring_plan && !planData.recurring_plan_id) {
+        return false;
+    }
+
+    return true;
+}
 </script>
 {% endblock %}

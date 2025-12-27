@@ -6,15 +6,6 @@
         <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2">
             <input type="hidden" id="edit-id" name="id">
 
-            <!-- Сумма -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount"
-                       step="0.01" required class="input input-bordered" />
-            </div>
-
             <!-- Дата -->
             <div class="form-control">
                 <label class="label py-1">
@@ -23,41 +14,6 @@
                 <input type="text" id="edit-date" name="fact_date"
                        required class="input input-bordered w-full"
                        placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
-            </div>
-
-            <!-- Тип категории (expense/income/debit/credit) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text font-semibold">Тип категории *</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-sm btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
-                        <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
-                        Расход
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-success edit-category-type-btn" data-type="income">
-                        <input type="radio" name="edit_category_type" value="income" class="hidden" />
-                        Доход
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-info edit-category-type-btn" data-type="debit">
-                        <input type="radio" name="edit_category_type" value="debit" class="hidden" />
-                        Списание
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-warning edit-category-type-btn" data-type="credit">
-                        <input type="radio" name="edit_category_type" value="credit" class="hidden" />
-                        Пополнение
-                    </label>
-                </div>
-            </div>
-
-            <!-- Категория -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Категория *</span>
-                </label>
-                <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                </select>
             </div>
 
             <!-- Счет -->
@@ -71,6 +27,24 @@
                 </select>
             </div>
 
+            <!-- Тип категории (read-only badge) -->
+            <div id="edit-category-type-container" class="bg-base-200 rounded-lg p-3 mt-2">
+                <div class="flex items-center justify-center gap-2">
+                    <span class="label-text font-semibold text-sm">Тип категории:</span>
+                    <span id="edit-category-type-label" class="badge badge-sm badge-error">Расход</span>
+                </div>
+            </div>
+
+            <!-- Категория -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Категория *</span>
+                </label>
+                <select id="edit-article" name="article_id" required class="select select-bordered">
+                    <option value="" disabled hidden>-- Выберите категорию --</option>
+                </select>
+            </div>
+
             <!-- Место затрат -->
             <div class="form-control">
                 <label class="label py-1">
@@ -79,6 +53,15 @@
                 <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
                 </select>
+            </div>
+
+            <!-- Сумма -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <input type="number" id="edit-amount" name="amount"
+                       step="0.01" required class="input input-bordered" />
             </div>
 
             <!-- Описание -->
@@ -93,20 +76,20 @@
             <!-- Кнопки -->
             <div class="modal-action mt-3 flex flex-row gap-2">
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-sm btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </button>
                 <!-- Разделитель (пустое пространство) -->
                 <div class="flex-1 md:hidden"></div>
-                <button type="button" class="btn btn-sm btn-ghost flex-none" onclick="closeEditModal()">
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Отмена
                 </button>
-                <button type="submit" class="btn btn-sm save-btn flex-1 min-w-fit whitespace-nowrap">
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary save-btn flex-1 sm:flex-initial whitespace-nowrap">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
@@ -115,8 +98,6 @@
             </div>
         </form>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
+    <div class="modal-backdrop"></div>
 </dialog>
 {% endmacro %}

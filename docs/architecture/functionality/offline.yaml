@@ -25,6 +25,17 @@ module:
         - queueOperation
         - syncPendingOperations
         - resolveConflicts
+        - createFact
+        - createRecurringPlan
+        - createTransfer
+      internal_helpers:
+        - name: _offlineLog
+          description: "Debug logging for offline operations (console.log wrapper)"
+        - name: _offlineWarn
+          description: "Warning logging for offline operations (console.warn wrapper)"
+      note: |
+        ВАЖНО: Для логирования используйте _offlineLog() и _offlineWarn(),
+        НЕ _log() - такой функции не существует.
 
     - name: idb
       path: "frontend/web/static/js/offline/idb.js"
@@ -63,6 +74,81 @@ module:
         - getLocalItems
 
   # ---------------------------------------------------------------------------
+  # TIMEOUT CONFIGURATION
+  # ---------------------------------------------------------------------------
+  timeout_configuration:
+    description: "Адаптивный timeout для HTTP запросов при создании транзакций"
+    location: "offlineManager.js constructor + createFact()"
+    behavior:
+      first_request_after_load:
+        timeout_ms: 8000
+        description: "8 секунд для 'холодного' backend после рестарта"
+      normal_requests:
+        timeout_ms: 3000
+        description: "3 секунды для 'прогретого' backend"
+      after_successful_request:
+        timeout_ms: 2000
+        description: "2 секунды после первого успешного запроса"
+
+    reason: |
+      После перезапуска backend первые запросы могут занимать больше времени
+      из-за инициализации connection pools (PostgreSQL, Redis).
+      Увеличенный timeout для первого запроса предотвращает ложные offline fallback.
+
+    implementation:
+      variables:
+        - "_isFirstRequest: boolean (default: true)"
+        - "_firstRequestTimeout: 8000ms"
+        - "_normalTimeout: 3000ms"
+        - "_optimizedTimeout: 2000ms"
+      logic: |
+        1. First request: timeout = _firstRequestTimeout (8s)
+        2. On success: _isFirstRequest = false, _normalTimeout = _optimizedTimeout
+        3. Subsequent: timeout = _normalTimeout (2s)
+
+  # ---------------------------------------------------------------------------
+  # BACKEND WARMUP
+  # ---------------------------------------------------------------------------
+  backend_warmup:
+    description: "Прогрев соединений при старте backend"
+    location: "backend/app/main.py lifespan function"
+    behavior:
+      - "Инициализация Redis connection pool"
+      - "Тестовый запрос к Redis (cache warmup)"
+      - "Гарантия готовности соединений ДО первого user request"
+
+    implementation:
+      trigger: "Application startup (lifespan)"
+      method: "cache_service.get(CacheKey.quick_stats())"
+      fallback: "Warning log if warmup fails (non-critical)"
+
+    reason: |
+      При первом запросе к Redis после инициализации происходит
+      реальное TCP соединение. Warmup гарантирует что это соединение
+      установлено ДО обработки пользовательских запросов.
+
+  # ---------------------------------------------------------------------------
+  # NON-BLOCKING CACHE INVALIDATION
+  # ---------------------------------------------------------------------------
+  non_blocking_invalidation:
+    description: "Fire-and-forget инвалидация кеша"
+    location: "backend/app/api/v1/endpoints/facts.py"
+    endpoints:
+      - "POST /api/v1/facts (create_fact)"
+      - "PUT /api/v1/facts/{id} (update_fact)"
+      - "DELETE /api/v1/facts/{id} (delete_fact)"
+      - "POST /api/v1/facts/batch-delete (batch_delete_facts)"
+
+    implementation:
+      before: "await cache_service.invalidate_dashboard()"
+      after: "asyncio.create_task(cache_service.invalidate_dashboard())"
+
+    reason: |
+      HTTP response не должен ждать завершения Redis операций.
+      Cache invalidation выполняется в фоне (fire-and-forget).
+      TTL=30s гарантирует автоматическую инвалидацию при сбое.
+
+  # ---------------------------------------------------------------------------
   # INDEXEDDB STORES
   # ---------------------------------------------------------------------------
   indexeddb:
@@ -97,6 +183,8 @@ module:
       - CREATE_FACT
       - UPDATE_FACT
       - DELETE_FACT
+      - CREATE_RECURRING_PLAN
+      - CREATE_TRANSFER
       - CREATE_SHOPPING_ITEM
       - UPDATE_SHOPPING_ITEM
       - DELETE_SHOPPING_ITEM
@@ -214,6 +302,55 @@ module:
   flows:
     offline_sync:
       $ref: "../flows/offline-sync.yaml"
+
+  # ---------------------------------------------------------------------------
+  # WRITE-BEHIND INTEGRATION
+  # ---------------------------------------------------------------------------
+  write_behind_integration:
+    description: "Async PostgreSQL writes via Redis queue"
+    enabled_by: "WRITE_BEHIND_ENABLED=true"
+    benefits:
+      - "Lower API latency (~10ms vs ~50ms)"
+      - "Pre-generated ID returned immediately"
+      - "Complete history tracking (BudgetFactHistory)"
+      - "Graceful fallback to sync write"
+
+    flow:
+      - step: 1
+        action: "Pre-generate fact ID from PostgreSQL sequence"
+        function: "get_next_fact_id(session)"
+
+      - step: 2
+        action: "Queue write operation to Redis"
+        function: "write_behind_service.queue_fact_create()"
+        params:
+          - "pre_generated_id"
+          - "is_offline_sync"
+          - "sync_hash"
+          - "content_hash"
+          - "changed_by_user_id"
+
+      - step: 3
+        action: "Return 201 Created with pre-generated ID"
+        note: "Response includes _write_behind=true indicator"
+
+      - step: 4
+        action: "Background worker processes queue"
+        note: "Creates fact AND history record in single transaction"
+
+    offline_sync_support:
+      description: "Write-Behind preserves offline sync features"
+      deduplication: "sync_hash checked BEFORE queuing (in endpoint)"
+      fields_preserved:
+        - "is_offline_sync"
+        - "sync_hash"
+        - "content_hash"
+      history_tracking: "CREATE history includes is_offline_sync flag"
+
+    related_files:
+      - "backend/app/services/write_behind_service.py"
+      - "backend/app/services/id_generator.py"
+      - "backend/app/api/v1/endpoints/facts.py"
 
   # ---------------------------------------------------------------------------
   # DEPENDENCIES

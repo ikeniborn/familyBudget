@@ -157,6 +157,112 @@ def get_system_info() -> dict[str, Any]:
         }
 
 
+async def check_redis_health_component() -> ComponentHealth:
+    """
+    Check Redis health with latency measurement.
+
+    Returns:
+        ComponentHealth: Redis health status with memory and hit ratio
+    """
+    try:
+        from backend.app.services.redis_service import (
+            check_redis_health,
+            is_redis_available,
+        )
+
+        if not is_redis_available():
+            return ComponentHealth(
+                status="down",
+                message="Redis not configured"
+            )
+
+        result = await check_redis_health()
+
+        if not result.is_healthy:
+            return ComponentHealth(
+                status="down",
+                message=f"Redis connection failed: {result.error}"
+            )
+
+        # Build message with stats
+        message_parts = []
+        if result.used_memory:
+            message_parts.append(f"Memory: {result.used_memory}")
+        if result.total_keys is not None:
+            message_parts.append(f"Keys: {result.total_keys}")
+        if result.hit_ratio is not None:
+            message_parts.append(f"Hit ratio: {result.hit_ratio}%")
+
+        message = ", ".join(message_parts) if message_parts else "Redis is healthy"
+
+        return ComponentHealth(
+            status="up",
+            message=message,
+            latency_ms=result.latency_ms
+        )
+    except ImportError:
+        return ComponentHealth(
+            status="down",
+            message="Redis service not available"
+        )
+    except Exception as e:
+        return ComponentHealth(
+            status="down",
+            message=f"Redis check failed: {str(e)}"
+        )
+
+
+async def check_write_behind_health() -> ComponentHealth:
+    """
+    Check Write-Behind queue health.
+
+    Returns:
+        ComponentHealth: Write-behind status with queue stats
+    """
+    try:
+        from backend.app.services.write_behind_service import write_behind_service
+
+        stats = await write_behind_service.get_queue_stats()
+
+        if not stats.get("enabled"):
+            return ComponentHealth(
+                status="up",  # "up" because disabled is valid state
+                message="Write-behind disabled"
+            )
+
+        if not stats.get("running"):
+            return ComponentHealth(
+                status="down",
+                message="Write-behind worker not running"
+            )
+
+        # Build message with stats
+        queue_len = stats.get("queue_length", 0)
+        dlq_len = stats.get("dlq_length", 0)
+        processed = stats.get("processed", 0)
+        failed = stats.get("failed", 0)
+
+        # Status is degraded if DLQ has items
+        status = "up" if dlq_len == 0 else "degraded"
+
+        message = f"Queue: {queue_len}, Processed: {processed}, Failed: {failed}, DLQ: {dlq_len}"
+
+        return ComponentHealth(
+            status=status,
+            message=message
+        )
+    except ImportError:
+        return ComponentHealth(
+            status="up",
+            message="Write-behind service not available"
+        )
+    except Exception as e:
+        return ComponentHealth(
+            status="down",
+            message=f"Write-behind check failed: {str(e)}"
+        )
+
+
 def check_backup_status() -> ComponentHealth:
     """
     Check backup status by scanning backup directory.
@@ -286,11 +392,27 @@ async def health_check(response: Response) -> HealthStatus:
 
     Returns:
         HealthStatus: Basic health information
+
+    Health status logic:
+        - unhealthy: Database is down (critical)
+        - degraded: Database up, but Redis down when WRITE_BEHIND_ENABLED=true
+        - healthy: All configured components are up
     """
     settings = get_settings()
     db_connected = await check_db_connection()
 
-    health_status = "healthy" if db_connected else "unhealthy"
+    if not db_connected:
+        health_status = "unhealthy"
+    else:
+        # Check Redis if Write-Behind is enabled (Redis becomes important)
+        if settings.WRITE_BEHIND_ENABLED:
+            redis_health = await check_redis_health_component()
+            if redis_health.status != "up":
+                health_status = "degraded"
+            else:
+                health_status = "healthy"
+        else:
+            health_status = "healthy"
 
     # Set HTTP status code
     if health_status == "unhealthy":
@@ -337,15 +459,26 @@ async def readiness_check(
     Returns:
         ReadinessResponse: Readiness status
     """
-    # Check database
+    settings = get_settings()
+
+    # Check database (always required)
     db_health = await check_database_health(session)
     db_ready = db_health.status == "up"
 
-    # Add more checks here as needed (Redis, external APIs, etc.)
+    # Check Redis
+    redis_health = await check_redis_health_component()
+    redis_ready = redis_health.status == "up"
 
-    checks = {"database": db_ready}
+    checks = {
+        "database": db_ready,
+        "redis": redis_ready,
+    }
 
-    ready = all(checks.values())
+    # Redis is required when WRITE_BEHIND_ENABLED=true
+    if settings.WRITE_BEHIND_ENABLED:
+        ready = db_ready and redis_ready
+    else:
+        ready = db_ready  # Redis is optional when Write-Behind disabled
 
     # Set HTTP status code
     if not ready:
@@ -400,9 +533,13 @@ async def detailed_health_check(
         db_health.message = f"Database operational. Users: {db_stats['total_users']}, Facts: {db_stats['total_facts']}"
 
     backup_health = check_backup_status()
+    redis_health = await check_redis_health_component()
+    write_behind_health = await check_write_behind_health()
 
     components = {
         "database": db_health,
+        "redis": redis_health,
+        "deferred_operations": write_behind_health,
         "backup": backup_health
     }
 

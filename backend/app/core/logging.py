@@ -75,28 +75,38 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
             log_record["request_ip"] = record.request_ip
 
 
-def setup_logging(level: str = "INFO") -> None:
+def setup_logging(level: str = "INFO", log_format: str = "json") -> None:
     """
-    Setup structured JSON logging for the application.
+    Setup logging for the application.
 
-    Configures root logger with JSON formatter and console handler.
+    Supports both JSON and text formats. JSON is recommended for production
+    (easy parsing by log aggregators), text for local development (human readable).
 
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_format: Log format ("json" or "text")
 
     Example:
-        >>> setup_logging("DEBUG")
+        >>> setup_logging("DEBUG", "json")
         >>> logger = logging.getLogger(__name__)
         >>> logger.info("Application started")
     """
     # Create console handler
     handler = logging.StreamHandler(sys.stdout)
 
-    # Create JSON formatter
-    formatter = CustomJsonFormatter(
-        fmt="%(timestamp)s %(level)s %(name)s %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-    )
+    # Choose formatter based on log_format
+    if log_format.lower() == "text":
+        # Human-readable text format for development
+        formatter = logging.Formatter(
+            fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    else:
+        # JSON format for production (default)
+        formatter = CustomJsonFormatter(
+            fmt="%(timestamp)s %(level)s %(name)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
 
     handler.setFormatter(formatter)
 

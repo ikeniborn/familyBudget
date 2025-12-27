@@ -43,6 +43,7 @@ readonly NC='\033[0m' # No Color
 readonly FRONTEND_DIR="frontend"
 readonly WEB_JS_DIR="${FRONTEND_DIR}/web/static/js"
 readonly WEB_CSS_DIR="${FRONTEND_DIR}/web/static/css"
+readonly WEB_WORKERS_DIR="${WEB_JS_DIR}/workers"  # NEW: Web Workers directory
 readonly WEBAPP_JS_DIR="${FRONTEND_DIR}/webapp/static/js"
 readonly WEBAPP_CSS_DIR="${FRONTEND_DIR}/webapp/static/css"
 readonly SHARED_JS_DIR="${FRONTEND_DIR}/shared/static/js"
@@ -126,10 +127,12 @@ minify_js_file() {
     # ARCHITECTURE IMPROVEMENT (2025-11-08):
     # - Added timeout to prevent zombie processes from hanging builds
     # - 60 seconds should be sufficient for any JS file in this project
+    # OPTIMIZATION (2025-12-26):
+    # - Use .terserrc.json for advanced minification (3-8% better compression)
+    # - 3-pass compression, toplevel mangling, unsafe optimizations
     local terser_output
     terser_output=$(timeout 60s terser "$input_file" \
-        --compress \
-        --mangle \
+        --config-file .terserrc.json \
         --output "$output_file" 2>&1)
     local terser_exit=$?
 
@@ -217,12 +220,11 @@ minify_service_worker() {
 
     print_message info "→ Processing Service Worker..."
 
-    # Minify sw.js
+    # Minify sw.js with advanced configuration
     print_message info "Minifying: $sw_source"
     local terser_output
     terser_output=$(timeout 60s terser "$sw_source" \
-        --compress \
-        --mangle \
+        --config-file .terserrc.json \
         --output "$sw_minified" 2>&1)
     local terser_exit=$?
 
@@ -274,6 +276,14 @@ minify_all_js() {
     minify_js_directory "$SHARED_JS_DIR"
     print_message info "✓ Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
     echo
+
+    # Minify Web Workers (NEW: added for Phase 1)
+    if [[ -d "$WEB_WORKERS_DIR" ]]; then
+        print_message info "→ Processing workers/ directory..."
+        minify_js_directory "$WEB_WORKERS_DIR"
+        print_message info "✓ Completed workers/ directory: $MINIFIED_JS_COUNT files so far"
+        echo
+    fi
 
     # Minify Service Worker (root level)
     minify_service_worker

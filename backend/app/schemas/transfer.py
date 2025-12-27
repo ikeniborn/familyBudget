@@ -65,6 +65,18 @@ class TransferCreate(BaseModel):
         description="True if transfer created via offline synchronization"
     )
 
+    # Deduplication fields (for offline sync and duplicate request prevention)
+    sync_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date)"
+    )
+    content_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        description="MD5 hash of transfer content (from_cfo|to_cfo|amount|date|description)"
+    )
+
     @field_validator('from_financial_center_id', 'to_financial_center_id')
     @classmethod
     def validate_financial_centers_different(cls, v, info):

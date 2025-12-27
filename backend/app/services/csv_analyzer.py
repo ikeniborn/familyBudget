@@ -171,14 +171,21 @@ class CSVAnalyzer:
         analyzing the structure of the CSV file. Falls back to manual counting
         if Sniffer fails.
 
-        Priority for fallback: semicolon (;) > tab (\\t) > comma (,)
-        (semicolon is common for Russian bank exports)
+        Supported delimiters:
+        - ';' (semicolon) - common for Russian bank exports
+        - '\\t' (tab)
+        - ',' (comma)
+        - '|' (pipe)
+        - ':' (colon)
+        - ' ' (space)
+
+        Priority for fallback: semicolon > tab > comma > pipe > colon > space
 
         Args:
             text: CSV file text content
 
         Returns:
-            Detected delimiter (';', '\\t', or ',')
+            Detected delimiter (';', '\\t', ',', '|', ':', or ' ')
 
         Examples:
             >>> CSVAnalyzer.detect_delimiter("Date;Amount\\n2025-01-01;100")
@@ -189,6 +196,9 @@ class CSVAnalyzer:
 
             >>> CSVAnalyzer.detect_delimiter("Date\\tAmount\\n2025-01-01\\t100")
             '\\t'
+
+            >>> CSVAnalyzer.detect_delimiter("Date|Amount\\n2025-01-01|100")
+            '|'
         """
         # Use sample of first 8KB for Sniffer (enough for structure detection)
         sample = text[:8192]
@@ -196,7 +206,8 @@ class CSVAnalyzer:
         # Try csv.Sniffer first (most reliable)
         try:
             sniffer = csv.Sniffer()
-            dialect = sniffer.sniff(sample, delimiters=';,\t')
+            # Extended delimiter list: semicolon, comma, tab, pipe, colon, space
+            dialect = sniffer.sniff(sample, delimiters=';,\t|: ')
             detected = dialect.delimiter
             logger.debug(f"csv.Sniffer detected delimiter: {repr(detected)}")
             return detected
@@ -209,7 +220,8 @@ class CSVAnalyzer:
         if not lines:
             return ','
 
-        candidates = [';', '\t', ',']
+        # Extended candidates list (priority order: most common first)
+        candidates = [';', '\t', ',', '|', ':', ' ']
         best_delimiter = ','
         best_score = 0
 

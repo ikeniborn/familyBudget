@@ -931,6 +931,7 @@ function updatePieChart(data) {
     let chartData;
     let othersData = null;
 
+    // Synchronous processing (workers disabled - async overhead > performance gain for typical datasets)
     if (data.categories.length > 10) {
         // Топ 10 + "Прочее"
         const top10 = data.categories.slice(0, 10).map((category, index) => ({
@@ -1389,7 +1390,7 @@ function updateWaterfallChart(data) {
         return;
     }
 
-    // Build proper waterfall data structure
+    // Build proper waterfall data structure (synchronous - async overhead > performance gain)
     // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
     const waterfallData = [];
     const labels = [];

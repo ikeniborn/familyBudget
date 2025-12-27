@@ -29,13 +29,17 @@ class Settings(BaseSettings):
 
     # JWT
     JWT_SECRET: str
-    JWT_EXPIRY_DAYS: int = 7
+    JWT_EXPIRE_DAYS: int = 7
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
     TELEGRAM_BOT_USERNAME: str | None = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
+
+    # Admin Email Authentication (optional - emergency access without 2FA)
+    ADMIN_EMAIL: str | None = None  # Admin email for emergency login (bypasses 2FA)
+    ADMIN_PASSWORD: str | None = None  # Admin initial password (should be changed)
 
     # Internal API
     API_INTERNAL_KEY: str  # Shared secret for internal bot-to-backend communication
@@ -55,10 +59,27 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"  # "json" or "text"
 
     # Timezone (IANA format, e.g., "Europe/Moscow", "UTC")
     # System timezone for scheduler jobs and default for new users
     SYSTEM_TIMEZONE: str = "UTC"
+
+    # Redis Configuration
+    REDIS_URL: str | None = None  # e.g., redis://redis:6379/0
+    REDIS_CACHE_TTL_DEFAULT: int = 60  # Default cache TTL in seconds
+    REDIS_CACHE_TTL_REFERENCE: int = 300  # TTL for reference data (articles, FC, CC)
+    REDIS_CACHE_TTL_DASHBOARD: int = 30  # TTL for dashboard data
+
+    # Write-Behind Configuration
+    WRITE_BEHIND_ENABLED: bool = True  # Enable async writes to PostgreSQL (Redis required)
+    WRITE_BEHIND_MAX_RETRIES: int = 3  # Max retries before moving to DLQ
+    WRITE_BEHIND_BATCH_SIZE: int = 100  # Max items to process in one batch
+    WRITE_BEHIND_DLQ_TTL_DAYS: int = 7  # TTL for DLQ items (days)
+    WRITE_BEHIND_DLQ_MAX_SIZE: int = 100  # Max DLQ size (oldest items removed when exceeded)
+
+    # Frontend Features (Web Workers)
+    ENABLE_WEB_WORKERS: bool = True  # Enable Web Workers for CPU-intensive operations (default: enabled)
 
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
@@ -136,11 +157,11 @@ class Settings(BaseSettings):
         """
         if "*" in v:
             raise ValueError(
-                "Wildcard CORS not allowed. Specify exact origins in ALLOWED_ORIGINS env var."
+                "Wildcard CORS not allowed. Specify exact origins in CORS_ORIGINS env var."
             )
         if not v:
             raise ValueError(
-                "CORS_ORIGINS cannot be empty. Specify at least one origin in ALLOWED_ORIGINS env var."
+                "CORS_ORIGINS cannot be empty. Specify at least one origin in CORS_ORIGINS env var."
             )
         return v
 

@@ -13,6 +13,10 @@ checklists:
   add_model_field:
     name: "Добавление поля в модель"
     when: "Нужно добавить новое поле в существующую таблицу"
+    related_skills:
+      - "@skill:db-management → create-migration"
+      - "@skill:advanced-patterns → add-scd2-history (if dimension table)"
+      - "@skill:api-development → create-schemas"
 
     steps:
       - order: 1
@@ -89,6 +93,11 @@ checklists:
   add_endpoint:
     name: "Добавление нового endpoint"
     when: "Нужно создать новый API endpoint"
+    related_skills:
+      - "@skill:api-development → create-endpoint"
+      - "@skill:authentication-security → protect-endpoint"
+      - "@skill:frontend-development → add-htmx-trigger"
+      - "@skill:testing → create-integration-test"
 
     steps:
       - order: 1

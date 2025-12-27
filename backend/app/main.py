@@ -38,8 +38,9 @@ from backend.app.middleware.validation_error_handler import (
     value_error_handler,
 )
 
-# Setup structured logging
-setup_logging(level="INFO")
+# Setup structured logging (using settings for level and format)
+_settings = get_settings()
+setup_logging(level=_settings.LOG_LEVEL, log_format=_settings.LOG_FORMAT)
 logger = get_logger(__name__)
 
 
@@ -60,6 +61,43 @@ async def lifespan(app: FastAPI):
     # Initialize database
     await init_db()
     logger.info("Database initialized successfully")
+
+    # Initialize Redis connection pool (optional, used for caching)
+    try:
+        from backend.app.services.redis_service import init_redis_pool, is_redis_available
+        await init_redis_pool()
+        if is_redis_available():
+            logger.info("Redis connection pool initialized successfully")
+        else:
+            logger.warning("Redis not configured - caching will be unavailable")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Redis: {e} - caching will be unavailable")
+
+    # Warmup Redis connection (ensure pool is ready before first user request)
+    try:
+        if is_redis_available():
+            from backend.app.services.cache_service import cache_service, CacheKey
+            # Simple warmup call to ensure connection is established
+            await cache_service.get(CacheKey.quick_stats())
+            logger.info("Redis connection warmed up")
+    except Exception as e:
+        logger.warning(f"Redis warmup failed (non-critical): {e}")
+
+    # Initialize Redis WebSocket Pub/Sub (for multi-worker support)
+    try:
+        from backend.app.services.redis_ws_manager import init_redis_ws
+        await init_redis_ws()
+        logger.info("Redis WebSocket Pub/Sub initialized (multi-worker support enabled)")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Redis WebSocket Pub/Sub: {e} - single-worker mode")
+
+    # Start Write-Behind worker (optional, enabled via WRITE_BEHIND_ENABLED)
+    try:
+        from backend.app.services.write_behind_service import start_write_behind_worker
+        await start_write_behind_worker()
+        # Log message is inside the function (checks if enabled)
+    except Exception as e:
+        logger.warning(f"Failed to start Write-Behind worker: {e}")
 
     # Initialize push notification session factory (WebSocket)
     set_push_db_session_factory(get_session)
@@ -109,6 +147,30 @@ async def lifespan(app: FastAPI):
     # Stop background scheduler
     await stop_scheduler()
     logger.info("Background scheduler stopped")
+
+    # Stop Write-Behind worker
+    try:
+        from backend.app.services.write_behind_service import stop_write_behind_worker
+        await stop_write_behind_worker()
+        # Log message is inside the function
+    except Exception as e:
+        logger.warning(f"Error stopping Write-Behind worker: {e}")
+
+    # Stop Redis WebSocket Pub/Sub
+    try:
+        from backend.app.services.redis_ws_manager import close_redis_ws
+        await close_redis_ws()
+        logger.info("Redis WebSocket Pub/Sub stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Redis WebSocket Pub/Sub: {e}")
+
+    # Close Redis connection pool
+    try:
+        from backend.app.services.redis_service import close_redis_pool
+        await close_redis_pool()
+        logger.info("Redis connection pool closed")
+    except Exception as e:
+        logger.warning(f"Error closing Redis pool: {e}")
 
     await close_db()
     logger.info("Database connections closed")
@@ -284,6 +346,10 @@ templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 # Register custom Jinja2 filters for HTMX partials
 from backend.app.utils.template_filters import register_filters
 register_filters(templates.env)
+
+# Add config as global template variable (for feature flags)
+from backend.app.core.config import get_settings
+templates.env.globals["config"] = get_settings()
 
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
 # Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates

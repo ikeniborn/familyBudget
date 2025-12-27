@@ -15,14 +15,12 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">🏪 Магазины</h2>
-                {% if user.is_admin %}
                 <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Новый магазин
                 </button>
-                {% endif %}
             </div>
 
             <!-- Status Filter (from macro) -->
@@ -37,7 +35,6 @@
     </div>
 </div>
 
-{% if user.is_admin %}
 <!-- Create Store Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -62,8 +59,8 @@
                 <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
             </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">✅ Создать</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -96,9 +93,18 @@
                 </label>
                 <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
+            <div class="modal-action mt-3 flex flex-row gap-2">
+                <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteStoreFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Разделитель (пустое пространство) -->
+                <div class="flex-1 md:hidden"></div>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -106,7 +112,6 @@
         <button>close</button>
     </form>
 </dialog>
-{% endif %}
 
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
@@ -189,7 +194,7 @@ function renderStoresTable() {
     // Build table HTML
     let html = `
         <div class="overflow-x-auto">
-            <table class="table table-zebra w-full">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th class="w-12">#</th>
@@ -197,7 +202,7 @@ function renderStoresTable() {
                         <th class="hidden md:table-cell">Адрес</th>
                         <th class="hidden md:table-cell">Код</th>
                         <th class="text-center">Статус</th>
-                        ${isAdmin ? '<th class="text-right">Действия</th>' : ''}
+                        <th class="text-right">Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -208,34 +213,32 @@ function renderStoresTable() {
             ? '<span class="badge badge-success badge-sm">✓</span>'
             : '<span class="badge badge-ghost badge-sm">📦</span>';
 
-        // Actions column - only for admins
-        let actionsCell = '';
+        // Actions column - Edit for all users, Archive/Delete only for admins
+        let actions = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${store.id})" title="Редактировать">✏️</button>`;
+
+        // Admin-only buttons: Archive/Restore and Delete
         if (isAdmin) {
-            const actions = store.is_active
-                ? `
-                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${store.id})" title="Редактировать">
-                        ✏️
-                    </button>
-                    <button class="btn btn-xs btn-warning" onclick="archiveStore(${store.id})" title="Архивировать">
-                        📦
-                    </button>
-                    <button class="btn btn-xs btn-error" onclick="deleteStore(${store.id})" title="Удалить">
-                        🗑️
-                    </button>
-                `
-                : `
-                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${store.id})" title="Редактировать">
-                        ✏️
-                    </button>
-                    <button class="btn btn-xs btn-success" onclick="restoreStore(${store.id})" title="Восстановить">
-                        ♻️
-                    </button>
-                    <button class="btn btn-xs btn-error" onclick="deleteStore(${store.id})" title="Удалить">
-                        🗑️
+            if (store.is_active) {
+                actions += `
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveStore(${store.id})" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteStore(${store.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                     </button>
                 `;
-            actionsCell = `<td class="text-right space-x-1">${actions}</td>`;
+            } else {
+                actions += `
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreStore(${store.id})" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteStore(${store.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            }
         }
+        const actionsCell = `<td class="text-right space-x-1">${actions}</td>`;
 
         html += `
             <tr>
@@ -337,6 +340,13 @@ function showEditModal(storeId) {
 // Close edit modal
 function closeEditModal() {
     document.getElementById('edit-modal').close();
+}
+
+// Delete store from edit modal (mobile only)
+function deleteStoreFromEditModal() {
+    const storeId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deleteStore(storeId);
 }
 
 // Update store

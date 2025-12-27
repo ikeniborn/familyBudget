@@ -86,6 +86,42 @@ services:
       - "-c"
       - "max_locks_per_transaction=256"  # Default 64 - increased to prevent out of shared memory errors
 
+  # Redis (Caching & WebSocket Sync)
+  redis:
+    image: redis:7-alpine
+    container_name: familybudget-redis
+    # Restart policy: "always" ensures Redis is always available for caching
+    restart: always
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --requirepass "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    # Port 6379 is exposed on host, but access is controlled by UFW firewall
+    # By default, UFW blocks all external connections to port 6379
+    ports:
+      - "6379:6379"
+    networks:
+      - familybudget
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 5s  # Check every 5s for faster health detection
+      timeout: 3s
+      retries: 10  # Allow more retries for AOF loading
+      start_period: 10s  # Grace period for initial startup
+    deploy:
+      resources:
+        limits:
+          cpus: '${REDIS_CPU_LIMIT:-0.1}'
+          memory: 512M
+        reservations:
+          cpus: '${REDIS_CPU_RESERVATION:-0.02}'
+          memory: 128M
+
   # Backend Application (FastAPI + HTMX)
   backend:
     build:
@@ -100,6 +136,8 @@ services:
     restart: always
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       # Database
@@ -131,10 +169,7 @@ services:
       # Admin
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:?ADMIN_TELEGRAM_ID is required}
 
-      # CORS
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000,https://${DOMAIN}}
-      # SECURITY FIX: Pass CORS_ORIGINS as JSON array for Pydantic Settings
-      # Format: JSON array of strings (required by Pydantic list[str] parsing)
+      # CORS (JSON array format for Pydantic Settings)
       CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}","https://web.telegram.org","https://oauth.telegram.org"]}
 
       # Domain
@@ -149,8 +184,17 @@ services:
       SYSTEM_TIMEZONE: ${SYSTEM_TIMEZONE:-UTC}
 
       # Performance
-      # WORKERS removed - fixed to 1 for SSE compatibility (in-memory ConnectionManager)
+      # WORKERS: Configurable workers with Redis-backed WebSocket support
+      # Default: 1 (legacy SSE mode), can be increased to 4 with Redis Pub/Sub
+      WORKERS: ${WORKERS:-1}
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
+
+      # Redis (Caching & WebSocket Sync)
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      REDIS_CACHE_TTL_DEFAULT: ${REDIS_CACHE_TTL_DEFAULT:-60}
+      REDIS_CACHE_TTL_REFERENCE: ${REDIS_CACHE_TTL_REFERENCE:-300}
+      REDIS_CACHE_TTL_DASHBOARD: ${REDIS_CACHE_TTL_DASHBOARD:-30}
+      WRITE_BEHIND_ENABLED: ${WRITE_BEHIND_ENABLED:-false}
 
       # S3 Backup (optional)
       S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
@@ -158,6 +202,11 @@ services:
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
       S3_REGION: ${S3_REGION:-us-east-1}
+
+      # Push Notifications (VAPID)
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-admin@example.com}
     volumes:
       - ./backend:/app/backend:ro
       - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
@@ -178,15 +227,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Workers fixed to 1 for WebSocket compatibility (in-memory ConnectionManager)
-    # See: backend/app/api/v1/endpoints/budget_ws.py:9
+    # Workers: Default 1 for legacy SSE mode, can be increased with Redis Pub/Sub
+    # See: backend/app/api/v1/endpoints/budget_ws.py for WebSocket implementation
     # --ws-per-message-deflate false: Disable WebSocket compression for iOS Safari compatibility
     # Reference: https://github.com/encode/uvicorn/issues/1298
     command: >
       uvicorn backend.app.main:app
       --host 0.0.0.0
       --port 8000
-      --workers 1
+      --workers ${WORKERS:-1}
       --ws-per-message-deflate false
       --log-level ${LOG_LEVEL:-info}
       --access-log
@@ -310,6 +359,9 @@ volumes:
   postgres_data:
     external: true
     name: budget_postgres_data
+
+  redis_data:
+    driver: local
 
   postgres_backups:
     driver: local

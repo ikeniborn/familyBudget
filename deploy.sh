@@ -9,6 +9,7 @@
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
+# - Configures UFW firewall rules for PostgreSQL (automatic)
 # - Displays deployment status and URLs
 #
 # Usage:
@@ -86,6 +87,7 @@ source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 
 # Phase 2 modules
 source "$SCRIPT_DIR/scripts/lib/postgres.sh"    # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/redis.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/services.sh"    # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/migration_tracker.sh"  # Depends on config.sh, utils.sh (NEW - v5.1.0+)
 source "$SCRIPT_DIR/scripts/lib/migrations.sh"  # Depends on config.sh, utils.sh, migration_tracker.sh
@@ -229,14 +231,18 @@ regenerate_nginx_config() {
 
     # Load .env to get current DOMAIN and DEPLOYMENT_PROFILE
     set -a
-    source "$DEPLOY_DIR/.env" 2>/dev/null || {
-        warning "Failed to load .env file, skipping nginx configuration"
-        return 0
-    }
+    if ! source "$DEPLOY_DIR/.env" 2>/dev/null; then
+        error "Failed to load .env file from $DEPLOY_DIR/.env"
+        error "Nginx configuration cannot proceed without .env"
+        return 1
+    fi
     set +a
 
     local deployment_profile="${DEPLOYMENT_PROFILE:-basic}"
     local domain="${DOMAIN:-localhost}"
+
+    info "Deployment profile: $deployment_profile"
+    info "Domain: $domain"
 
     # Skip if basic profile (nginx not used)
     if [[ "$deployment_profile" != "full" ]]; then
@@ -450,14 +456,14 @@ collect_deployment_parameters() {
         echo ""
         echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
         echo "      Removes files from /opt/budget not in repository"
-        echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
+        echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, logs/"
         echo ""
         echo "  [2] Update only (rsync)"
         echo "      Updates existing + adds new files"
         echo "      Old files NOT deleted (may leave artifacts)"
         echo ""
         echo "  [3] Clean + copy (DANGEROUS!)"
-        echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
+        echo "      Deletes EVERYTHING (code, logs/*, backups, Docker volumes)"
         echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
         echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
         echo ""
@@ -494,96 +500,15 @@ collect_deployment_parameters() {
         echo ""
     fi
 
-    # =========================================================================
-    # STEP 2: SELECT CLEANUP ACTION
-    # =========================================================================
-    # Only ask if:
-    # - Not in clean sync mode (clean mode auto-cleans everything)
-    # - CLEANUP_MODE not already set
-    # - Old deployments exist
-    if [[ "${SYNC_MODE}" != "clean" ]] && [[ -z "$CLEANUP_MODE" ]]; then
-        # Check for old deployment artifacts
-        local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
-        local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
-        local old_volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
-
-        if [[ $old_containers -gt 0 || $old_networks -gt 0 || $old_volumes -gt 0 ]]; then
-            # Old deployment found - ask what to do
-            warning "Found old deployment artifacts:"
-            if [[ $old_containers -gt 0 ]]; then
-                echo "  - Containers: $old_containers"
-            fi
-            if [[ $old_networks -gt 0 ]]; then
-                echo "  - Networks: $old_networks"
-            fi
-            if [[ $old_volumes -gt 0 ]]; then
-                echo "  - Volumes: $old_volumes"
-            fi
-            echo ""
-
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            print_message "$BLUE" "  STEP 2: Choose Cleanup Action"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            warning "Old deployments may cause network conflicts!"
-            echo ""
-            echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
-            echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
-            echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
-            echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
-            echo "      ✓ Full restart for DB migrations or config changes"
-            echo "  [3] Full cleanup - stop all services + repair corrupted data"
-            echo "      ✓ Stops all containers, removes networks"
-            echo "      ✓ Repairs PostgreSQL data directory if corrupted"
-            echo "      ✓ DATA IS PRESERVED (volumes NOT deleted unless you confirm 'DELETE')"
-            echo "      ⚠️  Requires sudo/root privileges"
-            echo ""
-
-            # Flush stdout/stderr before reading input (prevents terminal buffer issues)
-            sync 2>/dev/null || true
-            read -r -p "Select [1-3]: " cleanup_choice < /dev/tty
-            echo ""
-
-            case $cleanup_choice in
-                1)
-                    CLEANUP_MODE="skip"
-                    ;;
-                2)
-                    CLEANUP_MODE="smart"
-                    ;;
-                3)
-                    CLEANUP_MODE="full"
-                    ;;
-                *)
-                    error "Invalid choice. Please select 1-3."
-                    exit 1
-                    ;;
-            esac
-
-            success "Cleanup mode selected: $CLEANUP_MODE"
-            echo ""
-        else
-            # No old deployment - skip cleanup
-            CLEANUP_MODE="skip"
-            info "No old deployment found - cleanup not needed"
-            echo ""
-        fi
-    elif [[ "${SYNC_MODE}" == "clean" ]]; then
-        # Clean sync mode - cleanup auto-handled
-        CLEANUP_MODE="auto"
-        info "Cleanup mode: auto (handled by clean sync)"
-        echo ""
-    elif [[ -n "$CLEANUP_MODE" ]]; then
-        info "Cleanup mode preset: $CLEANUP_MODE"
-        echo ""
-    fi
+    # NOTE: STEP 2 "Choose Cleanup Action" moved to cleanup_old_deployment()
+    # This eliminates code duplication and ensures cleanup check happens
+    # AFTER PostgreSQL health check (which may auto-set CLEANUP_MODE=full)
 
     echo "========================================================================"
     print_message "$GREEN" "       Parameters Collected - Starting Deployment"
     echo "========================================================================"
     echo ""
     info "Sync mode:    $SYNC_MODE"
-    info "Cleanup mode: ${CLEANUP_MODE:-skip}"
     echo ""
 }
 
@@ -647,12 +572,14 @@ validate_firewall_rules() {
     if echo "$ufw_status" | grep -q "5432.*ALLOW"; then
         local pg_rules=$(echo "$ufw_status" | grep "5432.*ALLOW")
 
-        if echo "$pg_rules" | grep -q " from "; then
-            # Restricted access
-            local allowed_ip=$(echo "$pg_rules" | grep -oP 'from \K[0-9.]+' | head -1)
+        # Check if rule has specific IP (not "Anywhere")
+        # Format: "5432  ALLOW  78.107.114.37" or "[1] 5432  ALLOW IN  78.107.114.37"
+        if echo "$pg_rules" | grep -qE "ALLOW.*(IN)?\s+[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"; then
+            # Restricted access - extract IP address
+            local allowed_ip=$(echo "$pg_rules" | grep -oP 'ALLOW\s+(IN\s+)?\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             success "✓ PostgreSQL (5432) - restricted to IP: $allowed_ip"
         else
-            # Open to all!
+            # Open to all (Anywhere)!
             error "✗ PostgreSQL (5432) - OPEN TO ALL IPs!"
             echo ""
             error "CRITICAL SECURITY ISSUE: PostgreSQL is accessible from anywhere!"
@@ -829,6 +756,11 @@ main() {
     echo "========================================================================"
     echo ""
 
+    # Clean up orphaned deployment processes from previous failed deployments
+    # This runs automatically and terminates stuck processes (alembic, npm, rsync, etc.)
+    check_orphaned_deployment_processes --terminate || true
+    echo ""
+
     # Load .env to auto-detect deployment profile
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
         set -a
@@ -900,6 +832,14 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # Analyze sync changes for smart restart decisions
+    # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
+    # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
+    # - Sets NEEDS_BACKEND_RECREATE, NEEDS_BOT_RECREATE, NEEDS_NGINX_RECREATE flags
+    # - Flags used by start_application_services() to selectively recreate containers
+    analyze_sync_changes
+    echo ""
+
     # VERSION MANAGEMENT (AFTER SYNC!)
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # 1. Reads current version from DEPLOY_DIR (copied from repo)
@@ -911,7 +851,11 @@ main() {
     # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
     # sync_update() may delete nginx/conf.d/*.conf as "orphaned" (not in repo)
     # This ensures nginx config is always present, even if deploy is interrupted later
-    regenerate_nginx_config
+    if ! regenerate_nginx_config; then
+        error "Failed to regenerate nginx configuration"
+        error "Nginx will not start without valid configuration"
+        exit 1
+    fi
     echo ""
 
     # Regenerate PWA icons if trigger file exists (AFTER sync, BEFORE SW cache update)
@@ -926,13 +870,16 @@ main() {
 
     if [[ -f "scripts/update-sw-version.sh" ]]; then
         info "Running update-sw-version.sh in deployment directory..."
-        bash scripts/update-sw-version.sh || {
-            warning "Failed to update SW version, continuing deployment..."
-        }
+        if ! bash scripts/update-sw-version.sh; then
+            error "CRITICAL: Failed to update Service Worker version!"
+            error "Deployment ABORTED - cannot deploy with PLACEHOLDER version"
+            exit 1
+        fi
         echo ""
     else
-        warning "scripts/update-sw-version.sh not found, skipping SW version update"
-        echo ""
+        error "CRITICAL: scripts/update-sw-version.sh not found!"
+        error "Deployment ABORTED - cannot deploy without SW version update"
+        exit 1
     fi
 
     # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
@@ -1128,9 +1075,15 @@ main() {
     local sw_min="$DEPLOY_DIR/sw.min.js"
     local sw_min_gz="$DEPLOY_DIR/sw.min.js.gz"
 
+    # Check 1: Fix if files are directories (Docker artifact)
     if [[ -d "$sw_min" ]] || [[ -d "$sw_min_gz" ]]; then
         warning "Service Worker minified files are directories (Docker artifact) - fixing..."
         rm -rf "$sw_min" "$sw_min_gz"
+    fi
+
+    # Check 2: Create if files are missing (first deployment or deleted)
+    if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
+        warning "Service Worker minified files missing - creating..."
 
         # Re-run minification for Service Worker only
         if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
@@ -1139,6 +1092,8 @@ main() {
                 source scripts/lib/minify.sh
                 minify_service_worker
             )
+        else
+            error_return "Cannot create Service Worker minified files: sw.js not found"
         fi
     fi
 
@@ -1165,6 +1120,33 @@ main() {
     # Update cache versions AFTER synchronization and minification (in /opt/budget)
     run_cache_busting "auto" "/opt/budget"
     echo ""
+
+    # CRITICAL SAFEGUARD: Abort deployment if Service Worker cache version broken
+    # This prevents deploying broken PWA that won't cache splash screens
+    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
+            echo ""
+            print_message error "═══════════════════════════════════════════════════════════"
+            print_message error "         CRITICAL ERROR: SERVICE WORKER BROKEN           "
+            print_message error "═══════════════════════════════════════════════════════════"
+            print_message error ""
+            print_message error "sw.min.js still contains CACHE_VERSION_PLACEHOLDER"
+            print_message error "This means PWA caching will COMPLETELY FAIL"
+            print_message error ""
+            print_message error "Splash screens won't show, offline mode won't work"
+            print_message error ""
+            print_message error "Possible causes:"
+            print_message error "  1. npm run build failed silently"
+            print_message error "  2. terser minification timeout"
+            print_message error "  3. update-sw-version.sh not running"
+            print_message error "  4. File permissions preventing sw.js update"
+            print_message error ""
+            print_message error "DEPLOYMENT ABORTED - Fix Service Worker first"
+            print_message error "═══════════════════════════════════════════════════════════"
+            echo ""
+            exit 1
+        fi
+    fi
 
     # Verify cache busting succeeded
     info "Verifying cache busting results..."
@@ -1336,8 +1318,25 @@ main() {
     }
     echo ""
 
-    # PHASED STARTUP: PostgreSQL → Migrations → Application Services
-    # This eliminates race condition where backend starts before migrations complete
+    # Ensure PostgreSQL Docker volume exists (idempotent check)
+    # CRITICAL: Must run BEFORE start_postgres_only() to avoid "external volume not found" error
+    # This is required for first deployment on clean servers
+    step "Ensuring PostgreSQL Docker Volume Exists"
+    if ! ensure_postgres_volume_exists; then
+        error "Deployment failed: PostgreSQL volume creation failed"
+        error "Cannot proceed without database volume"
+        error "See troubleshooting steps above"
+        error "Log file: $LOG_FILE"
+        exit 1
+    fi
+    echo ""
+
+    # PHASED STARTUP: PostgreSQL → Redis → Backend → Migrations → Application Services
+    # This eliminates race condition where backend starts before dependencies are ready
+    # Phase 1: PostgreSQL only
+    # Phase 1.2: Redis only (dependency for backend)
+    # Phase 1.5: Backend container (for running migrations)
+    # Phase 2: Bot/Nginx (backend already running from Phase 1.5)
 
     # Phase 1: Start PostgreSQL only
     if ! start_postgres_only; then
@@ -1358,9 +1357,27 @@ main() {
         fi
         echo ""
 
-        # Run Alembic migrations BEFORE starting application services
-        # This ensures database schema is ready when backend starts
-        # Admin user is created automatically during migration
+        # Phase 1.2: Start Redis only (backend depends on Redis with service_healthy)
+        # Redis must be healthy before backend can start
+        if ! start_redis_only; then
+            error "Deployment failed: Redis failed to start"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Phase 1.5: Start backend container (needed for migrations)
+        # Backend container starts but application doesn't fully initialize yet
+        # This allows running migrations via 'docker compose exec backend'
+        if ! start_backend_only; then
+            error "Deployment failed: Backend container failed to start"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Run Alembic migrations (uses backend container started above)
+        # This ensures database schema is ready when backend fully starts
         if ! run_alembic_migrations; then
             error "Deployment failed: Database migrations did not complete successfully"
             error "Please check the logs and fix any migration issues before redeploying"
@@ -1369,7 +1386,24 @@ main() {
         fi
         echo ""
 
-        # Verify database schema after migrations (before starting backend)
+        # Create admin user (if ADMIN_EMAIL configured)
+        # This allows admin login via email/password WITHOUT 2FA (security exception)
+        # Regular users ALWAYS require 2FA for email/password login
+        step "Creating Admin User"
+        info "Checking if admin email/password configured..."
+        if docker compose exec -T backend python scripts/create_admin_user.py; then
+            success "Admin user creation completed"
+            info "Admin can now login via:"
+            info "  - Telegram OAuth (ADMIN_TELEGRAM_ID)"
+            info "  - Email + Password (ADMIN_EMAIL) - bypasses 2FA"
+        else
+            warning "Admin user creation skipped or failed"
+            info "This is not critical - admin can still use Telegram authentication"
+            info "Check logs above for details"
+        fi
+        echo ""
+
+        # Verify database schema after migrations
         if ! verify_database_schema; then
             error "Deployment failed: Database schema verification failed"
             error "Critical tables are missing - migrations may have failed partially"
@@ -1379,7 +1413,8 @@ main() {
         fi
         echo ""
 
-        # Phase 2: Start application services (backend, bot, nginx)
+        # Phase 2: Start remaining application services (bot, nginx)
+        # Backend already running, this starts bot/nginx only
         if ! start_application_services; then
             error "Deployment failed: Application services failed to start"
             error "Log file: $LOG_FILE"
@@ -1401,6 +1436,17 @@ main() {
         else
             warning "Failed to configure Docker firewall - ports may be exposed!"
             warning "Run manually: source scripts/lib/firewall.sh && configure_docker_firewall"
+        fi
+        echo ""
+
+        # Configure UFW rules for PostgreSQL external access
+        # Automatically creates/deletes rules based on POSTGRES_EXTERNAL_ACCESS and POSTGRES_ALLOWED_IP
+        info "Configuring UFW rules for PostgreSQL..."
+        if configure_ufw_for_postgres >> "$LOG_FILE" 2>&1; then
+            success "PostgreSQL UFW rules configured successfully"
+        else
+            warning "Failed to configure PostgreSQL UFW rules"
+            warning "Run manually: source scripts/lib/firewall.sh && configure_ufw_for_postgres"
         fi
         echo ""
 

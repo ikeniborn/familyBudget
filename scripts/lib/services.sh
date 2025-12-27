@@ -469,6 +469,110 @@ start_postgres_only() {
     fi
 }
 
+# Phase 1.2: Start Redis container only (dependency for backend)
+# Redis must be healthy before backend can start (backend depends_on redis with service_healthy)
+start_redis_only() {
+    step "Starting Redis (Phase 1.2/3)"
+
+    info "Starting redis container..."
+    local start_result=0
+
+    # Always use --build to ensure latest image
+    compose_cmd up --build -d redis >> "$LOG_FILE" 2>&1
+    start_result=$?
+
+    if [[ $start_result -eq 0 ]]; then
+        success "Redis container started"
+
+        # Wait for Redis to become healthy
+        info "Waiting for Redis to be ready..."
+        if wait_for_service "redis" 30; then
+            success "Redis is healthy and ready"
+            return 0
+        else
+            error "Redis failed to become healthy within 30s"
+            return 1
+        fi
+    else
+        error "Failed to start Redis container. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Phase 1.5: Start backend container only (for migrations)
+# Backend container starts but application doesn't listen on port yet
+# This allows running migrations via 'docker compose exec backend'
+start_backend_only() {
+    step "Starting Backend Container (Phase 1.5/3)"
+
+    info "Starting backend container for migrations..."
+    local start_result=0
+
+    # Always use --build to ensure latest image
+    compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
+    start_result=$?
+
+    if [[ $start_result -eq 0 ]]; then
+        success "Backend container started"
+
+        # Wait for container to be running (but not necessarily healthy)
+        info "Waiting for backend container to be ready..."
+        local max_wait=30
+        local elapsed=0
+        while [[ $elapsed -lt $max_wait ]]; do
+            if docker ps --filter "name=familybudget-backend" --filter "status=running" -q 2>/dev/null | grep -q .; then
+                success "Backend container is running"
+                return 0
+            fi
+            sleep 2
+            elapsed=$((elapsed + 2))
+        done
+
+        error "Backend container failed to start within ${max_wait}s"
+        return 1
+    else
+        error "Failed to start backend container. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Clean up stuck or orphan containers that could cause naming conflicts
+# This prevents "container name already in use" errors during deployment
+cleanup_stuck_containers() {
+    local project_name="familybudget"
+
+    # Find containers with prefixed names (e.g., "abc123_familybudget-backend")
+    # These are orphan containers created when docker-compose gets interrupted
+    local orphan_containers
+    orphan_containers=$(docker ps -a --format '{{.ID}} {{.Names}}' 2>/dev/null | \
+        grep -E "_${project_name}-" | awk '{print $1}' || true)
+
+    if [[ -n "$orphan_containers" ]]; then
+        info "Removing orphan containers with prefixed names..."
+        for container_id in $orphan_containers; do
+            local container_name
+            container_name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///')
+            docker rm -f "$container_id" >> "$LOG_FILE" 2>&1 || true
+            info "  Removed: $container_name"
+        done
+    fi
+
+    # Find containers in "Created" state (stuck during creation)
+    local created_containers
+    created_containers=$(docker ps -a --filter "name=${project_name}" --filter "status=created" \
+        --format '{{.ID}}' 2>/dev/null || true)
+
+    if [[ -n "$created_containers" ]]; then
+        info "Removing stuck containers in 'Created' state..."
+        for container_id in $created_containers; do
+            local container_name
+            container_name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///')
+            docker rm -f "$container_id" >> "$LOG_FILE" 2>&1 || true
+            info "  Removed: $container_name"
+        done
+    fi
+}
+
 # Phase 2: Start application services (backend, bot, nginx)
 start_application_services() {
     step "Starting Application Services (Phase 2/2)"
@@ -516,13 +620,97 @@ start_application_services() {
         echo ""
     fi
 
-    # Start backend/bot/nginx (postgres already running)
+    # Clean up any stuck or orphan containers before starting
+    # This prevents "container name already in use" errors
+    cleanup_stuck_containers
+
+    # Smart restart: selectively recreate containers based on changed files
+    # Uses flags set by analyze_sync_changes() in sync.sh:
+    # - NEEDS_BACKEND_RECREATE: Jinja2 templates, static files, Python code changed
+    # - NEEDS_BOT_RECREATE: Bot Python code changed
+    # - NEEDS_NGINX_RECREATE: Nginx config changed
+
+    info "Smart restart mode enabled:"
+    info "  Backend recreate: ${NEEDS_BACKEND_RECREATE:-false}"
     if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-        compose_cmd --profile full up $build_flag -d backend bot nginx >> "$LOG_FILE" 2>&1
-        start_result=$?
+        info "  Bot recreate:     ${NEEDS_BOT_RECREATE:-false}"
+        info "  Nginx recreate:   ${NEEDS_NGINX_RECREATE:-false}"
+    fi
+    echo ""
+
+    # Strategy: Recreate only services with changes, keep others running
+    # This is MUCH faster than full recreate (2-3 sec vs 10-15 sec per service)
+    # and clears Python/Jinja2 cache only where needed
+
+    local services_to_recreate=()
+    local services_to_check=()
+
+    # Determine which services need recreation
+    if [[ "${NEEDS_BACKEND_RECREATE:-false}" == "true" ]]; then
+        services_to_recreate+=("backend")
+        info "✓ Backend will be recreated (code/templates changed)"
     else
-        compose_cmd up $build_flag -d backend >> "$LOG_FILE" 2>&1
-        start_result=$?
+        services_to_check+=("backend")
+        info "  Backend will be kept running (no changes)"
+    fi
+
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        if [[ "${NEEDS_BOT_RECREATE:-false}" == "true" ]]; then
+            services_to_recreate+=("bot")
+            info "✓ Bot will be recreated (code changed)"
+        else
+            services_to_check+=("bot")
+            info "  Bot will be kept running (no changes)"
+        fi
+
+        if [[ "${NEEDS_NGINX_RECREATE:-false}" == "true" ]]; then
+            services_to_recreate+=("nginx")
+            info "✓ Nginx will be recreated (config changed)"
+        else
+            services_to_check+=("nginx")
+            info "  Nginx will be kept running (no changes)"
+        fi
+    fi
+    echo ""
+
+    # Step 1: Recreate services with changes (--force-recreate)
+    if [[ ${#services_to_recreate[@]} -gt 0 ]]; then
+        info "Recreating ${#services_to_recreate[@]} service(s): ${services_to_recreate[*]}"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            compose_cmd --profile full up $build_flag -d --force-recreate --remove-orphans "${services_to_recreate[@]}" >> "$LOG_FILE" 2>&1
+            start_result=$?
+        else
+            compose_cmd up $build_flag -d --force-recreate --remove-orphans "${services_to_recreate[@]}" >> "$LOG_FILE" 2>&1
+            start_result=$?
+        fi
+
+        if [[ $start_result -ne 0 ]]; then
+            error "Failed to recreate services. Check $LOG_FILE for details."
+            return 1
+        fi
+        success "Services recreated successfully"
+    else
+        info "No services need recreation (code unchanged)"
+        start_result=0
+    fi
+
+    # Step 2: Ensure unchanged services are running (--no-recreate)
+    # This doesn't rebuild or recreate, just ensures container is up
+    if [[ ${#services_to_check[@]} -gt 0 ]]; then
+        info "Ensuring ${#services_to_check[@]} service(s) are running: ${services_to_check[*]}"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            compose_cmd --profile full up -d --no-recreate "${services_to_check[@]}" >> "$LOG_FILE" 2>&1
+            local check_result=$?
+        else
+            compose_cmd up -d --no-recreate "${services_to_check[@]}" >> "$LOG_FILE" 2>&1
+            local check_result=$?
+        fi
+
+        if [[ $check_result -ne 0 ]]; then
+            warning "Some services may not be running. Check $LOG_FILE for details."
+        else
+            success "All services verified running"
+        fi
     fi
 
     # Show container status

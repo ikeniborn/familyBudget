@@ -24,11 +24,11 @@ routes:
       $ref: "../functionality/cost-centers.yaml#/module"
 
   # ---------------------------------------------------------------------------
-  # CREATE (ADMIN ONLY)
+  # CREATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/cost-centers"
     method: POST
-    auth: admin
+    auth: user
     description: "Create new cost center"
     request:
       body:
@@ -68,11 +68,11 @@ routes:
         detail: "Cost center not found"
 
   # ---------------------------------------------------------------------------
-  # UPDATE (ADMIN ONLY)
+  # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/cost-centers/{id}"
     method: PUT
-    auth: admin
+    auth: user
     description: "Update cost center"
     path_params:
       id: "integer"

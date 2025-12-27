@@ -119,7 +119,7 @@ def cleanup_old_backups(args):
 
         # List all objects in bucket
         paginator = s3_client.get_paginator('list_objects_v2')
-        pages = paginator.paginate(Bucket=args.bucket)
+        pages = paginator.paginate(Bucket=args.bucket, Prefix='postgresql-backups/')
 
         for page in pages:
             if 'Contents' not in page:

@@ -244,12 +244,14 @@
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
+                                        <th class="text-center" title="Регламентный">🔄</th>
                                         <th class="text-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Уведомление">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                                             </svg>
                                         </th>
                                         <th>Статус</th>
+                                        <th class="w-8"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="pending-records-tbody">
@@ -360,6 +362,25 @@
             <button>close</button>
         </form>
     </dialog>
+
+    <!-- Modal: Recurring Delete Confirmation -->
+    <dialog id="recurring-delete-modal" class="modal">
+        <div class="modal-box max-w-lg">
+            <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+            <p class="mb-6">
+                Эта запись является частью регламентного платежа.<br>
+                Что вы хотите удалить?
+            </p>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="recurringDeleteResolve(null)">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="recurringDeleteResolve('single')">Только эту запись</button>
+                <button type="button" class="btn btn-error" onclick="recurringDeleteResolve('all')">Все регламентные</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button onclick="recurringDeleteResolve(null)">close</button>
+        </form>
+    </dialog>
 {% endif %}
 
 {% endblock %}
@@ -381,9 +402,9 @@
 </style>
 
 <!-- Choices.js Library -->
-<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
-<script src="/static/js/vendor/choices.min.js"></script>
+<script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
 
 <!-- BudgetShared bundle (includes ChoicesCategoryTree) already included in base.html -->
 
@@ -401,6 +422,7 @@ let planCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
 let editDateCalendar = null;
 let editReminderCalendar = null;
+let editTemplateEndDateCalendar = null;  // Calendar for recurring plan template end date
 let allCategories = [];  // Cache for categories
 let remindersMap = new Map();  // Cache for reminders (fact_id -> reminder)
 let currentEditingRecordType = null;  // 'fact' or 'plan'
@@ -408,12 +430,177 @@ let currentEditingPendingId = null;  // IndexedDB ID for pending records (null i
 
 // allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
 
+// Cache for dropdown data (5 minutes TTL) - used by edit modal
+const dropdownCache = {
+    categories: { data: null, timestamp: 0, ttl: 300000 },  // 5 min
+    financialCenters: { data: null, timestamp: 0, ttl: 300000 },
+    costCenters: { data: null, timestamp: 0, ttl: 300000 }
+};
+
+/**
+ * Check if cached data is still valid
+ * @param {Object} cacheEntry - Cache entry with data, timestamp, and ttl
+ * @returns {boolean} True if cache is valid
+ */
+function isCacheValid(cacheEntry) {
+    return cacheEntry.data !== null &&
+           (Date.now() - cacheEntry.timestamp) < cacheEntry.ttl;
+}
+
+/**
+ * Set transfer record type (fact or plan) and toggle UI sections.
+ * @param {string} type - 'fact' or 'plan'
+ */
+function setTransferRecordType(type) {
+    const recordTypeInput = document.getElementById('transfer_record_type');
+    const factSection = document.getElementById('transfer-date-section-fact');
+    const planSection = document.getElementById('transfer-period-section-plan');
+    const transferDateInput = document.getElementById('transfer_date');
+
+    if (!recordTypeInput) {
+        console.warn('[setTransferRecordType] transfer_record_type input not found');
+        return;
+    }
+
+    // Set record type
+    recordTypeInput.value = type;
+    console.log('[setTransferRecordType] Set record_type to:', type, 'Value now:', recordTypeInput.value);
+
+    // Toggle sections and disable unused inputs to prevent validation
+    if (type === 'fact') {
+        factSection?.classList.remove('hidden');
+        planSection?.classList.add('hidden');
+
+        // Enable transfer_date for fact transfers
+        if (transferDateInput) {
+            transferDateInput.disabled = false;
+            transferDateInput.required = true;
+
+            // If field is empty, set today's date (prevents validation error)
+            if (!transferDateInput.value || transferDateInput.value.trim() === '') {
+                transferDateInput.value = BudgetShared.DateFormatter.today();
+                console.log('[setTransferRecordType] Set default date for fact transfer:', transferDateInput.value);
+            }
+        }
+    } else if (type === 'plan') {
+        factSection?.classList.add('hidden');
+        planSection?.classList.remove('hidden');
+
+        // Disable transfer_date for plan transfers to prevent browser validation
+        if (transferDateInput) {
+            transferDateInput.disabled = true;
+            transferDateInput.required = false;
+            // CRITICAL: Clear value for plan transfers to prevent wrong date being sent to backend
+            // Plan transfers use transfer_plan_month (YYYY-MM-01), NOT transfer_date
+            transferDateInput.value = '';
+            console.log('[setTransferRecordType] Disabled and cleared transfer_date for plan transfer');
+        }
+
+        // Initialize period buttons for plan transfers (deferred to allow DOM update)
+        setTimeout(() => setupTransferPeriodButtons(), 0);
+    }
+}
+
+/**
+ * Initialize period buttons for plan transfers (similar to setupPlanPeriodButtons).
+ */
+function setupTransferPeriodButtons() {
+    console.log('[setupTransferPeriodButtons] Called');
+    const periodButtons = document.querySelectorAll('.transfer-period-btn');
+    const hiddenInput = document.querySelector('#transfer_plan_month');
+
+    console.log('[setupTransferPeriodButtons] Found buttons:', periodButtons.length, 'Hidden input:', !!hiddenInput);
+
+    if (!hiddenInput) {
+        console.error('[setupTransferPeriodButtons] Hidden input #transfer_plan_month not found!');
+        return;
+    }
+
+    if (periodButtons.length === 0) {
+        console.error('[setupTransferPeriodButtons] No period buttons found with class .transfer-period-btn');
+        return;
+    }
+
+    // Initialize button labels and data attributes (current month +0, +1, +2)
+    const today = new Date();
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        btn.textContent = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+    });
+
+    // Set default value for first button (active by default)
+    const firstButton = periodButtons[0];
+    if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
+        hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+        console.log('[setupTransferPeriodButtons] ✅ Default period set:', hiddenInput.value);
+    } else {
+        console.error('[setupTransferPeriodButtons] ❌ First button missing data attributes!');
+    }
+
+    // Click handlers (avoid duplicates)
+    periodButtons.forEach(button => {
+        // Skip if listener already attached
+        if (button.dataset.listenerAttached === 'true') return;
+
+        button.addEventListener('click', function() {
+            // Remove btn-active from all buttons
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Add btn-active to current button
+            this.classList.add('btn-active');
+
+            // Set value in hidden input (YYYY-MM)
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            hiddenInput.value = `${year}-${month}`;
+
+            debugLog('Selected transfer plan period:', hiddenInput.value);
+        });
+
+        // Mark listener as attached
+        button.dataset.listenerAttached = 'true';
+    });
+}
+
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
+    console.log('[openFactTransferModal] Opening fact transfer modal');
+
+    // CRITICAL: Aggressively reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        // Force reset to default state
+        submitBtn.disabled = false;
+        if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+            delete submitBtn.dataset.originalHtml;
+        } else {
+            // Fallback: restore default text if no saved state (fixes stuck spinner)
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
+        }
+        console.log('[openFactTransferModal] ✅ Button reset, disabled:', submitBtn.disabled);
+    }
+
     // Set transfer type to 'fact'
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('fact');
     }
+
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
+    }
+
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
@@ -430,18 +617,55 @@ window.openFactTransferModal = openFactTransferModal;
 
 // Открыть модальное окно планового перевода
 function openPlanTransferModal() {
+    console.log('[openPlanTransferModal] Opening plan transfer modal');
+
+    // CRITICAL: Aggressively reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        // Force reset to default state
+        submitBtn.disabled = false;
+        if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+            delete submitBtn.dataset.originalHtml;
+        } else {
+            // Fallback: restore default text if no saved state (fixes stuck spinner)
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
+        }
+        console.log('[openPlanTransferModal] ✅ Button reset, disabled:', submitBtn.disabled);
+    }
+
     // Set transfer type to 'plan'
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('plan');
     }
+
+    // DIAGNOSTIC: Check transfer_date field state after setTransferRecordType
+    const transferDateInput = document.getElementById('transfer_date');
+    if (transferDateInput) {
+        console.log('[openPlanTransferModal] transfer_date state:', {
+            value: transferDateInput.value,
+            disabled: transferDateInput.disabled,
+            required: transferDateInput.required,
+            validity: transferDateInput.validity,
+            validationMessage: transferDateInput.validationMessage
+        });
+    }
+
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
+    }
+
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
-        // Set today as default date (today() already returns DD.MM.YYYY format)
-        const dateInput = document.querySelector('#transfer_date');
-        if (dateInput) {
-            dateInput.value = BudgetShared.DateFormatter.today();
-        }
+        // For plan transfers, NO need to set date input (uses period buttons instead)
         modal.showModal();
     }
 }
@@ -474,17 +698,28 @@ function setEditModalMode(recordType) {
 }
 
 /**
- * Load categories for edit modal (cached)
+ * Load categories for edit modal (with TTL cache)
  */
 async function loadCategoriesForEdit() {
-    if (allCategories.length > 0) return allCategories;
+    // Check cache first
+    if (isCacheValid(dropdownCache.categories)) {
+        allCategories = dropdownCache.categories.data;
+        return allCategories;
+    }
 
+    // Load from API
     try {
-        const response = await fetch('/api/v1/articles', { credentials: 'include' });
+        const response = await fetch('/api/v1/articles?sort_by=usage_count&limit=1000', {
+            credentials: 'include'
+        });
         if (response.ok) {
             const data = await response.json();
             // API returns { articles: [...], total: N }
             allCategories = data.articles || [];
+
+            // Update cache
+            dropdownCache.categories.data = allCategories;
+            dropdownCache.categories.timestamp = Date.now();
         }
     } catch (error) {
         console.error('Error loading categories:', error);
@@ -493,99 +728,292 @@ async function loadCategoriesForEdit() {
 }
 
 /**
- * Load reminders for specific fact IDs
- * @param {number[]} factIds - Array of fact IDs to load reminders for
+ * Load reminder for specific fact (used in edit modal)
+ * ✅ FIX 3: Optimized with direct GET request instead of fetching all 100 reminders
+ * @param {number[]} factIds - Array of fact IDs (usually single ID)
  */
 async function loadRemindersForEdit(factIds) {
-    remindersMap.clear();
     if (!factIds || factIds.length === 0) return;
 
     try {
-        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
-        if (!response.ok) return;
+        // Edit modal always opens single fact
+        const factId = factIds[0];
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            credentials: 'include'
+        });
 
-        const data = await response.json();
-        const factIdSet = new Set(factIds);
-
-        if (data.items && Array.isArray(data.items)) {
-            data.items.forEach(reminder => {
-                if (reminder && reminder.fact_id && factIdSet.has(reminder.fact_id)) {
-                    remindersMap.set(reminder.fact_id, reminder);
-                }
-            });
+        if (response.ok) {
+            const reminder = await response.json();
+            if (reminder && reminder.fact_id) {
+                remindersMap.set(reminder.fact_id, reminder);
+            }
+        } else if (response.status === 404) {
+            // No reminder exists - ensure removed from map
+            remindersMap.delete(factId);
         }
     } catch (error) {
-        console.error('Error loading reminders:', error);
+        console.error('[loadRemindersForEdit] Error loading reminder:', error);
     }
 }
 
 /**
- * Load financial centers for edit modal
+ * Populate financial centers dropdown
+ * @param {HTMLElement} select - Select element
+ * @param {Array} centers - Financial centers data
+ * @param {number|null} selectedId - ID to pre-select
+ */
+function populateFinancialCentersDropdown(select, centers, selectedId) {
+    console.log('[populateFinancialCentersDropdown] Called with:', {
+        centers: centers.length,
+        selectedId,
+        selectId: select.id
+    });
+
+    // Clear options except first
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add options
+    centers.forEach(fc => {
+        const option = document.createElement('option');
+        option.value = fc.id;
+        option.textContent = fc.name;
+        if (selectedId && fc.id == selectedId) {  // Use == for type coercion
+            option.selected = true;
+            console.log('[populateFinancialCentersDropdown] Selected:', fc.name, fc.id);
+        }
+        select.appendChild(option);
+    });
+
+    console.log('[populateFinancialCentersDropdown] Final select.value:', select.value);
+}
+
+/**
+ * Load financial centers for edit modal (with TTL cache)
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditFinancialCenters(selectedId = null) {
-    const select = document.getElementById('edit-financial-center');
-    if (!select) return;
+    console.log('[loadEditFinancialCenters] Called with selectedId:', selectedId);
 
+    const select = document.getElementById('edit-financial-center');
+    if (!select) {
+        console.error('[loadEditFinancialCenters] Select element not found!');
+        return;
+    }
+    console.log('[loadEditFinancialCenters] Select element found:', select);
+
+    // Check cache
+    if (isCacheValid(dropdownCache.financialCenters)) {
+        const centers = dropdownCache.financialCenters.data;
+        console.log('[loadEditFinancialCenters] Using cached data:', centers.length, 'centers');
+        populateFinancialCentersDropdown(select, centers, selectedId);
+        return;
+    }
+    console.log('[loadEditFinancialCenters] Cache invalid or empty, fetching from API...');
+
+    // Load from API
     try {
-        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', { credentials: 'include' });
-        if (!response.ok) return;
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&include_inactive=true', {
+            credentials: 'include'
+        });
+
+        console.log('[loadEditFinancialCenters] API response status:', response.status);
+
+        if (!response.ok) {
+            console.error('[loadEditFinancialCenters] API request failed:', response.status, response.statusText);
+            showToast(`Ошибка загрузки счетов: ${response.statusText}`, 'error');
+            return;
+        }
 
         const data = await response.json();
         const centers = data.financial_centers || [];
 
-        // Clear options except first
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
+        console.log('[loadEditFinancialCenters] Loaded centers:', centers.length, centers);
 
-        // Add options
-        centers.forEach(fc => {
-            const option = document.createElement('option');
-            option.value = fc.id;
-            option.textContent = fc.name;
-            if (selectedId && fc.id === selectedId) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
+        // Update cache
+        dropdownCache.financialCenters.data = centers;
+        dropdownCache.financialCenters.timestamp = Date.now();
+
+        populateFinancialCentersDropdown(select, centers, selectedId);
+
+        console.log('[loadEditFinancialCenters] Dropdown populated, final value:', select.value);
     } catch (error) {
-        console.error('Error loading financial centers for edit:', error);
+        console.error('[loadEditFinancialCenters] Exception:', error);
+        showToast(`Ошибка загрузки счетов: ${error.message}`, 'error');
     }
 }
 
 /**
- * Load cost centers for edit modal
+ * Populate cost centers dropdown
+ * @param {HTMLElement} select - Select element
+ * @param {Array} centers - Cost centers data
+ * @param {number|null} selectedId - ID to pre-select
+ */
+function populateCostCentersDropdown(select, centers, selectedId) {
+    console.log('[populateCostCentersDropdown] Called with:', {
+        centers: centers.length,
+        selectedId,
+        selectId: select.id
+    });
+
+    // Clear options except first
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add options
+    centers.forEach(cc => {
+        const option = document.createElement('option');
+        option.value = cc.id;
+        option.textContent = cc.name;
+        if (selectedId && cc.id == selectedId) {  // Use == for type coercion
+            option.selected = true;
+            console.log('[populateCostCentersDropdown] Selected:', cc.name, cc.id);
+        }
+        select.appendChild(option);
+    });
+
+    console.log('[populateCostCentersDropdown] Final select.value:', select.value);
+}
+
+/**
+ * Load cost centers for edit modal (with TTL cache)
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditCostCenters(selectedId = null) {
-    const select = document.getElementById('edit-cost-center');
-    if (!select) return;
+    console.log('[loadEditCostCenters] Called with selectedId:', selectedId);
 
+    const select = document.getElementById('edit-cost-center');
+    if (!select) {
+        console.error('[loadEditCostCenters] Select element not found!');
+        return;
+    }
+    console.log('[loadEditCostCenters] Select element found:', select);
+
+    // Check cache
+    if (isCacheValid(dropdownCache.costCenters)) {
+        const centers = dropdownCache.costCenters.data;
+        console.log('[loadEditCostCenters] Using cached data:', centers.length, 'centers');
+        populateCostCentersDropdown(select, centers, selectedId);
+        return;
+    }
+    console.log('[loadEditCostCenters] Cache invalid or empty, fetching from API...');
+
+    // Load from API
     try {
-        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', { credentials: 'include' });
-        if (!response.ok) return;
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&include_inactive=true', {
+            credentials: 'include'
+        });
+
+        console.log('[loadEditCostCenters] API response status:', response.status);
+
+        if (!response.ok) {
+            console.error('[loadEditCostCenters] API request failed:', response.status, response.statusText);
+            showToast(`Ошибка загрузки мест затрат: ${response.statusText}`, 'error');
+            return;
+        }
 
         const data = await response.json();
         const centers = data.cost_centers || [];
 
-        // Clear options except first
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
+        console.log('[loadEditCostCenters] Loaded centers:', centers.length, centers);
 
-        // Add options
-        centers.forEach(cc => {
-            const option = document.createElement('option');
-            option.value = cc.id;
-            option.textContent = cc.name;
-            if (selectedId && cc.id === selectedId) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
+        // Update cache
+        dropdownCache.costCenters.data = centers;
+        dropdownCache.costCenters.timestamp = Date.now();
+
+        populateCostCentersDropdown(select, centers, selectedId);
+
+        console.log('[loadEditCostCenters] Dropdown populated, final value:', select.value);
     } catch (error) {
-        console.error('Error loading cost centers for edit:', error);
+        console.error('[loadEditCostCenters] Exception:', error);
+        showToast(`Ошибка загрузки мест затрат: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Filter cost centers in edit modal by financial center ID.
+ * Preserves current selection if still available.
+ * @param {number|null} financialCenterId - Financial center ID to filter by (null = show all)
+ */
+async function filterEditCostCenters(financialCenterId) {
+    const select = document.getElementById('edit-cost-center');
+    if (!select) return;
+
+    const currentValue = select.value;
+
+    // Clear all options except the first one ("-- Не указано --")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) select.value = currentValue;
+        }
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCenters = data.cost_centers || [];
+            filteredCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) {
+                const exists = filteredCenters.some(cc => cc.id == currentValue);
+                if (exists) {
+                    select.value = currentValue;
+                } else {
+                    debugLog(`[CostCenter] Selection reset (CC ${currentValue} not available for FC ${financialCenterId})`);
+                }
+            }
+        } else {
+            // Fallback to showing all from cache
+            if (isCacheValid(dropdownCache.costCenters)) {
+                const centers = dropdownCache.costCenters.data;
+                centers.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    select.appendChild(option);
+                });
+                if (currentValue) select.value = currentValue;
+            }
+        }
+    } catch (error) {
+        console.error('[CostCenter] Error filtering cost centers:', error);
+        // Fallback to showing all from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            if (currentValue) select.value = currentValue;
+        }
     }
 }
 
@@ -636,15 +1064,37 @@ function populateOfflineDropdowns(data) {
  * @param {number} factId - The fact ID to edit
  */
 async function openEditFromDashboard(factId) {
+    // START PERFORMANCE MEASUREMENT
+    const perfId = `modal-open-${factId}-${Date.now()}`;
+    performance.mark(`${perfId}-start`);
+
     try {
-        // Fetch fact data from API
+        // STEP 1: Show modal immediately with skeleton
+        const modal = document.getElementById('edit-modal');
+        const skeleton = document.getElementById('edit-loading-skeleton');
+        const formFields = document.getElementById('edit-form-fields');
+        const submitBtn = modal.querySelector('button[type="submit"]');
+
+        // Show skeleton, hide form, disable submit
+        if (skeleton) skeleton.classList.remove('hidden');
+        if (formFields) formFields.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+
+        modal.showModal();  // ← SHOW MODAL IMMEDIATELY!
+
+        // STEP 2: Fetch fact data from API
+        performance.mark(`${perfId}-api-start`);
         const response = await fetch(`/api/v1/facts/${factId}`, { credentials: 'include' });
         if (!response.ok) {
+            modal.close();
             showToast('Ошибка загрузки записи', 'error');
             return;
         }
 
         const fact = await response.json();
+        performance.mark(`${perfId}-api-end`);
+        performance.measure('API Fetch', `${perfId}-api-start`, `${perfId}-api-end`);
+
         const recordType = fact.record_type || 'fact';
 
         // Reset pending record tracking
@@ -653,13 +1103,25 @@ async function openEditFromDashboard(factId) {
         // Set mode (show/hide reminder section)
         setEditModalMode(recordType);
 
-        // Load categories, reminders, and dropdowns in parallel
+        // STEP 3A: Load dropdowns (БЕЗ категорий)
+        performance.mark(`${perfId}-dropdown-start`);
         await Promise.all([
-            loadCategoriesForEdit(),
             loadEditFinancialCenters(fact.financial_center_id),
-            loadEditCostCenters(fact.cost_center_id),
-            recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
+            loadEditCostCenters(fact.cost_center_id)
         ]);
+        performance.mark(`${perfId}-dropdown-end`);
+        performance.measure('Dropdown Load', `${perfId}-dropdown-start`, `${perfId}-dropdown-end`);
+
+        // ✅ FIX 3: Load reminders SEQUENTIALLY to avoid race condition
+        if (recordType === 'plan') {
+            await loadRemindersForEdit([factId]);
+        }
+
+        // STEP 3B: Load categories ОТДЕЛЬНО (гарантия завершения)
+        performance.mark(`${perfId}-categories-start`);
+        await loadCategoriesForEdit();
+        performance.mark(`${perfId}-categories-end`);
+        performance.measure('Categories Load', `${perfId}-categories-start`, `${perfId}-categories-end`);
 
         // Fill basic fields
         document.getElementById('edit-id').value = fact.id;
@@ -667,9 +1129,94 @@ async function openEditFromDashboard(factId) {
         document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
         document.getElementById('edit-description').value = fact.description || '';
 
+        // Handle recurring plan info
+        const recurringPlanIdField = document.getElementById('edit-recurring-plan-id');
+        const recurringInfoDiv = document.getElementById('edit-recurring-info');
+        if (recurringPlanIdField) {
+            recurringPlanIdField.value = fact.recurring_plan_id || '';
+        }
+        if (recurringInfoDiv) {
+            // ✅ OPTIMIZED: Use recurring plan data from fact response (no separate fetch needed)
+            if (fact.recurring_plan_id && fact.recurring_plan) {
+                recurringInfoDiv.classList.remove('hidden');
+                // Reset scope to 'single' by default
+                const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+                if (singleRadio) singleRadio.checked = true;
+
+                // Use recurring plan data already included in GET /facts/{id} response!
+                const planData = fact.recurring_plan;
+
+                // Fill recurring plan details (same code as before)
+                const frequencyEl = document.getElementById('edit-recurring-frequency');
+                const nextDateEl = document.getElementById('edit-recurring-next-date');
+                const periodEl = document.getElementById('edit-recurring-period');
+                const generatedEl = document.getElementById('edit-recurring-generated');
+                const statusBadge = document.getElementById('edit-recurring-status');
+
+                if (frequencyEl) frequencyEl.textContent = planData.frequency_display || '—';
+                if (nextDateEl) {
+                    nextDateEl.textContent = planData.next_generation_date
+                        ? BudgetShared.DateFormatter.formatForDisplay(planData.next_generation_date)
+                        : '—';
+                }
+                if (periodEl) {
+                    const startDate = BudgetShared.DateFormatter.formatForDisplay(planData.start_date);
+                    const endDate = planData.end_date
+                        ? BudgetShared.DateFormatter.formatForDisplay(planData.end_date)
+                        : 'бессрочно';
+                    periodEl.textContent = `${startDate} — ${endDate}`;
+                }
+                if (generatedEl) generatedEl.textContent = planData.occurrences_generated || '0';
+                if (statusBadge) {
+                    if (planData.is_active) {
+                        statusBadge.textContent = 'Активен';
+                        statusBadge.className = 'badge badge-sm badge-success ml-2';
+                    } else {
+                        statusBadge.textContent = 'Неактивен';
+                        statusBadge.className = 'badge badge-sm badge-ghost ml-2';
+                    }
+                }
+
+                // Pre-fill template fields if they exist
+                const templateEndDateInput = document.getElementById('edit-template-end-date');
+                const templateIsActiveCheckbox = document.getElementById('edit-template-is-active');
+                if (templateEndDateInput && planData.end_date) {
+                    templateEndDateInput.value = BudgetShared.DateFormatter.formatForDisplay(planData.end_date);
+                }
+                if (templateIsActiveCheckbox) {
+                    templateIsActiveCheckbox.checked = planData.is_active;
+                }
+            } else if (fact.recurring_plan_id && !fact.recurring_plan) {
+                // Data integrity warning (orphaned recurring_plan_id)
+                console.warn(
+                    `[Edit Modal] Orphaned recurring_plan_id=${fact.recurring_plan_id} ` +
+                    `(recurring plan data missing from response - possible database inconsistency)`
+                );
+                recurringInfoDiv.classList.add('hidden');
+            } else {
+                // No recurring plan - hide section
+                recurringInfoDiv.classList.add('hidden');
+            }
+        }
+
+        // НОВОЕ: Скрыть reminder для recurring plan записей
+        // setEditModalMode уже показал reminder для всех plan записей (строка 489)
+        // Но для recurring plan нужно его скрыть
+        if (fact.recurring_plan_id) {
+            const reminderContainer = document.getElementById('edit-reminder-container');
+            const reminderSettings = document.getElementById('edit-reminder-settings');
+            if (reminderContainer) reminderContainer.classList.add('hidden');
+            if (reminderSettings) reminderSettings.classList.add('hidden');
+        }
+        // ВАЖНО: НЕ добавлять else блок!
+        // setEditModalMode уже показывает reminder для обычных plan записей
+
         // Determine category type from allCategories
         const selectedArticle = allCategories.find(a => a.id === fact.article_id);
         const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+        // Update category type badge in collapse header
+        updateEditCategoryTypeBadge(categoryType);
 
         // Set category type radio buttons
         document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
@@ -682,6 +1229,9 @@ async function openEditFromDashboard(factId) {
                 radio.checked = false;
             }
         });
+
+        // STEP 4: Initialize widgets
+        performance.mark(`${perfId}-widget-start`);
 
         // Destroy previous ChoicesCategoryTree instance if exists
         if (editCategoryTreeSelect) {
@@ -697,34 +1247,22 @@ async function openEditFromDashboard(factId) {
             editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
                 type: categoryType,
                 showLeafOnly: true,
+                financialCenterId: fact.financial_center_id,
                 onCategoryChange: (category) => {
-                    console.log('Category changed in edit modal:', category);
                 }
             });
 
-            // Wait for initialization to complete, then set selected value
-            const initCheckInterval = setInterval(async () => {
-                if (editCategoryTreeSelect &&
-                    editCategoryTreeSelect.choices &&
-                    editCategoryTreeSelect.categoryMap &&
-                    editCategoryTreeSelect.categoryMap.size > 0) {
+            // Wait for initialization to complete using Promise-based approach
+            await editCategoryTreeSelect.waitForReady();
 
-                    const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
+            if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+            } else {
+                console.warn('[Edit Modal] Category not found in map:', fact.article_id);
+            }
 
-                    if (choicesStore.length > 0) {
-                        clearInterval(initCheckInterval);
-
-                        if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
-                            await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
-                        } else {
-                            console.warn('[Edit Modal] Category not found in map:', fact.article_id);
-                        }
-                    }
-                }
-            }, 150);
-
-            // Safety timeout
-            setTimeout(() => clearInterval(initCheckInterval), 10000);
+            // Filter cost centers by financial center
+            await filterEditCostCenters(fact.financial_center_id);
         }
 
         // Initialize CalendarWidget for edit modal date input
@@ -739,10 +1277,12 @@ async function openEditFromDashboard(factId) {
                 mode: 'single',
                 inputElement: editDateInput,
                 onSelect: (date) => {
-                    console.log('Выбрана дата для edit modal:', date);
                 }
             });
         }
+
+        performance.mark(`${perfId}-widget-end`);
+        performance.measure('Widget Init', `${perfId}-widget-start`, `${perfId}-widget-end`);
 
         // Handle reminder for plans
         if (recordType === 'plan') {
@@ -781,13 +1321,218 @@ async function openEditFromDashboard(factId) {
         // Setup category type buttons handlers
         setupEditCategoryTypeButtons();
 
-        document.getElementById('edit-modal').showModal();
+        // Setup financial center change handler to filter categories
+        const editFcSelect = document.getElementById('edit-financial-center');
+        if (editFcSelect && editCategoryTreeSelect) {
+            // ✅ FIX: Save value BEFORE cloneNode (cloneNode doesn't preserve runtime value!)
+            const savedValue = editFcSelect.value;
+            console.log('[openEditFromDashboard] Saving FC value before clone:', savedValue);
+
+            // Remove previous listener if exists (prevent duplicates)
+            const newEditFcSelect = editFcSelect.cloneNode(true);
+            editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+
+            // ✅ FIX: Restore value AFTER cloneNode
+            if (savedValue) {
+                newEditFcSelect.value = savedValue;
+                console.log('[openEditFromDashboard] Restored FC value after clone:', newEditFcSelect.value);
+            }
+
+            newEditFcSelect.addEventListener('change', async () => {
+                const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+                console.log(`[index.html] 🔄 Financial Center changed in edit modal:`, {
+                    newFcId: fcId,
+                    currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
+                });
+
+                // Filter categories by selected FC (will preserve selection if category is still available)
+                if (editCategoryTreeSelect) {
+                    await editCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Filter cost centers by selected FC
+                await filterEditCostCenters(fcId);
+
+                console.log(`[index.html] ✅ Filtering complete. New category value:`,
+                    editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
+            });
+        }
+
+        // STEP 5: Hide skeleton, show form, enable submit
+        if (skeleton) skeleton.classList.add('hidden');
+        if (formFields) formFields.classList.remove('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+
+        // END PERFORMANCE MEASUREMENT
+        performance.mark(`${perfId}-end`);
+        performance.measure('Modal Open Total', `${perfId}-start`, `${perfId}-end`);
+
+        // Log performance metrics
+        const measures = performance.getEntriesByType('measure');
+        const modalOpenMeasure = measures.find(m => m.name === 'Modal Open Total');
+        const apiMeasure = measures.find(m => m.name === 'API Fetch');
+        const dropdownMeasure = measures.find(m => m.name === 'Dropdown Load');
+        const widgetMeasure = measures.find(m => m.name === 'Widget Init');
+
+        if (modalOpenMeasure && modalOpenMeasure.duration > 1000) {
+            console.warn(`[Performance] Modal open exceeded 1000ms: ${modalOpenMeasure.duration.toFixed(0)}ms`);
+        }
+
+        // Cleanup old markers
+        performance.clearMarks(`${perfId}-start`);
+        performance.clearMarks(`${perfId}-api-start`);
+        performance.clearMarks(`${perfId}-api-end`);
+        performance.clearMarks(`${perfId}-dropdown-start`);
+        performance.clearMarks(`${perfId}-dropdown-end`);
+        performance.clearMarks(`${perfId}-widget-start`);
+        performance.clearMarks(`${perfId}-widget-end`);
+        performance.clearMarks(`${perfId}-end`);
+        performance.clearMeasures('API Fetch');
+        performance.clearMeasures('Dropdown Load');
+        performance.clearMeasures('Widget Init');
+        performance.clearMeasures('Modal Open Total');
+
     } catch (error) {
         console.error('Error opening edit modal:', error);
+        const modal = document.getElementById('edit-modal');
+        if (modal) modal.close();
         showToast('Ошибка: ' + error.message, 'error');
     }
 }
 window.openEditFromDashboard = openEditFromDashboard;
+
+/**
+ * Callback for recurring delete modal resolution
+ */
+let recurringDeleteResolveCallback = null;
+
+/**
+ * Show recurring delete confirmation dialog
+ * @returns {Promise<string|null>} 'single', 'all', or null (cancelled)
+ */
+function showRecurringDeleteDialog() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('recurring-delete-modal');
+        if (!modal) {
+            console.error('Recurring delete modal not found');
+            resolve(null);
+            return;
+        }
+
+        recurringDeleteResolveCallback = resolve;
+        modal.showModal();
+    });
+}
+
+/**
+ * Resolve recurring delete dialog with user's choice
+ * @param {string|null} choice - 'single', 'all', or null (cancelled)
+ */
+function recurringDeleteResolve(choice) {
+    const modal = document.getElementById('recurring-delete-modal');
+    if (modal) {
+        modal.close();
+    }
+
+    if (recurringDeleteResolveCallback) {
+        recurringDeleteResolveCallback(choice);
+        recurringDeleteResolveCallback = null;
+    }
+}
+
+/**
+ * Delete a fact from dashboard recent-transactions list
+ * @param {number} factId - Fact ID to delete
+ * @param {number} isRecurring - 1 if recurring fact, 0 otherwise
+ */
+async function deleteFactFromDashboard(factId, isRecurring) {
+    try {
+        let deleteMode = 'single'; // default: delete just this fact
+
+        if (isRecurring) {
+            // This is a recurring fact - ask user what to delete
+            const choice = await showRecurringDeleteDialog();
+
+            if (!choice) {
+                // User cancelled
+                return;
+            }
+
+            deleteMode = choice; // 'single' or 'all'
+        } else {
+            // Regular fact - show standard confirmation
+            const confirmed = confirm('Вы уверены, что хотите удалить эту запись? Это действие необратимо.');
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        if (deleteMode === 'all' && isRecurring) {
+            // First, get the fact to retrieve recurring_plan_id
+            const factResponse = await fetch(`/api/v1/facts/${factId}`, { credentials: 'include' });
+            if (!factResponse.ok) {
+                throw new Error('Ошибка загрузки записи');
+            }
+
+            const fact = await factResponse.json();
+            const recurringPlanId = fact.recurring_plan_id;
+
+            if (!recurringPlanId) {
+                throw new Error('У записи отсутствует recurring_plan_id');
+            }
+
+            // Get all facts with same recurring_plan_id
+            const allFactsResponse = await fetch(
+                `/api/v1/facts?recurring_plan_id=${recurringPlanId}&limit=1000`,
+                { credentials: 'include' }
+            );
+            if (!allFactsResponse.ok) {
+                throw new Error('Ошибка получения списка регламентных записей');
+            }
+
+            const allFactsData = await allFactsResponse.json();
+            const factIdsToDelete = allFactsData.facts.map(f => f.id);
+
+            console.log(`Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
+
+            // Use batch delete endpoint
+            const response = await fetch('/api/v1/facts/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(factIdsToDelete),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload recent transactions
+            htmx.trigger('#recent-transactions', 'loadRecent');
+            showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
+        } else {
+            // Delete single fact
+            const response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload recent transactions
+            htmx.trigger('#recent-transactions', 'loadRecent');
+            showToast('Запись успешно удалена', 'success');
+        }
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        showToast('Ошибка удаления: ' + (error.message || String(error)), 'error');
+    }
+}
+window.deleteFactFromDashboard = deleteFactFromDashboard;
 
 /**
  * Open edit modal for pending (offline) record
@@ -825,7 +1570,6 @@ async function openEditPendingRecord(itemId, entity) {
         // Check if we're offline (all requests failed)
         const allFailed = results.every(r => r.status === 'rejected');
         if (allFailed) {
-            console.log('[openEditPendingRecord] Offline mode - using cached data from pending record');
             // Populate dropdowns with single option from pending record data
             populateOfflineDropdowns(data);
         }
@@ -871,7 +1615,6 @@ async function openEditPendingRecord(itemId, entity) {
                 type: categoryType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Category changed in edit modal:', category);
                 }
             });
 
@@ -907,7 +1650,6 @@ async function openEditPendingRecord(itemId, entity) {
                 mode: 'single',
                 inputElement: editDateInput,
                 onSelect: (date) => {
-                    console.log('Выбрана дата для edit modal:', date);
                 }
             });
         }
@@ -953,6 +1695,25 @@ function closeEditModal() {
 window.closeEditModal = closeEditModal;
 
 /**
+ * Helper to update category type badge in edit modal
+ */
+function updateEditCategoryTypeBadge(type) {
+    const badge = document.getElementById('edit-category-type-label');
+    if (!badge) return;
+
+    const typeConfig = {
+        expense: { text: 'Расход', class: 'badge-error' },
+        income: { text: 'Доход', class: 'badge-success' },
+        debit: { text: 'Списание', class: 'badge-info' },
+        credit: { text: 'Пополнение', class: 'badge-warning' }
+    };
+
+    const config = typeConfig[type] || typeConfig.expense;
+    badge.textContent = config.text;
+    badge.className = `badge badge-sm ${config.class}`;
+}
+
+/**
  * Setup category type buttons handlers for edit modal
  */
 function setupEditCategoryTypeButtons() {
@@ -978,7 +1739,9 @@ function setupEditCategoryTypeButtons() {
 
             // Reload categories with new type
             const newType = this.dataset.type;
-            console.log('Edit modal category type changed to:', newType);
+
+            // Update badge in collapse header
+            updateEditCategoryTypeBadge(newType);
 
             if (editCategoryTreeSelect && allCategories.length > 0) {
                 editCategoryTreeSelect.updateType(newType);
@@ -1139,86 +1902,7 @@ function getReminderStatusBadge(status) {
  * @param {string} reminderDatetime - ISO datetime string
  * @returns {Promise<boolean>}
  */
-async function createReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to create reminder:', error);
-            return false;
-        }
-
-        console.log('[Reminder] Created reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error creating reminder:', error);
-        return false;
-    }
-}
-
-/**
- * Update reminder for a plan
- * @param {number} factId - Fact ID
- * @param {string} reminderDatetime - ISO datetime string
- * @returns {Promise<boolean>}
- */
-async function updateReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to update reminder:', error);
-            return false;
-        }
-
-        console.log('[Reminder] Updated reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error updating reminder:', error);
-        return false;
-    }
-}
-
-/**
- * Delete reminder for a plan
- * @param {number} factId - Fact ID
- * @returns {Promise<boolean>}
- */
-async function deleteReminder(factId) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (response.status === 404) {
-            return true; // Already deleted
-        }
-
-        if (!response.ok) {
-            console.error('Failed to delete reminder, status:', response.status);
-            return false;
-        }
-
-        console.log('[Reminder] Deleted reminder for plan:', factId);
-        return true;
-    } catch (error) {
-        console.error('Error deleting reminder:', error);
-        return false;
-    }
-}
+// Reminder functions moved to BudgetShared.Reminders module (frontend/shared/static/js/reminders.js)
 
 /**
  * Update fact from edit modal (handles both online and pending records)
@@ -1236,6 +1920,9 @@ async function updateFact(event) {
         showToast('Неверный формат даты. Используйте формат ДД.ММ.ГГГГ', 'error');
         return;
     }
+
+    // ========== ALL VALIDATION PASSED - SHOW LOADING ==========
+    setSubmitLoading(event.target, true);
 
     // Build data object
     const data = {
@@ -1302,25 +1989,57 @@ async function updateFact(event) {
             closeEditModal();
             await loadPendingRecords();
             showToast('Запись обновлена (ожидает синхронизации)', 'success');
-            return;
         } catch (error) {
             console.error('Error updating pending record:', error);
             showToast('Ошибка обновления записи: ' + error.message, 'error');
-            return;
+        } finally {
+            // ========== ALWAYS RESTORE BUTTON (PENDING PATH) ==========
+            setSubmitLoading(event.target, false);
         }
+        return;
     }
 
     // Handle online record update
     const enableReminder = formData.get('enable_reminder') === 'on';
     const reminderDatetime = formData.get('reminder_datetime');
 
+    // Get recurring plan settings
+    const recurringPlanId = formData.get('recurring_plan_id');
+    const editScope = formData.get('edit_scope');
+
     try {
-        const response = await fetch(`/api/v1/admin/facts/${recordId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify(data)
-        });
+        let response;
+        let successMessage = 'Запись успешно обновлена';
+
+        // Check if editing recurring plan template
+        if (recurringPlanId && editScope === 'template') {
+            // Update recurring plan template
+            // Only send fields that can be updated on template: amount, description, cost_center_id
+            const templateData = {
+                amount: data.amount,
+                description: data.description
+            };
+
+            if (costCenterId) {
+                templateData.cost_center_id = parseInt(costCenterId);
+            }
+
+            response = await fetch(`/api/v1/recurring-plans/${recurringPlanId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(templateData)
+            });
+            successMessage = 'Шаблон регламентного платежа обновлен';
+        } else {
+            // Update single fact
+            response = await fetch(`/api/v1/admin/facts/${recordId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        }
 
         if (!response.ok) {
             const error = await response.json();
@@ -1343,26 +2062,32 @@ async function updateFact(event) {
             throw new Error(errorMsg);
         }
 
-        // Handle reminder update for plans
-        if (currentEditingRecordType === 'plan') {
+        // Handle reminder update for plans (only for single fact scope, not template)
+        if (currentEditingRecordType === 'plan' && editScope !== 'template') {
             const existingReminder = remindersMap.get(parseInt(recordId));
 
             if (enableReminder && reminderDatetime) {
                 if (existingReminder) {
-                    const updated = await updateReminder(recordId, reminderDatetime);
+                    const updated = await BudgetShared.Reminders.updateReminder(recordId, reminderDatetime);
                     if (!updated) {
                         showToast('Предупреждение: не удалось обновить напоминание', 'warning');
+                    } else {
+                        remindersMap.set(parseInt(recordId), updated);
                     }
                 } else {
-                    const created = await createReminder(recordId, reminderDatetime);
+                    const created = await BudgetShared.Reminders.createReminder(recordId, reminderDatetime);
                     if (!created) {
                         showToast('Предупреждение: не удалось создать напоминание', 'warning');
+                    } else {
+                        remindersMap.set(parseInt(recordId), created);
                     }
                 }
             } else if (!enableReminder && existingReminder) {
-                const deleted = await deleteReminder(recordId);
+                const deleted = await BudgetShared.Reminders.deleteReminder(recordId);
                 if (!deleted) {
                     showToast('Предупреждение: не удалось удалить напоминание', 'warning');
+                } else {
+                    remindersMap.delete(parseInt(recordId));
                 }
             }
         }
@@ -1383,10 +2108,13 @@ async function updateFact(event) {
             swap: 'innerHTML'
         });
 
-        showToast('Запись успешно обновлена', 'success');
+        showToast(successMessage, 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        // ========== ALWAYS RESTORE BUTTON (ONLINE PATH) ==========
+        setSubmitLoading(event.target, false);
     }
 }
 window.updateFact = updateFact;
@@ -1455,10 +2183,127 @@ async function deleteFromEditModal() {
 }
 window.deleteFromEditModal = deleteFromEditModal;
 
+// Delete record from dashboard (recent transactions)
+async function deleteRecordFromDashboard(factId) {
+    if (!confirm('Удалить запись?')) return;
+
+    try {
+        const response = await fetch(`/api/v1/facts/${factId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        showToast('Запись удалена', 'success');
+
+        // Обновить карточку recent-transactions
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+
+        // Обновить метрики
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
+
+        // Обновить SSE
+        if (window.budgetSSE) {
+            window.budgetSSE.reconnect();
+        }
+    } catch (error) {
+        console.error('Error deleting record:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
+}
+window.deleteRecordFromDashboard = deleteRecordFromDashboard;
+
+// Delete pending record (offline queue)
+async function deletePendingRecord(itemId) {
+    if (!confirm('Удалить из очереди?')) return;
+
+    try {
+        await window.offlineManager.db.deleteSyncQueueItem(itemId);
+        showToast('Удалено из очереди', 'success');
+        await loadPendingRecords();
+    } catch (error) {
+        console.error('Error deleting pending record:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
+}
+window.deletePendingRecord = deletePendingRecord;
+
+// Handle edit scope change for recurring plans (single record vs template)
+function handleEditScopeChange(scope) {
+    const templateFieldsDiv = document.getElementById('edit-template-fields');
+    const dateContainer = document.getElementById('edit-date-container');
+    const categoryTypeContainer = document.getElementById('edit-category-type-container');
+    const articleContainer = document.getElementById('edit-article-container');
+    const financialCenterContainer = document.getElementById('edit-financial-center-container');
+    const dateInput = document.getElementById('edit-date');
+
+    if (scope === 'template') {
+        // Показать поля редактирования шаблона
+        if (templateFieldsDiv) templateFieldsDiv.classList.remove('hidden');
+        // Скрыть поля которые нельзя менять для шаблона
+        if (dateContainer) dateContainer.classList.add('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.add('hidden');
+        if (articleContainer) articleContainer.classList.add('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.add('hidden');
+        // Убрать required с даты (иначе форма не отправится)
+        if (dateInput) dateInput.removeAttribute('required');
+
+        // Initialize CalendarWidget for template end date
+        const endDateInput = document.getElementById('edit-template-end-date');
+        if (endDateInput && !editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                inputElement: endDateInput,
+                onSelect: (date) => {
+                    debugLog('Выбрана дата окончания шаблона:', date);
+                }
+            });
+        }
+    } else {
+        // Показать все стандартные поля
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+        if (dateContainer) dateContainer.classList.remove('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.remove('hidden');
+        if (articleContainer) articleContainer.classList.remove('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.remove('hidden');
+        // Вернуть required на дату
+        if (dateInput) dateInput.setAttribute('required', '');
+
+        // Destroy template end date calendar
+        if (editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar.destroy();
+            editTemplateEndDateCalendar = null;
+        }
+    }
+}
+window.handleEditScopeChange = handleEditScopeChange;
+
 // ==================== End Edit Modal Functions ====================
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
+    // Reset button state
+    const form = document.getElementById('form_modal_add_transaction');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Установить текущую дату перед открытием модального окна (today() already returns DD.MM.YYYY)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
@@ -1466,8 +2311,43 @@ function openAddTransactionModal() {
         debugLog('[openAddTransactionModal] Установлена текущая дату:', factDateInput.value);
     }
 
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof transactionCategoryTreeSelect !== 'undefined' && transactionCategoryTreeSelect) {
+        transactionCategoryTreeSelect.options.financialCenterId = null;
+    }
+
+    // ✅ FIX iOS Safari: Handle backdrop clicks explicitly (instead of form method="dialog")
+    // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+    const modal = document.getElementById('modal_add_transaction');
+    if (modal && !modal.dataset.backdropHandlerAdded) {
+        console.log('[openAddTransactionModal] Adding backdrop click handler for iOS Safari fix');
+        modal.addEventListener('click', (e) => {
+            console.log('[BACKDROP] Click detected:', {
+                target: e.target.tagName,
+                targetId: e.target.id,
+                targetClass: e.target.className,
+                isModal: e.target === modal,
+                timestamp: new Date().toISOString()
+            });
+
+            // Close only if click is directly on dialog (backdrop area)
+            // NOT if click is on modal-box or its children
+            if (e.target === modal) {
+                console.log('[BACKDROP] Closing modal (click on backdrop)');
+                modal.close();
+            } else {
+                console.log('[BACKDROP] Ignoring click (not on backdrop)');
+            }
+        });
+        modal.dataset.backdropHandlerAdded = 'true';
+    }
+
     // Открыть модальное окно
+    console.log('[openAddTransactionModal] Calling modal.showModal()');
     modal_add_transaction.showModal();
+    console.log('[openAddTransactionModal] Modal opened successfully');
 }
 // Ensure function is globally accessible for onclick handlers
 window.openAddTransactionModal = openAddTransactionModal;
@@ -1528,6 +2408,38 @@ function confirmWelcomeClose() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[INIT] DOMContentLoaded fired at', new Date().toISOString());
+
+    // ========== VERSION VERIFICATION MARKER ==========
+    // This verifies that new code is actually running
+    const marker = document.createElement('div');
+    marker.id = 'code-version-marker';
+    marker.dataset.version = 'v20251225_1200';
+    marker.style.display = 'none';
+    document.body.appendChild(marker);
+    console.log('[INIT] ✅ Code version:', marker.dataset.version);
+
+    // ========== CACHE CLEAR HELPER ==========
+    // For manual debugging if SW cache persists
+    window.clearSWCache = async function() {
+        try {
+            console.log('[DEBUG] Clearing Service Worker cache...');
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg) {
+                await reg.unregister();
+                console.log('[DEBUG] ✅ SW unregistered');
+            }
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+            console.log('[DEBUG] ✅ Deleted', cacheNames.length, 'caches:', cacheNames);
+            showToast('Кеш очищен. Перезагрузка через 1 секунду...', 'info');
+            setTimeout(() => location.reload(), 1000);
+        } catch (error) {
+            console.error('[DEBUG] ❌ Cache clear failed:', error);
+            showToast('Ошибка очистки кеша: ' + error.message, 'error');
+        }
+    };
+
     // Check if welcome section should be hidden based on localStorage
     checkWelcomeSectionVisibility();
 
@@ -1631,7 +2543,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик отправки формы факта (с поддержкой offline режима)
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
-        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -1755,19 +2666,38 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error creating transaction:', error);
             showToast('Ошибка при создании факта: ' + error.message, 'error');
         } finally {
-            setSubmitLoading(e.target, false);
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            setButtonLoading(submitBtn, false);
         }
     });
 
     // Обработчик отправки формы плана (с поддержкой offline режима)
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
+        console.log('[Plan Submit] ========== START ==========');
+        console.log('[Plan Submit] Timestamp:', new Date().toISOString());
         e.preventDefault();
-        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
+        // Log all form fields
+        console.log('[Plan Submit] All form fields:');
+        for (let [key, value] of formData.entries()) {
+            console.log('  -', key, '=', value);
+        }
+
         // v5.1.3: Унификация с plan.html - преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
         const planMonth = formData.get('plan_month'); // "2025-11"
+        console.log('[Plan Submit] plan_month value:', planMonth);
+
+        if (!planMonth) {
+            console.error('[Plan Submit] ❌ ERROR: plan_month is empty or null!');
+            showToast('Ошибка: не выбран период планирования', 'error');
+            const btn = e.target.querySelector('.save-btn');
+            setButtonLoading(btn, false);
+            return;
+        }
+
         const factDate = `${planMonth}-01`; // "2025-11-01"
 
         // Helper to get selected option text
@@ -1788,30 +2718,187 @@ document.addEventListener('DOMContentLoaded', function() {
             articleName = selected ? selected.name : null;
         }
 
-        // Get reminder settings BEFORE building data object
-        const enableReminder = formData.get('enable_reminder') === 'on';
-        const reminderDatetime = formData.get('reminder_datetime');
-
-        // v5.1.3: Убрано поле transaction_type - не используется для планов
-        const data = {
-            record_type: 'plan',
-            fact_type: formData.get('plan_type'), // expense или income - для отображения в pending table
-            amount: parseFloat(formData.get('amount')),
-            article_id: parseInt(formData.get('article_id')),
-            article_name: articleName, // For offline display
-            financial_center_id: parseInt(formData.get('financial_center_id')),
-            financial_center_name: getSelectedText(fcSelect), // For offline display
-            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-            cost_center_name: getSelectedText(ccSelect), // For offline display
-            plan_date: factDate, // For pending table display
-            fact_date: factDate, // Обязательное поле - первое число месяца плана
-            description: formData.get('description') || null,
-            // Notification settings for offline display and post-sync reminder creation
-            notification_enabled: enableReminder,
-            reminder_datetime: enableReminder ? reminderDatetime : null
-        };
+        // Get plan mode from radio buttons
+        const planMode = formData.get('plan_mode') || 'regular';
+        const isRecurring = (planMode === 'recurring');
+        const enableReminder = (planMode === 'reminder');
+        const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
         try {
+            if (isRecurring) {
+                // ===== RECURRING PLAN CREATION =====
+                const recurringSettings = window.collectRecurringSettings('modal_add_plan');
+
+                if (!recurringSettings) {
+                    console.error('[index.html createPlan] collectRecurringSettings() returned null!');
+                    showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
+                    // Re-enable button
+                    const submitBtn = e.target.querySelector('.save-btn');
+                    setButtonLoading(submitBtn, false);
+                    return;
+                }
+
+                // Get article ID and select elements
+                const articleId = parseInt(formData.get('article_id'));
+                const financialCenterId = parseInt(formData.get('financial_center_id'));
+                const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null;
+
+                // Get article name from category tree
+                let articleName = null;
+                if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+                    const selected = planCategoryTreeSelect.getSelectedCategory();
+                    articleName = selected ? selected.name : null;
+                }
+
+                const financialCenterName = getSelectedText(fcSelect);
+                const costCenterName = getSelectedText(ccSelect);
+
+                // Try to get article type from data attribute or fetch
+                let articleType = null;
+                const articleSelect = e.target.querySelector('[name="article_id"]');
+                if (articleSelect?.selectedOptions[0]?.dataset?.type) {
+                    articleType = articleSelect.selectedOptions[0].dataset.type;
+                } else if (articleId) {
+                    try {
+                        const articleResp = await fetch(`/api/v1/articles/${articleId}`, { credentials: 'include' });
+                        if (articleResp.ok) {
+                            const articleData = await articleResp.json();
+                            articleType = articleData.type;
+                        }
+                    } catch (err) {
+                        console.warn('[index.html createPlan] Failed to fetch article type:', err);
+                    }
+                }
+
+                // Build recurring plan data
+                const recurringData = {
+                    article_id: articleId,
+                    financial_center_id: financialCenterId,
+                    cost_center_id: costCenterId,
+                    amount: parseFloat(formData.get('amount')),
+                    description: formData.get('description') || null,
+                    record_type: 'plan',
+                    frequency_type: recurringSettings.frequency_type,
+                    frequency_value: recurringSettings.frequency_value,
+                    start_date: factDate,
+                    end_date: recurringSettings.end_date,
+                    occurrences_count: recurringSettings.occurrences_count,
+                    // Add names, type, and date for offline display in pending-records-card
+                    article_name: articleName,
+                    article_type: articleType,
+                    financial_center_name: financialCenterName,
+                    cost_center_name: costCenterName,
+                    plan_date: factDate  // For pending records date display
+                };
+
+                debugLog('[index.html createPlan] Creating recurring plan:', recurringData);
+
+                // Use OfflineManager if available for offline support
+                if (window.offlineManager) {
+                    const result = await window.offlineManager.createRecurringPlan(recurringData);
+
+                    modal_add_plan.close();
+                    e.target.reset();
+                    // Reset recurring settings
+                    if (window.resetRecurringSettings) {
+                        window.resetRecurringSettings('modal_add_plan');
+                    }
+                    // Reset reminder settings visibility
+                    const reminderSettings1 = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings1) reminderSettings1.classList.add('hidden');
+                    setupPlanPeriodButtons();
+
+                    if (result._offline) {
+                        showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
+                        debugLog('[index.html createPlan] Recurring plan saved offline:', result);
+                        // Update pending records table
+                        loadPendingRecords();
+                    } else {
+                        showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                        debugLog('[index.html createPlan] Recurring plan created:', result);
+                        // Update recent records table
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                            target: '#account-balances',
+                            swap: 'innerHTML'
+                        });
+                    }
+                } else {
+                    // Fallback to direct fetch if OfflineManager not available
+                    const response = await fetch('/api/v1/recurring-plans', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(recurringData)
+                    });
+
+                    if (response.ok) {
+                        const createdPlan = await response.json();
+                        modal_add_plan.close();
+                        e.target.reset();
+                        // Reset recurring settings
+                        if (window.resetRecurringSettings) {
+                            window.resetRecurringSettings('modal_add_plan');
+                        }
+                        const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
+                        if (reminderSettings2) reminderSettings2.classList.add('hidden');
+                        setupPlanPeriodButtons();
+
+                        showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                        debugLog('[index.html createPlan] Recurring plan created:', createdPlan);
+
+                        // Update recent records table
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                            target: '#account-balances',
+                            swap: 'innerHTML'
+                        });
+                    } else {
+                        const error = await response.json();
+                        showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+                    }
+                }
+
+                // Re-enable button
+                const submitBtn = e.target.querySelector('.save-btn');
+                setButtonLoading(submitBtn, false);
+                return;
+            }
+
+            // ===== REGULAR PLAN CREATION =====
+            // v5.1.3: Убрано поле transaction_type - не используется для планов
+            const data = {
+                record_type: 'plan',
+                fact_type: formData.get('plan_type'), // expense или income - для отображения в pending table
+                amount: parseFloat(formData.get('amount')),
+                article_id: parseInt(formData.get('article_id')),
+                article_name: articleName, // For offline display
+                financial_center_id: parseInt(formData.get('financial_center_id')),
+                financial_center_name: getSelectedText(fcSelect), // For offline display
+                cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+                cost_center_name: getSelectedText(ccSelect), // For offline display
+                plan_date: factDate, // For pending table display
+                fact_date: factDate, // Обязательное поле - первое число месяца плана
+                description: formData.get('description') || null,
+                // Notification settings for offline display and post-sync reminder creation
+                notification_enabled: enableReminder,
+                reminder_datetime: enableReminder ? reminderDatetime : null
+            };
+
             // Use OfflineManager for offline support
             if (window.offlineManager) {
                 const result = await window.offlineManager.createPlan(data);
@@ -1830,7 +2917,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update pending records table
                     loadPendingRecords();
                 } else {
-                    // Update recent records table (now includes plans)
+                    if (result && result.id) {
+                        // Create reminder FIRST if enabled (before HTMX refresh)
+                        if (enableReminder && reminderDatetime) {
+                            const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
+                            if (reminder) {
+                                // ✅ FIX 2: Update remindersMap to show icon in table
+                                remindersMap.set(result.id, reminder);
+                                showToast('План с напоминанием успешно сохранен!', 'success');
+                            } else {
+                                showToast('План сохранен, но напоминание не создано', 'warning');
+                            }
+                        } else {
+                            showToast('План успешно сохранен!', 'success');
+                        }
+                    } else {
+                        showToast('План создан, но ID не получен', 'warning');
+                    }
+
+                    // Update recent records table AFTER reminder creation (so backend query finds the reminder)
                     htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
@@ -1844,21 +2949,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         swap: 'innerHTML'
                     });
 
-                    if (result && result.id) {
-                        // Create reminder if enabled
-                        if (enableReminder && reminderDatetime) {
-                            const reminder = await createReminder(result.id, reminderDatetime);
-                            if (reminder) {
-                                showToast('План с напоминанием успешно сохранен!', 'success');
-                            } else {
-                                showToast('План сохранен, но напоминание не создано', 'warning');
-                            }
-                        } else {
-                            showToast('План успешно сохранен!', 'success');
-                        }
-                    } else {
-                        showToast('План создан, но ID не получен', 'warning');
-                    }
                     debugLog('[index.html] Plan saved online:', result);
                 }
             } else {
@@ -1879,7 +2969,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
                     if (reminderSettings2) reminderSettings2.classList.add('hidden');
                     setupPlanPeriodButtons();
-                    // Update recent records table (now includes plans)
+
+                    // Create reminder FIRST if enabled (before HTMX refresh)
+                    if (result && result.id && enableReminder && reminderDatetime) {
+                        const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
+                        if (reminder) {
+                            // ✅ FIX 2: Update remindersMap to show icon in table
+                            remindersMap.set(result.id, reminder);
+                            showToast('План с напоминанием успешно сохранен!', 'success');
+                        } else {
+                            showToast('План сохранен, но напоминание не создано', 'warning');
+                        }
+                    } else {
+                        showToast('План успешно сохранен!', 'success');
+                    }
+
+                    // Update recent records table AFTER reminder creation (so backend query finds the reminder)
                     htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
@@ -1892,18 +2997,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         target: '#account-balances',
                         swap: 'innerHTML'
                     });
-
-                    // Create reminder if enabled
-                    if (result && result.id && enableReminder && reminderDatetime) {
-                        const reminder = await createReminder(result.id, reminderDatetime);
-                        if (reminder) {
-                            showToast('План с напоминанием успешно сохранен!', 'success');
-                        } else {
-                            showToast('План сохранен, но напоминание не создано', 'warning');
-                        }
-                    } else {
-                        showToast('План успешно сохранен!', 'success');
-                    }
                 } else {
                     const error = await response.json();
                     showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать план'), 'error');
@@ -1913,9 +3006,216 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error creating plan:', error);
             showToast('Ошибка при создании плана: ' + error.message, 'error');
         } finally {
-            setSubmitLoading(e.target, false);
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            setButtonLoading(submitBtn, false);
         }
+
+        console.log('[Plan Submit] ========== COMPLETE ==========');
     });
+
+    // Transfer form submit handler (with offline support)
+    // CRITICAL: Guard against duplicate event listener registration
+    // Problem: Multiple pages (index.html, facts.html, plan.html) include modal_transfer.html
+    // Each page's DOMContentLoaded can register its own handler on the same form element
+    // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
+    const transferForm = document.getElementById('form_transfer');
+    console.log('[index.html] Transfer form guard check:', {
+        formExists: !!transferForm,
+        alreadyRegistered: transferForm?.dataset?.submitHandlerRegistered,
+        timestamp: new Date().toISOString()
+    });
+
+    if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
+        transferForm.dataset.submitHandlerRegistered = 'true';
+        console.log('[index.html] ✅ Transfer form submit handler REGISTERED');
+
+        // De-duplication guard: prevent simultaneous submissions
+        let isSubmitting = false;
+
+        transferForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Guard against simultaneous submissions (race condition protection)
+            if (isSubmitting) {
+                console.warn('[index.html] ⚠️ Transfer submission already in progress, ignoring duplicate');
+                return;
+            }
+            isSubmitting = true;
+
+            console.log('[index.html] 🚀 Transfer form submit handler EXECUTING');
+
+        const formData = new FormData(e.target);
+
+        // Validate FROM ≠ TO
+        const fromFC = parseInt(formData.get('from_financial_center_id'));
+        const toFC = parseInt(formData.get('to_financial_center_id'));
+
+        if (fromFC === toFC) {
+            showToast('Ошибка: счет отправления и получения должны различаться', 'error');
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            setButtonLoading(submitBtn, false);
+            isSubmitting = false;  // ← CRITICAL: Reset guard
+            return;
+        }
+
+        // Get record_type from hidden field (set by openFactTransferModal or openPlanTransferModal)
+        const recordType = formData.get('record_type'); // 'fact' or 'plan'
+        console.log('[Transfer Submit] ========== VALIDATION START ==========');
+        console.log('[Transfer Submit] record_type from form:', recordType);
+        console.log('[Transfer Submit] record_type type:', typeof recordType);
+        console.log('[Transfer Submit] record_type === "plan":', recordType === 'plan');
+        console.log('[Transfer Submit] record_type === "fact":', recordType === 'fact');
+
+        // Determine transfer date based on record_type
+        let transferDate;
+        if (recordType === 'plan') {
+            // For plan transfers: use transfer_plan_month (YYYY-MM) and convert to YYYY-MM-01
+            const planMonth = formData.get('transfer_plan_month'); // "2025-12"
+            console.log('[Transfer Submit] Plan month:', planMonth);
+
+            if (!planMonth || planMonth === 'null' || planMonth === 'undefined') {
+                showToast('Ошибка: выберите период планирования', 'error');
+                const submitBtn = e.target.querySelector('.save-btn');
+                setButtonLoading(submitBtn, false);
+                isSubmitting = false;
+                return;
+            }
+
+            transferDate = `${planMonth}-01`; // "2025-12-01"
+        } else {
+            // For fact transfers: use transfer_date (DD.MM.YYYY) and format to YYYY-MM-DD
+            const rawDate = formData.get('transfer_date');
+            console.log('[Transfer Submit] Fact date (raw):', rawDate);
+
+            if (!rawDate || rawDate.trim() === '') {
+                showToast('Ошибка: введите дату перевода', 'error');
+                const submitBtn = e.target.querySelector('.save-btn');
+                setButtonLoading(submitBtn, false);
+                isSubmitting = false;
+                return;
+            }
+
+            transferDate = BudgetShared.DateFormatter.formatForAPI(rawDate);
+        }
+        console.log('[Transfer Submit] Final transfer_date:', transferDate, 'record_type:', recordType);
+
+        const data = {
+            from_financial_center_id: fromFC,
+            to_financial_center_id: toFC,
+            from_article_id: parseInt(formData.get('from_article_id')),
+            to_article_id: parseInt(formData.get('to_article_id')),
+            amount: parseFloat(formData.get('amount')),
+            transfer_date: transferDate,
+            description: formData.get('description') || null,
+            record_type: recordType  // 'fact' or 'plan'
+        };
+
+        // ========== DEDUPLICATION: Generate sync_hash and content_hash ==========
+        // Generate content_hash for duplicate detection
+        const contentString = `${data.from_financial_center_id}|${data.to_financial_center_id}|${data.from_article_id}|${data.to_article_id}|${data.amount}|${data.transfer_date}|${data.description || ''}|${data.record_type}`;
+        const contentHash = window.offlineManager?.db?._md5(contentString) || null;
+
+        // Generate sync_hash = MD5(content_hash|created_date)
+        const createdDate = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
+        const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
+
+        // Add hashes to payload (enables backend deduplication)
+        data.sync_hash = syncHash;
+        data.content_hash = contentHash;
+
+        console.log('[Transfer] Deduplication hashes generated:', {
+            sync_hash: syncHash?.substring(0, 8) + '...',
+            content_hash: contentHash?.substring(0, 8) + '...'
+        });
+
+        try {
+            // Transfer ALWAYS uses direct fetch (no offline support)
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                // Save record_type before reset (to restore after)
+                const savedRecordType = recordType;
+
+                transfer_modal.close();
+                e.target.reset();
+
+                // Restore record_type after reset (prevent switching to default 'fact')
+                const recordTypeInput = document.getElementById('transfer_record_type');
+                if (recordTypeInput && savedRecordType) {
+                    recordTypeInput.value = savedRecordType;
+                    console.log('[Transfer Submit] ✅ Restored record_type after reset:', savedRecordType);
+                }
+
+                // Reset date to today
+                const transferDateInput = document.querySelector('#form_transfer input[name="transfer_date"]');
+                if (transferDateInput) {
+                    transferDateInput.value = BudgetShared.DateFormatter.today();
+                }
+
+                console.log('[Transfer Submit] ✅ Transfer created successfully, showing toast');
+                showToast('Перевод успешно сохранен!', 'success');
+
+                // UI updates will be handled by SSE event (transfer_created)
+                // No need for manual refresh - prevents double updates
+            } else {
+                let errorMsg = 'Не удалось создать перевод';
+                try {
+                    const error = await response.json();
+                    // Handle different error response structures
+                    if (typeof error === 'string') {
+                        errorMsg = error;
+                    } else if (error.detail) {
+                        errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+                    } else if (error.message) {
+                        errorMsg = typeof error.message === 'string' ? error.message : JSON.stringify(error.message);
+                    }
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                }
+                showToast('Ошибка: ' + errorMsg, 'error');
+            }
+        } catch (error) {
+            console.error('Error creating transfer:', error);
+            showToast('Ошибка при создании перевода: ' + error.message, 'error');
+        } finally {
+            // Reset submission guard
+            isSubmitting = false;
+            console.log('[Transfer Submit] ========== FINALLY BLOCK ==========');
+            console.log('[Transfer Submit] isSubmitting reset to false');
+
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            console.log('[Transfer Submit] Button found in finally:', !!submitBtn);
+            if (submitBtn) {
+                console.log('[Transfer Submit] Button state before reset:', {
+                    disabled: submitBtn.disabled,
+                    innerHTML: submitBtn.innerHTML.substring(0, 50),
+                    hasOriginalHtml: !!submitBtn.dataset.originalHtml
+                });
+                setButtonLoading(submitBtn, false);
+                console.log('[Transfer Submit] ✅ setButtonLoading(false) called');
+            } else {
+                console.error('[Transfer Submit] ❌ ERROR: Button NOT found in finally block!');
+                // Fallback: try to find button globally
+                const globalBtn = document.querySelector('#form_transfer .save-btn');
+                if (globalBtn) {
+                    console.warn('[Transfer Submit] Found button globally, resetting...');
+                    setButtonLoading(globalBtn, false);
+                }
+            }
+        }
+        });
+    } else if (transferForm) {
+        console.warn('[index.html] Transfer form submit handler already registered, skipping duplicate registration');
+    }
 });
 
 // Загрузить категории для обеих форм (первоначальная загрузка)
@@ -1952,6 +3252,12 @@ async function loadTransactionCategories() {
                 type: transactionType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
+                    console.log('[CATEGORY] Category changed:', {
+                        categoryId: category?.id,
+                        categoryName: category?.name,
+                        timestamp: new Date().toISOString(),
+                        modalOpen: document.getElementById('modal_add_transaction')?.open
+                    });
                     debugLog('Transaction category changed:', category);
                     // Update fact hints for current month
                     loadFactHints(category);
@@ -2056,9 +3362,15 @@ async function loadFinancialCenters() {
         if (transactionFcSelect) {
             transactionFcSelect.addEventListener('change', async () => {
                 const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
+                console.log('[FC_CHANGE] Financial center changed:', {
+                    fcId: fcId,
+                    timestamp: new Date().toISOString()
+                });
                 // Filter categories by selected FC
                 if (transactionCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
@@ -2379,12 +3691,63 @@ function updatePlanPeriodButtons() {
 
 // Установить обработчики для кнопок периода
 function setupPlanPeriodButtons() {
-    const periodButtons = document.querySelectorAll('.period-btn');
+    console.log('[setupPlanPeriodButtons] ========== START ==========');
+    console.log('[setupPlanPeriodButtons] Timestamp:', new Date().toISOString());
+
+    // Only select period buttons inside modal_add_plan (not transfer_modal)
+    const periodButtons = document.querySelectorAll('#form_modal_add_plan .period-btn');
+    console.log('[setupPlanPeriodButtons] Found period buttons:', periodButtons.length);
+    console.log('[setupPlanPeriodButtons] Selector used: #form_modal_add_plan .period-btn');
+
     const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+    console.log('[setupPlanPeriodButtons] Found hidden input:', !!hiddenInput);
+    if (hiddenInput) {
+        console.log('[setupPlanPeriodButtons] Hidden input name:', hiddenInput.name, 'current value:', hiddenInput.value);
+    }
 
-    if (!hiddenInput || periodButtons.length === 0) return;
+    if (periodButtons.length === 0) {
+        console.error('[setupPlanPeriodButtons] ❌ ERROR: No period buttons found!');
+        console.error('[setupPlanPeriodButtons] This means modal DOM not ready or selector is wrong');
+        return;
+    }
 
+    if (!hiddenInput) {
+        console.error('[setupPlanPeriodButtons] ❌ ERROR: Hidden input not found!');
+        return;
+    }
+
+    // Инициализировать надписи на кнопках и data-атрибуты (текущий месяц +0, +1, +2)
+    const today = new Date();
+    console.log('[setupPlanPeriodButtons] Today:', today.toISOString());
+
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.textContent = label;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+        console.log('[setupPlanPeriodButtons] Button', index, ':', label, '→', btn.dataset.year + '-' + btn.dataset.month);
+    });
+
+    // Установить значение для первой кнопки (активной по умолчанию)
+    const firstButton = periodButtons[0];
+    if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
+        const defaultValue = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+        hiddenInput.value = defaultValue;
+        console.log('[setupPlanPeriodButtons] ✅ Default plan_month:', defaultValue);
+    } else {
+        console.error('[setupPlanPeriodButtons] ❌ ERROR: First button missing data attributes!');
+    }
+
+    console.log('[setupPlanPeriodButtons] ========== COMPLETE ==========');
+
+    // Обработчики кликов (avoid duplicates)
     periodButtons.forEach(button => {
+        // Skip if listener already attached
+        if (button.dataset.listenerAttached === 'true') return;
+
         button.addEventListener('click', function() {
             // Убрать btn-active у всех кнопок
             periodButtons.forEach(btn => btn.classList.remove('btn-active'));
@@ -2399,13 +3762,10 @@ function setupPlanPeriodButtons() {
 
             debugLog('Selected plan period:', hiddenInput.value);
         });
-    });
 
-    // Установить значение по умолчанию (текущая кнопка btn-active)
-    const activeButton = document.querySelector('.period-btn.btn-active');
-    if (activeButton && activeButton.dataset.year && activeButton.dataset.month) {
-        hiddenInput.value = `${activeButton.dataset.year}-${activeButton.dataset.month}`;
-    }
+        // Mark listener as attached
+        button.dataset.listenerAttached = 'true';
+    });
 }
 
 // Установить обработчики для кнопок типа факта
@@ -2486,6 +3846,311 @@ async function notifyPendingRecords() {
     }
 }
 
+// ============================================================================
+// PendingRecordsRenderer - Web Worker integration for pending records HTML generation
+// ============================================================================
+
+class PendingRecordsRenderer {
+    static _workerWrapper = null;
+    static WORKER_THRESHOLD = 10; // Aggressive threshold (NOT >100 like analyticsWorker)
+
+    /**
+     * Initialize Web Worker for pending records HTML generation
+     * Lazy initialization - only creates worker when needed
+     */
+    static initializeWorker() {
+        if (this._workerWrapper) return this._workerWrapper;
+
+        try {
+            // Check if WorkerWrapper is available
+            if (typeof WorkerWrapper === 'undefined') {
+                if (window.DEBUG_MODE) {
+                    console.warn('[PendingRecords] WorkerWrapper not available, using sync fallback');
+                }
+                return null;
+            }
+
+            // Check feature flag
+            const isEnabled = window.FEATURE_FLAGS?.ENABLE_WEB_WORKERS !== false;
+            if (!isEnabled) {
+                if (window.DEBUG_MODE) {
+                    console.log('[PendingRecords] Web Workers disabled via feature flag');
+                }
+                return null;
+            }
+
+            // Create worker wrapper
+            this._workerWrapper = new WorkerWrapper('/static/js/workers/pendingRecordsWorker.min.js', {
+                idleTimeout: 10000,  // 10s (aggressive termination)
+                debugMode: window.DEBUG_MODE || false
+            });
+
+            if (window.DEBUG_MODE) {
+                console.log('[PendingRecords] Worker initialized successfully');
+            }
+
+            return this._workerWrapper;
+
+        } catch (error) {
+            console.warn('[PendingRecords] Worker initialization failed:', error);
+            this._workerWrapper = null;
+            return null;
+        }
+    }
+
+    /**
+     * Generate HTML synchronously (fallback)
+     * Uses existing logic from loadPendingRecords for consistency
+     */
+    static generateHTMLSync(items, maxRetries = 5) {
+        const startTime = performance.now();
+
+        const tableRows = [];
+        const mobileItems = [];
+        let totalRecords = 0;
+
+        // EXISTING LOGIC: Copy-paste from lines 3908-4114
+        // (Will be extracted to this method during refactoring)
+        items.forEach(item => {
+            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
+            const shortDate = formatShortDate(date);
+            const statusBadge = getStatusBadge(item);
+            const statusBadgeMobile = getStatusBadgeMobile(item);
+            const description = item.data.description || '—';
+
+            // Notification indicator
+            const hasNotification = item.data.notification_enabled === true;
+            const bellIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>';
+            const notificationCell = hasNotification
+                ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
+                : '<td class="text-center opacity-30">—</td>';
+
+            // For transfers, create two entries (debit and credit)
+            if (item.entity === 'transfer') {
+                const isPlanTransfer = item.data.record_type === 'plan';
+                const typeLabel = isPlanTransfer
+                    ? '<span class="badge badge-info badge-sm">План</span>'
+                    : '<span class="badge badge-success badge-sm">Факт</span>';
+                const typeLabelXs = isPlanTransfer
+                    ? '<span class="badge badge-info badge-xs">План</span>'
+                    : '<span class="badge badge-success badge-xs">Факт</span>';
+
+                // Debit row
+                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
+                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
+                const debitAmount = formatAmount(item.data.amount, 'debit');
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
+                        </td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="text-info font-medium">${debitAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'from')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
+                            <span class="text-info font-bold whitespace-nowrap">${debitAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${debitLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                // Credit row
+                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
+                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
+                const creditAmount = formatAmount(item.data.amount, 'credit');
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
+                        </td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="text-warning font-medium">${creditAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'to')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${toCategory}</span>
+                            <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${creditLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                totalRecords += 2;
+            } else {
+                // Regular fact or plan - single entry
+                const typeLabel = getRecordTypeLabel(item.entity);
+                const typeLabelXs = getRecordTypeLabelXs(item.entity);
+                const cfoName = item.data.financial_center_name ||
+                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
+                const categoryName = item.data.article_name ||
+                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
+
+                const factType = item.data.fact_type || item.data.article_type || '';
+                let colorClass;
+                switch (factType) {
+                    case 'expense':
+                        colorClass = 'text-error';
+                        break;
+                    case 'income':
+                        colorClass = 'text-success';
+                        break;
+                    case 'debit':
+                        colorClass = 'text-info';
+                        break;
+                    case 'credit':
+                        colorClass = 'text-warning';
+                        break;
+                    default:
+                        colorClass = '';
+                }
+
+                const formattedAmount = formatAmount(item.data.amount, factType);
+                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
+                const deleteButton = `
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+
+                const isRecurring = item.entity === 'recurring';
+                const recurringCell = isRecurring
+                    ? '<td class="text-center">🔄</td>'
+                    : '<td class="text-center opacity-30">—</td>';
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">${editButton}</td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="${colorClass} font-medium">${formattedAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${recurringCell}
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">${deleteButton}</td>
+                    </tr>
+                `);
+
+                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="openEditPendingRecord(${item.id}, '${item.entity}')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${categoryName}</span>
+                            <span class="${colorClass} font-bold whitespace-nowrap">${formattedAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${line2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                totalRecords += 1;
+            }
+        });
+
+        const duration = performance.now() - startTime;
+        if (window.DEBUG_MODE) {
+            console.log(`[PendingRecords] Sync rendering: ${items.length} items in ${duration.toFixed(2)}ms`);
+        }
+
+        return {
+            desktopHTML: tableRows.join(''),
+            mobileHTML: mobileItems.join(''),
+            itemCount: totalRecords
+        };
+    }
+
+    /**
+     * Generate HTML using worker (async)
+     * Falls back to sync if worker unavailable
+     */
+    static async generateHTMLAsync(items, maxRetries = 5) {
+        const startTime = performance.now();
+
+        try {
+            const wrapper = this.initializeWorker();
+            if (!wrapper) {
+                // Worker not available, use sync fallback
+                return this.generateHTMLSync(items, maxRetries);
+            }
+
+            // Execute in worker
+            const result = await wrapper.execute({
+                action: 'generatePendingRecordsHTML',
+                data: { items, maxRetries }
+            });
+
+            const duration = performance.now() - startTime;
+            if (window.DEBUG_MODE) {
+                console.log(`[PendingRecords] Worker rendering: ${items.length} items in ${duration.toFixed(2)}ms`);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.warn('[PendingRecords] Worker execution failed, using sync fallback:', error);
+            return this.generateHTMLSync(items, maxRetries);
+        }
+    }
+}
+
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
     debugLog('[loadPendingRecords] Starting...');
@@ -2556,209 +4221,33 @@ async function loadPendingRecords() {
             }
         }
 
-        // Generate rows (desktop) and list items (mobile)
-        // Transfers generate two entries (debit + credit)
-        const tableRows = [];
-        const mobileItems = [];
-        let totalRecords = 0;
+        // ✅ NEW: Use PendingRecordsRenderer with Web Worker for HTML generation
+        // Feature gate: Use worker for >10 items (aggressive threshold)
+        // Automatic fallback to sync for small datasets or worker unavailable
 
-        // Helper: format short date (dd.mm)
-        const formatShortDate = (dateStr) => {
-            if (!dateStr || dateStr === '—') return '—';
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-                return `${parts[2]}.${parts[1]}`;
+        const maxRetries = window.offlineManager?.maxRetries || 5;
+        let result;
+
+        if (pendingItems.length > PendingRecordsRenderer.WORKER_THRESHOLD) {
+            // Worker path (for large datasets)
+            result = await PendingRecordsRenderer.generateHTMLAsync(pendingItems, maxRetries);
+
+            if (window.DEBUG_MODE) {
+                console.log(`[loadPendingRecords] Used worker for ${pendingItems.length} items`);
             }
-            return dateStr;
-        };
+        } else {
+            // Sync path (for small datasets < 10 items)
+            result = PendingRecordsRenderer.generateHTMLSync(pendingItems, maxRetries);
 
-        // Format amount with +/- sign (without decimals and currency)
-        const formatAmount = (amount, articleType) => {
-            if (!amount) return '—';
-            const value = Math.floor(parseFloat(amount));
-            const formatted = value.toLocaleString('ru-RU').replace(/\s/g, ' ');
-            if (articleType === 'expense' || articleType === 'debit') {
-                return `-${formatted}`;
-            } else if (articleType === 'income' || articleType === 'credit') {
-                return `+${formatted}`;
+            if (window.DEBUG_MODE) {
+                console.log(`[loadPendingRecords] Small dataset (${pendingItems.length} items), used sync`);
             }
-            return formatted;
-        };
+        }
 
-        pendingItems.forEach(item => {
-            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
-            const shortDate = formatShortDate(date);
-            const statusBadge = getStatusBadge(item);
-            const statusBadgeMobile = getStatusBadgeMobile(item);
-            const description = item.data.description || '—';
-
-            // Notification indicator (only for plans)
-            const hasNotification = item.data.notification_enabled === true;
-            const bellIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>';
-            const notificationCell = hasNotification
-                ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
-                : '<td class="text-center opacity-30">—</td>';
-
-            // For transfers, create two entries (debit and credit)
-            if (item.entity === 'transfer') {
-                // Record type for transfer: fact or plan (badge HTML)
-                const isPlanTransfer = item.data.record_type === 'plan';
-                const typeLabel = isPlanTransfer
-                    ? '<span class="badge badge-info badge-sm">План</span>'
-                    : '<span class="badge badge-success badge-sm">Факт</span>';
-                const typeLabelXs = isPlanTransfer
-                    ? '<span class="badge badge-info badge-xs">План</span>'
-                    : '<span class="badge badge-success badge-xs">Факт</span>';
-
-                // Debit row (списание) - amount in blue with minus
-                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
-                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
-                const debitAmount = formatAmount(item.data.amount, 'debit');
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button></td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
-                        <td class="text-info font-medium">${debitAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                    </tr>
-                `);
-
-                // Mobile list item (debit)
-                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="handleTransferEditClick(${item.id}, 'from')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
-                            <span class="text-info font-bold whitespace-nowrap">${debitAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${debitLine2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                // Credit row (пополнение) - amount in orange with plus
-                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
-                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
-                const creditAmount = formatAmount(item.data.amount, 'credit');
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button></td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
-                        <td class="text-warning font-medium">${creditAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                    </tr>
-                `);
-
-                // Mobile list item (credit)
-                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="handleTransferEditClick(${item.id}, 'to')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${toCategory}</span>
-                            <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${creditLine2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                totalRecords += 2;
-            } else {
-                // Regular fact or plan - single entry
-                const typeLabel = getRecordTypeLabel(item.entity);
-                const typeLabelXs = getRecordTypeLabelXs(item.entity);
-                const cfoName = item.data.financial_center_name ||
-                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
-                const categoryName = item.data.article_name ||
-                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
-
-                // Determine color based on fact_type (expense/income for facts)
-                const factType = item.data.fact_type || item.data.article_type || '';
-                let colorClass;
-                switch (factType) {
-                    case 'expense':
-                        colorClass = 'text-error';
-                        break;
-                    case 'income':
-                        colorClass = 'text-success';
-                        break;
-                    case 'debit':
-                        colorClass = 'text-info';
-                        break;
-                    case 'credit':
-                        colorClass = 'text-warning';
-                        break;
-                    default:
-                        colorClass = '';
-                }
-
-                // Format amount with +/- sign based on type
-                const formattedAmount = formatAmount(item.data.amount, factType);
-
-                // Edit button for pending records
-                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center">${editButton}</td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
-                        <td class="${colorClass} font-medium">${formattedAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                    </tr>
-                `);
-
-                // Mobile list item
-                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="openEditPendingRecord(${item.id}, '${item.entity}')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${categoryName}</span>
-                            <span class="${colorClass} font-bold whitespace-nowrap">${formattedAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${line2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                totalRecords += 1;
-            }
-        });
-
-        countBadge.textContent = totalRecords;
-        tbody.innerHTML = tableRows.join('');
-        mobileList.innerHTML = mobileItems.join('');
+        // Update DOM
+        countBadge.textContent = result.itemCount;
+        tbody.innerHTML = result.desktopHTML;
+        mobileList.innerHTML = result.mobileHTML;
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }
@@ -2918,6 +4407,7 @@ function getRecordTypeLabel(entity) {
     const badges = {
         'fact': '<span class="badge badge-success badge-sm">Факт</span>',
         'plan': '<span class="badge badge-info badge-sm">План</span>',
+        'recurring': '<span class="badge badge-info badge-sm">План</span>',
         'transfer': '<span class="badge badge-neutral badge-sm">Перевод</span>'
     };
     return badges[entity] || `<span class="badge badge-ghost badge-sm">${entity || '—'}</span>`;
@@ -2928,6 +4418,7 @@ function getRecordTypeLabelXs(entity) {
     const badges = {
         'fact': '<span class="badge badge-success badge-xs">Факт</span>',
         'plan': '<span class="badge badge-info badge-xs">План</span>',
+        'recurring': '<span class="badge badge-info badge-xs">План</span>',
         'transfer': '<span class="badge badge-neutral badge-xs">Перевод</span>'
     };
     return badges[entity] || `<span class="badge badge-ghost badge-xs">${entity || '—'}</span>`;
@@ -3171,13 +4662,16 @@ document.addEventListener('DOMContentLoaded', function() {
 let reminderCalendarWidget = null;
 
 /**
- * Get current time rounded to nearest 5 minutes.
+ * Get current time + 1 hour, rounded to nearest 5 minutes.
+ * Used as default reminder time.
  * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
  */
 function getCurrentTimeRounded() {
     const now = new Date();
-    const hour = now.getHours();
-    const minutes = now.getMinutes();
+    // Add 1 hour
+    const futureTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const hour = futureTime.getHours();
+    const minutes = futureTime.getMinutes();
     const roundedMinutes = Math.round(minutes / 5) * 5;
 
     // Handle overflow (55 rounds to 60)
@@ -3228,13 +4722,35 @@ function prefillReminderDateTime(modalId) {
 function openAddPlanModal() {
     const modalId = 'modal_add_plan';
 
+    // Reset button state
+    const form = document.getElementById('form_modal_add_plan');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
+    // Re-initialize period buttons to set default plan_month value
+    setupPlanPeriodButtons();
+
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
+
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof planCategoryTreeSelect !== 'undefined' && planCategoryTreeSelect) {
+        planCategoryTreeSelect.options.financialCenterId = null;
+    }
 
     // Open the modal
     const modal = document.getElementById(modalId);
     if (modal && modal.showModal) {
         modal.showModal();
+
+        // ✅ FIX: Initialize plan mode on modal open
+        // Without this, form validation fails until user manually changes plan mode
+        togglePlanMode(modalId);
     }
 }
 // Ensure function is globally accessible for onclick handlers
@@ -3362,95 +4878,106 @@ function formatDatetimeForInput(date) {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-/**
- * Create a reminder for a plan via API.
- * @param {number} factId - Plan/fact ID
- * @param {string} reminderDatetime - ISO datetime string
- * @returns {Promise<object|null>} Created reminder or null on error
- */
-async function createReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                reminder_datetime: reminderDatetime
-            })
-        });
-
-        if (response.ok) {
-            const reminder = await response.json();
-            debugLog('[createReminder] Reminder created:', reminder);
-            return reminder;
-        } else {
-            const error = await response.json();
-            console.error('[createReminder] API error:', error);
-            return null;
-        }
-    } catch (error) {
-        console.error('[createReminder] Network error:', error);
-        return null;
-    }
-}
-
 // ==================== UNIFIED SAVE FUNCTIONS ====================
 // These functions automatically choose between online (form submit) and offline (local queue) mode
-
-/**
- * Unified save function - automatically chooses online/offline mode
- * @param {HTMLButtonElement} button - Save button with data-form-id and data-modal-id
- * @param {string} type - 'transaction' | 'plan' | 'transfer'
- */
-async function unifiedSave(button, type) {
-    const isOnline = window.offlineManager?.networkDetector?.isOnline() ?? navigator.onLine;
-
-    if (isOnline) {
-        // Online: submit form to server
-        const form = document.getElementById(button.dataset.formId);
-        if (form && form.checkValidity()) {
-            form.requestSubmit();  // Triggers form submit with validation
-        } else {
-            form?.reportValidity();
-            // Re-enable button after failed validation
-            // so user can fix errors and try again
-            button.disabled = false;
-            button.classList.remove('loading');
-        }
-    } else {
-        // Offline: save locally
-        switch (type) {
-            case 'transaction':
-                await saveTransactionOffline(button);
-                break;
-            case 'plan':
-                await savePlanOffline(button);
-                break;
-            case 'transfer':
-                await saveTransferOffline(button);
-                break;
-        }
-    }
-}
 
 // Wrapper functions for each modal type (with double-click prevention)
 function saveTransaction(button) {
     if (button.disabled) return; // Already processing
-    button.disabled = true;
-    button.classList.add('loading');
-    unifiedSave(button, 'transaction');
+    setButtonLoading(button, true);
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        setButtonLoading(button, false);
+        form?.reportValidity();
+    }
 }
+
 function savePlan(button) {
-    if (button.disabled) return;
-    button.disabled = true;
-    button.classList.add('loading');
-    unifiedSave(button, 'plan');
+    console.log('[savePlan] ========== START ==========');
+    console.log('[savePlan] Button element:', button);
+    console.log('[savePlan] Button disabled:', button.disabled);
+    console.log('[savePlan] Form ID from dataset:', button.dataset.formId);
+
+    if (button.disabled) {
+        console.warn('[savePlan] ⚠️ Button already disabled, returning early');
+        return;
+    }
+
+    setButtonLoading(button, true);
+    console.log('[savePlan] ✅ Button disabled and loading state set');
+
+    const form = document.getElementById(button.dataset.formId);
+    console.log('[savePlan] Form element found:', !!form, form?.id);
+
+    if (form && form.checkValidity()) {
+        console.log('[savePlan] ✅ Form is valid, calling requestSubmit()');
+        form.requestSubmit();
+    } else {
+        console.warn('[savePlan] ⚠️ Form invalid or not found, re-enabling button');
+        // Re-enable button if validation fails
+        setButtonLoading(button, false);
+        form?.reportValidity();
+    }
+
+    console.log('[savePlan] ========== END ==========');
 }
+
 function saveTransfer(button) {
-    if (button.disabled) return;
-    button.disabled = true;
-    button.classList.add('loading');
-    unifiedSave(button, 'transfer');
+    console.log('[saveTransfer] ========== START ==========');
+    console.log('[saveTransfer] Button element:', button);
+    console.log('[saveTransfer] Button disabled:', button.disabled);
+    console.log('[saveTransfer] Form ID from dataset:', button.dataset.formId);
+    console.log('[saveTransfer] Modal ID from dataset:', button.dataset.modalId);
+
+    if (button.disabled) {
+        console.warn('[saveTransfer] ⚠️ Button already disabled, returning early');
+        return;
+    }
+
+    setButtonLoading(button, true);
+    console.log('[saveTransfer] ✅ Button set to loading state');
+
+    const form = document.getElementById(button.dataset.formId);
+    console.log('[saveTransfer] Form element found:', !!form, form?.id);
+
+    // DIAGNOSTIC: Check all form fields state before validation
+    if (form) {
+        const transferDateInput = document.getElementById('transfer_date');
+        const recordTypeInput = document.getElementById('transfer_record_type');
+        const planMonthInput = document.getElementById('transfer_plan_month');
+
+        console.log('[saveTransfer] Form fields state BEFORE checkValidity():', {
+            record_type: recordTypeInput?.value,
+            transfer_date: {
+                value: transferDateInput?.value,
+                disabled: transferDateInput?.disabled,
+                required: transferDateInput?.required,
+                validity: transferDateInput?.validity?.valid,
+                validationMessage: transferDateInput?.validationMessage
+            },
+            transfer_plan_month: {
+                value: planMonthInput?.value,
+                disabled: planMonthInput?.disabled,
+                required: planMonthInput?.required
+            }
+        });
+    }
+
+    if (form && form.checkValidity()) {
+        console.log('[saveTransfer] ✅ Form is valid, calling requestSubmit()');
+        form.requestSubmit();
+    } else {
+        console.warn('[saveTransfer] ⚠️ Form invalid or not found, re-enabling button');
+        // Re-enable button if validation fails
+        setButtonLoading(button, false);
+        form?.reportValidity();
+    }
+
+    console.log('[saveTransfer] ========== END ==========');
 }
 
 // ==================== OFFLINE SAVE FUNCTIONS ====================
@@ -3479,8 +5006,7 @@ async function saveTransactionOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -3540,8 +5066,7 @@ async function saveTransactionOffline(button) {
         console.error('[saveTransactionOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 
@@ -3567,8 +5092,7 @@ async function savePlanOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -3628,8 +5152,7 @@ async function savePlanOffline(button) {
         console.error('[savePlanOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 
@@ -3655,8 +5178,7 @@ async function saveTransferOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -3731,8 +5253,7 @@ async function saveTransferOffline(button) {
         console.error('[saveTransferOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 
@@ -3753,6 +5274,395 @@ function updateSaveButtonsVisibility() {
         // Fallback to navigator.onLine
         isOffline = !navigator.onLine;
     }
+
+// ==================== Recurring Plans Functions ====================
+
+// Calendar widget instance for recurring end date
+let recurringEndDateCalendarWidget = null;
+
+/**
+ * Toggle plan mode based on radio button selection
+ * Modes: 'regular' | 'recurring' | 'reminder'
+ */
+function togglePlanMode(modalId) {
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    const mode = selectedMode ? selectedMode.value : 'regular';
+    console.log('[togglePlanMode] Mode:', mode);
+
+    const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
+
+    console.log('[togglePlanMode] Elements found:', {
+        recurringSettingsDiv: !!recurringSettingsDiv,
+        onetimeReminderSection: !!onetimeReminderSection,
+        reminderModeLabel: !!reminderModeLabel
+    });
+
+    // Get recurring-specific required fields
+    const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+
+    // Hide all panels first
+    if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
+    if (onetimeReminderSection) {
+        console.log('[togglePlanMode] Hiding onetimeReminderSection, classes BEFORE:', onetimeReminderSection.className);
+        onetimeReminderSection.classList.add('hidden');
+        console.log('[togglePlanMode] Hiding onetimeReminderSection, classes AFTER:', onetimeReminderSection.className);
+    }
+
+    switch (mode) {
+        case 'recurring':
+            // Hide reminder radio button for recurring plans (not supported)
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.add('hidden');
+            }
+            if (recurringSettingsDiv) {
+                recurringSettingsDiv.classList.remove('hidden');
+                initRecurringFields(modalId);
+                updateRecurringPreview(modalId);
+            }
+            // Enable validation for recurring fields
+            if (durationTypeSelect) {
+                durationTypeSelect.setAttribute('required', 'required');
+            }
+            break;
+
+        case 'reminder':
+            // Show reminder radio button
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
+            if (onetimeReminderSection) {
+                onetimeReminderSection.classList.remove('hidden');
+
+                // ✅ FIX: Also remove 'hidden' from child div (added on modal close)
+                const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+                if (reminderSettings) {
+                    reminderSettings.classList.remove('hidden');
+                }
+
+                initReminderCalendarWidget(modalId);
+
+                // Set default time (current time + 1 hour, rounded to 5 minutes)
+                // ALWAYS set default when switching to reminder mode (override old values)
+                const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+                const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+                if (hourSelect && minuteSelect) {
+                    const defaultTime = getCurrentTimeRounded();
+                    hourSelect.value = defaultTime.hour;
+                    minuteSelect.value = defaultTime.minute;
+                    // Update hidden field after setting default values
+                    updateReminderDatetime(modalId);
+                }
+            } else {
+                console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');
+            }
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
+            }
+            break;
+
+        case 'regular':
+        default:
+            // Show reminder radio button for regular plans
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
+            // Both panels hidden - reset fields
+            resetRecurringOnlyFields(modalId);
+            resetReminderFields(modalId);
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
+            }
+            break;
+    }
+}
+window.togglePlanMode = togglePlanMode;
+
+/**
+ * Reset only recurring-specific fields (not the mode selector)
+ */
+function resetRecurringOnlyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) frequencySelect.value = 'monthly';
+
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach((btn, i) => btn.classList.toggle('btn-active', i === 0));
+
+    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+    if (weekdayHidden) weekdayHidden.value = '0';
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) monthdaySelect.value = '1';
+
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    if (durationSelect) durationSelect.value = 'indefinite';
+
+    document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
+    document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
+
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.checked = false;
+        document.getElementById(`recurring-reminder-settings-${modalId}`)?.classList.add('hidden');
+    }
+}
+window.resetRecurringOnlyFields = resetRecurringOnlyFields;
+
+/**
+ * Initialize recurring fields (weekday buttons, calendar widget)
+ */
+function initRecurringFields(modalId) {
+    // Initialize weekday button handlers
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach(btn => {
+        btn.onclick = () => {
+            // Toggle active state
+            weekdayButtons.forEach(b => b.classList.remove('btn-active'));
+            btn.classList.add('btn-active');
+            // Update hidden field
+            const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+            if (hiddenInput) {
+                hiddenInput.value = btn.dataset.day;
+            }
+            updateRecurringPreview(modalId);
+        };
+    });
+
+    // CalendarWidget for end date is initialized in updateDurationFields() when field becomes visible
+
+    // Add change listeners to update preview
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) {
+        frequencySelect.onchange = () => updateFrequencyFields(modalId);
+    }
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) {
+        monthdaySelect.onchange = () => updateRecurringPreview(modalId);
+    }
+
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) {
+        occurrencesInput.oninput = () => updateRecurringPreview(modalId);
+    }
+
+    // Initialize recurring reminder checkbox handler
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.onchange = () => {
+            const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
+            if (recurringReminderSettings) {
+                recurringReminderSettings.classList.toggle('hidden', !recurringReminderCheckbox.checked);
+            }
+        };
+    }
+}
+
+/**
+ * Update frequency-specific fields visibility
+ */
+function updateFrequencyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const weekdayPicker = document.getElementById(`weekday-picker-${modalId}`);
+    const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
+
+    if (!frequencySelect) return;
+
+    const frequency = frequencySelect.value;
+
+    // Show/hide appropriate picker
+    if (weekdayPicker) {
+        weekdayPicker.classList.toggle('hidden', frequency !== 'weekly');
+    }
+
+    if (monthdayPicker) {
+        monthdayPicker.classList.toggle('hidden', frequency === 'daily' || frequency === 'weekly');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateFrequencyFields = updateFrequencyFields;
+
+/**
+ * Update duration-specific fields visibility
+ * Also initializes/destroys CalendarWidget for end date field
+ */
+function updateDurationFields(modalId) {
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+
+    if (!durationSelect) return;
+
+    const type = durationSelect.value;
+
+    if (occurrencesField) {
+        occurrencesField.classList.toggle('hidden', type !== 'count');
+    }
+
+    if (endDateField) {
+        endDateField.classList.toggle('hidden', type !== 'end_date');
+
+        // Initialize/destroy CalendarWidget based on visibility
+        const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+        if (type === 'end_date' && endDateInput) {
+            // Initialize CalendarWidget when field becomes visible
+            if (!recurringEndDateCalendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
+                    inputElement: endDateInput,
+                    mode: 'single',
+                    minDate: new Date(),
+                    onSelect: () => updateRecurringPreview(modalId)
+                });
+            }
+        } else {
+            // Destroy CalendarWidget when field is hidden
+            if (recurringEndDateCalendarWidget) {
+                recurringEndDateCalendarWidget.destroy();
+                recurringEndDateCalendarWidget = null;
+            }
+        }
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateDurationFields = updateDurationFields;
+
+/**
+ * Update recurring schedule preview text
+ */
+function updateRecurringPreview(modalId) {
+    const previewText = document.getElementById(`recurring-preview-text-${modalId}`);
+    if (!previewText) return;
+
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const frequency = frequencySelect ? frequencySelect.value : 'monthly';
+
+    // Build frequency text
+    let frequencyText = '';
+    const dayNames = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    switch (frequency) {
+        case 'daily':
+            frequencyText = 'Ежедневно';
+            break;
+        case 'weekly':
+            const weekdayBtn = document.querySelector(`#weekday-picker-${modalId} .weekday-btn.btn-active`);
+            const dayIndex = weekdayBtn ? parseInt(weekdayBtn.dataset.day) : 0;
+            frequencyText = `Еженедельно, ${dayNames[dayIndex]}`;
+            break;
+        case 'monthly':
+            const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const monthDay = monthdaySelect ? monthdaySelect.value : '1';
+            frequencyText = `Ежемесячно, ${monthDay}-го числа`;
+            break;
+        case 'quarterly':
+            const qMonthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const qMonthDay = qMonthdaySelect ? qMonthdaySelect.value : '1';
+            frequencyText = `Ежеквартально, ${qMonthDay}-го числа`;
+            break;
+    }
+
+    // Build duration text
+    let durationText = '';
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    const type = durationSelect ? durationSelect.value : 'indefinite';
+
+    switch (type) {
+        case 'indefinite':
+            durationText = 'бессрочно';
+            break;
+        case 'count':
+            const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+            const count = occurrencesInput ? occurrencesInput.value : '';
+            durationText = count ? `${count} повторений` : 'укажите количество';
+            break;
+        case 'end_date':
+            const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+            const endDate = endDateInput ? endDateInput.value : '';
+            durationText = endDate ? `до ${endDate}` : 'укажите дату';
+            break;
+    }
+
+    previewText.textContent = `${frequencyText}, ${durationText}`;
+}
+window.updateRecurringPreview = updateRecurringPreview;
+
+/**
+ * Collect recurring settings from form
+ * @returns {Object|null} Recurring settings or null if not recurring
+ */
+function collectRecurringSettings(modalId) {
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    if (!selectedMode || selectedMode.value !== 'recurring') {
+        return null;
+    }
+
+    const form = document.getElementById(`form_${modalId}`);
+    if (!form) return null;
+
+    const frequencyType = form.querySelector('select[name="frequency_type"]').value;
+
+    // Get frequency value based on type
+    let frequencyValue = null;
+    if (frequencyType === 'weekly') {
+        frequencyValue = parseInt(form.querySelector('input[name="frequency_value_weekday"]').value) || 0;
+    } else if (frequencyType === 'monthly' || frequencyType === 'quarterly') {
+        frequencyValue = parseInt(form.querySelector('select[name="frequency_value_monthday"]').value) || 1;
+    }
+
+    // Get duration settings
+    const durationSelect = form.querySelector('select[name="duration_type"]');
+    const durationType = durationSelect ? durationSelect.value : 'indefinite';
+    let occurrencesCount = null;
+    let endDate = null;
+
+    if (durationType === 'count') {
+        occurrencesCount = parseInt(form.querySelector('input[name="occurrences_count"]').value) || null;
+    } else if (durationType === 'end_date') {
+        const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
+        if (endDateValue) {
+            // Convert DD.MM.YYYY to YYYY-MM-DD
+            endDate = BudgetShared.DateFormatter.formatForAPI(endDateValue);
+        }
+    }
+
+    return {
+        frequency_type: frequencyType,
+        frequency_value: frequencyValue,
+        occurrences_count: occurrencesCount,
+        end_date: endDate
+    };
+}
+window.collectRecurringSettings = collectRecurringSettings;
+
+/**
+ * Reset recurring settings form
+ */
+function resetRecurringSettings(modalId) {
+    // Reset to 'regular' mode (default)
+    const regularRadio = document.querySelector(`#${modalId} input[name="plan_mode"][value="regular"]`);
+    if (regularRadio) regularRadio.checked = true;
+
+    // Hide both panels
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    if (settingsDiv) settingsDiv.classList.add('hidden');
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+
+    // Reset recurring fields
+    resetRecurringOnlyFields(modalId);
+
+    // Reset reminder fields
+    resetReminderFields(modalId);
+
+    // Update visibility
+    updateFrequencyFields(modalId);
+}
+window.resetRecurringSettings = resetRecurringSettings;
 
     // Update unified save buttons (.save-btn)
     const saveButtons = document.querySelectorAll('.save-btn');
@@ -3855,6 +5765,61 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     refreshRecentTransactions();
                     refreshAccountBalances();
+                }
+            });
+
+            // Cache invalidation for edit modal dropdown data
+            window.budgetWSClient.on('article_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('article_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('article_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
                 }
             });
         }

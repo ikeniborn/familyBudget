@@ -9,7 +9,8 @@
     "bundle": "bash scripts/lib/build-bundle.sh",
     "minify:js": "bash scripts/lib/minify.sh js",
     "minify:css": "bash scripts/lib/minify.sh css",
-    "build": "npm run build:css && npm run bundle && npm run minify:js && npm run minify:css",
+    "precompress": "bash scripts/precompress-assets.sh",
+    "build": "npm run build:css && npm run bundle && npm run minify:js && npm run minify:css && npm run precompress",
     "validate:minified": "bash scripts/lib/minify.sh validate"
   },
   "repository": {
