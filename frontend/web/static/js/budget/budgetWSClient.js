@@ -1230,6 +1230,9 @@ class BudgetWSClient {
                         / this._rttMeasurements.length;
                 }
 
+                // Log to connection history
+                this._logHistory(`pong_received_rtt=${rtt}ms`);
+
                 // Log RTT data
                 this._log('RTT', 'info', 'RTT measured', {
                     current: `${rtt}ms`,
@@ -1339,9 +1342,10 @@ class BudgetWSClient {
                 // Record ping timestamp for RTT measurement
                 this._pingTimestamp = Date.now();
 
-                this._log('PING', 'debug', 'Sending client ping', {
+                this._log('PING', 'info', 'Sending client ping', {
                     timestamp: this._pingTimestamp
                 });
+                this._logHistory('ping_sent');
                 this._sendMessage({ type: 'ping' });
 
                 // Layer 4: Set pong timeout
