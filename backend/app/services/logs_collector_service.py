@@ -288,9 +288,14 @@ class LogsCollectorService:
         )
 
         # Refresh Docker logs (collect latest)
+        # NOTE: Only backend and nginx - bot/postgres have too many logs and timeout
         if service == "all" or service is None:
-            services_to_collect = ["backend", "bot", "postgres", "nginx"]
+            services_to_collect = ["backend", "nginx"]
         elif service == "browser":
+            services_to_collect = []
+        elif service in ["bot", "postgres"]:
+            # Skip bot and postgres - they have excessive logs causing timeouts
+            logger.warning(f"[LOGS_COLLECTOR] Skipping service={service} (too many logs, causes timeout)")
             services_to_collect = []
         else:
             services_to_collect = [service]
