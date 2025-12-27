@@ -36,6 +36,7 @@ from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.recurring_plan import RecurringPlan
+from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
@@ -151,6 +152,14 @@ async def create_fact(
                 cc = cc_result.scalar_one_or_none()
                 cost_center_name = cc.name if cc else None
 
+            # Check if reminder exists for this fact
+            reminder_stmt = select(ScheduledReminder).where(
+                ScheduledReminder.fact_id == existing_fact.id,
+                ScheduledReminder.status == "pending"
+            )
+            reminder_result = await session.execute(reminder_stmt)
+            has_reminder = reminder_result.scalar_one_or_none() is not None
+
             # Return existing fact (idempotent response)
             return {
                 "id": existing_fact.id,
@@ -167,6 +176,8 @@ async def create_fact(
                 "cost_center_name": cost_center_name,
                 "record_type": existing_fact.record_type,
                 "is_offline_sync": existing_fact.is_offline_sync,
+                "recurring_plan_id": existing_fact.recurring_plan_id,
+                "has_reminder": has_reminder,
                 "created_at": existing_fact.created_at,
                 "updated_at": existing_fact.updated_at,
                 "_duplicate_skipped": True,  # ✅ Indicates duplicate was skipped
@@ -291,6 +302,7 @@ async def create_fact(
                     "record_type": fact_data.record_type,
                     "is_offline_sync": fact_data.is_offline_sync,
                     "recurring_plan_id": None,  # Not set during creation
+                    "has_reminder": False,  # New fact has no reminder yet
                     "created_at": now,
                     "updated_at": now,
                     "_write_behind": True,  # Indicates async write
@@ -374,6 +386,7 @@ async def create_fact(
         "record_type": fact.record_type,
         "is_offline_sync": fact.is_offline_sync,
         "recurring_plan_id": fact.recurring_plan_id,
+        "has_reminder": False,  # New fact has no reminder yet
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
