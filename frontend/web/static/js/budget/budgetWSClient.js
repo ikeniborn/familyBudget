@@ -23,6 +23,21 @@ const logWSDiag = typeof Logger !== 'undefined' ? new Logger('[WS_DIAG]', 'WS_DI
     groupEnd: () => {}
 };
 
+// RTT Measurement Logger
+const logWSRTT = typeof Logger !== 'undefined' ? new Logger('[WS_RTT]', 'WS_RTT') : {
+    info: () => {},
+    warn: () => {},
+    debug: () => {},
+    error: () => {}
+};
+
+// Badge State Transition Logger
+const logWSState = typeof Logger !== 'undefined' ? new Logger('[WS_STATE]', 'WS_STATE') : {
+    info: () => {},
+    debug: () => {},
+    error: () => {}
+};
+
 class BudgetWSClient {
     constructor() {
         this.ws = null;
@@ -63,6 +78,13 @@ class BudgetWSClient {
         this.CLIENT_PING_INTERVAL = 15000;  // 15 seconds
         this.lastPongReceived = 0;
 
+        // RTT measurement for slow connection detection
+        this._rttMeasurements = [];      // Rolling window of last 5 RTT measurements
+        this._rttRollingAverage = 0;     // Average of last 5 measurements
+        this._pingTimestamp = null;      // Timestamp when ping sent
+        this.RTT_THRESHOLD = 2000;       // Slow connection threshold (ms)
+        this.RTT_WINDOW_SIZE = 5;        // Number of measurements to average
+
         // Flag for limit reached state
         this.limitReached = false;
         this.approachingLimit = false;
@@ -82,6 +104,11 @@ class BudgetWSClient {
         this._lastIndicatorState = null;
         this._indicatorDebounceTimer = null;
         this.INDICATOR_DEBOUNCE_MS = 500;  // Minimum 500ms between visual updates
+
+        // Sticky state mechanism to prevent rapid badge state transitions
+        this._lastStateChangeTime = 0;      // Timestamp of last badge state change
+        this._currentBadgeState = null;      // Current badge state
+        this.STICKY_STATE_DURATION = 5000;   // Minimum 5s between state changes
 
         // iOS wake from sleep recovery
         // Prevents reconnection loops after screen wake from sleep
@@ -245,52 +272,30 @@ class BudgetWSClient {
     // ==================== WAKE RECOVERY METHODS ====================
 
     /**
-     * Layer 5: Structured logging for debugging
-     * Logs WebSocket events with context for easy production debugging
-     * @param {string} category - Log category (WAKE, HEALTH, PING, PONG, etc.)
-     * @param {string} level - Log level (error, warn, info, debug)
+     * Centralized logging helper with module prefix
+     * Routes to appropriate logger (RTT, STATE, or WS_DIAG)
+     * @param {string} module - Module name (RTT, STATE, PING, PONG, WAKE, HEALTH, etc.)
+     * @param {string} level - Log level (debug, info, warn, error)
      * @param {string} message - Log message
      * @param {Object} data - Additional data
      * @private
      */
-    _log(category, level, message, data = {}) {
-        if (!this._enableDetailedLogging && level !== 'error') return;
+    _log(module, level, message, data = {}) {
+        // Route to appropriate logger based on module
+        const logger = module === 'RTT' ? logWSRTT :
+                       module === 'STATE' ? logWSState :
+                       logWSDiag;  // PONG, PING, WAKE, HEALTH, etc. → WS_DIAG
 
-        const prefix = `[WS-${category}]`;
-        const timestamp = new Date().toISOString();
+        const logFn = logger[level] || logger.info;
 
-        const logData = {
-            timestamp,
-            category,
-            level,
-            message,
-            ...data,
-            // Context
-            isConnected: this.isConnected,
-            wsState: this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'NO_WS',
-            lastServerPing: this.lastServerPing ? ((Date.now() - this.lastServerPing) + 'ms ago') : 'never',
-            lastPong: this.lastPongReceived ? ((Date.now() - this.lastPongReceived) + 'ms ago') : 'never'
-        };
-
-        switch (level) {
-            case 'error':
-                console.error(prefix, message, logData);
-                break;
-            case 'warn':
-                console.warn(prefix, message, logData);
-                break;
-            case 'info':
-                console.log(prefix, message, logData);
-                break;
-            case 'debug':
-                if (this._enableDetailedLogging) {
-                    console.log(prefix, message, logData);
-                }
-                break;
+        if (data && Object.keys(data).length > 0) {
+            logFn.call(logger, message, data);
+        } else {
+            logFn.call(logger, message);
         }
 
         // Store in history for debugging
-        this._logHistory(`${category}:${level}:${message}`);
+        this._logHistory(`${module}:${level}:${message}`);
     }
 
     /**
@@ -1065,6 +1070,12 @@ class BudgetWSClient {
             this.ws.onopen = () => {
                 clearTimeout(connectionTimeout);
                 this._logHistory('ws_connected');
+
+                // Reset RTT measurements on new connection
+                this._rttMeasurements = [];
+                this._rttRollingAverage = 0;
+                this._pingTimestamp = null;
+
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 this.limitReached = false;
@@ -1201,8 +1212,40 @@ class BudgetWSClient {
             case 'pong':
                 // Response to our client ping
                 this.lastPongReceived = Date.now();
-                const rtt = this.lastServerPing ? (Date.now() - this.lastServerPing) : 0;
-                this._log('PONG', 'debug', 'Pong received', { rtt: `${rtt}ms` });
+
+                // Calculate RTT
+                const rtt = this._pingTimestamp ? (Date.now() - this._pingTimestamp) : 0;
+
+                // Store measurement (skip first if anomalous > 4000ms)
+                if (this._rttMeasurements.length > 0 || rtt < this.RTT_THRESHOLD * 2) {
+                    this._rttMeasurements.push(rtt);
+
+                    // Keep only last 5 measurements
+                    if (this._rttMeasurements.length > this.RTT_WINDOW_SIZE) {
+                        this._rttMeasurements.shift();
+                    }
+
+                    // Calculate rolling average
+                    this._rttRollingAverage = this._rttMeasurements.reduce((a, b) => a + b, 0)
+                        / this._rttMeasurements.length;
+                }
+
+                // Log RTT data
+                this._log('RTT', 'info', 'RTT measured', {
+                    current: `${rtt}ms`,
+                    rolling_avg: `${Math.round(this._rttRollingAverage)}ms`,
+                    measurements: this._rttMeasurements.length,
+                    threshold: `${this.RTT_THRESHOLD}ms`
+                });
+
+                // Warn on slow connection
+                if (this._rttRollingAverage > this.RTT_THRESHOLD) {
+                    this._log('RTT', 'warn', 'Slow connection detected', {
+                        avg_rtt: `${Math.round(this._rttRollingAverage)}ms`,
+                        threshold: `${this.RTT_THRESHOLD}ms`
+                    });
+                }
+
                 debugLog('[BudgetWS] Pong received, RTT:', rtt, 'ms');
 
                 // Layer 4: Clear pong timeout on successful response
@@ -1293,7 +1336,12 @@ class BudgetWSClient {
 
         this.pingInterval = setInterval(() => {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this._log('PING', 'debug', 'Sending client ping');
+                // Record ping timestamp for RTT measurement
+                this._pingTimestamp = Date.now();
+
+                this._log('PING', 'debug', 'Sending client ping', {
+                    timestamp: this._pingTimestamp
+                });
                 this._sendMessage({ type: 'ping' });
 
                 // Layer 4: Set pong timeout
@@ -1850,6 +1898,69 @@ class BudgetWSClient {
     }
 
     /**
+     * Check if state change is allowed (sticky state enforcement)
+     * Prevents rapid badge state transitions by enforcing minimum duration between changes
+     * Exception: Allows immediate transition FROM error states TO connected (recovery)
+     * @param {string} newState - Proposed new state
+     * @returns {boolean} - True if change allowed
+     * @private
+     */
+    _canChangeState(newState) {
+        const now = Date.now();
+        const timeSinceLastChange = now - this._lastStateChangeTime;
+
+        // Exception 1: Allow immediate transition FROM error states TO connected
+        const isRecovery = (
+            (this._currentBadgeState === 'error' ||
+             this._currentBadgeState === 'limit_reached') &&
+            (newState === 'connected' || newState === 'connected_via_leader')
+        );
+
+        if (isRecovery) {
+            this._log('STATE', 'info', 'Allowing immediate recovery transition', {
+                from: this._currentBadgeState,
+                to: newState
+            });
+            return true;
+        }
+
+        // Exception 2: First state change (no previous state)
+        if (!this._currentBadgeState) {
+            return true;
+        }
+
+        // Enforce sticky state duration
+        if (timeSinceLastChange < this.STICKY_STATE_DURATION) {
+            this._log('STATE', 'debug', 'State change blocked by sticky state', {
+                current_state: this._currentBadgeState,
+                proposed_state: newState,
+                time_since_last: `${timeSinceLastChange}ms`,
+                required: `${this.STICKY_STATE_DURATION}ms`
+            });
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Record state change timestamp and update current badge state
+     * @param {string} newState - New badge state
+     * @private
+     */
+    _recordStateChange(newState) {
+        const oldState = this._currentBadgeState;
+        this._currentBadgeState = newState;
+        this._lastStateChangeTime = Date.now();
+
+        this._log('STATE', 'info', 'Badge state changed', {
+            from: oldState || 'none',
+            to: newState,
+            timestamp: this._lastStateChangeTime
+        });
+    }
+
+    /**
      * Update status indicator with debouncing to prevent flickering on iOS
      * iOS Safari/Chrome/Firefox can rapidly cycle through disconnect/reconnect states
      * Debouncing prevents visual flickering while still showing connection state
@@ -1859,65 +1970,90 @@ class BudgetWSClient {
         const indicator = document.getElementById('budget-sse-status-indicator');
         if (!indicator) return;
 
-        // Determine current state
+        // STEP 1: Determine current state (priority order)
         let state;
+
         if (!this.enabled) {
             state = 'disabled';
-        } else if (this.isConnected && this.approachingLimit) {
-            state = 'warning';
-        } else if (this.isConnected) {
-            state = 'connected';
-        } else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
-            state = 'connected_via_leader';
-        } else if (this.limitReached) {
+        }
+        // PRIORITY 1: Error states (highest priority)
+        else if (this.limitReached) {
             state = 'limit_reached';
-        } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
-            state = 'reconnecting';
-        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        }
+        else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             state = 'error';
-        } else {
+        }
+        // PRIORITY 2: Connected states with warnings
+        else if (this.isConnected) {
+            // Check slow connection (RTT-based)
+            const isSlowConnection = this._rttRollingAverage > this.RTT_THRESHOLD;
+
+            // Check many tabs (connection pressure)
+            const isManyTabs = this.approachingLimit;  // >= 0.7
+
+            if (isSlowConnection) {
+                state = 'warning_slow';
+            } else if (isManyTabs) {
+                state = 'warning_tabs';
+            } else {
+                state = 'connected';
+            }
+        }
+        // PRIORITY 3: Multi-tab follower
+        else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
+            state = 'connected_via_leader';
+        }
+        // PRIORITY 4: Reconnecting
+        else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
+            state = 'reconnecting';
+        }
+        // PRIORITY 5: Connecting (initial)
+        else {
             state = 'connecting';
         }
 
-        // Skip update if state hasn't changed (prevents unnecessary DOM updates)
+        // STEP 2: Check if state same as before
         if (state === this._lastIndicatorState) {
             return;
         }
 
-        // iOS wake recovery: debounce ALL state changes to prevent rapid flickering
-        // During wake from sleep, states can rapidly cycle: connected → connecting → connected
-        // Standard behavior: allow connected states through immediately
+        // STEP 3: Sticky state check (with exceptions for recovery)
+        if (!this._canChangeState(state)) {
+            return;  // State change blocked
+        }
+
+        // STEP 4: Apply debouncing
         const isConnectedState = state === 'connected' || state === 'connected_via_leader';
 
         if (this._iosDeviceMode) {
-            // iOS: debounce ALL states if timer is active (prevent any flickering)
+            // iOS: debounce ALL states if timer active
             if (this._indicatorDebounceTimer) {
                 return;
             }
         } else {
-            // Non-iOS: allow connected states through immediately (good news fast)
+            // Non-iOS: allow connected states immediately
             if (!isConnectedState && this._indicatorDebounceTimer) {
                 return;
             }
         }
 
+        // STEP 5: Record state change (before applying visual update)
+        this._recordStateChange(state);
         this._lastIndicatorState = state;
 
-        // Clear any pending debounce timer
+        // STEP 6: Clear pending debounce timer
         if (this._indicatorDebounceTimer) {
             clearTimeout(this._indicatorDebounceTimer);
             this._indicatorDebounceTimer = null;
         }
 
-        // Apply the visual update
+        // STEP 7: Apply visual update
         this._applyIndicatorState(indicator, state);
 
-        // Set debounce timer for next update
-        // iOS: debounce ALL states with longer interval (1s vs 500ms)
-        // Non-iOS: only debounce non-connected states
+        // STEP 8: Set debounce timer for next update (ENHANCED: 2s on iOS)
         const shouldDebounce = this._iosDeviceMode || !isConnectedState;
         if (shouldDebounce) {
-            const debounceMs = this._iosDeviceMode ? 1000 : this.INDICATOR_DEBOUNCE_MS;
+            const debounceMs = this._iosDeviceMode ? 2000 : this.INDICATOR_DEBOUNCE_MS;
             this._indicatorDebounceTimer = setTimeout(() => {
                 this._indicatorDebounceTimer = null;
             }, debounceMs);
@@ -1927,7 +2063,7 @@ class BudgetWSClient {
     /**
      * Apply visual state to indicator element
      * @param {HTMLElement} indicator
-     * @param {string} state - One of: disabled, warning, connected, connected_via_leader,
+     * @param {string} state - One of: disabled, warning_slow, warning_tabs, connected, connected_via_leader,
      *                         limit_reached, reconnecting, error, connecting
      * @private
      */
@@ -1940,36 +2076,51 @@ class BudgetWSClient {
                 indicator.innerHTML = '&#9899;';
                 indicator.title = 'Offline mode - real-time disabled';
                 break;
-            case 'warning':
+
+            // NEW: Slow connection warning
+            case 'warning_slow':
                 indicator.className = `badge badge-warning ${sizeClasses}`;
-                indicator.innerHTML = '&#9888;&#65039;';
+                indicator.innerHTML = '&#128012;';  // 🐌 Snail emoji
+                indicator.title = `Slow connection detected (${Math.round(this._rttRollingAverage)}ms RTT)`;
+                break;
+
+            // NEW: Many tabs warning
+            case 'warning_tabs':
+                indicator.className = `badge badge-warning ${sizeClasses}`;
+                indicator.innerHTML = '&#9888;&#65039;';  // ⚠️ Warning triangle
                 indicator.title = 'Many connections. Close unused tabs';
                 break;
+
             case 'connected':
                 indicator.className = `badge badge-success ${sizeClasses}`;
-                indicator.innerHTML = '&#128994;';
+                indicator.innerHTML = '&#128994;';  // 💚 Green circle
                 indicator.title = 'Real-time sync active' + (this.useLongPolling ? ' (polling)' : '');
                 break;
+
             case 'connected_via_leader':
                 indicator.className = `badge badge-success ${sizeClasses}`;
-                indicator.innerHTML = '&#128994;';
+                indicator.innerHTML = '&#128994;';  // 💚 Green circle
                 indicator.title = 'Sync via another tab';
                 break;
+
             case 'limit_reached':
                 indicator.className = `badge badge-error ${sizeClasses}`;
-                indicator.innerHTML = '&#128308;';
+                indicator.innerHTML = '&#128308;';  // 🔴 Red circle
                 indicator.title = 'Connection limit reached. Close other tabs';
                 break;
+
             case 'reconnecting':
                 indicator.className = `badge badge-warning ${sizeClasses}`;
                 indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
                 indicator.title = `Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
                 break;
+
             case 'error':
                 indicator.className = `badge badge-error ${sizeClasses}`;
-                indicator.innerHTML = '&#128308;';
+                indicator.innerHTML = '&#128308;';  // 🔴 Red circle
                 indicator.title = 'Connection error. Refresh page';
                 break;
+
             case 'connecting':
             default:
                 indicator.className = `badge badge-warning ${sizeClasses}`;
@@ -2019,7 +2170,27 @@ class BudgetWSClient {
 
             // Error tracking
             lastError: this._lastError,
-            history: this._connectionHistory.slice(-10)
+            history: this._connectionHistory.slice(-10),
+
+            // RTT measurement
+            rtt: {
+                current: this._pingTimestamp
+                    ? `${Date.now() - this._pingTimestamp}ms`
+                    : 'no ping sent',
+                rolling_average: `${Math.round(this._rttRollingAverage)}ms`,
+                measurements: this._rttMeasurements,
+                threshold: `${this.RTT_THRESHOLD}ms`,
+                slow_connection: this._rttRollingAverage > this.RTT_THRESHOLD
+            },
+
+            // Badge state management
+            state: {
+                current: this._currentBadgeState,
+                last_change: this._lastStateChangeTime
+                    ? new Date(this._lastStateChangeTime).toISOString()
+                    : null,
+                sticky_duration: `${this.STICKY_STATE_DURATION}ms`
+            }
         };
 
         return diag;
@@ -2080,6 +2251,23 @@ class BudgetWSClient {
                 title: 'Error Tracking',
                 items: [
                     { label: 'Last Error', value: diag.lastError ? diag.lastError.message : 'none', highlight: !!diag.lastError }
+                ]
+            },
+            {
+                title: 'RTT Metrics',
+                items: [
+                    { label: 'Rolling Avg RTT', value: diag.rtt.rolling_average, highlight: diag.rtt.slow_connection },
+                    { label: 'Measurements', value: diag.rtt.measurements.length },
+                    { label: 'Threshold', value: diag.rtt.threshold },
+                    { label: 'Slow Connection', value: diag.rtt.slow_connection, highlight: diag.rtt.slow_connection }
+                ]
+            },
+            {
+                title: 'State Management',
+                items: [
+                    { label: 'Current State', value: diag.state.current || 'none' },
+                    { label: 'Last Change', value: diag.state.last_change || 'never' },
+                    { label: 'Sticky Duration', value: diag.state.sticky_duration }
                 ]
             }
         ];

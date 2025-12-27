@@ -54,6 +54,8 @@
             PLAN: true,                // Recurring plan operations
             CSV: true,                 // CSV import/export
             WS_DIAG: true,             // WebSocket diagnostics modal
+            WS_RTT: true,              // WebSocket RTT measurement logging
+            WS_STATE: true,            // WebSocket badge state transition logging
             CACHE: isDevelopment       // Cache metrics collection (dev only)
         },
 

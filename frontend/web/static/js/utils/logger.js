@@ -170,6 +170,8 @@ window.logForm = new Logger('[FORM]', 'FORM');
 window.logWorker = new Logger('[WORKER]', 'WORKER');
 window.logPlan = new Logger('[PLAN]', 'PLAN');
 window.logCSV = new Logger('[CSV]', 'CSV');
+window.logWSRTT = new Logger('[WS_RTT]', 'WS_RTT');
+window.logWSState = new Logger('[WS_STATE]', 'WS_STATE');
 
 // Log logger initialization (only if logging enabled)
 if (window.LOGGING_CONFIG?.enabled) {
@@ -184,6 +186,8 @@ if (window.LOGGING_CONFIG?.enabled) {
         FORM: 'window.logForm',
         WORKER: 'window.logWorker',
         PLAN: 'window.logPlan',
-        CSV: 'window.logCSV'
+        CSV: 'window.logCSV',
+        WS_RTT: 'window.logWSRTT',
+        WS_STATE: 'window.logWSState'
     });
 }

@@ -1647,6 +1647,636 @@ Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure clos
 
 ---
 
+## WebSocket RTT-Based Slow Connection Detection (v6.5.0+)
+
+### Overview
+
+**Since:** v6.5.0 (December 2025)
+**Status:** ✅ Active
+
+Family Budget implements **RTT-based slow connection detection** with sticky state mechanism to prevent badge flickering on mobile devices.
+
+**Problem Solved:**
+- Yellow badge flickering every 3 seconds on iPhone due to rapid reconnect cycles
+- False positives: "many tabs" warning (⚠️) shown even with good network
+- No differentiation between slow network and connection pressure
+- Rapid badge state changes causing poor UX
+
+**Solution:**
+- ✅ Real RTT measurement during ping-pong exchange
+- ✅ Sticky state (minimum 5s between badge changes)
+- ✅ Dual warning states (🐌 slow connection vs ⚠️ many tabs)
+- ✅ Enhanced iOS debouncing (2s vs 1s)
+- ✅ Comprehensive logging ([WS_RTT], [WS_STATE])
+
+---
+
+### RTT Measurement Algorithm
+
+**Method:** Ping-Pong Round-Trip Time Calculation
+
+**How It Works:**
+1. Record timestamp when client sends ping (`Date.now()`)
+2. Server echoes pong back to client
+3. Calculate RTT: `pongReceived - pingSent`
+4. Store last 5 measurements in rolling window
+5. Calculate rolling average (smooth network spikes)
+6. Compare to threshold (2000ms)
+
+**Rolling Average Benefits:**
+- Smooths temporary network spikes
+- Prevents false positives from single slow packet
+- More reliable than single measurement
+- Adapts to changing network conditions
+
+**Implementation:**
+
+```javascript
+// budgetWSClient.js constructor
+this._rttMeasurements = [];      // Rolling window of last 5 RTT measurements
+this._rttRollingAverage = 0;     // Average of last 5 measurements
+this._pingTimestamp = null;      // Timestamp when ping sent
+this.RTT_THRESHOLD = 2000;       // Slow connection threshold (ms)
+this.RTT_WINDOW_SIZE = 5;        // Number of measurements to average
+
+// Before sending ping
+this._pingTimestamp = Date.now();
+this._log('PING', 'debug', 'Sending client ping', {
+    timestamp: this._pingTimestamp
+});
+
+// On pong received
+const rtt = this._pingTimestamp ? (Date.now() - this._pingTimestamp) : 0;
+
+// Store measurement (skip first if anomalous > 4000ms)
+if (this._rttMeasurements.length > 0 || rtt < this.RTT_THRESHOLD * 2) {
+    this._rttMeasurements.push(rtt);
+
+    // Keep only last 5 measurements
+    if (this._rttMeasurements.length > this.RTT_WINDOW_SIZE) {
+        this._rttMeasurements.shift();
+    }
+
+    // Calculate rolling average
+    this._rttRollingAverage = this._rttMeasurements.reduce((a, b) => a + b, 0)
+        / this._rttMeasurements.length;
+}
+
+// Log RTT data
+this._log('RTT', 'info', 'RTT measured', {
+    current: `${rtt}ms`,
+    rolling_avg: `${Math.round(this._rttRollingAverage)}ms`,
+    measurements: this._rttMeasurements.length,
+    threshold: `${this.RTT_THRESHOLD}ms`
+});
+```
+
+**First Measurement Handling:**
+- Skip first RTT if > 4000ms (connection establishment overhead)
+- Prevents false positive from initial handshake
+- Subsequent measurements must be < 4000ms (2x threshold)
+
+---
+
+### Sticky State Mechanism
+
+**Purpose:** Prevent badge state changes more frequently than once every 5 seconds.
+
+**Why It's Needed:**
+- Previous implementation: Badge could change every 500-1000ms (debounce period)
+- User impact: Visual flicker, confusing UX
+- Solution: Enforce minimum 5s between state transitions
+
+**Implementation:**
+
+```javascript
+// budgetWSClient.js constructor
+this._lastStateChangeTime = 0;   // Timestamp of last badge state change
+this._currentBadgeState = null;  // Current badge state
+this.STICKY_STATE_DURATION = 5000; // Minimum 5s between state changes
+
+/**
+ * Check if state change is allowed (sticky state enforcement)
+ * @param {string} newState - Proposed new state
+ * @returns {boolean} - True if change allowed
+ */
+_canChangeState(newState) {
+    const now = Date.now();
+    const timeSinceLastChange = now - this._lastStateChangeTime;
+
+    // Exception 1: Allow immediate transition FROM error states TO connected
+    const isRecovery = (
+        (this._currentBadgeState === 'error' ||
+         this._currentBadgeState === 'limit_reached') &&
+        (newState === 'connected' || newState === 'connected_via_leader')
+    );
+
+    if (isRecovery) {
+        this._log('STATE', 'info', 'Allowing immediate recovery transition', {
+            from: this._currentBadgeState,
+            to: newState
+        });
+        return true;
+    }
+
+    // Exception 2: First state change (no previous state)
+    if (!this._currentBadgeState) {
+        return true;
+    }
+
+    // Enforce sticky state duration
+    if (timeSinceLastChange < this.STICKY_STATE_DURATION) {
+        this._log('STATE', 'debug', 'State change blocked by sticky state', {
+            current_state: this._currentBadgeState,
+            proposed_state: newState,
+            time_since_last: `${timeSinceLastChange}ms`,
+            required: `${this.STICKY_STATE_DURATION}ms`
+        });
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Record state change timestamp
+ * @param {string} newState
+ */
+_recordStateChange(newState) {
+    const oldState = this._currentBadgeState;
+    this._currentBadgeState = newState;
+    this._lastStateChangeTime = Date.now();
+
+    this._log('STATE', 'info', 'Badge state changed', {
+        from: oldState || 'none',
+        to: newState,
+        timestamp: this._lastStateChangeTime
+    });
+}
+```
+
+**Recovery Exception:**
+- Error → Connected: Immediate transition (no 5s wait)
+- Limit Reached → Connected: Immediate transition
+- Rationale: User should see good news immediately
+
+**First State Exception:**
+- First state change: No delay (initialize immediately)
+- Prevents 5s blank badge on page load
+
+---
+
+### Badge State Decision Logic
+
+**8 Distinct States (Priority Order):**
+
+| Priority | State | Badge | Condition | Tooltip |
+|----------|-------|-------|-----------|---------|
+| 1 (Highest) | `disabled` | ⚪ Gray | `!enabled` | Offline mode - real-time disabled |
+| 2 | `limit_reached` | 🔴 Red | `limitReached` | Connection limit reached. Close other tabs |
+| 3 | `error` | 🔴 Red | `reconnectAttempts >= maxReconnectAttempts` | Connection error. Refresh page |
+| 4 | `warning_slow` | 🐌 Yellow | `isConnected && rttAvg > 2000ms` | Slow connection detected (XXXms RTT) |
+| 5 | `warning_tabs` | ⚠️ Yellow | `isConnected && connectionPressure >= 0.7` | Many connections. Close unused tabs |
+| 6 | `connected` | 💚 Green | `isConnected && normal RTT && few tabs` | Real-time sync active |
+| 7 | `connected_via_leader` | 💚 Green | `!isLeader && multiTab && recentHeartbeat` | Sync via another tab |
+| 8 | `reconnecting` | 🔄 Yellow | `0 < reconnectAttempts < max` | Reconnecting (X/5) |
+| 9 (Lowest) | `connecting` | 🔄 Yellow | Initial connection | Connecting... |
+
+**NEW: Dual Warning States:**
+
+**Before v6.5.0:**
+- Only one yellow state: "Many connections" (connectionPressure >= 0.7)
+- No RTT-based detection → False positives
+- User sees yellow badge even with good network + 7 tabs
+
+**After v6.5.0:**
+- `warning_slow` (🐌): Actual slow network (RTT > 2000ms)
+- `warning_tabs` (⚠️): Connection pressure (7+ tabs)
+- Clear differentiation → Better UX
+
+**State Decision Code:**
+
+```javascript
+_updateStatusIndicator() {
+    // STEP 1: Determine current state (priority order)
+    let state;
+
+    if (!this.enabled) {
+        state = 'disabled';
+    }
+    // PRIORITY 1: Error states (highest priority)
+    else if (this.limitReached) {
+        state = 'limit_reached';
+    }
+    else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        state = 'error';
+    }
+    // PRIORITY 2: Connected states with warnings
+    else if (this.isConnected) {
+        // Check slow connection (RTT-based)
+        const isSlowConnection = this._rttRollingAverage > this.RTT_THRESHOLD;
+
+        // Check many tabs (connection pressure)
+        const isManyTabs = this.approachingLimit;  // >= 0.7
+
+        if (isSlowConnection) {
+            state = 'warning_slow';
+        } else if (isManyTabs) {
+            state = 'warning_tabs';
+        } else {
+            state = 'connected';
+        }
+    }
+    // PRIORITY 3: Multi-tab follower
+    else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
+        state = 'connected_via_leader';
+    }
+    // PRIORITY 4: Reconnecting
+    else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
+        state = 'reconnecting';
+    }
+    // PRIORITY 5: Connecting (initial)
+    else {
+        state = 'connecting';
+    }
+
+    // STEP 2: Check if state same as before
+    if (state === this._lastIndicatorState) {
+        return;
+    }
+
+    // STEP 3: Sticky state check (with exceptions for recovery)
+    if (!this._canChangeState(state)) {
+        return;  // State change blocked
+    }
+
+    // STEP 4: Apply debouncing
+    const isConnectedState = state === 'connected' || state === 'connected_via_leader';
+
+    if (this._iosDeviceMode) {
+        // iOS: debounce ALL states if timer active
+        if (this._indicatorDebounceTimer) {
+            return;
+        }
+    } else {
+        // Non-iOS: allow connected states immediately
+        if (!isConnectedState && this._indicatorDebounceTimer) {
+            return;
+        }
+    }
+
+    // STEP 5: Record state change (before applying visual update)
+    this._recordStateChange(state);
+    this._lastIndicatorState = state;
+
+    // STEP 6: Clear pending debounce timer
+    if (this._indicatorDebounceTimer) {
+        clearTimeout(this._indicatorDebounceTimer);
+        this._indicatorDebounceTimer = null;
+    }
+
+    // STEP 7: Apply visual update
+    this._applyIndicatorState(indicator, state);
+
+    // STEP 8: Set debounce timer for next update (ENHANCED: 2s on iOS)
+    const shouldDebounce = this._iosDeviceMode || !isConnectedState;
+    if (shouldDebounce) {
+        const debounceMs = this._iosDeviceMode ? 2000 : this.INDICATOR_DEBOUNCE_MS;
+        this._indicatorDebounceTimer = setTimeout(() => {
+            this._indicatorDebounceTimer = null;
+        }, debounceMs);
+    }
+}
+```
+
+---
+
+### Enhanced iOS Debouncing
+
+**Problem:** iOS Safari's aggressive background tab suspension causes rapid reconnects.
+
+**Previous Implementation:**
+- iOS: 1000ms debouncing
+- Non-iOS: 500ms debouncing
+- Issue: Not enough to prevent flicker on rapid reconnects
+
+**New Implementation:**
+- iOS: **2000ms debouncing** (doubled)
+- Non-iOS: 500ms debouncing (unchanged)
+- Connected states: Immediate (no debouncing)
+
+**Rationale:**
+- 2s delay acceptable for non-connected states (error, reconnecting)
+- Connected state changes should be immediate (good news)
+- Prevents flicker from rapid reconnect cycles
+
+---
+
+### Comprehensive Logging
+
+**New Logger Modules:**
+- **[WS_RTT]** - RTT measurement logging
+- **[WS_STATE]** - Badge state transition logging
+
+**Logging Router (_log method):**
+
+```javascript
+/**
+ * Centralized logging helper with module prefix
+ * @param {string} module - Module name (RTT, STATE, PING, PONG, etc.)
+ * @param {string} level - Log level (debug, info, warn, error)
+ * @param {string} message - Log message
+ * @param {Object} data - Additional data
+ */
+_log(module, level, message, data = {}) {
+    const logger = module === 'RTT' ? logWSRTT :
+                   module === 'STATE' ? logWSState :
+                   module === 'PONG' ? logWSDiag :
+                   module === 'PING' ? logWSDiag :
+                   logWSDiag;
+
+    const logFn = logger[level] || logger.info;
+
+    if (data && Object.keys(data).length > 0) {
+        logFn.call(logger, message, data);
+    } else {
+        logFn.call(logger, message);
+    }
+}
+```
+
+**Example Console Logs:**
+
+```
+[WS_RTT] RTT measured { current: "1850ms", rolling_avg: "1920ms", measurements: 5, threshold: "2000ms" }
+[WS_RTT] RTT measured { current: "2150ms", rolling_avg: "2010ms", measurements: 5, threshold: "2000ms" }
+[WS_RTT] Slow connection detected { avg_rtt: "2010ms", threshold: "2000ms" }
+[WS_STATE] Badge state changed { from: "connected", to: "warning_slow", timestamp: 1735388400000 }
+
+[WS_STATE] State change blocked by sticky state { current_state: "warning_slow", proposed_state: "connected", time_since_last: "1200ms", required: "5000ms" }
+[WS_STATE] Allowing immediate recovery transition { from: "error", to: "connected" }
+```
+
+**Configuration:**
+
+Logging controlled via `/frontend/web/static/js/config/logging.js`:
+
+```javascript
+modules: {
+    // ... existing modules ...
+    WS_RTT: true,         // RTT measurement logging
+    WS_STATE: true,       // Badge state transition logging
+    // ...
+}
+```
+
+**Disable in Production:**
+
+```javascript
+// Set to false to disable console logs
+WS_RTT: false,
+WS_STATE: false,
+```
+
+---
+
+### Diagnostics Integration
+
+**Triple-Tap Modal Enhancements:**
+
+New sections added to WebSocket diagnostics modal:
+
+**RTT Metrics Section:**
+- Rolling Avg RTT (ms)
+- Measurements count (0-5)
+- Threshold (2000ms)
+- Slow Connection flag (true/false)
+
+**State Management Section:**
+- Current State (e.g., "warning_slow", "connected")
+- Last Change timestamp
+- Sticky Duration (5000ms)
+
+**Access Diagnostics:**
+1. Triple-tap WebSocket badge in header
+2. Scroll to "RTT Metrics" and "State Management" sections
+3. Verify values match console logs
+
+**Code Integration:**
+
+```javascript
+// In diagnose() method
+rtt: {
+    current: this._pingTimestamp
+        ? `${Date.now() - this._pingTimestamp}ms`
+        : 'no ping sent',
+    rolling_average: `${Math.round(this._rttRollingAverage)}ms`,
+    measurements: this._rttMeasurements,
+    threshold: `${this.RTT_THRESHOLD}ms`,
+    slow_connection: this._rttRollingAverage > this.RTT_THRESHOLD
+},
+
+state: {
+    current: this._currentBadgeState,
+    last_change: this._lastStateChangeTime
+        ? new Date(this._lastStateChangeTime).toISOString()
+        : null,
+    sticky_duration: `${this.STICKY_STATE_DURATION}ms`
+},
+```
+
+---
+
+### Testing Procedures
+
+#### Test 1: RTT Measurement Verification
+
+**Browser Console:**
+```javascript
+// Check RTT data structure
+window.budgetWSClient.diagnose().rtt
+
+// Expected output:
+{
+  current: "1850ms",
+  rolling_average: "1920ms",
+  measurements: [1850, 1900, 1920, 1950, 1980],
+  threshold: "2000ms",
+  slow_connection: false
+}
+```
+
+#### Test 2: Slow Connection Simulation
+
+**Chrome DevTools → Network → Throttling:**
+
+1. Set throttling to "Slow 3G" (or custom with 2000ms+ latency)
+2. Wait 75 seconds (5 RTT measurements at 15s ping interval)
+3. Expected: Badge shows 🐌 snail emoji (yellow)
+4. Tooltip: "Slow connection detected (XXXXms RTT)"
+
+**Console Logs:**
+```
+[WS_RTT] RTT measured { current: "2100ms", rolling_avg: "2050ms", ... }
+[WS_RTT] Slow connection detected { avg_rtt: "2050ms", threshold: "2000ms" }
+[WS_STATE] Badge state changed { from: "connected", to: "warning_slow" }
+```
+
+#### Test 3: Sticky State Verification
+
+**Rapidly open/close 8+ tabs:**
+
+1. Open 8 browser tabs quickly
+2. Close 2 tabs (drops below 7)
+3. Open 3 more tabs (back above 7)
+4. Expected: Badge should NOT flicker
+5. Console logs:
+   ```
+   [WS_STATE] State change blocked by sticky state { time_since_last: "1200ms", required: "5000ms" }
+   ```
+
+#### Test 4: Many Tabs Warning
+
+**Open 7-9 tabs:**
+
+1. Open 7 tabs with same app
+2. Expected: Badge shows ⚠️ warning triangle (yellow)
+3. Tooltip: "Many connections. Close unused tabs"
+4. Console:
+   ```
+   [WS_STATE] Badge state changed { from: "connected", to: "warning_tabs" }
+   ```
+
+#### Test 5: Recovery Transition (Error → Connected)
+
+**Disconnect and reconnect internet:**
+
+1. Disconnect Wi-Fi → Red badge (error)
+2. Reconnect Wi-Fi immediately
+3. Expected: Immediate green badge (no 5s sticky state delay)
+4. Console:
+   ```
+   [WS_STATE] Allowing immediate recovery transition { from: "error", to: "connected" }
+   ```
+
+#### Test 6: iPhone Real Device Testing
+
+**Safari on iPhone (iOS 16+):**
+
+1. Open app in Safari
+2. Lock phone for 10 minutes
+3. Unlock phone
+4. Expected: Green badge within 60 seconds (no yellow flicker)
+5. Check console logs via Safari Web Inspector (Mac)
+
+---
+
+### Performance Impact
+
+**Metrics:**
+
+| Metric | Impact | Overhead |
+|--------|--------|----------|
+| RTT Calculation | Per ping-pong cycle | < 1ms |
+| Memory Overhead | 5 RTT measurements | ~40 bytes |
+| Logging Overhead | Per state change | < 5ms (can be disabled) |
+| Badge Update Frequency | Reduced significantly | From 500-1000ms to 5s minimum |
+| Network Impact | None | Uses existing ping-pong mechanism |
+
+**Conclusion:** Minimal performance impact with significant UX improvement.
+
+---
+
+### Configuration Parameters
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| `RTT_THRESHOLD` | 2000ms | Balance between sensitivity and false positives |
+| `RTT_WINDOW_SIZE` | 5 | Smooth network spikes without excessive memory |
+| `STICKY_STATE_DURATION` | 5000ms | Prevent flicker while remaining responsive |
+| iOS debouncing | 2000ms | Doubled from 1000ms to prevent rapid reconnect flicker |
+| Non-iOS debouncing | 500ms | Unchanged (desktop connections more stable) |
+| First RTT skip threshold | 4000ms | Avoid connection establishment overhead |
+
+---
+
+### Troubleshooting
+
+**Issue: Badge stuck on yellow (slow connection) despite good network**
+
+**Diagnosis:**
+```javascript
+// Check RTT measurements
+window.budgetWSClient.diagnose().rtt
+// Look for: rolling_average > 2000ms
+```
+
+**Possible causes:**
+1. Server overload (backend slow to respond to pings)
+2. Network congestion (packet loss, high latency)
+3. Browser throttling (background tab, power saver mode)
+
+**Solution:**
+- Check server health (CPU, memory)
+- Test network latency: `ping your-server.com`
+- Disable browser power saver
+- Adjust RTT_THRESHOLD if false positives persist
+
+**Issue: Badge flickering despite sticky state**
+
+**Diagnosis:**
+```javascript
+// Check state change logs
+// Look for: "State change blocked by sticky state"
+// If missing → sticky state not enforcing
+```
+
+**Possible causes:**
+1. State changes happening exactly 5s apart (edge case)
+2. Recovery exceptions triggering too often (error → connected → error loop)
+
+**Solution:**
+- Increase STICKY_STATE_DURATION to 10s (temporary)
+- Check for connection stability issues
+- Review error logs for reconnect loop causes
+
+**Issue: No RTT measurements recorded**
+
+**Diagnosis:**
+```javascript
+window.budgetWSClient.diagnose().rtt
+// Expected: measurements array with 0-5 values
+// If empty → ping-pong not working
+```
+
+**Possible causes:**
+1. WebSocket not connected
+2. Server not responding to pings
+3. Pong handler not executing
+
+**Solution:**
+- Check WebSocket connection state
+- Verify server ping-pong implementation
+- Check browser console for JavaScript errors
+
+---
+
+### Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| v6.5.0 | 2025-12-27 | Initial RTT detection + sticky state implementation |
+
+---
+
+### Related Documentation
+
+- [WebSocket Recovery After Long Sleep](#websocket-recovery-after-long-sleep-iosmobile) - Multi-layer wake detection
+- [WebSocket Diagnostics Modal](#websocket-diagnostics-modal) - Triple-tap debugging interface
+- [Mobile Features](#mobile-features) - iOS Safari compatibility patterns
+
+---
+
 ## Future Enhancements
 
 ### Planned Features
