@@ -103,6 +103,8 @@
             <div class="collapse-title text-xl font-medium flex items-center gap-2">
                 🌐 Логи браузера
                 <span class="badge badge-primary" id="browser-count">0</span>
+                <span class="badge badge-warning" id="browser-warnings">0</span>
+                <span class="badge badge-error" id="browser-errors">0</span>
             </div>
             <div class="collapse-content">
                 <div class="overflow-x-auto">
@@ -119,6 +121,8 @@
             <div class="collapse-title text-xl font-medium flex items-center gap-2">
                 🔧 Логи Backend
                 <span class="badge badge-primary" id="backend-count">0</span>
+                <span class="badge badge-warning" id="backend-warnings">0</span>
+                <span class="badge badge-error" id="backend-errors">0</span>
             </div>
             <div class="collapse-content">
                 <div class="overflow-x-auto">
@@ -135,6 +139,8 @@
             <div class="collapse-title text-xl font-medium flex items-center gap-2">
                 🤖 Логи Bot
                 <span class="badge badge-primary" id="bot-count">0</span>
+                <span class="badge badge-warning" id="bot-warnings">0</span>
+                <span class="badge badge-error" id="bot-errors">0</span>
             </div>
             <div class="collapse-content">
                 <div class="overflow-x-auto">
@@ -151,6 +157,8 @@
             <div class="collapse-title text-xl font-medium flex items-center gap-2">
                 🗄️ Логи PostgreSQL
                 <span class="badge badge-primary" id="postgres-count">0</span>
+                <span class="badge badge-warning" id="postgres-warnings">0</span>
+                <span class="badge badge-error" id="postgres-errors">0</span>
             </div>
             <div class="collapse-content">
                 <div class="overflow-x-auto">
@@ -167,6 +175,8 @@
             <div class="collapse-title text-xl font-medium flex items-center gap-2">
                 🌐 Логи Nginx
                 <span class="badge badge-primary" id="nginx-count">0</span>
+                <span class="badge badge-warning" id="nginx-warnings">0</span>
+                <span class="badge badge-error" id="nginx-errors">0</span>
             </div>
             <div class="collapse-content">
                 <div class="overflow-x-auto">
@@ -249,16 +259,24 @@ function getFilterValues() {
 function renderLogs(service, logs) {
     const container = document.getElementById(`${service}-logs`);
     const countBadge = document.getElementById(`${service}-count`);
+    const warningsBadge = document.getElementById(`${service}-warnings`);
+    const errorsBadge = document.getElementById(`${service}-errors`);
 
-    if (!container || !countBadge) {
+    if (!container || !countBadge || !warningsBadge || !errorsBadge) {
         if (logAdmin) {
-            logAdmin.warn(`Контейнер или бейдж не найден для service=${service}`);
+            logAdmin.warn(`Контейнер или бейджи не найдены для service=${service}`);
         }
         return;
     }
 
-    // Update count badge
+    // Count warnings and errors
+    const warningCount = logs.filter(log => log.level === 'warning').length;
+    const errorCount = logs.filter(log => log.level === 'error').length;
+
+    // Update badges
     countBadge.textContent = logs.length;
+    warningsBadge.textContent = warningCount;
+    errorsBadge.textContent = errorCount;
 
     // Render log entries
     if (logs.length === 0) {
@@ -290,7 +308,7 @@ function renderLogs(service, logs) {
     }).join('');
 
     if (logAdmin) {
-        logAdmin.debug(`Отрисовано ${logs.length} логов для service=${service}`);
+        logAdmin.debug(`Отрисовано ${logs.length} логов для service=${service} (warnings: ${warningCount}, errors: ${errorCount})`);
     }
 }
 
