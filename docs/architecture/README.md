@@ -26,6 +26,38 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-27: README Refactoring - User-Centric Approach
+- **Change:** Completely refactored README.md to focus on product value and user benefits
+- **Goal:** Make README accessible to non-technical users, focusing on "why" instead of "how"
+- **New Structure:**
+  - **Value Proposition**: Clear statement of what Family Budget solves
+  - **Feature Grouping**: Organized by user goals (Accounting, Analytics, Reminders, Import, Mobile, Telegram)
+  - **Problem-Solution Table**: Direct mapping of pain points to solutions
+  - **Simplified Quick Start**: 4 clear steps with visual numbering
+  - **Documentation Navigation**: Clear audience segmentation (Admins, Developers, Architects, Users)
+- **Removed:**
+  - Technical architecture details (moved to CLAUDE.md)
+  - SSE/Worker constraints (developer-only concern)
+  - Detailed infrastructure requirements (moved to START.md)
+  - Implementation details (API endpoints, database schema)
+- **Added:**
+  - "Почему Family Budget" section - direct problem/solution mapping
+  - Security features highlight (OAuth, 2FA, emergency access)
+  - PWA offline capabilities emphasis
+  - Telegram integration benefits
+  - CSV import from major Russian banks
+- **Impact:**
+  - README reduced from 142 lines to 130 lines (more content, less fluff)
+  - Non-technical users can understand product value in 2 minutes
+  - Clear separation: README (users) → START.md (admins) → CLAUDE.md (developers)
+  - GitHub repository landing page now sells the product, not the implementation
+- **Files modified:**
+  - `README.md` (complete rewrite)
+  - `docs/architecture/README.md` (this changelog entry)
+- **Philosophy:** "Show the value, not the stack. Solve problems, not list features."
+
+---
+
 ### 2025-12-27: Admin Logs Page (v6.5.0)
 - **Change:** Added admin-only logs viewing page at `/admin/logs`
 - **Features:**
