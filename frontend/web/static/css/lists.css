@@ -539,7 +539,14 @@
     justify-content: flex-end;
     gap: 0.5rem;
     padding: 0 0.5rem;
-    background: var(--fallback-er, oklch(var(--er) / 0.1));
+    /* Gradient from left (transparent) to right (error background) */
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        var(--fallback-er, oklch(var(--er) / 0.05)) 15%,
+        var(--fallback-er, oklch(var(--er) / 0.1)) 40%,
+        var(--fallback-er, oklch(var(--er) / 0.15)) 100%
+    );
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -607,10 +614,11 @@
         display: none;
     }
 
-    /* Allow text wrap on narrow screens */
+    /* Keep ellipsis on narrow screens for better swipe UX */
     .hierarchy-item-name {
-        white-space: normal;
-        word-break: break-word;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 

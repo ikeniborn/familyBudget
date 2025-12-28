@@ -356,6 +356,22 @@
                 <textarea name="comment" id="item-comment" class="textarea textarea-bordered textarea-sm sm:textarea-md" rows="1" placeholder="Опционально"></textarea>
             </div>
 
+            <!-- Duplicate warning container (hidden by default) -->
+            <div id="duplicate-warning-container" class="hidden mb-2 sm:mb-4">
+                <div class="alert alert-warning py-2 px-3 text-xs sm:text-sm">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div class="flex-1">
+                            <div class="font-semibold">Уже добавлено:</div>
+                            <div id="duplicate-details" class="mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="modal-action mt-3 sm:mt-4 gap-2">
                 <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeItemModal()">Отмена</button>
                 <button type="submit" class="btn btn-primary btn-sm sm:btn-md flex-1 sm:flex-initial">Сохранить</button>

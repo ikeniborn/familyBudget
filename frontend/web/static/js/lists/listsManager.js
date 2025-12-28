@@ -138,6 +138,144 @@ class ListsManager {
     }
 
     /**
+     * Initialize duplicate detection listeners
+     */
+    initializeDuplicateDetection() {
+        const productInput = document.getElementById('item-product-name');
+        const storeSelect = document.getElementById('item-store');
+
+        if (!productInput || !storeSelect) {
+            console.warn('[LISTS] Duplicate detection inputs not found');
+            return;
+        }
+
+        let searchTimeout;
+        const debouncedSearch = () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const productName = productInput.value.trim();
+                const storeId = parseInt(storeSelect.value);
+
+                if (productName && storeId && this.currentListId) {
+                    const duplicate = await this.searchDuplicate(productName, storeId);
+                    if (duplicate) {
+                        this.showDuplicateWarning(duplicate);
+                    } else {
+                        this.hideDuplicateWarning();
+                    }
+                } else {
+                    this.hideDuplicateWarning();
+                }
+            }, 500); // 500ms debounce
+        };
+
+        productInput.addEventListener('input', debouncedSearch);
+        storeSelect.addEventListener('change', debouncedSearch);
+
+        console.log('[LISTS] Duplicate detection initialized');
+    }
+
+    /**
+     * Search for duplicate item in current list
+     * @param {string} productName - Product name
+     * @param {number} storeId - Store ID
+     * @returns {Promise<Object|null>} Duplicate item or null
+     */
+    async searchDuplicate(productName, storeId) {
+        if (!productName || !storeId || !this.currentListId) {
+            return null;
+        }
+
+        try {
+            console.log('[DUPLICATE_SEARCH] Searching for duplicate', {
+                productName,
+                storeId,
+                listId: this.currentListId
+            });
+
+            const url = new URL('/api/v1/shopping-list-items/check-duplicate', window.location.origin);
+            url.searchParams.set('shopping_list_id', this.currentListId);
+            url.searchParams.set('product_name', productName.trim());
+            url.searchParams.set('store_id', storeId);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                console.error('[DUPLICATE_SEARCH] API error', { status: response.status });
+                return null;
+            }
+
+            const data = await response.json();
+
+            if (data && data.id) {
+                console.warn('[DUPLICATE_SEARCH] Duplicate found', {
+                    itemId: data.id,
+                    quantity: data.quantity,
+                    unit: data.unit
+                });
+                return data;
+            }
+
+            console.log('[DUPLICATE_SEARCH] No duplicate found');
+            return null;
+
+        } catch (error) {
+            console.error('[DUPLICATE_SEARCH] Error searching duplicate', { error: error.message });
+            return null;
+        }
+    }
+
+    /**
+     * Display duplicate warning in modal
+     * @param {Object} duplicateItem - Duplicate item data
+     */
+    showDuplicateWarning(duplicateItem) {
+        const container = document.getElementById('duplicate-warning-container');
+        const details = document.getElementById('duplicate-details');
+
+        if (!container || !details) {
+            console.warn('[DUPLICATE_SEARCH] Warning UI elements not found');
+            return;
+        }
+
+        // Build details text
+        let detailsText = `<strong>${duplicateItem.product_name}</strong>`;
+
+        if (duplicateItem.quantity && duplicateItem.unit) {
+            detailsText += ` - ${duplicateItem.quantity} ${duplicateItem.unit}`;
+        } else if (duplicateItem.quantity) {
+            detailsText += ` - количество: ${duplicateItem.quantity}`;
+        }
+
+        if (duplicateItem.comment) {
+            detailsText += ` <span class="text-gray-600">(${duplicateItem.comment})</span>`;
+        }
+
+        details.innerHTML = detailsText;
+        container.classList.remove('hidden');
+
+        // Store duplicate item for later use in save
+        this.currentDuplicateItem = duplicateItem;
+
+        console.log('[DUPLICATE_SEARCH] Warning displayed', { itemId: duplicateItem.id });
+    }
+
+    /**
+     * Hide duplicate warning
+     */
+    hideDuplicateWarning() {
+        const container = document.getElementById('duplicate-warning-container');
+        if (container) {
+            container.classList.add('hidden');
+        }
+        this.currentDuplicateItem = null;
+        console.log('[DUPLICATE_SEARCH] Warning hidden');
+    }
+
+    /**
      * Show Landing View (grid of shopping list cards)
      */
     async showLandingView() {
@@ -2534,6 +2672,12 @@ function openAddItemModal() {
     // Ensure autocomplete is set up (mobile fix)
     window.listsManager?._setupProductAutocomplete();
 
+    // Initialize duplicate detection
+    window.listsManager?.initializeDuplicateDetection();
+
+    // Hide duplicate warning on modal open
+    window.listsManager?.hideDuplicateWarning();
+
     modal.showModal();
 
     // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
@@ -2601,6 +2745,9 @@ function closeItemModal() {
 /**
  * Handle save item form submission (with offline support)
  */
+/**
+ * Handle save item form submission (with automatic aggregation)
+ */
 async function handleSaveItem(event) {
     event.preventDefault();
     const form = event.target;
@@ -2620,38 +2767,98 @@ async function handleSaveItem(event) {
 
     try {
         const manager = window.listsManager;
+
+        // Check if we should aggregate (duplicate exists and NOT editing)
+        const shouldAggregate = !isEdit && manager.currentDuplicateItem;
+
+        console.log('[ITEM_SAVE] Starting save', {
+            isEdit,
+            shouldAggregate,
+            duplicateItemId: manager.currentDuplicateItem?.id,
+            newQuantity: data.quantity
+        });
+
         let result;
 
-        if (manager.offlineShopping) {
-            // Use OfflineShoppingManager for online/offline support
-            if (isEdit) {
+        if (shouldAggregate) {
+            // AGGREGATE: Update existing item instead of creating new
+            const existingItem = manager.currentDuplicateItem;
+
+            // Calculate aggregated quantity
+            const oldQuantity = parseFloat(existingItem.quantity) || 0;
+            const newQuantity = parseFloat(data.quantity) || 0;
+            const aggregatedQuantity = oldQuantity + newQuantity;
+
+            // Merge comments (old; new)
+            let comment = existingItem.comment || '';
+            if (data.comment) {
+                comment = comment ? `${comment}; ${data.comment}` : data.comment;
+            }
+
+            const updateData = {
+                quantity: aggregatedQuantity,
+                comment: comment
+            };
+
+            console.log('[ITEM_SAVE] Aggregation calculated', {
+                oldQuantity,
+                newQuantity,
+                aggregatedQuantity,
+                oldComment: existingItem.comment,
+                newComment: data.comment,
+                mergedComment: comment
+            });
+
+            // Call API to UPDATE existing item
+            if (manager.offlineShopping) {
+                result = await manager.offlineShopping.updateItem(existingItem.id, updateData);
+            } else {
+                const response = await fetch(`/api/v1/shopping-list-items/${existingItem.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(updateData)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
+            }
+
+            console.log('[ITEM_SAVE] Item aggregated successfully', {
+                itemId: existingItem.id,
+                newQuantity: aggregatedQuantity
+            });
+
+            showToast(`Товар объединен (итого: ${aggregatedQuantity} ${existingItem.unit || ''})`, 'success');
+
+            // Optimistic update
+            const item = manager.currentItems.find(i => i.id === existingItem.id);
+            if (item) {
+                item.quantity = aggregatedQuantity;
+                item.comment = comment;
+                manager.renderCurrentView();
+                manager.updateFABButtons();
+                await manager.updateItemsCache();
+            }
+
+        } else if (isEdit) {
+            // EDIT existing item (normal flow)
+            if (manager.offlineShopping) {
                 result = await manager.offlineShopping.updateItem(parseInt(itemId), data);
             } else {
-                data.shopping_list_id = manager.currentListId;
-                result = await manager.offlineShopping.createItem(data);
+                const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
             }
-        } else {
-            // Fallback to direct fetch (no offline support)
-            const url = isEdit
-                ? `/api/v1/shopping-list-items/${itemId}`
-                : '/api/v1/shopping-list-items';
-            if (!isEdit) data.shopping_list_id = manager.currentListId;
 
-            const response = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            result = await response.json();
-        }
+            console.log('[ITEM_SAVE] Item updated', { itemId });
+            showToast('Товар обновлен', 'success');
 
-        showToast(isEdit ? 'Товар обновлен' : 'Товар добавлен', 'success');
-        closeItemModal();
-
-        // For EDIT: optimistic update (no race condition)
-        if (isEdit) {
+            // Optimistic update
             const item = manager.currentItems.find(i => i.id === parseInt(itemId));
             if (item) {
                 Object.assign(item, data);
@@ -2659,30 +2866,52 @@ async function handleSaveItem(event) {
                 manager.updateFABButtons();
                 await manager.updateItemsCache();
             }
-        } else if (result.tempId && !result.id) {
-            // CREATE offline: tempId exists but no real server ID
-            // Offline mode needs immediate update (no WebSocket in offline)
-            const newItem = {
-                id: result.tempId,
-                ...data,
-                is_completed: false,
-                _offline: true
-            };
-            // Get store and product group names for display
-            const store = manager.stores?.find(s => s.id === data.store_id);
-            const group = manager.productGroups?.find(g => g.id === data.product_group_id);
-            if (store) newItem.store_name = store.name;
-            if (group) newItem.product_group_name = group.name;
 
-            manager.currentItems.push(newItem);
-            manager.renderCurrentView();
-            manager.updateFABButtons();
-            await manager.updateItemsCache();
+        } else {
+            // CREATE new item (normal flow - no duplicate found)
+            if (manager.offlineShopping) {
+                data.shopping_list_id = manager.currentListId;
+                result = await manager.offlineShopping.createItem(data);
+            } else {
+                data.shopping_list_id = manager.currentListId;
+                const response = await fetch('/api/v1/shopping-list-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
+            }
+
+            console.log('[ITEM_SAVE] Item created', { tempId: result.tempId, id: result.id });
+            showToast('Товар добавлен', 'success');
+
+            // For offline creates: add tempId item immediately
+            if (result.tempId && !result.id) {
+                const newItem = {
+                    id: result.tempId,
+                    ...data,
+                    is_completed: false,
+                    _offline: true
+                };
+                const store = manager.stores?.find(s => s.id === data.store_id);
+                const group = manager.productGroups?.find(g => g.id === data.product_group_id);
+                if (store) newItem.store_name = store.name;
+                if (group) newItem.product_group_name = group.name;
+
+                manager.currentItems.push(newItem);
+                manager.renderCurrentView();
+                manager.updateFABButtons();
+                await manager.updateItemsCache();
+            }
+            // For online creates: WebSocket will add the item
         }
-        // CREATE online (result.id exists): do nothing, WebSocket will add the item
+
+        closeItemModal();
 
     } catch (error) {
-        console.error('[ListsManager] Error saving item:', error);
+        console.error('[ITEM_SAVE] Error saving item:', error);
         showToast('Ошибка сохранения товара', 'error');
     }
 }
