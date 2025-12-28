@@ -446,8 +446,8 @@ html.offline-mode .save-btn:hover {
 }
 
 .icon-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
 }
 
 /* Icon labels */
@@ -470,8 +470,8 @@ html.offline-mode .save-btn:hover {
 }
 
 .center-fab svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     color: oklch(var(--pc));
     stroke-width: 2.5;
 }
