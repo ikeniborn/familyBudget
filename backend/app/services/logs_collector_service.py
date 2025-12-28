@@ -20,7 +20,7 @@ import asyncio
 import json
 import re
 from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 
 import docker
@@ -423,13 +423,20 @@ class LogsCollectorService:
         - ISO 8601: "2025-12-27T10:30:00Z"
         - ISO with microseconds: "2025-12-27T10:30:00.123456Z"
         - Local time: "2025-12-27T10:30:00"
+
+        Always returns timezone-aware datetime (UTC).
         """
         try:
             # Remove 'Z' suffix and parse
             timestamp_str = timestamp_str.replace('Z', '+00:00')
-            return datetime.fromisoformat(timestamp_str)
+            dt = datetime.fromisoformat(timestamp_str)
+            # Make timezone-aware if naive (assume UTC)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
         except (ValueError, AttributeError):
-            return datetime.min
+            # Return timezone-aware datetime.min
+            return datetime.min.replace(tzinfo=timezone.utc)
 
     def _parse_since_to_seconds(self, since: str) -> int:
         """

@@ -9,7 +9,7 @@ Author: Claude Code
 Date: 2025-12-27
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -130,6 +130,9 @@ async def get_logs(
     if since:
         try:
             since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
+            # Make timezone-aware if naive (assume UTC)
+            if since_dt.tzinfo is None:
+                since_dt = since_dt.replace(tzinfo=timezone.utc)
         except ValueError:
             logger.warning(f"[ADMIN_LOGS_API] Invalid since datetime={since}")
             raise HTTPException(status_code=400, detail="Invalid since datetime format (use ISO 8601)")
@@ -137,6 +140,9 @@ async def get_logs(
     if until:
         try:
             until_dt = datetime.fromisoformat(until.replace('Z', '+00:00'))
+            # Make timezone-aware if naive (assume UTC)
+            if until_dt.tzinfo is None:
+                until_dt = until_dt.replace(tzinfo=timezone.utc)
         except ValueError:
             logger.warning(f"[ADMIN_LOGS_API] Invalid until datetime={until}")
             raise HTTPException(status_code=400, detail="Invalid until datetime format (use ISO 8601)")
