@@ -13,7 +13,7 @@
     <div class="card bg-base-100 shadow-lg mb-6">
         <div class="card-body">
             <h2 class="card-title text-lg mb-4">Текущий статус</h2>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div class="stat bg-base-200 rounded-lg p-3">
                     <div class="stat-title text-xs">Telegram</div>
                     <div class="stat-value text-lg">
@@ -48,6 +48,12 @@
                         {% else %}
                             <span class="text-warning">Выкл</span>
                         {% endif %}
+                    </div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3">
+                    <div class="stat-title text-xs">WebAuthn</div>
+                    <div class="stat-value text-lg" id="webauthn-status">
+                        <span class="loading loading-spinner loading-sm"></span>
                     </div>
                 </div>
             </div>
@@ -238,6 +244,38 @@
         </div>
     </div>
 
+    <!-- WebAuthn Biometric Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                </svg>
+                <h2 class="card-title text-lg">Биометрическая Аутентификация (WebAuthn)</h2>
+            </div>
+
+            <p class="text-sm opacity-70 mb-4">
+                Используйте TouchID, FaceID или Windows Hello для быстрого и безопасного входа без пароля.
+            </p>
+
+            <!-- Credentials List -->
+            <div id="webauthn-credentials-container" class="mb-4"></div>
+
+            <!-- Add Credential Button -->
+            <button id="add-biometric-btn" onclick="handleBiometricRegistration()" class="btn btn-primary btn-sm gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Добавить новое устройство
+            </button>
+
+            <!-- WebAuthn Error Display -->
+            <div id="webauthn-error" class="alert alert-error hidden mt-4 text-sm">
+                <span id="webauthn-error-text"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- Info Section -->
     <div class="alert alert-info">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
@@ -246,9 +284,10 @@
         <div>
             <div class="font-medium">Рекомендации по безопасности</div>
             <ul class="text-sm mt-1 list-disc list-inside opacity-70">
-                <li>Подключите несколько методов входа (Telegram + Email)</li>
+                <li>Подключите несколько методов входа (Telegram + Email + Биометрия)</li>
                 <li>Включите 2FA для защиты аккаунта</li>
                 <li>Сохраните backup коды в надежном месте</li>
+                <li>Зарегистрируйте несколько биометрических устройств (iPhone + iPad)</li>
             </ul>
         </div>
     </div>
@@ -440,5 +479,347 @@ async function handleDisable2FA(e) {
         btnLoading.classList.add('hidden');
     }
 }
+
+// ============================================================================
+// WebAuthn Utility Functions
+// ============================================================================
+
+function base64urlToBuffer(base64url) {
+    console.log('[WEBAUTHN_CLIENT] Converting base64url to buffer:', base64url.substring(0, 20) + '...');
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(base64 + padding);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    console.log('[WEBAUTHN_CLIENT] Buffer length:', bytes.length);
+    return bytes.buffer;
+}
+
+function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    console.log('[WEBAUTHN_CLIENT] Converting buffer to base64url, length:', bytes.length);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    console.log('[WEBAUTHN_CLIENT] Base64url result:', base64.substring(0, 20) + '...');
+    return base64;
+}
+
+async function isWebAuthnSupported() {
+    const supported = window.PublicKeyCredential && navigator.credentials;
+    console.log('[WEBAUTHN_CLIENT] WebAuthn supported:', supported);
+    return supported;
+}
+
+function showWebAuthnError(message) {
+    console.error('[WEBAUTHN_CLIENT] Showing error to user:', message);
+    const errorDiv = document.getElementById('webauthn-error');
+    const errorText = document.getElementById('webauthn-error-text');
+    errorText.textContent = message;
+    errorDiv.classList.remove('hidden');
+    setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+}
+
+// ============================================================================
+// Load WebAuthn Credentials
+// ============================================================================
+
+async function loadWebAuthnCredentials() {
+    console.log('[WEBAUTHN_CLIENT] Loading WebAuthn credentials...');
+
+    try {
+        const response = await fetch('/api/v1/auth/webauthn/credentials', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load credentials');
+        }
+
+        const data = await response.json();
+        const credentials = data.credentials || [];
+
+        console.log('[WEBAUTHN_CLIENT] Loaded', credentials.length, 'credentials');
+
+        // Update status
+        const statusEl = document.getElementById('webauthn-status');
+        if (credentials.length > 0) {
+            statusEl.innerHTML = `<span class="text-success">${credentials.length} устр.</span>`;
+        } else {
+            statusEl.innerHTML = '<span class="text-warning">Нет</span>';
+        }
+
+        // Render credentials list
+        const container = document.getElementById('webauthn-credentials-container');
+        if (credentials.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Нет зарегистрированных устройств. Добавьте первое устройство для быстрого входа.</span>
+                </div>
+            `;
+        } else {
+            const credentialsHTML = credentials.map(cred => `
+                <div class="flex justify-between items-center p-3 bg-base-200 rounded-lg mb-2">
+                    <div class="flex-1">
+                        <strong class="block">${escapeHtml(cred.device_name)}</strong>
+                        <span class="text-xs opacity-70">Добавлено: ${formatDate(cred.created_at)}</span>
+                        ${cred.last_used_at ? `<span class="text-xs opacity-70 ml-2">Последний вход: ${formatDate(cred.last_used_at)}</span>` : ''}
+                        ${cred.backup_state ? '<span class="badge badge-success badge-xs ml-2">Synced</span>' : ''}
+                    </div>
+                    <button onclick="confirmRevokeCredential('${cred.credential_id}', '${escapeHtml(cred.device_name)}')" class="btn btn-sm btn-error btn-outline">
+                        Удалить
+                    </button>
+                </div>
+            `).join('');
+            container.innerHTML = credentialsHTML;
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Error loading credentials:', error);
+        document.getElementById('webauthn-status').innerHTML = '<span class="text-error">Ошибка</span>';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================================================
+// Register WebAuthn Credential
+// ============================================================================
+
+async function handleBiometricRegistration() {
+    console.log('[WEBAUTHN_CLIENT] Starting biometric registration...');
+
+    // Check WebAuthn support
+    if (!await isWebAuthnSupported()) {
+        showWebAuthnError('WebAuthn не поддерживается в этом браузере. Используйте Safari (iOS/macOS), Chrome или Edge.');
+        return;
+    }
+
+    try {
+        // 1. Get registration options
+        console.log('[WEBAUTHN_CLIENT] Requesting registration options...');
+        const optionsRes = await fetch('/api/v1/auth/webauthn/register/options', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!optionsRes.ok) {
+            const error = await optionsRes.json();
+            console.error('[WEBAUTHN_CLIENT] Failed to get registration options:', error);
+            throw new Error(error.detail || 'Failed to get registration options');
+        }
+
+        const options = await optionsRes.json();
+        console.log('[WEBAUTHN_CLIENT] Registration options received');
+        console.log('[WEBAUTHN_CLIENT] Challenge:', options.challenge.substring(0, 20) + '...');
+        console.log('[WEBAUTHN_CLIENT] User ID:', options.user.id.substring(0, 20) + '...');
+        console.log('[WEBAUTHN_CLIENT] User email:', options.user.name);
+        console.log('[WEBAUTHN_CLIENT] RP ID:', options.rp.id);
+        console.log('[WEBAUTHN_CLIENT] Authenticator selection:', options.authenticatorSelection);
+
+        // 2. Convert base64url to ArrayBuffer
+        console.log('[WEBAUTHN_CLIENT] Converting challenge and user ID to buffers...');
+        const challengeBuffer = base64urlToBuffer(options.challenge);
+        const userIdBuffer = base64urlToBuffer(options.user.id);
+
+        // 3. Call WebAuthn API (triggers biometric enrollment)
+        console.log('[WEBAUTHN_CLIENT] Calling navigator.credentials.create()...');
+        console.log('[WEBAUTHN_CLIENT] This will trigger biometric enrollment (TouchID/FaceID setup)');
+
+        const credential = await navigator.credentials.create({
+            publicKey: {
+                ...options,
+                challenge: challengeBuffer,
+                user: {
+                    ...options.user,
+                    id: userIdBuffer
+                }
+            }
+        });
+
+        console.log('[WEBAUTHN_CLIENT] ✅ Biometric enrollment successful');
+        console.log('[WEBAUTHN_CLIENT] Credential ID:', credential.id.substring(0, 20) + '...');
+        console.log('[WEBAUTHN_CLIENT] Credential type:', credential.type);
+        console.log('[WEBAUTHN_CLIENT] Transports:', credential.response.getTransports ?
+                    credential.response.getTransports() : 'N/A');
+
+        // 4. Prompt for device name
+        const deviceName = prompt(
+            'Название устройства (например, "iPhone 15 Pro"):',
+            navigator.userAgent.slice(0, 50)
+        );
+
+        if (!deviceName) {
+            console.log('[WEBAUTHN_CLIENT] User canceled device name input');
+            showWebAuthnError('Регистрация отменена.');
+            return;
+        }
+
+        console.log('[WEBAUTHN_CLIENT] Device name:', deviceName);
+
+        // 5. Convert credential to JSON
+        console.log('[WEBAUTHN_CLIENT] Converting credential to JSON...');
+        const credentialJSON = {
+            id: credential.id,
+            rawId: bufferToBase64url(credential.rawId),
+            response: {
+                attestationObject: bufferToBase64url(credential.response.attestationObject),
+                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON)
+            },
+            type: credential.type,
+            transports: credential.response.getTransports ? credential.response.getTransports() : []
+        };
+
+        console.log('[WEBAUTHN_CLIENT] Credential JSON prepared');
+        console.log('[WEBAUTHN_CLIENT] Sizes: attestation=', credential.response.attestationObject.byteLength,
+                    'clientData=', credential.response.clientDataJSON.byteLength);
+
+        // 6. Verify registration
+        console.log('[WEBAUTHN_CLIENT] Sending verification request...');
+        const verifyRes = await fetch('/api/v1/auth/webauthn/register/verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+                challenge: options.challenge,  // Original base64url string
+                credential: credentialJSON,
+                device_name: deviceName
+            })
+        });
+
+        if (verifyRes.ok) {
+            const data = await verifyRes.json();
+            console.log('[WEBAUTHN_CLIENT] ✅ Registration verified successfully');
+            console.log('[WEBAUTHN_CLIENT] Credential ID:', data.credential_id.substring(0, 20) + '...');
+            console.log('[WEBAUTHN_CLIENT] Message:', data.message);
+            showToast('Биометрическая аутентификация включена!', 'success');
+            // Reload credentials list
+            loadWebAuthnCredentials();
+        } else {
+            const error = await verifyRes.json();
+            console.error('[WEBAUTHN_CLIENT] ❌ Verification failed:', error);
+            throw new Error(error.detail || 'Registration verification failed');
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Biometric registration error:', error);
+        handleWebAuthnRegisterError(error);
+    }
+}
+
+function handleWebAuthnRegisterError(error) {
+    console.log('[WEBAUTHN_CLIENT] Handling WebAuthn registration error:', error.name, error.message);
+
+    if (error.name === 'NotAllowedError') {
+        console.warn('[WEBAUTHN_CLIENT] User canceled biometric enrollment or timeout');
+        showWebAuthnError('Регистрация отменена. Попробуйте снова.');
+    } else if (error.name === 'NotSupportedError') {
+        console.warn('[WEBAUTHN_CLIENT] WebAuthn not supported in this browser');
+        showWebAuthnError('WebAuthn не поддерживается в этом браузере.');
+    } else if (error.name === 'InvalidStateError') {
+        console.warn('[WEBAUTHN_CLIENT] Credential already registered');
+        showWebAuthnError('Это устройство уже зарегистрировано.');
+    } else {
+        console.error('[WEBAUTHN_CLIENT] Unknown WebAuthn error');
+        showWebAuthnError('Ошибка регистрации: ' + error.message);
+    }
+}
+
+// ============================================================================
+// Revoke WebAuthn Credential
+// ============================================================================
+
+function confirmRevokeCredential(credentialId, deviceName) {
+    if (confirm(`Удалить устройство "${deviceName}"?\n\nПосле удаления вы не сможете входить с помощью этого устройства.`)) {
+        revokeCredential(credentialId);
+    }
+}
+
+async function revokeCredential(credentialId) {
+    console.log('[WEBAUTHN_CLIENT] Revoking credential:', credentialId.substring(0, 20) + '...');
+
+    // Check user auth method (from global user object or check password)
+    const hasPassword = {% if user.email %}true{% else %}false{% endif %};
+    const has2FA = {% if user.two_factor_enabled %}true{% else %}false{% endif %};
+
+    let confirmationData = {};
+
+    if (hasPassword) {
+        const password = prompt('Подтвердите действие. Введите пароль:');
+        if (!password) {
+            console.log('[WEBAUTHN_CLIENT] User canceled revocation');
+            return;
+        }
+        confirmationData = {password};
+    } else if (has2FA) {
+        const totpCode = prompt('Подтвердите действие. Введите код из приложения-аутентификатора:');
+        if (!totpCode) {
+            console.log('[WEBAUTHN_CLIENT] User canceled revocation');
+            return;
+        }
+        confirmationData = {totp_code: totpCode};
+    } else {
+        showWebAuthnError('Для удаления устройства необходимо настроить пароль или 2FA. Перейдите в настройки безопасности.');
+        console.warn('[WEBAUTHN_CLIENT] User has no password and no 2FA - cannot revoke credential');
+        return;
+    }
+
+    try {
+        console.log('[WEBAUTHN_CLIENT] Sending revocation request...');
+        const response = await fetch(`/api/v1/auth/webauthn/credentials/${encodeURIComponent(credentialId)}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify(confirmationData)  // password OR totp_code
+        });
+
+        if (response.ok) {
+            console.log('[WEBAUTHN_CLIENT] ✅ Credential revoked successfully');
+            showToast('Устройство удалено', 'success');
+            loadWebAuthnCredentials();
+        } else {
+            const error = await response.json();
+            console.error('[WEBAUTHN_CLIENT] ❌ Revocation failed:', error);
+            showWebAuthnError('Ошибка: ' + error.detail);
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Revocation error:', error);
+        showWebAuthnError('Ошибка при удалении устройства');
+    }
+}
+
+// ============================================================================
+// Page Load
+// ============================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Existing password status check
+    const passwordStatus = document.getElementById('password-status');
+    {% if user.email %}
+        passwordStatus.innerHTML = '<span class="text-success">Установлен</span>';
+    {% else %}
+        passwordStatus.innerHTML = '<span class="text-warning">Нет</span>';
+    {% endif %}
+
+    // Load WebAuthn credentials
+    loadWebAuthnCredentials();
+});
 </script>
 {% endblock %}

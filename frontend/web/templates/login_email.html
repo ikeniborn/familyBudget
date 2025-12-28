@@ -18,23 +18,52 @@
                 </svg>
             </div>
 
-            <h2>Вход по Email</h2>
+            <h2>Вход в систему</h2>
             <p class="login-description">
-                Введите email и пароль. После проверки потребуется ввести код из приложения-аутентификатора.
+                Введите email для входа. Вы сможете выбрать метод аутентификации: биометрию (TouchID/FaceID) или пароль.
             </p>
 
-            <!-- Login Form -->
-            <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
+            <!-- Шаг 1: Identifier Input (Email или Username) -->
+            <form id="identifier-form" class="space-y-4" onsubmit="handleIdentifierSubmit(event)">
                 <div class="form-control w-full">
                     <label class="label">
-                        <span class="label-text">Email</span>
+                        <span class="label-text">Email или имя пользователя</span>
                     </label>
-                    <input type="email" name="email" id="email"
+                    <input type="text" name="identifier" id="identifier"
                            class="input input-bordered w-full"
                            placeholder="user@example.com"
-                           required autocomplete="email">
+                           required autocomplete="username webauthn">
                 </div>
 
+                <!-- Error message container (shared across all forms) -->
+                <div id="login-error" class="alert alert-error hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="login-error-text"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">
+                    Продолжить
+                </button>
+            </form>
+
+            <!-- Шаг 2: WebAuthn Biometric Button (hidden initially) -->
+            <div id="biometric-section" class="hidden space-y-4">
+                <button id="biometric-btn" class="btn btn-primary w-full gap-2" onclick="handleBiometricAuth()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                    </svg>
+                    <span id="biometric-label">Использовать биометрию</span>
+                </button>
+                <div class="divider">ИЛИ</div>
+                <button onclick="showPasswordField()" class="btn btn-ghost w-full">
+                    Использовать пароль
+                </button>
+            </div>
+
+            <!-- Шаг 3: Password Field (fallback, hidden initially) -->
+            <form id="password-section" class="hidden space-y-4" onsubmit="handlePasswordLogin(event)">
                 <div class="form-control w-full">
                     <label class="label">
                         <span class="label-text">Пароль</span>
@@ -45,17 +74,9 @@
                            required autocomplete="current-password">
                 </div>
 
-                <!-- Error message container -->
-                <div id="login-error" class="alert alert-error hidden">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span id="login-error-text"></span>
-                </div>
-
-                <button type="submit" id="login-btn" class="btn btn-primary w-full">
-                    <span id="login-btn-text">Войти</span>
-                    <span id="login-btn-loading" class="loading loading-spinner hidden"></span>
+                <button type="submit" id="password-login-btn" class="btn btn-primary w-full">
+                    <span id="password-login-btn-text">Войти</span>
+                    <span id="password-login-btn-loading" class="loading loading-spinner hidden"></span>
                 </button>
             </form>
 
