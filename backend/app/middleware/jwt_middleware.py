@@ -66,6 +66,9 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/pending-activation",  # Pending admin activation page
         # Push notifications (public)
         "/api/v1/push/vapid-key",  # VAPID public key (needed before login for Safari iOS)
+        # WebAuthn authentication endpoints (public - for login)
+        "/api/v1/webauthn/authenticate/options",  # Generate auth challenge (identifier-first login)
+        "/api/v1/webauthn/authenticate/verify",  # Verify auth response and issue JWT tokens
     }
 
     # Public path prefixes (startswith check)

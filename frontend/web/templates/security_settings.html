@@ -532,7 +532,7 @@ async function loadWebAuthnCredentials() {
     console.log('[WEBAUTHN_CLIENT] Loading WebAuthn credentials...');
 
     try {
-        const response = await fetch('/api/v1/auth/webauthn/credentials', {
+        const response = await fetch('/api/v1/webauthn/credentials', {
             credentials: 'include'
         });
 
@@ -614,7 +614,7 @@ async function handleBiometricRegistration() {
     try {
         // 1. Get registration options
         console.log('[WEBAUTHN_CLIENT] Requesting registration options...');
-        const optionsRes = await fetch('/api/v1/auth/webauthn/register/options', {
+        const optionsRes = await fetch('/api/v1/webauthn/register/options', {
             method: 'POST',
             credentials: 'include'
         });
@@ -692,7 +692,7 @@ async function handleBiometricRegistration() {
 
         // 6. Verify registration
         console.log('[WEBAUTHN_CLIENT] Sending verification request...');
-        const verifyRes = await fetch('/api/v1/auth/webauthn/register/verify', {
+        const verifyRes = await fetch('/api/v1/webauthn/register/verify', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',
@@ -782,7 +782,7 @@ async function revokeCredential(credentialId) {
 
     try {
         console.log('[WEBAUTHN_CLIENT] Sending revocation request...');
-        const response = await fetch(`/api/v1/auth/webauthn/credentials/${encodeURIComponent(credentialId)}`, {
+        const response = await fetch(`/api/v1/webauthn/credentials/${encodeURIComponent(credentialId)}`, {
             method: 'DELETE',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',

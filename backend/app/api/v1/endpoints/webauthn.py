@@ -52,7 +52,7 @@ from backend.app.api.v1.endpoints.budget_ws import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth/webauthn", tags=["webauthn"])
+router = APIRouter(prefix="/webauthn", tags=["webauthn"])
 
 
 # ============================================================================

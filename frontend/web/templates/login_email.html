@@ -375,7 +375,7 @@ async function handleBiometricAuth() {
     try {
         // 1. Get authentication options
         console.log('[WEBAUTHN_CLIENT] Requesting authentication options...');
-        const optionsRes = await fetch('/api/v1/auth/webauthn/authenticate/options', {
+        const optionsRes = await fetch('/api/v1/webauthn/authenticate/options', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({identifier})
@@ -447,7 +447,7 @@ async function handleBiometricAuth() {
 
         // 5. Verify authentication
         console.log('[WEBAUTHN_CLIENT] Sending verification request...');
-        const verifyRes = await fetch('/api/v1/auth/webauthn/authenticate/verify', {
+        const verifyRes = await fetch('/api/v1/webauthn/authenticate/verify', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             credentials: 'include',
