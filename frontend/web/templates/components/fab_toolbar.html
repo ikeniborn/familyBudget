@@ -175,11 +175,22 @@
         const centerFabDropdown = centerFabBtn?.closest('.dropdown');
 
         if (centerFabDropdown) {
-            // Check if we're in a list (activeListId exists) or in list selection
+            // Check if we're in detail view (viewing list items) or landing view (list selection)
             const checkListContext = () => {
-                // Try to get activeListId from window or session storage
-                const activeListId = window.activeListId || sessionStorage.getItem('activeListId');
-                return !!activeListId;
+                const detailView = document.getElementById('detail-view');
+                const landingView = document.getElementById('landing-view');
+
+                // detail-view is active if it doesn't have 'hidden' class
+                const isDetailView = detailView && !detailView.classList.contains('hidden');
+
+                console.log('[FAB_TOOLBAR] View check:', {
+                    detailViewExists: !!detailView,
+                    landingViewExists: !!landingView,
+                    detailViewHidden: detailView?.classList.contains('hidden'),
+                    isDetailView: isDetailView
+                });
+
+                return isDetailView;
             };
 
             // Replace dropdown with direct action
@@ -188,16 +199,16 @@
                 e.stopPropagation();
 
                 if (checkListContext()) {
-                    // In list items view → add new item
-                    console.log('[FAB_TOOLBAR] /lists context: Adding item to active list');
+                    // In detail view (list items) → add new item
+                    console.log('[FAB_TOOLBAR] /lists context: Detail view - Adding item to active list');
                     if (typeof openAddItemModal === 'function') {
                         openAddItemModal();
                     } else {
                         console.warn('[FAB_TOOLBAR] openAddItemModal not found');
                     }
                 } else {
-                    // In list selection view → create new list
-                    console.log('[FAB_TOOLBAR] /lists context: Creating new list');
+                    // In landing view (list selection) → create new list
+                    console.log('[FAB_TOOLBAR] /lists context: Landing view - Creating new list');
                     if (typeof openCreateListModal === 'function') {
                         openCreateListModal();
                     } else {

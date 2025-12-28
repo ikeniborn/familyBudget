@@ -1351,7 +1351,7 @@ img[loading="lazy"] {
     /* Position above common FAB toolbar on mobile/tablet */
     @media (max-width: 1023px) {
         .fab-menu {
-            bottom: calc(64px + 1rem + env(safe-area-inset-bottom));
+            bottom: calc(64px + 1.5rem + env(safe-area-inset-bottom)); /* 1.5rem = 24px spacing (8px more than before) */
         }
     }
 }
