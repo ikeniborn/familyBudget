@@ -52,6 +52,7 @@ from webauthn.helpers.cose import COSEAlgorithmIdentifier
 from webauthn.helpers.structs import (
     AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
+    AuthenticatorTransport,
     PublicKeyCredentialDescriptor,
     ResidentKeyRequirement,
     UserVerificationRequirement,
@@ -403,10 +404,13 @@ async def create_authentication_challenge(
 
     # 4. Generate WebAuthn options
     # CRITICAL: Decode Base64URL credential IDs (not HEX!)
+    # CRITICAL: Convert transport strings to enum (py-webauthn requirement)
     allow_credentials = [
         PublicKeyCredentialDescriptor(
             id=base64.urlsafe_b64decode(cred.credential_id + '=='),  # Base64URL decode
-            transports=cred.transports or [],
+            transports=[
+                AuthenticatorTransport(t) for t in (cred.transports or [])
+            ] if cred.transports else [],
         )
         for cred in credentials
     ]
