@@ -36,7 +36,7 @@ from backend.app.api.v1.endpoints import (
     stores_router,
     transfers_router,
     users_router,
-    # webauthn_router,
+    webauthn_router,
 )
 from backend.app.api.v1.export import router as export_router
 from backend.app.api.v1.webapp import router as webapp_router
@@ -47,7 +47,7 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth_router)
 
 # WebAuthn Biometric Authentication endpoints (v6.5.0+) ✅
-# api_router.include_router(webauthn_router)
+api_router.include_router(webauthn_router)
 
 # Web Apps endpoints (Telegram Web Apps Migration) ✅
 api_router.include_router(webapp_router)

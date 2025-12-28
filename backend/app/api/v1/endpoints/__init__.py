@@ -54,7 +54,7 @@ from backend.app.api.v1.endpoints.google_sheets_import import router as google_s
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
 from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
 from backend.app.api.v1.endpoints.staging import router as staging_router
-# from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
+from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
 
 __all__ = [
     "auth_router",
@@ -80,5 +80,5 @@ __all__ = [
     "stores_router",
     "transfers_router",
     "users_router",
-    # "webauthn_router",
+    "webauthn_router",
 ]
