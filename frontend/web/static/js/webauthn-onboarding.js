@@ -4,6 +4,25 @@
 async function checkWebAuthnOnboarding() {
     console.log('[WEBAUTHN_ONBOARDING] Checking if onboarding modal should be shown...');
 
+    // Check if WebAuthn is supported
+    if (!window.PublicKeyCredential) {
+        console.log('[WEBAUTHN_ONBOARDING] WebAuthn not supported on this device - skipping');
+        return;
+    }
+
+    // Check if platform authenticator (biometric) is available
+    try {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) {
+            console.log('[WEBAUTHN_ONBOARDING] No biometric authenticator available on this device - skipping');
+            return;
+        }
+        console.log('[WEBAUTHN_ONBOARDING] ✓ Biometric authenticator available - continuing check');
+    } catch (error) {
+        console.error('[WEBAUTHN_ONBOARDING] Error checking authenticator availability:', error);
+        return;
+    }
+
     // Check if user already dismissed onboarding (local storage flag)
     const dismissed = localStorage.getItem('webauthn_onboarding_dismissed');
     if (dismissed === 'true') {
@@ -141,7 +160,7 @@ async function enableWebAuthnFromOnboarding() {
     document.getElementById('webauthn-onboarding-modal').close();
 
     // Redirect to security settings with WebAuthn onboarding flag
-    window.location.href = '/security-settings?webauthn_onboarding=true';
+    window.location.href = '/security?webauthn_onboarding=true';
 }
 
 // Run check on page load (if user just logged in)
