@@ -140,9 +140,7 @@
                     <button class="btn btn-sm flex-1 sm:flex-initial" onclick="showLandingView()">
                         <span>⬅️</span><span class="hidden sm:inline ml-1">Назад</span>
                     </button>
-                    <button class="btn btn-sm btn-success flex-1 sm:flex-initial" onclick="openAddItemModal()" title="Добавить товар">
-                        <span>➕</span><span class="ml-1">Добавить</span>
-                    </button>
+                    <!-- "Добавить товар" button removed - use common FAB toolbar instead -->
                 </div>
             </div>
         </div>
@@ -464,14 +462,7 @@
 <!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
 <!-- ============================================== -->
 
-<!-- FAB для создания списка (Landing View) -->
-<button id="create-list-fab" class="btn btn-success btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50 hidden" onclick="openCreateListModal()" aria-label="Создать новый список" title="Создать новый список">
-    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-    </svg>
-</button>
-
-<!-- FAB Speed Dial для массовых операций (Detail View) -->
+<!-- FAB Speed Dial для массовых операций (Detail View) - positioned above common FAB toolbar -->
 <div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">

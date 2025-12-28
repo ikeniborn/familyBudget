@@ -1347,6 +1347,13 @@ img[loading="lazy"] {
             bottom: calc(1rem + env(safe-area-inset-bottom));
         }
     }
+
+    /* Position above common FAB toolbar on mobile/tablet */
+    @media (max-width: 1023px) {
+        .fab-menu {
+            bottom: calc(64px + 1rem + env(safe-area-inset-bottom));
+        }
+    }
 }
 
 /* Reduced motion support for FAB */
