@@ -415,7 +415,7 @@ html.offline-mode .save-btn:hover {
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 0.5rem;
+    padding: 0.25rem; /* Reduced from 0.5rem for better space usage */
     max-width: 600px;
     margin: 0 auto;
 }
@@ -425,8 +425,8 @@ html.offline-mode .save-btn:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
+    gap: 0.125rem; /* Reduced from 0.25rem for tighter layout */
+    padding: 0.375rem 0.5rem; /* Reduced from 0.5rem 0.75rem for better space usage */
     border-radius: 0.75rem;
     transition: all 0.2s ease;
     cursor: pointer;
@@ -479,6 +479,16 @@ html.offline-mode .save-btn:hover {
 /* Dropdown menu above toolbar */
 .bottom-nav .dropdown-content {
     z-index: 60;
+}
+
+/* Center dropdowns above buttons to prevent overflow on narrow screens */
+.bottom-nav .dropdown {
+    position: relative;
+}
+
+.bottom-nav .dropdown-content {
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 /* Hide on print */

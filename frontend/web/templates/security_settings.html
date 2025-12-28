@@ -622,7 +622,7 @@ async function handleBiometricRegistration() {
         if (!optionsRes.ok) {
             const error = await optionsRes.json();
             console.error('[WEBAUTHN_CLIENT] Failed to get registration options:', error);
-            throw new Error(error.detail || 'Failed to get registration options');
+            throw new Error((typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail)) || 'Failed to get registration options');
         }
 
         const options = await optionsRes.json();
@@ -714,7 +714,7 @@ async function handleBiometricRegistration() {
         } else {
             const error = await verifyRes.json();
             console.error('[WEBAUTHN_CLIENT] ❌ Verification failed:', error);
-            throw new Error(error.detail || 'Registration verification failed');
+            throw new Error((typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail)) || 'Registration verification failed');
         }
 
     } catch (error) {

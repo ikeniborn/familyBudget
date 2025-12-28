@@ -384,7 +384,7 @@ async function handleBiometricAuth() {
         if (!optionsRes.ok) {
             const error = await optionsRes.json();
             console.error('[WEBAUTHN_CLIENT] Failed to get options:', error);
-            throw new Error(error.detail || 'Failed to get authentication options');
+            throw new Error((typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail)) || 'Failed to get authentication options');
         }
 
         const options = await optionsRes.json();

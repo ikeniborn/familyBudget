@@ -2346,11 +2346,11 @@ function openAddTransactionModal() {
         debugLog('[openAddTransactionModal] Установлена текущая дату:', factDateInput.value);
     }
 
-    // CRITICAL: Reset FC filter state for create modals (not edit modals)
-    // This ensures isInitialFiltering works correctly on modal reopening
-    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    // CRITICAL: Reset FC filter state and clear selection for create modals
     if (typeof transactionCategoryTreeSelect !== 'undefined' && transactionCategoryTreeSelect) {
         transactionCategoryTreeSelect.options.financialCenterId = null;
+        transactionCategoryTreeSelect.clearSelection();
+        console.log('[MODAL_CREATE] Transaction modal: FC reset and selection cleared');
     }
 
     // ✅ FIX iOS Safari: Handle backdrop clicks explicitly (instead of form method="dialog")

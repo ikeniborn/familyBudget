@@ -171,7 +171,10 @@ class ChoicesCategoryTree {
             multiple: options.multiple || false,
             showPath: options.showPath !== false,  // Default true - show breadcrumb path
             showClearButton: options.showClearButton !== false,  // Default true - show clear-all button for multiple mode
+            mode: options.mode || 'edit',  // NEW: 'create' | 'edit' - controls selection preservation in updateFinancialCenter()
         };
+
+        console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`);
 
         this.choices = null;
         this.categories = [];
@@ -1090,24 +1093,33 @@ class ChoicesCategoryTree {
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                if (categoryStillAvailable) {
-                    // ALWAYS preserve if category is available for new FC
-                    // This supports user workflow: Select category → Select FC → Category stays if compatible
-                    // The isInitialFiltering check was removed to allow this valid use case
-                    // "Phantom auto-selection" is already prevented by categoryStillAvailable check
-                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId} (available in FC ${financialCenterId})`);
+                // Preserve ONLY in edit mode when category still available
+                const shouldPreserve = this.options.mode === 'edit' && categoryStillAvailable;
+
+                console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+                    mode: this.options.mode,
+                    categoryStillAvailable,
+                    shouldPreserve,
+                    previousSelectionId
+                });
+
+                if (shouldPreserve) {
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // Only clear if category NOT available for new FC OR no previous selection
-                    // Clear any auto-selection that Choices.js made
+                    // Clear selection
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
-                    if (previousSelectionId) {
+
+                    if (this.options.mode === 'create') {
+                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
+                        debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
+                    } else if (!categoryStillAvailable && previousSelectionId) {
                         console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
-                        debugLog(`[ChoicesCategoryTree] Cleared selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                        debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
                     } else {
                         console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
@@ -1148,6 +1160,28 @@ class ChoicesCategoryTree {
     getSelectedCategory() {
         const categoryId = parseInt(this.element.value);
         return categoryId ? this.categoryMap.get(categoryId) : null;
+    }
+
+    /**
+     * Clear category selection.
+     * Used in create modals to reset selection state.
+     */
+    clearSelection() {
+        console.log('[ChoicesCategoryTree] clearSelection() called');
+
+        // Clear Choices.js active selection
+        if (this.choices) {
+            this.choices.removeActiveItems();
+            console.log('[ChoicesCategoryTree] Choices.js active items removed');
+        }
+
+        // Clear DOM element value
+        if (this.element) {
+            this.element.value = '';
+            console.log('[ChoicesCategoryTree] Element value cleared');
+        }
+
+        console.log('[ChoicesCategoryTree] ✅ Selection cleared successfully');
     }
 
     /**
