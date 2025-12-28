@@ -281,6 +281,9 @@ class ModalKeyboardAdapter {
     _applyKeyboardPosition() {
         this._updateCSSVariables();
 
+        // Remove conflicting Tailwind classes that interfere with positioning
+        this._modalBox.classList.remove('my-auto');
+
         // Add keyboard-active class
         this._modalBox.classList.add('modal-box--keyboard-active');
         this._modalBox.classList.add('modal-box--transitioning');
@@ -292,7 +295,8 @@ class ModalKeyboardAdapter {
 
         logModalKB.info('✅ Applied keyboard position', {
             headerHeight,
-            viewportHeight
+            viewportHeight,
+            removedConflictingClass: 'my-auto'
         });
 
         // Remove transitioning class after animation
@@ -352,7 +356,12 @@ class ModalKeyboardAdapter {
         this._modalBox.classList.add('modal-box--keyboard-restoring');
         this._modalBox.classList.add('modal-box--transitioning');
 
-        logModalKB.info('✅ Restored original position');
+        // Restore Tailwind centering class
+        this._modalBox.classList.add('my-auto');
+
+        logModalKB.info('✅ Restored original position', {
+            restoredClass: 'my-auto'
+        });
 
         // Cleanup after transition
         setTimeout(() => {
