@@ -265,8 +265,9 @@ async def suggest_products(
     Get product suggestions based on shopping list history.
 
     **Features:**
-    - Case-insensitive substring search using ILIKE
-    - Finds products containing the search query (e.g., "мол" finds "Молоко")
+    - Case-insensitive substring search using func.lower() + LIKE
+    - Works reliably with Cyrillic characters regardless of database collation
+    - Finds products containing the search query (e.g., "мол" finds "Молоко", "МОЛ" finds "молоко")
     - Returns unique products with store and product group info
     - Sorted by last usage, then by usage count
     - Includes usage count for relevance
@@ -334,7 +335,7 @@ async def suggest_products(
             )
             .where(
                 ShoppingListItem.shopping_list_id == shopping_list_id,
-                ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+                func.lower(ShoppingListItem.product_name).like(f"%{search_pattern.lower()}%"),
                 ShoppingListItem.deleted_at.is_not(None),  # Only soft-deleted
             )
             .order_by(ShoppingListItem.deleted_at.desc())  # Most recently deleted first
@@ -377,7 +378,7 @@ async def suggest_products(
         .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
         .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
         .where(
-            ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+            func.lower(ShoppingListItem.product_name).like(f"%{search_pattern.lower()}%"),
             ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
         )
         .group_by(
