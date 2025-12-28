@@ -346,6 +346,8 @@ class BudgetWSClient {
         // Route to appropriate logger based on module
         const logger = module === 'RTT' ? logWSRTT :
                        module === 'STATE' ? logWSState :
+                       module === 'NAV' ? logNav :
+                       module === 'RTT_FILTER' ? logRTTFilter :
                        logWSDiag;  // PONG, PING, WAKE, HEALTH, etc. → WS_DIAG
 
         const logFn = logger[level] || logger.info;
