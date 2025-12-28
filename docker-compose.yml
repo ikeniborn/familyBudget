@@ -214,7 +214,7 @@ services:
 
       # WebAuthn Biometric Authentication
       WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
-      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Family Budget}
+      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-"Family Budget"}
       WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8000}
     volumes:
       - ./backend:/app/backend:ro
