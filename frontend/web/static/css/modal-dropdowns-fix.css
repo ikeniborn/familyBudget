@@ -21,8 +21,13 @@ body.modal-open {
     z-index: 40;
 }
 
-/* Ensure dropdowns don't clip in modals */
-.modal-box {
+/* Ensure dropdowns don't clip in modals - ONLY when dropdown is open */
+.modal-box:has(.choices.is-open) {
+    overflow: visible !important;
+}
+
+/* Fallback for browsers without :has() support - use autocomplete-active class */
+.modal.autocomplete-active .modal-box {
     overflow: visible !important;
 }
 
