@@ -487,8 +487,10 @@ html.offline-mode .save-btn:hover {
 }
 
 .bottom-nav .dropdown-content {
-    left: 50%;
-    transform: translateX(-50%);
+    position: absolute;
+    left: 50% !important; /* Center relative to parent button */
+    right: auto !important; /* Override DaisyUI default */
+    transform: translateX(-50%) !important; /* Horizontal centering */
 }
 
 /* Hide on print */
