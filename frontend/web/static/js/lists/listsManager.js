@@ -172,6 +172,16 @@ class ListsManager {
         productInput.addEventListener('input', debouncedSearch);
         storeSelect.addEventListener('change', debouncedSearch);
 
+        // Listen for quantity changes to update future quantity
+        const quantityInput = document.getElementById('item-quantity');
+        if (quantityInput) {
+            quantityInput.addEventListener('input', () => {
+                this.updateFutureQuantity();
+            });
+
+            console.log('[LISTS] Future quantity listener initialized');
+        }
+
         console.log('[LISTS] Duplicate detection initialized');
     }
 
@@ -260,6 +270,9 @@ class ListsManager {
         // Store duplicate item for later use in save
         this.currentDuplicateItem = duplicateItem;
 
+        // Calculate and show future quantity if quantity already entered
+        this.updateFutureQuantity();
+
         console.log('[DUPLICATE_SEARCH] Warning displayed', { itemId: duplicateItem.id });
     }
 
@@ -271,8 +284,55 @@ class ListsManager {
         if (container) {
             container.classList.add('hidden');
         }
+
+        // Hide future quantity
+        const futureQtyContainer = document.getElementById('future-quantity');
+        if (futureQtyContainer) {
+            futureQtyContainer.classList.add('hidden');
+        }
+
         this.currentDuplicateItem = null;
         console.log('[DUPLICATE_SEARCH] Warning hidden');
+    }
+
+    /**
+     * Update future quantity display when user enters quantity
+     */
+    updateFutureQuantity() {
+        const quantityInput = document.getElementById('item-quantity');
+        const futureQtyContainer = document.getElementById('future-quantity');
+        const futureQtyValue = document.getElementById('future-quantity-value');
+
+        if (!quantityInput || !futureQtyContainer || !futureQtyValue) {
+            return;
+        }
+
+        // Only show if duplicate exists
+        if (!this.currentDuplicateItem) {
+            futureQtyContainer.classList.add('hidden');
+            return;
+        }
+
+        const newQuantity = parseFloat(quantityInput.value) || 0;
+        const oldQuantity = parseFloat(this.currentDuplicateItem.quantity) || 0;
+
+        // Only show if user entered quantity
+        if (newQuantity > 0) {
+            const futureQuantity = oldQuantity + newQuantity;
+            const unit = this.currentDuplicateItem.unit || '';
+
+            futureQtyValue.textContent = `${futureQuantity} ${unit}`;
+            futureQtyContainer.classList.remove('hidden');
+
+            console.log('[FUTURE_QTY] Future quantity calculated', {
+                oldQuantity,
+                newQuantity,
+                futureQuantity,
+                unit
+            });
+        } else {
+            futureQtyContainer.classList.add('hidden');
+        }
     }
 
     /**
@@ -2842,6 +2902,7 @@ async function handleSaveItem(event) {
                 oldQuantity,
                 newQuantity,
                 aggregatedQuantity,
+                unit: existingItem.unit,
                 oldComment: existingItem.comment,
                 newComment: data.comment,
                 mergedComment: comment

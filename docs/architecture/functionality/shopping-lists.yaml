@@ -321,6 +321,55 @@ module:
           Дедупликация: (product_name, store_id, product_group_id)
           Приоритет: удалённые товары показываются первыми
 
+      duplicate_detection:
+        element_id: "duplicate-warning-container"
+        description: "Предупреждение о дублировании товара при добавлении"
+        trigger: "Автоматически при вводе product_name + store (debounce 500ms)"
+        api_endpoint: "GET /api/v1/shopping-list-items/check-duplicate"
+        search_criteria:
+          - "shopping_list_id (current list)"
+          - "product_name (case-insensitive exact match)"
+          - "store_id"
+          - "is_completed = FALSE (только активные товары)"
+          - "deleted_at IS NULL (только не удалённые)"
+        ui_behavior:
+          warning_display:
+            - "Показывает: 'Уже добавлено: [Название] - [Количество] [Единица]'"
+            - "Если есть комментарий: показывает в скобках"
+            - "Цвет: alert-warning (жёлтый фон)"
+            - "Позиция: Перед кнопками 'Сохранить'/'Отмена' в модальном окне"
+          future_quantity_display:
+            element_id: "future-quantity"
+            description: "Показывает итоговое количество после агрегации"
+            visibility: "Появляется только когда quantity > 0 в форме"
+            calculation: "oldQuantity + newQuantity"
+            format: "→ Будет: [Итого] [Единица]"
+            style: "font-bold text-success (зелёный, жирный)"
+            reactive: "Обновляется при изменении quantity input (event listener)"
+            added_in: "v6.x"
+          aggregation_behavior:
+            - "При сохранении: ОБНОВЛЯЕТ существующий товар (не создаёт новый)"
+            - "Количество: суммирует (oldQty + newQty)"
+            - "Комментарий: объединяет через '; ' (old; new)"
+            - "Toast после сохранения: 'Товар объединен (итого: X единиц)'"
+        functions:
+          - searchDuplicate: "API вызов для поиска дубликата"
+          - showDuplicateWarning: "Показать предупреждение + future quantity"
+          - hideDuplicateWarning: "Скрыть предупреждение + future quantity"
+          - updateFutureQuantity: "Реактивный расчёт итогового количества"
+        logging:
+          prefixes:
+            - "[DUPLICATE_SEARCH]: Поиск и результаты дубликата"
+            - "[FUTURE_QTY]: Расчёт будущего количества"
+            - "[ITEM_SAVE]: Агрегация при сохранении"
+        implementation:
+          initialization: "initializeDuplicateDetection() в init()"
+          listeners:
+            - "input#item-product-name: input event (debounce 500ms)"
+            - "select#item-store: change event"
+            - "input#item-quantity: input event (для updateFutureQuantity)"
+          state: "this.currentDuplicateItem (сохраняется при обнаружении дубликата)"
+
     views:
       table_view:
         description: "Табличное представление списка товаров"
