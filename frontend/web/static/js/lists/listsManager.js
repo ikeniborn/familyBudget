@@ -291,8 +291,11 @@ class ListsManager {
         // CRITICAL: Close import wizard when returning to landing view
         closeImportWizard();
 
-        // Hide detail view FAB menu, show create list FAB
+        // Desktop FAB visibility: Landing View
+        // Hide detail view FABs (mass operations + add item)
         this.hideFAB();
+        this.hideAddItemFAB();
+        // Show create list FAB
         this.showCreateListFAB();
 
         // Show landing view, hide detail view
@@ -378,8 +381,12 @@ class ListsManager {
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('detail-view').classList.remove('hidden');
 
+        // Desktop FAB visibility: Detail View
         // Hide create list FAB (only visible in landing view)
         this.hideCreateListFAB();
+        // Show detail view FABs (mass operations + add item)
+        this.showFAB();
+        this.showAddItemFAB();
 
         // Load items for this list
         await this.loadShoppingListItems(listId);
@@ -1086,6 +1093,17 @@ class ListsManager {
     }
 
     /**
+     * Show FAB menu (detail view only - mass operations)
+     */
+    showFAB() {
+        const fabMenu = document.getElementById('lists-fab-menu');
+        if (fabMenu) {
+            fabMenu.classList.remove('hidden');
+            // Don't add 'open' - that's for when user clicks to expand
+        }
+    }
+
+    /**
      * Hide FAB menu (when switching to landing view)
      */
     hideFAB() {
@@ -1101,7 +1119,27 @@ class ListsManager {
     }
 
     /**
-     * Show create list FAB (landing view only)
+     * Show add item FAB (detail view only - desktop)
+     */
+    showAddItemFAB() {
+        const addItemFAB = document.getElementById('add-item-fab');
+        if (addItemFAB) {
+            addItemFAB.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Hide add item FAB (when switching to landing view)
+     */
+    hideAddItemFAB() {
+        const addItemFAB = document.getElementById('add-item-fab');
+        if (addItemFAB) {
+            addItemFAB.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Show create list FAB (landing view only - desktop)
      */
     showCreateListFAB() {
         const createListFAB = document.getElementById('create-list-fab');

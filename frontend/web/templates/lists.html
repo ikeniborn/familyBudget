@@ -457,8 +457,30 @@
 <!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
 <!-- ============================================== -->
 
+<!-- FAB для добавления товара (Detail View только на десктопе) -->
+<button id="add-item-fab"
+        onclick="openAddItemModal()"
+        class="hidden lg:flex btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6 z-50"
+        aria-label="Добавить товар"
+        title="Добавить товар">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+</button>
+
+<!-- FAB для создания списка (Landing View только на десктопе) -->
+<button id="create-list-fab"
+        onclick="openCreateListModal()"
+        class="hidden lg:flex btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50"
+        aria-label="Создать список"
+        title="Создать список">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+</button>
+
 <!-- FAB Speed Dial для массовых операций (Detail View) - positioned above common FAB toolbar -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
+<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden lg:flex">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
