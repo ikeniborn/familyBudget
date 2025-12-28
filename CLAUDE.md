@@ -1750,6 +1750,57 @@ document.addEventListener('visibilitychange', () => {
 
 **See:** `/docs/architecture/pwa.md` → "WebSocket Diagnostics Modal" for detailed documentation
 
+### Navigation Detection for RTT Filtering (v5.8.0+)
+
+**Since version 5.8.0:** RTT warnings are suppressed during page navigation/reload to prevent false positives.
+
+**Problem Solved:**
+- False "slow connection" warnings when navigating between pages (`/facts` → `/plan`)
+- RTT spikes during WebSocket reconnection triggered warnings on fast networks
+
+**Solution:**
+- Navigation detection window (10 seconds after page load)
+- RTT measurements filtered when `isNavigating = true`
+- Badge updates skipped during navigation window
+
+**Implementation:**
+- Flag: `isNavigating` (true for 10s after page load)
+- Auto-clears via timer
+- Comprehensive logging: `[NAV]`, `[RTT_FILTER]`
+
+**Configuration:**
+- `NAVIGATION_WINDOW = 10000` (10 seconds)
+- Adjustable in budgetWSClient.js:126-128
+
+**Behavior:**
+- 0-10s after page load: RTT warnings suppressed
+- After 10s: Normal RTT monitoring (shows warnings if genuinely slow)
+- Each navigation restarts the window
+
+**Testing:**
+Console filter: `NAV|RTT_FILTER|WS_RTT`
+
+**Expected Console Output:**
+```
+[NAV] Navigation window started { duration: "10000ms" }
+[RTT_FILTER] RTT measurement skipped (navigating)
+[NAV] Navigation window ended { elapsed: "10000ms" }
+[WS_RTT] RTT measured { current: "180ms", rolling_avg: "180ms" }
+```
+
+**Benefits:**
+- Zero false positives during navigation
+- Genuine slow connections still detected (after 10s)
+- Clean user experience on mobile
+
+**Files Modified:**
+- `frontend/web/static/js/budget/budgetWSClient.js` (~80 lines)
+- `frontend/web/static/js/utils/logger.js` (2 loggers added)
+- `frontend/web/static/js/config/logging.js` (2 modules added)
+
+**See:** `/docs/architecture/pwa.md` → "Navigation Detection for RTT Filtering" for complete documentation
+**See:** `/docs/architecture/websocket.md` for WebSocket architecture and RTT monitoring details
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**

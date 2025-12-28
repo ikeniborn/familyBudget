@@ -56,6 +56,8 @@
             WS_DIAG: true,             // WebSocket diagnostics modal
             WS_RTT: true,              // WebSocket RTT measurement logging
             WS_STATE: true,            // WebSocket badge state transition logging
+            NAV: true,                 // Navigation detection for RTT filtering
+            RTT_FILTER: true,          // RTT filtering logic
             CACHE: isDevelopment       // Cache metrics collection (dev only)
         },
 

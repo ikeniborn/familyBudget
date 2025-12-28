@@ -120,6 +120,13 @@ class BudgetWSClient {
         // All iOS browsers (Safari, Chrome, Firefox, Yandex) use WebKit and have same issues
         this._iosDeviceMode = this._detectIOSDevice();
 
+        // ==================== NAVIGATION DETECTION ====================
+        // Suppress RTT warnings during page load/navigation window
+        // Prevents false "slow connection" warnings during WebSocket reconnection
+        this.isNavigating = true;  // Initially true (page just loaded)
+        this._navigationTimer = null;
+        this.NAVIGATION_WINDOW = 10000;  // 10 seconds window after page load
+
         // iOS WebSocket strategy:
         // Server has permessage-deflate disabled (--ws-per-message-deflate false)
         // Try WebSocket first with shorter timeout, fallback to Long Polling if fails
@@ -207,6 +214,18 @@ class BudgetWSClient {
             }
         });
 
+        // ==================== NAVIGATION WINDOW SETUP ====================
+        // Start navigation window to suppress RTT warnings during page load
+        // DOMContentLoaded fires when page is ready, or already loaded if fast connection
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                this._startNavigationWindow();
+            }, { once: true });
+        } else {
+            // Page already loaded (fast connection or cached)
+            this._startNavigationWindow();
+        }
+
     }
 
     // ==================== BROWSER DETECTION ====================
@@ -241,6 +260,49 @@ class BudgetWSClient {
         const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
         const isYandex = /YaBrowser/.test(ua);
         return isSafari || isYandex;
+    }
+
+    // ==================== NAVIGATION WINDOW METHODS ====================
+
+    /**
+     * Start navigation window (suppress RTT warnings for 10 seconds)
+     * Called on DOMContentLoaded to allow WebSocket reconnection to stabilize
+     * @private
+     */
+    _startNavigationWindow() {
+        this._log('NAV', 'info', 'Navigation window started', {
+            duration: `${this.NAVIGATION_WINDOW}ms`,
+            page_loaded: Date.now()
+        });
+
+        this.isNavigating = true;
+
+        // Clear existing timer (if any)
+        if (this._navigationTimer) {
+            clearTimeout(this._navigationTimer);
+        }
+
+        // Set timer to clear navigation flag
+        this._navigationTimer = setTimeout(() => {
+            this._log('NAV', 'info', 'Navigation window ended', {
+                elapsed: `${this.NAVIGATION_WINDOW}ms`
+            });
+            this.isNavigating = false;
+            this._navigationTimer = null;
+        }, this.NAVIGATION_WINDOW);
+    }
+
+    /**
+     * Stop navigation window (cleanup on disconnect)
+     * @private
+     */
+    _stopNavigationWindow() {
+        if (this._navigationTimer) {
+            clearTimeout(this._navigationTimer);
+            this._navigationTimer = null;
+            this.isNavigating = false;
+            this._log('NAV', 'debug', 'Navigation window stopped manually');
+        }
     }
 
     // ==================== OFFLINE MODE DETECTION ====================
@@ -1216,8 +1278,26 @@ class BudgetWSClient {
                 // Calculate RTT
                 const rtt = this._pingTimestamp ? (Date.now() - this._pingTimestamp) : 0;
 
-                // Store measurement (skip first if anomalous > 4000ms)
-                if (this._rttMeasurements.length > 0 || rtt < this.RTT_THRESHOLD * 2) {
+                // ==================== RTT FILTERING ====================
+                // FILTER 1: Skip if navigating (page load window)
+                const skipNavigating = this.isNavigating;
+
+                // FILTER 2: Skip anomalous first measurement (> 4000ms)
+                const skipAnomalous = this._rttMeasurements.length === 0 && rtt > this.RTT_THRESHOLD * 2;
+
+                if (skipNavigating) {
+                    this._log('RTT_FILTER', 'debug', 'RTT measurement skipped (navigating)', {
+                        rtt: `${rtt}ms`,
+                        navigation_window: `${this.NAVIGATION_WINDOW}ms`,
+                        reason: 'Page load stabilization'
+                    });
+                } else if (skipAnomalous) {
+                    this._log('RTT_FILTER', 'debug', 'RTT measurement skipped (anomalous first)', {
+                        rtt: `${rtt}ms`,
+                        threshold: `${this.RTT_THRESHOLD * 2}ms`
+                    });
+                } else {
+                    // Store measurement
                     this._rttMeasurements.push(rtt);
 
                     // Keep only last 5 measurements
@@ -1228,26 +1308,26 @@ class BudgetWSClient {
                     // Calculate rolling average
                     this._rttRollingAverage = this._rttMeasurements.reduce((a, b) => a + b, 0)
                         / this._rttMeasurements.length;
-                }
 
-                // Log to connection history
-                this._logHistory(`pong_received_rtt=${rtt}ms`);
-
-                // Log RTT data
-                this._log('RTT', 'info', 'RTT measured', {
-                    current: `${rtt}ms`,
-                    rolling_avg: `${Math.round(this._rttRollingAverage)}ms`,
-                    measurements: this._rttMeasurements.length,
-                    threshold: `${this.RTT_THRESHOLD}ms`
-                });
-
-                // Warn on slow connection
-                if (this._rttRollingAverage > this.RTT_THRESHOLD) {
-                    this._log('RTT', 'warn', 'Slow connection detected', {
-                        avg_rtt: `${Math.round(this._rttRollingAverage)}ms`,
+                    // Log RTT data
+                    this._log('RTT', 'info', 'RTT measured', {
+                        current: `${rtt}ms`,
+                        rolling_avg: `${Math.round(this._rttRollingAverage)}ms`,
+                        measurements: this._rttMeasurements.length,
                         threshold: `${this.RTT_THRESHOLD}ms`
                     });
+
+                    // Warn on slow connection (only if not navigating)
+                    if (this._rttRollingAverage > this.RTT_THRESHOLD) {
+                        this._log('RTT', 'warn', 'Slow connection detected', {
+                            avg_rtt: `${Math.round(this._rttRollingAverage)}ms`,
+                            threshold: `${this.RTT_THRESHOLD}ms`
+                        });
+                    }
                 }
+
+                // Log to connection history (always, even if filtered)
+                this._logHistory(`pong_received_rtt=${rtt}ms${skipNavigating ? '_nav' : ''}${skipAnomalous ? '_anom' : ''}`);
 
                 debugLog('[BudgetWS] Pong received, RTT:', rtt, 'ms');
 
@@ -1370,6 +1450,9 @@ class BudgetWSClient {
             clearTimeout(this._pongTimeoutTimer);
             this._pongTimeoutTimer = null;
         }
+
+        // Stop navigation window on disconnect
+        this._stopNavigationWindow();
     }
 
     /**
@@ -1990,14 +2073,19 @@ class BudgetWSClient {
         }
         // PRIORITY 2: Connected states with warnings
         else if (this.isConnected) {
-            // Check slow connection (RTT-based)
-            const isSlowConnection = this._rttRollingAverage > this.RTT_THRESHOLD;
+            // Check slow connection (RTT-based) - don't show during navigation window
+            const isSlowConnection = !this.isNavigating && this._rttRollingAverage > this.RTT_THRESHOLD;
 
             // Check many tabs (connection pressure)
             const isManyTabs = this.approachingLimit;  // >= 0.7
 
             if (isSlowConnection) {
                 state = 'warning_slow';
+                this._log('RTT_FILTER', 'info', 'Slow connection badge shown', {
+                    avg_rtt: `${Math.round(this._rttRollingAverage)}ms`,
+                    threshold: `${this.RTT_THRESHOLD}ms`,
+                    navigating: this.isNavigating
+                });
             } else if (isManyTabs) {
                 state = 'warning_tabs';
             } else {
@@ -2195,6 +2283,13 @@ class BudgetWSClient {
                     ? new Date(this._lastStateChangeTime).toISOString()
                     : null,
                 sticky_duration: `${this.STICKY_STATE_DURATION}ms`
+            },
+
+            // Navigation detection
+            navigation: {
+                is_navigating: this.isNavigating,
+                window_duration: `${this.NAVIGATION_WINDOW}ms`,
+                timer_active: this._navigationTimer !== null
             }
         };
 

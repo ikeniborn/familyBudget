@@ -203,6 +203,10 @@ window.logCSV = new Logger('[CSV]', 'CSV');
 window.logWSRTT = new Logger('[WS_RTT]', 'WS_RTT');
 window.logWSState = new Logger('[WS_STATE]', 'WS_STATE');
 
+// Navigation and RTT filtering loggers
+window.logNav = new Logger('[NAV]', 'NAV');
+window.logRTTFilter = new Logger('[RTT_FILTER]', 'RTT_FILTER');
+
 // Log logger initialization (only if logging enabled)
 if (window.LOGGING_CONFIG?.enabled) {
     console.log('[LOGGER] Centralized logging initialized');
