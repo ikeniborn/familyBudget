@@ -443,6 +443,7 @@ function renderUsersTable(users) {
                         <th>📝 Имя</th>
                         <th>🔑 Роль</th>
                         <th>🔐 2FA</th>
+                        <th>👆 Биометрия</th>
                         <th>✅ Статус</th>
                         <th>📅 Последний вход</th>
                         <th>📅 Создан</th>
@@ -461,6 +462,11 @@ function renderUsersTable(users) {
         // 2FA status badge
         const twoFactorLabel = user.two_factor_enabled
             ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Вкл</span>'
+            : '<span class="badge badge-ghost gap-1 whitespace-nowrap">—</span>';
+
+        // WebAuthn biometric status badge
+        const webauthnLabel = user.has_webauthn_credentials
+            ? '<span class="badge badge-success gap-1 whitespace-nowrap">👆 Вкл</span>'
             : '<span class="badge badge-ghost gap-1 whitespace-nowrap">—</span>';
 
         // User activation status badge (with merged info)
@@ -505,6 +511,7 @@ function renderUsersTable(users) {
                 <td class="font-medium">${displayName}</td>
                 <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
                 <td><div class="flex flex-wrap gap-1">${twoFactorLabel}</div></td>
+                <td><div class="flex flex-wrap gap-1">${webauthnLabel}</div></td>
                 <td><div class="flex flex-wrap gap-1">${statusLabel}</div></td>
                 <td>${lastLogin}</td>
                 <td>${createdAt}</td>
@@ -524,43 +531,123 @@ function renderUsersTable(users) {
     container.innerHTML = html;
 }
 
-// Render action buttons for user
+// Render action dropdown menu for user
 function renderActions(user) {
-    const editBtn = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
+    // Build menu items
+    let menuItems = '';
 
-    // Admin toggle button
-    const adminBtn = user.is_admin
-        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`
-        : `<button class="btn btn-sm btn-primary gap-1" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
+    // 1. Edit user (always available)
+    menuItems += `
+        <li><a onclick="showEditUserModal(${user.id})">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            Редактировать
+        </a></li>
+    `;
 
-    // Activate/Deactivate button
-    const activateBtn = user.is_active
-        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="deactivateUser(${user.id})" title="Деактивировать пользователя">⏸️ Деактивировать</button>`
-        : `<button class="btn btn-sm btn-success gap-1" onclick="activateUser(${user.id})" title="Активировать пользователя">✅ Активировать</button>`;
+    // 2. Activate/Deactivate
+    if (user.is_active) {
+        menuItems += `
+            <li><a onclick="deactivateUser(${user.id})" class="text-warning">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Деактивировать
+            </a></li>
+        `;
+    } else {
+        menuItems += `
+            <li><a onclick="activateUser(${user.id})" class="text-success">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Активировать
+            </a></li>
+        `;
+    }
 
-    // Refresh profile button (only for Telegram users)
-    const refreshBtn = user.telegram_id
-        ? `<button class="btn btn-sm btn-outline btn-info gap-1" onclick="refreshUserProfile(${user.id})" title="Обновить данные из Telegram">🔄 Обновить</button>`
-        : '';
+    // 3. Admin toggle
+    if (user.is_admin) {
+        menuItems += `
+            <li><a onclick="toggleAdmin(${user.id}, false)" class="text-warning">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>
+                </svg>
+                Снять админа
+            </a></li>
+        `;
+    } else {
+        menuItems += `
+            <li><a onclick="toggleAdmin(${user.id}, true)">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                Сделать админом
+            </a></li>
+        `;
+    }
 
-    // Reset 2FA button (only if 2FA is enabled)
-    const reset2faBtn = user.two_factor_enabled
-        ? `<button class="btn btn-sm btn-outline btn-error gap-1" onclick="reset2fa(${user.id})" title="Сбросить 2FA">🔐 Сброс 2FA</button>`
-        : '';
+    menuItems += '<li class="divider"></li>';
 
-    // Reset password button (only if password is set)
-    const resetPasswordBtn = user.has_password
-        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="resetPassword(${user.id})" title="Сбросить пароль">🔑 Сброс пароля</button>`
-        : '';
+    // 4. Refresh profile (only for Telegram users)
+    if (user.telegram_id) {
+        menuItems += `
+            <li><a onclick="refreshUserProfile(${user.id})">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Обновить профиль
+            </a></li>
+        `;
+    }
+
+    // 5. Reset 2FA (only if 2FA enabled)
+    if (user.two_factor_enabled) {
+        menuItems += `
+            <li><a onclick="reset2fa(${user.id})" class="text-error">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+                Сбросить 2FA
+            </a></li>
+        `;
+    }
+
+    // 6. Reset password (only if password set)
+    if (user.has_password) {
+        menuItems += `
+            <li><a onclick="resetPassword(${user.id})" class="text-warning">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+                Сбросить пароль
+            </a></li>
+        `;
+    }
+
+    // 7. Reset WebAuthn credentials (only if has credentials)
+    if (user.has_webauthn_credentials) {
+        menuItems += `
+            <li><a onclick="resetWebAuthn(${user.id})" class="text-error">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+                </svg>
+                Сбросить биометрию
+            </a></li>
+        `;
+    }
 
     return `
-        <div class="flex gap-1 flex-wrap">
-            ${editBtn}
-            ${activateBtn}
-            ${adminBtn}
-            ${refreshBtn}
-            ${reset2faBtn}
-            ${resetPasswordBtn}
+        <div class="dropdown dropdown-end">
+            <label tabindex="0" class="btn btn-ghost btn-xs">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                </svg>
+            </label>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-56">
+                ${menuItems}
+            </ul>
         </div>
     `;
 }
@@ -739,6 +826,39 @@ async function resetPassword(userId) {
         showNotification('🔑 Пароль сброшен! Пользователю нужно установить его заново.', 'success');
     } catch (error) {
         console.error('Error resetting password:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Reset WebAuthn credentials for user
+async function resetWebAuthn(userId) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите сбросить биометрическую аутентификацию для этого пользователя?\n\nВсе зарегистрированные устройства (TouchID/FaceID) будут отозваны.',
+        '👆 Сброс биометрии'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/reset-webauthn`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        await loadUsers();
+        await loadStats();
+
+        showNotification('👆 Биометрия сброшена! Все устройства отозваны.', 'success');
+    } catch (error) {
+        console.error('Error resetting WebAuthn:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }

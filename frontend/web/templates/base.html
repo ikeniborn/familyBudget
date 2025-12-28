@@ -2351,5 +2351,22 @@
             <button>close</button>
         </form>
     </dialog>
+
+    <!-- WebAuthn Onboarding -->
+    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}"></script>
+    <script>
+        // Detect login via query parameter (from Telegram OAuth callback)
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('just_logged_in') === 'true') {
+                console.log('[WEBAUTHN] Login detected via query parameter - setting sessionStorage flag');
+                sessionStorage.setItem('just_logged_in', 'true');
+                // Clean URL (remove query parameter)
+                const url = new URL(window.location.href);
+                url.searchParams.delete('just_logged_in');
+                window.history.replaceState({}, document.title, url.pathname + url.hash);
+            }
+        })();
+    </script>
 </body>
 </html>

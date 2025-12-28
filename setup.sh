@@ -1529,8 +1529,9 @@ create_env_file() {
     else
         info "  ADMIN_PASSWORD: (empty - Telegram-only auth)"
     fi
-    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}|" "$env_file"
-    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}|" "$env_file"
+    # Use single quotes to prevent bash interpretation of special characters in passwords
+    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL='${CONFIG[ADMIN_EMAIL]:-}'|" "$env_file"
+    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD='${CONFIG[ADMIN_PASSWORD]:-}'|" "$env_file"
 
     sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
     sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"

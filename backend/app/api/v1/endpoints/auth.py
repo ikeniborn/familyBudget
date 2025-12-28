@@ -353,8 +353,8 @@ async def telegram_callback(
     session.add(db_refresh_token)
     await session.commit()
 
-    # Step 7: Create redirect response to dashboard
-    redirect = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    # Step 7: Create redirect response to dashboard with login flag for WebAuthn onboarding
+    redirect = RedirectResponse(url="/?just_logged_in=true", status_code=status.HTTP_303_SEE_OTHER)
 
     # Step 7.5: Determine secure cookie flag based on environment
     # In production with SSL, cookies should be secure=True (HTTPS only)

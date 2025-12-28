@@ -463,6 +463,7 @@ async function handleBiometricAuth() {
             console.log('[WEBAUTHN_CLIENT] User:', data.user);
             console.log('[WEBAUTHN_CLIENT] JWT tokens received (cookies set)');
             console.log('[WEBAUTHN_CLIENT] Redirecting to dashboard...');
+            sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
         } else {
             const error = await verifyRes.json();
@@ -611,6 +612,7 @@ async function handlePasswordLogin(e) {
         if (data.access_token && data.refresh_token) {
             console.log('[AUTH_EMAIL] Admin bypass detected - JWT tokens received');
             console.log('[AUTH_EMAIL] Redirecting to dashboard (2FA skipped)');
+            sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
             return;
         }
@@ -634,6 +636,7 @@ async function handlePasswordLogin(e) {
             window.location.href = '/2fa-verify';
         } else {
             // Fallback - shouldn't happen for email login
+            sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
         }
 

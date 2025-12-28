@@ -222,6 +222,8 @@ if (window.LOGGING_CONFIG?.enabled) {
         PLAN: 'window.logPlan',
         CSV: 'window.logCSV',
         WS_RTT: 'window.logWSRTT',
-        WS_STATE: 'window.logWSState'
+        WS_STATE: 'window.logWSState',
+        NAV: 'window.logNav',
+        RTT_FILTER: 'window.logRTTFilter'
     });
 }
