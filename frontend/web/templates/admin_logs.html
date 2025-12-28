@@ -253,8 +253,8 @@ function getFilterValues() {
     return {
         level,
         service,
-        since: dateFrom ? DateFormatter.parseToISO(dateFrom) : null,
-        until: dateTo ? DateFormatter.parseToISO(dateTo) : null
+        since: dateFrom ? DateFormatter.formatForAPI(dateFrom) : null,
+        until: dateTo ? DateFormatter.formatForAPI(dateTo) : null
     };
 }
 
