@@ -26,6 +26,42 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-28: Shopping Lists Mobile UX Enhancements
+- **Change:** Major mobile UX improvements for shopping lists page (`/lists`)
+- **Features:**
+  - **Swipe Gestures (Hierarchy View Only):**
+    - Swipe right-to-left on items to reveal edit/delete buttons
+    - 50% swipe threshold triggers action reveal
+    - Only one item can be swiped at a time
+    - Custom SwipeHandler class (no external libraries)
+    - Touch events: touchstart, touchmove, touchend with `passive: false`
+    - CSS transforms: `translateX(-50%)` for smooth animation
+    - Mobile-only feature (`touch-action: pan-y` for vertical scroll)
+  - **Search Field Optimization:**
+    - Search field hidden by default under toggle button
+    - Button shows icon 🔍 + text "Поиск" on desktop, icon only on mobile
+    - Visibility state persists in localStorage (`lists_search_visible`)
+    - Auto-focus on search input when opened
+    - Smooth fade-in animation (`translateY(-10px)` → `translateY(0)`)
+  - **Space Optimization:**
+    - List Header block removed completely (name, description, progress badge, back button)
+    - Breadcrumb navigation retained for context
+    - Reduced mobile paddings:
+      - `.hierarchy-item`: 0.25rem 0.375rem, min-height 2.25rem (was 0.375rem 0.5rem, 2.5rem)
+      - `.hierarchy-store`: 0.5rem 0.375rem (was 0.625rem 0.5rem)
+      - `.hierarchy-group`: 0.375rem 0.25rem (was 0.5rem 0.25rem)
+    - Progress information still visible in hierarchy tree badges (Store/ProductGroup counters)
+- **Logging:** Comprehensive console logging with `[SWIPE]`, `[SEARCH]`, `[LISTS]` prefixes
+- **Files modified:**
+  - `frontend/web/templates/lists.html`: Wrapped search in togglable container, added search button, removed List Header (lines 128-146)
+  - `frontend/web/static/js/lists/hierarchyView.js`: Added SwipeHandler class (188 lines), updated renderItems() HTML structure
+  - `frontend/web/static/js/lists/listsManager.js`: Added toggleSearchField() method, restore visibility on load, removed updateProgressBadge()
+  - `frontend/web/static/css/lists.css`: Added swipe CSS (position, overflow, transition, swipe-actions), search fade-in animation, reduced mobile paddings
+- **Build:** Minified JS + CSS via `npm run minify:js` and `npm run minify:css`
+- **Testing:** Deploy to budget-test with `sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch`
+
+---
+
 ### 2025-12-27: README Refactoring - User-Centric Approach
 - **Change:** Completely refactored README.md to focus on product value and user benefits
 - **Goal:** Make README accessible to non-technical users, focusing on "why" instead of "how"

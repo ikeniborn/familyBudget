@@ -202,6 +202,24 @@ class ListsManager {
         }
         this.updateHideCompletedButton();
 
+        // Restore search field visibility from localStorage
+        try {
+            const searchVisible = localStorage.getItem('lists_search_visible');
+            if (searchVisible === 'true') {
+                // Show search field by triggering toggle
+                const container = document.getElementById('search-field-container');
+                const button = document.getElementById('toggle-search-btn');
+                if (container && button) {
+                    container.classList.remove('hidden');
+                    button.classList.remove('btn-outline');
+                    button.classList.add('btn-primary');
+                    console.log('[SEARCH] Restored search field visibility:', { visible: true });
+                }
+            }
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+
         // Reset HierarchyView expanded nodes for new list
         // Each list should start with fresh tree state
         if (this.hierarchyView) {
@@ -365,8 +383,7 @@ class ListsManager {
             }
 
             // Update progress badge
-            this.updateProgressBadge();
-
+    
         } catch (error) {
             console.error('[ListsManager] Error loading items:', error);
 
@@ -376,8 +393,7 @@ class ListsManager {
                     const cached = await this.db.getCache(CACHE_KEY);
                     this.currentItems = cached || [];
                     debugLog('[ListsManager] Loaded items from cache (fallback):', this.currentItems.length);
-                    this.updateProgressBadge();
-                } catch (cacheError) {
+                            } catch (cacheError) {
                     console.error('[ListsManager] Error loading items from cache:', cacheError);
                     showToast('Ошибка загрузки товаров', 'error');
                     this.currentItems = [];
@@ -578,11 +594,10 @@ class ListsManager {
     }
 
     /**
-     * Render items table (desktop) and mobile cards
+     * Render items table
      */
     renderItemsTable() {
         const tbody = document.getElementById('items-table-body');
-        const mobileContainer = document.getElementById('mobile-cards-container');
         const emptyState = document.getElementById('table-empty-state');
         const desktopTable = document.getElementById('desktop-table-container');
 
@@ -592,7 +607,6 @@ class ListsManager {
         if (filteredItems.length === 0) {
             // Use table-content-hidden to hide without breaking responsive classes
             if (desktopTable) desktopTable.classList.add('table-content-hidden');
-            if (mobileContainer) mobileContainer.classList.add('table-content-hidden');
             emptyState.classList.remove('hidden');
 
             // Update empty state message based on search or hide completed
@@ -628,7 +642,6 @@ class ListsManager {
 
         // Remove table-content-hidden to show (responsive classes handle desktop/mobile visibility)
         if (desktopTable) desktopTable.classList.remove('table-content-hidden');
-        if (mobileContainer) mobileContainer.classList.remove('table-content-hidden');
         emptyState.classList.add('hidden');
 
         // Render desktop table
@@ -667,106 +680,8 @@ class ListsManager {
             `;
         }).join('');
 
-        // Render mobile cards (sorted by store → group → product)
-        if (mobileContainer) {
-            const sortedItems = this.getSortedItemsForMobile(filteredItems);
-            mobileContainer.innerHTML = sortedItems.map(item => {
-                return this.renderMobileCard(item);
-            }).join('');
-        }
-
         // Update selection UI
         this.updateSelectionUI();
-    }
-
-    /**
-     * Render a single mobile card for an item
-     * Format: Store → Group → Product | Qty Unit | Status | Edit | Delete
-     */
-    renderMobileCard(item) {
-        const store = this.stores.find(s => s.id === item.store_id);
-        const isCompleted = item.is_completed;
-
-        // Build path: Store → Full Group Hierarchy → Product
-        const storeName = store ? this.escapeHtml(store.name) : '?';
-        const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
-        const productName = this.escapeHtml(item.product_name);
-
-        // Format quantity
-        let qtyText = '';
-        if (item.quantity !== null) {
-            qtyText = this.formatQuantity(item.quantity, item.unit);
-            if (item.unit) {
-                qtyText += ' ' + this.escapeHtml(item.unit);
-            }
-        }
-
-        // Status indicator (small dot or checkmark)
-        const statusIcon = isCompleted ? '✓' : '';
-        const statusClass = isCompleted ? 'mobile-card-completed' : '';
-
-        return `
-            <div class="mobile-item-card ${statusClass}" data-item-id="${item.id}">
-                <div class="mobile-card-main" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
-                    <div class="mobile-card-path">
-                        <span class="mobile-card-store">${storeName}</span>
-                        <span class="mobile-card-separator">→</span>
-                        <span class="mobile-card-group">${groupPath ? this.escapeHtml(groupPath) : '?'}</span>
-                        <span class="mobile-card-separator">→</span>
-                        <span class="mobile-card-product">${productName}</span>
-                    </div>
-                    <div class="mobile-card-status">${statusIcon}</div>
-                </div>
-                <div class="mobile-card-details">
-                    ${qtyText ? `<span class="mobile-card-qty">${qtyText}</span>` : ''}
-                    <div class="mobile-card-actions">
-                        <button class="btn btn-xs btn-ghost btn-square" onclick="event.stopPropagation(); openEditItemModal(${item.id})" title="Редактировать">
-                            ✏️
-                        </button>
-                        <button class="btn btn-xs btn-ghost btn-square text-error" onclick="event.stopPropagation(); window.listsManager.deleteItem(${item.id})" title="Удалить">
-                            🗑️
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Get items sorted for mobile view
-     * Sort order: store → group → product
-     */
-    getSortedItemsForMobile(items = null) {
-        const itemsToSort = items || this.currentItems;
-
-        // Build lookup maps for sorting
-        const storeMap = {};
-        this.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
-
-        const groupMap = {};
-        this.productGroups.forEach(g => { groupMap[g.id] = g.name || ''; });
-
-        // Sort items
-        return [...itemsToSort].sort((a, b) => {
-            // 1. Sort by store name
-            const storeA = (storeMap[a.store_id] || '').toLowerCase();
-            const storeB = (storeMap[b.store_id] || '').toLowerCase();
-            if (storeA !== storeB) {
-                return storeA.localeCompare(storeB, 'ru');
-            }
-
-            // 2. Sort by group name
-            const groupA = (groupMap[a.product_group_id] || '').toLowerCase();
-            const groupB = (groupMap[b.product_group_id] || '').toLowerCase();
-            if (groupA !== groupB) {
-                return groupA.localeCompare(groupB, 'ru');
-            }
-
-            // 3. Sort by product name
-            const productA = (a.product_name || '').toLowerCase();
-            const productB = (b.product_name || '').toLowerCase();
-            return productA.localeCompare(productB, 'ru');
-        });
     }
 
     /**
@@ -915,6 +830,51 @@ class ListsManager {
     }
 
     /**
+     * Toggle search field visibility
+     * Shows/hides search field with animation
+     * Saves state to localStorage for persistence
+     */
+    toggleSearchField() {
+        const container = document.getElementById('search-field-container');
+        const button = document.getElementById('toggle-search-btn');
+
+        if (!container || !button) {
+            console.error('[SEARCH] Search field elements not found');
+            return;
+        }
+
+        const isVisible = !container.classList.contains('hidden');
+
+        if (isVisible) {
+            // Hide search field
+            container.classList.add('hidden');
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-outline');
+            console.log('[SEARCH] Search field toggled:', { visible: false });
+        } else {
+            // Show search field
+            container.classList.remove('hidden');
+            button.classList.remove('btn-outline');
+            button.classList.add('btn-primary');
+            console.log('[SEARCH] Search field toggled:', { visible: true });
+
+            // Auto-focus search input
+            const searchInput = document.getElementById('items-search');
+            if (searchInput) {
+                setTimeout(() => searchInput.focus(), 100);
+            }
+        }
+
+        // Save state to localStorage
+        try {
+            localStorage.setItem('lists_search_visible', (!isVisible).toString());
+        } catch (e) {
+            // Ignore localStorage errors
+            console.warn('[SEARCH] Failed to save search visibility to localStorage:', e);
+        }
+    }
+
+    /**
      * Update FAB visibility
      * Shows FAB when in detail view (regardless of item count)
      */
@@ -1024,17 +984,6 @@ class ListsManager {
         }
     }
 
-    /**
-     * Update progress badge
-     */
-    updateProgressBadge() {
-        const badge = document.getElementById('list-progress-badge');
-        const totalItems = this.currentItems.length;
-        const completedItems = this.currentItems.filter(item => item.is_completed).length;
-        const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
-        badge.textContent = `${completedItems} / ${totalItems} выполнено (${progressPercent}%)`;
-    }
 
     /**
      * Populate store select dropdown
@@ -1407,7 +1356,6 @@ class ListsManager {
             item.is_completed = isCompleted;
         }
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABVisibility();
         this.updateFABButtons();
 
@@ -1436,8 +1384,7 @@ class ListsManager {
             if (this.isOnline && !error.message?.includes('offline')) {
                 if (item) item.is_completed = !isCompleted;
                 this.renderCurrentView();
-                this.updateProgressBadge();
-                showToast('Ошибка обновления статуса', 'error');
+                        showToast('Ошибка обновления статуса', 'error');
             }
         }
     }
@@ -1456,7 +1403,6 @@ class ListsManager {
         this.currentItems.splice(itemIndex, 1);
         this.selectedItemIds.delete(itemId);
         this.renderCurrentView();
-        this.updateProgressBadge();
 
         try {
             // 2. Delete on server or queue for offline
@@ -1481,8 +1427,7 @@ class ListsManager {
             if (this.isOnline && !error.message?.includes('offline')) {
                 this.currentItems.splice(itemIndex, 0, deletedItem);
                 this.renderCurrentView();
-                this.updateProgressBadge();
-                showToast('Ошибка удаления товара', 'error');
+                        showToast('Ошибка удаления товара', 'error');
             }
         }
     }
@@ -1526,8 +1471,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-
+    
             showToast(`Удалено ${count} товаров`, 'success');
         } catch (error) {
             console.error('[ListsManager] Error deleting selected items:', error);
@@ -1574,8 +1518,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
@@ -1624,8 +1567,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
@@ -1671,8 +1613,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
@@ -1734,6 +1675,73 @@ class ListsManager {
 
         // Ensure FAB remains visible after view switch
         this.updateFABVisibility();
+    }
+
+    /**
+     * Count total nodes in hierarchy (stores + product groups)
+     * @returns {number} Total node count
+     */
+    _getTotalNodeCount() {
+        if (!this.hierarchyView) return 0;
+
+        const hierarchy = this.hierarchyView.buildHierarchy(
+            this.currentItems,
+            this.stores,
+            this.productGroups
+        );
+
+        let total = 0;
+        Object.values(hierarchy).forEach(store => {
+            total++; // Store node
+            total += this._countProductGroupNodes(store.productGroupTree);
+        });
+
+        return total;
+    }
+
+    /**
+     * Recursively count product group nodes in a tree
+     * @param {Object} pgTree - Product group tree
+     * @returns {number} Node count
+     */
+    _countProductGroupNodes(pgTree) {
+        let count = 0;
+        Object.values(pgTree).forEach(pg => {
+            count++; // Product group node
+            count += this._countProductGroupNodes(pg.children);
+        });
+        return count;
+    }
+
+    /**
+     * Update smart toggle button state based on expanded/collapsed nodes
+     */
+    updateHierarchyToggleButton() {
+        const btn = document.getElementById('hierarchy-toggle-btn');
+        const icon = document.getElementById('hierarchy-toggle-icon');
+        const text = document.getElementById('hierarchy-toggle-text');
+
+        if (!btn || !icon || !text) return;
+
+        const totalNodes = this._getTotalNodeCount();
+        const expandedCount = this.hierarchyView ? this.hierarchyView.expandedNodes.size : 0;
+
+        debugLog(`[HIERARCHY] Toggle state: ${expandedCount}/${totalNodes} expanded`);
+
+        // All expanded → show "Collapse"
+        if (expandedCount === totalNodes && totalNodes > 0) {
+            icon.textContent = '⬆️';
+            text.textContent = 'Свернуть';
+            btn.title = 'Свернуть все узлы';
+            btn.dataset.action = 'collapse';
+        }
+        // Any collapsed → show "Expand"
+        else {
+            icon.textContent = '⬇️';
+            text.textContent = 'Развернуть';
+            btn.title = 'Развернуть все узлы';
+            btn.dataset.action = 'expand';
+        }
     }
 
     /**
@@ -1858,7 +1866,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABVisibility();
         this.updateFABButtons();
         this.updateItemsCache();
@@ -1897,7 +1904,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1935,7 +1941,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1977,7 +1982,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1991,8 +1995,7 @@ class ListsManager {
         if (this.currentListId) {
             await this.loadShoppingListItems(this.currentListId);
             this.renderCurrentView();
-            this.updateProgressBadge();
-            this.updateFABButtons();
+                this.updateFABButtons();
         }
     }
 
@@ -2655,7 +2658,6 @@ async function handleSaveItem(event) {
             if (item) {
                 Object.assign(item, data);
                 manager.renderCurrentView();
-                manager.updateProgressBadge();
                 manager.updateFABButtons();
                 await manager.updateItemsCache();
             }
@@ -2676,7 +2678,6 @@ async function handleSaveItem(event) {
 
             manager.currentItems.push(newItem);
             manager.renderCurrentView();
-            manager.updateProgressBadge();
             manager.updateFABButtons();
             await manager.updateItemsCache();
         }
@@ -2700,6 +2701,13 @@ function toggleSelectAll() {
  */
 function toggleHideCompleted() {
     window.listsManager.toggleHideCompleted();
+}
+
+/**
+ * Toggle search field visibility
+ */
+function toggleSearchField() {
+    window.listsManager?.toggleSearchField();
 }
 
 // ============================================================================
@@ -2829,6 +2837,25 @@ function expandAllNodes() {
 function collapseAllNodes() {
     if (window.hierarchyView) {
         window.hierarchyView.collapseAll();
+    }
+}
+
+/**
+ * Smart toggle for expand/collapse all nodes in hierarchy view
+ * Determines action based on button's data-action attribute
+ */
+function toggleAllNodes() {
+    const btn = document.getElementById('hierarchy-toggle-btn');
+    if (!btn) return;
+
+    const action = btn.dataset.action || 'expand';
+
+    debugLog('[HIERARCHY] Toggle clicked:', action);
+
+    if (action === 'expand') {
+        expandAllNodes();
+    } else {
+        collapseAllNodes();
     }
 }
 

@@ -125,26 +125,6 @@
             </ul>
         </div>
 
-        <!-- List Header - compact on mobile -->
-        <div class="mb-4 sm:mb-6">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-                <div class="flex-1 min-w-0">
-                    <h1 class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2 truncate" id="list-detail-name">Loading...</h1>
-                    <p class="text-sm sm:text-base text-base-content/70 truncate" id="list-detail-description">...</p>
-                    <div class="mt-1 sm:mt-2 flex gap-2 items-center">
-                        <span class="badge badge-info badge-sm sm:badge-md" id="list-progress-badge">0 / 0 выполнено</span>
-                        <!-- Note: WebSocket status indicator consolidated into header (budget-sse-status-indicator) -->
-                    </div>
-                </div>
-                <div class="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
-                    <button class="btn btn-sm flex-1 sm:flex-initial" onclick="showLandingView()">
-                        <span>⬅️</span><span class="hidden sm:inline ml-1">Назад</span>
-                    </button>
-                    <!-- "Добавить товар" button removed - use common FAB toolbar instead -->
-                </div>
-            </div>
-        </div>
-
         <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
         <div class="bg-base-100 shadow-sm sm:shadow-md mb-2 sm:mb-3 hidden sm:block rounded-lg">
             <div class="px-2 sm:px-4 py-2">
@@ -168,8 +148,8 @@
             </div>
         </div>
 
-        <!-- Search Field -->
-        <div class="mb-3 sm:mb-4">
+        <!-- Search Field Container (togglable) -->
+        <div id="search-field-container" class="mb-3 sm:mb-4 hidden">
             <div class="relative">
                 <input type="text"
                        id="items-search"
@@ -188,11 +168,8 @@
         <div class="toolbar">
             <!-- Hierarchy-specific Controls (Hierarchy View Only) -->
             <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
-                <button class="btn btn-sm" onclick="expandAllNodes()" title="Развернуть все узлы">
-                    <span>⬇️</span><span class="hidden sm:inline ml-1">Развернуть</span>
-                </button>
-                <button class="btn btn-sm" onclick="collapseAllNodes()" title="Свернуть все узлы">
-                    <span>⬆️</span><span class="hidden sm:inline ml-1">Свернуть</span>
+                <button id="hierarchy-toggle-btn" class="btn btn-sm" onclick="toggleAllNodes()" title="Развернуть/свернуть все узлы" data-action="expand">
+                    <span id="hierarchy-toggle-icon">⬇️</span><span id="hierarchy-toggle-text" class="hidden sm:inline ml-1">Развернуть</span>
                 </button>
             </div>
 
@@ -204,11 +181,18 @@
                 </button>
             </div>
 
+            <!-- Search Toggle Button -->
+            <div class="flex gap-1 sm:gap-2">
+                <button id="toggle-search-btn" class="btn btn-sm btn-outline" onclick="toggleSearchField()" title="Поиск">
+                    <span>🔍</span><span class="hidden sm:inline ml-1">Поиск</span>
+                </button>
+            </div>
+
             <!-- Spacer -->
             <div class="flex-1 min-w-4"></div>
 
-            <!-- View Toggle -->
-            <div class="join flex-shrink-0">
+            <!-- View Toggle (Desktop Only) -->
+            <div class="join flex-shrink-0 hidden sm:flex">
                 <button class="btn btn-sm join-item" id="table-view-btn" onclick="switchView('table')" title="Вид таблицы">
                     <span>📋</span><span class="hidden sm:inline ml-1">Таблица</span>
                 </button>
@@ -238,11 +222,6 @@
                         <!-- Items will be rendered here dynamically -->
                     </tbody>
                 </table>
-            </div>
-
-            <!-- Mobile Cards View (visible only on mobile) -->
-            <div id="mobile-cards-container" class="sm:hidden space-y-2">
-                <!-- Mobile cards will be rendered here dynamically -->
             </div>
 
             <!-- Empty State for Table -->

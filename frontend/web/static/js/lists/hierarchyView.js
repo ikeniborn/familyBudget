@@ -7,11 +7,192 @@
  * Stage 6: Hierarchy View
  */
 
+/**
+ * SwipeHandler - Handles swipe gestures for Hierarchy View items
+ * Enables swipe-to-action (edit/delete) on mobile devices
+ */
+class SwipeHandler {
+    constructor(hierarchyView) {
+        this.hierarchyView = hierarchyView;
+        this.activeSwipedItemId = null;
+        this.startX = null;
+        this.currentX = null;
+        this.isDragging = false;
+        this.SWIPE_THRESHOLD = 0.5; // 50% of item width
+
+        console.log('[SWIPE] SwipeHandler initialized', {
+            threshold: `${this.SWIPE_THRESHOLD * 100}%`
+        });
+    }
+
+    /**
+     * Handle touch start event
+     */
+    handleTouchStart(e, itemId, itemElement) {
+        this.startX = e.touches[0].clientX;
+        this.isDragging = true;
+
+        // Close other swiped items
+        if (this.activeSwipedItemId && this.activeSwipedItemId !== itemId) {
+            this.closeAllSwipes();
+        }
+
+        // Add swiping class (disables transition during drag)
+        itemElement.classList.add('swiping');
+
+        console.log('[SWIPE] Touch start', {
+            itemId,
+            startX: this.startX,
+            timestamp: Date.now()
+        });
+    }
+
+    /**
+     * Handle touch move event
+     */
+    handleTouchMove(e, itemId, itemElement) {
+        if (!this.isDragging) return;
+
+        this.currentX = e.touches[0].clientX;
+        const deltaX = this.currentX - this.startX;
+
+        // Only allow left swipe (negative deltaX)
+        if (deltaX >= 0) {
+            itemElement.style.transform = 'translateX(0)';
+            return;
+        }
+
+        const itemWidth = itemElement.offsetWidth;
+        const maxSwipe = itemWidth * this.SWIPE_THRESHOLD;
+
+        // Limit swipe to threshold
+        const swipeDistance = Math.max(deltaX, -maxSwipe);
+        itemElement.style.transform = `translateX(${swipeDistance}px)`;
+
+        console.log('[SWIPE] Touch move', {
+            itemId,
+            deltaX,
+            currentX: this.currentX,
+            threshold: maxSwipe,
+            swipeDistance
+        });
+    }
+
+    /**
+     * Handle touch end event
+     */
+    handleTouchEnd(e, itemId, itemElement) {
+        if (!this.isDragging) return;
+
+        this.isDragging = false;
+        const deltaX = this.currentX - this.startX;
+        const itemWidth = itemElement.offsetWidth;
+        const threshold = itemWidth * this.SWIPE_THRESHOLD;
+
+        // Remove swiping class (re-enable transition)
+        itemElement.classList.remove('swiping');
+
+        // Determine action based on threshold
+        if (Math.abs(deltaX) >= threshold) {
+            // Open swipe
+            this.openSwipe(itemId, itemElement);
+            console.log('[SWIPE] Touch end', {
+                itemId,
+                finalDeltaX: deltaX,
+                threshold,
+                action: 'opened'
+            });
+        } else {
+            // Close swipe (snap back)
+            this.closeSwipe(itemId, itemElement);
+            console.log('[SWIPE] Touch end', {
+                itemId,
+                finalDeltaX: deltaX,
+                threshold,
+                action: 'closed'
+            });
+        }
+    }
+
+    /**
+     * Open swipe (reveal actions)
+     */
+    openSwipe(itemId, itemElement) {
+        const itemWidth = itemElement.offsetWidth;
+        const swipeDistance = itemWidth * this.SWIPE_THRESHOLD;
+
+        itemElement.style.transform = `translateX(-${swipeDistance}px)`;
+        itemElement.classList.add('swiped');
+        this.activeSwipedItemId = itemId;
+
+        console.log('[SWIPE] Swipe opened', { itemId });
+    }
+
+    /**
+     * Close swipe (hide actions)
+     */
+    closeSwipe(itemId, itemElement) {
+        itemElement.style.transform = 'translateX(0)';
+        itemElement.classList.remove('swiped');
+
+        if (this.activeSwipedItemId === itemId) {
+            this.activeSwipedItemId = null;
+        }
+
+        console.log('[SWIPE] Swipe closed', { itemId });
+    }
+
+    /**
+     * Close all open swipes
+     */
+    closeAllSwipes() {
+        const previousActiveId = this.activeSwipedItemId;
+
+        if (this.activeSwipedItemId) {
+            const swipedElement = document.querySelector(`.hierarchy-item[data-item-id="${this.activeSwipedItemId}"]`);
+            if (swipedElement) {
+                this.closeSwipe(this.activeSwipedItemId, swipedElement);
+            }
+        }
+
+        console.log('[SWIPE] Close all swipes', { previousActiveId });
+    }
+
+    /**
+     * Setup event listeners for all items
+     */
+    setupSwipeHandlers() {
+        const items = document.querySelectorAll('.hierarchy-item');
+
+        items.forEach(itemElement => {
+            const itemId = parseInt(itemElement.dataset.itemId);
+
+            // Remove old listeners (if any)
+            itemElement.removeEventListener('touchstart', itemElement._touchStartHandler);
+            itemElement.removeEventListener('touchmove', itemElement._touchMoveHandler);
+            itemElement.removeEventListener('touchend', itemElement._touchEndHandler);
+
+            // Create bound handlers
+            itemElement._touchStartHandler = (e) => this.handleTouchStart(e, itemId, itemElement);
+            itemElement._touchMoveHandler = (e) => this.handleTouchMove(e, itemId, itemElement);
+            itemElement._touchEndHandler = (e) => this.handleTouchEnd(e, itemId, itemElement);
+
+            // Add listeners with passive: false for preventDefault() support
+            itemElement.addEventListener('touchstart', itemElement._touchStartHandler, { passive: false });
+            itemElement.addEventListener('touchmove', itemElement._touchMoveHandler, { passive: false });
+            itemElement.addEventListener('touchend', itemElement._touchEndHandler, { passive: false });
+        });
+
+        console.log('[SWIPE] Event handlers attached', { itemCount: items.length });
+    }
+}
+
 class HierarchyView {
     constructor(listsManager) {
         this.listsManager = listsManager;
         this.expandedNodes = new Set(); // Track expanded nodes
         this.container = document.getElementById('hierarchy-tree');
+        this.swipeHandler = new SwipeHandler(this); // Swipe gesture handler
     }
 
     /**
@@ -40,6 +221,12 @@ class HierarchyView {
         this.container.innerHTML = this.renderTree(hierarchy);
 
         debugLog('[HierarchyView] Rendered hierarchy tree');
+
+        // Setup swipe handlers for all items
+        this.swipeHandler.setupSwipeHandlers();
+
+        // Update smart toggle button state
+        this.listsManager.updateHierarchyToggleButton();
     }
 
     /**
@@ -260,21 +447,31 @@ class HierarchyView {
             const isCompleted = item.is_completed;
 
             html += `
-                <div class="hierarchy-item ${isCompleted ? 'completed' : ''} cursor-pointer" data-item-id="${item.id}" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
-                    <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
-                        ${this.escapeHtml(item.product_name)}
-                    </span>
-                    ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
-                    <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
-                        <button class="btn btn-xs btn-ghost btn-square"
-                                onclick="openEditItemModal(${item.id})"
-                                title="Редактировать">
-                            ✏️
+                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
+                    <div class="hierarchy-item-content cursor-pointer" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                        <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
+                            ${this.escapeHtml(item.product_name)}
+                        </span>
+                        ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                        <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
+                            <button class="btn btn-xs btn-ghost btn-square"
+                                    onclick="openEditItemModal(${item.id})"
+                                    title="Редактировать">
+                                ✏️
+                            </button>
+                            <button class="btn btn-xs btn-ghost btn-square text-error"
+                                    onclick="window.listsManager.deleteItem(${item.id})"
+                                    title="Удалить">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                    <div class="hierarchy-item-swipe-actions">
+                        <button class="btn btn-xs btn-ghost" onclick="openEditItemModal(${item.id}); event.stopPropagation();">
+                            ✏️ Редактировать
                         </button>
-                        <button class="btn btn-xs btn-ghost btn-square text-error"
-                                onclick="window.listsManager.deleteItem(${item.id})"
-                                title="Удалить">
-                            🗑️
+                        <button class="btn btn-xs btn-error" onclick="window.listsManager.deleteItem(${item.id}); event.stopPropagation();">
+                            🗑️ Удалить
                         </button>
                     </div>
                 </div>
@@ -282,6 +479,8 @@ class HierarchyView {
         });
 
         html += '</div>';
+
+        // Attach swipe handlers after rendering (will be called by setupSwipeHandlers())
         return html;
     }
 
@@ -381,6 +580,9 @@ class HierarchyView {
 
         // Re-render
         this.render();
+
+        // Update smart toggle button state (already called in render, but calling again for clarity)
+        this.listsManager.updateHierarchyToggleButton();
     }
 
     /**
@@ -389,6 +591,9 @@ class HierarchyView {
     collapseAll() {
         this.expandedNodes.clear();
         this.render();
+
+        // Update smart toggle button state (already called in render, but calling again for clarity)
+        this.listsManager.updateHierarchyToggleButton();
     }
 
     /**
