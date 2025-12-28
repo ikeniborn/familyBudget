@@ -1153,9 +1153,17 @@ class ListsManager {
     }
 
     /**
-     * Show FAB menu (detail view only - mass operations)
+     * Check if we're on desktop (lg breakpoint = 1024px)
+     */
+    isDesktop() {
+        return window.innerWidth >= 1024;
+    }
+
+    /**
+     * Show FAB menu (detail view only - mass operations, desktop only)
      */
     showFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const fabMenu = document.getElementById('lists-fab-menu');
         if (fabMenu) {
             fabMenu.classList.remove('hidden');
@@ -1164,9 +1172,10 @@ class ListsManager {
     }
 
     /**
-     * Hide FAB menu (when switching to landing view)
+     * Hide FAB menu (when switching to landing view, desktop only)
      */
     hideFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const fabMenu = document.getElementById('lists-fab-menu');
         const fabBackdrop = document.getElementById('lists-fab-backdrop');
         if (fabMenu) {
@@ -1179,9 +1188,10 @@ class ListsManager {
     }
 
     /**
-     * Show add item FAB (detail view only - desktop)
+     * Show add item FAB (detail view only - desktop only)
      */
     showAddItemFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const addItemFAB = document.getElementById('add-item-fab');
         if (addItemFAB) {
             addItemFAB.classList.remove('hidden');
@@ -1189,9 +1199,10 @@ class ListsManager {
     }
 
     /**
-     * Hide add item FAB (when switching to landing view)
+     * Hide add item FAB (when switching to landing view, desktop only)
      */
     hideAddItemFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const addItemFAB = document.getElementById('add-item-fab');
         if (addItemFAB) {
             addItemFAB.classList.add('hidden');
@@ -1199,9 +1210,10 @@ class ListsManager {
     }
 
     /**
-     * Show create list FAB (landing view only - desktop)
+     * Show create list FAB (landing view only - desktop only)
      */
     showCreateListFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.remove('hidden');
@@ -1209,9 +1221,10 @@ class ListsManager {
     }
 
     /**
-     * Hide create list FAB (when switching to detail view)
+     * Hide create list FAB (when switching to detail view, desktop only)
      */
     hideCreateListFAB() {
+        if (!this.isDesktop()) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.add('hidden');
