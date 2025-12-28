@@ -952,7 +952,7 @@ async def register_email(
 
 @router.post(
     "/login",
-    response_model=EmailLoginResponse,
+    response_model=EmailLoginResponse | AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Login with email and password",
     responses=get_common_responses(include_401=True),
@@ -965,6 +965,9 @@ async def register_email(
     3. Check if 2FA is enabled (required for email login)
     4. Create 2FA session (5-min TTL)
     5. Return session_token for 2FA verification
+
+    Admin bypass: Admins receive direct AuthResponse with JWT tokens (skip 2FA).
+    Regular users: Receive EmailLoginResponse with session_token for 2FA verification.
 
     Next step: POST /auth/verify-2fa with session_token and TOTP code.
 
@@ -1061,6 +1064,16 @@ async def login_email(
             f"email={data.email}, 2FA bypassed"
         )
 
+        # Check if user has WebAuthn credentials
+        from backend.app.models.webauthn_credential import WebAuthnCredential
+        has_webauthn = await session.scalar(
+            select(func.count(WebAuthnCredential.id))
+            .where(
+                WebAuthnCredential.user_id == user.id,
+                WebAuthnCredential.is_revoked == False  # noqa: E712
+            )
+        )
+
         # Return AuthResponse (tokens included)
         user_response = UserResponse(
             id=user.id,
@@ -1073,6 +1086,7 @@ async def login_email(
             is_admin=user.is_admin,
             is_active=user.is_active,
             two_factor_enabled=user.two_factor_enabled,
+            has_webauthn_credentials=bool(has_webauthn),
         )
 
         return AuthResponse(
