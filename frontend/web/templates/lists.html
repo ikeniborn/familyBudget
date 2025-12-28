@@ -166,13 +166,6 @@
 
         <!-- Toolbar - compact scrollable on mobile -->
         <div class="toolbar">
-            <!-- Hierarchy-specific Controls (Hierarchy View Only) -->
-            <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
-                <button id="hierarchy-toggle-btn" class="btn btn-sm" onclick="toggleAllNodes()" title="Развернуть/свернуть все узлы" data-action="expand">
-                    <span id="hierarchy-toggle-icon">⬇️</span><span id="hierarchy-toggle-text" class="hidden sm:inline ml-1">Развернуть</span>
-                </button>
-            </div>
-
             <!-- Shared Controls (visible in both views) -->
             <!-- Note: Mark All, Unmark All, Delete Completed moved to FAB menu -->
             <div class="flex gap-1 sm:gap-2" id="shared-controls">
@@ -190,6 +183,13 @@
 
             <!-- Spacer -->
             <div class="flex-1 min-w-4"></div>
+
+            <!-- Hierarchy-specific Controls (Hierarchy View Only) - moved to right side -->
+            <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
+                <button id="hierarchy-toggle-btn" class="btn btn-sm" onclick="toggleAllNodes()" title="Развернуть/свернуть все узлы" data-action="expand">
+                    <span id="hierarchy-toggle-icon">⬇️</span><span id="hierarchy-toggle-text" class="hidden sm:inline ml-1">Развернуть</span>
+                </button>
+            </div>
 
             <!-- View Toggle (Desktop Only) -->
             <div class="join flex-shrink-0 hidden sm:flex">
