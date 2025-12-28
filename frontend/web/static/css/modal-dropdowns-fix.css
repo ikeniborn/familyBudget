@@ -1,0 +1,37 @@
+/* Modal and Dropdown Z-Index Fixes for Mobile */
+
+/* Ensure Choices.js dropdowns in modals appear above modal content */
+.modal-open .choices__list--dropdown {
+    z-index: 1050 !important;
+}
+
+.modal-open .choices[data-type="select-one"].is-open .choices__inner {
+    z-index: 1050 !important;
+}
+
+/* Prevent body scroll when modal is open (iOS Safari fix) */
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
+/* Mobile menu should be below modals */
+.modal-open .btm-nav {
+    z-index: 40;
+}
+
+/* Ensure dropdowns don't clip in modals - ONLY when dropdown is open */
+.modal-box:has(.choices.is-open) {
+    overflow: visible !important;
+}
+
+/* Fallback for browsers without :has() support - use autocomplete-active class */
+.modal.autocomplete-active .modal-box {
+    overflow: visible !important;
+}
+
+.modal-box .choices {
+    position: relative;
+    z-index: 1;
+}

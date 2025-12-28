@@ -18,7 +18,7 @@
 ### Создать бэкап (2 минуты)
 
 ```bash
-cd ~/familyBudget
+cd /opt/budget
 ./scripts/backup.sh
 ```
 
@@ -42,7 +42,7 @@ cd ~/familyBudget
 ### Создание бэкапа
 
 ```bash
-cd ~/familyBudget
+cd /opt/budget
 ./scripts/backup.sh
 ```
 
@@ -102,7 +102,7 @@ tail -50 /opt/budget/backups/logs/backup_$(date +%Y%m%d).log
 ### Интерактивный режим (рекомендуется)
 
 ```bash
-cd ~/familyBudget
+cd /opt/budget
 ./scripts/restore.sh
 ```
 
@@ -515,7 +515,7 @@ set -a && source .env && set +a
 echo $POSTGRES_USER
 
 # 4. Повторить backup
-cd ~/familyBudget
+cd /opt/budget
 ./scripts/backup.sh
 ```
 
@@ -560,7 +560,7 @@ docker compose up -d postgres
 docker compose logs postgres | tail -50
 
 # 4. Повторить операцию
-cd ~/familyBudget
+cd /opt/budget
 ./scripts/backup.sh
 ```
 

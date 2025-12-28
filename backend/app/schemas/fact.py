@@ -445,6 +445,12 @@ class FactResponse(BaseModel):
         }]
     )
 
+    has_reminder: bool = Field(
+        default=False,
+        description="True if ScheduledReminder exists for this fact (for display bell icon)",
+        examples=[False, True]
+    )
+
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",

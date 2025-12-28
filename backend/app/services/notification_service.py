@@ -252,6 +252,14 @@ class NotificationService:
                 # Send to all active users
                 sent_count = 0
                 for user in users:
+                    # FILTER: Check Telegram notifications enabled
+                    if not user.enable_telegram_notifications:
+                        logger.debug(
+                            f"[NOTIF_FILTER] Skipping weekly report for user {user.id}: "
+                            "Telegram notifications disabled"
+                        )
+                        continue
+
                     if user.telegram_id:
                         success = await self.send_telegram_message(
                             telegram_id=user.telegram_id,
@@ -310,7 +318,11 @@ class NotificationService:
 
                 # Get active users for broadcast
                 users = await self.get_active_users(session)
-                telegram_ids = [u.telegram_id for u in users if u.telegram_id]
+                # FILTER: Only users with Telegram notifications enabled
+                telegram_ids = [
+                    u.telegram_id for u in users
+                    if u.telegram_id and u.enable_telegram_notifications
+                ]
 
                 if not telegram_ids:
                     logger.warning("[SCHEDULER] No active users with telegram_id found")

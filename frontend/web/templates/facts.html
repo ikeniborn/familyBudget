@@ -18,15 +18,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых фактов с расширенными фильтрами</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новый факт">
-                    ➕ Добавить факт
-                </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между счетами">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                    Добавить перевод
-                </button>
+                <!-- Export button kept - not duplicated in FAB -->
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных фактов в CSV">
                     📄 CSV
                 </button>
@@ -971,16 +963,28 @@ async function loadFinancialCenters() {
 
             // Add change listener to filter categories AND cost centers by selected FC (only for CREATE modal)
             // Edit modal should NOT filter - user can see all categories and cost centers
-            createSelect.addEventListener('change', async () => {
+            createSelect.addEventListener('change', async (e) => {
                 const fcId = createSelect.value ? parseInt(createSelect.value) : null;
                 debugLog('FC changed in create modal:', fcId);
 
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
+
                 // Update category filter based on selected FC
                 if (createCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await createCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+
                 // Update fact hints for current month
                 const selectedCategory = createCategoryTreeSelect?.getSelectedCategory();
                 loadFactHints(selectedCategory);
@@ -1646,19 +1650,30 @@ async function showEditModal(factId) {
         const newEditFcSelect = editFcSelect.cloneNode(true);
         editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
 
-        newEditFcSelect.addEventListener('change', async () => {
+        newEditFcSelect.addEventListener('change', async (e) => {
             const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
             console.log(`[facts.html] 🔄 Financial Center changed in edit modal:`, {
                 newFcId: fcId,
                 currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
             });
 
+            // CRITICAL: Stop event propagation to prevent global listeners from interfering
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[FC_CHANGE] Stopped event propagation');
+
             // Filter categories by selected FC (will preserve selection if category is still available)
             if (editCategoryTreeSelect) {
+                console.log('[FC_CHANGE] Updating category tree with new FC');
                 await editCategoryTreeSelect.updateFinancialCenter(fcId);
+                console.log('[FC_CHANGE] Category tree updated successfully');
             }
             // Filter cost centers by selected FC
             await filterEditCostCenters(fcId);
+
+            // Small delay to allow DOM to settle (mobile browser optimization)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
             console.log(`[facts.html] ✅ Filtering complete. New category value:`,
                 editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
@@ -2417,6 +2432,13 @@ document.addEventListener('DOMContentLoaded', function() {
             debugLog('[WS] Facts page handlers registered with debouncing');
         }
     }, 1000);
+
+    // Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+    console.log('[FACTS_PAGE] Page loaded:', {
+        fabVisible: !!document.getElementById('fab-toolbar'),
+        headerButtonsCount: document.querySelectorAll('h1 ~ div .btn').length,
+        exportButtonPresent: !!document.querySelector('[onclick*="exportFilteredFacts"]')
+    });
 });
 </script>
 {% endblock %}

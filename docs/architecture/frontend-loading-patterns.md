@@ -1140,6 +1140,44 @@ try {
 
 ---
 
+## Mobile UI Components
+
+### Fixed Bottom FAB Toolbar (v6.6.0+)
+
+**Component:** `components/fab_toolbar.html`
+
+**Conditional Rendering:**
+```python
+# In base.html Jinja2 template
+{% if request.path in ['/', '/facts', '/plan'] %}
+    {% include 'components/fab_toolbar.html' %}
+{% endif %}
+```
+
+**JavaScript Initialization:**
+- Auto-initializes on DOMContentLoaded
+- Logs button clicks for debugging
+- Dropdown menu uses DaisyUI `dropdown-top` class
+
+**Performance:**
+- GPU-accelerated (`transform: translateZ(0)`)
+- No layout thrashing (fixed positioning)
+- Touch-optimized (≥48px tap targets)
+
+**Accessibility:**
+- ARIA labels on all buttons
+- Keyboard navigation support (tab/enter)
+- Screen reader friendly tooltips
+- Reduced motion support
+
+**Console Logs:**
+```javascript
+[FAB_TOOLBAR] Toolbar initialized: { page: "/", buttonsCount: 4 }
+[FAB_TOOLBAR] Button clicked: { index: 0, label: "Добавить транзакцию" }
+```
+
+---
+
 ## Testing Frontend Loading
 
 ### Manual Testing Checklist

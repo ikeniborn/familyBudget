@@ -29,6 +29,7 @@ from backend.app.middleware.rate_limiter import limiter
 from backend.app.core.dependencies import get_session
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
+from backend.app.models.webauthn_credential import WebAuthnCredential
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import (
     AuthResponse,
@@ -49,6 +50,8 @@ from backend.app.schemas.auth import (
     LinkTelegramRequest,
     MessageResponse,
     RegistrationSuccessResponse,
+    AuthMethodsResponse,
+    WebAuthnCredentialInfo,
 )
 from backend.app.services.auth_service import (
     get_user_by_telegram_id,
@@ -89,6 +92,7 @@ from backend.app.services.jwt import (
     hash_token,
 )
 from backend.app.services.telegram_auth import validate_telegram_auth
+from backend.app.services.webauthn_service import user_has_webauthn_credentials
 
 # Standard library imports
 import logging
@@ -1846,3 +1850,146 @@ async def link_telegram_endpoint(
         )
 
     return MessageResponse(message="Telegram linked successfully")
+
+
+@router.get(
+    "/methods",
+    response_model=AuthMethodsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Check available authentication methods",
+    responses={
+        404: {"description": "User not found"},
+    },
+    description="""
+    Check available authentication methods for a user.
+
+    Used in identifier-first login flow to determine which auth methods
+    are available (Telegram OAuth, Email+Password, WebAuthn biometric).
+
+    Public endpoint (no authentication required).
+
+    Query Parameters:
+        identifier: Email or username
+
+    Returns:
+        methods:
+            telegram: bool - Telegram OAuth available
+            email_password: bool - Email+Password available
+            webauthn: bool - WebAuthn biometric available
+            webauthn_credentials: list - WebAuthn credentials (if webauthn=true)
+    """,
+)
+async def check_auth_methods(
+    identifier: str,
+    session: AsyncSession = Depends(get_session),
+) -> AuthMethodsResponse:
+    """Check available authentication methods for user."""
+    logger.info(f"[AUTH_METHODS] Checking methods for identifier: {identifier}")
+
+    # Try to find user by email first
+    user = await get_user_by_email(session, identifier)
+
+    # If not found by email, try by username (for Telegram users)
+    if user is None:
+        stmt = select(User).where(User.username == identifier)
+        result = await session.exec(stmt)
+        user = result.first()
+
+    if user is None:
+        logger.warning(f"[AUTH_METHODS] User not found: {identifier}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    # Check available methods
+    has_telegram = user.telegram_id is not None
+    has_password = user.password_hash is not None
+    logger.debug(
+        f"[AUTH_METHODS] User found: user_id={user.id}, "
+        f"has_telegram={has_telegram}, has_password={has_password}"
+    )
+
+    # Check for WebAuthn credentials
+    stmt = select(WebAuthnCredential).where(
+        WebAuthnCredential.user_id == user.id,
+        WebAuthnCredential.is_revoked == False,  # noqa: E712
+    ).order_by(WebAuthnCredential.created_at.desc())
+    result = await session.exec(stmt)
+    credentials = result.all()
+
+    has_webauthn = len(credentials) > 0
+    logger.debug(f"[AUTH_METHODS] WebAuthn credentials: {len(credentials)}")
+
+    # Build response
+    webauthn_credentials_list = [
+        WebAuthnCredentialInfo(
+            credential_id=cred.credential_id,
+            device_name=cred.device_name,
+            created_at=cred.created_at,
+            last_used_at=cred.last_used_at,
+        )
+        for cred in credentials
+    ]
+
+    logger.info(
+        f"[AUTH_METHODS] Methods available: telegram={has_telegram}, "
+        f"email_password={has_password}, webauthn={has_webauthn}"
+    )
+
+    return AuthMethodsResponse(
+        methods=AuthMethodsResponse.MethodsData(
+            telegram=has_telegram,
+            email_password=has_password,
+            webauthn=has_webauthn,
+            webauthn_credentials=webauthn_credentials_list,
+        )
+    )
+
+
+# =============================================================================
+# WebAuthn Status Check (for onboarding flow)
+# =============================================================================
+
+
+@router.get(
+    "/webauthn-status",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Check WebAuthn registration status",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Check if current user has registered WebAuthn biometric credentials.
+    
+    Used for onboarding flow after successful login:
+    - If has_credentials=False → show onboarding modal
+    - If has_credentials=True → skip onboarding
+    
+    Requires: JWT authentication
+    """,
+)
+async def webauthn_status(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Check if user has WebAuthn credentials for onboarding flow."""
+    if not hasattr(request.state, "user"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
+    
+    user: User = request.state.user
+    
+    logger.info(f"[AUTH] WebAuthn status check: user_id={user.id}")
+    
+    has_credentials = await user_has_webauthn_credentials(session, user.id)
+    
+    logger.debug(
+        f"[AUTH] WebAuthn status: user_id={user.id}, has_credentials={has_credentials}"
+    )
+    
+    return {
+        "has_credentials": has_credentials,
+        "user_id": user.id,
+    }

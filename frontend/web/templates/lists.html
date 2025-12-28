@@ -9,8 +9,80 @@
 <link rel="stylesheet" href="/static/css/lists.min.css?v=PLACEHOLDER">
 {% endblock %}
 
+{% block mobile_menu %}
+<!-- Mobile Menu for Lists Page (visible only on mobile) -->
+<div class="btm-nav md:hidden z-50" id="lists-mobile-menu">
+    <!-- Home Button -->
+    <button
+        type="button"
+        onclick="window.location.href='/'"
+        class="text-primary"
+        aria-label="Главная">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="btm-nav-label text-xs">Главная</span>
+    </button>
+
+    <!-- Add Dropdown -->
+    <div class="dropdown dropdown-top dropdown-end">
+        <label tabindex="0" class="btn btn-ghost btn-sm flex flex-col items-center gap-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span class="text-xs">Добавить</span>
+        </label>
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-52 mb-2 border border-base-300">
+            <li><a onclick="openModal('modal_add_financial_center'); console.log('[LISTS_MENU] Opening Financial Center modal');">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Счет
+            </a></li>
+            <li><a onclick="openModal('modal_add_cost_center'); console.log('[LISTS_MENU] Opening Cost Center modal');">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                Место затрат
+            </a></li>
+            <li><a onclick="openModal('modal_add_article'); console.log('[LISTS_MENU] Opening Article modal');">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                Статья
+            </a></li>
+        </ul>
+    </div>
+</div>
+
+<style>
+    /* Lists page mobile menu styling */
+    @media (max-width: 768px) {
+        #lists-mobile-menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4rem;
+            background: oklch(var(--b1));
+            border-top: 1px solid oklch(var(--b3));
+        }
+
+        /* Add padding to page content to prevent overlap */
+        #lists-content {
+            padding-bottom: 5rem;
+        }
+
+        /* Lower z-index when modal is open */
+        .modal-open #lists-mobile-menu {
+            z-index: 40;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="space-y-6">
+<div id="lists-content" class="space-y-6">
     <!-- ============================================== -->
     <!-- LANDING VIEW: Grid of Shopping List Cards -->
     <!-- ============================================== -->
@@ -68,9 +140,7 @@
                     <button class="btn btn-sm flex-1 sm:flex-initial" onclick="showLandingView()">
                         <span>⬅️</span><span class="hidden sm:inline ml-1">Назад</span>
                     </button>
-                    <button class="btn btn-sm btn-success flex-1 sm:flex-initial" onclick="openAddItemModal()" title="Добавить товар">
-                        <span>➕</span><span class="ml-1">Добавить</span>
-                    </button>
+                    <!-- "Добавить товар" button removed - use common FAB toolbar instead -->
                 </div>
             </div>
         </div>
@@ -392,14 +462,7 @@
 <!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
 <!-- ============================================== -->
 
-<!-- FAB для создания списка (Landing View) -->
-<button id="create-list-fab" class="btn btn-success btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50 hidden" onclick="openCreateListModal()" aria-label="Создать новый список" title="Создать новый список">
-    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-    </svg>
-</button>
-
-<!-- FAB Speed Dial для массовых операций (Detail View) -->
+<!-- FAB Speed Dial для массовых операций (Detail View) - positioned above common FAB toolbar -->
 <div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">

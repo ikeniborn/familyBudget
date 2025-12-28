@@ -458,6 +458,58 @@ anti_patterns:
         description: "Removed hardcoded button, CalendarWidget creates its own"
 
 # ---------------------------------------------------------------------------
+# DROPDOWN AND MODAL MOBILE FIXES
+# ---------------------------------------------------------------------------
+dropdown_mobile_fixes:
+  title: "Mobile Dropdown and Modal Interaction Fixes"
+  date_added: "2025-12-27"
+
+  issues_solved:
+    - name: "Category Clearing in CREATE Modals"
+      description: "Category now preserved when selecting FC for first time if category is available"
+      fix: "Removed !isInitialFiltering condition from preservation logic"
+      file: "frontend/shared/static/js/choicesCategoryTree.js:1093"
+
+    - name: "Dropdown Closes Immediately on Mobile"
+      description: "After selecting FC, category dropdown opens normally on first click"
+      fixes:
+        - "Global click listener ignores clicks inside modals and Choices dropdowns"
+        - "FC change handlers use stopPropagation() to prevent event interference"
+        - "Added 50ms delay after FC change to allow DOM to settle on mobile browsers"
+        - "Z-index hierarchy enforced via CSS"
+      files:
+        - "frontend/web/templates/base.html:1479"
+        - "frontend/web/templates/index.html:3372,3389"
+        - "frontend/web/static/css/modal-dropdowns-fix.css"
+
+  best_practices:
+    - name: "Stop Event Propagation in Modal Handlers"
+      example: |
+        fcSelect.addEventListener('change', async (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            await categoryTree.updateFinancialCenter(fcId);
+            await new Promise(resolve => setTimeout(resolve, 50)); // Mobile optimization
+        });
+
+    - name: "Modal-Aware Global Click Listeners"
+      example: |
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.modal-box, .choices')) {
+                return; // Ignore clicks inside modals/dropdowns
+            }
+            // Handle global click
+        });
+
+    - name: "Z-Index Hierarchy for Modals and Dropdowns"
+      hierarchy:
+        modal_backdrop: 1000
+        modal_content: 1001
+        choices_dropdown_in_modal: 1050
+        mobile_menu_normal: 50
+        mobile_menu_when_modal_open: 40
+
+# ---------------------------------------------------------------------------
 # TESTING GUIDELINES
 # ---------------------------------------------------------------------------
 testing:

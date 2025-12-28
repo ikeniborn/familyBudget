@@ -34,6 +34,29 @@ from backend.app.core.internal_auth import (
     verify_internal_api_key,
 )
 
+# Cache Metrics Service (Admin Monitoring)
+from backend.app.services.cache_metrics_service import CacheMetricsService
+from typing import Optional
+
+_cache_metrics_service: Optional[CacheMetricsService] = None
+
+
+def get_cache_metrics_service() -> CacheMetricsService:
+    """
+    Get or create singleton CacheMetricsService instance.
+
+    Returns:
+        CacheMetricsService: Singleton service instance
+
+    Thread Safety:
+        Safe for concurrent access (service handles locking internally)
+    """
+    global _cache_metrics_service
+    if _cache_metrics_service is None:
+        _cache_metrics_service = CacheMetricsService()
+    return _cache_metrics_service
+
+
 __all__ = [
     # Configuration
     "get_settings",
@@ -54,4 +77,6 @@ __all__ = [
     "can_access_resource",
     "ensure_user_owns_resource",
     "get_user_id_for_create",
+    # Cache Metrics
+    "get_cache_metrics_service",
 ]

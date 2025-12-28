@@ -392,8 +392,8 @@
             // Only process facts, not plans (they have separate handlers)
             if (data.record_type === 'plan') return;
 
-            // 1. Update recent transactions (prepend)
-            this.prependRecentTransaction(data);
+            // 1. Update recent transactions - IMMEDIATE refresh for instant reminder icon display (no debounce)
+            this.fallbackRefresh('recent-transactions');
 
             // 2. Update account balance if FC specified
             if (data.financial_center_id && data.amount) {
@@ -445,8 +445,8 @@
             // Plans affect quick stats (Plan column)
             this.fallbackRefreshDebounced('quick-stats');
 
-            // Plans also appear in recent transactions
-            this.prependRecentTransaction(data);
+            // Plans also appear in recent transactions - IMMEDIATE refresh for instant reminder icon display (no debounce)
+            this.fallbackRefresh('recent-transactions');
         },
 
         /**

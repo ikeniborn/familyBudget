@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str | None = None
     VAPID_CONTACT_EMAIL: str = "admin@example.com"
 
+    # WebAuthn Biometric Authentication (v6.5.0+)
+    WEBAUTHN_RP_ID: str = "localhost"  # Relying Party ID (domain name, e.g., "familybudget.example.com")
+    WEBAUTHN_RP_NAME: str = "Family Budget"  # Relying Party Name (user-visible)
+    WEBAUTHN_ORIGIN: str = "http://localhost:8000"  # Full origin URL with protocol
+
     # SSL
     SSL_TYPE: str = "letsencrypt"  # SSL certificate type: none, letsencrypt, self-signed, existing
 

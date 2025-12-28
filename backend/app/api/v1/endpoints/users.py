@@ -11,6 +11,7 @@ Features:
     - Update user role with SCD Type 2 (admin only)
 """
 
+import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -40,6 +41,8 @@ from backend.app.services import create_new_version, has_changes
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
 router = APIRouter(prefix="/users", tags=["Users"])
+
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -108,6 +111,88 @@ async def get_current_user_info(
     - 401 Unauthorized: Not authenticated
     """
     # current_user is already loaded by get_current_user dependency
+    return current_user
+
+
+@router.patch(
+    "/me/notification-preferences",
+    response_model=UserResponse,
+    responses=get_common_responses(include_400=True),
+)
+async def update_notification_preferences(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    enable_push: bool | None = Query(None, description="Enable/disable Web Push notifications"),
+    enable_telegram: bool | None = Query(None, description="Enable/disable Telegram bot notifications"),
+) -> User:
+    """
+    Update user notification preferences.
+
+    **Public:** Any authenticated user can update their own notification settings.
+
+    **Parameters:**
+    - enable_push: Enable or disable Web Push notifications (optional)
+    - enable_telegram: Enable or disable Telegram bot notifications (optional)
+
+    **Validation:**
+    - At least one parameter must be provided
+
+    **Returns:**
+    - 200 OK: Updated user data with new preferences
+    - 400 Bad Request: No preferences provided
+    - 401 Unauthorized: Not authenticated
+
+    **Example:**
+    ```
+    PATCH /api/v1/users/me/notification-preferences?enable_push=false&enable_telegram=true
+    ```
+
+    **Logging:**
+    All preference updates are logged with [USER_PREF] prefix for tracking.
+    """
+    # Validation: at least one parameter required
+    if enable_push is None and enable_telegram is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one preference parameter required (enable_push or enable_telegram)"
+        )
+
+    # Track changes for logging
+    changes = []
+
+    # Update push notifications preference
+    if enable_push is not None:
+        old_value = current_user.enable_push_notifications
+        current_user.enable_push_notifications = enable_push
+        if old_value != enable_push:
+            changes.append(f"push:{old_value}→{enable_push}")
+
+    # Update telegram notifications preference
+    if enable_telegram is not None:
+        old_value = current_user.enable_telegram_notifications
+        current_user.enable_telegram_notifications = enable_telegram
+        if old_value != enable_telegram:
+            changes.append(f"telegram:{old_value}→{enable_telegram}")
+
+    # Update timestamp
+    current_user.updated_at = datetime.utcnow()
+
+    # Commit changes
+    await session.commit()
+    await session.refresh(current_user)
+
+    # Log preference update
+    if changes:
+        logger.info(
+            f"[USER_PREF] User {current_user.id} updated notification preferences: "
+            f"{', '.join(changes)}"
+        )
+    else:
+        logger.info(
+            f"[USER_PREF] User {current_user.id} notification preferences unchanged "
+            f"(push={enable_push}, telegram={enable_telegram})"
+        )
+
     return current_user
 
 

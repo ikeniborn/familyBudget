@@ -38,19 +38,28 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import select
 
-# Add backend to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
-
-from app.models.user import User
-from app.services.password_service import hash_password, validate_password_strength, verify_password
-from app.services.user_service import create_initial_history
-
-# Configure logging
+# Configure logging first (before any log messages)
 logging.basicConfig(
     level=logging.INFO,
     format='[%(levelname)s] %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Add project root to path (for Docker container: /app)
+# This allows imports like 'from backend.app.models...' to work correctly
+# In Docker: script runs from /app/scripts/, so '..' points to /app (project root)
+script_dir = os.path.dirname(__file__)
+project_root = os.path.join(script_dir, '..')
+sys.path.insert(0, project_root)
+
+logger.info(f"[ADMIN_USER] Script directory: {script_dir}")
+logger.info(f"[ADMIN_USER] Project root added to sys.path: {project_root}")
+logger.info(f"[ADMIN_USER] sys.path[0] = {sys.path[0]}")
+
+# Import from backend.app.* (requires /app in sys.path)
+from backend.app.models.user import User
+from backend.app.services.password_service import hash_password, validate_password_strength, verify_password
+from backend.app.services.user_service import create_initial_history
 
 
 async def create_admin_user():

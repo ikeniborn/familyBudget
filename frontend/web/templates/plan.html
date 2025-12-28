@@ -24,12 +24,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="openAddPlanModal()" title="Добавить новый план">
-                    ➕ Добавить план
-                </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить перевод">
-                    🔄 Добавить перевод
-                </button>
+                <!-- Export button kept - not duplicated in FAB -->
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
                 </button>
@@ -1050,6 +1045,18 @@ function openPlanTransferModal() {
         setTransferRecordType('plan');
     }
 
+    // CRITICAL: Reset FC filter state and clear selection for create modals
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+        fromCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer (plan.html): FROM category reset and cleared');
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
+        toCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer (plan.html): TO category reset and cleared');
+    }
+
     // Update modal title to indicate plan transfer
     const modalTitle = document.querySelector('#transfer_modal h3');
     if (modalTitle) {
@@ -1304,6 +1311,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Инициализация кнопок периода планирования
     setupCreatePlanPeriodButtons();
+
+    // Initialize recurring reminder toggle for modal_add_plan
+    const modalId = 'modal_add_plan';
+    const checkbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    const settingsDiv = document.getElementById(`recurring-reminder-settings-${modalId}`);
+
+    if (checkbox && settingsDiv) {
+        checkbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            settingsDiv.classList.toggle('hidden', !isChecked);
+
+            console.log('[PLAN] Recurring reminder toggle:', isChecked ? 'enabled' : 'disabled');
+        });
+
+        // Initialize visibility on page load
+        settingsDiv.classList.toggle('hidden', !checkbox.checked);
+    }
 
     // Обработчик отправки формы создания плана
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
@@ -1709,14 +1733,31 @@ async function loadFinancialCenters() {
             });
 
             // Add change listener to filter categories, cost centers AND reload plan hints when account changes
-            createSelect.addEventListener('change', async () => {
+            createSelect.addEventListener('change', async (e) => {
                 const fcId = createSelect.value ? parseInt(createSelect.value) : null;
+                console.log('[FC_CHANGE] Financial center changed in create plan modal:', {
+                    fcId: fcId,
+                    timestamp: new Date().toISOString()
+                });
+
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
+
                 // Filter categories by selected FC
                 if (createCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await createCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_plan', fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+
                 // Update plan hints
                 const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
@@ -2533,19 +2574,30 @@ async function showEditModal(factId) {
         const newEditFcSelect = editFcSelect.cloneNode(true);
         editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
 
-        newEditFcSelect.addEventListener('change', async () => {
+        newEditFcSelect.addEventListener('change', async (e) => {
             const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
             console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
                 newFcId: fcId,
                 currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
             });
 
+            // CRITICAL: Stop event propagation to prevent global listeners from interfering
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[FC_CHANGE] Stopped event propagation');
+
             // Filter categories by selected FC (will preserve selection if category is still available)
             if (editCategoryTreeSelect) {
+                console.log('[FC_CHANGE] Updating category tree with new FC');
                 await editCategoryTreeSelect.updateFinancialCenter(fcId);
+                console.log('[FC_CHANGE] Category tree updated successfully');
             }
             // Filter cost centers by selected FC
             await filterEditCostCenters(fcId);
+
+            // Small delay to allow DOM to settle (mobile browser optimization)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
             console.log(`[plan.html] ✅ Filtering complete. New category value:`,
                 editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
@@ -3502,9 +3554,28 @@ async function createPlan(event) {
                 article_type: articleType,
                 financial_center_name: financialCenterName,
                 cost_center_name: costCenterName,
-                plan_date: startDate  // For pending records date display
+                plan_date: startDate,  // For pending records date display
+                // Reminder settings
+                enable_reminder: formData.get('recurring_enable_reminder') === 'on',
+                reminder_hour: formData.get('recurring_enable_reminder') === 'on'
+                    ? parseInt(formData.get('recurring_reminder_hour'))
+                    : null,
+                reminder_minute: formData.get('recurring_enable_reminder') === 'on'
+                    ? parseInt(formData.get('recurring_reminder_minute'))
+                    : null,
             };
 
+            // Validate reminder time if enabled
+            if (recurringData.enable_reminder) {
+                if (recurringData.reminder_hour === null || recurringData.reminder_minute === null || isNaN(recurringData.reminder_hour) || isNaN(recurringData.reminder_minute)) {
+                    showToast('Укажите время напоминания для регулярного платежа', 'warning');
+                    setSubmitLoading(event.target, false);
+                    return;
+                }
+                console.log(`[createPlan] Reminder enabled: ${recurringData.reminder_hour.toString().padStart(2, '0')}:${recurringData.reminder_minute.toString().padStart(2, '0')}`);
+            }
+
+            console.log('[createPlan] Recurring data with reminders:', recurringData);
             debugLog('[createPlan] Creating recurring plan:', recurringData);
 
             // Use OfflineManager if available for offline support
@@ -3515,7 +3586,11 @@ async function createPlan(event) {
                     showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
                     debugLog('[createPlan] Recurring plan saved offline:', result);
                 } else {
-                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                    let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
+                    if (result.enable_reminder && result.reminder_time_display) {
+                        message += `. Напоминания в ${result.reminder_time_display}`;
+                    }
+                    showToast(message, 'success');
                     debugLog('[createPlan] Recurring plan created:', result);
                 }
 
@@ -3539,7 +3614,11 @@ async function createPlan(event) {
 
                 if (response.ok) {
                     const createdPlan = await response.json();
-                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                    let message = `Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`;
+                    if (createdPlan.enable_reminder && createdPlan.reminder_time_display) {
+                        message += `. Напоминания в ${createdPlan.reminder_time_display}`;
+                    }
+                    showToast(message, 'success');
                     debugLog('[createPlan] Recurring plan created:', createdPlan);
 
                     modal_add_plan.close();
@@ -3925,6 +4004,13 @@ function openAddPlanModal() {
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
 
+    // CRITICAL: Reset FC filter state and clear selection for create modals
+    if (typeof createCategoryTreeSelect !== 'undefined' && createCategoryTreeSelect) {
+        createCategoryTreeSelect.options.financialCenterId = null;
+        createCategoryTreeSelect.clearSelection();
+        console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
+    }
+
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
 
@@ -4126,7 +4212,7 @@ function showToast(message, type = 'info') {
     // Простая реализация toast уведомлений
     // В production рекомендуется использовать библиотеку типа toastify
     const toast = document.createElement('div');
-    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
+    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-[100] shadow-lg`;
     toast.innerHTML = `
         <span>${message}</span>
     `;
@@ -4170,6 +4256,7 @@ function togglePlanMode(modalId) {
             if (recurringSettingsDiv) {
                 recurringSettingsDiv.classList.remove('hidden');
                 initRecurringFields(modalId);
+                updateDurationFields(modalId);  // Show occurrences field by default
                 updateRecurringPreview(modalId);
             }
             // Enable validation for recurring fields
@@ -4289,10 +4376,11 @@ function resetRecurringOnlyFields(modalId) {
     if (monthdaySelect) monthdaySelect.value = '1';
 
     const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
-    if (durationSelect) durationSelect.value = ''; // Reset to empty (no selection)
+    if (durationSelect) durationSelect.value = 'count'; // Default to count (not empty)
 
-    document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
-    document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
+    // Don't hide fields here - let updateDurationFields() handle visibility based on value
+    // document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
+    // document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
 
     const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
     if (recurringReminderCheckbox) {
@@ -5311,5 +5399,14 @@ function shouldReloadOnPlanCreated(planData) {
 
     return true;
 }
+
+// Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[PLAN_PAGE] Page loaded:', {
+        fabVisible: !!document.getElementById('fab-toolbar'),
+        headerButtonsCount: document.querySelectorAll('h1 ~ div .btn').length,
+        exportButtonPresent: !!document.querySelector('[onclick*="exportFilteredFacts"]')
+    });
+});
 </script>
 {% endblock %}

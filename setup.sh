@@ -65,6 +65,20 @@ SKIP_BUILD=false
 declare -A CONFIG
 
 # =============================================================================
+# SOURCE EXTERNAL LIBRARIES
+# =============================================================================
+
+# Source utils.sh for helper functions (validate_email, generate_admin_password, etc.)
+if [[ -f "$SCRIPT_DIR/scripts/lib/utils.sh" ]]; then
+    source "$SCRIPT_DIR/scripts/lib/utils.sh"
+elif [[ -f "scripts/lib/utils.sh" ]]; then
+    source "scripts/lib/utils.sh"
+else
+    echo "[ERROR] Could not find scripts/lib/utils.sh - required for setup"
+    exit 1
+fi
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
@@ -812,6 +826,8 @@ collect_configuration() {
             if ! validate_email "${CONFIG[ADMIN_EMAIL]}"; then
                 error "Invalid email format"
                 CONFIG["ADMIN_EMAIL"]=""
+                CONFIG["ADMIN_PASSWORD"]=""
+                warning "Admin email configuration cancelled due to validation error"
             else
                 echo ""
                 info "Password requirements (OWASP 2023):"
@@ -832,10 +848,18 @@ collect_configuration() {
 
                 prompt "Admin password (or press Enter for auto-generated)" "ADMIN_PASSWORD" "$generated_password" true
 
-                success "Admin email authentication configured"
-                info "Admin: ${CONFIG[ADMIN_EMAIL]}"
-                warning "SECURITY: Password is for INITIAL login only"
-                warning "Change password after first login (optional)"
+                # Validate password is not empty (sanity check)
+                if [[ -z "${CONFIG[ADMIN_PASSWORD]}" ]]; then
+                    error "Password cannot be empty!"
+                    CONFIG["ADMIN_EMAIL"]=""
+                    CONFIG["ADMIN_PASSWORD"]=""
+                    warning "Admin email configuration cancelled due to empty password"
+                else
+                    success "Admin email authentication configured"
+                    info "Admin: ${CONFIG[ADMIN_EMAIL]}"
+                    warning "SECURITY: Password is for INITIAL login only"
+                    warning "Change password after first login (optional)"
+                fi
             fi
         fi
     else
@@ -1389,6 +1413,61 @@ configure_redis() {
     echo ""
 }
 
+# Configure system timezone
+configure_timezone() {
+    section "System Timezone Configuration"
+
+    echo ""
+    info "Configure the system timezone for the application"
+    info "This affects timestamps, scheduled tasks, and log entries"
+    echo ""
+
+    # Detect current system timezone
+    local detected_timezone
+    if [[ -f /etc/timezone ]]; then
+        detected_timezone=$(cat /etc/timezone)
+    elif command -v timedatectl &> /dev/null; then
+        detected_timezone=$(timedatectl | grep "Time zone" | awk '{print $3}')
+    else
+        detected_timezone="UTC"
+    fi
+
+    info "Detected system timezone: $detected_timezone"
+    echo ""
+
+    # Common timezone examples
+    echo "Common timezone examples:"
+    echo "  - Europe/Moscow    (UTC+3)"
+    echo "  - Europe/London    (UTC+0)"
+    echo "  - America/New_York (UTC-5/-4)"
+    echo "  - Asia/Tokyo       (UTC+9)"
+    echo "  - UTC              (Universal Time)"
+    echo ""
+    info "Full list: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones"
+    echo ""
+
+    # Ask user for timezone
+    read -p "Enter timezone [default: $detected_timezone]: " user_timezone
+
+    if [[ -n "$user_timezone" ]]; then
+        # Validate timezone format (basic check)
+        if [[ "$user_timezone" =~ ^[A-Za-z]+/[A-Za-z_]+$ ]] || [[ "$user_timezone" == "UTC" ]]; then
+            CONFIG["SYSTEM_TIMEZONE"]="$user_timezone"
+            success "Using timezone: $user_timezone"
+        else
+            warning "Invalid timezone format. Using detected: $detected_timezone"
+            CONFIG["SYSTEM_TIMEZONE"]="$detected_timezone"
+        fi
+    else
+        CONFIG["SYSTEM_TIMEZONE"]="$detected_timezone"
+        success "Using detected timezone: $detected_timezone"
+    fi
+
+    echo ""
+    info "Timezone configured: ${CONFIG[SYSTEM_TIMEZONE]}"
+    echo ""
+}
+
 # Create .env file
 create_env_file() {
     section "Creating .env File"
@@ -1437,8 +1516,21 @@ create_env_file() {
     sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" "$env_file"
 
     # Admin email authentication
-    sed -i "s/^ADMIN_EMAIL=.*/ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}/" "$env_file"
-    sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}/" "$env_file"
+    # CRITICAL FIX: Use | delimiter instead of / to handle special chars in password
+    # Password may contain !@#$%^&* which break sed with / delimiter
+    info "Writing admin credentials to .env..."
+    if [[ -n "${CONFIG[ADMIN_EMAIL]:-}" ]]; then
+        info "  ADMIN_EMAIL: ${CONFIG[ADMIN_EMAIL]}"
+    else
+        info "  ADMIN_EMAIL: (empty - Telegram-only auth)"
+    fi
+    if [[ -n "${CONFIG[ADMIN_PASSWORD]:-}" ]]; then
+        info "  ADMIN_PASSWORD: ***set*** (hidden)"
+    else
+        info "  ADMIN_PASSWORD: (empty - Telegram-only auth)"
+    fi
+    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}|" "$env_file"
+    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}|" "$env_file"
 
     sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
     sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"
@@ -1472,6 +1564,9 @@ create_env_file() {
     sed -i "s|^WRITE_BEHIND_DLQ_MAX_SIZE=.*|WRITE_BEHIND_DLQ_MAX_SIZE=${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]}|" "$env_file"
     sed -i "s|^REDIS_CPU_LIMIT=.*|REDIS_CPU_LIMIT=${CONFIG[REDIS_CPU_LIMIT]}|" "$env_file"
     sed -i "s|^REDIS_CPU_RESERVATION=.*|REDIS_CPU_RESERVATION=${CONFIG[REDIS_CPU_RESERVATION]}|" "$env_file"
+
+    # System timezone
+    sed -i "s|^SYSTEM_TIMEZONE=.*|SYSTEM_TIMEZONE=${CONFIG[SYSTEM_TIMEZONE]}|" "$env_file"
 
     # Docker CPU limits (auto-detected based on available CPUs)
     sed -i "s/^CPU_COUNT=.*/CPU_COUNT=${CONFIG[CPU_COUNT]}/" "$env_file"
@@ -1767,6 +1862,9 @@ main() {
     echo ""
 
     configure_redis
+    echo ""
+
+    configure_timezone
     echo ""
 
     create_env_file

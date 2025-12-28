@@ -1037,6 +1037,175 @@ if (data.session_token && data.requires_2fa) {
 
 **See**: `/docs/architecture/authentication.md` for complete architecture and `/docs/architecture/admin-setup.md` for setup guide.
 
+### WebAuthn Biometric Authentication (v6.5.0+)
+
+**Since version 6.5.0**: Users can enable WebAuthn biometric authentication (TouchID/FaceID/Windows Hello) as an additional login method.
+
+**Purpose**: Provide passwordless biometric login while maintaining backward compatibility with existing authentication methods (Telegram OAuth, Email+Password).
+
+**Architecture**: WebAuthn as **optional parallel method** (NOT replacing existing flows)
+
+**Supported Authenticators**: Platform authenticators only (TouchID, FaceID, Windows Hello - no hardware keys like YubiKey)
+
+**User Flow**:
+1. User registers via Telegram OAuth OR Email+Password (existing flows)
+2. After login, navigate to Settings → Security → "Добавить биометрию"
+3. WebAuthn credential enrolled (public key stored in database)
+4. Next login: Identifier-first approach shows available methods (WebAuthn button if enrolled)
+5. User clicks "Use TouchID/FaceID" → biometric prompt → logged in
+
+**Database Tables**:
+- `t_d_webauthn_credential` - Public keys, sign counts, device metadata
+- `t_f_webauthn_challenge` - Temporary challenges (10-min TTL, single-use)
+- `t_f_webauthn_audit_log` - Comprehensive audit trail
+
+**API Endpoints** (`backend/app/api/v1/endpoints/webauthn.py`):
+- `POST /api/v1/webauthn/register/options` - Generate registration challenge (requires JWT, 5 req/min)
+- `POST /api/v1/webauthn/register/verify` - Verify credential registration (requires JWT, 5 req/min)
+- `POST /api/v1/webauthn/authenticate/options` - Generate auth challenge (public, 10 req/min)
+- `POST /api/v1/webauthn/authenticate/verify` - Verify auth and issue JWT tokens (public, 10 req/min)
+- `GET /api/v1/webauthn/credentials` - List user's credentials (requires JWT)
+- `DELETE /api/v1/webauthn/credentials/{credential_id}` - Revoke credential (requires JWT + password/TOTP)
+- `GET /api/v1/auth/methods?identifier=email` - Check available auth methods (public)
+
+**Security Features**:
+- **Challenge-response**: 10-min expiry, single-use, ownership validation
+- **Sign count validation**: Detects cloned credentials (auto-revoke on regression)
+- **Origin validation**: Prevents phishing (RP ID verification)
+- **Audit logging**: All registration/authentication events logged
+- **Rate limiting**: 5-10 requests/minute depending on endpoint
+
+**Browser Support**:
+| Browser | Platform | Support |
+|---------|----------|---------|
+| Safari 14+ | iOS 14+ | ✅ TouchID / FaceID |
+| Chrome 70+ | Android 9+ | ✅ Fingerprint / Face |
+| Chrome 90+ | macOS | ✅ TouchID |
+| Edge 90+ | Windows 10+ | ✅ Windows Hello |
+
+**Configuration** (`.env`):
+```bash
+# Production
+WEBAUTHN_RP_ID=familybudget.example.com
+WEBAUTHN_RP_NAME="Family Budget"
+WEBAUTHN_ORIGIN=https://familybudget.example.com
+
+# Development
+WEBAUTHN_RP_ID=localhost
+WEBAUTHN_ORIGIN=http://localhost:8000
+```
+
+**Code Example** (service layer):
+```python
+# backend/app/services/webauthn_service.py
+
+# Registration
+options = await create_registration_challenge(session, user, ip, user_agent)
+credential = await verify_and_store_credential(
+    session, user, challenge, credential_data, device_name, ip, user_agent
+)
+
+# Authentication
+options = await create_authentication_challenge(session, identifier)
+user, access_token, refresh_token = await verify_authentication_and_issue_tokens(
+    session, challenge, credential_data, ip, user_agent
+)
+
+# Sign count regression detection (cloned credential)
+if new_sign_count > 0 and new_sign_count <= stored_count:
+    logger.critical("[WEBAUTHN_SERVICE] ⚠️ CLONED CREDENTIAL DETECTED")
+    cred.is_revoked = True  # Auto-revoke
+    await broadcast_webauthn_credential_compromised(user.id, credential_id, "sign_count_regression")
+    raise ValueError("Credential compromised")
+```
+
+**WebSocket Integration** (`backend/app/api/v1/endpoints/budget_ws.py`):
+- `webauthn_credential_added` - Real-time notification after credential registration
+- `webauthn_credential_revoked` - Real-time notification after credential deletion
+- `webauthn_credential_compromised` - Security alert for cloned credentials (includes push notification)
+
+**Scheduled Cleanup** (`backend/app/scheduler.py`):
+- Hourly job to delete expired challenges (10-min TTL)
+- Prevents table bloat in `t_f_webauthn_challenge`
+
+**Troubleshooting**:
+- **"NotAllowedError" on iOS**: User gesture timeout (iOS Safari 15.5+ freebie counter quirk) - Fix: Call `navigator.credentials.get()` directly in click handler
+- **"Credential compromised"**: Sign count regression (cloned authenticator detected) - Fix: Credential auto-revoked, user must use password/Telegram and re-register
+
+**See**: Plan file at `.claude/plans/giggly-imagining-puffin.md` for complete implementation details.
+
+### User Notification Preferences (v6.4.0+)
+
+**Since version 6.4.0**: Users can independently control Web Push and Telegram bot notifications.
+
+**Purpose**: Give users fine-grained control over notification delivery channels while maintaining backward compatibility.
+
+**Architecture**: Two boolean fields in User model (SCD Type 1 + UserHistory):
+- `enable_push_notifications` (default: TRUE)
+- `enable_telegram_notifications` (default: TRUE)
+
+**Storage**: User table (`t_d_user`) with partial index for performance:
+```sql
+CREATE INDEX idx_user_notifications_enabled
+ON t_d_user(id)
+WHERE enable_push_notifications = TRUE OR enable_telegram_notifications = TRUE;
+```
+
+**API Endpoint**: `PATCH /api/v1/users/me/notification-preferences`
+
+**Example Usage**:
+```bash
+# Disable Web Push, keep Telegram enabled
+curl -X PATCH "/api/v1/users/me/notification-preferences?enable_push=false&enable_telegram=true" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Notification Filtering**: Applied in service layer BEFORE sending notifications:
+
+**NotificationService** (`backend/app/services/notification_service.py`):
+- `send_weekly_reports()`: Checks `enable_telegram_notifications` before sending
+- `check_all_budget_thresholds()`: Filters telegram_ids by preference
+
+**ReminderService** (`backend/app/services/reminder_service.py`):
+- `send_reminder()`: Checks BOTH `enable_push_notifications` and `enable_telegram_notifications` before sending
+- Optimization: Checks preferences at `send_reminder()` level (user already loaded) to avoid duplicate DB queries
+
+**Frontend Implementation**:
+
+1. **Notifications Page** (`/notifications`):
+   - Accessible on mobile devices (removed desktop-only restriction)
+   - Settings section with 2 DaisyUI toggles (Push + Telegram)
+   - Auto-save on toggle change via API
+   - Success/error messages with 3-second auto-hide
+   - Notifications List hidden on mobile (`hidden md:block`)
+
+2. **Push Bell Button** (`base.html`):
+   - Visual indicator only (NOT toggle)
+   - Shows enabled bell OR muted bell icon based on `enable_push_notifications`
+   - onclick navigates to `/notifications` page
+   - Tooltip changes: "Настройки уведомлений (вкл)" / "(выкл)"
+   - Reduced opacity (50%) when disabled
+
+**Logging Prefixes**:
+- `[USER_PREF]` - API preference updates
+- `[NOTIF_FILTER]` - Service layer filtering (skipped users)
+- `[NOTIF_SETTINGS]` - Frontend settings page
+- `[PUSH_BELL]` - Frontend bell button state
+
+**Affected Notifications**: ALL notification types respect preferences (v6.4.0+):
+- `budget_threshold` - Budget threshold alerts
+- `budget_exceeded` - Budget exceeded warnings
+- `weekly_report` - Weekly summaries
+- `plan_reminder` - Scheduled reminders
+
+**Scope**: Applies to ALL notifications including existing `ScheduledReminder` records (checked at send time, not creation time).
+
+**Backward Compatibility**: Default values TRUE for both fields → Existing users receive all notifications as before (opt-out model).
+
+**Edge Case**: If user disables BOTH channels → No notifications sent (allowed, UI should show warning).
+
+**See**: `/docs/architecture/notifications.md` for complete architecture, testing strategy, and deployment guide.
+
 ### Recurring Plans: Yearly Frequency Encoding
 
 **Since version 6.2.0**: Yearly recurring plans use MMDD encoding for `frequency_value`.
@@ -1106,6 +1275,93 @@ console.log('[PLAN] Yearly decoded: 315 → 15 марта')
 **Removed frequency types** (as of v6.2.0):
 - `daily` - Removed (too granular for budget planning)
 - `weekly` - Removed (too granular for budget planning)
+
+### Recurring Plans: Notification Integration (v6.4.0+)
+
+**Since version 6.4.0**: Recurring plans support automatic reminder creation for each generated BudgetFact.
+
+**Purpose**: Enable users to receive notifications before scheduled recurring payments (rent, subscriptions, bills).
+
+**Architecture**: Uses existing `ScheduledReminder` infrastructure (same as one-time plans).
+
+**How it works**:
+1. User creates recurring plan with `enable_reminder=true` and sets `reminder_hour:reminder_minute`
+2. System creates separate `ScheduledReminder` for EACH generated `BudgetFact` (not one for entire plan)
+3. Reminders created immediately when facts are generated (3 months ahead initially + new facts from scheduler job)
+4. Reminder datetime = `fact_date` + `reminder_hour:reminder_minute` in SYSTEM_TIMEZONE
+
+**Database Schema** (RecurringPlan model):
+```python
+enable_reminder: bool = Field(
+    default=False,
+    description="Whether to create reminders for each generated fact"
+)
+reminder_hour: Optional[int] = Field(
+    default=None, ge=0, le=23,
+    description="Hour of reminder time (0-23) in SYSTEM_TIMEZONE"
+)
+reminder_minute: Optional[int] = Field(
+    default=None, ge=0, le=59,
+    description="Minute of reminder time (0-59) in SYSTEM_TIMEZONE"
+)
+```
+
+**Validation**: CHECK constraint ensures complete reminder time:
+```sql
+CHECK (
+  (enable_reminder = false) OR
+  (enable_reminder = true AND reminder_hour IS NOT NULL AND reminder_minute IS NOT NULL)
+)
+```
+
+**Business Logic** (`RecurringPlanService._create_reminders_for_facts()`):
+- Skips facts in the past (`fact_date < today`)
+- Skips if reminder datetime already passed (`reminder_datetime <= now`)
+- Idempotent: Skips if `ScheduledReminder` already exists for fact
+- Links reminder to fact via `fact_id` (ScheduledReminder.fact_id → BudgetFact.id)
+
+**Example Usage**:
+```python
+# Create monthly recurring plan with reminders at 09:00
+data = RecurringPlanCreate(
+    article_id=5,
+    financial_center_id=1,
+    frequency_type="monthly",
+    frequency_value=5,  # 5th of each month
+    start_date=date(2025, 1, 5),
+    occurrences_count=12,
+    amount=Decimal("50000.00"),
+    description="Monthly rent",
+    enable_reminder=True,
+    reminder_hour=9,
+    reminder_minute=0,
+)
+
+# Result: Creates 3 BudgetFact records (3 months ahead) + 3 ScheduledReminder records
+# Each reminder triggers at: fact_date 09:00:00
+```
+
+**Frontend Integration**:
+- Checkbox toggle in `modal_add_plan` reveals time picker fields
+- Validation prevents submission if reminder enabled but time not set
+- Success toast displays reminder time: "Регулярный платеж создан! Сгенерировано записей: 3. Напоминания в 09:00"
+
+**Display**:
+- UI shows 🔔 bell icon next to facts that have reminders
+- Recent transactions card updated via API (not WebSocket payload) to include reminder data
+
+**Logging Prefixes**:
+- Backend: `[RECURRING_REMINDER]`, `[RECURRING_PLAN]`
+- Frontend: `[PLAN]` (form events, validation, encoding)
+
+**Related Files**:
+- Migration: `backend/db/migrations/versions/20251227_d1e6f4a267d5_add_recurring_plan_reminder_settings.py`
+- Backend model: `backend/app/models/recurring_plan.py` (lines 160-179)
+- Backend schema: `backend/app/schemas/recurring_plan.py` (lines 114-134, 348-368)
+- Backend service: `backend/app/services/recurring_plan_service.py` (lines 622-725)
+- Frontend: `frontend/web/templates/plan.html` (lines 1308-1323, 3506-3524, 3537-3569)
+
+**See**: `/docs/architecture/recurring-plans.md` for complete documentation.
 
 ### Transfer Deduplication (Offline Sync & Duplicate Prevention)
 
@@ -1357,135 +1613,60 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 
 ### Service Worker Updates
 
-**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate and reload automatically.
+**Since:** v6.4.1 (changed to manual update with "new" text indicator)
+**Previous:** v6.4.0 (star icon), v5.4.0-v6.3.0 (auto-reload)
+**Status:** ✅ Active
 
-**Why this is critical:**
-- All users must be on same version for data consistency
-- Bug fixes and security patches deploy immediately
-- No manual user intervention required
-- Mobile app-like update experience
-- Zero user interaction needed
+**Strategy:** Manual update with simple text indicator - users control when to apply updates.
 
-**Implementation (since v5.4.0, updated v5.5.0):**
-1. Service worker calls `skipWaiting()` on install (immediate activation)
-2. Service worker calls `clients.claim()` on activate (take control of all tabs)
-3. Update checks run every **1 hour** (plus on every page load)
-4. Version tracking via localStorage + MessageChannel prevents unnecessary reloads
-5. Page requests CACHE_VERSION from SW via postMessage + MessageChannel
-6. Page **conditionally reloads** only if CACHE_VERSION changed
-7. All tabs reload independently when they detect version change
+**Key Features:**
+- ✅ Simple "new" text indicator in header (no icon, no badge)
+- ✅ User clicks to manually reload and apply update
+- ✅ Silent first install (no notification)
+- ✅ Update checks every 1 hour + on page load
+- ✅ `skipWaiting()` + `clients.claim()` for immediate activation
+- ✅ Version tracking via localStorage prevents unnecessary reloads
+- ✅ Comprehensive logging with `[SW_UPDATE]` prefix
 
-**Update Flow:**
+**Update Flow (Summary):**
 
+1. Deploy new version → CACHE_VERSION updated
+2. Browser detects update (hourly check OR page reload)
+3. New SW installs and activates immediately (skipWaiting + claim)
+4. "new" text indicator appears in header (fade-in + pulse animation)
+5. User clicks "new" → page reloads → on new version
+
+**Console Logging:**
 ```bash
-# 1. Deploy new version
-./deploy.sh --profile full
-
-# 2. Service worker version updated automatically via scripts/update-sw-version.sh
-# CACHE_VERSION set to: v20251224_2029 (timestamp)
-
-# 3. Users trigger update check (page reload OR hourly check)
-# Console logs (if version changed):
-[PWA] Checking for updates...
-[PWA] New service worker found, installing...
-[SW] Installing version: v20251225_1530
-[SW] CRITICAL: Forcing immediate activation via skipWaiting()
-[SW] Activating version: v20251225_1530
-[SW] Deleted 1 old caches
-[SW] Clients claimed
-[SW] Notifying 1 clients about SW update
-[PWA] New service worker activated
-[PWA] Requesting CACHE_VERSION from new SW...
-[PWA] Received SW version: v20251225_1530
-[PWA] New SW CACHE_VERSION: v20251225_1530
-[PWA] Saved CACHE_VERSION: v20251225_1430
-[PWA] ⚡ Version changed, reloading page...
-[PWA] Previous CACHE_VERSION: v20251225_1430
-[PWA] New CACHE_VERSION: v20251225_1530
-[Page reloads automatically - NO notification, NO countdown]
-
-# Alternative: If version unchanged (prevents reload loop)
-[PWA] New service worker activated
-[PWA] Requesting CACHE_VERSION from new SW...
-[PWA] Received SW version: v20251225_1430
-[PWA] New SW CACHE_VERSION: v20251225_1430
-[PWA] Saved CACHE_VERSION: v20251225_1430
-[PWA] ✓ Version unchanged, skipping reload
-[PWA] Application already on latest version
-[No reload occurs]
-
-# 4. Result: User on new version immediately (< 1 second), no unnecessary reloads
+[SW_UPDATE] 🔔 UPDATE AVAILABLE: v20251227_1530 → v20251227_1630
+[SW_UPDATE] Showing "new" text indicator with fade-in animation
+[SW_UPDATE] ✨ "new" text indicator now visible with pulse animation
+[SW_UPDATE] User can click on "new" to reload and apply update
 ```
 
-**Testing Update Flow:**
-
+**Testing:**
 ```bash
-# Manual testing (local development)
-cd ~/familyBudget
-
-# 1. Note current version in browser console
-# [SW] Activating version: v20251224_1500
-
-# 2. Update CACHE_VERSION in sw.js
+# Update version
 scripts/update-sw-version.sh
 
-# 3. Minify service worker
+# Minify and deploy
 npm run minify:js
 
-# 4. Reload page in browser
-# Observe console logs (should show update flow above)
-
-# 5. Verify new version active
-# [SW] Activating version: v20251224_1530
+# Reload page in browser
+# Verify "new" indicator appears in header
+# Click "new" to apply update
 ```
 
-**Multi-Tab Testing:**
+**Benefits:**
+- ✅ User controls update timing (no data loss from unsaved forms)
+- ✅ Minimal, unobtrusive UI (simple text, no icon)
+- ✅ Prevents unnecessary reloads
+- ✅ Multi-tab support
 
-```bash
-# 1. Open app in 3 different browser tabs
-# 2. Deploy new version (or update sw.js locally)
-# 3. Reload any tab
-# 4. Verify: Tab that reloaded detects update and reloads automatically
-# 5. Wait for other tabs' update checks (max 1 hour)
-# 6. Verify: Each tab reloads automatically when it detects update
-# 7. Result: All tabs on new version (within 1 hour max)
-```
-
-**Debugging:**
-
-```bash
-# Check current service worker version
-# DevTools → Console:
-navigator.serviceWorker.controller.scriptURL
-# Should show: /sw.min.js
-
-# Check cache version
-# DevTools → Application → Cache Storage:
-# Should have exactly 1 cache: budget-vXXXXXXXX_XXXX
-
-# Check update registration
-# DevTools → Application → Service Workers:
-# Status: "activated and is running"
-# Update on reload: (toggle for testing)
-
-# Force update check (in console)
-navigator.serviceWorker.getRegistration().then(reg => reg.update());
-```
-
-**Important Notes:**
-- **No state preservation:** Users should save work before reload
-- **First-time install:** Does NOT trigger reload (shows toast "Приложение готово к работе офлайн")
-- **Offline functionality:** Unchanged (IndexedDB, background sync, push notifications all work)
-- **Update frequency:** Max 1-hour delay for 99% of users
-
-**Risks:**
-- User may lose unsaved form data during update → Mitigation: Display UI warning
-- Update may interrupt transaction submission → Future: Add check to delay reload
-
-**See also:**
-- `/docs/architecture/pwa.md` - Comprehensive PWA documentation
-- `sw.js` lines 75-163 - Service worker install/activate events
-- `frontend/web/templates/base.html` lines 1309-1407 - Frontend registration
+**See:**
+- `/docs/architecture/pwa.md` - Full PWA documentation with detailed update flow
+- `sw.js` lines 68-160 - Service worker install/activate events
+- `frontend/web/templates/base.html` lines 774-785, 1490-1547 - Update indicator UI
 
 ### Wake Detection for Mobile (v5.7.0+)
 
@@ -1569,6 +1750,57 @@ document.addEventListener('visibilitychange', () => {
 
 **See:** `/docs/architecture/pwa.md` → "WebSocket Diagnostics Modal" for detailed documentation
 
+### Navigation Detection for RTT Filtering (v5.8.0+)
+
+**Since version 5.8.0:** RTT warnings are suppressed during page navigation/reload to prevent false positives.
+
+**Problem Solved:**
+- False "slow connection" warnings when navigating between pages (`/facts` → `/plan`)
+- RTT spikes during WebSocket reconnection triggered warnings on fast networks
+
+**Solution:**
+- Navigation detection window (10 seconds after page load)
+- RTT measurements filtered when `isNavigating = true`
+- Badge updates skipped during navigation window
+
+**Implementation:**
+- Flag: `isNavigating` (true for 10s after page load)
+- Auto-clears via timer
+- Comprehensive logging: `[NAV]`, `[RTT_FILTER]`
+
+**Configuration:**
+- `NAVIGATION_WINDOW = 10000` (10 seconds)
+- Adjustable in budgetWSClient.js:126-128
+
+**Behavior:**
+- 0-10s after page load: RTT warnings suppressed
+- After 10s: Normal RTT monitoring (shows warnings if genuinely slow)
+- Each navigation restarts the window
+
+**Testing:**
+Console filter: `NAV|RTT_FILTER|WS_RTT`
+
+**Expected Console Output:**
+```
+[NAV] Navigation window started { duration: "10000ms" }
+[RTT_FILTER] RTT measurement skipped (navigating)
+[NAV] Navigation window ended { elapsed: "10000ms" }
+[WS_RTT] RTT measured { current: "180ms", rolling_avg: "180ms" }
+```
+
+**Benefits:**
+- Zero false positives during navigation
+- Genuine slow connections still detected (after 10s)
+- Clean user experience on mobile
+
+**Files Modified:**
+- `frontend/web/static/js/budget/budgetWSClient.js` (~80 lines)
+- `frontend/web/static/js/utils/logger.js` (2 loggers added)
+- `frontend/web/static/js/config/logging.js` (2 modules added)
+
+**See:** `/docs/architecture/pwa.md` → "Navigation Detection for RTT Filtering" for complete documentation
+**See:** `/docs/architecture/websocket.md` for WebSocket architecture and RTT monitoring details
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**
@@ -1613,12 +1845,15 @@ cd ~/familyBudget  # Repository
 - `/api/v1/financial-centers` - CRUD financial centers
 - `/api/v1/cost-centers` - CRUD cost centers
 - `/api/v1/users` - User management (admin)
+- `/api/v1/admin/logs` - Admin logs viewing (admin-only)
+- `/api/v1/admin/logs/browser` - Browser logs ingestion (all users)
 
 ### Web Pages (HTMX)
 - `/` - Home page
 - `/transactions` - Transactions list
 - `/statistics` - Statistics dashboard
 - `/admin` - Admin panel
+- `/admin/logs` - System logs viewer (admin-only, desktop/tablet)
 
 ### Telegram Web Apps
 - `/webapp/` - Main menu

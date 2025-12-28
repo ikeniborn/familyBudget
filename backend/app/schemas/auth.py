@@ -169,6 +169,11 @@ class UserResponse(BaseModel):
         description="Whether 2FA is enabled for this user",
         examples=[True, False]
     )
+    has_webauthn_credentials: bool = Field(
+        default=False,
+        description="Whether user has registered WebAuthn biometric credentials (TouchID/FaceID)",
+        examples=[True, False]
+    )
 
     model_config = {
         "from_attributes": True,  # Enable ORM mode for SQLModel compatibility
@@ -662,3 +667,44 @@ class RegistrationSuccessResponse(BaseModel):
         description="Success message"
     )
     user_id: int = Field(description="Created user's ID")
+
+
+class WebAuthnCredentialInfo(BaseModel):
+    """
+    WebAuthn credential metadata for auth methods response.
+
+    Attributes:
+        credential_id: WebAuthn credential ID (Base64URL)
+        device_name: User-friendly device name
+        created_at: Credential creation timestamp
+        last_used_at: Last authentication timestamp (optional)
+    """
+
+    credential_id: str = Field(description="WebAuthn credential ID")
+    device_name: Optional[str] = Field(default=None, description="Device name")
+    created_at: datetime = Field(description="Creation timestamp")
+    last_used_at: Optional[datetime] = Field(default=None, description="Last used timestamp")
+
+
+class AuthMethodsResponse(BaseModel):
+    """
+    Response for available authentication methods check.
+
+    Used in identifier-first login flow to determine which auth methods
+    are available for a given user.
+
+    Attributes:
+        methods: Dict of available methods (telegram, email_password, webauthn)
+    """
+
+    class MethodsData(BaseModel):
+        """Authentication methods availability."""
+        telegram: bool = Field(description="Telegram OAuth available")
+        email_password: bool = Field(description="Email+Password available")
+        webauthn: bool = Field(description="WebAuthn biometric available")
+        webauthn_credentials: list[WebAuthnCredentialInfo] = Field(
+            default_factory=list,
+            description="List of WebAuthn credentials (if webauthn=true)"
+        )
+
+    methods: MethodsData = Field(description="Available authentication methods")

@@ -62,6 +62,16 @@ class Logger {
     info(...args) {
         if (this.isLevelEnabled('info')) {
             console.log(this.prefix, ...args);
+
+            // Send to LogsCollector if available (for admin logs page)
+            if (window.logsCollector) {
+                window.logsCollector.captureLog(
+                    'info',
+                    this.prefix,
+                    args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                    new Date().toISOString()
+                );
+            }
         }
     }
 
@@ -72,6 +82,16 @@ class Logger {
     warn(...args) {
         if (this.isEnabled) {
             console.warn(this.prefix, ...args);
+
+            // Send to LogsCollector if available (for admin logs page)
+            if (window.logsCollector) {
+                window.logsCollector.captureLog(
+                    'warning',
+                    this.prefix,
+                    args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                    new Date().toISOString()
+                );
+            }
         }
     }
 
@@ -82,6 +102,16 @@ class Logger {
     error(...args) {
         // Errors always logged regardless of config
         console.error(this.prefix, ...args);
+
+        // Send to LogsCollector if available (for admin logs page)
+        if (window.logsCollector) {
+            window.logsCollector.captureLog(
+                'error',
+                this.prefix,
+                args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                new Date().toISOString()
+            );
+        }
     }
 
     /**
@@ -170,6 +200,12 @@ window.logForm = new Logger('[FORM]', 'FORM');
 window.logWorker = new Logger('[WORKER]', 'WORKER');
 window.logPlan = new Logger('[PLAN]', 'PLAN');
 window.logCSV = new Logger('[CSV]', 'CSV');
+window.logWSRTT = new Logger('[WS_RTT]', 'WS_RTT');
+window.logWSState = new Logger('[WS_STATE]', 'WS_STATE');
+
+// Navigation and RTT filtering loggers
+window.logNav = new Logger('[NAV]', 'NAV');
+window.logRTTFilter = new Logger('[RTT_FILTER]', 'RTT_FILTER');
 
 // Log logger initialization (only if logging enabled)
 if (window.LOGGING_CONFIG?.enabled) {
@@ -184,6 +220,8 @@ if (window.LOGGING_CONFIG?.enabled) {
         FORM: 'window.logForm',
         WORKER: 'window.logWorker',
         PLAN: 'window.logPlan',
-        CSV: 'window.logCSV'
+        CSV: 'window.logCSV',
+        WS_RTT: 'window.logWSRTT',
+        WS_STATE: 'window.logWSState'
     });
 }

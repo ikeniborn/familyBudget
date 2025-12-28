@@ -1,0 +1,252 @@
+<!-- Fixed Bottom Navigation (Compact Icons) -->
+<nav id="fab-toolbar" class="bottom-nav">
+    <div class="nav-container">
+
+        <!-- Button 1: Главная -->
+        <a href="/"
+           class="icon-btn"
+           aria-label="Перейти на главную"
+           title="Главная страница">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            <span class="icon-label">Главная</span>
+        </a>
+
+        <!-- Button 2: Аналитика (hidden in offline) -->
+        <a href="/analytics"
+           class="icon-btn"
+           data-online-only
+           aria-label="Перейти к аналитике"
+           title="Аналитика и отчеты">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span class="icon-label">Аналитика</span>
+        </a>
+
+        <!-- Button 3: Добавить (Center FAB with Dropdown) -->
+        <div class="dropdown dropdown-top">
+            <button tabindex="0"
+                    class="icon-btn"
+                    id="center-fab-btn"
+                    aria-label="Быстрое добавление"
+                    title="Добавить запись">
+                <div class="center-fab">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
+                <span class="icon-label" style="margin-top: 0.25rem;">Добавить</span>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-56 mb-2 border border-base-300">
+                <li>
+                    <a onclick="openAddTransactionModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Расход/Доход (факт)</span>
+                    </a>
+                </li>
+                <li>
+                    <a onclick="openFactTransferModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Перевод (факт)</span>
+                    </a>
+                </li>
+                <li class="menu-title"><span>Планирование</span></li>
+                <li>
+                    <a onclick="openAddPlanModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Расход/Доход (план)</span>
+                    </a>
+                </li>
+                <li>
+                    <a onclick="openPlanTransferModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Перевод (план)</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Button 4: Факты/Планы (Dropdown, hidden in offline) -->
+        <div class="dropdown dropdown-top" data-online-only>
+            <button tabindex="0"
+                    class="icon-btn"
+                    aria-label="Факты и планы"
+                    title="Факты и планы">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <span class="icon-label">Данные</span>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-44 mb-2 border border-base-300">
+                <li>
+                    <a href="/facts">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span>Факты</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/plan">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Планы</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Button 5: Списки -->
+        <a href="/lists"
+           class="icon-btn"
+           aria-label="Перейти к спискам"
+           title="Списки покупок">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span class="icon-label">Списки</span>
+        </a>
+
+    </div>
+</nav>
+
+<script>
+(function() {
+    const fabToolbar = document.getElementById('fab-toolbar');
+    if (!fabToolbar) return;
+
+    console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
+        page: window.location.pathname,
+        buttonsCount: fabToolbar.querySelectorAll('.icon-btn, .dropdown').length,
+        offlineMode: document.documentElement.classList.contains('offline-mode'),
+        style: 'dropdown-enhanced',
+        position: 'fixed bottom',
+        safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
+        zIndex: getComputedStyle(fabToolbar).zIndex
+    });
+
+    // Offline mode: hide buttons with data-online-only
+    function updateOfflineVisibility() {
+        const isOffline = document.documentElement.classList.contains('offline-mode');
+        const onlineOnlyElements = fabToolbar.querySelectorAll('[data-online-only]');
+
+        onlineOnlyElements.forEach(el => {
+            if (isOffline) {
+                el.style.display = 'none';
+                console.log('[FAB_TOOLBAR] Hidden in offline:', el.getAttribute('aria-label') || el.querySelector('.icon-label')?.textContent);
+            } else {
+                el.style.display = '';
+            }
+        });
+
+        console.log('[FAB_TOOLBAR] Offline visibility updated:', {
+            isOffline,
+            hiddenCount: isOffline ? onlineOnlyElements.length : 0
+        });
+    }
+
+    // Initial offline check
+    updateOfflineVisibility();
+
+    // Watch for offline mode changes
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+            if (mutation.attributeName === 'class') {
+                updateOfflineVisibility();
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    // Special logic for /lists page: center FAB adapts to context
+    if (window.location.pathname === '/lists') {
+        const centerFabBtn = document.getElementById('center-fab-btn');
+        const centerFabDropdown = centerFabBtn?.closest('.dropdown');
+
+        if (centerFabDropdown) {
+            // Check if we're in detail view (viewing list items) or landing view (list selection)
+            const checkListContext = () => {
+                const detailView = document.getElementById('detail-view');
+                const landingView = document.getElementById('landing-view');
+
+                // detail-view is active if it doesn't have 'hidden' class
+                const isDetailView = detailView && !detailView.classList.contains('hidden');
+
+                console.log('[FAB_TOOLBAR] View check:', {
+                    detailViewExists: !!detailView,
+                    landingViewExists: !!landingView,
+                    detailViewHidden: detailView?.classList.contains('hidden'),
+                    isDetailView: isDetailView
+                });
+
+                return isDetailView;
+            };
+
+            // Replace dropdown with direct action
+            centerFabBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (checkListContext()) {
+                    // In detail view (list items) → add new item
+                    console.log('[FAB_TOOLBAR] /lists context: Detail view - Adding item to active list');
+                    if (typeof openAddItemModal === 'function') {
+                        openAddItemModal();
+                    } else {
+                        console.warn('[FAB_TOOLBAR] openAddItemModal not found');
+                    }
+                } else {
+                    // In landing view (list selection) → create new list
+                    console.log('[FAB_TOOLBAR] /lists context: Landing view - Creating new list');
+                    if (typeof openCreateListModal === 'function') {
+                        openCreateListModal();
+                    } else {
+                        console.warn('[FAB_TOOLBAR] openCreateListModal not found');
+                    }
+                }
+            };
+
+            // Remove dropdown functionality on /lists
+            centerFabDropdown.classList.remove('dropdown');
+            const dropdownMenu = centerFabDropdown.querySelector('.dropdown-content');
+            if (dropdownMenu) dropdownMenu.remove();
+
+            console.log('[FAB_TOOLBAR] /lists page: Center FAB adapted for context-aware behavior');
+        }
+    }
+
+    // Log button clicks
+    fabToolbar.querySelectorAll('.icon-btn, .dropdown button').forEach((btn, index) => {
+        btn.addEventListener('click', (e) => {
+            const buttonLabel = btn.getAttribute('aria-label') || btn.querySelector('.icon-label')?.textContent;
+            console.log(`[FAB_TOOLBAR] Button clicked:`, {
+                index,
+                label: buttonLabel,
+                timestamp: new Date().toISOString()
+            });
+        });
+    });
+
+    // Active state management (highlight current page)
+    const currentPath = window.location.pathname;
+    fabToolbar.querySelectorAll('a.icon-btn').forEach(btn => {
+        const href = btn.getAttribute('href');
+        if (href && (currentPath === href || (href !== '/' && currentPath.startsWith(href)))) {
+            btn.classList.add('active');
+        }
+    });
+
+    console.log('[FAB_TOOLBAR] Initialization complete');
+})();
+</script>

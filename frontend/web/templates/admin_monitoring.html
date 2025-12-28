@@ -114,6 +114,19 @@
         </div>
     </div>
 
+    <!-- Client Cache Metrics -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">💾 Кеш клиентов</h2>
+
+            <div id="cache-metrics-container">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Backup Status -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
@@ -130,6 +143,13 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Logging Configuration -->
+<script src="{{ url_for('static', path='/js/config/logging.min.js') }}?v=PLACEHOLDER"></script>
+<script src="{{ url_for('static', path='/js/utils/logger.min.js') }}?v=PLACEHOLDER"></script>
+
+<!-- Cache Metrics Collector -->
+<script src="{{ url_for('static', path='/js/utils/cacheMetricsCollector.min.js') }}?v=PLACEHOLDER"></script>
+
 <script>
 // Global state
 let autoRefreshInterval = null;
@@ -137,10 +157,29 @@ let autoRefreshEnabled = true;
 const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     loadTimezoneData();
     loadMonitoringData();
     startAutoRefresh();
+
+    // Initialize cache metrics collector (only for admin monitoring page)
+    if (window.location.pathname === '/admin/monitoring') {
+        try {
+            const metricsCollector = new CacheMetricsCollector();
+
+            // Send metrics immediately
+            await metricsCollector.sendMetrics();
+
+            // Send every 5 seconds (sync with auto-refresh)
+            setInterval(async () => {
+                if (autoRefreshEnabled) {
+                    await metricsCollector.sendMetrics();
+                }
+            }, REFRESH_INTERVAL);
+        } catch (error) {
+            console.error('[CACHE] Failed to initialize metrics collector:', error);
+        }
+    }
 });
 
 // ============================================================
@@ -239,6 +278,9 @@ async function loadMonitoringData() {
         const data = await response.json();
         renderMonitoringData(data);
         updateLastRefreshed();
+
+        // Load cache metrics
+        await loadCacheMetrics();
     } catch (error) {
         console.error('Error loading monitoring data:', error);
         showError('Не удалось загрузить данные мониторинга');
@@ -622,6 +664,167 @@ function renderBackupStatus(backupComponent) {
         </div>
     `;
 }
+
+// ============================================================
+// Client Cache Metrics
+// ============================================================
+
+// Load cache metrics from backend
+async function loadCacheMetrics() {
+    try {
+        const response = await fetch('/api/v1/admin/cache-metrics', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderCacheMetrics(data);
+    } catch (error) {
+        console.error('[CACHE] Error loading cache metrics:', error);
+        document.getElementById('cache-metrics-container').innerHTML = `
+            <div class="alert alert-warning">
+                <span>⚠ Информация о кеше клиентов недоступна</span>
+            </div>
+        `;
+    }
+}
+
+// Render cache metrics
+function renderCacheMetrics(data) {
+    const container = document.getElementById('cache-metrics-container');
+
+    if (data.client_count === 0) {
+        container.innerHTML = `
+            <div class="alert alert-info">
+                <span>ℹ Нет активных клиентов (откройте приложение в браузере)</span>
+            </div>
+        `;
+        return;
+    }
+
+    const agg = data.aggregated;
+
+    // Stats cards
+    let html = `
+        <div class="stats stats-vertical lg:stats-horizontal shadow w-full mb-4">
+            <!-- Active Clients -->
+            <div class="stat">
+                <div class="stat-figure text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                </div>
+                <div class="stat-title">Активных клиентов</div>
+                <div class="stat-value text-primary">${data.client_count}</div>
+            </div>
+
+            <!-- Service Worker Cache -->
+            <div class="stat">
+                <div class="stat-figure text-accent">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+                    </svg>
+                </div>
+                <div class="stat-title">SW Cache (всего)</div>
+                <div class="stat-value text-accent">${formatBytes(agg.service_worker.total_size_bytes)}</div>
+                <div class="stat-desc">${agg.service_worker.total_entries} файлов</div>
+            </div>
+
+            <!-- IndexedDB -->
+            <div class="stat">
+                <div class="stat-figure text-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                    </svg>
+                </div>
+                <div class="stat-title">IndexedDB (pending)</div>
+                <div class="stat-value text-warning">${agg.indexeddb.total_pending}</div>
+                <div class="stat-desc">${agg.indexeddb.total_facts} facts (всего)</div>
+            </div>
+
+            <!-- Storage Quota -->
+            <div class="stat">
+                <div class="stat-figure text-success">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div class="stat-title">Storage Quota (avg)</div>
+                <div class="stat-value text-success">${agg.storage_quota.avg_usage_percent.toFixed(1)}%</div>
+                <div class="stat-desc">${formatBytes(agg.storage_quota.avg_usage)} / ${formatBytes(agg.storage_quota.avg_quota)}</div>
+            </div>
+        </div>
+
+        <!-- Individual Clients Table -->
+        <div class="overflow-x-auto">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Client ID</th>
+                        <th>SW Cache</th>
+                        <th>IDB Pending</th>
+                        <th>Storage Quota</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Add each client row
+    data.clients.forEach(client => {
+        const clientIdShort = client.client_id.substring(0, 8);
+        const swSize = formatBytes(client.service_worker.total_size_bytes);
+        const idbPending = client.indexeddb.pending_count;
+        const quotaPercent = client.storage_quota.usage_percent || 0;
+        const quotaDisplay = client.storage_quota.supported
+            ? `${quotaPercent.toFixed(1)}%`
+            : 'N/A';
+        const updatedTime = new Date(client.collected_at).toLocaleTimeString('ru-RU');
+
+        html += `
+                    <tr>
+                        <td><code class="text-xs">${clientIdShort}...</code></td>
+                        <td>${swSize}</td>
+                        <td>${idbPending}</td>
+                        <td>
+                            ${client.storage_quota.supported ? `
+                                <progress class="progress progress-primary w-20" value="${quotaPercent}" max="100"></progress>
+                                ${quotaDisplay}
+                            ` : quotaDisplay}
+                        </td>
+                        <td class="text-xs">${updatedTime}</td>
+                    </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Helper: Format bytes to human-readable size
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    if (bytes === null || bytes === undefined) return 'N/A';
+
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const value = Math.round((bytes / Math.pow(k, i)) * 100) / 100;
+
+    return value + ' ' + sizes[i];
+}
+
+// ============================================================
+// Helpers
+// ============================================================
 
 // Helper: Get progress color based on resource usage
 function getProgressColor(percent) {

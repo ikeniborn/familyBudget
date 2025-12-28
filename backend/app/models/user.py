@@ -67,6 +67,8 @@ class User(SQLModel, table=True):
         two_factor_secret: TOTP secret for 2FA (encrypted, nullable)
         two_factor_enabled: Whether 2FA is enabled (required for email login)
         backup_codes: JSON array of hashed backup codes (nullable)
+        enable_push_notifications: Enable Web Push notifications (SCD1 - in-place update)
+        enable_telegram_notifications: Enable Telegram notifications (SCD1 - in-place update)
         last_login_at: Timestamp of last successful login (SCD1 - in-place update)
         created_at: Timestamp when user was first created (immutable)
         updated_at: Timestamp when user was last updated (auto-updated on changes)
@@ -209,6 +211,22 @@ class User(SQLModel, table=True):
         nullable=False,
         index=True,
         description="User activation status controlled by admin (SCD1 - in-place update)"
+    )
+
+    # =========================================================================
+    # Notification Preferences (v6.4.0+) (SCD Type 1 - in-place updates)
+    # =========================================================================
+
+    enable_push_notifications: bool = Field(
+        default=True,
+        nullable=False,
+        description="Enable Web Push notifications for this user (SCD1 - in-place update, history in UserHistory)"
+    )
+
+    enable_telegram_notifications: bool = Field(
+        default=True,
+        nullable=False,
+        description="Enable Telegram bot notifications for this user (SCD1 - in-place update, history in UserHistory)"
     )
 
     # =========================================================================

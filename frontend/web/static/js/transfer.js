@@ -768,14 +768,31 @@ function setupCFOFiltering() {
     const toFCSelect = document.querySelector('#to_financial_center');
 
     if (fromFCSelect) {
-        fromFCSelect.addEventListener('change', async () => {
+        fromFCSelect.addEventListener('change', async (e) => {
             populateFinancialCenterDropdowns();
             const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
+            console.log('[FC_CHANGE] FROM Financial center changed in transfer modal:', {
+                fcId: fcId,
+                timestamp: new Date().toISOString()
+            });
+
+            // CRITICAL: Stop event propagation to prevent global listeners from interfering
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[FC_CHANGE] Stopped event propagation');
+
             // Filter FROM categories by selected FC
             if (fromCategoryTree) {
+                console.log('[FC_CHANGE] Updating FROM category tree with new FC');
                 await fromCategoryTree.updateFinancialCenter(fcId);
+                console.log('[FC_CHANGE] FROM category tree updated successfully');
             }
             // Note: from_cost_center removed from UI (not needed for transfers)
+
+            // Small delay to allow DOM to settle (mobile browser optimization)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            console.log('[FC_CHANGE] DOM settled, FROM category dropdown ready');
+
             // Reload FROM hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -786,14 +803,31 @@ function setupCFOFiltering() {
     }
 
     if (toFCSelect) {
-        toFCSelect.addEventListener('change', async () => {
+        toFCSelect.addEventListener('change', async (e) => {
             populateFinancialCenterDropdowns();
             const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
+            console.log('[FC_CHANGE] TO Financial center changed in transfer modal:', {
+                fcId: fcId,
+                timestamp: new Date().toISOString()
+            });
+
+            // CRITICAL: Stop event propagation to prevent global listeners from interfering
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[FC_CHANGE] Stopped event propagation');
+
             // Filter TO categories by selected FC
             if (toCategoryTree) {
+                console.log('[FC_CHANGE] Updating TO category tree with new FC');
                 await toCategoryTree.updateFinancialCenter(fcId);
+                console.log('[FC_CHANGE] TO category tree updated successfully');
             }
             // Note: to_cost_center removed from UI (not needed for transfers)
+
+            // Small delay to allow DOM to settle (mobile browser optimization)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            console.log('[FC_CHANGE] DOM settled, TO category dropdown ready');
+
             // Reload TO hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');

@@ -211,6 +211,38 @@ async def admin_dashboard(
     )
 
 
+@web_router.get("/admin/logs", response_class=HTMLResponse)
+async def admin_logs(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin logs viewing page (admin only, desktop/tablet).
+
+    Provides centralized log viewing from all services:
+    - Browser client logs (from all users)
+    - Docker container logs (backend, bot, postgres, nginx)
+    - Filtering by level, service, date range
+    - Top 50 logs per service in collapsible sections
+
+    Uses LogsCollectorService for log aggregation.
+    """
+    from backend.app.main import templates
+    from backend.app.core.logging import get_logger
+
+    logger = get_logger(__name__)
+    logger.info(f"[WEB_ROUTER] Admin logs page accessed by user_id={current_admin.id}")
+
+    return templates.TemplateResponse(
+        "admin_logs.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Системные логи"
+        }
+    )
+
+
 @web_router.get("/admin/financial-centers", response_class=HTMLResponse)
 async def admin_financial_centers(
     request: Request,

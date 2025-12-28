@@ -9,6 +9,12 @@
 :root {
     --chart-bg: #ffffff;
     --chart-text: #333333;
+
+    /* Safe area insets for notched devices (iPhone X+, Android Pie+) */
+    --safe-area-inset-top: env(safe-area-inset-top, 0);
+    --safe-area-inset-right: env(safe-area-inset-right, 0);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+    --safe-area-inset-left: env(safe-area-inset-left, 0);
 }
 
 [data-theme="dark"] {
@@ -349,4 +355,157 @@ html.offline-mode .save-btn {
 html.offline-mode .save-btn:hover {
     background-color: oklch(var(--wa) / 0.9) !important;
     border-color: oklch(var(--wa) / 0.9) !important;
+}
+
+/* ==================================
+   FAB Toolbar Styles (Phase 2: PWA Mobile UI)
+   Variant: Compact Icons with Center FAB
+   ================================== */
+
+/* Main content padding (desktop: no FAB, mobile: with FAB) */
+#main-content {
+    padding-left: calc(1rem + var(--safe-area-inset-left));
+    padding-right: calc(1rem + var(--safe-area-inset-right));
+    padding-top: 2rem;
+    padding-bottom: 2rem; /* Desktop: no FAB offset */
+}
+
+/* Mobile: add FAB offset to bottom padding */
+@media (max-width: 1023px) {
+    #main-content {
+        padding-bottom: calc(2rem + var(--safe-area-inset-bottom) + 64px);
+    }
+}
+
+/* Bottom Navigation - MOBILE ONLY (hidden on desktop) */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background-color: oklch(var(--b1));
+    border-top: 1px solid oklch(var(--bc) / 0.1);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+
+    /* Safe-area padding (minimal bottom padding for closer positioning) */
+    padding-bottom: 0.5rem; /* 8px fixed - closer to screen bottom */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+
+    /* GPU acceleration */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-overflow-scrolling: touch;
+
+    /* Hide on desktop (≥1024px) */
+    display: none;
+}
+
+/* Show ONLY on mobile/tablet (< 1024px) */
+@media (max-width: 1023px) {
+    .bottom-nav {
+        display: block;
+    }
+}
+
+/* Navigation container */
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0.25rem; /* Reduced from 0.5rem for better space usage */
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Icon buttons */
+.icon-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.125rem; /* Reduced from 0.25rem for tighter layout */
+    padding: 0.375rem 0.5rem; /* Reduced from 0.5rem 0.75rem for better space usage */
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    color: oklch(var(--bc) / 0.6);
+    background: transparent;
+    border: none;
+}
+
+.icon-btn:hover {
+    background: oklch(var(--b2));
+    color: oklch(var(--p));
+}
+
+.icon-btn.active {
+    color: oklch(var(--p));
+    background: oklch(var(--p) / 0.1);
+}
+
+.icon-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Icon labels */
+.icon-label {
+    font-size: 0.625rem;
+    font-weight: 500;
+}
+
+/* Center FAB button (primary action) */
+.center-fab {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: oklch(var(--p));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -8px;
+    box-shadow: 0 2px 8px oklch(var(--p) / 0.3);
+}
+
+.center-fab svg {
+    width: 24px;
+    height: 24px;
+    color: oklch(var(--pc));
+    stroke-width: 2.5;
+}
+
+/* Dropdown menu above toolbar */
+.bottom-nav .dropdown-content {
+    z-index: 60;
+}
+
+/* Center dropdowns above buttons to prevent overflow on narrow screens */
+.bottom-nav .dropdown {
+    position: relative;
+}
+
+.bottom-nav .dropdown-content {
+    position: absolute;
+    left: 50% !important; /* Center relative to parent button */
+    right: auto !important; /* Override DaisyUI default */
+    transform: translateX(-50%) !important; /* Horizontal centering */
+}
+
+/* Hide on print */
+@media print {
+    .bottom-nav {
+        display: none;
+    }
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .bottom-nav {
+        transition: none;
+    }
+    .icon-btn {
+        transition: none;
+    }
 }

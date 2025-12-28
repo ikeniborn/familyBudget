@@ -171,7 +171,10 @@ class ChoicesCategoryTree {
             multiple: options.multiple || false,
             showPath: options.showPath !== false,  // Default true - show breadcrumb path
             showClearButton: options.showClearButton !== false,  // Default true - show clear-all button for multiple mode
+            mode: options.mode || 'edit',  // NEW: 'create' | 'edit' - controls selection preservation in updateFinancialCenter()
         };
+
+        console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`);
 
         this.choices = null;
         this.categories = [];
@@ -1086,32 +1089,37 @@ class ChoicesCategoryTree {
                     categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
                     categoryStillAvailable,
                     isInitialFiltering,
-                    shouldPreserve: categoryStillAvailable && !isInitialFiltering,
+                    willPreserve: categoryStillAvailable,  // Always preserve if available (isInitialFiltering check removed)
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                if (categoryStillAvailable && !isInitialFiltering) {
-                    // Category is available in new filtered list AND this is not initial filtering
-                    // Restore selection (user explicitly selected this category before changing FC)
-                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId}`);
+                // Preserve ONLY in edit mode when category still available
+                const shouldPreserve = this.options.mode === 'edit' && categoryStillAvailable;
+
+                console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+                    mode: this.options.mode,
+                    categoryStillAvailable,
+                    shouldPreserve,
+                    previousSelectionId
+                });
+
+                if (shouldPreserve) {
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // Don't preserve selection if:
-                    // - This is initial filtering (applying filter for first time)
-                    // - No previous selection
-                    // - Category not available in new filtered list
-                    // Clear any auto-selection that Choices.js made
+                    // Clear selection
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
-                    if (isInitialFiltering && previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] 🚫 NOT preserving selection on initial filter (previousId=${previousSelectionId})`);
-                        debugLog(`[ChoicesCategoryTree] Cleared phantom selection on initial filter: ${previousSelectionId}`);
-                    } else if (previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] ❌ RESET selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
-                        debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+
+                    if (this.options.mode === 'create') {
+                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
+                        debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
+                    } else if (!categoryStillAvailable && previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
+                        debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
                     } else {
                         console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
@@ -1152,6 +1160,28 @@ class ChoicesCategoryTree {
     getSelectedCategory() {
         const categoryId = parseInt(this.element.value);
         return categoryId ? this.categoryMap.get(categoryId) : null;
+    }
+
+    /**
+     * Clear category selection.
+     * Used in create modals to reset selection state.
+     */
+    clearSelection() {
+        console.log('[ChoicesCategoryTree] clearSelection() called');
+
+        // Clear Choices.js active selection
+        if (this.choices) {
+            this.choices.removeActiveItems();
+            console.log('[ChoicesCategoryTree] Choices.js active items removed');
+        }
+
+        // Clear DOM element value
+        if (this.element) {
+            this.element.value = '';
+            console.log('[ChoicesCategoryTree] Element value cleared');
+        }
+
+        console.log('[ChoicesCategoryTree] ✅ Selection cleared successfully');
     }
 
     /**

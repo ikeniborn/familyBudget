@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+{% from "components/mobile_alert.html" import mobile_restriction_alert %}
+
+{% block extra_head %}
+<!-- Calendar Widget CSS -->
+<link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+
+<!-- Date Formatter & Calendar Widget JS -->
+<script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
+<script src="/shared/static/js/calendar-widget.min.js?v=PLACEHOLDER"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Mobile restriction alert -->
+{{ mobile_restriction_alert() }}
+
+<!-- Main content (hidden on mobile) -->
+<div class="hidden md:block space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📋 Системные логи</h1>
+        <p class="text-base-content/70">Просмотр и фильтрация логов приложения из всех сервисов</p>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-xl mb-4">🔍 Фильтры и настройки</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Log Level Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Уровень логов</span>
+                    </label>
+                    <select id="filter-level" class="select select-bordered">
+                        <option value="all" selected>Все уровни</option>
+                        <option value="info">Info</option>
+                        <option value="warning">Warning</option>
+                        <option value="error">Error</option>
+                    </select>
+                </div>
+
+                <!-- Service Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Сервис</span>
+                    </label>
+                    <select id="filter-service" class="select select-bordered">
+                        <option value="all" selected>Все сервисы</option>
+                        <option value="browser">Браузер</option>
+                        <option value="backend">Backend</option>
+                        <option value="bot">Bot</option>
+                        <option value="postgres">PostgreSQL</option>
+                        <option value="nginx">Nginx</option>
+                    </select>
+                </div>
+
+                <!-- Auto-refresh Interval -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Частота обновления</span>
+                    </label>
+                    <select id="filter-interval" class="select select-bordered">
+                        <option value="5" selected>5 секунд</option>
+                        <option value="15">15 секунд</option>
+                        <option value="30">30 секунд</option>
+                    </select>
+                </div>
+
+                <!-- Date Range (Since) -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">От</span>
+                    </label>
+                    <input type="text" id="date-from" class="input input-bordered" placeholder="Начальная дата..." readonly>
+                </div>
+
+                <!-- Date Range (Until) -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">До</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="text" id="date-to" class="input input-bordered flex-1" placeholder="Конечная дата..." readonly>
+                        <!-- Calendar trigger button (range mode) -->
+                        <div id="admin-logs-date-range-trigger"></div>
+                    </div>
+                </div>
+
+                <!-- Logs Limit -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-semibold">Логов на сервис</span>
+                    </label>
+                    <select id="filter-limit" class="select select-bordered">
+                        <option value="25">25 логов</option>
+                        <option value="50" selected>50 логов</option>
+                        <option value="100">100 логов</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex gap-2 mt-4">
+                <button id="btn-apply-filters" class="btn btn-primary">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                    Применить фильтры
+                </button>
+                <button id="btn-toggle-refresh" class="btn btn-success" data-running="false">
+                    <!-- Play icon (when stopped) -->
+                    <svg id="icon-play" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-5.197-3.248A1 1 0 008 8.87v6.26a1 1 0 001.555.832l5.197-3.248a1 1 0 000-1.664z" />
+                    </svg>
+                    <!-- Stop icon (when running, hidden by default) -->
+                    <svg id="icon-stop" class="w-5 h-5 mr-2 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 6h12v12H6z" />
+                    </svg>
+                    <span id="btn-text">Запустить</span>
+                </button>
+                <button id="btn-reset" class="btn btn-ghost">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Очистить фильтры
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Display -->
+    <div class="space-y-4" id="logs-container">
+        <!-- Browser Logs -->
+        <div tabindex="0" class="collapse collapse-arrow bg-base-200">
+            <input type="checkbox">
+            <div class="collapse-title text-xl font-medium flex items-center gap-2">
+                🌐 Логи браузера
+                <span class="badge badge-primary" id="browser-count">0</span>
+                <span class="badge badge-warning" id="browser-warnings">0</span>
+                <span class="badge badge-error" id="browser-errors">0</span>
+            </div>
+            <div class="collapse-content">
+                <div class="overflow-x-auto">
+                    <div id="browser-logs" class="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                        <p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backend Logs -->
+        <div tabindex="0" class="collapse collapse-arrow bg-base-200">
+            <input type="checkbox">
+            <div class="collapse-title text-xl font-medium flex items-center gap-2">
+                🔧 Логи Backend
+                <span class="badge badge-primary" id="backend-count">0</span>
+                <span class="badge badge-warning" id="backend-warnings">0</span>
+                <span class="badge badge-error" id="backend-errors">0</span>
+            </div>
+            <div class="collapse-content">
+                <div class="overflow-x-auto">
+                    <div id="backend-logs" class="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                        <p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bot Logs -->
+        <div tabindex="0" class="collapse collapse-arrow bg-base-200">
+            <input type="checkbox">
+            <div class="collapse-title text-xl font-medium flex items-center gap-2">
+                🤖 Логи Bot
+                <span class="badge badge-primary" id="bot-count">0</span>
+                <span class="badge badge-warning" id="bot-warnings">0</span>
+                <span class="badge badge-error" id="bot-errors">0</span>
+            </div>
+            <div class="collapse-content">
+                <div class="overflow-x-auto">
+                    <div id="bot-logs" class="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                        <p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PostgreSQL Logs -->
+        <div tabindex="0" class="collapse collapse-arrow bg-base-200">
+            <input type="checkbox">
+            <div class="collapse-title text-xl font-medium flex items-center gap-2">
+                🗄️ Логи PostgreSQL
+                <span class="badge badge-primary" id="postgres-count">0</span>
+                <span class="badge badge-warning" id="postgres-warnings">0</span>
+                <span class="badge badge-error" id="postgres-errors">0</span>
+            </div>
+            <div class="collapse-content">
+                <div class="overflow-x-auto">
+                    <div id="postgres-logs" class="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                        <p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nginx Logs -->
+        <div tabindex="0" class="collapse collapse-arrow bg-base-200">
+            <input type="checkbox">
+            <div class="collapse-title text-xl font-medium flex items-center gap-2">
+                🌐 Логи Nginx
+                <span class="badge badge-primary" id="nginx-count">0</span>
+                <span class="badge badge-warning" id="nginx-warnings">0</span>
+                <span class="badge badge-error" id="nginx-errors">0</span>
+            </div>
+            <div class="collapse-content">
+                <div class="overflow-x-auto">
+                    <div id="nginx-logs" class="font-mono text-sm space-y-1 max-h-96 overflow-y-auto">
+                        <p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// IMPORTANT: Declare logger at the very beginning to avoid initialization errors
+let logAdmin;
+let logCalendar = null;
+let autoRefreshInterval = null;
+let isAutoRefreshRunning = false;
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
+ * Show toast notification
+ */
+function showToast(message, type = 'info') {
+    const alertClass = {
+        'success': 'alert-success',
+        'error': 'alert-error',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    }[type] || 'alert-info';
+
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} fixed bottom-4 right-4 w-auto max-w-md shadow-lg z-50`;
+    toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+/**
+ * Get current filter values
+ */
+function getFilterValues() {
+    const level = document.getElementById('filter-level').value;
+    const service = document.getElementById('filter-service').value;
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    const limit = parseInt(document.getElementById('filter-limit').value, 10);
+
+    if (logAdmin) {
+        logAdmin.debug('Текущие значения фильтров:', { level, service, dateFrom, dateTo, limit });
+    }
+
+    return {
+        level,
+        service,
+        since: dateFrom ? DateFormatter.formatForAPI(dateFrom) : null,
+        until: dateTo ? DateFormatter.formatForAPI(dateTo) : null,
+        limit
+    };
+}
+
+/**
+ * Render logs for a specific service
+ */
+function renderLogs(service, logs) {
+    const container = document.getElementById(`${service}-logs`);
+    const countBadge = document.getElementById(`${service}-count`);
+    const warningsBadge = document.getElementById(`${service}-warnings`);
+    const errorsBadge = document.getElementById(`${service}-errors`);
+
+    if (!container || !countBadge || !warningsBadge || !errorsBadge) {
+        if (logAdmin) {
+            logAdmin.warn(`Контейнер или бейджи не найдены для service=${service}`);
+        }
+        return;
+    }
+
+    // Sort logs by timestamp (newest first)
+    const sortedLogs = [...logs].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA; // Descending order (newest first)
+    });
+
+    // Count warnings and errors
+    const warningCount = sortedLogs.filter(log => log.level === 'warning').length;
+    const errorCount = sortedLogs.filter(log => log.level === 'error').length;
+
+    // Update badges
+    countBadge.textContent = sortedLogs.length;
+    warningsBadge.textContent = warningCount;
+    errorsBadge.textContent = errorCount;
+
+    // Render log entries
+    if (sortedLogs.length === 0) {
+        container.innerHTML = '<p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>';
+        return;
+    }
+
+    container.innerHTML = sortedLogs.map(log => {
+        const levelClass = {
+            'error': 'text-error bg-error/10',
+            'warning': 'text-warning bg-warning/10',
+            'info': 'text-info bg-info/10'
+        }[log.level] || 'text-base-content bg-base-300';
+
+        const timestamp = log.timestamp || 'N/A';
+        const module = log.module || service;
+        const message = escapeHtml(log.message);
+        const userId = log.user_id ? ` [user_id=${log.user_id}]` : '';
+        const correlationId = log.correlation_id ? ` [correlation_id=${log.correlation_id}]` : '';
+
+        return `
+            <div class="p-2 rounded ${levelClass} break-words">
+                <span class="opacity-70">${timestamp}</span>
+                <span class="font-bold">[${log.level.toUpperCase()}]</span>
+                <span class="opacity-80">${module}</span>${userId}${correlationId}
+                <div class="mt-1">${message}</div>
+            </div>
+        `;
+    }).join('');
+
+    if (logAdmin) {
+        logAdmin.debug(`Отрисовано ${sortedLogs.length} логов для service=${service} (warnings: ${warningCount}, errors: ${errorCount})`);
+    }
+}
+
+/**
+ * Refresh logs from backend
+ */
+async function refreshLogs() {
+    if (logAdmin) {
+        logAdmin.info('Обновление логов...');
+    }
+
+    const filters = getFilterValues();
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (filters.level && filters.level !== 'all') params.append('level', filters.level);
+    if (filters.service && filters.service !== 'all') params.append('service', filters.service);
+    if (filters.since) params.append('since', filters.since);
+    if (filters.until) params.append('until', filters.until);
+    params.append('limit', filters.limit);
+
+    try {
+        const response = await fetch(`/api/v1/admin/logs?${params.toString()}`);
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            if (logAdmin) {
+                logAdmin.error('Ошибка загрузки логов:', { status: response.status, error: errorData });
+            }
+            showToast('Ошибка загрузки логов', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        if (logAdmin) {
+            logAdmin.info(`Логи успешно загружены: ${data.filtered_count} записей`, data.filters_applied);
+        }
+
+        // Render logs for each service
+        renderLogs('browser', data.browser);
+        renderLogs('backend', data.backend);
+        renderLogs('bot', data.bot);
+        renderLogs('postgres', data.postgres);
+        renderLogs('nginx', data.nginx);
+
+        showToast(`Загружено ${data.filtered_count} логов`, 'success');
+
+    } catch (error) {
+        if (logAdmin) {
+            logAdmin.error('Ошибка при обновлении логов:', error);
+        }
+        showToast('Ошибка при обновлении логов', 'error');
+    }
+}
+
+/**
+ * Apply filters and refresh logs
+ */
+async function applyFilters() {
+    if (logAdmin) {
+        logAdmin.info('Применение фильтров');
+    }
+    await refreshLogs();
+}
+
+/**
+ * Reset all filters
+ */
+function resetFilters() {
+    if (logAdmin) {
+        logAdmin.info('Сброс фильтров');
+    }
+
+    document.getElementById('filter-level').value = 'all';
+    document.getElementById('filter-service').value = 'all';
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+
+    // Clear calendar selection if exists
+    if (logCalendar) {
+        logCalendar.clearRange();
+    }
+
+    refreshLogs();
+}
+
+/**
+ * Initialize calendar widget for date range selection
+ */
+function initializeCalendar() {
+    if (logAdmin) {
+        logAdmin.info('Инициализация календаря');
+    }
+
+    logCalendar = new CalendarWidget({
+        startInputElement: document.getElementById('date-from'),
+        endInputElement: document.getElementById('date-to'),
+        mode: 'range',
+        triggerContainer: '#admin-logs-date-range-trigger',
+        onSelect: (startDate, endDate) => {
+            if (logAdmin) {
+                logAdmin.info(`Выбран диапазон дат: ${startDate} - ${endDate}`);
+            }
+            // Auto-apply filters when date range selected
+            applyFilters();
+        }
+    });
+
+    if (logAdmin) {
+        logAdmin.info('Календарь инициализирован');
+    }
+}
+
+/**
+ * Start auto-refresh timer
+ */
+function startAutoRefresh() {
+    // Stop existing timer if any
+    stopAutoRefresh();
+
+    // Get interval from dropdown (in seconds)
+    const intervalSeconds = parseInt(document.getElementById('filter-interval').value, 10);
+    const intervalMs = intervalSeconds * 1000;
+
+    if (logAdmin) {
+        logAdmin.info(`Запуск автообновления каждые ${intervalSeconds} секунд`);
+    }
+
+    // Set running flag
+    isAutoRefreshRunning = true;
+
+    // Set up interval
+    autoRefreshInterval = setInterval(() => {
+        if (logAdmin) {
+            logAdmin.debug('Автообновление логов...');
+        }
+        refreshLogs();
+    }, intervalMs);
+}
+
+/**
+ * Stop auto-refresh timer
+ */
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        if (logAdmin) {
+            logAdmin.info('Остановка автообновления');
+        }
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+
+    // Clear running flag
+    isAutoRefreshRunning = false;
+}
+
+/**
+ * Toggle auto-refresh on/off
+ */
+function toggleAutoRefresh() {
+    const button = document.getElementById('btn-toggle-refresh');
+    const buttonText = document.getElementById('btn-text');
+    const playIcon = document.getElementById('icon-play');
+    const stopIcon = document.getElementById('icon-stop');
+
+    if (isAutoRefreshRunning) {
+        // Currently running - stop it
+        stopAutoRefresh();
+
+        // Update UI
+        button.classList.remove('btn-error');
+        button.classList.add('btn-success');
+        buttonText.textContent = 'Запустить';
+        playIcon.classList.remove('hidden');
+        stopIcon.classList.add('hidden');
+
+        if (logAdmin) {
+            logAdmin.info('Автообновление остановлено пользователем');
+        }
+    } else {
+        // Currently stopped - start it
+        startAutoRefresh();
+
+        // Update UI
+        button.classList.remove('btn-success');
+        button.classList.add('btn-error');
+        buttonText.textContent = 'Остановить';
+        playIcon.classList.add('hidden');
+        stopIcon.classList.remove('hidden');
+
+        if (logAdmin) {
+            logAdmin.info('Автообновление запущено пользователем');
+        }
+    }
+}
+
+/**
+ * Initialize page
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[ADMIN_LOGS] DOMContentLoaded event fired');
+
+    // Check if Logger class is available
+    if (typeof Logger === 'undefined') {
+        console.error('[ADMIN_LOGS] Logger class not found!');
+        alert('Ошибка: Logger класс не загружен. Проверьте консоль.');
+        return;
+    }
+
+    // Initialize logger FIRST
+    logAdmin = new Logger('[ADMIN_LOGS]', 'ADMIN_LOGS');
+    logAdmin.info('Страница системных логов загружена');
+
+    // Check if CalendarWidget is available
+    if (typeof CalendarWidget === 'undefined') {
+        logAdmin.error('CalendarWidget класс не найден!');
+        console.error('[ADMIN_LOGS] CalendarWidget class not found!');
+        alert('Ошибка: CalendarWidget не загружен. Проверьте консоль.');
+        return;
+    }
+
+    // Check if DateFormatter is available
+    if (typeof DateFormatter === 'undefined') {
+        logAdmin.error('DateFormatter класс не найден!');
+        console.error('[ADMIN_LOGS] DateFormatter class not found!');
+        alert('Ошибка: DateFormatter не загружен. Проверьте консоль.');
+        return;
+    }
+
+    // Initialize calendar widget
+    try {
+        initializeCalendar();
+    } catch (error) {
+        logAdmin.error('Ошибка инициализации календаря:', error);
+        console.error('[ADMIN_LOGS] Calendar initialization error:', error);
+    }
+
+    // Setup event listeners for buttons
+    document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
+    document.getElementById('btn-toggle-refresh').addEventListener('click', toggleAutoRefresh);
+    document.getElementById('btn-reset').addEventListener('click', resetFilters);
+
+    // Load initial logs
+    logAdmin.info('Загрузка начальных логов...');
+    refreshLogs();
+
+    // Auto-refresh is now controlled by toggle button
+    // Start stopped by default (user must click "Запустить")
+
+    // Handle auto-refresh when page visibility changes
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // Page hidden - stop auto-refresh if running
+            if (isAutoRefreshRunning) {
+                logAdmin.info('Страница скрыта - остановка автообновления');
+                stopAutoRefresh();
+
+                // Update UI to show stopped state
+                const button = document.getElementById('btn-toggle-refresh');
+                const buttonText = document.getElementById('btn-text');
+                const playIcon = document.getElementById('icon-play');
+                const stopIcon = document.getElementById('icon-stop');
+
+                button.classList.remove('btn-error');
+                button.classList.add('btn-success');
+                buttonText.textContent = 'Запустить';
+                playIcon.classList.remove('hidden');
+                stopIcon.classList.add('hidden');
+            }
+        } else {
+            // Page visible - just refresh once (don't auto-start)
+            logAdmin.info('Страница видима - обновление логов');
+            refreshLogs();
+        }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        stopAutoRefresh();
+    });
+});
+</script>
+{% endblock %}

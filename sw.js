@@ -66,7 +66,7 @@ const OFFLINE_PAGE_ASSETS = [
 
 // Install event - кешируем критическую статику и ресурсы offline страниц
 self.addEventListener('install', (event) => {
-  if (DEBUG) console.log('[SW] Installing version:', CACHE_VERSION);
+  console.log('[SW] 📦 Installing Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -108,41 +108,43 @@ self.addEventListener('install', (event) => {
         });
       })
       .then(() => {
-        console.log('[SW] CRITICAL: Forcing immediate activation via skipWaiting()');
+        console.log('[SW] ⚡ Calling skipWaiting() for immediate activation');
         return self.skipWaiting();
       })
+      .then(() => {
+        console.log('[SW] ✓ skipWaiting() completed');
+      })
       .catch((err) => {
-        console.error('[SW] Install failed:', err);
+        console.error('[SW] ERROR during install:', err);
       })
   );
 });
 
 // Activate event - удаляем старые кеши и уведомляем клиентов
 self.addEventListener('activate', (event) => {
-  if (DEBUG) console.log('[SW] Activating version:', CACHE_VERSION);
+  console.log('[SW] 🚀 Activating Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
     (async () => {
       // Удаляем старые кеши
       const cacheNames = await caches.keys();
-      const deletedCaches = await Promise.all(
-        cacheNames
-          .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
-          .map((name) => {
-            if (DEBUG) console.log('[SW] Deleting old cache:', name);
-            return caches.delete(name);
-          })
-      );
+      const cacheDeletes = cacheNames
+        .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
+        .map((name) => {
+          console.log('[SW] 🗑️ Deleting old cache:', name);
+          return caches.delete(name);
+        });
 
-      if (DEBUG) console.log('[SW] Deleted', deletedCaches.length, 'old caches');
+      await Promise.all(cacheDeletes);
+      console.log(`[SW] ✓ Deleted ${cacheDeletes.length} old cache(s)`);
 
       // CRITICAL: Take control of all clients immediately
+      console.log('[SW] 👑 Calling clients.claim() to take control');
       await self.clients.claim();
-      if (DEBUG) console.log('[SW] Clients claimed');
 
       // Notify all clients about update with VERSION
       const clients = await self.clients.matchAll({ type: 'window' });
-      if (DEBUG) console.log('[SW] Notifying', clients.length, 'clients about SW update');
+      console.log(`[SW] 📢 Notifying ${clients.length} client(s) about update`);
 
       clients.forEach(client => {
         client.postMessage({
@@ -151,6 +153,8 @@ self.addEventListener('activate', (event) => {
           timestamp: new Date().toISOString()
         });
       });
+
+      console.log('[SW] ✓ Activation complete');
     })()
   );
 });
@@ -315,6 +319,7 @@ self.addEventListener('message', (event) => {
 
   // Запрос текущей версии SW
   if (event.data.action === 'getVersion') {
+    console.log('[SW] 📩 Version request received, responding with:', CACHE_VERSION);
     event.ports[0].postMessage({
       type: 'VERSION_RESPONSE',
       version: CACHE_VERSION

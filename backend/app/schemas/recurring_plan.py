@@ -111,6 +111,28 @@ class RecurringPlanCreate(BaseModel):
         examples=["plan", "fact"]
     )
 
+    enable_reminder: bool = Field(
+        default=False,
+        description="Whether to create reminders for each generated fact",
+        examples=[False, True]
+    )
+
+    reminder_hour: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=23,
+        description="Hour of reminder time (0-23) in SYSTEM_TIMEZONE",
+        examples=[9, 14]
+    )
+
+    reminder_minute: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=59,
+        description="Minute of reminder time (0-59) in SYSTEM_TIMEZONE",
+        examples=[0, 30]
+    )
+
     @field_validator("start_date")
     @classmethod
     def validate_start_date(cls, v: date) -> date:
@@ -186,6 +208,14 @@ class RecurringPlanCreate(BaseModel):
         """Validate that only one duration option is set."""
         if self.end_date and self.occurrences_count:
             raise ValueError("Cannot set both end_date and occurrences_count")
+        return self
+
+    @model_validator(mode="after")
+    def validate_reminder_time(self):
+        """Validate reminder time is complete when enabled."""
+        if self.enable_reminder:
+            if self.reminder_hour is None or self.reminder_minute is None:
+                raise ValueError("reminder_hour and reminder_minute required when enable_reminder=true")
         return self
 
     @field_validator("description")
@@ -315,12 +345,27 @@ class RecurringPlanResponse(BaseModel):
     description: Optional[str] = Field(default=None, description="Description template")
     record_type: RecordType = Field(description="Generated record type")
 
+    enable_reminder: bool = Field(description="Whether reminders are enabled")
+    reminder_hour: Optional[int] = Field(default=None, description="Reminder hour (0-23)")
+    reminder_minute: Optional[int] = Field(default=None, description="Reminder minute (0-59)")
+    reminder_time_display: Optional[str] = Field(
+        default=None,
+        description="Formatted reminder time (HH:MM)"
+    )
+
     is_active: bool = Field(description="Active status")
     next_generation_date: Optional[date] = Field(default=None, description="Next scheduled date")
     last_generated_date: Optional[date] = Field(default=None, description="Last generated date")
 
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")
+
+    @model_validator(mode="after")
+    def compute_reminder_time_display(self):
+        """Compute reminder_time_display as HH:MM string."""
+        if self.enable_reminder and self.reminder_hour is not None and self.reminder_minute is not None:
+            self.reminder_time_display = f"{self.reminder_hour:02d}:{self.reminder_minute:02d}"
+        return self
 
     model_config = {
         "from_attributes": True,

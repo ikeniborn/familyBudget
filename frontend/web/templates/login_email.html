@@ -18,23 +18,52 @@
                 </svg>
             </div>
 
-            <h2>Вход по Email</h2>
+            <h2>Вход в систему</h2>
             <p class="login-description">
-                Введите email и пароль. После проверки потребуется ввести код из приложения-аутентификатора.
+                Введите email для входа. Вы сможете выбрать метод аутентификации: биометрию (TouchID/FaceID) или пароль.
             </p>
 
-            <!-- Login Form -->
-            <form id="login-form" class="space-y-4" onsubmit="handleLogin(event)">
+            <!-- Шаг 1: Identifier Input (Email или Username) -->
+            <form id="identifier-form" class="space-y-4" onsubmit="handleIdentifierSubmit(event)">
                 <div class="form-control w-full">
                     <label class="label">
-                        <span class="label-text">Email</span>
+                        <span class="label-text">Email или имя пользователя</span>
                     </label>
-                    <input type="email" name="email" id="email"
+                    <input type="text" name="identifier" id="identifier"
                            class="input input-bordered w-full"
                            placeholder="user@example.com"
-                           required autocomplete="email">
+                           required autocomplete="username webauthn">
                 </div>
 
+                <!-- Error message container (shared across all forms) -->
+                <div id="login-error" class="alert alert-error hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="login-error-text"></span>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-full">
+                    Продолжить
+                </button>
+            </form>
+
+            <!-- Шаг 2: WebAuthn Biometric Button (hidden initially) -->
+            <div id="biometric-section" class="hidden space-y-4">
+                <button id="biometric-btn" class="btn btn-primary w-full gap-2" onclick="handleBiometricAuth()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                    </svg>
+                    <span id="biometric-label">Использовать биометрию</span>
+                </button>
+                <div class="divider">ИЛИ</div>
+                <button onclick="showPasswordField()" class="btn btn-ghost w-full">
+                    Использовать пароль
+                </button>
+            </div>
+
+            <!-- Шаг 3: Password Field (fallback, hidden initially) -->
+            <form id="password-section" class="hidden space-y-4" onsubmit="handlePasswordLogin(event)">
                 <div class="form-control w-full">
                     <label class="label">
                         <span class="label-text">Пароль</span>
@@ -45,17 +74,9 @@
                            required autocomplete="current-password">
                 </div>
 
-                <!-- Error message container -->
-                <div id="login-error" class="alert alert-error hidden">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span id="login-error-text"></span>
-                </div>
-
-                <button type="submit" id="login-btn" class="btn btn-primary w-full">
-                    <span id="login-btn-text">Войти</span>
-                    <span id="login-btn-loading" class="loading loading-spinner hidden"></span>
+                <button type="submit" id="password-login-btn" class="btn btn-primary w-full">
+                    <span id="password-login-btn-text">Войти</span>
+                    <span id="password-login-btn-loading" class="loading loading-spinner hidden"></span>
                 </button>
             </form>
 
@@ -218,17 +239,283 @@
 </style>
 
 <script>
-async function handleLogin(e) {
+// ============================================================================
+// WebAuthn Utility Functions
+// ============================================================================
+
+function base64urlToBuffer(base64url) {
+    console.log('[WEBAUTHN_CLIENT] Converting base64url to buffer:', base64url.substring(0, 20) + '...');
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(base64 + padding);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    console.log('[WEBAUTHN_CLIENT] Buffer length:', bytes.length);
+    return bytes.buffer;
+}
+
+function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    console.log('[WEBAUTHN_CLIENT] Converting buffer to base64url, length:', bytes.length);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    console.log('[WEBAUTHN_CLIENT] Base64url result:', base64.substring(0, 20) + '...');
+    return base64;
+}
+
+async function isWebAuthnSupported() {
+    const supported = window.PublicKeyCredential && navigator.credentials;
+    console.log('[WEBAUTHN_CLIENT] WebAuthn supported:', supported);
+    return supported;
+}
+
+function getBiometricLabel() {
+    const ua = navigator.userAgent;
+    console.log('[WEBAUTHN_CLIENT] Detecting platform from UA:', ua.substring(0, 50) + '...');
+
+    if (/iPhone|iPad|iPod/.test(ua)) {
+        console.log('[WEBAUTHN_CLIENT] Platform: iOS');
+        if (/iPhone1[2-9]/.test(ua)) {
+            return 'Использовать Face ID';
+        }
+        return 'Использовать Touch ID';
+    }
+
+    if (/Android/.test(ua)) {
+        console.log('[WEBAUTHN_CLIENT] Platform: Android');
+        return 'Использовать отпечаток или лицо';
+    }
+
+    console.log('[WEBAUTHN_CLIENT] Platform: Desktop/other');
+    return 'Использовать биометрию';
+}
+
+// ============================================================================
+// Identifier-First Login Flow
+// ============================================================================
+
+async function handleIdentifierSubmit(event) {
+    event.preventDefault();
+    const identifier = document.getElementById('identifier').value.trim();
+    const errorDiv = document.getElementById('login-error');
+    const errorText = document.getElementById('login-error-text');
+
+    console.log('[WEBAUTHN_CLIENT] Checking auth methods for:', identifier);
+
+    // Hide error
+    errorDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch(`/api/v1/auth/methods?identifier=${encodeURIComponent(identifier)}`);
+        const data = await response.json();
+
+        console.log('[WEBAUTHN_CLIENT] Available methods:', data.methods);
+
+        // Prioritize WebAuthn if available and supported
+        if (data.methods.webauthn && await isWebAuthnSupported()) {
+            console.log('[WEBAUTHN_CLIENT] WebAuthn available, showing biometric button');
+            console.log('[WEBAUTHN_CLIENT] Credentials:', data.methods.webauthn_credentials);
+            showBiometricSection(data.methods.webauthn_credentials);
+        } else if (data.methods.email_password) {
+            console.log('[WEBAUTHN_CLIENT] Email+Password available, showing password field');
+            showPasswordField();
+        } else {
+            console.warn('[WEBAUTHN_CLIENT] No auth methods available for user');
+            showError('Методы аутентификации не найдены');
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Error checking auth methods:', error);
+        showError('Ошибка проверки методов аутентификации');
+    }
+}
+
+function showBiometricSection(credentials) {
+    console.log('[WEBAUTHN_CLIENT] Showing biometric section');
+    document.getElementById('identifier-form').classList.add('hidden');
+    document.getElementById('biometric-section').classList.remove('hidden');
+    document.getElementById('biometric-label').textContent = getBiometricLabel();
+
+    // Update button with credential info if available
+    if (credentials && credentials.length > 0) {
+        const latest = credentials[0];
+        console.log('[WEBAUTHN_CLIENT] Latest credential:', latest.device_name,
+                    'last used:', latest.last_used_at);
+    }
+}
+
+function showPasswordField() {
+    console.log('[WEBAUTHN_CLIENT] Showing password field (fallback)');
+    document.getElementById('identifier-form').classList.add('hidden');
+    document.getElementById('password-section').classList.remove('hidden');
+}
+
+function showError(message) {
+    console.error('[WEBAUTHN_CLIENT] Showing error to user:', message);
+    const errorDiv = document.getElementById('login-error');
+    const errorText = document.getElementById('login-error-text');
+    errorText.textContent = message;
+    errorDiv.classList.remove('hidden');
+}
+
+// ============================================================================
+// WebAuthn Biometric Authentication
+// ============================================================================
+
+async function handleBiometricAuth() {
+    const identifier = document.getElementById('identifier').value.trim();
+
+    console.log('[WEBAUTHN_CLIENT] Starting biometric auth for:', identifier);
+
+    try {
+        // 1. Get authentication options
+        console.log('[WEBAUTHN_CLIENT] Requesting authentication options...');
+        const optionsRes = await fetch('/api/v1/webauthn/authenticate/options', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({identifier})
+        });
+
+        if (!optionsRes.ok) {
+            const error = await optionsRes.json();
+            console.error('[WEBAUTHN_CLIENT] Failed to get options:', error);
+            throw new Error((typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail)) || 'Failed to get authentication options');
+        }
+
+        const options = await optionsRes.json();
+        console.log('[WEBAUTHN_CLIENT] Authentication options received');
+        console.log('[WEBAUTHN_CLIENT] Challenge:', options.challenge.substring(0, 20) + '...');
+        console.log('[WEBAUTHN_CLIENT] RP ID:', options.rpId);
+        console.log('[WEBAUTHN_CLIENT] Allowed credentials:', options.allowCredentials.length);
+
+        // 2. Convert base64url to ArrayBuffer
+        console.log('[WEBAUTHN_CLIENT] Converting challenge to buffer...');
+        const challengeBuffer = base64urlToBuffer(options.challenge);
+
+        console.log('[WEBAUTHN_CLIENT] Converting credential IDs to buffers...');
+        const allowCredentials = options.allowCredentials.map((cred, idx) => {
+            console.log(`[WEBAUTHN_CLIENT] Credential ${idx}: ${cred.id.substring(0, 20)}..., transports:`, cred.transports);
+            return {
+                ...cred,
+                id: base64urlToBuffer(cred.id)
+            };
+        });
+
+        // 3. Call WebAuthn API (triggers biometric prompt)
+        console.log('[WEBAUTHN_CLIENT] Calling navigator.credentials.get()...');
+        console.log('[WEBAUTHN_CLIENT] This will trigger biometric prompt (TouchID/FaceID)');
+
+        const credential = await navigator.credentials.get({
+            publicKey: {
+                challenge: challengeBuffer,
+                rpId: options.rpId,
+                allowCredentials: allowCredentials,
+                userVerification: options.userVerification,
+                timeout: options.timeout
+            }
+        });
+
+        console.log('[WEBAUTHN_CLIENT] ✅ Biometric authentication successful');
+        console.log('[WEBAUTHN_CLIENT] Credential ID:', credential.id.substring(0, 20) + '...');
+        console.log('[WEBAUTHN_CLIENT] Credential type:', credential.type);
+
+        // 4. Convert credential to JSON
+        console.log('[WEBAUTHN_CLIENT] Converting credential to JSON...');
+        const credentialJSON = {
+            id: credential.id,
+            rawId: bufferToBase64url(credential.rawId),
+            response: {
+                authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                signature: bufferToBase64url(credential.response.signature),
+                userHandle: credential.response.userHandle
+                    ? bufferToBase64url(credential.response.userHandle)
+                    : null
+            },
+            type: credential.type
+        };
+
+        console.log('[WEBAUTHN_CLIENT] Credential JSON prepared');
+        console.log('[WEBAUTHN_CLIENT] Sizes: authData=', credential.response.authenticatorData.byteLength,
+                    'clientData=', credential.response.clientDataJSON.byteLength,
+                    'signature=', credential.response.signature.byteLength);
+
+        // 5. Verify authentication
+        console.log('[WEBAUTHN_CLIENT] Sending verification request...');
+        const verifyRes = await fetch('/api/v1/webauthn/authenticate/verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+                challenge: options.challenge,  // Original base64url string
+                credential: credentialJSON
+            })
+        });
+
+        if (verifyRes.ok) {
+            const data = await verifyRes.json();
+            console.log('[WEBAUTHN_CLIENT] ✅ Authentication verified successfully');
+            console.log('[WEBAUTHN_CLIENT] User:', data.user);
+            console.log('[WEBAUTHN_CLIENT] JWT tokens received (cookies set)');
+            console.log('[WEBAUTHN_CLIENT] Redirecting to dashboard...');
+            window.location.href = '/';
+        } else {
+            const error = await verifyRes.json();
+            console.error('[WEBAUTHN_CLIENT] ❌ Verification failed:', error);
+
+            if (error.detail?.includes('compromised') || error.detail?.includes('cloned')) {
+                console.error('[WEBAUTHN_CLIENT] ⚠️ SECURITY ALERT: Cloned credential detected!');
+                showError('Credential compromised (cloned authenticator detected). Credential auto-revoked. Use alternative login method.');
+            } else {
+                showError(error.detail || 'Authentication failed');
+            }
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Biometric auth error:', error);
+        handleWebAuthnError(error);
+    }
+}
+
+function handleWebAuthnError(error) {
+    console.log('[WEBAUTHN_CLIENT] Handling WebAuthn error:', error.name, error.message);
+
+    if (error.name === 'NotAllowedError') {
+        console.warn('[WEBAUTHN_CLIENT] User canceled biometric prompt or timeout');
+        showError('Аутентификация отменена. Попробуйте снова или используйте пароль.');
+    } else if (error.name === 'NotSupportedError') {
+        console.warn('[WEBAUTHN_CLIENT] WebAuthn not supported in this browser');
+        showPasswordField();
+        showError('Биометрия не поддерживается. Используйте пароль.');
+    } else if (error.name === 'InvalidStateError') {
+        console.warn('[WEBAUTHN_CLIENT] Credential already registered or invalid state');
+        showError('Некорректное состояние. Обновите страницу и попробуйте снова.');
+    } else {
+        console.error('[WEBAUTHN_CLIENT] Unknown WebAuthn error');
+        showError('Ошибка аутентификации: ' + error.message);
+    }
+}
+
+// ============================================================================
+// Password Login (Fallback)
+// ============================================================================
+
+async function handlePasswordLogin(e) {
     e.preventDefault();
 
-    const btn = document.getElementById('login-btn');
-    const btnText = document.getElementById('login-btn-text');
-    const btnLoading = document.getElementById('login-btn-loading');
+    const btn = document.getElementById('password-login-btn');
+    const btnText = document.getElementById('password-login-btn-text');
+    const btnLoading = document.getElementById('password-login-btn-loading');
     const errorDiv = document.getElementById('login-error');
     const errorText = document.getElementById('login-error-text');
 
     // Get form data
-    const email = document.getElementById('email').value.trim();
+    const identifier = document.getElementById('identifier').value.trim();
     const password = document.getElementById('password').value;
 
     // Hide error, show loading
@@ -238,7 +525,7 @@ async function handleLogin(e) {
     btnLoading.classList.remove('hidden');
 
     try {
-        console.log('[AUTH_EMAIL] Login attempt:', email);
+        console.log('[AUTH_EMAIL] Login attempt:', identifier);
 
         const response = await fetch('/api/v1/auth/login', {
             method: 'POST',
@@ -247,7 +534,7 @@ async function handleLogin(e) {
             },
             credentials: 'same-origin',
             body: JSON.stringify({
-                email: email,
+                email: identifier,
                 password: password
             })
         });
@@ -308,7 +595,7 @@ async function handleLogin(e) {
             if (response.status === 403) {
                 const rawMessage = data.detail?.message || data.detail || '';
                 if (rawMessage.includes('2FA')) {
-                    sessionStorage.setItem('setup_2fa_email', email);
+                    sessionStorage.setItem('setup_2fa_email', identifier);
                     showToast('Необходимо настроить 2FA для входа по email', 'warning');
                     window.location.href = '/security';
                     return;
