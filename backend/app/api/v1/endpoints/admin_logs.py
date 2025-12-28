@@ -9,7 +9,7 @@ Author: Claude Code
 Date: 2025-12-27
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -20,6 +20,7 @@ from slowapi.util import get_remote_address
 from backend.app.core.auth import CurrentAdmin, CurrentUser
 from backend.app.core.logging import get_logger
 from backend.app.services.logs_collector_service import LogsCollectorService
+from backend.app.utils.timezone import get_system_timezone
 
 logger = get_logger(__name__)
 
@@ -130,9 +131,9 @@ async def get_logs(
     if since:
         try:
             since_dt = datetime.fromisoformat(since.replace('Z', '+00:00'))
-            # Make timezone-aware if naive (assume UTC)
+            # Make timezone-aware if naive (assume system timezone)
             if since_dt.tzinfo is None:
-                since_dt = since_dt.replace(tzinfo=timezone.utc)
+                since_dt = since_dt.replace(tzinfo=get_system_timezone())
         except ValueError:
             logger.warning(f"[ADMIN_LOGS_API] Invalid since datetime={since}")
             raise HTTPException(status_code=400, detail="Invalid since datetime format (use ISO 8601)")
@@ -140,9 +141,9 @@ async def get_logs(
     if until:
         try:
             until_dt = datetime.fromisoformat(until.replace('Z', '+00:00'))
-            # Make timezone-aware if naive (assume UTC)
+            # Make timezone-aware if naive (assume system timezone)
             if until_dt.tzinfo is None:
-                until_dt = until_dt.replace(tzinfo=timezone.utc)
+                until_dt = until_dt.replace(tzinfo=get_system_timezone())
         except ValueError:
             logger.warning(f"[ADMIN_LOGS_API] Invalid until datetime={until}")
             raise HTTPException(status_code=400, detail="Invalid until datetime format (use ISO 8601)")

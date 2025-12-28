@@ -27,6 +27,7 @@ import docker
 from docker.errors import DockerException, NotFound
 
 from backend.app.core.logging import get_logger
+from backend.app.utils.timezone import get_system_timezone
 
 logger = get_logger(__name__)
 
@@ -424,19 +425,19 @@ class LogsCollectorService:
         - ISO with microseconds: "2025-12-27T10:30:00.123456Z"
         - Local time: "2025-12-27T10:30:00"
 
-        Always returns timezone-aware datetime (UTC).
+        Always returns timezone-aware datetime (system timezone from SYSTEM_TIMEZONE env).
         """
         try:
             # Remove 'Z' suffix and parse
             timestamp_str = timestamp_str.replace('Z', '+00:00')
             dt = datetime.fromisoformat(timestamp_str)
-            # Make timezone-aware if naive (assume UTC)
+            # Make timezone-aware if naive (assume system timezone)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=get_system_timezone())
             return dt
         except (ValueError, AttributeError):
-            # Return timezone-aware datetime.min
-            return datetime.min.replace(tzinfo=timezone.utc)
+            # Return timezone-aware datetime.min in system timezone
+            return datetime.min.replace(tzinfo=get_system_timezone())
 
     def _parse_since_to_seconds(self, since: str) -> int:
         """
