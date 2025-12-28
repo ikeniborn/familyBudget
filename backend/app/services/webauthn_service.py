@@ -29,6 +29,7 @@ Usage:
 """
 
 import base64
+import json
 import logging
 import secrets
 from datetime import datetime, timedelta
@@ -153,17 +154,19 @@ async def create_registration_challenge(
     )
 
     # Convert to JSON-serializable dict
-    options_json = options_to_json(registration_options)
+    # Note: options_to_json() returns JSON string, not dict
+    options_json_str = options_to_json(registration_options)
+    options_dict = json.loads(options_json_str)
 
     # Store challenge in options for frontend to send back
-    options_json["challenge"] = challenge_record.challenge
+    options_dict["challenge"] = challenge_record.challenge
 
     logger.debug(
         f"[WEBAUTHN_SERVICE] Registration options generated: "
         f"RP ID={settings.WEBAUTHN_RP_ID}, user={user_email}"
     )
 
-    return options_json
+    return options_dict
 
 
 async def verify_and_store_credential(
@@ -421,11 +424,15 @@ async def create_authentication_challenge(
         timeout=60000,  # 1 minute (faster timeout for auth vs registration)
     )
 
-    # Convert to JSON
-    options_json = options_to_json(authentication_options)
-    options_json["challenge"] = challenge_record.challenge
+    # Convert to JSON-serializable dict
+    # Note: options_to_json() returns JSON string, not dict
+    options_json_str = options_to_json(authentication_options)
+    options_dict = json.loads(options_json_str)
 
-    return options_json
+    # Store challenge in options for frontend to send back
+    options_dict["challenge"] = challenge_record.challenge
+
+    return options_dict
 
 
 async def verify_authentication_and_issue_tokens(
