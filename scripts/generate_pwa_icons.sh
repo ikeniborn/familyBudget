@@ -40,6 +40,16 @@ if ! command -v convert &> /dev/null; then
     exit 1
 fi
 
+# Проверка rsvg-convert (предпочтительно) или fallback на ImageMagick
+if command -v rsvg-convert &> /dev/null; then
+    USE_RSVG=true
+    echo -e "${GREEN}✓ Using rsvg-convert for SVG rendering (recommended)${NC}"
+else
+    USE_RSVG=false
+    echo -e "${YELLOW}⚠ rsvg-convert not found, using ImageMagick convert (fallback)${NC}"
+    echo -e "${YELLOW}  For better quality, install: sudo apt-get install librsvg2-bin${NC}"
+fi
+
 # Проверка входного файла
 if [[ ! -f "$INPUT_SVG" ]]; then
     echo -e "${RED}✗ Error: SVG file not found: $INPUT_SVG${NC}"
@@ -62,8 +72,14 @@ generate_png() {
 
     echo -n "  Generating $(basename "$output") (${size}x${size})... "
 
-    # Использовать rsvg-convert для правильной обработки SVG градиентов
-    rsvg-convert -w "$size" -h "$size" -b none "$INPUT_SVG" -o "$output"
+    if [[ "$USE_RSVG" == true ]]; then
+        # Использовать rsvg-convert для правильной обработки SVG градиентов
+        rsvg-convert -w "$size" -h "$size" -b none "$INPUT_SVG" -o "$output"
+    else
+        # Fallback: ImageMagick convert
+        convert -density "$density" -background none -resize "${size}x${size}" \
+            "$INPUT_SVG" "$output"
+    fi
 
     if [[ -f "$output" ]]; then
         echo -e "${GREEN}✓${NC}"
@@ -86,13 +102,23 @@ generate_maskable() {
     local padding=$((size - content_size))
     local half_padding=$((padding / 2))
 
-    # Сначала создать контент с rsvg-convert, затем добавить padding с ImageMagick
-    rsvg-convert -w "$content_size" -h "$content_size" -b none "$INPUT_SVG" | \
-        convert - \
-        -background none \
-        -gravity center \
-        -extent "${size}x${size}" \
-        "$output"
+    if [[ "$USE_RSVG" == true ]]; then
+        # Сначала создать контент с rsvg-convert, затем добавить padding с ImageMagick
+        rsvg-convert -w "$content_size" -h "$content_size" -b none "$INPUT_SVG" | \
+            convert - \
+            -background none \
+            -gravity center \
+            -extent "${size}x${size}" \
+            "$output"
+    else
+        # Fallback: ImageMagick только
+        convert -density 300 -background none \
+            -resize "${content_size}x${content_size}" \
+            "$INPUT_SVG" \
+            -gravity center \
+            -extent "${size}x${size}" \
+            "$output"
+    fi
 
     if [[ -f "$output" ]]; then
         echo -e "${GREEN}✓${NC}"
@@ -146,12 +172,20 @@ generate_splash() {
     local shorter=$((width < height ? width : height))
     local icon_size=$((shorter * 30 / 100))
 
-    # Create icon with rsvg-convert, then composite on background
-    rsvg-convert -w "$icon_size" -h "$icon_size" -b none "$INPUT_SVG" | \
+    if [[ "$USE_RSVG" == true ]]; then
+        # Create icon with rsvg-convert, then composite on background
+        rsvg-convert -w "$icon_size" -h "$icon_size" -b none "$INPUT_SVG" | \
+            convert -size "${width}x${height}" "xc:${bg_color}" \
+            \( - \) \
+            -gravity center -composite \
+            "$output"
+    else
+        # Fallback: ImageMagick только
         convert -size "${width}x${height}" "xc:${bg_color}" \
-        \( - \) \
-        -gravity center -composite \
-        "$output"
+            \( -density 300 -background none -resize "${icon_size}x${icon_size}" "$INPUT_SVG" \) \
+            -gravity center -composite \
+            "$output"
+    fi
 
     if [[ -f "$output" ]]; then
         local filesize=$(du -h "$output" | cut -f1)

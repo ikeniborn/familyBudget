@@ -960,6 +960,83 @@ async def reset_user_2fa(
     return user
 
 
+@router.put("/users/{user_id}/reset-webauthn", response_model=UserDetailResponse)
+async def reset_user_webauthn(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Reset user's WebAuthn credentials (admin only).
+
+    **Admin Only:** Only admin users can reset WebAuthn credentials for other users.
+
+    This endpoint:
+    - Revokes all WebAuthn credentials (sets is_revoked=True)
+    - User will need to re-register biometric authentication
+
+    Args:
+        user_id: User ID to reset WebAuthn
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user
+
+    Raises:
+        HTTPException: 404 if user not found
+        HTTPException: 400 if user has no WebAuthn credentials
+    """
+    # Load user
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Check if user has WebAuthn credentials
+    from backend.app.models.webauthn_credential import WebAuthnCredential
+    credentials_query = select(WebAuthnCredential).where(
+        WebAuthnCredential.user_id == user_id,
+        WebAuthnCredential.is_revoked == False  # noqa: E712
+    )
+    credentials_result = await session.execute(credentials_query)
+    credentials = credentials_result.scalars().all()
+
+    if not credentials:
+        raise HTTPException(
+            status_code=400,
+            detail="User has no active WebAuthn credentials"
+        )
+
+    # Revoke all credentials
+    now = datetime.utcnow()
+    revoked_count = 0
+    for credential in credentials:
+        credential.is_revoked = True
+        credential.revoked_at = now
+        session.add(credential)
+        revoked_count += 1
+
+    # Update user timestamp
+    user.updated_at = now
+    session.add(user)
+
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"WebAuthn reset for user {user_id} by admin {current_admin.id} "
+        f"({revoked_count} credentials revoked, telegram_id={user.telegram_id}, email={user.email})"
+    )
+
+    return user
+
+
 @router.put("/users/{user_id}/refresh-profile", response_model=UserDetailResponse)
 async def refresh_user_profile_from_telegram(
     user_id: int,
