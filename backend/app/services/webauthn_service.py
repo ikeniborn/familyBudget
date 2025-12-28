@@ -28,6 +28,7 @@ Usage:
     ... )
 """
 
+import base64
 import logging
 import secrets
 from datetime import datetime, timedelta
@@ -103,12 +104,14 @@ async def create_registration_challenge(
     )
 
     # Generate cryptographic challenge (32 bytes)
+    # CRITICAL: Use SAME challenge for both WebAuthn library and database storage
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
+    challenge_base64url = base64.urlsafe_b64encode(challenge_bytes).decode('utf-8').rstrip('=')
     expires_at = datetime.utcnow() + timedelta(minutes=CHALLENGE_TTL_MINUTES)
 
-    # Create challenge record
+    # Create challenge record with Base64URL-encoded challenge
     challenge_record = WebAuthnChallenge(
-        challenge=secrets.token_urlsafe(CHALLENGE_BYTES),  # Base64URL
+        challenge=challenge_base64url,  # Base64URL (same as sent to frontend)
         user_id=user.id,
         challenge_type="registration",
         expires_at=expires_at,
@@ -216,10 +219,13 @@ async def verify_and_store_credential(
     )
 
     # 2. Verify attestation (using webauthn library)
+    # CRITICAL: Decode Base64URL challenge back to original bytes
+    challenge_bytes = base64.urlsafe_b64decode(challenge + '==')  # Add padding
+
     try:
         verification = verify_registration_response(
             credential=credential,
-            expected_challenge=challenge.encode("utf-8"),
+            expected_challenge=challenge_bytes,  # Original bytes (not UTF-8 string!)
             expected_rp_id=settings.WEBAUTHN_RP_ID,
             expected_origin=settings.WEBAUTHN_ORIGIN,
             require_user_verification=True,
@@ -247,19 +253,20 @@ async def verify_and_store_credential(
         raise ValueError(f"Registration verification failed: {str(e)}")
 
     # 3. Check for duplicate credential
-    credential_id_base64 = verification.credential_id.hex()
+    # CRITICAL: Use Base64URL encoding (WebAuthn standard), NOT HEX
+    credential_id_base64url = base64.urlsafe_b64encode(verification.credential_id).decode('utf-8').rstrip('=')
     existing_stmt = select(WebAuthnCredential).where(
-        WebAuthnCredential.credential_id == credential_id_base64
+        WebAuthnCredential.credential_id == credential_id_base64url
     )
     existing = await session.exec(existing_stmt)
     if existing.first():
         logger.warning(
-            f"[WEBAUTHN_SERVICE] Credential already registered: {credential_id_base64[:20]}..."
+            f"[WEBAUTHN_SERVICE] Credential already registered: {credential_id_base64url[:20]}..."
         )
         await _log_audit_event(
             session,
             user.id,
-            credential_id_base64,
+            credential_id_base64url,
             "registration_failure",
             ip_address,
             user_agent,
@@ -270,7 +277,7 @@ async def verify_and_store_credential(
     # 4. Store credential
     new_credential = WebAuthnCredential(
         user_id=user.id,
-        credential_id=credential_id_base64,
+        credential_id=credential_id_base64url,  # Base64URL (WebAuthn standard)
         public_key=verification.credential_public_key,  # CBOR-encoded COSE key
         sign_count=verification.sign_count,
         transports=credential.get("transports", []),
@@ -289,7 +296,7 @@ async def verify_and_store_credential(
     await _log_audit_event(
         session,
         user.id,
-        credential_id_base64,
+        credential_id_base64url,
         "registration_success",
         ip_address,
         user_agent,
@@ -301,7 +308,7 @@ async def verify_and_store_credential(
 
     logger.info(
         f"[WEBAUTHN_SERVICE] Credential stored: "
-        f"credential_id={credential_id_base64[:20]}..., device_name={device_name}, "
+        f"credential_id={credential_id_base64url[:20]}..., device_name={device_name}, "
         f"backup_state={new_credential.backup_state}"
     )
 
@@ -368,11 +375,13 @@ async def create_authentication_challenge(
     )
 
     # 3. Generate challenge
+    # CRITICAL: Use SAME challenge for both WebAuthn library and database storage
     challenge_bytes = secrets.token_bytes(CHALLENGE_BYTES)
+    challenge_base64url = base64.urlsafe_b64encode(challenge_bytes).decode('utf-8').rstrip('=')
     expires_at = datetime.utcnow() + timedelta(minutes=CHALLENGE_TTL_MINUTES)
 
     challenge_record = WebAuthnChallenge(
-        challenge=secrets.token_urlsafe(CHALLENGE_BYTES),
+        challenge=challenge_base64url,  # Base64URL (same as sent to frontend)
         user_id=user.id,  # Store user_id for ownership validation
         challenge_type="authentication",
         expires_at=expires_at,
@@ -389,9 +398,10 @@ async def create_authentication_challenge(
     )
 
     # 4. Generate WebAuthn options
+    # CRITICAL: Decode Base64URL credential IDs (not HEX!)
     allow_credentials = [
         PublicKeyCredentialDescriptor(
-            id=bytes.fromhex(cred.credential_id),
+            id=base64.urlsafe_b64decode(cred.credential_id + '=='),  # Base64URL decode
             transports=cred.transports or [],
         )
         for cred in credentials
@@ -466,9 +476,10 @@ async def verify_authentication_and_issue_tokens(
     )
 
     # 2. Load credential
-    credential_id_hex = credential["id"]
+    # CRITICAL: Frontend sends Base64URL credential ID (WebAuthn standard)
+    credential_id_base64url = credential["id"]
     cred_stmt = select(WebAuthnCredential).where(
-        WebAuthnCredential.credential_id == credential_id_hex,
+        WebAuthnCredential.credential_id == credential_id_base64url,
         WebAuthnCredential.is_revoked == False,  # noqa: E712
     )
     result = await session.exec(cred_stmt)
@@ -476,12 +487,12 @@ async def verify_authentication_and_issue_tokens(
 
     if not cred:
         logger.error(
-            f"[WEBAUTHN_SERVICE] Credential not found or revoked: {credential_id_hex[:20]}..."
+            f"[WEBAUTHN_SERVICE] Credential not found or revoked: {credential_id_base64url[:20]}..."
         )
         await _log_audit_event(
             session,
             challenge_record.user_id,
-            credential_id_hex,
+            credential_id_base64url,
             "authentication_failure",
             ip_address,
             user_agent,
@@ -498,7 +509,7 @@ async def verify_authentication_and_issue_tokens(
         await _log_audit_event(
             session,
             challenge_record.user_id,
-            credential_id_hex,
+            credential_id_base64url,
             "authentication_failure",
             ip_address,
             user_agent,
@@ -508,7 +519,7 @@ async def verify_authentication_and_issue_tokens(
 
     logger.debug(
         f"[WEBAUTHN_SERVICE] Challenge retrieved: user_id={cred.user_id}, "
-        f"credential_id={credential_id_hex[:20]}..."
+        f"credential_id={credential_id_base64url[:20]}..."
     )
 
     # 4. Load user
@@ -521,10 +532,13 @@ async def verify_authentication_and_issue_tokens(
         raise ValueError("User not found")
 
     # 5. Verify authentication (using webauthn library)
+    # CRITICAL: Decode Base64URL challenge back to original bytes
+    challenge_bytes = base64.urlsafe_b64decode(challenge + '==')  # Add padding
+
     try:
         verification = verify_authentication_response(
             credential=credential,
-            expected_challenge=challenge.encode("utf-8"),
+            expected_challenge=challenge_bytes,  # Original bytes (not UTF-8 string!)
             expected_rp_id=settings.WEBAUTHN_RP_ID,
             expected_origin=settings.WEBAUTHN_ORIGIN,
             credential_public_key=cred.public_key,
@@ -542,7 +556,7 @@ async def verify_authentication_and_issue_tokens(
         if verification.new_sign_count > 0 and verification.new_sign_count <= cred.sign_count:
             logger.critical(
                 f"[WEBAUTHN_SERVICE] ⚠️ CLONED CREDENTIAL DETECTED: "
-                f"user_id={user.id}, credential_id={credential_id_hex[:20]}..., "
+                f"user_id={user.id}, credential_id={credential_id_base64url[:20]}..., "
                 f"stored_count={cred.sign_count}, new_count={verification.new_sign_count}"
             )
 
@@ -551,13 +565,13 @@ async def verify_authentication_and_issue_tokens(
             cred.revoked_at = datetime.utcnow()
             session.add(cred)
 
-            logger.info(f"[WEBAUTHN_SERVICE] Auto-revoking credential: {credential_id_hex[:20]}...")
+            logger.info(f"[WEBAUTHN_SERVICE] Auto-revoking credential: {credential_id_base64url[:20]}...")
 
             # Log audit event
             await _log_audit_event(
                 session,
                 user.id,
-                credential_id_hex,
+                credential_id_base64url,
                 "authentication_failure",
                 ip_address,
                 user_agent,
@@ -566,7 +580,7 @@ async def verify_authentication_and_issue_tokens(
             await _log_audit_event(
                 session,
                 user.id,
-                credential_id_hex,
+                credential_id_base64url,
                 "credential_compromised",
                 ip_address,
                 user_agent,
@@ -580,7 +594,7 @@ async def verify_authentication_and_issue_tokens(
             from backend.app.api.v1.endpoints.budget_ws import broadcast_webauthn_credential_compromised
             await broadcast_webauthn_credential_compromised(
                 user_id=user.id,
-                credential_id=credential_id_hex,
+                credential_id=credential_id_base64url,
                 reason="sign_count_regression",
             )
 
@@ -591,7 +605,7 @@ async def verify_authentication_and_issue_tokens(
         await _log_audit_event(
             session,
             user.id,
-            credential_id_hex,
+            credential_id_base64url,
             "authentication_failure",
             ip_address,
             user_agent,
@@ -618,7 +632,7 @@ async def verify_authentication_and_issue_tokens(
     await _log_audit_event(
         session,
         user.id,
-        credential_id_hex,
+        credential_id_base64url,
         "authentication_success",
         ip_address,
         user_agent,
@@ -633,7 +647,7 @@ async def verify_authentication_and_issue_tokens(
     )
     logger.info(
         f"[WEBAUTHN_SERVICE] Auth successful: user_id={user.id}, "
-        f"credential_id={credential_id_hex[:20]}..."
+        f"credential_id={credential_id_base64url[:20]}..."
     )
 
     return user, access_token, refresh_token
