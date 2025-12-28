@@ -118,7 +118,7 @@
     <!-- ============================================== -->
     <div id="detail-view" class="view-state hidden">
         <!-- Breadcrumb Navigation -->
-        <div class="text-sm breadcrumbs mb-4">
+        <div class="text-sm breadcrumbs mb-2 sm:mb-3">
             <ul>
                 <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
                 <li id="breadcrumb-list-name">Loading...</li>
@@ -145,22 +145,6 @@
                         <!-- Import wizard will be rendered here by ImportManager -->
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Search Field Container (togglable) -->
-        <div id="search-field-container" class="mb-3 sm:mb-4 hidden">
-            <div class="relative">
-                <input type="text"
-                       id="items-search"
-                       class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
-                       placeholder="Поиск по товарам..."
-                       oninput="handleItemsSearch(this.value)">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">🔍</span>
-                <button id="clear-search-btn"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle hidden"
-                        onclick="clearItemsSearch()"
-                        title="Очистить поиск">✕</button>
             </div>
         </div>
 
@@ -199,6 +183,22 @@
                 <button class="btn btn-sm join-item btn-outline" id="hierarchy-view-btn" onclick="switchView('hierarchy')" title="Иерархический вид">
                     <span>🌳</span><span class="hidden sm:inline ml-1">Иерархия</span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Search Field Container (togglable) -->
+        <div id="search-field-container" class="mb-3 sm:mb-4 hidden">
+            <div class="relative">
+                <input type="text"
+                       id="items-search"
+                       class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
+                       placeholder="Поиск по товарам..."
+                       oninput="handleItemsSearch(this.value)">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">🔍</span>
+                <button id="clear-search-btn"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle hidden"
+                        onclick="clearItemsSearch()"
+                        title="Очистить поиск">✕</button>
             </div>
         </div>
 

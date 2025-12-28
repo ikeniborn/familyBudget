@@ -496,30 +496,30 @@ class HierarchyView {
 
         if (hasSearch) {
             this.container.innerHTML = `
-                <div class="text-center py-12">
-                    <div class="text-6xl mb-4">🔍</div>
-                    <h3 class="text-2xl font-bold mb-2">Ничего не найдено</h3>
-                    <p class="text-base-content/70 mb-4">Попробуйте изменить поисковый запрос</p>
+                <div class="text-center py-8 sm:py-12 px-4">
+                    <div class="text-4xl sm:text-6xl mb-4">🔍</div>
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2">Ничего не найдено</h3>
+                    <p class="text-sm sm:text-base text-base-content/70 mb-4">Попробуйте изменить поисковый запрос</p>
                 </div>
             `;
         } else if (hideCompleted && hasCompletedItems) {
             this.container.innerHTML = `
-                <div class="text-center py-12">
-                    <div class="text-6xl mb-4">👁️‍🗨️</div>
-                    <h3 class="text-2xl font-bold mb-2">Все товары выполнены</h3>
-                    <p class="text-base-content/70 mb-4">Нажмите "Показать все" чтобы увидеть выполненные товары</p>
-                    <button class="btn btn-primary" onclick="toggleHideCompleted()">
+                <div class="text-center py-8 sm:py-12 px-4">
+                    <div class="text-4xl sm:text-6xl mb-4">👁️‍🗨️</div>
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2">Все товары выполнены</h3>
+                    <p class="text-sm sm:text-base text-base-content/70 mb-4">Нажмите "Показать все" чтобы увидеть выполненные товары</p>
+                    <button class="btn btn-primary btn-sm sm:btn-md" onclick="toggleHideCompleted()">
                         👁️ Показать все
                     </button>
                 </div>
             `;
         } else {
             this.container.innerHTML = `
-                <div class="text-center py-12">
-                    <div class="text-6xl mb-4">🌳</div>
-                    <h3 class="text-2xl font-bold mb-2">Список пуст</h3>
-                    <p class="text-base-content/70 mb-4">Добавьте товары, чтобы увидеть иерархию</p>
-                    <button class="btn btn-primary" onclick="openAddItemModal()">
+                <div class="text-center py-8 sm:py-12 px-4">
+                    <div class="text-4xl sm:text-6xl mb-4">🌳</div>
+                    <h3 class="text-xl sm:text-2xl font-bold mb-2">Список пуст</h3>
+                    <p class="text-sm sm:text-base text-base-content/70 mb-4">Добавьте товары, чтобы увидеть иерархию</p>
+                    <button class="btn btn-primary btn-sm sm:btn-md" onclick="openAddItemModal()">
                         ➕ Добавить товар
                     </button>
                 </div>
