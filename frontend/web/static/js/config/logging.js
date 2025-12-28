@@ -61,7 +61,8 @@
             CACHE: isDevelopment,      // Cache metrics collection (dev only)
             DUPLICATE_SEARCH: true,    // Shopping list duplicate detection
             ITEM_SAVE: true,           // Shopping list item save operations
-            LISTS: true                // Shopping lists general operations
+            LISTS: true,               // Shopping lists general operations
+            MODAL_KB: isDevelopment    // Modal keyboard adaptation
         },
 
         // Environment info (for debugging)
