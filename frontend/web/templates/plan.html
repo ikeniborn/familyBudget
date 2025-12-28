@@ -1045,6 +1045,18 @@ function openPlanTransferModal() {
         setTransferRecordType('plan');
     }
 
+    // CRITICAL: Reset FC filter state and clear selection for create modals
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+        fromCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer (plan.html): FROM category reset and cleared');
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
+        toCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer (plan.html): TO category reset and cleared');
+    }
+
     // Update modal title to indicate plan transfer
     const modalTitle = document.querySelector('#transfer_modal h3');
     if (modalTitle) {
@@ -3990,6 +4002,13 @@ function openAddPlanModal() {
     if (submitBtn) {
         submitBtn.disabled = false;
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
+    // CRITICAL: Reset FC filter state and clear selection for create modals
+    if (typeof createCategoryTreeSelect !== 'undefined' && createCategoryTreeSelect) {
+        createCategoryTreeSelect.options.financialCenterId = null;
+        createCategoryTreeSelect.clearSelection();
+        console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
     }
 
     // Pre-fill reminder date and time before opening

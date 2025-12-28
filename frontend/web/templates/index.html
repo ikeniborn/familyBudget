@@ -617,14 +617,16 @@ function openFactTransferModal() {
         setTransferRecordType('fact');
     }
 
-    // CRITICAL: Reset FC filter state for create modals (not edit modals)
-    // This ensures isInitialFiltering works correctly on modal reopening
-    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    // CRITICAL: Reset FC filter state and clear selection for create modals
     if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
         fromCategoryTree.options.financialCenterId = null;
+        fromCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Fact transfer: FROM category reset and cleared');
     }
     if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
         toCategoryTree.options.financialCenterId = null;
+        toCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Fact transfer: TO category reset and cleared');
     }
 
     // Open transfer modal
@@ -678,14 +680,16 @@ function openPlanTransferModal() {
         });
     }
 
-    // CRITICAL: Reset FC filter state for create modals (not edit modals)
-    // This ensures isInitialFiltering works correctly on modal reopening
-    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    // CRITICAL: Reset FC filter state and clear selection for create modals
     if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
         fromCategoryTree.options.financialCenterId = null;
+        fromCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer: FROM category reset and cleared');
     }
     if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
         toCategoryTree.options.financialCenterId = null;
+        toCategoryTree.clearSelection();
+        console.log('[MODAL_CREATE] Plan transfer: TO category reset and cleared');
     }
 
     // Open transfer modal
