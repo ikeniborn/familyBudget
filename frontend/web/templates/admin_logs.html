@@ -305,22 +305,29 @@ function renderLogs(service, logs) {
         return;
     }
 
+    // Sort logs by timestamp (newest first)
+    const sortedLogs = [...logs].sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeB - timeA; // Descending order (newest first)
+    });
+
     // Count warnings and errors
-    const warningCount = logs.filter(log => log.level === 'warning').length;
-    const errorCount = logs.filter(log => log.level === 'error').length;
+    const warningCount = sortedLogs.filter(log => log.level === 'warning').length;
+    const errorCount = sortedLogs.filter(log => log.level === 'error').length;
 
     // Update badges
-    countBadge.textContent = logs.length;
+    countBadge.textContent = sortedLogs.length;
     warningsBadge.textContent = warningCount;
     errorsBadge.textContent = errorCount;
 
     // Render log entries
-    if (logs.length === 0) {
+    if (sortedLogs.length === 0) {
         container.innerHTML = '<p class="text-base-content/50 text-center py-4">Нет логов для отображения</p>';
         return;
     }
 
-    container.innerHTML = logs.map(log => {
+    container.innerHTML = sortedLogs.map(log => {
         const levelClass = {
             'error': 'text-error bg-error/10',
             'warning': 'text-warning bg-warning/10',
@@ -344,7 +351,7 @@ function renderLogs(service, logs) {
     }).join('');
 
     if (logAdmin) {
-        logAdmin.debug(`Отрисовано ${logs.length} логов для service=${service} (warnings: ${warningCount}, errors: ${errorCount})`);
+        logAdmin.debug(`Отрисовано ${sortedLogs.length} логов для service=${service} (warnings: ${warningCount}, errors: ${errorCount})`);
     }
 }
 
@@ -364,7 +371,7 @@ async function refreshLogs() {
     if (filters.service && filters.service !== 'all') params.append('service', filters.service);
     if (filters.since) params.append('since', filters.since);
     if (filters.until) params.append('until', filters.until);
-    params.append('limit', '50');
+    params.append('limit', filters.limit);
 
     try {
         const response = await fetch(`/api/v1/admin/logs?${params.toString()}`);
@@ -465,9 +472,16 @@ function startAutoRefresh() {
     // Stop existing timer if any
     stopAutoRefresh();
 
+    // Get interval from dropdown (in seconds)
+    const intervalSeconds = parseInt(document.getElementById('filter-interval').value, 10);
+    const intervalMs = intervalSeconds * 1000;
+
     if (logAdmin) {
-        logAdmin.info(`Запуск автообновления каждые ${AUTO_REFRESH_INTERVAL_MS / 1000} секунд`);
+        logAdmin.info(`Запуск автообновления каждые ${intervalSeconds} секунд`);
     }
+
+    // Set running flag
+    isAutoRefreshRunning = true;
 
     // Set up interval
     autoRefreshInterval = setInterval(() => {
@@ -475,7 +489,7 @@ function startAutoRefresh() {
             logAdmin.debug('Автообновление логов...');
         }
         refreshLogs();
-    }, AUTO_REFRESH_INTERVAL_MS);
+    }, intervalMs);
 }
 
 /**
@@ -488,6 +502,49 @@ function stopAutoRefresh() {
         }
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
+    }
+
+    // Clear running flag
+    isAutoRefreshRunning = false;
+}
+
+/**
+ * Toggle auto-refresh on/off
+ */
+function toggleAutoRefresh() {
+    const button = document.getElementById('btn-toggle-refresh');
+    const buttonText = document.getElementById('btn-text');
+    const playIcon = document.getElementById('icon-play');
+    const stopIcon = document.getElementById('icon-stop');
+
+    if (isAutoRefreshRunning) {
+        // Currently running - stop it
+        stopAutoRefresh();
+
+        // Update UI
+        button.classList.remove('btn-error');
+        button.classList.add('btn-success');
+        buttonText.textContent = 'Запустить';
+        playIcon.classList.remove('hidden');
+        stopIcon.classList.add('hidden');
+
+        if (logAdmin) {
+            logAdmin.info('Автообновление остановлено пользователем');
+        }
+    } else {
+        // Currently stopped - start it
+        startAutoRefresh();
+
+        // Update UI
+        button.classList.remove('btn-success');
+        button.classList.add('btn-error');
+        buttonText.textContent = 'Остановить';
+        playIcon.classList.add('hidden');
+        stopIcon.classList.remove('hidden');
+
+        if (logAdmin) {
+            logAdmin.info('Автообновление запущено пользователем');
+        }
     }
 }
 
@@ -534,25 +591,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup event listeners for buttons
     document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
-    document.getElementById('btn-refresh').addEventListener('click', refreshLogs);
+    document.getElementById('btn-toggle-refresh').addEventListener('click', toggleAutoRefresh);
     document.getElementById('btn-reset').addEventListener('click', resetFilters);
 
     // Load initial logs
     logAdmin.info('Загрузка начальных логов...');
     refreshLogs();
 
-    // Start auto-refresh timer
-    startAutoRefresh();
+    // Auto-refresh is now controlled by toggle button
+    // Start stopped by default (user must click "Запустить")
 
-    // Stop auto-refresh when page is hidden
+    // Handle auto-refresh when page visibility changes
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
-            logAdmin.info('Страница скрыта - остановка автообновления');
-            stopAutoRefresh();
+            // Page hidden - stop auto-refresh if running
+            if (isAutoRefreshRunning) {
+                logAdmin.info('Страница скрыта - остановка автообновления');
+                stopAutoRefresh();
+
+                // Update UI to show stopped state
+                const button = document.getElementById('btn-toggle-refresh');
+                const buttonText = document.getElementById('btn-text');
+                const playIcon = document.getElementById('icon-play');
+                const stopIcon = document.getElementById('icon-stop');
+
+                button.classList.remove('btn-error');
+                button.classList.add('btn-success');
+                buttonText.textContent = 'Запустить';
+                playIcon.classList.remove('hidden');
+                stopIcon.classList.add('hidden');
+            }
         } else {
-            logAdmin.info('Страница видима - запуск автообновления');
-            refreshLogs(); // Immediate refresh
-            startAutoRefresh();
+            // Page visible - just refresh once (don't auto-start)
+            logAdmin.info('Страница видима - обновление логов');
+            refreshLogs();
         }
     });
 
