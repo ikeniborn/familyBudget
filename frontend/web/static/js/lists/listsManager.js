@@ -233,9 +233,7 @@ class ListsManager {
             return;
         }
 
-        // Update header
-        document.getElementById('list-detail-name').textContent = list.name;
-        document.getElementById('list-detail-description').textContent = list.description || 'Без описания';
+        // Update breadcrumb
         document.getElementById('breadcrumb-list-name').textContent = list.name;
 
         // Show detail view, hide landing view
