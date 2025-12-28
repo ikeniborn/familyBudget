@@ -52,6 +52,7 @@ from webauthn.helpers.structs import (
     AuthenticatorAttachment,
     AuthenticatorSelectionCriteria,
     PublicKeyCredentialDescriptor,
+    ResidentKeyRequirement,
     UserVerificationRequirement,
 )
 
@@ -141,7 +142,7 @@ async def create_registration_challenge(
         challenge=challenge_bytes,
         authenticator_selection=AuthenticatorSelectionCriteria(
             authenticator_attachment=AuthenticatorAttachment.PLATFORM,  # Platform authenticators only
-            resident_key="discouraged",  # Don't store credentials on device (server-side only)
+            resident_key=ResidentKeyRequirement.DISCOURAGED,  # Don't store credentials on device (server-side only)
             user_verification=UserVerificationRequirement.REQUIRED,  # Require biometric/PIN
         ),
         supported_pub_key_algs=[
