@@ -26,7 +26,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
 from backend.app.middleware.rate_limiter import limiter
-from backend.app.core.dependencies import get_session
+from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
@@ -1983,27 +1983,23 @@ async def check_auth_methods(
     """,
 )
 async def webauthn_status(
-    request: Request,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Check if user has WebAuthn credentials for onboarding flow."""
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-    
-    user: User = request.state.user
-    
-    logger.info(f"[AUTH] WebAuthn status check: user_id={user.id}")
-    
-    has_credentials = await user_has_webauthn_credentials(session, user.id)
-    
-    logger.debug(
-        f"[AUTH] WebAuthn status: user_id={user.id}, has_credentials={has_credentials}"
+    logger.info(
+        f"[AUTH][WEBAUTHN_STATUS] Status check requested: "
+        f"user_id={current_user.id}, email={current_user.email}"
     )
-    
+
+    has_credentials = await user_has_webauthn_credentials(session, current_user.id)
+
+    logger.info(
+        f"[AUTH][WEBAUTHN_STATUS] Status result: "
+        f"user_id={current_user.id}, has_credentials={has_credentials}"
+    )
+
     return {
         "has_credentials": has_credentials,
-        "user_id": user.id,
+        "user_id": current_user.id,
     }

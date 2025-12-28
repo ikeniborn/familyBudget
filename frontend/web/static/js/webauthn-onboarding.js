@@ -32,28 +32,60 @@ async function checkWebAuthnOnboarding() {
 
     try {
         // Check WebAuthn status
-        console.log('[WEBAUTHN_ONBOARDING] Fetching WebAuthn status...');
+        console.log('[WEBAUTHN_ONBOARDING] Fetching WebAuthn status from /api/v1/auth/webauthn-status');
+        console.log('[WEBAUTHN_ONBOARDING] Request headers: credentials=include');
+
         const response = await fetch('/api/v1/auth/webauthn-status', {
             credentials: 'include'
         });
 
+        console.log('[WEBAUTHN_ONBOARDING] Response received:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+
         if (!response.ok) {
-            console.warn('[WEBAUTHN_ONBOARDING] Failed to fetch status:', response.status);
+            console.error(
+                '[WEBAUTHN_ONBOARDING] Failed to fetch status:',
+                {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url
+                }
+            );
+
+            // Try to read error response body
+            try {
+                const errorData = await response.json();
+                console.error('[WEBAUTHN_ONBOARDING] Error details:', errorData);
+            } catch (e) {
+                console.error('[WEBAUTHN_ONBOARDING] Could not parse error response');
+            }
+
             return;
         }
 
         const data = await response.json();
-        console.log('[WEBAUTHN_ONBOARDING] Status:', data);
+        console.log('[WEBAUTHN_ONBOARDING] Status received:', {
+            has_credentials: data.has_credentials,
+            user_id: data.user_id
+        });
 
         if (!data.has_credentials) {
             console.log('[WEBAUTHN_ONBOARDING] User has no credentials - showing onboarding modal');
             showWebAuthnOnboardingModal();
         } else {
-            console.log('[WEBAUTHN_ONBOARDING] User already has credentials - skipping onboarding');
+            console.log('[WEBAUTHN_ONBOARDING] User already has credentials (credential_count: N/A) - skipping onboarding');
         }
 
     } catch (error) {
-        console.error('[WEBAUTHN_ONBOARDING] Error checking status:', error);
+        console.error('[WEBAUTHN_ONBOARDING] Exception during status check:', {
+            error: error.message,
+            stack: error.stack,
+            name: error.name
+        });
     }
 }
 

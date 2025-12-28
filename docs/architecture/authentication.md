@@ -559,6 +559,117 @@ print(f'Valid: {is_valid}, Error: {error}')
 
 ---
 
+## WebAuthn Endpoint Authentication Pattern
+
+All WebAuthn endpoints use FastAPI dependency injection for authentication (consistent with rest of codebase).
+
+### Correct Pattern
+
+```python
+from backend.app.core.dependencies import CurrentUser
+
+@router.post("/webauthn/register/options")
+async def register_options(
+    request: Request,  # Optional: for IP/user-agent extraction
+    current_user: CurrentUser,  # ✅ Dependency injection
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    # current_user is automatically loaded from database
+    # Includes validation: user exists, is active
+
+    logger.info(f"[WEBAUTHN] User {current_user.id} requested registration")
+
+    # Use current_user directly - no manual checks needed
+    return await create_registration_challenge(session, current_user)
+```
+
+### Incorrect Pattern (Historical Reference)
+
+```python
+# ❌ WRONG - DO NOT USE
+@router.post("/webauthn/register/options")
+async def register_options(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    # ❌ Manual check - inconsistent with codebase
+    if not hasattr(request.state, "user"):
+        raise HTTPException(401, "Authentication required")
+
+    # ❌ request.state.user is NEVER set by JWT middleware
+    user: User = request.state.user
+```
+
+**Why Manual Checks Fail:**
+- JWT middleware sets `request.state.user_id` (NOT `request.state.user`)
+- Middleware doesn't load User object from database
+- Manual pattern duplicates `get_current_user` logic
+- Inconsistent with rest of codebase
+
+### Logging Standards
+
+All WebAuthn endpoints use consistent logging prefixes:
+
+| Prefix | Endpoint | Example |
+|--------|----------|---------|
+| `[WEBAUTHN_STATUS]` | `/auth/webauthn-status` | Status checks |
+| `[REGISTER_OPTIONS]` | `/webauthn/register/options` | Challenge generation |
+| `[REGISTER_VERIFY]` | `/webauthn/register/verify` | Credential enrollment |
+| `[LIST_CREDENTIALS]` | `/webauthn/credentials` (GET) | Credential listing |
+| `[REVOKE_CREDENTIAL]` | `/webauthn/credentials/{id}` (DELETE) | Credential revocation |
+| `[AUTH_OPTIONS]` | `/webauthn/authenticate/options` | Login challenge |
+| `[AUTH_VERIFY]` | `/webauthn/authenticate/verify` | Login verification |
+
+**Example Backend Logs:**
+```
+[WEBAUTHN][REGISTER_OPTIONS] Registration challenge requested: user_id=1, email=user@example.com, ip=192.168.1.100
+[WEBAUTHN][REGISTER_OPTIONS] Challenge created successfully: user_id=1, challenge_id=abc123...
+[WEBAUTHN][REGISTER_VERIFY] Verifying registration: user_id=1, device_name=iPhone 15
+[WEBAUTHN][REGISTER_VERIFY] Registration successful: user_id=1, credential_id=5
+```
+
+**Example Frontend Logs:**
+```javascript
+[WEBAUTHN_ONBOARDING] Fetching WebAuthn status from /api/v1/auth/webauthn-status
+[WEBAUTHN_ONBOARDING] Response received: {status: 200, ok: true}
+[WEBAUTHN_ONBOARDING] Status received: {has_credentials: false, user_id: 1}
+[WEBAUTHN_ONBOARDING] User has no credentials - showing onboarding modal
+```
+
+### Testing Verification
+
+```bash
+# 1. Login and get JWT token
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"password"}' \
+  -c cookies.txt
+
+# 2. Check WebAuthn status (should return 200)
+curl -X GET http://localhost:8000/api/v1/auth/webauthn-status \
+  -b cookies.txt
+
+# Expected: {"has_credentials": false, "user_id": 1}
+# Status: 200 OK
+
+# 3. Generate registration challenge (should return 200)
+curl -X POST http://localhost:8000/api/v1/webauthn/register/options \
+  -b cookies.txt
+
+# Expected: {challenge: "...", publicKey: {...}}
+# Status: 200 OK
+```
+
+### Related Files
+
+- **Backend endpoint:** `backend/app/api/v1/endpoints/auth.py:1985` (`/webauthn-status`)
+- **Backend endpoints:** `backend/app/api/v1/endpoints/webauthn.py` (all WebAuthn routes)
+- **Frontend onboarding:** `frontend/web/static/js/webauthn-onboarding.js`
+- **Dependencies:** `backend/app/core/dependencies.py` (`CurrentUser` type alias)
+- **Auth core:** `backend/app/core/auth.py` (`get_current_user` dependency)
+
+---
+
 ## Related Documentation
 
 - [Admin Setup Guide](./admin-setup.md) - Step-by-step admin configuration
