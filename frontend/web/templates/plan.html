@@ -4193,7 +4193,7 @@ function showToast(message, type = 'info') {
     // Простая реализация toast уведомлений
     // В production рекомендуется использовать библиотеку типа toastify
     const toast = document.createElement('div');
-    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
+    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-[100] shadow-lg`;
     toast.innerHTML = `
         <span>${message}</span>
     `;

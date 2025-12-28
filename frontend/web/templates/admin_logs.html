@@ -4,6 +4,10 @@
 {% block extra_head %}
 <!-- Calendar Widget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+
+<!-- Date Formatter & Calendar Widget JS -->
+<script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
+<script src="/shared/static/js/calendar-widget.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
 
 {% block content %}
@@ -64,12 +68,13 @@
                     <label class="label">
                         <span class="label-text font-semibold">До</span>
                     </label>
-                    <input type="text" id="date-to" class="input input-bordered" placeholder="Конечная дата..." readonly>
+                    <div class="flex gap-2">
+                        <input type="text" id="date-to" class="input input-bordered flex-1" placeholder="Конечная дата..." readonly>
+                        <!-- Calendar trigger button (range mode) -->
+                        <div id="admin-logs-date-range-trigger"></div>
+                    </div>
                 </div>
             </div>
-
-            <!-- Calendar trigger button (range mode) -->
-            <div id="admin-logs-date-range-trigger" class="mt-2"></div>
 
             <!-- Action buttons -->
             <div class="flex gap-2 mt-4">
