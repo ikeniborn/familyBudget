@@ -211,6 +211,11 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_CONTACT_EMAIL: ${VAPID_CONTACT_EMAIL:-admin@example.com}
+
+      # WebAuthn Biometric Authentication
+      WEBAUTHN_RP_ID: ${WEBAUTHN_RP_ID:-localhost}
+      WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-Family Budget}
+      WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8000}
     volumes:
       - ./backend:/app/backend:ro
       - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
