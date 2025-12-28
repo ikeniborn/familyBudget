@@ -1092,7 +1092,15 @@
 
     <!-- Push Notification Permission Banner (for iOS/Android) -->
     {% if user %}
-    <div id="push-permission-banner" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden">
+    <div id="push-permission-banner" class="fixed left-4 right-4 md:left-auto md:right-4 md:w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden"
+         style="bottom: calc(1rem); /* Desktop: 16px from bottom */">
+        <style>
+            @media (max-width: 1023px) {
+                #push-permission-banner {
+                    bottom: calc(64px + 1.5rem) !important; /* Mobile: above FAB toolbar */
+                }
+            }
+        </style>
         <div class="flex items-start gap-3">
             <span class="text-2xl">🔔</span>
             <div class="flex-1">
@@ -1121,8 +1129,11 @@
         </aside>
     </footer>
 
-    <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <!-- Debug logging utility (must load BEFORE budgetShared) -->
     {% if user %}
+    <script src="/shared/static/js/debugLog.js?v=PLACEHOLDER"></script>
+
+    <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
     <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
 
     <!-- ✅ FIX 4: Shared reminder utilities -->
