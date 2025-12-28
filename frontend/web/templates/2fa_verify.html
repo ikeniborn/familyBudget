@@ -342,6 +342,7 @@ async function handleVerify(e) {
         clearInterval(timerInterval);
 
         showToast('Вход выполнен успешно!', 'success');
+        sessionStorage.setItem('just_logged_in', 'true');
         setTimeout(() => {
             window.location.href = '/';
         }, 1000);
