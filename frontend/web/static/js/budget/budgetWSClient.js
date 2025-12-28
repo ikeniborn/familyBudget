@@ -1597,7 +1597,7 @@ class BudgetWSClient {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                debugLog('[BudgetWS] Long polling aborted');
+                debugLog('[BudgetWS] Long polling gracefully cancelled (AbortController triggered)');
                 return;
             }
 
@@ -1638,6 +1638,7 @@ class BudgetWSClient {
      */
     _stopLongPolling() {
         if (this.pollController) {
+            debugLog('[BudgetWS] Gracefully aborting active poll request (prevents nginx 499)');
             this.pollController.abort();
             this.pollController = null;
         }
@@ -1702,6 +1703,8 @@ class BudgetWSClient {
      * @private
      */
     _silentClose() {
+        debugLog('[BudgetWS] Page unload detected - closing connections gracefully');
+
         // Cleanup multi-tab
         if (this.leaderHeartbeatInterval) {
             clearInterval(this.leaderHeartbeatInterval);
