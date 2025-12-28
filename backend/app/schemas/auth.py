@@ -169,6 +169,11 @@ class UserResponse(BaseModel):
         description="Whether 2FA is enabled for this user",
         examples=[True, False]
     )
+    has_webauthn_credentials: bool = Field(
+        default=False,
+        description="Whether user has registered WebAuthn biometric credentials (TouchID/FaceID)",
+        examples=[True, False]
+    )
 
     model_config = {
         "from_attributes": True,  # Enable ORM mode for SQLModel compatibility

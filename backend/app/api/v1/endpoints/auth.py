@@ -92,6 +92,7 @@ from backend.app.services.jwt import (
     hash_token,
 )
 from backend.app.services.telegram_auth import validate_telegram_auth
+from backend.app.services.webauthn_service import user_has_webauthn_credentials
 
 # Standard library imports
 import logging
@@ -1944,3 +1945,51 @@ async def check_auth_methods(
             webauthn_credentials=webauthn_credentials_list,
         )
     )
+
+
+# =============================================================================
+# WebAuthn Status Check (for onboarding flow)
+# =============================================================================
+
+
+@router.get(
+    "/webauthn-status",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Check WebAuthn registration status",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Check if current user has registered WebAuthn biometric credentials.
+    
+    Used for onboarding flow after successful login:
+    - If has_credentials=False → show onboarding modal
+    - If has_credentials=True → skip onboarding
+    
+    Requires: JWT authentication
+    """,
+)
+async def webauthn_status(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Check if user has WebAuthn credentials for onboarding flow."""
+    if not hasattr(request.state, "user"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
+    
+    user: User = request.state.user
+    
+    logger.info(f"[AUTH] WebAuthn status check: user_id={user.id}")
+    
+    has_credentials = await user_has_webauthn_credentials(session, user.id)
+    
+    logger.debug(
+        f"[AUTH] WebAuthn status: user_id={user.id}, has_credentials={has_credentials}"
+    )
+    
+    return {
+        "has_credentials": has_credentials,
+        "user_id": user.id,
+    }

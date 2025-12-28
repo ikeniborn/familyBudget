@@ -739,3 +739,26 @@ async def _log_audit_event(
     )
     session.add(audit_log)
     # Note: Don't commit here - let caller control transaction
+
+
+async def user_has_webauthn_credentials(session: AsyncSession, user_id: int) -> bool:
+    """
+    Check if user has any active (non-revoked) WebAuthn credentials.
+
+    Args:
+        session: Database session
+        user_id: User ID
+
+    Returns:
+        bool: True if user has at least one active credential, False otherwise
+    """
+    stmt = (
+        select(WebAuthnCredential)
+        .where(
+            WebAuthnCredential.user_id == user_id,
+            WebAuthnCredential.is_revoked == False,  # noqa: E712
+        )
+        .limit(1)
+    )
+    result = await session.exec(stmt)
+    return result.first() is not None
