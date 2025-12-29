@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     # Frontend Features (Web Workers)
     ENABLE_WEB_WORKERS: bool = True  # Enable Web Workers for CPU-intensive operations (default: enabled)
 
+    # WebSocket Configuration
+    WS_RTT_THRESHOLD_MS: int = 5000  # Slow connection warning threshold in milliseconds (default: 5000ms)
+
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
     def validate_timezone(cls, v):

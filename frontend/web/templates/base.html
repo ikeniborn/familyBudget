@@ -489,11 +489,12 @@
         })();
     </script>
 
-    <!-- Feature Flags Configuration (Web Workers, Debug Mode) -->
+    <!-- Feature Flags Configuration (Web Workers, Debug Mode, WebSocket) -->
     <script>
         window.FEATURE_FLAGS = {
             ENABLE_WEB_WORKERS: {{ 'true' if config.ENABLE_WEB_WORKERS else 'false' }},
-            DEBUG_MODE: {{ 'true' if config.DEBUG else 'false' }}
+            DEBUG_MODE: {{ 'true' if config.DEBUG else 'false' }},
+            WS_RTT_THRESHOLD_MS: {{ config.WS_RTT_THRESHOLD_MS }}
         };
     </script>
     <style>
