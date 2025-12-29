@@ -50,8 +50,8 @@
 
         <!-- Full Width Layout: Quick Stats, Quick Actions, Recent Transactions -->
         <div class="grid grid-cols-1 gap-6">
-            <!-- Quick Actions Block (Desktop only, hidden on mobile) -->
-            <div class="card bg-base-100 shadow-xl hidden md:block">
+            <!-- Quick Actions Block (Desktop only, hidden on mobile and tablet) -->
+            <div class="card bg-base-100 shadow-xl hidden lg:block">
                 <div class="card-body p-4 md:p-6">
                     <h2 class="card-title text-lg md:text-xl mb-3 md:mb-4">💡 Быстрые действия</h2>
 
@@ -119,8 +119,8 @@
                         </div>
                     </div>
 
-                    <!-- Desktop: Original 3-column layout (visible on >= md) -->
-                    <div class="hidden md:grid md:grid-cols-3 gap-4">
+                    <!-- Desktop: Original 3-column layout (visible on >= lg) -->
+                    <div class="hidden lg:grid lg:grid-cols-3 gap-4">
                         <!-- Факты -->
                         <div class="border border-success/30 rounded-lg p-3 bg-success/5">
                             <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">
@@ -5999,10 +5999,21 @@ window.addEventListener('resize', () => {
     }, 100); // 100ms debounce
 
     // Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+    // Quick Actions visibility logging (updated for lg breakpoint - desktop only)
+    const width = window.innerWidth;
+    const breakpoint = width >= 1024 ? 'desktop' : (width >= 768 ? 'tablet' : 'mobile');
+    const quickActionsVisible = width >= 1024; // lg breakpoint (desktop only)
+
     console.log('[INDEX_PAGE] Page loaded:', {
         fabVisible: !!document.getElementById('fab-toolbar'),
-        quickActionsVisible: window.innerWidth >= 768, // md breakpoint
-        breakpoint: window.innerWidth >= 768 ? 'desktop' : 'mobile'
+        quickActionsVisible: quickActionsVisible,
+        breakpoint: breakpoint,
+        width: width,
+        quickActionsDetails: {
+            shouldShow: width >= 1024,
+            hiddenOnTablet: width >= 768 && width < 1024,
+            hiddenOnMobile: width < 768
+        }
     });
 });
 </script>

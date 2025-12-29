@@ -26,6 +26,47 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-29: Quick Actions Block - Hidden on Tablets (v6.6.0)
+- **Change:** Quick Actions block now hidden on tablet devices (768-1023px)
+- **Issue:** Quick Actions cluttered the interface on medium-sized screens (tablets)
+- **Solution:** Changed visibility breakpoint from `md` (768px) to `lg` (1024px)
+- **Implementation:**
+  - Updated container class from `hidden md:block` to `hidden lg:block`
+  - Updated desktop layout from `hidden md:grid md:grid-cols-3` to `hidden lg:grid lg:grid-cols-3`
+  - Enhanced browser logging to detect three breakpoints: mobile, tablet, desktop
+- **Visibility Matrix:**
+  - Mobile (0-767px): ❌ Hidden (uses mobile mini-cards)
+  - Tablet (768-1023px): ❌ Hidden (clean interface)
+  - Desktop (1024px+): ✅ Visible (full 3-column layout)
+- **Rationale:**
+  - Tablets have limited vertical space, especially in landscape mode
+  - Quick actions accessible via FAB on mobile/tablet
+  - Desktop has abundant space for full Quick Actions block
+- **Logging:** Enhanced console logging with breakpoint detection and visibility details
+  ```javascript
+  [INDEX_PAGE] Page loaded: {
+    breakpoint: "tablet",
+    quickActionsVisible: false,
+    quickActionsDetails: {
+      shouldShow: false,
+      hiddenOnTablet: true,
+      hiddenOnMobile: false
+    }
+  }
+  ```
+- **Files modified:**
+  - `frontend/web/templates/index.html:53-54` (comment + container classes)
+  - `frontend/web/templates/index.html:123` (desktop layout class)
+  - `frontend/web/templates/index.html:6002-6017` (enhanced logging)
+  - `docs/architecture/frontend/responsive-design.md` (NEW - complete documentation)
+- **Documentation:** New comprehensive responsive design guide at `/docs/architecture/frontend/responsive-design.md`
+- **User Impact:**
+  - ✅ Tablet users: Cleaner interface, more space for Recent Transactions
+  - ✅ Mobile users: No change (already hidden)
+  - ✅ Desktop users: Full Quick Actions block available as before
+
+---
+
 ### 2025-12-29: Welcome Notification Refactoring (v6.5.1)
 - **Change:** Replaced full-screen Welcome Section with lightweight toast notification
 - **Goal:** Improve mobile/PWA UX by eliminating persistent welcome banner
