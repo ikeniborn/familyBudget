@@ -38,7 +38,7 @@ def upgrade() -> None:
     # Step 1: Clean up csv_metadata in t_import_staging
     print("[CSV_MIGRATION] Removing 'info1' and 'info2' from t_import_staging.csv_metadata...")
 
-    # Count affected records before cleanup
+    # Count affected records before cleanup (cast JSON to JSONB for ? operator)
     op.execute("""
         DO $$
         DECLARE
@@ -46,17 +46,19 @@ def upgrade() -> None:
         BEGIN
             SELECT COUNT(*) INTO affected_count
             FROM t_import_staging
-            WHERE csv_metadata ? 'info1' OR csv_metadata ? 'info2';
+            WHERE csv_metadata IS NOT NULL
+              AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2');
 
             RAISE NOTICE '[CSV_MIGRATION] Found % staging records with info1/info2 fields', affected_count;
         END $$;
     """)
 
-    # Remove keys from JSONB
+    # Remove keys from JSON (cast to JSONB for - operator, then back to JSON)
     op.execute("""
         UPDATE t_import_staging
-        SET csv_metadata = csv_metadata - 'info1' - 'info2'
-        WHERE csv_metadata ? 'info1' OR csv_metadata ? 'info2'
+        SET csv_metadata = (csv_metadata::jsonb - 'info1' - 'info2')::json
+        WHERE csv_metadata IS NOT NULL
+          AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2')
     """)
 
     print("[CSV_MIGRATION] Successfully removed info1/info2 from t_import_staging.csv_metadata")
@@ -72,7 +74,8 @@ def upgrade() -> None:
         BEGIN
             SELECT COUNT(*) INTO affected_count
             FROM t_import_column_mapping
-            WHERE mapping ? 'csv_info1' OR mapping ? 'csv_info2';
+            WHERE mapping IS NOT NULL
+              AND (mapping ? 'csv_info1' OR mapping ? 'csv_info2');
 
             RAISE NOTICE '[CSV_MIGRATION] Found % column mappings with csv_info1/csv_info2 fields', affected_count;
         END $$;
@@ -82,7 +85,8 @@ def upgrade() -> None:
     op.execute("""
         UPDATE t_import_column_mapping
         SET mapping = mapping - 'csv_info1' - 'csv_info2'
-        WHERE mapping ? 'csv_info1' OR mapping ? 'csv_info2'
+        WHERE mapping IS NOT NULL
+          AND (mapping ? 'csv_info1' OR mapping ? 'csv_info2')
     """)
 
     print("[CSV_MIGRATION] Successfully removed csv_info1/csv_info2 from t_import_column_mapping.mapping")
@@ -97,11 +101,13 @@ def upgrade() -> None:
         BEGIN
             SELECT COUNT(*) INTO staging_remaining
             FROM t_import_staging
-            WHERE csv_metadata ? 'info1' OR csv_metadata ? 'info2';
+            WHERE csv_metadata IS NOT NULL
+              AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2');
 
             SELECT COUNT(*) INTO mapping_remaining
             FROM t_import_column_mapping
-            WHERE mapping ? 'csv_info1' OR mapping ? 'csv_info2';
+            WHERE mapping IS NOT NULL
+              AND (mapping ? 'csv_info1' OR mapping ? 'csv_info2');
 
             IF staging_remaining > 0 OR mapping_remaining > 0 THEN
                 RAISE EXCEPTION '[CSV_MIGRATION] ⚠️ Cleanup incomplete: staging=%, mapping=%',
