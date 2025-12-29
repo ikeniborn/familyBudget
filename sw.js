@@ -14,7 +14,7 @@ const DEBUG = false;
 
 // ВАЖНО: Автоматически обновляется при деплое через scripts/update-sw-version.sh
 // НЕ изменяйте CACHE_VERSION_PLACEHOLDER вручную!
-const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+const CACHE_VERSION = 'v20251229_1657';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)

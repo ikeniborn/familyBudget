@@ -467,11 +467,11 @@ class HierarchyView {
                         </div>
                     </div>
                     <div class="hierarchy-item-swipe-actions">
-                        <button class="btn btn-xs btn-ghost" onclick="openEditItemModal(${item.id}); event.stopPropagation();">
-                            ✏️ Редактировать
+                        <button class="btn btn-xs btn-square btn-ghost" onclick="openEditItemModal(${item.id}); event.stopPropagation();" aria-label="Редактировать" title="Редактировать">
+                            ✏️
                         </button>
-                        <button class="btn btn-xs btn-error" onclick="window.listsManager.deleteItem(${item.id}); event.stopPropagation();">
-                            🗑️ Удалить
+                        <button class="btn btn-xs btn-square btn-error" onclick="window.listsManager.deleteItem(${item.id}); event.stopPropagation();" aria-label="Удалить" title="Удалить">
+                            🗑️
                         </button>
                     </div>
                 </div>
