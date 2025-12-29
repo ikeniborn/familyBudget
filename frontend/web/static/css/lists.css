@@ -620,6 +620,17 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* Increase toggle button size for better touch targets on mobile */
+    .hierarchy-toggle {
+        font-size: 1rem; /* Увеличено с 0.625rem до 1rem для лучшей видимости */
+        min-width: 1.5rem; /* Увеличено с 1.25rem */
+        padding: 0.125rem; /* Добавлен padding для лучшего touch target */
+    }
+
+    .hierarchy-toggle-placeholder {
+        min-width: 1.5rem; /* Соответствует увеличенному toggle */
+    }
 }
 
 /* ---- Tablet/Wide Mobile ---- */

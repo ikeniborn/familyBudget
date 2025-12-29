@@ -483,8 +483,9 @@
     </svg>
 </button>
 
-<!-- FAB Speed Dial для массовых операций (Detail View) - positioned above common FAB toolbar -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 hidden lg:flex lg:flex-col-reverse lg:items-end lg:gap-3">
+<!-- FAB Speed Dial для массовых операций (Detail View, Desktop Only) -->
+<!-- IMPORTANT: Only visible on desktop (lg+), positioned above FAB toolbar -->
+<div id="lists-fab-menu" class="fab-menu closed fixed bottom-20 right-6 hidden lg:flex lg:flex-col-reverse lg:items-end lg:gap-3" style="z-index: 1000;">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
@@ -517,8 +518,8 @@
     </div>
 </div>
 
-<!-- FAB Backdrop -->
-<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 z-40 opacity-0 pointer-events-none hidden" onclick="toggleListsFAB()"></div>
+<!-- FAB Backdrop (Desktop Only) -->
+<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden lg:block" style="z-index: 999;" onclick="toggleListsFAB()"></div>
 {% endblock %}
 
 {% block extra_scripts %}
