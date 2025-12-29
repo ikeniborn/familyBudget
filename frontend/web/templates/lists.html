@@ -82,13 +82,13 @@
 {% endblock %}
 
 {% block content %}
-<div id="lists-content" class="space-y-6">
+<div id="lists-content" class="space-y-1 -mt-6">
     <!-- ============================================== -->
     <!-- LANDING VIEW: Grid of Shopping List Cards -->
     <!-- ============================================== -->
     <div id="landing-view" class="view-state">
         <!-- Page Header - compact on mobile -->
-        <div class="mb-4 sm:mb-6">
+        <div class="mb-2">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
                 <div class="flex-1 min-w-0">
                     <h1 class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
@@ -118,7 +118,7 @@
     <!-- ============================================== -->
     <div id="detail-view" class="view-state hidden">
         <!-- Breadcrumb Navigation -->
-        <div class="text-sm breadcrumbs mb-2 sm:mb-3">
+        <div class="text-sm breadcrumbs">
             <ul>
                 <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
                 <li id="breadcrumb-list-name">Loading...</li>
@@ -126,7 +126,7 @@
         </div>
 
         <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
-        <div class="bg-base-100 shadow-sm sm:shadow-md mb-2 sm:mb-3 hidden sm:block rounded-lg">
+        <div class="bg-base-100 shadow-sm sm:shadow-md hidden sm:block rounded-lg">
             <div class="px-2 sm:px-4 py-2">
                 <!-- Toggle button - всегда виден -->
                 <button id="import-toggle" onclick="toggleImportWizard()"
