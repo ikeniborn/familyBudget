@@ -2258,6 +2258,91 @@ Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure clos
 
 ---
 
+## Push Notification Permission Banner
+
+### Purpose
+
+Prompts users to enable Web Push notifications for offline sync and reminder alerts.
+
+### Positioning
+
+**Since:** v6.7.0 (December 2025)
+**Status:** ✅ Active
+
+The banner is positioned **below the navbar** with horizontal centering for optimal visibility and accessibility.
+
+**Layout:**
+- Position: `fixed top: calc(64px + 10px)` (64px navbar height + 10px margin)
+- Horizontal: Centered using `left-1/2 -translate-x-1/2`
+- Width: `auto` with `max-w-96` (384px max width)
+- Z-index: `40` (same as navbar, appears below modals)
+
+**CSS Classes:**
+```css
+fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40
+```
+
+### Implementation
+
+**Location:**
+- Banner HTML: `/frontend/web/templates/base.html` (lines 1096-1120)
+- JavaScript: `/frontend/web/templates/base.html` (lines 2236-2340), `initPushBanner()` function
+
+### Behavior
+
+**Show Conditions:**
+1. `Notification` API supported in browser
+2. `PushManager` available (valid VAPID key)
+3. Permission status is `'default'` (not granted/denied)
+4. Not dismissed in last 24 hours
+
+**Trigger:** Automatic after 5-second delay on page load
+
+**Actions:**
+- **Включить** button - Requests push notification permission (requires user gesture)
+- **Позже** button - Dismisses banner for 24 hours
+- **✕** close button - Dismisses banner for 24 hours
+
+**Logging:**
+```javascript
+[PUSH_BANNER] Initialized - Position: below navbar, top: calc(64px + 10px), centered horizontally
+[PUSH_BANNER] Banner element: { id, className, style, hidden }
+[PUSH_BANNER] Banner displayed: { top, left, width, height, position }
+[PUSH_BANNER] Banner hidden
+[PUSH_BANNER] Banner dismissed for 24 hours
+```
+
+### Responsive Design
+
+**All Devices:**
+- Positioned below navbar (consistent across mobile/tablet/desktop)
+- Centered horizontally
+- Auto-width with max 384px
+
+**Previous Implementation (deprecated):**
+- Desktop: `bottom: 16px` from viewport bottom
+- Mobile: `bottom: calc(64px + 1.5rem)` above FAB toolbar
+
+**Migration:** Version 6.7.0 changed positioning from bottom-right to top-center for better visibility and consistency with toast notifications.
+
+### Storage
+
+**LocalStorage Key:** `push-banner-dismissed`
+**Value:** Timestamp (milliseconds since epoch)
+**TTL:** 24 hours
+
+### Integration with Push Manager
+
+The banner uses `window.budgetPushManager.requestPermission()` for permission requests.
+
+**Push Manager Location:**
+- JavaScript: `/frontend/web/static/js/budget/pushManager.js`
+- Documentation: See "Push Notifications" section above
+
+**Version:** 6.7.0+ (December 2025)
+
+---
+
 ## Mobile Menu Pattern for Secondary Pages
 
 ### Overview

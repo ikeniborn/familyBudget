@@ -1094,16 +1094,10 @@
     {% endif %}
 
     <!-- Push Notification Permission Banner (for iOS/Android) -->
+    <!-- Positioned below navbar with 10px margin, horizontally centered -->
     {% if user %}
-    <div id="push-permission-banner" class="fixed left-4 right-4 md:left-auto md:right-4 md:w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden"
-         style="bottom: calc(1rem); /* Desktop: 16px from bottom */">
-        <style>
-            @media (max-width: 1023px) {
-                #push-permission-banner {
-                    bottom: calc(64px + 1.5rem) !important; /* Mobile: above FAB toolbar */
-                }
-            }
-        </style>
+    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden"
+         style="top: calc(64px + 10px); /* 64px navbar height + 10px margin */">
         <div class="flex items-start gap-3">
             <span class="text-2xl">🔔</span>
             <div class="flex-1">
@@ -2246,7 +2240,19 @@
             const laterBtn = document.getElementById('push-permission-later');
             const closeBtn = document.getElementById('push-permission-close');
 
-            if (!banner || !window.budgetPushManager) return;
+            if (!banner || !window.budgetPushManager) {
+                console.log('[PUSH_BANNER] Init failed - banner or budgetPushManager not available');
+                return;
+            }
+
+            // Log banner initial position and styling
+            console.log('[PUSH_BANNER] Initialized - Position: below navbar, top: calc(64px + 10px), centered horizontally');
+            console.log('[PUSH_BANNER] Banner element:', {
+                id: banner.id,
+                className: banner.className,
+                style: banner.getAttribute('style'),
+                hidden: banner.classList.contains('hidden')
+            });
 
             // Check if we should show the banner
             const BANNER_DISMISSED_KEY = 'push-banner-dismissed';
@@ -2285,17 +2291,29 @@
                 if (shouldShowBanner()) {
                     banner.classList.remove('hidden');
                     debugLog('[Push Banner] Shown');
+
+                    // Log banner position after showing
+                    const rect = banner.getBoundingClientRect();
+                    console.log('[PUSH_BANNER] Banner displayed:', {
+                        top: `${rect.top}px`,
+                        left: `${rect.left}px`,
+                        width: `${rect.width}px`,
+                        height: `${rect.height}px`,
+                        position: 'Below navbar with 10px margin, horizontally centered'
+                    });
                 }
             }
 
             function hideBanner() {
                 banner.classList.add('hidden');
+                console.log('[PUSH_BANNER] Banner hidden');
             }
 
             function dismissBanner() {
                 hideBanner();
                 localStorage.setItem(BANNER_DISMISSED_KEY, Date.now().toString());
                 debugLog('[Push Banner] Dismissed');
+                console.log('[PUSH_BANNER] Banner dismissed for 24 hours');
             }
 
             // Enable button - request permission (MUST be triggered by user gesture for iOS)
