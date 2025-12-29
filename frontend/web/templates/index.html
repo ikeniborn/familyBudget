@@ -6,44 +6,6 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section (tap to close with localStorage) -->
-        <!-- Hidden by default to prevent FOUC, shown by inline script if not dismissed -->
-        <div id="welcome-section" style="display: none" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative cursor-pointer">
-            <div class="hero-content text-center py-6 pb-8">
-                <div class="max-w-md">
-                    <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
-                    <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
-                </div>
-            </div>
-            <!-- Hint text at the bottom -->
-            <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
-        </div>
-        <script>
-        // Immediate visibility check (prevents FOUC)
-        // Executes before DOMContentLoaded, right after element is parsed
-        (function() {
-            try {
-                const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
-                const welcomeSection = document.getElementById('welcome-section');
-
-                if (!isHidden && welcomeSection) {
-                    // Show welcome section only if user hasn't dismissed it
-                    welcomeSection.style.display = 'block';
-                    console.log('[WELCOME] Section shown (not dismissed by user)');
-                } else if (isHidden) {
-                    console.log('[WELCOME] Section hidden (dismissed by user, preventing render)');
-                }
-            } catch (e) {
-                // If localStorage unavailable, show welcome section (graceful fallback)
-                const welcomeSection = document.getElementById('welcome-section');
-                if (welcomeSection) {
-                    welcomeSection.style.display = 'block';
-                    console.log('[WELCOME] Section shown (localStorage unavailable, fallback to visible)');
-                }
-            }
-        })();
-        </script>
-
         <!-- Quick Stats Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
@@ -370,24 +332,6 @@
 
     <!-- Modal: Редактировать запись (факт или план) -->
     {{ edit_plan_modal('edit-modal') }}
-
-    <!-- Modal: Confirm Welcome Section Close -->
-    <dialog id="modal_welcome_close_confirm" class="modal">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg mb-4">⚠️ Подтверждение</h3>
-            <p class="py-4">
-                Вы уверены, что хотите скрыть секцию приветствия?<br>
-                <span class="text-sm opacity-70">Она больше не будет отображаться. Чтобы вернуть её, нужно будет очистить кэш браузера.</span>
-            </p>
-            <div class="modal-action">
-                <button onclick="confirmWelcomeClose()" class="btn btn-error btn-sm">Да, скрыть</button>
-                <button onclick="closeWelcomeConfirmModal()" class="btn btn-sm">Отмена</button>
-            </div>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-        </form>
-    </dialog>
 
     <!-- Modal: Recurring Delete Confirmation -->
     <dialog id="recurring-delete-modal" class="modal">
@@ -2391,61 +2335,6 @@ function openAddTransactionModal() {
 // Ensure function is globally accessible for onclick handlers
 window.openAddTransactionModal = openAddTransactionModal;
 
-// Welcome Section Management
-function checkWelcomeSectionVisibility() {
-    try {
-        const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
-        const welcomeSection = document.getElementById('welcome-section');
-
-        if (isHidden && welcomeSection) {
-            // Hide immediately without animation on page load
-            welcomeSection.style.display = 'none';
-        }
-    } catch (e) {
-        console.error('localStorage not available:', e);
-    }
-}
-
-function showWelcomeCloseConfirmation() {
-    const modal = document.getElementById('modal_welcome_close_confirm');
-    if (modal) {
-        modal.showModal();
-    }
-}
-
-function closeWelcomeConfirmModal() {
-    const modal = document.getElementById('modal_welcome_close_confirm');
-    if (modal) {
-        modal.close();
-    }
-}
-
-function hideWelcomeSection() {
-    const welcomeSection = document.getElementById('welcome-section');
-    if (welcomeSection) {
-        welcomeSection.style.opacity = '0';
-        welcomeSection.style.maxHeight = '0';
-        welcomeSection.style.overflow = 'hidden';
-        welcomeSection.style.padding = '0';
-        welcomeSection.style.margin = '0';
-
-        setTimeout(() => {
-            welcomeSection.style.display = 'none';
-        }, 500);
-    }
-}
-
-function confirmWelcomeClose() {
-    try {
-        localStorage.setItem('welcomeSectionHidden', 'true');
-    } catch (e) {
-        console.error('Failed to save to localStorage:', e);
-    }
-
-    hideWelcomeSection();
-    closeWelcomeConfirmModal();
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[INIT] DOMContentLoaded fired at', new Date().toISOString());
 
@@ -2479,20 +2368,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Welcome section visibility is now handled by inline script (prevents FOUC)
-    // checkWelcomeSectionVisibility() is no longer needed here
-
-    // Add click handler for welcome section (tap to close)
-    const welcomeSection = document.getElementById('welcome-section');
-    if (welcomeSection) {
-        welcomeSection.addEventListener('click', function() {
-            showWelcomeCloseConfirmation();
-        });
-    }
-
     // NOTE: updateOfflineUI() is now handled by base.html
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
     // Elements controlled by base.html: analytics-group, recent-transactions-card, mobile-menu-dropdown, etc.
+
+    // Welcome Toast Notification (shown once on first visit)
+    (function() {
+        try {
+            const hasSeenWelcome = localStorage.getItem('welcomeNotificationShown') === 'true';
+
+            if (!hasSeenWelcome) {
+                console.log('[WELCOME_TOAST] First visit detected - showing welcome notification');
+
+                // Show welcome toast with extended duration (5 seconds)
+                const userName = '{{ user.first_name or user.username }}';
+                const welcomeMessage = `👋 Добро пожаловать, ${userName}! Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.`;
+
+                showToast(welcomeMessage, 'success', 5000);
+
+                // Mark as shown to prevent future displays
+                localStorage.setItem('welcomeNotificationShown', 'true');
+                console.log('[WELCOME_TOAST] Notification shown and marked in localStorage');
+            } else {
+                console.log('[WELCOME_TOAST] Welcome notification already shown previously - skipping');
+            }
+        } catch (e) {
+            console.error('[WELCOME_TOAST] Error showing welcome notification:', e);
+            // If localStorage unavailable, still try to show toast (graceful fallback)
+            try {
+                const userName = '{{ user.first_name or user.username }}';
+                const welcomeMessage = `👋 Добро пожаловать, ${userName}!`;
+                showToast(welcomeMessage, 'success', 5000);
+                console.log('[WELCOME_TOAST] Shown without localStorage (fallback mode)');
+            } catch (fallbackError) {
+                console.error('[WELCOME_TOAST] Fallback also failed:', fallbackError);
+            }
+        }
+    })();
 
     // Preload categories for offline use (both expense and income)
     // This ensures categories are cached before user goes offline

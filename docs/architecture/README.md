@@ -26,6 +26,46 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-29: Welcome Notification Refactoring (v6.5.1)
+- **Change:** Replaced full-screen Welcome Section with lightweight toast notification
+- **Goal:** Improve mobile/PWA UX by eliminating persistent welcome banner
+- **Implementation:**
+  - **Removed:**
+    - Welcome Section HTML (~110 lines) with hero gradient and manual dismissal
+    - Confirmation modal dialog for closing welcome section
+    - 5 JavaScript functions for section management
+    - Click event handler and visibility checks
+    - localStorage key: `welcomeSectionHidden` (deprecated)
+  - **Added:**
+    - Toast notification on first visit only (5-second duration, auto-dismiss)
+    - localStorage key: `welcomeNotificationShown` for visit tracking
+    - Graceful fallback if localStorage unavailable
+    - Comprehensive logging with `[WELCOME_TOAST]` prefix
+  - **Benefits:**
+    - 85% code reduction (~200 lines → ~30 lines)
+    - No manual user action required (auto-dismiss)
+    - Minimal screen space usage (toast vs full-width section)
+    - Better mobile/PWA experience (less clutter)
+    - One-time display on first visit
+- **User Experience:**
+  - First visit: Toast shows "👋 Добро пожаловать, {Name}! Отслеживайте расходы..." for 5 seconds
+  - Subsequent visits: No welcome message (clean main page)
+  - Mobile-friendly: Responsive toast sizing (90vw on mobile, 50vw on desktop)
+- **Logging:**
+  ```
+  [WELCOME_TOAST] First visit detected - showing welcome notification
+  [WELCOME_TOAST] Notification shown and marked in localStorage
+  [WELCOME_TOAST] Welcome notification already shown previously - skipping
+  ```
+- **Files modified:**
+  - `frontend/web/templates/index.html`: Removed Welcome Section HTML, modal, and functions; added toast logic
+- **Documentation:**
+  - `docs/architecture/welcome-notification.md`: Complete implementation guide with testing steps
+- **Build:** Minified JS via `npm run minify:js` (51 files)
+- **Migration:** Users who previously dismissed Welcome Section won't see toast (acceptable - they already saw welcome)
+
+---
+
 ### 2025-12-28: Shopping Lists Mobile UX Enhancements
 - **Change:** Major mobile UX improvements for shopping lists page (`/lists`)
 - **Features:**
