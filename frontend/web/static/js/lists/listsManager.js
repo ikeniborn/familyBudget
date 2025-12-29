@@ -1208,9 +1208,14 @@ class ListsManager {
      * Uses matchMedia for reliable viewport detection (works in Yandex Browser)
      */
     isDesktop() {
-        // Use matchMedia for more reliable detection than window.innerWidth
-        // This matches Tailwind's lg: breakpoint exactly
-        return window.matchMedia('(min-width: 1024px)').matches;
+        // Desktop = wide screen (>= 1024px) AND fine pointer (mouse/trackpad, not touch)
+        // This prevents FAB buttons from showing on tablets in landscape mode
+        // (e.g., iPad Pro 12.9" = 1366px wide but still touch device)
+        const isWideScreen = window.matchMedia('(min-width: 1024px)').matches;
+        const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+
+        // Both conditions must be true for desktop
+        return isWideScreen && hasFinePointer;
     }
 
     /**
