@@ -3379,4 +3379,10 @@ window.openCreateListModal = openCreateListModal;
 window.closeItemModal = closeItemModal;
 window.closeCreateListModal = closeCreateListModal;
 
+// Export FAB functions to window for onclick handlers
+window.toggleListsFAB = toggleListsFAB;
+window.markAllCompletedWithConfirm = markAllCompletedWithConfirm;
+window.unmarkAllCompletedWithConfirm = unmarkAllCompletedWithConfirm;
+window.deleteCompletedWithConfirm = deleteCompletedWithConfirm;
+
 debugLog('[ListsManager] Module loaded');

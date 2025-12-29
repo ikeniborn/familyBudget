@@ -489,7 +489,7 @@
 <!-- IMPORTANT: Only visible on desktop (lg+), positioned above FAB toolbar -->
 <div id="lists-fab-menu" class="fab-menu closed fixed bottom-20 right-6 hidden lg:flex lg:flex-col-reverse lg:items-end lg:gap-3" style="z-index: 1000;">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
-    <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
+    <button onclick="window.toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl" style="z-index: 1002;" aria-label="Массовые операции">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="5" r="2"/>
             <circle cx="12" cy="12" r="2"/>
@@ -500,28 +500,28 @@
     <!-- Speed Dial items -->
     <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
-        <button onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
+        <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
             🗑️
         </button>
     </div>
 
     <div id="fab-item-mark-all-completed" class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
-        <button onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
+        <button onclick="window.markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
             ✅
         </button>
     </div>
 
     <div id="fab-item-unmark-all-completed" class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
-        <button onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
+        <button onclick="window.unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
             ❌
         </button>
     </div>
 </div>
 
 <!-- FAB Backdrop (Desktop Only) -->
-<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden lg:block" style="z-index: 999;" onclick="toggleListsFAB()"></div>
+<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden lg:block" style="z-index: 999;" onclick="window.toggleListsFAB()"></div>
 {% endblock %}
 
 {% block extra_scripts %}
