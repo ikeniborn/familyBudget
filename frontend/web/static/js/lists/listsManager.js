@@ -143,14 +143,28 @@ class ListsManager {
     initializeDuplicateDetection() {
         const productInput = document.getElementById('item-product-name');
         const storeSelect = document.getElementById('item-store');
+        const quantityInput = document.getElementById('item-quantity');
 
         if (!productInput || !storeSelect) {
             console.warn('[LISTS] Duplicate detection inputs not found');
             return;
         }
 
+        // Remove old listeners if they exist (prevent duplicates)
+        if (this._debouncedSearch) {
+            productInput.removeEventListener('input', this._debouncedSearch);
+            storeSelect.removeEventListener('change', this._debouncedSearch);
+            console.log('[LISTS] Removed old duplicate detection listeners');
+        }
+
+        if (this._quantityChangeHandler && quantityInput) {
+            quantityInput.removeEventListener('input', this._quantityChangeHandler);
+            console.log('[LISTS] Removed old quantity listener');
+        }
+
+        // Create new debounced search handler
         let searchTimeout;
-        const debouncedSearch = () => {
+        this._debouncedSearch = () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 const productName = productInput.value.trim();
@@ -169,17 +183,20 @@ class ListsManager {
             }, 500); // 500ms debounce
         };
 
-        productInput.addEventListener('input', debouncedSearch);
-        storeSelect.addEventListener('change', debouncedSearch);
+        // Add new listeners
+        productInput.addEventListener('input', this._debouncedSearch);
+        storeSelect.addEventListener('change', this._debouncedSearch);
 
         // Listen for quantity changes to update future quantity
-        const quantityInput = document.getElementById('item-quantity');
         if (quantityInput) {
-            quantityInput.addEventListener('input', () => {
+            this._quantityChangeHandler = () => {
+                console.log('[FUTURE_QTY] Quantity input changed, updating future quantity display');
                 this.updateFutureQuantity();
-            });
-
+            };
+            quantityInput.addEventListener('input', this._quantityChangeHandler);
             console.log('[LISTS] Future quantity listener initialized');
+        } else {
+            console.warn('[LISTS] Quantity input not found (id=item-quantity)');
         }
 
         console.log('[LISTS] Duplicate detection initialized');
@@ -299,22 +316,49 @@ class ListsManager {
      * Update future quantity display when user enters quantity
      */
     updateFutureQuantity() {
+        console.log('[FUTURE_QTY] updateFutureQuantity() called');
+
         const quantityInput = document.getElementById('item-quantity');
         const futureQtyContainer = document.getElementById('future-quantity');
         const futureQtyValue = document.getElementById('future-quantity-value');
 
-        if (!quantityInput || !futureQtyContainer || !futureQtyValue) {
+        if (!quantityInput) {
+            console.warn('[FUTURE_QTY] Quantity input not found (id=item-quantity)');
+            return;
+        }
+        if (!futureQtyContainer) {
+            console.warn('[FUTURE_QTY] Future quantity container not found (id=future-quantity)');
+            return;
+        }
+        if (!futureQtyValue) {
+            console.warn('[FUTURE_QTY] Future quantity value span not found (id=future-quantity-value)');
             return;
         }
 
+        console.log('[FUTURE_QTY] All DOM elements found');
+
         // Only show if duplicate exists
         if (!this.currentDuplicateItem) {
+            console.log('[FUTURE_QTY] No duplicate item stored, hiding future quantity');
             futureQtyContainer.classList.add('hidden');
             return;
         }
 
+        console.log('[FUTURE_QTY] Duplicate item exists', {
+            itemId: this.currentDuplicateItem.id,
+            productName: this.currentDuplicateItem.product_name,
+            quantity: this.currentDuplicateItem.quantity,
+            unit: this.currentDuplicateItem.unit
+        });
+
         const newQuantity = parseFloat(quantityInput.value) || 0;
         const oldQuantity = parseFloat(this.currentDuplicateItem.quantity) || 0;
+
+        console.log('[FUTURE_QTY] Quantity values', {
+            newQuantity,
+            oldQuantity,
+            inputValue: quantityInput.value
+        });
 
         // Only show if user entered quantity
         if (newQuantity > 0) {
@@ -324,13 +368,15 @@ class ListsManager {
             futureQtyValue.textContent = `${futureQuantity} ${unit}`;
             futureQtyContainer.classList.remove('hidden');
 
-            console.log('[FUTURE_QTY] Future quantity calculated', {
+            console.log('[FUTURE_QTY] Future quantity displayed', {
                 oldQuantity,
                 newQuantity,
                 futureQuantity,
-                unit
+                unit,
+                displayText: futureQtyValue.textContent
             });
         } else {
+            console.log('[FUTURE_QTY] New quantity is 0 or empty, hiding future quantity');
             futureQtyContainer.classList.add('hidden');
         }
     }
