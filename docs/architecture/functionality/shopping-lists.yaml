@@ -363,12 +363,25 @@ module:
             - "[FUTURE_QTY]: Расчёт будущего количества"
             - "[ITEM_SAVE]: Агрегация при сохранении"
         implementation:
-          initialization: "initializeDuplicateDetection() в init()"
+          initialization: "initializeDuplicateDetection() в openAddItemModal()"
+          triggers:
+            - "Manual input: product_name + store change (debounce 500ms)"
+            - "Autocomplete: после выбора из dropdown (_fillFormFromSuggestion)"
           listeners:
             - "input#item-product-name: input event (debounce 500ms)"
             - "select#item-store: change event"
             - "input#item-quantity: input event (для updateFutureQuantity)"
+          autocomplete_integration:
+            description: "Проверка дубликатов запускается автоматически после выбора из autocomplete"
+            flow:
+              - "User selects product from autocomplete dropdown"
+              - "_fillFormFromSuggestion() fills all form fields"
+              - "searchDuplicate() runs automatically with filled data"
+              - "If duplicate found → showDuplicateWarning()"
+              - "If quantity filled → updateFutureQuantity() shows future total"
+            added_in: "v6.x (fix for autocomplete workflow)"
           state: "this.currentDuplicateItem (сохраняется при обнаружении дубликата)"
+          event_handler_cleanup: "Удаление старых listeners перед добавлением новых (предотвращает дубликаты)"
 
     views:
       table_view:
