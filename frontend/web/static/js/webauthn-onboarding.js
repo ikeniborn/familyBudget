@@ -46,6 +46,15 @@ async function checkWebAuthnOnboarding() {
         return;
     }
 
+    // Check if user came from 2FA setup (onboarding already shown there)
+    const from2faSetup = sessionStorage.getItem('from_2fa_setup_login');
+    if (from2faSetup === 'true') {
+        console.log('[WEBAUTHN_ONBOARDING] ⊘ Came from 2FA setup - onboarding already shown, skipping');
+        sessionStorage.removeItem('from_2fa_setup_login');
+        sessionStorage.removeItem('just_logged_in');
+        return;
+    }
+
     // Clear the flag (show only once per session)
     sessionStorage.removeItem('just_logged_in');
 

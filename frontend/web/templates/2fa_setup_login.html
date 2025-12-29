@@ -173,6 +173,56 @@
                     Перейти в приложение
                 </button>
             </div>
+
+        <!-- Step 3: WebAuthn Onboarding (показывается после backup codes) -->
+        <div id="step-webauthn-onboarding" class="hidden">
+            <div class="login-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" stroke="#4CAF50" stroke-width="2"/>
+                </svg>
+            </div>
+
+            <h2>Добавить быстрый вход?</h2>
+            <p class="login-description">
+                Используйте отпечаток пальца или Face ID для входа без пароля.
+            </p>
+
+            <ul class="list-disc list-inside text-sm opacity-70 space-y-1 mb-4 text-left">
+                <li>Вход за секунду (без ввода пароля)</li>
+                <li>Максимальная безопасность (криптографическая защита)</li>
+                <li>Работает на iPhone, iPad, Android, Mac, Windows</li>
+                <li>Можно настроить позже в разделе "Безопасность"</li>
+            </ul>
+
+            <div class="alert alert-info text-left mb-4 text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <span class="font-medium">Опционально:</span> Вы можете пропустить и настроить позже.
+                </div>
+            </div>
+
+            <div id="webauthn-onboarding-error" class="alert alert-error hidden mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span id="webauthn-onboarding-error-text"></span>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <button id="enable-webauthn-btn" onclick="handleEnableWebAuthnOnboarding()" class="btn btn-primary w-full gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0"/>
+                    </svg>
+                    <span id="enable-webauthn-btn-text">Включить биометрию</span>
+                    <span id="enable-webauthn-btn-loading" class="loading loading-spinner hidden"></span>
+                </button>
+                <button onclick="skipWebAuthnOnboarding()" class="btn btn-ghost w-full">
+                    Пропустить (настрою позже)
+                </button>
+            </div>
+        </div>
         </div>
 
         <div class="login-security">
@@ -481,6 +531,7 @@ async function handleVerify(e) {
         } else {
             // No backup codes - just redirect
             clearSessionData();
+            sessionStorage.setItem('from_2fa_setup_login', 'true');
             showToast('Вход выполнен успешно!', 'success');
             setTimeout(() => {
                 window.location.href = '/';
@@ -541,9 +592,222 @@ ${backupCodes.map((code, i) => `${i + 1}. ${code}`).join('\n')}
     showToast('Файл скачан', 'success');
 }
 
-function finishSetup() {
+async function finishSetup() {
+    console.log('[2FA_SETUP_LOGIN] Backup codes confirmed - checking WebAuthn availability');
+
+    const shouldShowWebAuthn = await checkWebAuthnAvailability();
+
+    if (shouldShowWebAuthn) {
+        console.log('[2FA_SETUP_LOGIN] ✓ Showing WebAuthn onboarding step');
+        document.getElementById('step-backup').classList.add('hidden');
+        document.getElementById('step-webauthn-onboarding').classList.remove('hidden');
+    } else {
+        console.log('[2FA_SETUP_LOGIN] ⊘ Skipping WebAuthn - redirecting to dashboard');
+        clearSessionData();
+        sessionStorage.setItem('from_2fa_setup_login', 'true');
+        window.location.href = '/';
+    }
+}
+
+// ============================================================================
+// WebAuthn Onboarding Functions (First-Time Setup)
+// ============================================================================
+
+async function checkWebAuthnAvailability() {
+    console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] Checking support...');
+
+    // Check 1: Browser support
+    if (!window.PublicKeyCredential) {
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ❌ Not supported by browser');
+        return false;
+    }
+
+    // Check 2: Platform authenticator (TouchID/FaceID/Windows Hello)
+    try {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) {
+            console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ❌ No biometric device');
+            return false;
+        }
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ✓ Biometric available');
+    } catch (error) {
+        console.error('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ❌ Error:', error);
+        return false;
+    }
+
+    // Check 3: User dismissed before (localStorage flag)
+    const dismissed = localStorage.getItem('webauthn_onboarding_dismissed');
+    if (dismissed === 'true') {
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ⊘ Previously dismissed');
+        return false;
+    }
+
+    console.log('[2FA_SETUP_LOGIN][WEBAUTHN_CHECK] ✅ All checks passed');
+    return true;
+}
+
+async function handleEnableWebAuthnOnboarding() {
+    console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] Starting registration');
+
+    const btn = document.getElementById('enable-webauthn-btn');
+    const btnText = document.getElementById('enable-webauthn-btn-text');
+    const btnLoading = document.getElementById('enable-webauthn-btn-loading');
+    const errorDiv = document.getElementById('webauthn-onboarding-error');
+    const errorText = document.getElementById('webauthn-onboarding-error-text');
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        // Step 1: Get options from backend
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] Fetching options...');
+        const optionsResponse = await fetch('/api/v1/webauthn/register/options', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({})
+        });
+
+        if (!optionsResponse.ok) {
+            const errorData = await optionsResponse.json();
+            console.error('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ❌ Options failed:', errorData);
+            throw new Error(errorData.detail || 'Ошибка получения параметров');
+        }
+
+        const options = await optionsResponse.json();
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ✓ Options received');
+
+        // Step 2: Convert Base64URL to ArrayBuffer
+        options.publicKey.challenge = base64urlToBuffer(options.publicKey.challenge);
+        options.publicKey.user.id = base64urlToBuffer(options.publicKey.user.id);
+
+        // Step 3: Trigger biometric prompt
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] Prompting user for biometric...');
+        const credential = await navigator.credentials.create(options);
+
+        if (!credential) {
+            throw new Error('Регистрация отменена');
+        }
+
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ✓ Credential created:', credential.id);
+
+        // Step 4: Prepare credential data for backend
+        const credentialData = {
+            id: credential.id,
+            rawId: bufferToBase64url(credential.rawId),
+            type: credential.type,
+            response: {
+                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                attestationObject: bufferToBase64url(credential.response.attestationObject),
+            },
+        };
+
+        if (credential.response.getTransports) {
+            credentialData.transports = credential.response.getTransports();
+        }
+
+        // Step 5: Send verification to backend
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] Verifying credential...');
+        const verifyResponse = await fetch('/api/v1/webauthn/register/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                challenge: options.originalChallenge,
+                credential: credentialData,
+                device_name: getDeviceName(),
+            }),
+        });
+
+        if (!verifyResponse.ok) {
+            const errorData = await verifyResponse.json();
+            console.error('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ❌ Verify failed:', errorData);
+            throw new Error(errorData.detail || 'Ошибка регистрации');
+        }
+
+        console.log('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ✅ SUCCESS - Credential enrolled');
+        showToast('Биометрия успешно настроена!', 'success');
+
+        // Cleanup and redirect
+        clearSessionData();
+        sessionStorage.setItem('from_2fa_setup_login', 'true');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+
+    } catch (error) {
+        console.error('[2FA_SETUP_LOGIN][WEBAUTHN_REG] ❌ Error:', error);
+
+        let errorMessage = error.message;
+        if (error.name === 'NotAllowedError') {
+            errorMessage = 'Регистрация отменена или превышено время';
+        } else if (error.name === 'NotSupportedError') {
+            errorMessage = 'Биометрия не поддерживается';
+        } else if (error.name === 'SecurityError') {
+            errorMessage = 'Ошибка безопасности. Требуется HTTPS.';
+        } else if (error.name === 'InvalidStateError') {
+            errorMessage = 'Устройство уже зарегистрировано';
+        }
+
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = errorMessage;
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+
+function skipWebAuthnOnboarding() {
+    console.log('[2FA_SETUP_LOGIN][WEBAUTHN_SKIP] User skipped onboarding');
+    localStorage.setItem('webauthn_onboarding_dismissed', 'true');
+    sessionStorage.setItem('from_2fa_setup_login', 'true');
+    showToast('Можете настроить биометрию позже в разделе "Безопасность"', 'info');
     clearSessionData();
     window.location.href = '/';
+}
+
+// ============================================================================
+// WebAuthn Helper Functions (Base64URL <-> ArrayBuffer)
+// ============================================================================
+
+function base64urlToBuffer(base64url) {
+    console.log('[2FA_SETUP_LOGIN][BASE64] Converting to buffer:', base64url.substring(0, 20) + '...');
+    const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(base64 + padding);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+    console.log('[2FA_SETUP_LOGIN][BASE64] Buffer length:', bytes.length);
+    return bytes.buffer;
+}
+
+function bufferToBase64url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    console.log('[2FA_SETUP_LOGIN][BASE64] Converting buffer to base64url, length:', bytes.length);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    console.log('[2FA_SETUP_LOGIN][BASE64] Result:', base64.substring(0, 20) + '...');
+    return base64;
+}
+
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Android.*Mobile/i.test(ua)) return 'Android Phone';
+    if (/Android/i.test(ua)) return 'Android Tablet';
+    if (/Mac/i.test(ua)) return 'Mac';
+    if (/Windows/i.test(ua)) return 'Windows PC';
+    if (/Linux/i.test(ua)) return 'Linux PC';
+    return 'Unknown Device';
 }
 
 // Auto-submit when 6 digits entered

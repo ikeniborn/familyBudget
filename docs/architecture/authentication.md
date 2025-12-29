@@ -675,3 +675,80 @@ curl -X POST http://localhost:8000/api/v1/webauthn/register/options \
 - [Admin Setup Guide](./admin-setup.md) - Step-by-step admin configuration
 - [CLAUDE.md](../../CLAUDE.md) - Developer documentation
 - [PRD](../prd/) - Product requirements
+
+---
+
+## WebAuthn Onboarding During First Login (v6.5.1+)
+
+**Since version 6.5.1:** Users are prompted to enable biometric authentication immediately after 2FA setup during first login.
+
+### Flow
+
+```
+First-Time Login:
+1. User enters email + password
+2. POST /api/v1/auth/login → requires_2fa_setup=true
+3. User redirected to /2fa-setup-login
+4. User scans QR code → enters TOTP code
+5. POST /api/v1/auth/setup-and-verify-2fa → JWT tokens set in cookies
+6. Step 2: Backup codes displayed
+7. User confirms saving backup codes
+8. **Step 3 (NEW):** WebAuthn onboarding prompt shown
+   - Check browser support
+   - Check platform authenticator availability
+   - Check localStorage flag (not dismissed before)
+9. User choices:
+   a) "Включить биометрию" → WebAuthn registration flow
+   b) "Пропустить" → Set dismissal flag, redirect to dashboard
+
+WebAuthn Registration (Step 3):
+1. POST /api/v1/webauthn/register/options (JWT auth)
+2. navigator.credentials.create() → TouchID/FaceID prompt
+3. POST /api/v1/webauthn/register/verify with credential
+4. Success → Redirect to dashboard with toast
+5. sessionStorage flag 'from_2fa_setup_login' prevents duplicate modal
+```
+
+### Implementation Details
+
+**Frontend:** `frontend/web/templates/2fa_setup_login.html`
+- Step 3 div: `#step-webauthn-onboarding` (hidden by default)
+- Trigger: finishSetup() checks `checkWebAuthnAvailability()`
+- Registration: `handleEnableWebAuthnOnboarding()` function
+- Skip: `skipWebAuthnOnboarding()` sets localStorage flag
+
+**Backend:** `backend/app/api/v1/endpoints/auth.py`
+- Endpoint: GET `/api/v1/auth/webauthn-status` (authenticated)
+- Returns: `{has_credentials: bool, user_id: int}`
+- Used by: webauthn-onboarding.js on dashboard
+
+**Logging Prefixes:**
+- Frontend: `[2FA_SETUP_LOGIN][WEBAUTHN_CHECK]`, `[2FA_SETUP_LOGIN][WEBAUTHN_REG]`
+- Backend: `[WEBAUTHN_STATUS]`
+
+### Security Considerations
+
+- JWT tokens are already set when Step 3 appears (after `/setup-and-verify-2fa`)
+- WebAuthn registration requires valid JWT cookie (same as /security page)
+- Dismissal flag stored in localStorage (per-device, not per-account)
+- No security downgrade - 2FA remains mandatory for email login
+
+### User Experience
+
+**Benefits:**
+- Immediate biometric setup (while user is engaged)
+- Reduces friction for future logins
+- Optional (can skip and enable later)
+
+**Fallbacks:**
+- Browser doesn't support WebAuthn → Skip step 3 automatically
+- No biometric device → Skip step 3 automatically
+- User dismissed before → Skip step 3 automatically
+- User skips → Can enable later via /security page
+
+### Related Files
+
+- Frontend: `frontend/web/templates/2fa_setup_login.html:176-280` (Step 3 HTML)
+- Frontend: `frontend/web/templates/2fa_setup_login.html:544-750` (JavaScript functions)
+- Frontend: `frontend/web/static/js/webauthn-onboarding.js:42-57` (Duplicate prevention)
+- Backend: `backend/app/api/v1/endpoints/auth.py:1969-2005` (Status endpoint)
