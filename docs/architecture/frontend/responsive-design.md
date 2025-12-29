@@ -169,6 +169,172 @@ Family Budget uses Tailwind CSS breakpoint system:
 
 ---
 
+## Fixed Bottom Navigation - Authentication Gate (v6.6.1)
+
+**Date:** 2025-12-29
+**Issue:** Fixed Bottom Navigation (FAB Toolbar) was displaying for unauthenticated users on public pages (login, register, 2FA)
+**Solution:** Added authentication check to hide FAB Toolbar for non-authenticated users
+
+### Changes
+
+**File:** `frontend/web/templates/base.html`
+
+**Modified Line 1025:**
+
+```html
+<!-- BEFORE -->
+<!-- Fixed Bottom FAB Toolbar (all pages except admin logs) -->
+{% if not request.path.startswith('/admin/logs') %}
+    {% include 'components/fab_toolbar.html' %}
+{% endif %}
+
+<!-- AFTER -->
+<!-- Fixed Bottom FAB Toolbar (authenticated users only, except admin logs) -->
+{% if user and not request.path.startswith('/admin/logs') %}
+    {% include 'components/fab_toolbar.html' %}
+{% endif %}
+```
+
+**File:** `frontend/web/templates/components/fab_toolbar.html`
+
+**Added Logging (Lines 127-130, 140):**
+
+```javascript
+const fabToolbar = document.getElementById('fab-toolbar');
+if (!fabToolbar) {
+    console.log('[FAB_TOOLBAR] Navigation hidden: User not authenticated');
+    return;
+}
+
+console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
+    page: window.location.pathname,
+    buttonsCount: fabToolbar.querySelectorAll('.icon-btn, .dropdown').length,
+    offlineMode: document.documentElement.classList.contains('offline-mode'),
+    style: 'dropdown-enhanced',
+    position: 'fixed bottom',
+    safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
+    zIndex: getComputedStyle(fabToolbar).zIndex,
+    userAuthenticated: true  // NEW: Explicit authentication flag
+});
+```
+
+### Visibility Matrix
+
+| Page | User State | FAB Toolbar Visible | Console Log |
+|------|------------|---------------------|-------------|
+| `/login-email` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/register` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/2fa-verify` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/2fa-setup-login` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/pending-activation` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/analytics` | Unauthenticated | ❌ Hidden | `[FAB_TOOLBAR] Navigation hidden: User not authenticated` |
+| `/` (index) | Authenticated | ✅ Visible | `[FAB_TOOLBAR] Enhanced navigation initialized: {..., userAuthenticated: true}` |
+| `/facts` | Authenticated | ✅ Visible | `[FAB_TOOLBAR] Enhanced navigation initialized: {..., userAuthenticated: true}` |
+| `/plan` | Authenticated | ✅ Visible | `[FAB_TOOLBAR] Enhanced navigation initialized: {..., userAuthenticated: true}` |
+| `/lists` | Authenticated | ✅ Visible | `[FAB_TOOLBAR] Enhanced navigation initialized: {..., userAuthenticated: true}` |
+| `/admin/logs` | Authenticated | ❌ Hidden | (No log - component not included) |
+
+### Backend Integration
+
+**Authentication Check:**
+
+The `user` variable in templates is populated by `CurrentUserOptional` dependency in web routers:
+
+```python
+# backend/app/api/web/router.py
+
+@web_router.get("/login-email", response_class=HTMLResponse)
+async def login_email_page(
+    request: Request,
+    current_user: CurrentUserOptional = None  # Returns None if not authenticated
+):
+    return templates.TemplateResponse(
+        "login_email.html",
+        {
+            "request": request,
+            "user": current_user,  # None for unauthenticated users
+            "page_title": "Вход по Email"
+        }
+    )
+
+@web_router.get("/", response_class=HTMLResponse)
+async def index(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    # Redirect unauthenticated users to login page
+    if not current_user:
+        return RedirectResponse(url="/login-email", status_code=303)
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "user": current_user,  # User object for authenticated users
+            "page_title": "Family Budget"
+        }
+    )
+```
+
+### Testing
+
+**Console Logging Examples:**
+
+```javascript
+// Public page (/login-email) - Unauthenticated
+[FAB_TOOLBAR] Navigation hidden: User not authenticated
+
+// Authenticated page (/) - Authenticated
+[FAB_TOOLBAR] Enhanced navigation initialized: {
+  page: "/",
+  buttonsCount: 5,
+  offlineMode: false,
+  style: "dropdown-enhanced",
+  position: "fixed bottom",
+  safeAreaBottom: "env(safe-area-inset-bottom)",
+  zIndex: "1000",
+  userAuthenticated: true
+}
+```
+
+### Rationale
+
+**Why hide for unauthenticated users?**
+
+1. **Security:** Authenticated-only actions (add transaction, view lists) should not be accessible to guests
+2. **UX Clarity:** Public pages (login/register) should focus on authentication flow without distractions
+3. **Mobile/PWA:** Clean interface on mobile devices for login screens
+4. **Consistency:** Aligns with authentication-first philosophy - navigation only for logged-in users
+
+**User Impact:**
+
+- ✅ Unauthenticated users: Clean login/register screens without bottom navigation clutter
+- ✅ Authenticated users: Full navigation available on all protected pages
+- ✅ Mobile/PWA users: Focused authentication experience
+- ✅ Tablet users: Consistent behavior across all device sizes
+
+### Device Compatibility
+
+| Device | Screen Size | Unauthenticated | Authenticated |
+|--------|-------------|-----------------|---------------|
+| Mobile | <768px | ❌ FAB hidden | ✅ FAB visible |
+| Tablet | 768-1023px | ❌ FAB hidden | ✅ FAB visible |
+| Desktop | ≥1024px | ❌ FAB hidden | ✅ FAB visible |
+
+### Related Code
+
+**FAB Toolbar Component:**
+- Location: `frontend/web/templates/components/fab_toolbar.html`
+- Features: 5 buttons (Главная, Аналитика, Добавить, Данные, Списки)
+- Special behavior: Context-aware center FAB on `/lists` page
+
+**Base Template:**
+- Location: `frontend/web/templates/base.html`
+- Line 1025: Authentication gate for FAB inclusion
+- Conditional: `{% if user and not request.path.startswith('/admin/logs') %}`
+
+---
+
 ## Future Responsive Improvements
 
 **Potential Areas for Enhancement:**

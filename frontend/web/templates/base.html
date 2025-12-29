@@ -1021,8 +1021,8 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Fixed Bottom FAB Toolbar (all pages except admin logs) -->
-    {% if not request.path.startswith('/admin/logs') %}
+    <!-- Fixed Bottom FAB Toolbar (authenticated users only, except admin logs) -->
+    {% if user and not request.path.startswith('/admin/logs') %}
         {% include 'components/fab_toolbar.html' %}
     {% endif %}
 
