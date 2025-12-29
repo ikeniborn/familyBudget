@@ -566,6 +566,21 @@
 }
 
 /* ---- Mobile Optimizations ---- */
+/* ============================================== */
+/* CRITICAL: Hide Desktop FAB Buttons on Touch Devices */
+/* ============================================== */
+/* Applies to ALL touch devices (smartphones, tablets, hybrid laptops) */
+/* regardless of screen size - prevents FAB buttons from showing on iPad, */
+/* Android tablets in landscape mode, and other large touch screens */
+@media (pointer: coarse) {
+    #lists-fab-menu,
+    #add-item-fab,
+    #create-list-fab,
+    #lists-fab-backdrop {
+        display: none !important;
+    }
+}
+
 @media (max-width: 640px) {
     .hierarchy-store {
         padding: 0.5rem 0.375rem;
@@ -630,15 +645,6 @@
 
     .hierarchy-toggle-placeholder {
         min-width: 1.5rem; /* Соответствует увеличенному toggle */
-    }
-
-    /* CRITICAL: Force hide desktop FAB buttons on mobile/touch devices */
-    /* Even if viewport >= 1024px (Yandex Browser issue) */
-    #lists-fab-menu,
-    #add-item-fab,
-    #create-list-fab,
-    #lists-fab-backdrop {
-        display: none !important;
     }
 }
 
