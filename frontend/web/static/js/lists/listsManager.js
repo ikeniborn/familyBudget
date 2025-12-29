@@ -1203,26 +1203,32 @@ class ListsManager {
      * Uses matchMedia for reliable viewport detection (works in Yandex Browser)
      */
     isDesktop() {
-        // Desktop = wide screen (>= 1024px) AND has ANY fine pointer (mouse/trackpad)
-        // Uses 'any-pointer' instead of 'pointer' to support hybrid devices (Windows touchscreen + mouse)
-        // This prevents FAB buttons from showing on pure touch tablets (iPad, Android)
+        // Desktop = wide screen (>= 1024px) AND primary pointer is NOT touch
+        // CRITICAL: Use 'pointer: fine' (primary pointer) NOT 'any-pointer: fine'
+        // This ensures FAB buttons are hidden when primary input is touch,
+        // even if device has mouse/trackpad available (iPad with keyboard, Surface tablet)
         const isWideScreen = window.matchMedia('(min-width: 1024px)').matches;
 
-        // Check if device has ANY fine pointer (mouse/trackpad), even if also has touch
-        // any-pointer: fine = at least one input device with fine precision (mouse/trackpad)
-        // Returns true: Desktop, laptop with trackpad, Windows touchscreen PC with mouse
-        // Returns false: iPad, Android tablet (only touch, no mouse)
-        const hasAnyFinePointer = window.matchMedia('(any-pointer: fine)').matches;
+        // Check PRIMARY pointer precision (not secondary/any pointer)
+        // pointer: fine = primary input device has fine precision (mouse/trackpad)
+        // Returns true: Desktop PC, laptop (mouse/trackpad is primary)
+        // Returns false: iPad, Android tablet, Surface in tablet mode (touch is primary)
+        const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+
+        // Also check that primary pointer is NOT touch (defensive check)
+        // pointer: coarse = primary input device is touch
+        const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
 
         console.log('[FAB_DETECTION]', {
             isWideScreen,
-            hasAnyFinePointer,
-            result: isWideScreen && hasAnyFinePointer,
+            hasFinePointer,
+            hasCoarsePointer,
+            result: isWideScreen && hasFinePointer && !hasCoarsePointer,
             userAgent: navigator.userAgent
         });
 
-        // Both conditions must be true for desktop
-        return isWideScreen && hasAnyFinePointer;
+        // All conditions must be true for desktop
+        return isWideScreen && hasFinePointer && !hasCoarsePointer;
     }
 
     /**
