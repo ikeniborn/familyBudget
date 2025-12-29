@@ -2038,33 +2038,33 @@ function renderMappingTable() {
 
         selectCell.appendChild(select);
 
-        // For description field, add multiselect for additional columns
+        // For description field, add checkboxes for additional columns
         if (field.hasAdditionalColumns) {
             const additionalDiv = document.createElement('div');
             additionalDiv.className = 'mt-2';
 
             const additionalLabel = document.createElement('label');
-            additionalLabel.className = 'label label-text text-xs';
-            additionalLabel.textContent = '+ Дополнительные колонки:';
+            additionalLabel.className = 'label label-text text-xs font-semibold';
+            additionalLabel.textContent = '+ Дополнительные колонки для описания:';
             additionalDiv.appendChild(additionalLabel);
 
-            const multiselect = document.createElement('select');
-            multiselect.id = 'additional-description-columns';
-            multiselect.multiple = true;
-            multiselect.size = 5;
-            multiselect.className = 'select select-bordered select-sm w-full';
-            multiselect.style.minHeight = '6rem';
+            // Scrollable container with checkboxes
+            const checkboxContainer = document.createElement('div');
+            checkboxContainer.id = 'additional-description-columns';
+            checkboxContainer.className = 'border border-base-300 rounded-lg p-2 bg-base-100';
+            checkboxContainer.style.maxHeight = '12rem';
+            checkboxContainer.style.overflowY = 'auto';
 
-            additionalDiv.appendChild(multiselect);
+            additionalDiv.appendChild(checkboxContainer);
 
             const hint = document.createElement('div');
             hint.className = 'text-xs text-base-content/70 mt-1';
-            hint.textContent = 'Выберите колонки для добавления в описание (Ctrl+Click)';
+            hint.innerHTML = '<span class="opacity-70">Отметьте колонки, которые нужно добавить в описание</span>';
             additionalDiv.appendChild(hint);
 
             selectCell.appendChild(additionalDiv);
 
-            // Populate multiselect options initially
+            // Populate checkboxes initially
             setTimeout(() => updateAdditionalColumnsOptions(), 100);
         }
 
@@ -2084,11 +2084,11 @@ function renderMappingTable() {
 }
 
 /**
- * Update additional columns multiselect - show only unmapped CSV columns
+ * Update additional columns checkboxes - show only unmapped CSV columns
  */
 function updateAdditionalColumnsOptions() {
-    const multiselect = document.getElementById('additional-description-columns');
-    if (!multiselect) return;
+    const container = document.getElementById('additional-description-columns');
+    if (!container) return;
 
     // Get currently mapped columns
     const mappedColumns = new Set();
@@ -2106,32 +2106,57 @@ function updateAdditionalColumnsOptions() {
         window.savedAdditionalColumns = [];  // Clear after first use
         console.log('[MAPPING] Restoring saved additional columns:', selectionToRestore);
     } else {
-        selectionToRestore = Array.from(multiselect.selectedOptions).map(opt => opt.value);
+        // Collect currently checked checkboxes
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+        selectionToRestore = Array.from(checkboxes).map(cb => cb.value);
     }
 
-    // Clear and repopulate with unmapped columns
-    multiselect.innerHTML = '';
+    // Clear and repopulate with checkboxes for unmapped columns
+    container.innerHTML = '';
 
+    let availableCount = 0;
     csvHeaders.forEach(header => {
         // Skip if already mapped to a budget field
         if (mappedColumns.has(header)) return;
 
-        const option = document.createElement('option');
-        option.value = header;
-        option.textContent = header;
+        availableCount++;
+
+        // Create checkbox wrapper
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 p-1 hover:bg-base-200 rounded cursor-pointer';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'checkbox checkbox-xs checkbox-primary';
+        checkbox.value = header;
+        checkbox.id = `additional-col-${header.replace(/\s/g, '_')}`;
 
         // Restore selection
         if (selectionToRestore.includes(header)) {
-            option.selected = true;
+            checkbox.checked = true;
         }
 
-        multiselect.appendChild(option);
+        const labelText = document.createElement('span');
+        labelText.className = 'text-sm';
+        labelText.textContent = header;
+
+        label.appendChild(checkbox);
+        label.appendChild(labelText);
+        container.appendChild(label);
     });
+
+    // Show message if no unmapped columns
+    if (availableCount === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'text-sm text-base-content/50 text-center py-2';
+        emptyMsg.textContent = 'Все колонки уже замаппированы';
+        container.appendChild(emptyMsg);
+    }
 
     console.log('[MAPPING] Updated additional columns:', {
         total: csvHeaders.length,
         mapped: mappedColumns.size,
-        available: multiselect.options.length,
+        available: availableCount,
         selected: selectionToRestore.length
     });
 }
@@ -2183,10 +2208,11 @@ async function saveMapping() {
         const dateFormatValue = document.getElementById('mapping-date-format').value;
         const numberFormatValue = document.getElementById('mapping-number-format').value;
 
-        // Collect additional description columns from multiselect
-        const additionalColumnsSelect = document.getElementById('additional-description-columns');
-        const additionalColumns = additionalColumnsSelect ?
-            Array.from(additionalColumnsSelect.selectedOptions).map(opt => opt.value) : [];
+        // Collect additional description columns from checkboxes
+        const additionalColumnsContainer = document.getElementById('additional-description-columns');
+        const additionalColumns = additionalColumnsContainer ?
+            Array.from(additionalColumnsContainer.querySelectorAll('input[type="checkbox"]:checked'))
+                .map(cb => cb.value) : [];
 
         // If delimiter is "auto", save the actual detected delimiter
         if (delimiterValue === 'auto') {
