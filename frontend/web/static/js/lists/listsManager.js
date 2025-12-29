@@ -1208,24 +1208,39 @@ class ListsManager {
      * Uses matchMedia for reliable viewport detection (works in Yandex Browser)
      */
     isDesktop() {
-        // Desktop = wide screen (>= 1024px) AND fine pointer (mouse/trackpad, not touch)
-        // This prevents FAB buttons from showing on tablets in landscape mode
-        // (e.g., iPad Pro 12.9" = 1366px wide but still touch device)
+        // Desktop = wide screen (>= 1024px) AND has ANY fine pointer (mouse/trackpad)
+        // Uses 'any-pointer' instead of 'pointer' to support hybrid devices (Windows touchscreen + mouse)
+        // This prevents FAB buttons from showing on pure touch tablets (iPad, Android)
         const isWideScreen = window.matchMedia('(min-width: 1024px)').matches;
-        const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+
+        // Check if device has ANY fine pointer (mouse/trackpad), even if also has touch
+        // any-pointer: fine = at least one input device with fine precision (mouse/trackpad)
+        // Returns true: Desktop, laptop with trackpad, Windows touchscreen PC with mouse
+        // Returns false: iPad, Android tablet (only touch, no mouse)
+        const hasAnyFinePointer = window.matchMedia('(any-pointer: fine)').matches;
+
+        console.log('[FAB_DETECTION]', {
+            isWideScreen,
+            hasAnyFinePointer,
+            result: isWideScreen && hasAnyFinePointer,
+            userAgent: navigator.userAgent
+        });
 
         // Both conditions must be true for desktop
-        return isWideScreen && hasFinePointer;
+        return isWideScreen && hasAnyFinePointer;
     }
 
     /**
      * Show FAB menu (detail view only - mass operations, desktop only)
      */
     showFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const fabMenu = document.getElementById('lists-fab-menu');
         if (fabMenu) {
             fabMenu.classList.remove('hidden');
+            console.log('[FAB] lists-fab-menu shown');
             // Don't add 'open' - that's for when user clicks to expand
         }
     }
@@ -1234,12 +1249,15 @@ class ListsManager {
      * Hide FAB menu (when switching to landing view, desktop only)
      */
     hideFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const fabMenu = document.getElementById('lists-fab-menu');
         const fabBackdrop = document.getElementById('lists-fab-backdrop');
         if (fabMenu) {
             fabMenu.classList.add('hidden', 'closed');
             fabMenu.classList.remove('open');
+            console.log('[FAB] lists-fab-menu hidden');
         }
         if (fabBackdrop) {
             fabBackdrop.classList.add('hidden', 'opacity-0', 'pointer-events-none');
@@ -1250,10 +1268,13 @@ class ListsManager {
      * Show add item FAB (detail view only - desktop only)
      */
     showAddItemFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const addItemFAB = document.getElementById('add-item-fab');
         if (addItemFAB) {
             addItemFAB.classList.remove('hidden');
+            console.log('[FAB] add-item-fab shown');
         }
     }
 
@@ -1261,10 +1282,13 @@ class ListsManager {
      * Hide add item FAB (when switching to landing view, desktop only)
      */
     hideAddItemFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const addItemFAB = document.getElementById('add-item-fab');
         if (addItemFAB) {
             addItemFAB.classList.add('hidden');
+            console.log('[FAB] add-item-fab hidden');
         }
     }
 
@@ -1272,10 +1296,13 @@ class ListsManager {
      * Show create list FAB (landing view only - desktop only)
      */
     showCreateListFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.remove('hidden');
+            console.log('[FAB] create-list-fab shown');
         }
     }
 
@@ -1283,10 +1310,13 @@ class ListsManager {
      * Hide create list FAB (when switching to detail view, desktop only)
      */
     hideCreateListFAB() {
-        if (!this.isDesktop()) return; // Only manage on desktop
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.add('hidden');
+            console.log('[FAB] create-list-fab hidden');
         }
     }
 
