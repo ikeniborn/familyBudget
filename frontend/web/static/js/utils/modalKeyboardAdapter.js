@@ -183,6 +183,16 @@ class ModalKeyboardAdapter {
     // ========================================
 
     _setupModalObserver() {
+        // CRITICAL: Check if document.body exists (script may load in <head>)
+        if (!document.body) {
+            logModalKB.warn('document.body not ready, deferring modal observer setup');
+            // Retry after DOM ready
+            document.addEventListener('DOMContentLoaded', () => {
+                this._setupModalObserver();
+            });
+            return;
+        }
+
         // Observe <dialog> elements for 'open' attribute changes
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -450,5 +460,16 @@ class ModalKeyboardAdapter {
 
 // Auto-initialize on module load
 if (typeof window !== 'undefined') {
-    window.modalKeyboardAdapter = new ModalKeyboardAdapter();
+    const init = () => {
+        window.modalKeyboardAdapter = new ModalKeyboardAdapter();
+    };
+
+    // Check DOM readiness before initializing
+    if (document.readyState === 'loading') {
+        // DOM not ready yet, wait for DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        // DOM already ready (interactive or complete), initialize immediately
+        init();
+    }
 }
