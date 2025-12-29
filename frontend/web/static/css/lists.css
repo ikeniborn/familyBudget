@@ -533,18 +533,20 @@
     right: 0;
     top: 0;
     height: 100%;
-    width: 50%;
+    width: 100%; /* CHANGED from 50%: Full width for right-edge positioning */
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 0.5rem;
-    padding: 0 0.5rem 0 0; /* Padding только справа для правильного выравнивания */
-    /* Gradient from left (transparent) to right (error background) */
+    padding: 0 0.75rem 0 0; /* CHANGED: Increased padding for visual breathing room */
+    z-index: 5; /* NEW: Above content (z-index: 2) but below modals */
+    /* CHANGED: Gradient starts at 50% (visible area only, since first 50% is hidden behind item) */
     background: linear-gradient(
         to right,
         transparent 0%,
-        var(--fallback-er, oklch(var(--er) / 0.05)) 15%,
-        var(--fallback-er, oklch(var(--er) / 0.1)) 40%,
+        transparent 50%,
+        var(--fallback-er, oklch(var(--er) / 0.05)) 60%,
+        var(--fallback-er, oklch(var(--er) / 0.1)) 75%,
         var(--fallback-er, oklch(var(--er) / 0.15)) 100%
     );
     opacity: 0;
@@ -565,6 +567,19 @@
     padding: 0;
     font-size: 1rem;
     flex-shrink: 0;
+    position: relative; /* NEW: Creates stacking context */
+    z-index: 10; /* NEW: Above gradient background */
+    pointer-events: auto; /* NEW: Explicit click enablement */
+    cursor: pointer; /* NEW: Visual feedback */
+}
+
+/* NEW: Visual debugging aid (remove after testing) */
+.swipe-debug .hierarchy-item-swipe-actions {
+    background: rgba(255, 0, 0, 0.2) !important; /* Red tint to see container bounds */
+}
+
+.swipe-debug .hierarchy-item-swipe-actions .btn {
+    outline: 2px solid lime !important; /* Green outline on buttons */
 }
 
 /* ---- Mobile Optimizations ---- */

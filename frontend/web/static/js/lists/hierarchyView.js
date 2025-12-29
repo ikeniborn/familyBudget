@@ -20,8 +20,21 @@ class SwipeHandler {
         this.isDragging = false;
         this.SWIPE_THRESHOLD = 0.5; // 50% of item width
 
+        // NEW: Centralized logging helper
+        this._log = (action, data = {}) => {
+            console.log(`[SWIPE_HANDLER] ${action}`, {
+                timestamp: new Date().toISOString(),
+                ...data
+            });
+        };
+
         console.log('[SWIPE] SwipeHandler initialized', {
             threshold: `${this.SWIPE_THRESHOLD * 100}%`
+        });
+
+        this._log('INITIALIZED', {
+            threshold: `${this.SWIPE_THRESHOLD * 100}%`,
+            minDistance: '50px (default swipe threshold)'
         });
     }
 
@@ -126,6 +139,18 @@ class SwipeHandler {
         this.activeSwipedItemId = itemId;
 
         console.log('[SWIPE] Swipe opened', { itemId });
+
+        // NEW: Enhanced logging with diagnostic info
+        const actionsContainer = itemElement.querySelector('.hierarchy-item-swipe-actions');
+        this._log('SWIPE_OPENED', {
+            itemId,
+            swipeDistance: `${swipeDistance}px`,
+            transform: itemElement.style.transform,
+            containerWidth: itemElement.offsetWidth,
+            buttonsVisible: true,
+            pointerEvents: actionsContainer ?
+                window.getComputedStyle(actionsContainer).pointerEvents : 'N/A'
+        });
     }
 
     /**
@@ -184,6 +209,40 @@ class SwipeHandler {
         });
 
         console.log('[SWIPE] Event handlers attached', { itemCount: items.length });
+    }
+
+    /**
+     * Diagnostic method - call from console to debug swipe state
+     * Usage: window.hierarchyView.swipeHandler.diagnoseSwipe()
+     */
+    diagnoseSwipe() {
+        const swipedItems = document.querySelectorAll('.hierarchy-item.swiped');
+
+        this._log('DIAGNOSTIC', {
+            swipedCount: swipedItems.length,
+            items: Array.from(swipedItems).map(item => {
+                const actionsContainer = item.querySelector('.hierarchy-item-swipe-actions');
+                const buttons = item.querySelectorAll('.hierarchy-item-swipe-actions button');
+                const firstButton = buttons[0];
+
+                return {
+                    itemId: item.dataset.itemId,
+                    transform: item.style.transform,
+                    hasSwiped: item.classList.contains('swiped'),
+                    containerWidth: actionsContainer ? actionsContainer.offsetWidth : 0,
+                    containerPointerEvents: actionsContainer ?
+                        window.getComputedStyle(actionsContainer).pointerEvents : 'N/A',
+                    buttonCount: buttons.length,
+                    buttonZIndex: firstButton ?
+                        window.getComputedStyle(firstButton).zIndex : 'N/A',
+                    buttonPointerEvents: firstButton ?
+                        window.getComputedStyle(firstButton).pointerEvents : 'N/A',
+                    buttonRect: firstButton ? firstButton.getBoundingClientRect() : null
+                };
+            })
+        });
+
+        return swipedItems;
     }
 }
 
@@ -467,10 +526,16 @@ class HierarchyView {
                         </div>
                     </div>
                     <div class="hierarchy-item-swipe-actions">
-                        <button class="btn btn-xs btn-square btn-ghost" onclick="openEditItemModal(${item.id}); event.stopPropagation();" aria-label="Редактировать" title="Редактировать">
+                        <button class="btn btn-xs btn-square btn-ghost"
+                                onclick="console.log('[SWIPE_CLICK] Edit button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); openEditItemModal(${item.id});"
+                                aria-label="Редактировать"
+                                title="Редактировать">
                             ✏️
                         </button>
-                        <button class="btn btn-xs btn-square btn-error" onclick="window.listsManager.deleteItem(${item.id}); event.stopPropagation();" aria-label="Удалить" title="Удалить">
+                        <button class="btn btn-xs btn-square btn-error"
+                                onclick="console.log('[SWIPE_CLICK] Delete button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); window.listsManager.deleteItem(${item.id});"
+                                aria-label="Удалить"
+                                title="Удалить">
                             🗑️
                         </button>
                     </div>
