@@ -335,7 +335,7 @@ async def suggest_products(
             )
             .where(
                 ShoppingListItem.shopping_list_id == shopping_list_id,
-                func.lower(ShoppingListItem.product_name).like(f"%{search_pattern.lower()}%"),
+                func.lower(ShoppingListItem.product_name.collate("ru-RU-x-icu")).like(f"%{search_pattern.lower()}%"),
                 ShoppingListItem.deleted_at.is_not(None),  # Only soft-deleted
             )
             .order_by(ShoppingListItem.deleted_at.desc())  # Most recently deleted first
@@ -378,7 +378,7 @@ async def suggest_products(
         .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
         .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
         .where(
-            func.lower(ShoppingListItem.product_name).like(f"%{search_pattern.lower()}%"),
+            func.lower(ShoppingListItem.product_name.collate("ru-RU-x-icu")).like(f"%{search_pattern.lower()}%"),
             ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
         )
         .group_by(
