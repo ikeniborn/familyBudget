@@ -9,11 +9,6 @@
  * Stage 8: Offline Support (IndexedDB, sync queue)
  */
 
-console.log('[LISTS_MANAGER] ========================================');
-console.log('[LISTS_MANAGER] listsManager.js loading...');
-console.log('[LISTS_MANAGER] Version: 2025-12-29 13:50');
-console.log('[LISTS_MANAGER] ========================================');
-
 class ListsManager {
     constructor() {
         this.currentListId = null;
@@ -2883,44 +2878,29 @@ async function handleCreateList(event) {
  * Open add item modal
  */
 function openAddItemModal() {
-    console.log('[MODAL] ========================================');
-    console.log('[MODAL] openAddItemModal() called');
-    console.log('[MODAL] ========================================');
-
     const modal = document.getElementById('item-modal');
     const form = document.getElementById('item-form');
     form.reset();
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
 
-    console.log('[MODAL] Modal element found:', !!modal);
-    console.log('[MODAL] Form element found:', !!form);
-
     // Reinitialize Choices.js with latest data (fixes issue after CSV import)
     // This ensures newly created stores/groups are visible
     if (window.listsManager) {
-        console.log('[MODAL] window.listsManager exists');
         window.listsManager.initStoreChoices();
         window.listsManager.initProductGroupChoices();
-    } else {
-        console.warn('[MODAL] window.listsManager is NULL!');
     }
 
     // Reset quantity input step to default (integer)
     const quantityInput = document.getElementById('item-quantity');
     if (quantityInput) {
-        console.log('[MODAL] Quantity input found:', quantityInput.id);
         quantityInput.step = '1';
-    } else {
-        console.warn('[MODAL] Quantity input NOT found!');
     }
 
     // Ensure autocomplete is set up (mobile fix)
-    console.log('[MODAL] Setting up autocomplete...');
     window.listsManager?._setupProductAutocomplete();
 
     // Initialize duplicate detection
-    console.log('[MODAL] Initializing duplicate detection...');
     window.listsManager?.initializeDuplicateDetection();
 
     // Hide duplicate warning on modal open
