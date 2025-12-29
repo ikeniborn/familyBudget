@@ -1112,6 +1112,12 @@ let planHintsController = null;
  * @param {object|null} category - Selected category (from onCategoryChange callback)
  */
 async function loadPlanHints(category = null) {
+    console.log('[PLAN_HINTS] loadPlanHints() called:', {
+        category: category ? category.id : null,
+        categoryName: category ? category.name : null,
+        timestamp: new Date().toISOString()
+    });
+
     // Clear existing debounce timeout
     if (planHintsTimeout) {
         clearTimeout(planHintsTimeout);
@@ -1131,6 +1137,34 @@ async function loadPlanHints(category = null) {
         return;
     }
 
+    // ✅ FIX 3: Check if BOTH account AND category are selected
+    const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+    const financialCenterId = cfoSelect ? cfoSelect.value : null;
+    const articleId = category ? category.id : null;
+
+    console.log('[PLAN_HINTS] Validation check:', {
+        fcId: financialCenterId,
+        articleId: articleId,
+        bothSelected: !!(financialCenterId && articleId)
+    });
+
+    // If either FC or category NOT selected, show placeholder and return
+    if (!financialCenterId || !articleId) {
+        console.log('[PLAN_HINTS] ⚠️ SKIPPED: Missing required fields', {
+            fcSelected: !!financialCenterId,
+            categorySelected: !!articleId
+        });
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        return;
+    }
+
+    console.log('[PLAN_HINTS] ✅ Validation PASSED - proceeding with API call');
+
     // Show loading state
     prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
     prevPlanBtn.disabled = true;
@@ -1139,15 +1173,6 @@ async function loadPlanHints(category = null) {
     prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
     prevFactBtn.disabled = true;
     prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-
-    // Check if category is selected
-    const articleId = category ? category.id : null;
-    if (!articleId) {
-        // No category selected - show placeholder
-        prevPlanBtn.innerHTML = 'План пред. мес: --';
-        prevFactBtn.innerHTML = 'Факт пред. мес: --';
-        return;
-    }
 
     // Debounce: wait 300ms after last call
     planHintsTimeout = setTimeout(async () => {
@@ -1758,9 +1783,24 @@ async function loadFinancialCenters() {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
-                // Update plan hints
+                // Update plan hints ONLY if both FC and category selected
                 const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
-                loadPlanHints(selectedCategory);
+
+                console.log('[FC_CHANGE] Checking if should load plan hints:', {
+                    fcId: fcId,
+                    selectedCategory: selectedCategory ? selectedCategory.id : null,
+                    willLoad: !!(fcId && selectedCategory)
+                });
+
+                if (fcId && selectedCategory) {
+                    console.log('[FC_CHANGE] ✅ Loading plan hints (both fields selected)');
+                    loadPlanHints(selectedCategory);
+                } else {
+                    console.log('[FC_CHANGE] ⚠️ NOT loading plan hints (missing fields):', {
+                        fcMissing: !fcId,
+                        categoryMissing: !selectedCategory
+                    });
+                }
             });
         }
 
@@ -3419,7 +3459,14 @@ function setupCreatePlanTypeButtons() {
 
             // Обновить подсказки для нового типа плана
             const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
-            loadPlanHints(selectedCategory);
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const fcId = cfoSelect ? cfoSelect.value : null;
+
+            if (fcId && selectedCategory) {
+                loadPlanHints(selectedCategory);
+            } else {
+                console.log('[PLAN_TYPE_CHANGE] Not loading hints - missing FC or category');
+            }
         });
     });
 }
@@ -3460,7 +3507,14 @@ function setupCreatePlanPeriodButtons() {
 
             // Обновить подсказки для нового периода
             const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
-            loadPlanHints(selectedCategory);
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const fcId = cfoSelect ? cfoSelect.value : null;
+
+            if (fcId && selectedCategory) {
+                loadPlanHints(selectedCategory);
+            } else {
+                console.log('[PERIOD_CHANGE] Not loading hints - missing FC or category');
+            }
         });
     });
 }

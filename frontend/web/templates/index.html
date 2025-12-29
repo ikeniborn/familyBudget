@@ -3340,9 +3340,13 @@ async function loadFinancialCenters() {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
-                // Update fact hints for current month
+                // Update fact hints ONLY if both FC and category selected
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
-                loadFactHints(selectedCategory);
+                if (fcId && selectedCategory) {
+                    loadFactHints(selectedCategory);
+                } else {
+                    console.log('[FC_CHANGE] Not loading hints - missing FC or category');
+                }
             });
         }
 
@@ -3558,6 +3562,11 @@ let factHintsTimeout = null;
 let factHintsController = null;
 
 async function loadFactHints(category = null) {
+    console.log('[FACT_HINTS] loadFactHints() called:', {
+        category: category ? category.id : null,
+        categoryName: category ? category.name : null
+    });
+
     // 1. Clear debounce timeout
     if (factHintsTimeout) clearTimeout(factHintsTimeout);
     if (factHintsController) factHintsController.abort();
@@ -3566,16 +3575,36 @@ async function loadFactHints(category = null) {
     const factBtn = document.getElementById('hint-period-fact');
     if (!planBtn || !factBtn) return;
 
+    // ✅ FIX 3: Check if BOTH account AND category are selected
+    const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+    const financialCenterId = fcSelect ? fcSelect.value : null;
+    const articleId = category?.id;
+
+    console.log('[FACT_HINTS] Validation check:', {
+        fcId: financialCenterId,
+        articleId: articleId,
+        bothSelected: !!(financialCenterId && articleId)
+    });
+
+    if (!financialCenterId || !articleId) {
+        console.log('[FACT_HINTS] ⚠️ SKIPPED: Missing required fields', {
+            fcSelected: !!financialCenterId,
+            categorySelected: !!articleId
+        });
+        planBtn.innerHTML = 'План мес: --';
+        planBtn.disabled = true;
+        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        factBtn.innerHTML = 'Факт мес: --';
+        factBtn.disabled = true;
+        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        return;
+    }
+
+    console.log('[FACT_HINTS] ✅ Validation PASSED');
+
     // 2. Show loading state
     planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
     factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-
-    const articleId = category?.id;
-    if (!articleId) {
-        planBtn.innerHTML = 'План мес: --';
-        factBtn.innerHTML = 'Факт мес: --';
-        return;
-    }
 
     // 3. Debounce 300ms
     factHintsTimeout = setTimeout(async () => {
