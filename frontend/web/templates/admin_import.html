@@ -581,23 +581,6 @@ body.resizing-columns * {
                 </table>
             </div>
 
-            <!-- Transformation Options -->
-            <div class="form-control mt-6 bg-base-200 p-4 rounded-lg">
-                <label class="label cursor-pointer">
-                    <span class="label-text">
-                        <span class="font-semibold">Включить все колонки CSV в описание</span>
-                        <span class="text-sm text-base-content/70 block mt-1">
-                            Все колонки из CSV файла будут добавлены в описание транзакции через точку с запятой
-                        </span>
-                    </span>
-                    <input
-                        type="checkbox"
-                        id="includeAllColumnsCheckbox"
-                        class="checkbox checkbox-primary"
-                        onchange="handleIncludeAllColumnsChange(this.checked)"
-                    />
-                </label>
-            </div>
 
             <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" id="save-mapping-btn" onclick="saveMapping()">Сохранить маппинг</button>
@@ -1854,14 +1837,13 @@ async function showMappingStep(isUpdateMode = false) {
         numberFormatSelect.value = '';  // Auto-detect
     }
 
-    // Set include_all_columns checkbox from saved transformations (if available)
-    const includeAllColumnsCheckbox = document.getElementById('includeAllColumnsCheckbox');
-    if (savedTransformations && savedTransformations.include_all_columns) {
-        includeAllColumnsCheckbox.checked = true;
-        console.log('[MAPPING] Loaded include_all_columns: true');
+    // Restore additional description columns from saved transformations
+    // This will be applied after renderMappingTable() creates the multiselect
+    if (savedTransformations && savedTransformations.additional_description_columns) {
+        window.savedAdditionalColumns = savedTransformations.additional_description_columns;
+        console.log('[MAPPING] Will restore additional_description_columns:', window.savedAdditionalColumns);
     } else {
-        includeAllColumnsCheckbox.checked = false;
-        console.log('[MAPPING] Loaded include_all_columns: false (default)');
+        window.savedAdditionalColumns = [];
     }
 
     // Render CSV preview with current delimiter
@@ -2005,7 +1987,7 @@ function renderMappingTable() {
     const budgetFields = [
         { key: 'fact_date', label: 'Дата операции', required: true },
         { key: 'amount', label: 'Сумма', required: true },
-        { key: 'description', label: 'Описание', required: false },
+        { key: 'description', label: 'Описание', required: false, hasAdditionalColumns: true },
         { key: 'csv_category', label: 'Категория (metadata)', required: false }
     ];
 
@@ -2041,16 +2023,50 @@ function renderMappingTable() {
             select.appendChild(option);
         });
 
-        // Add change event listener to update sample data
+        // Add change event listener to update sample data and additional columns
         const exampleCell = document.createElement('td');
         exampleCell.id = `example-${field.key}`;
         exampleCell.className = 'text-sm text-base-content/70';
 
         select.onchange = function() {
             updateSampleData(field.key, this.value, exampleCell);
+            // Update additional columns multiselect (remove mapped columns)
+            if (field.hasAdditionalColumns) {
+                updateAdditionalColumnsOptions();
+            }
         };
 
         selectCell.appendChild(select);
+
+        // For description field, add multiselect for additional columns
+        if (field.hasAdditionalColumns) {
+            const additionalDiv = document.createElement('div');
+            additionalDiv.className = 'mt-2';
+
+            const additionalLabel = document.createElement('label');
+            additionalLabel.className = 'label label-text text-xs';
+            additionalLabel.textContent = '+ Дополнительные колонки:';
+            additionalDiv.appendChild(additionalLabel);
+
+            const multiselect = document.createElement('select');
+            multiselect.id = 'additional-description-columns';
+            multiselect.multiple = true;
+            multiselect.size = 5;
+            multiselect.className = 'select select-bordered select-sm w-full';
+            multiselect.style.minHeight = '6rem';
+
+            additionalDiv.appendChild(multiselect);
+
+            const hint = document.createElement('div');
+            hint.className = 'text-xs text-base-content/70 mt-1';
+            hint.textContent = 'Выберите колонки для добавления в описание (Ctrl+Click)';
+            additionalDiv.appendChild(hint);
+
+            selectCell.appendChild(additionalDiv);
+
+            // Populate multiselect options initially
+            setTimeout(() => updateAdditionalColumnsOptions(), 100);
+        }
 
         // Initialize example data
         if (csvSampleRows.length > 0) {
@@ -2064,6 +2080,59 @@ function renderMappingTable() {
         row.appendChild(selectCell);
         row.appendChild(exampleCell);
         tableBody.appendChild(row);
+    });
+}
+
+/**
+ * Update additional columns multiselect - show only unmapped CSV columns
+ */
+function updateAdditionalColumnsOptions() {
+    const multiselect = document.getElementById('additional-description-columns');
+    if (!multiselect) return;
+
+    // Get currently mapped columns
+    const mappedColumns = new Set();
+    ['fact_date', 'amount', 'description', 'csv_category'].forEach(key => {
+        const select = document.getElementById(`mapping-${key}`);
+        if (select && select.value) {
+            mappedColumns.add(select.value);
+        }
+    });
+
+    // Determine selection: use saved columns (first call) or current selection (subsequent calls)
+    let selectionToRestore = [];
+    if (window.savedAdditionalColumns && window.savedAdditionalColumns.length > 0) {
+        selectionToRestore = window.savedAdditionalColumns;
+        window.savedAdditionalColumns = [];  // Clear after first use
+        console.log('[MAPPING] Restoring saved additional columns:', selectionToRestore);
+    } else {
+        selectionToRestore = Array.from(multiselect.selectedOptions).map(opt => opt.value);
+    }
+
+    // Clear and repopulate with unmapped columns
+    multiselect.innerHTML = '';
+
+    csvHeaders.forEach(header => {
+        // Skip if already mapped to a budget field
+        if (mappedColumns.has(header)) return;
+
+        const option = document.createElement('option');
+        option.value = header;
+        option.textContent = header;
+
+        // Restore selection
+        if (selectionToRestore.includes(header)) {
+            option.selected = true;
+        }
+
+        multiselect.appendChild(option);
+    });
+
+    console.log('[MAPPING] Updated additional columns:', {
+        total: csvHeaders.length,
+        mapped: mappedColumns.size,
+        available: multiselect.options.length,
+        selected: selectionToRestore.length
     });
 }
 
@@ -2092,16 +2161,6 @@ function updateApplyMappingButtonState() {
     }
 }
 
-/**
- * Handle include_all_columns transformation toggle
- */
-function handleIncludeAllColumnsChange(checked) {
-    console.log('[MAPPING] include_all_columns changed:', checked);
-
-    if (checked) {
-        showNotification('Все колонки CSV будут включены в описание каждой транзакции', 'info', 3000);
-    }
-}
 
 async function saveMapping() {
     try {
@@ -2119,11 +2178,15 @@ async function saveMapping() {
             return;
         }
 
-        // Collect transformations (delimiter, date format, number format, include_all_columns)
+        // Collect transformations (delimiter, date format, number format, additional_description_columns)
         let delimiterValue = document.getElementById('mapping-delimiter').value;
         const dateFormatValue = document.getElementById('mapping-date-format').value;
         const numberFormatValue = document.getElementById('mapping-number-format').value;
-        const includeAllColumns = document.getElementById('includeAllColumnsCheckbox').checked;
+
+        // Collect additional description columns from multiselect
+        const additionalColumnsSelect = document.getElementById('additional-description-columns');
+        const additionalColumns = additionalColumnsSelect ?
+            Array.from(additionalColumnsSelect.selectedOptions).map(opt => opt.value) : [];
 
         // If delimiter is "auto", save the actual detected delimiter
         if (delimiterValue === 'auto') {
@@ -2134,7 +2197,7 @@ async function saveMapping() {
             delimiter: delimiterValue,
             date_format: dateFormatValue || null,  // null = auto-detect
             number_format: numberFormatValue || null,  // null = auto-detect
-            include_all_columns: includeAllColumns
+            additional_description_columns: additionalColumns  // Array of column names
         };
 
         console.log('[MAPPING] Transformations:', transformations);

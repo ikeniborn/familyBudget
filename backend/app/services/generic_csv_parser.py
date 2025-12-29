@@ -69,8 +69,8 @@ class GenericCSVParser:
                         - 'de': German format (dot for thousands, comma for decimal: 1.234,56)
                         - None: auto-detect
             transformations: Optional transformations dict with keys:
-                        - 'include_all_columns': bool - If True, concatenate all unmapped CSV columns
-                          into description (excludes mapped columns to avoid duplication)
+                        - 'additional_description_columns': list[str] - List of specific CSV column names
+                          to concatenate into description (e.g., ["MCC", "Merchant", "CardLast4"])
 
         Returns:
             List of dicts ready for ImportStaging insertion
@@ -88,10 +88,10 @@ class GenericCSVParser:
         """
         # Log transformation options
         transformations = transformations or {}
-        include_all_columns = transformations.get("include_all_columns", False)
+        additional_columns = transformations.get("additional_description_columns", [])
         logger.info(
             f"[CSV_PARSER] Starting parse: "
-            f"include_all_columns={include_all_columns}, "
+            f"additional_description_columns={additional_columns}, "
             f"encoding={encoding}, delimiter='{delimiter}'"
         )
 
@@ -168,40 +168,29 @@ class GenericCSVParser:
                 if description and str(description).strip():
                     description_parts.append(str(description).strip())
 
-                # 2. Check include_all_columns transformation
-                if include_all_columns:
-                    logger.debug(f"[CSV_PARSER] Row {row_num}: include_all_columns enabled")
-
-                    # Get mapped column names (to EXCLUDE from concatenation)
-                    mapped_columns = set()
-                    for field_key, csv_column in mapping.items():
-                        if csv_column:  # Skip empty mappings
-                            mapped_columns.add(csv_column)
-
+                # 2. Add additional description columns (if specified)
+                if additional_columns:
                     logger.debug(
-                        f"[CSV_PARSER] Row {row_num}: excluding {len(mapped_columns)} mapped columns"
+                        f"[CSV_PARSER] Row {row_num}: additional_description_columns={additional_columns}"
                     )
 
-                    # Concatenate ONLY unmapped CSV columns (skip empty + skip mapped)
-                    unmapped_columns = []
-                    for col_name, col_value in row.items():
-                        # Skip if column is mapped (avoid duplication)
-                        if col_name in mapped_columns:
-                            continue
-                        # Skip empty values
+                    # Concatenate ONLY specified columns (skip empty values)
+                    additional_parts = []
+                    for col_name in additional_columns:
+                        col_value = row.get(col_name)
                         if col_value and str(col_value).strip():
-                            unmapped_columns.append(f"{col_name}: {str(col_value).strip()}")
+                            additional_parts.append(f"{col_name}: {str(col_value).strip()}")
 
-                    if unmapped_columns:
-                        concatenated = "; ".join(unmapped_columns)
+                    if additional_parts:
+                        concatenated = "; ".join(additional_parts)
                         description_parts.append(f"[CSV: {concatenated}]")
                         logger.debug(
-                            f"[CSV_PARSER] Row {row_num}: concatenated {len(unmapped_columns)} "
-                            f"unmapped columns"
+                            f"[CSV_PARSER] Row {row_num}: concatenated {len(additional_parts)} "
+                            f"additional columns"
                         )
                     else:
                         logger.debug(
-                            f"[CSV_PARSER] Row {row_num}: no unmapped columns to concatenate"
+                            f"[CSV_PARSER] Row {row_num}: additional columns specified but all empty"
                         )
 
                 # 3. Combine parts
@@ -239,7 +228,7 @@ class GenericCSVParser:
             f"{skipped_missing} skipped (missing fields), "
             f"{skipped_date} skipped (invalid date), "
             f"{skipped_zero} skipped (zero amount), "
-            f"include_all_columns={include_all_columns}"
+            f"additional_description_columns={additional_columns}"
         )
 
         return staging_records
