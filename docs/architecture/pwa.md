@@ -2260,86 +2260,228 @@ Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure clos
 
 ## Push Notification Permission Banner
 
-### Purpose
-
-Prompts users to enable Web Push notifications for offline sync and reminder alerts.
-
-### Positioning
-
 **Since:** v6.7.0 (December 2025)
+**Updated:** v6.7.1 (z-index fix, safe-area support, Logger integration)
 **Status:** ✅ Active
 
-The banner is positioned **below the navbar** with horizontal centering for optimal visibility and accessibility.
+### Overview
 
-**Layout:**
-- Position: `fixed top: calc(64px + 10px)` (64px navbar height + 10px margin)
-- Horizontal: Centered using `left-1/2 -translate-x-1/2`
-- Width: `auto` with `max-w-96` (384px max width)
-- Z-index: `40` (same as navbar, appears below modals)
+The push notification permission banner appears on the home page to prompt users to enable browser push notifications for payment reminders and budget alerts.
 
-**CSS Classes:**
+**Trigger conditions:**
+- User is authenticated
+- Service Worker + Notification API supported
+- `window.budgetPushManager` available
+- Current permission is "default" (not granted/denied)
+- User has not dismissed banner recently (24 hours via localStorage)
+
+**Display timing:** 5 seconds after page load (prevents overwhelming new users)
+
+### UI Layout and Positioning
+
+**Desktop layout:**
+```
++------------------Viewport------------------+
+| [Navbar - z-50]                           |  ← 64px height
+| +-------Banner (z-50)--------+            |  ← 10px gap + safe-area-inset-top
+| | 🔔 Enable notifications     |            |  ← Centered horizontally
+| | [Разрешить] [Позже]         |            |
+| +-----------------------------+            |
+|                                            |
+| [Page Content]                             |
++--------------------------------------------+
+```
+
+**Mobile layout (iOS with safe-area):**
+```
++--------Viewport (with notch)-------+
+|    [Dynamic Island/Notch]          |  ← safe-area-inset-top
+| [Navbar - 64px]                    |
+| +----Banner----+                   |  ← top: 64px + 10px + safe-area
+| | 🔔 Enable    |                   |  ← margin-left: max(16px, safe-area-left)
+| | [Разрешить][Позже]               |  ← margin-right: max(16px, safe-area-right)
+| +--------------+                   |
++------------------------------------+
+```
+
+### CSS Implementation Details
+
+**Z-index hierarchy:**
+```
+Modals: z-[9999]          ← Highest (always on top)
+   ↓
+Banner: z-50              ← Same level as navbar
+   ↓
+Navbar: z-50              ← Base navigation layer
+   ↓
+Page content: z-auto      ← Default stacking context
+```
+
+**Why z-50 works:**
+- Navbar and banner share same z-index (50)
+- DOM order determines stacking (banner appears after navbar in HTML)
+- Dropdown menus are children of navbar, so they stack naturally above banner
+- No conflicts with modals (z-9999 always wins)
+
+**Safe-area handling:**
+
 ```css
-fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40
+/* Top positioning with iOS notch compensation */
+top: calc(64px + 10px + env(safe-area-inset-top, 0px));
+/*       ^     ^         ^
+         |     |         └── iOS notch offset (0 on non-iOS)
+         |     └── Spacing below navbar
+         └── Navbar height
+*/
+
+/* Horizontal padding with notch avoidance */
+margin-left: max(16px, env(safe-area-inset-left, 0px));
+margin-right: max(16px, env(safe-area-inset-right, 0px));
+/*            ^    ^
+              |    └── Safe area on sides (iPhone landscape)
+              └── Minimum padding on all devices
+*/
 ```
 
-### Implementation
+**Browser compatibility:**
+- `env(safe-area-inset-*)`: iOS 11.2+, Safari 11.2+ (ignored gracefully on other browsers)
+- `max()`: All modern browsers (Chrome 79+, Safari 11.1+, Firefox 75+)
+- Fallback behavior: Non-iOS browsers use fixed 64px + 10px offset with 16px side padding
 
-**Location:**
-- Banner HTML: `/frontend/web/templates/base.html` (lines 1096-1120)
-- JavaScript: `/frontend/web/templates/base.html` (lines 2236-2340), `initPushBanner()` function
+### JavaScript Architecture
 
-### Behavior
+**Logger integration:**
 
-**Show Conditions:**
-1. `Notification` API supported in browser
-2. `PushManager` available (valid VAPID key)
-3. Permission status is `'default'` (not granted/denied)
-4. Not dismissed in last 24 hours
+The banner uses the Logger class from `/frontend/web/static/js/utils/logger.js`:
 
-**Trigger:** Automatic after 5-second delay on page load
-
-**Actions:**
-- **Включить** button - Requests push notification permission (requires user gesture)
-- **Позже** button - Dismisses banner for 24 hours
-- **✕** close button - Dismisses banner for 24 hours
-
-**Logging:**
 ```javascript
-[PUSH_BANNER] Initialized - Position: below navbar, top: calc(64px + 10px), centered horizontally
-[PUSH_BANNER] Banner element: { id, className, style, hidden }
-[PUSH_BANNER] Banner displayed: { top, left, width, height, position }
-[PUSH_BANNER] Banner hidden
-[PUSH_BANNER] Banner dismissed for 24 hours
+// Logger instance (created in base.html before initPushBanner)
+const logPushBanner = new Logger('[PUSH_BANNER]', 'PUSH_BANNER');
+window.logPushBanner = logPushBanner; // Expose globally for debugging
+
+// Logging categories
+logPushBanner.info('🚀 Initializing...')  // Initialization
+logPushBanner.info('📊 Permission: granted')  // State tracking
+logPushBanner.info('🖱️ Button clicked')  // User interaction
+logPushBanner.error('❌ Subscription failed')  // Errors
+logPushBanner.time('permission-request')  // Performance timing
 ```
 
-### Responsive Design
+**Logging configuration:**
+- Module: `PUSH_BANNER: true` in `/frontend/web/static/js/config/logging.js`
+- Can be toggled at runtime: `setLoggingLevel('PUSH_BANNER', false)`
+- Automatic environment detection (disabled in production)
 
-**All Devices:**
-- Positioned below navbar (consistent across mobile/tablet/desktop)
-- Centered horizontally
-- Auto-width with max 384px
+**State machine:**
 
-**Previous Implementation (deprecated):**
-- Desktop: `bottom: 16px` from viewport bottom
-- Mobile: `bottom: calc(64px + 1.5rem)` above FAB toolbar
+```
+[Page Load]
+    ↓ (5s delay)
+[Check Permission]
+    ├─ granted → [Exit - no banner]
+    ├─ denied → [Exit - no banner]
+    └─ default → [Show Banner]
+         ↓
+    [User Clicks]
+         ├─ "Разрешить" → [Request Permission]
+         │               ├─ granted → [Subscribe to Push] → [Save to Backend] → [Hide Banner]
+         │               ├─ denied → [Hide Banner]
+         │               └─ default → [No action]
+         └─ "Позже"/"✕" → [Save to localStorage] → [Hide Banner]
+```
 
-**Migration:** Version 6.7.0 changed positioning from bottom-right to top-center for better visibility and consistency with toast notifications.
+**LocalStorage keys:**
+- `push-banner-dismissed`: Integer timestamp (NOT ISO string!) - prevents re-showing for 24 hours
 
-### Storage
+### Implementation Files
 
-**LocalStorage Key:** `push-banner-dismissed`
-**Value:** Timestamp (milliseconds since epoch)
-**TTL:** 24 hours
+**Critical files:**
 
-### Integration with Push Manager
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/web/templates/base.html` | 1097-1119 | Banner HTML (z-50, safe-area) |
+| `frontend/web/templates/base.html` | 2241-2446 | JavaScript logic with Logger |
+| `frontend/web/static/js/config/logging.js` | 66 | PUSH_BANNER module config |
+| `frontend/web/static/js/utils/logger.js` | — | Logger class implementation |
+| `frontend/web/static/js/offline/pushManager.js` | — | Push subscription logic |
 
-The banner uses `window.budgetPushManager.requestPermission()` for permission requests.
+### Testing Checklist
 
-**Push Manager Location:**
-- JavaScript: `/frontend/web/static/js/budget/pushManager.js`
-- Documentation: See "Push Notifications" section above
+**Desktop testing:**
+- [ ] Banner appears 5 seconds after page load
+- [ ] Banner centered horizontally below navbar
+- [ ] 10px gap between navbar and banner visible
+- [ ] "Разрешить" button triggers permission prompt
+- [ ] "Позже" button hides banner + saves to localStorage
+- [ ] Refresh page → banner does NOT reappear (dismissed state persisted)
+- [ ] Clear localStorage → banner reappears after 5s
 
-**Version:** 6.7.0+ (December 2025)
+**Mobile testing (iOS Safari):**
+- [ ] Banner does not overlap Dynamic Island/notch
+- [ ] Banner text not cut off in landscape mode (notch on sides)
+- [ ] Banner responsive on iPhone SE (small width)
+- [ ] Banner responsive on iPad (large width)
+- [ ] Safe-area-inset values logged correctly in console
+
+**Z-index testing:**
+- [ ] Open navbar dropdown menu → dropdown appears above banner
+- [ ] Open modal → modal appears above banner
+- [ ] Banner does not obscure navbar buttons
+
+**Logging verification:**
+```bash
+# Filter console logs
+[PUSH_BANNER]
+
+# Expected output sequence:
+1. 🚀 Initializing push permission banner
+2. ✅ Banner elements found {...}
+3. ✅ Browser supports Service Worker + Notifications
+4. 📊 Current notification permission: default
+5. ⏳ Scheduling banner display { delay: "5000ms", ... }
+6. 🎉 Banner displayed { position: {...}, safeArea: {...}, zIndex: "50" }
+7. 🖱️ "Enable" button clicked (if user clicks)
+8. ✅ Permission GRANTED (if granted)
+9. 👋 Banner hidden
+```
+
+**Permission states:**
+- `default`: Banner shows → User can allow/deny
+- `granted`: Banner never shows → Already subscribed
+- `denied`: Banner never shows → User previously denied (requires manual browser reset)
+
+### Troubleshooting
+
+**Banner not appearing:**
+1. Check console for `[PUSH_BANNER]` logs
+2. Verify `Notification.permission` is "default" (not granted/denied)
+3. Clear localStorage: `localStorage.removeItem('push-banner-dismissed')`
+4. Hard refresh page (Ctrl+Shift+R / Cmd+Shift+R)
+
+**Banner overlaps navbar dropdown:**
+1. Check z-index in browser DevTools (should be 50)
+2. Verify DOM order (banner should appear after navbar in HTML)
+3. Check for custom CSS overrides
+
+**Banner cut off on iOS:**
+1. Check console logs for `safeArea` values
+2. Verify `env(safe-area-inset-*)` computed correctly
+3. Test in Safari iOS Simulator (Xcode)
+4. Test physical iPhone with notch (iPhone X+)
+
+**Permission request fails:**
+1. Check Service Worker registration status
+2. Verify VAPID public key in template variable
+3. Check network tab for `/api/v1/users/me/push-subscription` response
+4. Review error logs in `[PUSH_BANNER]` output
+
+### Related Files
+
+- `/frontend/web/templates/base.html` - Banner HTML + JavaScript
+- `/frontend/web/static/js/utils/logger.js` - Logger class
+- `/frontend/web/static/js/config/logging.js` - Logging configuration
+- `/backend/app/api/v1/endpoints/users.py` - Push subscription endpoint
+- `/docs/architecture/pwa.md` - This documentation
 
 ---
 

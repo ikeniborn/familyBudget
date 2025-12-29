@@ -1096,9 +1096,13 @@
 
     <!-- Push Notification Permission Banner (for iOS/Android) -->
     <!-- Positioned below navbar with 10px margin, horizontally centered -->
+    <!-- Z-index: 50 (same as navbar, stacks correctly via DOM order) -->
+    <!-- Safe-area: Accounts for iOS Dynamic Island/notch and side padding -->
     {% if user %}
-    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden"
-         style="top: calc(64px + 10px); /* 64px navbar height + 10px margin */">
+    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-50 hidden"
+         style="top: calc(64px + 10px + env(safe-area-inset-top, 0px));
+                margin-left: max(16px, env(safe-area-inset-left, 0px));
+                margin-right: max(16px, env(safe-area-inset-right, 0px));">
         <div class="flex items-start gap-3">
             <span class="text-2xl">🔔</span>
             <div class="flex-1">
@@ -2234,118 +2238,211 @@
             init();
         })();
 
+        // Push notification banner logger
+        const logPushBanner = new Logger('[PUSH_BANNER]', 'PUSH_BANNER');
+        window.logPushBanner = logPushBanner; // Expose globally for debugging
+
         // Push Notification Permission Banner
-        (function initPushBanner() {
+(async function initPushBanner() {
+            logPushBanner.info('🚀 Initializing push permission banner');
+
             const banner = document.getElementById('push-permission-banner');
             const enableBtn = document.getElementById('push-permission-enable');
             const laterBtn = document.getElementById('push-permission-later');
             const closeBtn = document.getElementById('push-permission-close');
 
-            if (!banner || !window.budgetPushManager) {
-                console.log('[PUSH_BANNER] Init failed - banner or budgetPushManager not available');
+            // Element validation
+            if (!banner || !enableBtn || !laterBtn || !closeBtn) {
+                logPushBanner.error('❌ Banner elements not found in DOM', {
+                    banner: !!banner,
+                    enableBtn: !!enableBtn,
+                    laterBtn: !!laterBtn,
+                    closeBtn: !!closeBtn
+                });
                 return;
             }
 
-            // Log banner initial position and styling
-            console.log('[PUSH_BANNER] Initialized - Position: below navbar, top: calc(64px + 10px), centered horizontally');
-            console.log('[PUSH_BANNER] Banner element:', {
-                id: banner.id,
-                className: banner.className,
-                style: banner.getAttribute('style'),
-                hidden: banner.classList.contains('hidden')
+            logPushBanner.info('✅ Banner elements found', {
+                bannerId: banner.id,
+                enableBtnId: enableBtn.id,
+                laterBtnId: laterBtn.id,
+                closeBtnId: closeBtn.id
             });
 
-            // Check if we should show the banner
-            const BANNER_DISMISSED_KEY = 'push-banner-dismissed';
-            const BANNER_SHOW_DELAY = 5000; // Show after 5 seconds
+            // Check service worker support
+            if (!('serviceWorker' in navigator)) {
+                logPushBanner.warn('⚠️ Service Worker not supported - banner disabled');
+                return;
+            }
 
+            // Check notification API support
+            if (!('Notification' in window) || !('PushManager' in window)) {
+                logPushBanner.warn('⚠️ Notification/PushManager API not supported - banner disabled');
+                return;
+            }
+
+            logPushBanner.info('✅ Browser supports Service Worker + Notifications');
+
+            // Check budgetPushManager availability
+            if (!window.budgetPushManager) {
+                logPushBanner.warn('⚠️ budgetPushManager not available - banner disabled');
+                return;
+            }
+
+            if (window.budgetPushManager && !window.budgetPushManager.isSupported) {
+                logPushBanner.warn('⚠️ Push not supported (VAPID key issue or browser limitation)');
+                return;
+            }
+
+            // Constants
+            const BANNER_DISMISSED_KEY = 'push-banner-dismissed';
+            const BANNER_SHOW_DELAY = 5000; // 5 seconds
+
+            // Helper function: check if banner should be shown
             function shouldShowBanner() {
-                // Don't show if not supported
-                if (!('Notification' in window) || !('PushManager' in window)) {
-                    debugLog('[Push Banner] Not supported');
+                // Check permission state
+                const currentPermission = Notification.permission;
+                logPushBanner.info('📊 Current notification permission', {
+                    permission: currentPermission,
+                    timestamp: new Date().toISOString()
+                });
+
+                if (currentPermission !== 'default') {
+                    logPushBanner.info('⏭️ Permission already decided', {
+                        permission: currentPermission
+                    });
                     return false;
                 }
-                // Don't show if budgetPushManager reports not supported (e.g., invalid VAPID key)
-                if (window.budgetPushManager && !window.budgetPushManager.isSupported) {
-                    debugLog('[Push Banner] PushManager reports not supported');
-                    return false;
-                }
-                // Don't show if already granted or denied
-                if (Notification.permission !== 'default') {
-                    debugLog('[Push Banner] Permission already:', Notification.permission);
-                    return false;
-                }
-                // Don't show if dismissed recently (24 hours)
+
+                // Check dismissal (24 hour window)
                 const dismissed = localStorage.getItem(BANNER_DISMISSED_KEY);
                 if (dismissed) {
                     const dismissedTime = parseInt(dismissed, 10);
                     const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
+
                     if (hoursSinceDismissed < 24) {
-                        debugLog('[Push Banner] Dismissed recently:', hoursSinceDismissed.toFixed(1), 'hours ago');
+                        logPushBanner.info('⏭️ Banner dismissed recently', {
+                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1),
+                            willShowAgainIn: (24 - hoursSinceDismissed).toFixed(1) + ' hours'
+                        });
                         return false;
+                    } else {
+                        logPushBanner.info('✅ Dismissal expired - banner will show', {
+                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1)
+                        });
                     }
                 }
+
                 return true;
             }
 
+            // Helper function: show banner
             function showBanner() {
                 if (shouldShowBanner()) {
                     banner.classList.remove('hidden');
-                    debugLog('[Push Banner] Shown');
 
-                    // Log banner position after showing
                     const rect = banner.getBoundingClientRect();
-                    console.log('[PUSH_BANNER] Banner displayed:', {
-                        top: `${rect.top}px`,
-                        left: `${rect.left}px`,
-                        width: `${rect.width}px`,
-                        height: `${rect.height}px`,
-                        position: 'Below navbar with 10px margin, horizontally centered'
+                    logPushBanner.info('🎉 Banner displayed', {
+                        position: {
+                            top: `${rect.top}px`,
+                            left: `${rect.left}px`,
+                            width: `${rect.width}px`,
+                            height: `${rect.height}px`
+                        },
+                        safeArea: {
+                            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0px',
+                            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left') || '0px',
+                            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right') || '0px'
+                        },
+                        zIndex: window.getComputedStyle(banner).zIndex
                     });
                 }
             }
 
+            // Helper function: hide banner
             function hideBanner() {
                 banner.classList.add('hidden');
-                console.log('[PUSH_BANNER] Banner hidden');
+                logPushBanner.info('👋 Banner hidden');
             }
 
+            // Helper function: dismiss banner for 24 hours
             function dismissBanner() {
-                hideBanner();
-                localStorage.setItem(BANNER_DISMISSED_KEY, Date.now().toString());
-                debugLog('[Push Banner] Dismissed');
-                console.log('[PUSH_BANNER] Banner dismissed for 24 hours');
+                logPushBanner.info('💾 Dismissing banner for 24 hours');
+
+                banner.classList.add('hidden');
+
+                const dismissTimestamp = Date.now().toString();
+                localStorage.setItem(BANNER_DISMISSED_KEY, dismissTimestamp);
+
+                logPushBanner.info('✅ Banner dismissed', {
+                    key: BANNER_DISMISSED_KEY,
+                    timestamp: dismissTimestamp,
+                    expiresIn: '24 hours'
+                });
             }
 
-            // Enable button - request permission (MUST be triggered by user gesture for iOS)
+            // "Включить" button handler
             if (enableBtn) {
                 enableBtn.addEventListener('click', async () => {
-                    debugLog('[Push Banner] Enable clicked');
+                    logPushBanner.info('🖱️ "Enable" button clicked - requesting permission');
+                    logPushBanner.time('permission-request');
+
                     hideBanner();
+
                     try {
+                        // Use budgetPushManager (encapsulates all logic)
                         const granted = await window.budgetPushManager.requestPermission();
+                        logPushBanner.timeEnd('permission-request');
+
+                        logPushBanner.info('📬 Permission request completed', {
+                            granted: granted,
+                            timestamp: new Date().toISOString()
+                        });
+
                         if (granted) {
+                            logPushBanner.info('✅ Permission GRANTED - budgetPushManager handled subscription');
                             showToast('Уведомления включены', 'success');
                         } else {
+                            logPushBanner.warn('🚫 Permission DENIED by user');
                             showToast('Уведомления отклонены', 'warning');
                         }
                     } catch (error) {
-                        console.error('[Push Banner] Error requesting permission:', error);
+                        logPushBanner.timeEnd('permission-request');
+                        logPushBanner.error('❌ Permission request error', {
+                            error: error.message,
+                            name: error.name,
+                            stack: error.stack
+                        });
                         showToast('Ошибка включения уведомлений', 'error');
                     }
                 });
             }
 
-            // Later/Close buttons - dismiss for 24 hours
+            // "Позже" button handler
             if (laterBtn) {
-                laterBtn.addEventListener('click', dismissBanner);
-            }
-            if (closeBtn) {
-                closeBtn.addEventListener('click', dismissBanner);
+                laterBtn.addEventListener('click', () => {
+                    logPushBanner.info('🖱️ "Later" button clicked - dismissing for 24 hours');
+                    dismissBanner();
+                });
             }
 
-            // Show banner after delay (gives time for page to load)
+            // Close button (✕) handler
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    logPushBanner.info('🖱️ Close button (✕) clicked - dismissing for 24 hours');
+                    dismissBanner();
+                });
+            }
+
+            // Show banner after delay
+            logPushBanner.info('⏳ Scheduling banner display', {
+                delay: `${BANNER_SHOW_DELAY}ms`,
+                willShow: shouldShowBanner()
+            });
+
             setTimeout(showBanner, BANNER_SHOW_DELAY);
+
+            logPushBanner.info('✅ Push banner initialization complete');
         })();
     </script>
     {% endif %}
