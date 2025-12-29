@@ -538,7 +538,7 @@
     align-items: center;
     justify-content: flex-end;
     gap: 0.5rem;
-    padding: 0 0.5rem;
+    padding: 0 0.5rem 0 0; /* Padding только справа для правильного выравнивания */
     /* Gradient from left (transparent) to right (error background) */
     background: linear-gradient(
         to right,
