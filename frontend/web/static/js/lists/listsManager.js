@@ -2688,6 +2688,39 @@ class ListsManager {
         if (suggestion.comment && commentInput) {
             commentInput.value = suggestion.comment;
         }
+
+        // CRITICAL: After filling form from autocomplete, trigger duplicate check and future quantity update
+        console.log('[AUTOCOMPLETE] Form filled from suggestion', {
+            productName: suggestion.product_name,
+            storeId: suggestion.store_id,
+            quantity: suggestion.quantity
+        });
+
+        // Check for duplicates after form is filled
+        const productName = productNameInput?.value?.trim();
+        const storeId = this.choicesInstances?.store?.getValue(true) || storeSelect?.value;
+
+        if (productName && storeId && this.currentListId) {
+            console.log('[AUTOCOMPLETE] Triggering duplicate check after autocomplete selection');
+
+            // Trigger duplicate search asynchronously
+            this.searchDuplicate(productName, parseInt(storeId)).then(duplicate => {
+                if (duplicate) {
+                    console.log('[AUTOCOMPLETE] Duplicate found after autocomplete, showing warning');
+                    this.showDuplicateWarning(duplicate);
+
+                    // If quantity is already filled (from suggestion), update future quantity display
+                    if (quantityInput && quantityInput.value) {
+                        console.log('[AUTOCOMPLETE] Quantity already filled, updating future quantity');
+                        this.updateFutureQuantity();
+                    }
+                } else {
+                    console.log('[AUTOCOMPLETE] No duplicate found after autocomplete');
+                }
+            }).catch(error => {
+                console.error('[AUTOCOMPLETE] Error checking duplicate after autocomplete:', error);
+            });
+        }
     }
 
     /**
