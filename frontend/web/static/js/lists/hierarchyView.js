@@ -50,8 +50,11 @@ class SwipeHandler {
             this.closeAllSwipes();
         }
 
-        // Add swiping class (disables transition during drag)
-        itemElement.classList.add('swiping');
+        // Add swiping class to CONTENT element (disables transition during drag)
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        if (contentElement) {
+            contentElement.classList.add('swiping');
+        }
 
         console.log('[SWIPE] Touch start', {
             itemId,
@@ -69,9 +72,19 @@ class SwipeHandler {
         this.currentX = e.touches[0].clientX;
         const deltaX = this.currentX - this.startX;
 
-        // Only allow left swipe (negative deltaX)
-        if (deltaX >= 0) {
-            itemElement.style.transform = 'translateX(0)';
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        if (!contentElement) return;
+
+        // Allow both left swipe (open) and right swipe (close)
+        if (deltaX > 0) {
+            // Right swipe - close if already swiped
+            if (itemElement.classList.contains('swiped')) {
+                const swipeDistance = Math.min(deltaX, itemElement.offsetWidth * this.SWIPE_THRESHOLD);
+                const targetTransform = -(itemElement.offsetWidth * this.SWIPE_THRESHOLD - swipeDistance);
+                contentElement.style.transform = `translateX(${targetTransform}px)`;
+            } else {
+                contentElement.style.transform = 'translateX(0)';
+            }
             return;
         }
 
@@ -80,7 +93,7 @@ class SwipeHandler {
 
         // Limit swipe to threshold
         const swipeDistance = Math.max(deltaX, -maxSwipe);
-        itemElement.style.transform = `translateX(${swipeDistance}px)`;
+        contentElement.style.transform = `translateX(${swipeDistance}px)`;
 
         console.log('[SWIPE] Touch move', {
             itemId,
@@ -102,12 +115,15 @@ class SwipeHandler {
         const itemWidth = itemElement.offsetWidth;
         const threshold = itemWidth * this.SWIPE_THRESHOLD;
 
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        if (!contentElement) return;
+
         // Remove swiping class (re-enable transition)
-        itemElement.classList.remove('swiping');
+        contentElement.classList.remove('swiping');
 
         // Determine action based on threshold
-        if (Math.abs(deltaX) >= threshold) {
-            // Open swipe
+        if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
+            // Open swipe (left swipe)
             this.openSwipe(itemId, itemElement);
             console.log('[SWIPE] Touch end', {
                 itemId,
@@ -134,7 +150,11 @@ class SwipeHandler {
         const itemWidth = itemElement.offsetWidth;
         const swipeDistance = itemWidth * this.SWIPE_THRESHOLD;
 
-        itemElement.style.transform = `translateX(-${swipeDistance}px)`;
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        if (!contentElement) return;
+
+        // Transform ONLY content, not buttons - buttons stay fixed on right
+        contentElement.style.transform = `translateX(-${swipeDistance}px)`;
         itemElement.classList.add('swiped');
         this.activeSwipedItemId = itemId;
 
@@ -145,7 +165,7 @@ class SwipeHandler {
         this._log('SWIPE_OPENED', {
             itemId,
             swipeDistance: `${swipeDistance}px`,
-            transform: itemElement.style.transform,
+            transform: contentElement.style.transform,
             containerWidth: itemElement.offsetWidth,
             buttonsVisible: true,
             pointerEvents: actionsContainer ?
@@ -157,7 +177,10 @@ class SwipeHandler {
      * Close swipe (hide actions)
      */
     closeSwipe(itemId, itemElement) {
-        itemElement.style.transform = 'translateX(0)';
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        if (contentElement) {
+            contentElement.style.transform = 'translateX(0)';
+        }
         itemElement.classList.remove('swiped');
 
         if (this.activeSwipedItemId === itemId) {
@@ -191,16 +214,34 @@ class SwipeHandler {
 
         items.forEach(itemElement => {
             const itemId = parseInt(itemElement.dataset.itemId);
+            const contentElement = itemElement.querySelector('.hierarchy-item-content');
 
             // Remove old listeners (if any)
             itemElement.removeEventListener('touchstart', itemElement._touchStartHandler);
             itemElement.removeEventListener('touchmove', itemElement._touchMoveHandler);
             itemElement.removeEventListener('touchend', itemElement._touchEndHandler);
+            if (contentElement) {
+                contentElement.removeEventListener('click', contentElement._clickHandler);
+            }
 
             // Create bound handlers
             itemElement._touchStartHandler = (e) => this.handleTouchStart(e, itemId, itemElement);
             itemElement._touchMoveHandler = (e) => this.handleTouchMove(e, itemId, itemElement);
             itemElement._touchEndHandler = (e) => this.handleTouchEnd(e, itemId, itemElement);
+
+            // Click handler for content: close swipe if swiped
+            if (contentElement) {
+                contentElement._clickHandler = (e) => {
+                    // Only close if this item is currently swiped
+                    if (itemElement.classList.contains('swiped')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.closeSwipe(itemId, itemElement);
+                        console.log('[SWIPE] Content clicked - closing swipe', { itemId });
+                    }
+                };
+                contentElement.addEventListener('click', contentElement._clickHandler);
+            }
 
             // Add listeners with passive: false for preventDefault() support
             itemElement.addEventListener('touchstart', itemElement._touchStartHandler, { passive: false });

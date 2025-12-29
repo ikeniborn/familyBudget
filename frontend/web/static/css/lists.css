@@ -516,15 +516,19 @@
 .hierarchy-item {
     position: relative;
     overflow: hidden;
+}
+
+/* Transition on content element, NOT parent container */
+.hierarchy-item-content {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.hierarchy-item.swiping {
+.hierarchy-item-content.swiping {
     transition: none; /* Disable transition during drag */
 }
 
 .hierarchy-item.swiped {
-    /* Transform applied via JavaScript (translateX(-50%)) */
+    /* Transform applied to .hierarchy-item-content via JavaScript */
 }
 
 /* Swipe Actions - Hidden by default, shown when swiped */
