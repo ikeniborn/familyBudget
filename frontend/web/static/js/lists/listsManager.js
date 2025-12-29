@@ -1154,9 +1154,12 @@ class ListsManager {
 
     /**
      * Check if we're on desktop (lg breakpoint = 1024px)
+     * Uses matchMedia for reliable viewport detection (works in Yandex Browser)
      */
     isDesktop() {
-        return window.innerWidth >= 1024;
+        // Use matchMedia for more reliable detection than window.innerWidth
+        // This matches Tailwind's lg: breakpoint exactly
+        return window.matchMedia('(min-width: 1024px)').matches;
     }
 
     /**
@@ -3369,5 +3372,11 @@ function handleItemsSearch(query) {
 function clearItemsSearch() {
     window.listsManager.clearSearch();
 }
+
+// Export modal functions to window for onclick handlers in HTML
+window.openAddItemModal = openAddItemModal;
+window.openCreateListModal = openCreateListModal;
+window.closeItemModal = closeItemModal;
+window.closeCreateListModal = closeCreateListModal;
 
 debugLog('[ListsManager] Module loaded');

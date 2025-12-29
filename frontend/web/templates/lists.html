@@ -463,8 +463,9 @@
 
 <!-- FAB для добавления товара (Detail View только на десктопе) -->
 <button id="add-item-fab"
-        onclick="openAddItemModal()"
-        class="hidden lg:flex lg:items-center lg:justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6 z-50"
+        onclick="window.openAddItemModal()"
+        class="hidden lg:flex lg:items-center lg:justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
+        style="z-index: 1001; pointer-events: auto;"
         aria-label="Добавить товар"
         title="Добавить товар">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -474,8 +475,9 @@
 
 <!-- FAB для создания списка (Landing View только на десктопе) -->
 <button id="create-list-fab"
-        onclick="openCreateListModal()"
-        class="hidden lg:flex lg:items-center lg:justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50"
+        onclick="window.openCreateListModal()"
+        class="hidden lg:flex lg:items-center lg:justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
+        style="z-index: 1001; pointer-events: auto;"
         aria-label="Создать список"
         title="Создать список">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

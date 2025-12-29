@@ -631,6 +631,15 @@
     .hierarchy-toggle-placeholder {
         min-width: 1.5rem; /* Соответствует увеличенному toggle */
     }
+
+    /* CRITICAL: Force hide desktop FAB buttons on mobile/touch devices */
+    /* Even if viewport >= 1024px (Yandex Browser issue) */
+    #lists-fab-menu,
+    #add-item-fab,
+    #create-list-fab,
+    #lists-fab-backdrop {
+        display: none !important;
+    }
 }
 
 /* ---- Tablet/Wide Mobile ---- */
