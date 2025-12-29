@@ -466,7 +466,7 @@
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
 <button id="add-item-fab"
         onclick="window.openAddItemModal()"
-        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
+        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-20 right-6"
         style="z-index: 1001; pointer-events: auto;"
         aria-label="Добавить товар"
         title="Добавить товар">
@@ -492,7 +492,7 @@
 <!-- FAB Speed Dial для массовых операций (Detail View, Desktop Only) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-20 right-6 hidden flex flex-col-reverse items-end gap-3" style="z-index: 1000;">
+<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3" style="z-index: 1000;">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="window.toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl" style="z-index: 1002;" aria-label="Массовые операции">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
