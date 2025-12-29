@@ -698,11 +698,132 @@ When "Skip Duplicates" is checked → "Aggregate Duplicates" checkbox is automat
 - `frontend/web/static/js/lists/csvImporter.js:698-729` - handleSkipDuplicatesChange() implementation
 - `frontend/web/static/js/lists/csvImporter.js:1102-1115` - hasDuplicateWarnings() logic
 
+## Transformation Options: include_all_columns (v6.x+)
+
+**Since version 6.x**: Users can optionally concatenate ALL unmapped CSV columns into the description field.
+
+### Overview
+
+**UI Location**: Step 3 (Column Mapping), below mapping table
+
+**Checkbox**: "Включить все колонки CSV в описание"
+
+**Purpose**: Preserve metadata from CSV files that have many columns beyond the standard mappings (date, amount, description).
+
+### Behavior
+
+**When enabled**:
+- All CSV columns that are NOT mapped (fact_date, amount, description, csv_category) are concatenated into description
+- Format: `[CSV: Column1: Value1; Column2: Value2; ...]`
+- Empty values are skipped
+- Mapped description is preserved and prepended: `"Original Description | [CSV: ...]"`
+
+**When disabled** (default):
+- Only the mapped description field is used
+- No concatenation occurs
+
+### Technical Implementation
+
+**Storage**: `t_import_column_mapping.transformations` JSONB field
+
+```json
+{
+  "delimiter": ";",
+  "date_format": "%d.%m.%Y %H:%M:%S",
+  "number_format": "ru",
+  "include_all_columns": true
+}
+```
+
+**Processing**: `generic_csv_parser.py` processes concatenation during parsing (Step 4)
+
+**Smart Exclusion**: Mapped columns are EXCLUDED from concatenation to avoid duplication
+
+### Use Case
+
+**Example CSV** (Tinkoff bank export):
+```
+Date;Amount;Description;MCC;Merchant;CardLast4
+20.11.2025;-100,00;Coffee Purchase;5814;Starbucks;5958
+```
+
+**Mapping**:
+- fact_date → Date
+- amount → Amount
+- description → Description
+
+**Result** (include_all_columns=true):
+```
+Description: Coffee Purchase | [CSV: MCC: 5814; Merchant: Starbucks; CardLast4: 5958]
+```
+
+**Note**: Date, Amount, Description are EXCLUDED from [CSV: ...] to avoid duplication.
+
+### Logging
+
+**Backend**: `[CSV_PARSER]`, `[CSV_MAPPING]`
+**Frontend**: `[MAPPING]`, `[IMPORT]`
+
+**Example logs**:
+```
+[CSV_PARSER] Starting parse: include_all_columns=True
+[CSV_PARSER] Row 2: excluding 4 mapped columns
+[CSV_PARSER] Row 2: concatenated 3 unmapped columns
+[CSV_PARSER] Parsing complete: 10 records parsed, include_all_columns=True
+```
+
+### Files Modified
+
+- **Backend**: `generic_csv_parser.py:40-49` (transformations parameter), `generic_csv_parser.py:164-213` (concatenation logic)
+- **Backend**: `import_endpoints.py:882-898` (pass transformations to parser)
+- **Frontend**: `admin_import.html:584-600` (checkbox UI), `admin_import.html:2087-2096` (handleIncludeAllColumnsChange), `admin_import.html:2098-2121` (saveMapping update)
+- **Migration**: `20251229_a1b2c3d4e5f6_remove_csv_info_fields.py`
+
+---
+
+## Removed Features
+
+### csv_info1 and csv_info2 Fields (Removed in v6.x)
+
+**Migration**: `20251229_a1b2c3d4e5f6_remove_csv_info_fields.py`
+
+**Previously**: Step 3 allowed mapping `csv_info1` and `csv_info2` to CSV columns for metadata storage
+
+**Removed**:
+- UI mapping options "Информация 1 (metadata)" and "Информация 2 (metadata)"
+- Table columns "Инфо 1" and "Инфо 2" from staging table
+- `info1` and `info2` keys in `t_import_staging.csv_metadata` JSONB
+
+**Reason**: Rarely used, replaced by `include_all_columns` transformation (more flexible)
+
+**Backward Compatibility**:
+- Old mappings automatically cleaned during migration upgrade
+- No data loss (fields were optional and rarely populated)
+- Frontend silently filters deprecated fields with warning log
+
+**Migration Logic**:
+```sql
+-- Remove keys from staging metadata
+UPDATE t_import_staging
+SET csv_metadata = csv_metadata - 'info1' - 'info2'
+WHERE csv_metadata ? 'info1' OR csv_metadata ? 'info2';
+
+-- Remove keys from column mappings
+UPDATE t_import_column_mapping
+SET mapping = mapping - 'csv_info1' - 'csv_info2'
+WHERE mapping ? 'csv_info1' OR mapping ? 'csv_info2';
+```
+
+**Replacement**: Use `include_all_columns` transformation to capture all CSV metadata automatically
+
+---
+
 ## References
 
 - **Backend**: `/backend/app/api/v1/endpoints/import_endpoints.py`
 - **Models**: `/backend/app/models/import_column_mapping.py`
-- **Services**: `/backend/app/services/mapping_service.py`
+- **Services**: `/backend/app/services/generic_csv_parser.py`
 - **Frontend**: `/frontend/web/templates/admin_import.html`
 - **Migration**: `/backend/db/migrations/versions/20251222_9baacd464951_revert_to_per_user_mappings.py`
+- **Migration**: `/backend/db/migrations/versions/20251229_a1b2c3d4e5f6_remove_csv_info_fields.py` (v6.x)
 - **CLAUDE.md**: Section "Import Column Mappings: Per-User Model"

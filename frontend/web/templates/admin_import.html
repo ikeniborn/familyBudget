@@ -581,6 +581,24 @@ body.resizing-columns * {
                 </table>
             </div>
 
+            <!-- Transformation Options -->
+            <div class="form-control mt-6 bg-base-200 p-4 rounded-lg">
+                <label class="label cursor-pointer">
+                    <span class="label-text">
+                        <span class="font-semibold">Включить все колонки CSV в описание</span>
+                        <span class="text-sm text-base-content/70 block mt-1">
+                            Все колонки из CSV файла будут добавлены в описание транзакции через точку с запятой
+                        </span>
+                    </span>
+                    <input
+                        type="checkbox"
+                        id="includeAllColumnsCheckbox"
+                        class="checkbox checkbox-primary"
+                        onchange="handleIncludeAllColumnsChange(this.checked)"
+                    />
+                </label>
+            </div>
+
             <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" id="save-mapping-btn" onclick="saveMapping()">Сохранить маппинг</button>
                 <button class="btn btn-secondary" id="apply-mapping-btn" onclick="parseWithMapping()" style="display: none;">Перейти к обогащению</button>
@@ -794,8 +812,6 @@ body.resizing-columns * {
                                     <th data-col="amount" style="width: 100px;">Сумма<div class="resize-handle"></div></th>
                                     <th data-col="description" style="width: 200px;">Описание<div class="resize-handle"></div></th>
                                     <th data-col="csv_category" class="text-xs text-base-content/60" style="width: 150px;">Категория (CSV)<div class="resize-handle"></div></th>
-                                    <th data-col="csv_info1" class="text-xs text-base-content/60" style="width: 120px;">Инфо 1<div class="resize-handle"></div></th>
-                                    <th data-col="csv_info2" class="text-xs text-base-content/60" style="width: 120px;">Инфо 2<div class="resize-handle"></div></th>
                                     <th data-col="comment" style="width: 150px;">Комментарий<div class="resize-handle"></div></th>
                                     <th data-col="type" style="width: 110px;">Тип<div class="resize-handle"></div></th>
                                     <th data-col="article" style="width: 180px;">Категория<div class="resize-handle"></div></th>
@@ -1838,6 +1854,16 @@ async function showMappingStep(isUpdateMode = false) {
         numberFormatSelect.value = '';  // Auto-detect
     }
 
+    // Set include_all_columns checkbox from saved transformations (if available)
+    const includeAllColumnsCheckbox = document.getElementById('includeAllColumnsCheckbox');
+    if (savedTransformations && savedTransformations.include_all_columns) {
+        includeAllColumnsCheckbox.checked = true;
+        console.log('[MAPPING] Loaded include_all_columns: true');
+    } else {
+        includeAllColumnsCheckbox.checked = false;
+        console.log('[MAPPING] Loaded include_all_columns: false (default)');
+    }
+
     // Render CSV preview with current delimiter
     await loadCsvPreview();
 
@@ -1980,10 +2006,10 @@ function renderMappingTable() {
         { key: 'fact_date', label: 'Дата операции', required: true },
         { key: 'amount', label: 'Сумма', required: true },
         { key: 'description', label: 'Описание', required: false },
-        { key: 'csv_category', label: 'Категория (metadata)', required: false },
-        { key: 'csv_info1', label: 'Информация 1 (metadata)', required: false },
-        { key: 'csv_info2', label: 'Информация 2 (metadata)', required: false }
+        { key: 'csv_category', label: 'Категория (metadata)', required: false }
     ];
+
+    console.log('[MAPPING] Budget fields initialized:', budgetFields.length);
 
     budgetFields.forEach(field => {
         const row = document.createElement('tr');
@@ -2066,6 +2092,17 @@ function updateApplyMappingButtonState() {
     }
 }
 
+/**
+ * Handle include_all_columns transformation toggle
+ */
+function handleIncludeAllColumnsChange(checked) {
+    console.log('[MAPPING] include_all_columns changed:', checked);
+
+    if (checked) {
+        showNotification('Все колонки CSV будут включены в описание каждой транзакции', 'info', 3000);
+    }
+}
+
 async function saveMapping() {
     try {
         // Collect mapping from form
@@ -2074,18 +2111,19 @@ async function saveMapping() {
         mapping.amount = document.getElementById('mapping-amount').value;
         mapping.description = document.getElementById('mapping-description').value || '';
         mapping.csv_category = document.getElementById('mapping-csv_category').value || '';
-        mapping.csv_info1 = document.getElementById('mapping-csv_info1').value || '';
-        mapping.csv_info2 = document.getElementById('mapping-csv_info2').value || '';
+
+        console.log('[MAPPING] Collected mapping:', mapping);
 
         if (!mapping.fact_date || !mapping.amount) {
             showNotification('Обязательные поля: Дата операции и Сумма', 'error');
             return;
         }
 
-        // Collect transformations (delimiter, date format, number format)
+        // Collect transformations (delimiter, date format, number format, include_all_columns)
         let delimiterValue = document.getElementById('mapping-delimiter').value;
         const dateFormatValue = document.getElementById('mapping-date-format').value;
         const numberFormatValue = document.getElementById('mapping-number-format').value;
+        const includeAllColumns = document.getElementById('includeAllColumnsCheckbox').checked;
 
         // If delimiter is "auto", save the actual detected delimiter
         if (delimiterValue === 'auto') {
@@ -2095,8 +2133,11 @@ async function saveMapping() {
         const transformations = {
             delimiter: delimiterValue,
             date_format: dateFormatValue || null,  // null = auto-detect
-            number_format: numberFormatValue || null  // null = auto-detect
+            number_format: numberFormatValue || null,  // null = auto-detect
+            include_all_columns: includeAllColumns
         };
+
+        console.log('[MAPPING] Transformations:', transformations);
 
         const response = await fetch('/api/v1/import/mappings', {
             method: 'POST',
@@ -2284,20 +2325,6 @@ function createStagingRow(record, index) {
     csvCategoryCell.textContent = record.csv_metadata?.category || '';
     csvCategoryCell.title = record.csv_metadata?.category || '';
 
-    // CSV Metadata: Info 1
-    const csvInfo1Cell = document.createElement('td');
-    setCellData(csvInfo1Cell, 'csv_info1');
-    csvInfo1Cell.classList.add('text-xs', 'text-base-content/70', 'max-w-[150px]', 'truncate');
-    csvInfo1Cell.textContent = record.csv_metadata?.info1 || '';
-    csvInfo1Cell.title = record.csv_metadata?.info1 || '';
-
-    // CSV Metadata: Info 2
-    const csvInfo2Cell = document.createElement('td');
-    setCellData(csvInfo2Cell, 'csv_info2');
-    csvInfo2Cell.classList.add('text-xs', 'text-base-content/70', 'max-w-[150px]', 'truncate');
-    csvInfo2Cell.textContent = record.csv_metadata?.info2 || '';
-    csvInfo2Cell.title = record.csv_metadata?.info2 || '';
-
     // Comment (editable)
     const commentCell = document.createElement('td');
     setCellData(commentCell, 'comment');
@@ -2372,8 +2399,6 @@ function createStagingRow(record, index) {
     row.appendChild(amountCell);
     row.appendChild(descCell);
     row.appendChild(csvCategoryCell);
-    row.appendChild(csvInfo1Cell);
-    row.appendChild(csvInfo2Cell);
     row.appendChild(commentCell);
     row.appendChild(typeCell);
     row.appendChild(articleCell);

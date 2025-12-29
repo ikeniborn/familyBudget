@@ -881,7 +881,8 @@ async def parse_file(
 
     logger.info(
         f"Parsing with delimiter={repr(delimiter)}, encoding={encoding}, "
-        f"date_format={date_format or 'auto'}, number_format={number_format or 'auto'}"
+        f"date_format={date_format or 'auto'}, number_format={number_format or 'auto'}, "
+        f"transformations={mapping_record.transformations or {}}"
     )
 
     try:
@@ -893,7 +894,8 @@ async def parse_file(
             delimiter=delimiter,
             encoding=encoding,
             date_format=date_format,
-            number_format=number_format
+            number_format=number_format,
+            transformations=mapping_record.transformations
         )
 
         # Insert records to staging

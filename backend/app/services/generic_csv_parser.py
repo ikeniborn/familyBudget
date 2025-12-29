@@ -45,7 +45,8 @@ class GenericCSVParser:
         delimiter: str = ';',
         encoding: str = 'utf-8',
         date_format: Optional[str] = None,
-        number_format: Optional[str] = None
+        number_format: Optional[str] = None,
+        transformations: Optional[dict] = None
     ) -> list[dict[str, Any]]:
         """
         Parse CSV using provided mapping.
@@ -67,6 +68,9 @@ class GenericCSVParser:
                         - 'us': US format (comma for thousands, dot for decimal: 1,234.56)
                         - 'de': German format (dot for thousands, comma for decimal: 1.234,56)
                         - None: auto-detect
+            transformations: Optional transformations dict with keys:
+                        - 'include_all_columns': bool - If True, concatenate all unmapped CSV columns
+                          into description (excludes mapped columns to avoid duplication)
 
         Returns:
             List of dicts ready for ImportStaging insertion
@@ -82,6 +86,15 @@ class GenericCSVParser:
             >>> result[0]["amount_string"]
             '-100,00'
         """
+        # Log transformation options
+        transformations = transformations or {}
+        include_all_columns = transformations.get("include_all_columns", False)
+        logger.info(
+            f"[CSV_PARSER] Starting parse: "
+            f"include_all_columns={include_all_columns}, "
+            f"encoding={encoding}, delimiter='{delimiter}'"
+        )
+
         # Decode file
         text = file_content.decode(encoding)
 
@@ -126,15 +139,14 @@ class GenericCSVParser:
                         )
                     continue  # Skip invalid dates
 
-                # Build csv_metadata (additional info fields for enrichment)
+                # Build csv_metadata (only category field remains)
                 csv_metadata = {}
-                for field in ["csv_category", "csv_info1", "csv_info2"]:
-                    if field in mapping and mapping[field]:
-                        value = row.get(mapping[field])
-                        if value:
-                            # Remove "csv_" prefix for metadata key
-                            metadata_key = field.replace("csv_", "")
-                            csv_metadata[metadata_key] = value
+                if "csv_category" in mapping and mapping["csv_category"]:
+                    value = row.get(mapping["csv_category"])
+                    if value:
+                        csv_metadata["category"] = value
+
+                logger.debug(f"[CSV_MAPPING] Row {row_num}: csv_metadata={csv_metadata}")
 
                 # Normalize amount_string to standard format (Russian: space + comma)
                 normalized_amount = GenericCSVParser._normalize_amount(
@@ -149,13 +161,64 @@ class GenericCSVParser:
                         logger.warning(f"Row {row_num}: skipping zero amount '{amount_str}'")
                     continue
 
+                # Build description with optional concatenation
+                description_parts = []
+
+                # 1. Mapped description field (if exists)
+                if description and str(description).strip():
+                    description_parts.append(str(description).strip())
+
+                # 2. Check include_all_columns transformation
+                if include_all_columns:
+                    logger.debug(f"[CSV_PARSER] Row {row_num}: include_all_columns enabled")
+
+                    # Get mapped column names (to EXCLUDE from concatenation)
+                    mapped_columns = set()
+                    for field_key, csv_column in mapping.items():
+                        if csv_column:  # Skip empty mappings
+                            mapped_columns.add(csv_column)
+
+                    logger.debug(
+                        f"[CSV_PARSER] Row {row_num}: excluding {len(mapped_columns)} mapped columns"
+                    )
+
+                    # Concatenate ONLY unmapped CSV columns (skip empty + skip mapped)
+                    unmapped_columns = []
+                    for col_name, col_value in row.items():
+                        # Skip if column is mapped (avoid duplication)
+                        if col_name in mapped_columns:
+                            continue
+                        # Skip empty values
+                        if col_value and str(col_value).strip():
+                            unmapped_columns.append(f"{col_name}: {str(col_value).strip()}")
+
+                    if unmapped_columns:
+                        concatenated = "; ".join(unmapped_columns)
+                        description_parts.append(f"[CSV: {concatenated}]")
+                        logger.debug(
+                            f"[CSV_PARSER] Row {row_num}: concatenated {len(unmapped_columns)} "
+                            f"unmapped columns"
+                        )
+                    else:
+                        logger.debug(
+                            f"[CSV_PARSER] Row {row_num}: no unmapped columns to concatenate"
+                        )
+
+                # 3. Combine parts
+                final_description = " | ".join(description_parts) if description_parts else None
+
+                logger.debug(
+                    f"[CSV_PARSER] Row {row_num}: final_description length="
+                    f"{len(final_description) if final_description else 0}"
+                )
+
                 # Build staging record
                 staging_record = {
                     "user_id": user_id,
                     "file_upload_id": file_upload_id,
                     "fact_date": fact_date,
                     "amount_string": normalized_amount,
-                    "description": description or None,
+                    "description": final_description,  # Use concatenated description
                     "csv_metadata": csv_metadata or None,
                     "article_id": None,
                     "financial_center_id": None,
@@ -172,10 +235,11 @@ class GenericCSVParser:
 
         # Log summary
         logger.info(
-            f"Parsing complete: {len(staging_records)} records parsed, "
+            f"[CSV_PARSER] Parsing complete: {len(staging_records)} records parsed, "
             f"{skipped_missing} skipped (missing fields), "
             f"{skipped_date} skipped (invalid date), "
-            f"{skipped_zero} skipped (zero amount)"
+            f"{skipped_zero} skipped (zero amount), "
+            f"include_all_columns={include_all_columns}"
         )
 
         return staging_records
