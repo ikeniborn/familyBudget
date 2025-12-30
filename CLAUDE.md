@@ -1588,6 +1588,61 @@ fact_history = BudgetFactHistory(
 - Configure WORKERS > 1 for load balancing
 - Redis Pub/Sub handles event broadcasting across workers
 
+### WebSocket Summary Event Pattern for Batch Operations (v6.6.0+)
+
+**Purpose:** Reduce toast notification spam by broadcasting single summary event for batch operations instead of individual events per item.
+
+**Problem Solved:**
+- Mass deletion operations previously triggered N individual WebSocket events (one per deleted item)
+- Result: N toast notifications (голубые/blue alert-info toasts) spammed across all connected clients
+- Poor UX during bulk operations (delete 100 items = 100 toasts)
+
+**Solution Pattern:**
+Instead of broadcasting individual events in a loop:
+```python
+# ❌ OLD PATTERN (eliminated in v6.6.0):
+for fact in deleted_facts:
+    await ws.broadcast_fact_deleted(fact.id)  # N events → N toasts
+```
+
+Broadcast SINGLE summary event:
+```python
+# ✅ NEW PATTERN (v6.6.0+):
+fact_ids = [fact.id for fact in deleted_facts]
+await ws.broadcast_facts_batch_deleted(fact_ids, deleted_count)  # 1 event → 1 toast
+```
+
+**Implementation:**
+
+1. **Backend (`budget_ws.py`):**
+   - `broadcast_facts_batch_deleted(fact_ids, deleted_count, record_type=None)` - Broadcast fact batch delete summary
+   - `broadcast_recurring_plans_batch_deleted(plan_ids, deleted_count)` - Broadcast recurring plan batch delete summary
+
+2. **Backend Endpoints:**
+   - `POST /api/v1/facts/batch-delete` - Bulk fact deletion (max 100)
+   - `POST /api/v1/recurring-plans/batch-delete` - Bulk recurring plan deletion (max 100)
+
+3. **Frontend Handlers:**
+   - **plan.html:** Handles `facts_batch_deleted` (filters by `record_type='plan'`) and `recurring_plans_batch_deleted`
+   - **index.html:** Handles `facts_batch_deleted` (filters by `record_type!='plan'`)
+
+4. **Notification Strategy:**
+   - **Initiating client:** Shows SINGLE success toast (e.g., "✅ Удалено: 10 записей")
+   - **Other clients:** NO toast, silent auto-reload only via WebSocket event
+   - Eliminates notification spam across all connected clients
+
+**Benefits:**
+- ✅ Toast spam eliminated (N toasts → 1 summary toast)
+- ✅ Better UX for mass operations
+- ✅ Backward compatible (individual events still work for non-batch operations)
+- ✅ Multi-tab sync maintained via WebSocket
+
+**Logging Prefixes:**
+- Backend: `[BULK_DELETE]`, `[WS_BULK]`
+- Frontend: `[PLAN_FACTS_DELETE]`, `[RECURRING_DELETE]`, `[FACTS_DELETE]`
+
+**See:** `/docs/architecture/websocket.md` for complete WebSocket events documentation
+
 ### Testing: Verify DB After Operations
 
 **Rule:** After data modification operations (CREATE/UPDATE/DELETE) ALWAYS verify actual DB state, not just HTTP status codes.

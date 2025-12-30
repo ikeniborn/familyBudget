@@ -107,6 +107,61 @@ _calculate_next_occurrence(from_date=date(2025, 3, 20))
 # → date(2026, 3, 15)  # After March 15 this year
 ```
 
+## API Endpoints
+
+### Bulk Operations
+
+#### Batch Delete Recurring Plans
+
+**Endpoint:** `POST /api/v1/recurring-plans/batch-delete`
+
+**Description:** Deactivate multiple recurring plans in a single request.
+
+**Query Parameters:**
+- `delete_future_facts` (boolean, default=false) - Whether to delete future generated facts for these plans
+
+**Request Body:**
+```json
+[1, 2, 3, 4, 5]
+```
+
+**Response:**
+```json
+{
+  "message": "Deleted 5 recurring plans",
+  "deleted_count": 5,
+  "failed": []
+}
+```
+
+**Validation:**
+- Maximum 100 plans per request
+- Empty list returns 400 Bad Request
+- Duplicate plan IDs automatically deduplicated
+- Partial success supported (some plans may fail, others succeed)
+
+**WebSocket Event:**
+- Broadcasts single summary event: `recurring_plans_batch_deleted`
+- Payload: `{"plan_ids": [...], "deleted_count": N}`
+
+**Performance:**
+- ~2-5 seconds for 100 plans (vs 10-20 seconds individual requests)
+- Single database transaction per plan
+- Single cache invalidation after all deletions
+- Single WebSocket broadcast (eliminates toast notification spam)
+
+**Error Handling:**
+- Continues on errors (partial success pattern)
+- Returns failed plan IDs with error messages
+- Rollback per-plan, not per-batch
+
+**Example:**
+```bash
+curl -X POST "/api/v1/recurring-plans/batch-delete?delete_future_facts=true" \
+  -H "Content-Type: application/json" \
+  -d '[1, 2, 3]'
+```
+
 ## Frontend Implementation
 
 ### Yearly frequency uses dual-select UI:

@@ -977,6 +977,48 @@ async def broadcast_recurring_plan_deleted(plan_id: int):
     await _broadcast_and_buffer("recurring_plan_deleted", {"id": plan_id})
 
 
+async def broadcast_recurring_plans_batch_deleted(
+    plan_ids: list[int],
+    deleted_count: int,
+):
+    """
+    Broadcast batch deletion of recurring plans (summary event).
+
+    Replaces individual recurring_plan_deleted events for batch operations.
+    Reduces toast notification spam from N toasts to 1 summary toast.
+
+    Args:
+        plan_ids: List of deleted recurring plan IDs
+        deleted_count: Number of successfully deleted plans
+    """
+    data = {"plan_ids": plan_ids, "deleted_count": deleted_count}
+    logger.debug(f"[WS_BULK] broadcast_recurring_plans_batch_deleted: count={deleted_count}")
+    await _broadcast_and_buffer("recurring_plans_batch_deleted", data)
+
+
+async def broadcast_facts_batch_deleted(
+    fact_ids: list[int],
+    deleted_count: int,
+    record_type: str = None,
+):
+    """
+    Broadcast batch deletion of facts (summary event).
+
+    Replaces individual fact_deleted/plan_deleted events for batch operations.
+    Reduces toast notification spam from N toasts to 1 summary toast.
+
+    Args:
+        fact_ids: List of deleted fact IDs
+        deleted_count: Number of successfully deleted facts
+        record_type: Optional record type ('plan', 'income', 'expense') for filtering
+    """
+    data = {"fact_ids": fact_ids, "deleted_count": deleted_count}
+    if record_type:
+        data["record_type"] = record_type
+    logger.debug(f"[WS_BULK] broadcast_facts_batch_deleted: count={deleted_count}, type={record_type}")
+    await _broadcast_and_buffer("facts_batch_deleted", data)
+
+
 async def broadcast_recurring_plan_facts_generated(data: dict):
     """
     Broadcast when scheduler job generates new facts for recurring plans.

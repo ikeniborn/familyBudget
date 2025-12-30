@@ -129,6 +129,54 @@ NAV|RTT_FILTER|WS_RTT
 - Max attempts: 10
 - Reset on successful connection
 
+## WebSocket Events
+
+### Batch Delete Summary Events (v6.6.0+)
+
+**Purpose:** Reduce toast notification spam by broadcasting single summary event for batch operations instead of individual events per item.
+
+**Problem Solved:**
+- N deletions previously triggered N individual WebSocket events → N toast notifications (голубые/blue toasts)
+- Poor UX during mass deletion operations
+
+**Solution:**
+- Batch delete operations now broadcast SINGLE summary event
+- Clients receive one event with aggregate data (item IDs + count)
+- Result: 1 success toast instead of N individual toasts
+
+**Events Table:**
+
+| Event | Payload | Description | Pages |
+|-------|---------|-------------|-------|
+| `facts_batch_deleted` | `{fact_ids: int[], deleted_count: int, record_type?: str}` | Summary event for bulk fact deletion | `/plan`, `/facts` (index.html) |
+| `recurring_plans_batch_deleted` | `{plan_ids: int[], deleted_count: int}` | Summary event for bulk recurring plan deletion | `/plan` |
+
+**Implementation Details:**
+
+1. **Backend (`budget_ws.py`):**
+   - `broadcast_facts_batch_deleted(fact_ids, deleted_count, record_type=None)` - Broadcast fact batch delete summary
+   - `broadcast_recurring_plans_batch_deleted(plan_ids, deleted_count)` - Broadcast recurring plan batch delete summary
+
+2. **Frontend Handlers:**
+   - **plan.html:**
+     - `facts_batch_deleted` - Filters by `record_type === 'plan'`, reloads plan facts table
+     - `recurring_plans_batch_deleted` - Reloads recurring plans list (if section expanded)
+   - **index.html:**
+     - `facts_batch_deleted` - Filters by `record_type !== 'plan'`, reloads dashboard
+
+3. **Notification Strategy:**
+   - **Initiating client:** Shows SINGLE success toast (e.g., "✅ Удалено: 10 записей")
+   - **Other clients:** NO toast, silent auto-reload only
+   - Eliminates notification spam across all connected clients
+
+**Backward Compatibility:**
+- Individual events (`fact_deleted`, `recurring_plan_deleted`) still exist for non-batch operations
+- Clients handle both individual and batch events
+
+**Related Endpoints:**
+- `POST /api/v1/facts/batch-delete` - Bulk fact deletion (max 100)
+- `POST /api/v1/recurring-plans/batch-delete` - Bulk recurring plan deletion (max 100)
+
 ## Related Documentation
 
 See `/docs/architecture/pwa.md` for complete PWA architecture, including:

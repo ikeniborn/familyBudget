@@ -5977,6 +5977,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            // Batch delete: Facts (BudgetFact type='income'/'expense')
+            // Summary event - NO TOAST (toast shown by initiating client only)
+            window.budgetWSClient.on('facts_batch_deleted', async (data) => {
+                debugLog('[FACTS_DELETE] facts_batch_deleted event:', data);
+
+                // Filter: Skip if this is plan-type batch delete (record_type='plan')
+                // Index page shows income/expense facts, NOT plan facts
+                const shouldReload = !data.record_type || data.record_type !== 'plan';
+
+                if (shouldReload) {
+                    debugLog(`[FACTS_DELETE] Auto-reloading after batch delete: ${data.deleted_count} facts`);
+
+                    // Use incremental updates or fallback to full refresh
+                    if (hasIncrementalUpdates) {
+                        // Batch delete - full refresh is safer than incremental
+                        refreshDashboard();
+                    } else {
+                        refreshDashboard();
+                    }
+                } else {
+                    debugLog(`[FACTS_DELETE] Skipping reload (record_type='${data.record_type}', expected income/expense)`);
+                }
+                // NO TOAST HERE - toast shown by initiating client only
+            });
+
             // Handler for plan events - use incremental updates or fallback to refresh
             window.budgetWSClient.on('plan_created', (data) => {
                 debugLog('[WS] Plan created:', data.id);

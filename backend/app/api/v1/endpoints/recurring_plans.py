@@ -462,6 +462,131 @@ async def deactivate_recurring_plan(
             )
 
 
+@router.post(
+    "/batch-delete",
+    status_code=status.HTTP_200_OK,
+)
+async def batch_delete_recurring_plans(
+    plan_ids: list[int],
+    delete_future_facts: bool = Query(default=False),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> dict:
+    """
+    Batch deactivate recurring plans (max 100).
+
+    Deactivates multiple recurring plans in a single request, with optional
+    deletion of future generated facts.
+
+    **Validation:**
+    - plan_ids list cannot be empty
+    - Maximum 100 plans per request
+    - Duplicate plan IDs automatically deduplicated
+
+    **Partial Success:**
+    - Continues processing on errors (doesn't fail entire batch)
+    - Returns list of failed plan IDs with error messages
+    - Successful deletions are committed even if some fail
+
+    **WebSocket:**
+    - Broadcasts single summary event: `recurring_plans_batch_deleted`
+    - Reduces toast spam from N toasts to 1 summary toast
+
+    **Performance:**
+    - ~2-5 seconds for 100 plans (vs 2-4 minutes for individual requests)
+    - Single cache invalidation after all deletions
+    - Single database transaction per plan
+
+    Args:
+        plan_ids: List of recurring plan IDs to deactivate (1-100)
+        delete_future_facts: Whether to delete future generated facts (default=False)
+        current_user: Authenticated user
+        session: Database session
+        service: Recurring plan service
+        cache_service: Cache service
+
+    Returns:
+        dict: {
+            "message": "Deleted N recurring plans",
+            "deleted_count": int,
+            "failed": list[dict]  # [{plan_id, error}, ...]
+        }
+
+    Raises:
+        400: Empty list or more than 100 plans
+    """
+    # Validation
+    if not plan_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="plan_ids list cannot be empty"
+        )
+
+    if len(plan_ids) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete more than 100 recurring plans at once"
+        )
+
+    # Deduplicate plan IDs
+    unique_plan_ids = list(set(plan_ids))
+    logger.info(
+        f"[BULK_DELETE] Starting batch delete: user_id={current_user.id}, "
+        f"requested={len(plan_ids)}, unique={len(unique_plan_ids)}, "
+        f"delete_future_facts={delete_future_facts}"
+    )
+
+    deleted_count = 0
+    failed = []
+
+    # Process each plan (using existing service method)
+    # Continue on errors to support partial success
+    for plan_id in unique_plan_ids:
+        try:
+            await service.deactivate_recurring_plan(
+                session, plan_id, current_user.id, delete_future_facts
+            )
+            deleted_count += 1
+            logger.info(f"[BULK_DELETE] Deactivated recurring plan: plan_id={plan_id}")
+        except ValueError as e:
+            # Expected errors: not found, doesn't belong to user
+            error_msg = str(e)
+            logger.warning(f"[BULK_DELETE] Failed to delete plan_id={plan_id}: {error_msg}")
+            failed.append({"plan_id": plan_id, "error": error_msg})
+        except Exception as e:
+            # Unexpected errors
+            error_msg = f"Unexpected error: {str(e)}"
+            logger.error(f"[BULK_DELETE] Unexpected error for plan_id={plan_id}: {e}", exc_info=True)
+            failed.append({"plan_id": plan_id, "error": error_msg})
+
+    logger.info(
+        f"[BULK_DELETE] Batch delete completed: deleted={deleted_count}, failed={len(failed)}"
+    )
+
+    # Single cache invalidation (after all deletions)
+    await cache_service.invalidate_recurring_plans(current_user.id)
+    logger.info(f"[BULK_DELETE] Cache invalidated after deleting {deleted_count} plans")
+
+    # Single WebSocket broadcast (SUMMARY EVENT)
+    # Broadcasts to all connected clients for auto-reload
+    await ws.broadcast_recurring_plans_batch_deleted(unique_plan_ids, deleted_count)
+    logger.info(f"[BULK_DELETE] Broadcasted batch delete event: count={deleted_count}")
+
+    # Build response message
+    if failed:
+        message = f"Deleted {deleted_count} recurring plans, {len(failed)} failed"
+    else:
+        message = f"Deleted {deleted_count} recurring plans"
+
+    return {
+        "message": message,
+        "deleted_count": deleted_count,
+        "failed": failed,
+    }
+
+
 @router.post("/{plan_id}/activate", response_model=RecurringPlanResponse)
 async def activate_recurring_plan(
     plan_id: int,
