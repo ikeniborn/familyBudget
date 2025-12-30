@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import text
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 
 # revision identifiers, used by Alembic.
@@ -35,34 +35,45 @@ def upgrade() -> None:
     Both indexes use CONCURRENTLY to prevent table locking (zero downtime).
 
     IMPORTANT: CONCURRENTLY requires AUTOCOMMIT isolation level.
+    Uses direct psycopg2 connection to bypass SQLAlchemy transaction.
     """
 
-    # Get connection with AUTOCOMMIT isolation for CONCURRENTLY support
+    # Get raw psycopg2 connection to bypass Alembic transaction
     connection = op.get_bind()
-    conn_autocommit = connection.execution_options(isolation_level="AUTOCOMMIT")
+    raw_conn = connection.connection.dbapi_connection
 
-    # Composite index for stats queries (active/paused/monthly sum)
-    # INCLUDE (amount) makes this a covering index (Index Only Scan)
-    conn_autocommit.execute(
-        text("""
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_frequency
-        ON t_d_recurring_plan(user_id, is_active, frequency_type)
-        INCLUDE (amount);
+    # Save current isolation level
+    old_isolation_level = raw_conn.isolation_level
+
+    # Set AUTOCOMMIT for CONCURRENTLY support
+    raw_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+    try:
+        cursor = raw_conn.cursor()
+
+        # Composite index for stats queries (active/paused/monthly sum)
+        # INCLUDE (amount) makes this a covering index (Index Only Scan)
+        cursor.execute("""
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_frequency
+            ON t_d_recurring_plan(user_id, is_active, frequency_type)
+            INCLUDE (amount);
         """)
-    )
 
-    # Partial index for pending count (WHERE clause reduces index size 50%)
-    # Only indexes active plans (is_active = TRUE)
-    conn_autocommit.execute(
-        text("""
-        CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_next_date
-        ON t_d_recurring_plan(user_id, is_active, next_generation_date)
-        WHERE is_active = TRUE;
+        # Partial index for pending count (WHERE clause reduces index size 50%)
+        # Only indexes active plans (is_active = TRUE)
+        cursor.execute("""
+            CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_next_date
+            ON t_d_recurring_plan(user_id, is_active, next_generation_date)
+            WHERE is_active = TRUE;
         """)
-    )
 
-    # Update table statistics for query planner (can run in transaction)
-    op.execute("ANALYZE t_d_recurring_plan;")
+        # Update table statistics for query planner
+        cursor.execute("ANALYZE t_d_recurring_plan;")
+
+        cursor.close()
+    finally:
+        # Restore original isolation level
+        raw_conn.set_isolation_level(old_isolation_level)
 
 
 def downgrade() -> None:
@@ -72,16 +83,26 @@ def downgrade() -> None:
     Uses CONCURRENTLY for zero-downtime rollback.
 
     IMPORTANT: CONCURRENTLY requires AUTOCOMMIT isolation level.
+    Uses direct psycopg2 connection to bypass SQLAlchemy transaction.
     """
 
-    # Get connection with AUTOCOMMIT isolation for CONCURRENTLY support
+    # Get raw psycopg2 connection to bypass Alembic transaction
     connection = op.get_bind()
-    conn_autocommit = connection.execution_options(isolation_level="AUTOCOMMIT")
+    raw_conn = connection.connection.dbapi_connection
 
-    conn_autocommit.execute(
-        text("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_next_date;")
-    )
+    # Save current isolation level
+    old_isolation_level = raw_conn.isolation_level
 
-    conn_autocommit.execute(
-        text("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_frequency;")
-    )
+    # Set AUTOCOMMIT for CONCURRENTLY support
+    raw_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+    try:
+        cursor = raw_conn.cursor()
+
+        cursor.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_next_date;")
+        cursor.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_frequency;")
+
+        cursor.close()
+    finally:
+        # Restore original isolation level
+        raw_conn.set_isolation_level(old_isolation_level)
