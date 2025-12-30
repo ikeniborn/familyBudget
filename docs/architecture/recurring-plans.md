@@ -434,6 +434,44 @@ POST /api/v1/recurring-plans
 - MD5 hash of filter parameters (skip, limit, is_active)
 - Prevents cache pollution from mixed queries
 
+**Cache TTL Configuration (v6.6.0+):**
+
+Since v6.6.0, cache TTL values are configurable via environment variables:
+
+```bash
+# .env
+REDIS_CACHE_TTL_REFERENCE=300    # Articles, Financial Centers, Cost Centers (5 min)
+REDIS_CACHE_TTL_DASHBOARD=30     # Quick stats, account balances (30 sec)
+REDIS_CACHE_TTL_DYNAMIC=60       # Facts list, recent transactions (1 min)
+REDIS_CACHE_TTL_SHORT=10         # Recent HTML fragments (10 sec)
+```
+
+**Implementation:**
+- Settings class (`backend/app/core/config.py`) loads values from environment
+- `CacheTTL` class methods (`backend/app/services/cache_service.py`) return values from settings
+- Usage: `CacheTTL.REFERENCE()` instead of `CacheTTL.REFERENCE` (call as method)
+
+**Benefits:**
+- Adjust cache duration per environment (test vs production)
+- Fine-tune based on load patterns without code changes
+- Quick troubleshooting via TTL=0 to disable caching
+- Different strategies for different deployments
+
+**Example:**
+```python
+# Before (hardcoded):
+await cache_service.set(key, data, CacheTTL.REFERENCE)  # Always 300s
+
+# After (configurable):
+await cache_service.set(key, data, CacheTTL.REFERENCE())  # From REDIS_CACHE_TTL_REFERENCE env var
+
+# Production .env:
+REDIS_CACHE_TTL_REFERENCE=300  # 5 min (default)
+
+# Test .env (faster invalidation for testing):
+REDIS_CACHE_TTL_REFERENCE=10  # 10 sec
+```
+
 ### WebSocket Real-Time Updates
 
 **Since v6.6.0**: Ensures new records appear instantly, not waiting for cache TTL.

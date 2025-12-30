@@ -10,13 +10,13 @@ Patterns:
 - Graceful Degradation: Falls back to DB if Redis unavailable
 
 Usage:
-    from backend.app.services.cache_service import cache_service
+    from backend.app.services.cache_service import cache_service, CacheTTL
 
     # Get cached data or fetch from DB
     articles = await cache_service.get_or_set(
         key="articles:list",
         fetch_fn=lambda: article_service.get_all(session),
-        ttl=CacheTTL.REFERENCE
+        ttl=CacheTTL.REFERENCE()
     )
 
     # Invalidate cache on changes
@@ -28,10 +28,10 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from enum import IntEnum
 from typing import Any, Callable, TypeVar
 
 from backend.app.core.config import get_settings
+
 from backend.app.services.redis_service import get_redis, is_redis_available
 
 logger = logging.getLogger(__name__)
@@ -39,13 +39,33 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-class CacheTTL(IntEnum):
-    """Cache TTL values in seconds."""
+class CacheTTL:
+    """
+    Cache TTL values in seconds.
 
-    REFERENCE = 300  # Articles, Financial Centers, Cost Centers
-    DASHBOARD = 30  # Quick stats, account balances
-    DYNAMIC = 60  # Facts list, recent transactions
-    SHORT = 10  # Recent HTML fragments
+    Values are loaded from environment variables via Settings.
+    Allows dynamic configuration without code changes.
+    """
+
+    @classmethod
+    def REFERENCE(cls) -> int:
+        """Reference data: Articles, Financial Centers, Cost Centers (default: 300s / 5 min)."""
+        return get_settings().REDIS_CACHE_TTL_REFERENCE
+
+    @classmethod
+    def DASHBOARD(cls) -> int:
+        """Dashboard data: Quick stats, account balances (default: 30s)."""
+        return get_settings().REDIS_CACHE_TTL_DASHBOARD
+
+    @classmethod
+    def DYNAMIC(cls) -> int:
+        """Dynamic data: Facts list, recent transactions (default: 60s / 1 min)."""
+        return get_settings().REDIS_CACHE_TTL_DYNAMIC
+
+    @classmethod
+    def SHORT(cls) -> int:
+        """Short-lived data: Recent HTML fragments (default: 10s)."""
+        return get_settings().REDIS_CACHE_TTL_SHORT
 
 
 @dataclass
@@ -391,13 +411,20 @@ cache_service = CacheService()
 async def cached_list(
     key: CacheKey,
     fetch_fn: Callable[[], Any],
-    ttl: CacheTTL = CacheTTL.REFERENCE,
+    ttl: int | None = None,
 ) -> list:
     """
     Cache a list of items.
 
     Convenience wrapper for caching list endpoints.
+
+    Args:
+        key: Cache key
+        fetch_fn: Function to fetch data on cache miss
+        ttl: TTL in seconds (default: REFERENCE category TTL)
     """
+    if ttl is None:
+        ttl = CacheTTL.REFERENCE()
     return await cache_service.get_or_set(key, fetch_fn, ttl)
 
 

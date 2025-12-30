@@ -701,7 +701,7 @@ async def get_recent_facts_html(
             </div>
             """
             # Cache empty state (TTL 10s)
-            await cache_service.set(cache_key, empty_html, CacheTTL.SHORT)
+            await cache_service.set(cache_key, empty_html, CacheTTL.SHORT())
             return empty_html
 
         # Load articles for fact details
@@ -898,7 +898,7 @@ async def get_recent_facts_html(
 
         # Cache the generated HTML (TTL 10s)
         result_html = table_html + mobile_html
-        await cache_service.set(cache_key, result_html, CacheTTL.SHORT)
+        await cache_service.set(cache_key, result_html, CacheTTL.SHORT())
 
         return result_html
 

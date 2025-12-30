@@ -687,7 +687,7 @@ async def get_quick_stats_html(
     """
 
     # Cache the generated HTML (TTL 30s)
-    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
+    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
 
     return html
 
@@ -829,7 +829,7 @@ async def get_account_balances_html(
         </div>
         """
         # Cache empty state too (TTL 30s)
-        await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
+        await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
         return html
 
     # Generate unified responsive cards
@@ -972,7 +972,7 @@ async def get_account_balances_html(
     """
 
     # Cache the generated HTML (TTL 30s)
-    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD)
+    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
 
     return html
 

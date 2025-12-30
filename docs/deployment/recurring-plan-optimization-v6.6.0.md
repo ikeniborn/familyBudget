@@ -94,6 +94,29 @@ UPDATE alembic_version SET version_num = '28cb68876eaf';
 - Different filter combinations get separate cache entries
 - Prevents cache pollution
 
+**Configuration via Environment Variables (v6.6.0+):**
+
+Cache TTL values are now configurable via `.env` without code changes:
+
+```bash
+# Cache TTL by category (seconds)
+REDIS_CACHE_TTL_REFERENCE=300    # Articles, Financial Centers, Cost Centers (5 min)
+REDIS_CACHE_TTL_DASHBOARD=30     # Quick stats, account balances (30 sec)
+REDIS_CACHE_TTL_DYNAMIC=60       # Facts list, recent transactions (1 min)
+REDIS_CACHE_TTL_SHORT=10         # Recent HTML fragments (10 sec)
+```
+
+**Benefits:**
+- Fine-tune cache duration per data type
+- Adjust TTL based on load patterns without redeployment
+- Different values for test/production environments
+- Quick disable via TTL=0 for troubleshooting
+
+**Implementation:**
+- Settings: `backend/app/core/config.py` (REDIS_CACHE_TTL_* variables)
+- Usage: `CacheTTL.REFERENCE()` returns value from settings (class methods)
+- Default values: Same as hardcoded (backward compatible)
+
 ### Phase 4: WebSocket Real-Time Updates ✅
 
 **Files:**
