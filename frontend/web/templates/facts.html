@@ -2002,14 +2002,23 @@ async function deleteFact(factId) {
 async function batchDelete() {
     if (selectedFactIds.size === 0) return;
 
+    const count = selectedFactIds.size;
     const confirmed = await showConfirmDialog(
-        `Вы уверены, что хотите удалить ${selectedFactIds.size} фактов? Это действие необратимо.`,
+        `Вы уверены, что хотите удалить ${count} фактов? Это действие необратимо.`,
         '🗑️ Массовое удаление фактов'
     );
 
     if (!confirmed) {
         return;
     }
+
+    // ✅ Show loader on button during operation
+    const btn = document.getElementById('batch-delete-btn');
+    const originalText = btn.textContent;
+
+    btn.disabled = true;
+    btn.classList.add('loading', 'loading-spinner');
+    btn.textContent = `Удаление... (${count})`;
 
     try {
         const response = await fetch('/api/v1/facts/batch-delete', {
@@ -2031,6 +2040,11 @@ async function batchDelete() {
         console.error('Error batch deleting facts:', error);
         const errorMessage = error?.message || String(error);
         showToast(`Ошибка: ${errorMessage}`, 'error');
+    } finally {
+        // ✅ Hide loader after operation (success or error)
+        btn.classList.remove('loading', 'loading-spinner');
+        btn.textContent = originalText;
+        // Button state will be updated by updateBatchDeleteButton() after loadFacts()
     }
 }
 
