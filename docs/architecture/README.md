@@ -32,13 +32,14 @@ Use these files to understand component relationships when planning changes or o
   - Product Group field below was visible THROUGH the dropdown (transparency issue)
   - Affected all devices (desktop, tablet, mobile portrait/landscape)
   - Only Store dropdown affected, Product Group dropdown worked correctly
-- **Root Cause:** DaisyUI modals (`<dialog>` element) don't add `.modal-open` class to body:
-  - Existing CSS rule `.modal-open .choices__list--dropdown { z-index: 1050 }` never matched
-  - Dropdown used default z-index: 30 instead of required 1060
-  - Form fields below appeared above dropdown due to stacking context
-- **Solution:** Modal-specific class toggle pattern (similar to existing `.autocomplete-active`):
-  - CSS: `#item-modal.store-dropdown-open .choices__list--dropdown { z-index: 1060 }`
-  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible }`
+- **Root Cause:** CSS cascade issue - `choices-tailwind.css` loads AFTER `modal-dropdowns-fix.css`:
+  - CSS load order: 1) base.html → modal-dropdowns-fix.css 2) lists.html → choices-tailwind.css 3) lists.html → lists.css
+  - `choices-tailwind.css` sets `.choices__list--dropdown { z-index: 30 !important }` globally
+  - This overrides modal-dropdowns-fix.css rules due to cascade priority
+  - Dropdown uses z-index: 30 instead of required 1060
+- **Solution:** Move z-index rules to `lists.css` (loads last in cascade):
+  - CSS: `#item-modal.store-dropdown-open .choices__list--dropdown { z-index: 1060 !important }`
+  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible !important }`
   - JavaScript: Event listeners on `showDropdown`/`hideDropdown` add/remove class
   - Console logging: `[LISTS_MODAL]` prefix for debugging
 - **Impact:**
@@ -48,10 +49,11 @@ Use these files to understand component relationships when planning changes or o
   - ✅ Multiple open/close cycles work reliably
   - ✅ Product Group dropdown unaffected
 - **Files Modified:**
-  - `frontend/web/static/css/modal-dropdowns-fix.css` (lines 39-60) - Added z-index rules
+  - `frontend/web/static/css/lists.css` (lines 1499-1522) - Added z-index rules (loads last)
   - `frontend/web/static/js/lists/listsManager.js` (lines 1396-1414) - Added event listeners
+  - `frontend/web/static/css/modal-dropdowns-fix.css` - Removed duplicate rules
 - **Testing:** Verified on desktop Chrome, iPhone Safari (portrait/landscape), iPad Safari
-- **Commit:** 7b7a6088 (test branch)
+- **Commits:** 7b7a6088, 04c5d144 (test branch)
 
 ---
 
