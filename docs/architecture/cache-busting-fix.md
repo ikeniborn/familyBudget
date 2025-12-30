@@ -63,16 +63,40 @@ Supports:
 
 ## Implementation
 
+### Critical Fix (v6.5.3): Execution Order
+
+**PROBLEM:** Original implementation ran cache busting BEFORE minification:
+1. ❌ update-cache-busting.sh updated `sw.js` (source)
+2. ❌ npm run build minified `sw.js` → `sw.min.js`
+3. ❌ Result: `sw.min.js` still had PLACEHOLDER (minified from old sw.js)
+
+**SOLUTION:** Move cache busting AFTER minification:
+1. ✅ npm run build minifies `sw.js` → `sw.min.js`
+2. ✅ update-cache-busting.sh updates `sw.min.js` (minified version)
+3. ✅ Script re-compresses `sw.min.js.gz`
+4. ✅ Result: Both minified versions have correct timestamp
+
+**Changes in deploy.sh:**
+- Removed cache busting from line 865-883 (pre-build)
+- Added cache busting at line 1090-1108 (post-build)
+- Now runs AFTER "npm run build" completes
+
+**Changes in update-cache-busting.sh:**
+- Changed `SW_FILE="sw.js"` → `SW_FILE="sw.min.js"`
+- Added `SW_FILE_GZ="sw.min.js.gz"` re-compression
+- Changed sed pattern for minified syntax: `CACHE_VERSION="v..."` (double quotes)
+
 ### Script Structure
 
 ```bash
 #!/bin/bash
 # scripts/update-cache-busting.sh
 
-# Step 1: Update Service Worker (sw.js)
+# Step 1: Update Service Worker (sw.min.js - MINIFIED VERSION)
 update_service_worker() {
-    # Replace CACHE_VERSION_PLACEHOLDER with v{timestamp}
-    # Backup → Replace → Verify → Clean or Restore
+    # Replace CACHE_VERSION_PLACEHOLDER in sw.min.js
+    # Re-compress sw.min.js.gz
+    # Backup → Replace → Verify → Re-gzip → Clean or Restore
 }
 
 # Step 2: Update HTML Templates
@@ -92,18 +116,25 @@ validate_no_placeholders() {
 
 ### Integration in deploy.sh
 
-**Before (line 871):**
+**v6.5.2 (BROKEN - ran before minification):**
 ```bash
-if [[ -f "scripts/update-sw-version.sh" ]]; then
-    bash scripts/update-sw-version.sh
-fi
+# Line 865-883 (WRONG ORDER)
+step "Updating Cache Busting Versions"
+bash scripts/update-cache-busting.sh  # Updates sw.js
+# ...
+npm run build  # Minifies sw.js → sw.min.js (overwrites changes!)
 ```
 
-**After (line 871):**
+**v6.5.3 (FIXED - runs after minification):**
 ```bash
-if [[ -f "scripts/update-cache-busting.sh" ]]; then
-    bash scripts/update-cache-busting.sh || exit 1
-fi
+# Line 865-867 (removed cache busting, added note)
+# NOTE: Cache busting moved AFTER npm run build (see lines ~1110)
+
+# Line 1090-1108 (NEW LOCATION - after minification)
+npm run build  # Minifies sw.js → sw.min.js
+# ...
+step "Updating Cache Busting Versions (Post-Build)"
+bash scripts/update-cache-busting.sh  # Updates sw.min.js ✓
 ```
 
 **Removed duplicate validation (line 1151-1164):**

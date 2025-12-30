@@ -15,7 +15,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-SW_FILE="sw.js"
+SW_FILE="sw.min.js"  # Process MINIFIED version (after npm run build)
+SW_FILE_GZ="sw.min.js.gz"  # Gzip version to update
 TEMPLATES_DIR="frontend/web/templates"
 TIMESTAMP=$(date +"%Y%m%d_%H%M")
 NEW_VERSION="v${TIMESTAMP}"
@@ -135,7 +136,7 @@ validate_no_placeholders() {
 
     local placeholder_count=0
 
-    # Check Service Worker
+    # Check Service Worker (minified version uses double quotes)
     if [ -f "$SW_FILE" ]; then
         if grep -q "CACHE_VERSION_PLACEHOLDER" "$SW_FILE" 2>/dev/null; then
             echo -e "  ${RED}✗${NC} Service Worker still contains CACHE_VERSION_PLACEHOLDER"

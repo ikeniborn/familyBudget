@@ -26,7 +26,40 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
-### 2025-12-30: Cache Busting System Fix - Comprehensive HTML Template Support (v6.5.2)
+### 2025-12-30: Cache Busting System Fix v2 - Execution Order Correction (v6.5.3)
+- **Change:** Fixed cache busting execution order - now runs AFTER minification (not before)
+- **Problem:** v6.5.2 script ran BEFORE npm run build, updating sw.js but then minification overwrote changes:
+  ```
+  [WARNING] Found 6 PLACEHOLDER tokens after cache busting  # Still appearing!
+  Files with PLACEHOLDER: admin_logs.html, admin_monitoring.html
+  ```
+- **Root Cause:** Incorrect execution order in deploy.sh:
+  1. update-cache-busting.sh updated sw.js (source file)
+  2. npm run build minified sw.js → sw.min.js (created from OLD sw.js with PLACEHOLDER)
+  3. Result: sw.min.js still had PLACEHOLDER despite cache busting running
+- **Solution:** Moved cache busting AFTER npm run build:
+  - deploy.sh:865-883 → Removed cache busting (pre-build location)
+  - deploy.sh:1090-1108 → Added cache busting (post-build location)
+  - update-cache-busting.sh: Changed to process sw.min.js (not sw.js)
+  - update-cache-busting.sh: Added sw.min.js.gz re-compression
+- **Technical Changes:**
+  - `SW_FILE="sw.js"` → `SW_FILE="sw.min.js"` (minified version)
+  - `SW_FILE_GZ="sw.min.js.gz"` added (re-gzip after update)
+  - Sed pattern changed for minified syntax: `CACHE_VERSION="v..."` (double quotes)
+- **Execution Flow (CORRECT):**
+  1. ✅ npm run build (minifies sw.js → sw.min.js with PLACEHOLDER)
+  2. ✅ update-cache-busting.sh (replaces PLACEHOLDER in sw.min.js + HTML)
+  3. ✅ gzip -9 sw.min.js → sw.min.js.gz (re-compress with new version)
+  4. ✅ Result: All files have correct timestamp, zero PLACEHOLDER tokens
+- **Files Changed:**
+  - `deploy.sh` - Moved cache busting from line 865 to line 1090 (after build)
+  - `scripts/update-cache-busting.sh` - Process sw.min.js + re-gzip
+  - `docs/architecture/cache-busting-fix.md` - Updated with v6.5.3 changes
+- **Validation:** `grep "CACHE_VERSION_PLACEHOLDER" /opt/budget/sw.min.js` returns empty (replaced with v{timestamp})
+
+---
+
+### 2025-12-30: Cache Busting System Fix - Comprehensive HTML Template Support (v6.5.2 - SUPERSEDED)
 - **Change:** Fixed incomplete cache busting - now processes Service Worker AND all HTML templates
 - **Problem:** Deployment warning showed PLACEHOLDER tokens remaining in HTML after cache busting:
   ```
