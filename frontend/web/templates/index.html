@@ -3377,9 +3377,13 @@ async function loadFinancialCenters() {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
-                // Update plan hints
+                // Update plan hints ONLY if both FC and category selected
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
-                loadPlanHints(selectedCategory);
+                if (fcId && selectedCategory) {
+                    loadPlanHints(selectedCategory);
+                } else {
+                    console.log('[FC_CHANGE] Not loading hints - missing FC or category');
+                }
             });
         }
     } catch (error) {
@@ -3548,14 +3552,211 @@ function setTransactionDate(daysOffset) {
 
 // ============ Fact Hints Functions ============
 
+// Plan hints debounce timeout and controller
+let planHintsTimeout = null;
+let planHintsController = null;
+
 /**
- * Stub for loadPlanHints - plan hints not implemented on dashboard
- * Full implementation exists in plan.html
- * @param {Object|null} category - Selected category (unused in stub)
+ * Load plan hints (previous period plan/fact amounts) for the selected category.
+ * Displays hints in modal_add_plan buttons (hint-prev-plan, hint-prev-fact).
+ *
+ * @param {Object|null} category - Selected category object with id and name
  */
-function loadPlanHints(category = null) {
-    // Plan hints are not shown on dashboard - this is a stub to prevent errors
-    debugLog('[loadPlanHints] Stub called on dashboard - hints not displayed');
+async function loadPlanHints(category = null) {
+    console.log('[PLAN_HINTS] loadPlanHints() called:', {
+        category: category ? category.id : null,
+        categoryName: category ? category.name : null,
+        timestamp: new Date().toISOString()
+    });
+
+    // Clear existing debounce timeout
+    if (planHintsTimeout) {
+        clearTimeout(planHintsTimeout);
+    }
+
+    // Cancel pending API call
+    if (planHintsController) {
+        planHintsController.abort();
+    }
+
+    // Get hint buttons
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) {
+        debugLog('[loadPlanHints] Hint buttons not found');
+        return;
+    }
+
+    // ✅ FIX: Check if BOTH account AND category are selected
+    const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+    const financialCenterId = cfoSelect ? cfoSelect.value : null;
+    const articleId = category ? category.id : null;
+
+    console.log('[PLAN_HINTS] Validation check:', {
+        fcId: financialCenterId,
+        articleId: articleId,
+        bothSelected: !!(financialCenterId && articleId)
+    });
+
+    // If either FC or category NOT selected, show placeholder and return
+    if (!financialCenterId || !articleId) {
+        console.log('[PLAN_HINTS] ⚠️ SKIPPED: Missing required fields', {
+            fcSelected: !!financialCenterId,
+            categorySelected: !!articleId
+        });
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        return;
+    }
+
+    console.log('[PLAN_HINTS] ✅ Validation PASSED - proceeding with API call');
+
+    // Show loading state
+    prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevPlanBtn.disabled = true;
+    prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevFactBtn.disabled = true;
+    prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    // Debounce: wait 300ms after last call
+    planHintsTimeout = setTimeout(async () => {
+        if (!navigator.onLine) {
+            prevPlanBtn.innerHTML = 'План пред. мес: --';
+            prevFactBtn.innerHTML = 'Факт пред. мес: --';
+            return;
+        }
+
+        try {
+            planHintsController = new AbortController();
+
+            // Get current planning period from hidden input
+            const periodInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+
+            // Get current type (income/expense)
+            const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
+            const articleType = typeInput ? typeInput.value : 'expense';
+
+            // Build query params
+            const params = new URLSearchParams({
+                period: period,
+                article_type: articleType,
+            });
+
+            if (articleId) {
+                params.append('article_id', articleId);
+            }
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/plan-hints?${params.toString()}`, {
+                signal: planHintsController.signal,
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadPlanHints] API error: ${response.status}`, errorData);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update hint buttons
+            updatePlanHintButtons(data);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadPlanHints] Request cancelled (debounce)');
+            } else {
+                console.error('[loadPlanHints] Failed to load:', error);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+            }
+        }
+    }, 300);
+}
+
+/**
+ * Update plan hint buttons with data from API.
+ * Buttons become clickable and populate amount field when clicked.
+ *
+ * @param {object} data - Response from /api/v1/analytics/plan-hints
+ */
+function updatePlanHintButtons(data) {
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) return;
+
+    // Format amounts (show 'k' for thousands)
+    const formatAmount = (amount) => {
+        if (amount === null || amount === undefined) return '--';
+        const num = parseFloat(amount);
+        if (num >= 1000) {
+            return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
+        }
+        return num.toFixed(0);
+    };
+
+    // Get previous period month name
+    const prevPeriodParts = data.prev_period.split('-');
+    const prevMonthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const prevMonthName = prevMonthNames[parseInt(prevPeriodParts[1]) - 1];
+
+    // Helper to set plan amount in form
+    const setPlanAmount = (amount) => {
+        const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
+        if (amountInput) {
+            amountInput.value = amount.toFixed(0);
+            amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+            console.log('[PLAN_HINTS] Amount set:', amount);
+        }
+    };
+
+    // Update Plan button
+    const planAmount = data.prev_period_plan_sum;
+    if (planAmount !== null && planAmount !== undefined && parseFloat(planAmount) > 0) {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: ${formatAmount(planAmount)}₽`;
+        prevPlanBtn.disabled = false;
+        prevPlanBtn.className = 'btn btn-xs btn-outline btn-info';
+        prevPlanBtn.onclick = () => setPlanAmount(parseFloat(planAmount));
+    } else {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: --`;
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevPlanBtn.onclick = null;
+    }
+
+    // Update Fact button
+    const factAmount = data.prev_period_fact_sum;
+    if (factAmount !== null && factAmount !== undefined && parseFloat(factAmount) > 0) {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: ${formatAmount(factAmount)}₽`;
+        prevFactBtn.disabled = false;
+        prevFactBtn.className = 'btn btn-xs btn-outline btn-success';
+        prevFactBtn.onclick = () => setPlanAmount(parseFloat(factAmount));
+    } else {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: --`;
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.onclick = null;
+    }
 }
 
 let factHintsTimeout = null;
@@ -4788,11 +4989,13 @@ function openAddPlanModal() {
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
 
-    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // CRITICAL: Reset FC filter state and clear selection for create modals
     // This ensures isInitialFiltering works correctly on modal reopening
     // Without this, previousFcId persists between modal openings, causing phantom auto-selection
     if (typeof planCategoryTreeSelect !== 'undefined' && planCategoryTreeSelect) {
         planCategoryTreeSelect.options.financialCenterId = null;
+        planCategoryTreeSelect.clearSelection();
+        console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
     }
 
     // Open the modal
