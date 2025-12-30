@@ -26,6 +26,37 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: Cache Busting Fix - PATH Configuration for Service Worker Minification (v6.5.2)
+- **Change:** Fixed PATH configuration for Service Worker minification in subshell
+- **Problem:** Deployment failed with "Service Worker update failed" during cache busting:
+  ```
+  [STEP 1/2] Updating Service Worker (sw.js)...
+    ✗ Failed to update Service Worker, restoring backup...
+  [CRITICAL] Service Worker update failed
+  [ERROR] CRITICAL: Failed to update cache busting versions!
+  ```
+- **Root Cause:** When sw.min.js needs recreation (fallback scenario), `minify_service_worker()` runs in subshell:
+  - Parent shell's PATH restored after `npm run build` (deploy.sh:1045)
+  - Subshell inherits restored PATH (without .npm-isolated/node_modules/.bin)
+  - terser binary not accessible → minification fails → update-cache-busting.sh fails
+- **Solution:** Explicitly configure PATH in subshell before sourcing minify.sh (deploy.sh:1077-1083):
+  ```bash
+  local node_modules_dir="$DEPLOY_DIR/.npm-isolated/node_modules"
+  if [[ -d "$node_modules_dir/.bin" ]]; then
+      export PATH="$node_modules_dir/.bin:$PATH"
+  fi
+  ```
+- **Impact:**
+  - ✅ Cache busting succeeds even when sw.min.js needs recreation
+  - ✅ Deployment no longer aborts with critical error
+  - ✅ Service Worker minification works reliably in all scenarios
+- **Files Modified:**
+  - `deploy.sh` (lines 1077-1083) - Added PATH configuration
+- **Testing:** Tested fallback scenario (missing sw.min.js) → successful recreation
+- **Related:** This fixes deployment hang after npm run build completes successfully
+
+---
+
 ### 2025-12-30: JavaScript SyntaxError Fix - Duplicate fcId Declaration (v6.5.1)
 - **Change:** Removed duplicate `const fcId` declaration in facts.html causing page load failure
 - **Problem:** /facts page failed to load with JavaScript SyntaxError:
