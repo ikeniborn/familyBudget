@@ -1495,3 +1495,28 @@ img[loading="lazy"] {
         display: none !important;
     }
 }
+
+/* ============================================== */
+/* Item Modal - Store Dropdown Z-Index Fix */
+/* ============================================== */
+
+/* Fix for Store dropdown in #item-modal
+   Problem: choices-tailwind.css sets z-index: 30 and loads AFTER modal-dropdowns-fix.css
+   Solution: Override z-index in lists.css (loads last) when dropdown is open
+
+   This file loads AFTER choices-tailwind.css, so these rules have higher cascade priority */
+
+/* Increase z-index when Store dropdown is open in item-modal */
+#item-modal.store-dropdown-open .choices__list--dropdown {
+    z-index: 1060 !important; /* Above all form fields and modal content */
+}
+
+/* Ensure modal-box doesn't clip dropdown when open */
+#item-modal.store-dropdown-open .modal-box {
+    overflow: visible !important;
+}
+
+/* Ensure form-control doesn't clip dropdown when open */
+#item-modal.store-dropdown-open .form-control {
+    overflow: visible !important;
+}
