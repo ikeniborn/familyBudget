@@ -32,7 +32,7 @@ Use these files to understand component relationships when planning changes or o
 - **New Sections:**
   1. **⚡ Технические преимущества** - что отличает Family Budget от конкурентов:
      - Offline-First архитектура с Service Worker
-     - Real-Time обновления (WebSocket + SSE dual strategy)
+     - Real-Time обновления (WebSocket + Long Polling fallback)
      - Web Workers (5 workers для производительности)
      - Агрессивное кэширование (Redis + Service Worker + HTTP)
      - SCD Type 2 полная история изменений
@@ -53,12 +53,13 @@ Use these files to understand component relationships when planning changes or o
      - Уточнены методы аутентификации
   4. **Обновленная секция "Технологии"**:
      - Redis 7, Web Workers, Push API, WebAuthn
-     - WebSocket + SSE dual strategy
+     - WebSocket + Long Polling fallback (SSE не используется)
      - Уточнены версии (FastAPI 0.121, PostgreSQL 16, DaisyUI 4)
 - **Fixes:**
   - Удалена несуществующая ссылка `docs/guides/` (фактически `docs/architecture/guides/`)
   - Уточнено количество файлов документации (85 файлов)
   - Конкретизированы банки для импорта (Тинькофф, Сбербанк, Альфа, ВТБ)
+  - **Исправлена неточность**: SSE → WebSocket + Long Polling (SSE не используется, legacy архитектура)
 - **Impact:**
   - README теперь полностью отражает современное состояние проекта
   - Четко показаны технические преимущества и уникальные особенности

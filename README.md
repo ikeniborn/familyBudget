@@ -53,7 +53,7 @@
 **Что отличает Family Budget от других budget trackers:**
 
 - **⚡ Offline-First архитектура** — работает без интернета, синхронизация автоматическая при подключении
-- **🔄 Real-Time обновления** — WebSocket + SSE, данные обновляются мгновенно во всех вкладках
+- **🔄 Real-Time обновления** — WebSocket с Long Polling fallback, данные обновляются мгновенно во всех вкладках
 - **🚀 Web Workers** — обработка импорта CSV, расчеты категорий и синхронизация не замедляют интерфейс
 - **📦 Агрессивное кэширование** — Redis + Service Worker + HTTP cache = молниеносная загрузка страниц
 - **📚 Полная история изменений** — SCD Type 2, каждое изменение записи сохраняется навечно
@@ -121,7 +121,7 @@ sudo bash deploy.sh --profile full
 **Backend**: FastAPI 0.121, SQLModel, PostgreSQL 16, Redis 7
 **Frontend**: HTMX, Tailwind CSS 3, DaisyUI 4, ECharts
 **Mobile**: PWA (Service Worker, Web Workers, Push API, WebAuthn)
-**Realtime**: WebSocket + SSE (dual strategy с Long Polling fallback)
+**Realtime**: WebSocket (primary) + Long Polling (fallback)
 **Deployment**: Docker Compose, Nginx, Let's Encrypt
 **Bot**: python-telegram-bot 21, Telegram Web Apps
 
