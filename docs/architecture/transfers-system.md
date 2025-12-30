@@ -25,7 +25,7 @@ Backend Validation
     ↓
 Database (t_f_budget_fact)
     ↓
-SSE Event (transfer_created)
+WebSocket Event (transfer_created)
     ↓
 UI Update (IncrementalUpdates)
 ```
@@ -435,7 +435,7 @@ function setTransferRecordType(type) {
 7. **Submit** to `/api/v1/transfers`
    - Payload: `{record_type: "plan", fact_date: "2026-01-01", ...}`
 8. **Backend** creates 2 records with `transfer_id`
-9. **SSE event** `transfer_created` broadcasts
+9. **WebSocket event** `transfer_created` broadcasts
 10. **UI updates** via IncrementalUpdates
 11. **Toast** notification: "Перевод успешно сохранен!"
 
@@ -513,7 +513,7 @@ form.addEventListener('submit', async function(e) {
 });
 ```
 
-## SSE Integration
+## WebSocket Integration
 
 ### Transfer Created Event
 
@@ -541,13 +541,13 @@ case 'transfer_created':
     // Refresh recent transfers widget
     await incrementalUpdates.refreshTransfers();
 
-    // No manual htmx.ajax() call - SSE handles everything
+    // No manual htmx.ajax() call - WebSocket handles everything
     break;
 ```
 
 **Why No Manual Refresh**:
 - OLD: Response handler called `htmx.ajax()` to refresh tables
-- NEW: SSE event handles refresh automatically
+- NEW: WebSocket event handles refresh automatically
 - Result: Single toast notification (not double) ✅
 
 ## Testing Strategy
@@ -838,7 +838,7 @@ console.log({
 ### 2025-12-23 (v5.2.0)
 - Added FC filter state reset (commit eb70521e)
 - Implemented deduplication via sync_hash
-- Added SSE integration for real-time updates
+- Added WebSocket integration for real-time updates
 
 ### 2025-11-15 (v5.1.0)
 - Initial transfer system implementation

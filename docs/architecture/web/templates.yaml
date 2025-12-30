@@ -102,13 +102,13 @@ templates:
       order:
         - "Offline status icon (hidden when online)"
         - "Push notification bell (subscription management)"
-        - "SSE status badge (real-time sync indicator)"
+        - "WebSocket status badge (real-time sync indicator)"
         - "Telegram bot link"
         - "Theme toggle (light/dark mode)"
         - "User dropdown menu (desktop only)"
       notes:
-        - "Push bell positioned before SSE status for visual priority"
-        - "Push notifications are user-facing, SSE is background sync"
+        - "Push bell positioned before WebSocket status for visual priority"
+        - "Push notifications are user-facing, WebSocket is background sync"
 
     navigation_progress_bar:
       id: "navigation-progress"
