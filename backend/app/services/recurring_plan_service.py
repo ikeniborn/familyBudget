@@ -1104,10 +1104,16 @@ class RecurringPlanService:
             sa_func.count().filter(RecurringPlan.is_active == False).label("paused_count"),
             sa_func.sum(
                 sa_func.case(
-                    (RecurringPlan.frequency_type == "monthly", RecurringPlan.amount),
+                    (
+                        sa_func.and_(
+                            RecurringPlan.frequency_type == "monthly",
+                            RecurringPlan.is_active == True
+                        ),
+                        RecurringPlan.amount
+                    ),
                     else_=Decimal("0")
                 )
-            ).filter(RecurringPlan.is_active == True).label("monthly_sum"),
+            ).label("monthly_sum"),
             sa_func.count().filter(
                 sa_func.and_(
                     RecurringPlan.is_active == True,
