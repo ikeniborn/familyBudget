@@ -103,7 +103,7 @@
         <div class="card-body">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="card-title text-2xl">🔴 Статистика Redis</h2>
-                <button class="btn btn-sm btn-outline btn-primary" onclick="toggleRedisDetails()">
+                <button class="btn btn-sm btn-outline btn-primary hidden md:inline-flex" onclick="toggleRedisDetails()">
                     <span id="redis-details-toggle-text">Показать детали</span>
                 </button>
             </div>
@@ -117,8 +117,8 @@
                 </div>
             </div>
 
-            <!-- Detailed Redis Stats (hidden by default) -->
-            <div id="redis-details-container" class="hidden mt-6">
+            <!-- Detailed Redis Stats (hidden by default, desktop only) -->
+            <div id="redis-details-container" class="hidden md:block mt-6">
                 <div class="divider">Детальная статистика</div>
 
                 <!-- Absolute Numbers (Hits/Misses) -->
