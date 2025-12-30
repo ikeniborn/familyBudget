@@ -862,23 +862,23 @@ main() {
     # This ensures new icons are available before Service Worker cache is updated
     regenerate_pwa_icons_if_needed
 
-    # Update Service Worker cache version (PWA)
+    # Update cache busting versions (PWA + HTML templates)
     # IMPORTANT: Must run AFTER sync to avoid git conflicts in source repository
-    # Updates sw.js ONLY in /opt/budget, leaving source repository clean
-    step "Updating Service Worker Cache Version"
+    # Updates sw.js AND HTML templates in /opt/budget, leaving source repository clean
+    step "Updating Cache Busting Versions"
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    if [[ -f "scripts/update-sw-version.sh" ]]; then
-        info "Running update-sw-version.sh in deployment directory..."
-        if ! bash scripts/update-sw-version.sh; then
-            error "CRITICAL: Failed to update Service Worker version!"
-            error "Deployment ABORTED - cannot deploy with PLACEHOLDER version"
+    if [[ -f "scripts/update-cache-busting.sh" ]]; then
+        info "Running update-cache-busting.sh in deployment directory..."
+        if ! bash scripts/update-cache-busting.sh; then
+            error "CRITICAL: Failed to update cache busting versions!"
+            error "Deployment ABORTED - cannot deploy with PLACEHOLDER tokens"
             exit 1
         fi
         echo ""
     else
-        error "CRITICAL: scripts/update-sw-version.sh not found!"
-        error "Deployment ABORTED - cannot deploy without SW version update"
+        error "CRITICAL: scripts/update-cache-busting.sh not found!"
+        error "Deployment ABORTED - cannot deploy without cache busting update"
         exit 1
     fi
 
@@ -1148,20 +1148,8 @@ main() {
         fi
     fi
 
-    # Verify cache busting succeeded
-    info "Verifying cache busting results..."
-    placeholder_count=$(grep -r "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | wc -l)
-    if [[ $placeholder_count -gt 0 ]]; then
-        warning "Found $placeholder_count PLACEHOLDER tokens after cache busting"
-        warning "Cache busting may have failed - check permissions and perl installation"
-        echo ""
-        echo "Files with PLACEHOLDER:"
-        grep -l "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | sed 's|.*/||'
-        echo ""
-    else
-        success "Cache busting verified - all PLACEHOLDER tokens replaced"
-    fi
-    echo ""
+    # Cache busting validation is now handled by update-cache-busting.sh
+    # This section removed to avoid duplication
 
     # Verify Service Worker cache version updated
     if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then

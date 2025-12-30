@@ -26,6 +26,41 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: Cache Busting System Fix - Comprehensive HTML Template Support (v6.5.2)
+- **Change:** Fixed incomplete cache busting - now processes Service Worker AND all HTML templates
+- **Problem:** Deployment warning showed PLACEHOLDER tokens remaining in HTML after cache busting:
+  ```
+  [WARNING] Found 6 PLACEHOLDER tokens after cache busting
+  Files with PLACEHOLDER: admin_logs.html, admin_monitoring.html
+  ```
+- **Root Cause:** Old script `update-sw-version.sh` only processed `sw.js`, ignored 17 HTML templates with `?v=PLACEHOLDER`
+- **Solution:** Created comprehensive `update-cache-busting.sh` script:
+  - ✅ Updates Service Worker (CACHE_VERSION_PLACEHOLDER → v{timestamp})
+  - ✅ Updates ALL HTML templates (?v=PLACEHOLDER → ?v={timestamp})
+  - ✅ Comprehensive validation (zero PLACEHOLDER tokens enforced)
+  - ✅ Detailed reporting (files updated, success/fail counts)
+  - ✅ Idempotent (safe to run multiple times)
+- **Patterns Replaced:**
+  - `?v=PLACEHOLDER` → `?v=v20251230_1830`
+  - `?version=PLACEHOLDER` → `?version=v20251230_1830`
+  - `&v=PLACEHOLDER` → `&v=v20251230_1830`
+- **Integration:**
+  - `deploy.sh:865-883` - Changed to call new comprehensive script
+  - `deploy.sh:1151-1164` - Removed duplicate validation (handled by script)
+  - Old `update-sw-version.sh` deprecated but preserved for backward compat
+- **Impact:**
+  - ✅ Zero PLACEHOLDER tokens after deployment (17 HTML files processed)
+  - ✅ Browser cache properly invalidated on every deploy
+  - ✅ Clean deployment logs (no warnings)
+  - ✅ Automatic validation with clear error messages
+- **Files Changed:**
+  - `scripts/update-cache-busting.sh` - New comprehensive script (200 lines)
+  - `deploy.sh` - Integration + removed duplicate validation
+  - `docs/architecture/cache-busting-fix.md` - Complete documentation
+- **Validation:** `grep -r "PLACEHOLDER" /opt/budget/frontend/web/templates/*.html` returns 0 (all replaced)
+
+---
+
 ### 2025-12-30: .env File Syntax Fix - Quoted Multi-word Values (v6.5.1)
 - **Change:** Fixed bash syntax error in `.env.example` causing deployment failures
 - **Problem:** Line 193 `WEBAUTHN_RP_NAME=Family Budget` (unquoted) caused error:
