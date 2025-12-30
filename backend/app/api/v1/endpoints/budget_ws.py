@@ -866,6 +866,14 @@ SAFE_ITEM_FIELDS = {
     "is_completed", "store_id", "product_group_id", "sort_order",
 }
 
+SAFE_PLAN_FIELDS = {
+    "id", "article_id", "financial_center_id", "cost_center_id",
+    "frequency_type", "frequency_value", "start_date", "end_date",
+    "occurrences_count", "occurrences_generated", "amount", "description",
+    "is_active", "next_generation_date", "enable_reminder",
+    "reminder_hour", "reminder_minute",
+}
+
 
 def _filter_fact_data(fact_data: dict) -> dict:
     """Filter fact data to include only safe fields."""
@@ -880,6 +888,11 @@ def _filter_transfer_data(transfer_data: dict) -> dict:
 def _filter_item_data(item_data: dict) -> dict:
     """Filter item data to include only safe fields."""
     return {k: v for k, v in item_data.items() if k in SAFE_ITEM_FIELDS}
+
+
+def _filter_plan_data(plan_data: dict) -> dict:
+    """Filter recurring plan data to include only safe fields."""
+    return {k: v for k, v in plan_data.items() if k in SAFE_PLAN_FIELDS}
 
 
 async def _broadcast_and_buffer(event_type: str, data: dict):
@@ -940,6 +953,39 @@ async def broadcast_plan_deleted(plan_id: int):
     """Broadcast plan deleted event."""
     logger.debug(f"broadcast_plan_deleted: plan_id={plan_id}")
     await _broadcast_and_buffer("plan_deleted", {"id": plan_id})
+
+
+# Recurring Plan broadcast functions
+
+async def broadcast_recurring_plan_created(plan_data: dict):
+    """Broadcast recurring plan creation (generates multiple facts)."""
+    filtered_data = _filter_plan_data(plan_data)
+    logger.debug(f"broadcast_recurring_plan_created: plan_id={plan_data.get('id')}")
+    await _broadcast_and_buffer("recurring_plan_created", filtered_data)
+
+
+async def broadcast_recurring_plan_updated(plan_data: dict):
+    """Broadcast recurring plan update."""
+    filtered_data = _filter_plan_data(plan_data)
+    logger.debug(f"broadcast_recurring_plan_updated: plan_id={plan_data.get('id')}")
+    await _broadcast_and_buffer("recurring_plan_updated", filtered_data)
+
+
+async def broadcast_recurring_plan_deleted(plan_id: int):
+    """Broadcast recurring plan deletion."""
+    logger.debug(f"broadcast_recurring_plan_deleted: plan_id={plan_id}")
+    await _broadcast_and_buffer("recurring_plan_deleted", {"id": plan_id})
+
+
+async def broadcast_recurring_plan_facts_generated(data: dict):
+    """
+    Broadcast when scheduler job generates new facts for recurring plans.
+
+    Called after hourly scheduler job completes fact generation.
+    Notifies all users that new facts are available.
+    """
+    logger.debug(f"broadcast_recurring_plan_facts_generated: facts={data.get('facts_count')}")
+    await _broadcast_and_buffer("recurring_plan_facts_generated", data)
 
 
 # Transfer broadcast functions

@@ -304,7 +304,10 @@ class RecurringPlanService:
         user_id: int,
     ) -> Optional[dict]:
         """
-        Get recurring plan with enriched details.
+        Get recurring plan with enriched details (optimized with JOIN).
+
+        **Optimization (v6.6.0):** Uses single JOIN query instead of 4 separate queries.
+        Performance: 4 queries → 1 query (75% reduction).
 
         Args:
             session: Database session
@@ -314,25 +317,41 @@ class RecurringPlanService:
         Returns:
             Dict with plan details or None
         """
-        plan = await self.get_recurring_plan(session, plan_id, user_id)
-        if not plan:
+        # ✅ OPTIMIZATION: Single JOIN query instead of 4 separate queries
+        stmt = (
+            select(
+                RecurringPlan,
+                Article.name.label("article_name"),
+                Article.type.label("article_type"),
+                FinancialCenter.name.label("fc_name"),
+                CostCenter.name.label("cc_name"),
+            )
+            .join(Article, RecurringPlan.article_id == Article.id)
+            .join(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)  # nullable
+            .where(RecurringPlan.id == plan_id, RecurringPlan.user_id == user_id)
+        )
+
+        result = await session.execute(stmt)
+        row = result.one_or_none()
+
+        if not row:
+            logger.debug(f"[QUERY_OPT] get_plan_with_details: plan_id={plan_id} not found or access denied")
             return None
 
-        # Get related entities
-        article = await session.get(Article, plan.article_id)
-        fc = await session.get(FinancialCenter, plan.financial_center_id)
-        cc = await session.get(CostCenter, plan.cost_center_id) if plan.cost_center_id else None
+        plan = row[0]
+        logger.info(f"[QUERY_OPT] get_plan_with_details: plan_id={plan_id}, single JOIN (4→1 queries)")
 
         return {
             "id": plan.id,
             "user_id": plan.user_id,
             "article_id": plan.article_id,
-            "article_name": article.name if article else None,
-            "article_type": article.type if article else None,
+            "article_name": row.article_name,
+            "article_type": row.article_type,
             "financial_center_id": plan.financial_center_id,
-            "financial_center_name": fc.name if fc else None,
+            "financial_center_name": row.fc_name,
             "cost_center_id": plan.cost_center_id,
-            "cost_center_name": cc.name if cc else None,
+            "cost_center_name": row.cc_name,
             "frequency_type": plan.frequency_type,
             "frequency_value": plan.frequency_value,
             "frequency_display": self._get_frequency_display(
@@ -350,6 +369,9 @@ class RecurringPlanService:
             "last_generated_date": plan.last_generated_date,
             "created_at": plan.created_at,
             "updated_at": plan.updated_at,
+            "enable_reminder": plan.enable_reminder,
+            "reminder_hour": plan.reminder_hour,
+            "reminder_minute": plan.reminder_minute,
         }
 
     async def list_recurring_plans(
@@ -454,7 +476,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         horizon_days: int = DEFAULT_GENERATION_HORIZON_DAYS,
-    ) -> int:
+    ) -> dict:
         """
         Generate pending facts for all active recurring plans.
 
@@ -465,7 +487,10 @@ class RecurringPlanService:
             horizon_days: How many days ahead to generate
 
         Returns:
-            Total number of facts generated
+            Dict with metadata:
+            - facts_created: Total number of facts generated
+            - plans_processed: Number of plans that were processed
+            - reminders_created: Number of reminders created
         """
         today = now_local().date()
 
@@ -527,7 +552,11 @@ class RecurringPlanService:
                 f"created {total_reminders_created} reminders"
             )
 
-        return total_generated
+        return {
+            "facts_created": total_generated,
+            "plans_processed": len(plans),
+            "reminders_created": total_reminders_created,
+        }
 
     async def _generate_facts_for_plan(
         self,
@@ -676,6 +705,10 @@ class RecurringPlanService:
         """
         Create scheduled reminders for generated facts (if enable_reminder=true).
 
+        **Optimization (v6.6.0):** Uses batch existence check (1 query) instead of
+        checking each fact individually (N queries). Performance: N queries → 1 query
+        (99% reduction for 100 facts).
+
         Args:
             session: Database session
             recurring_plan: Recurring plan with reminder settings
@@ -705,6 +738,18 @@ class RecurringPlanService:
         facts_stmt = select(BudgetFact).where(BudgetFact.id.in_(fact_ids))
         facts_result = await session.execute(facts_stmt)
         facts = list(facts_result.scalars().all())
+
+        # ✅ OPTIMIZATION: Batch check existing reminders (1 query instead of N)
+        existing_stmt = select(ScheduledReminder.fact_id).where(
+            ScheduledReminder.fact_id.in_(fact_ids)
+        )
+        existing_result = await session.execute(existing_stmt)
+        existing_fact_ids = set(existing_result.scalars().all())
+
+        logger.info(
+            f"[QUERY_OPT] _create_reminders_for_facts: "
+            f"batched existence check for {len(fact_ids)} facts, found {len(existing_fact_ids)} existing"
+        )
 
         logger.info(
             f"[RECURRING_REMINDER] Plan {recurring_plan.id}: Processing {len(facts)} facts "
@@ -738,13 +783,10 @@ class RecurringPlanService:
                 )
                 continue
 
-            # Check if reminder already exists (idempotency)
-            existing = await session.scalar(
-                select(ScheduledReminder).where(ScheduledReminder.fact_id == fact.id)
-            )
-            if existing:
+            # Check if reminder already exists (idempotency - pre-fetched set)
+            if fact.id in existing_fact_ids:
                 skipped_existing += 1
-                logger.debug(f"[RECURRING_REMINDER] Fact {fact.id}: reminder already exists (id={existing.id}), skipping")
+                logger.debug(f"[RECURRING_REMINDER] Fact {fact.id}: reminder already exists, skipping")
                 continue
 
             # Create reminder
@@ -1040,63 +1082,52 @@ class RecurringPlanService:
         """
         Get recurring plan statistics for dashboard.
 
+        **Optimization (v6.6.0):** Uses single aggregation query with conditional filters
+        instead of 4 separate queries. Performance: 4 queries → 1 query (75% reduction).
+
         Args:
             session: Database session
             user_id: User ID
 
         Returns:
-            Dict with statistics
+            Dict with statistics:
+            - active_count: Number of active plans
+            - paused_count: Number of paused plans
+            - total_monthly_amount: Sum of monthly plan amounts
+            - next_pending_count: Number of plans ready for generation
         """
         today = now_local().date()
 
-        # Active count
-        active_result = await session.execute(
-            select(sa_func.count())
-            .select_from(RecurringPlan)
-            .where(
-                RecurringPlan.user_id == user_id,
-                RecurringPlan.is_active == True,
-            )
-        )
-        active_count = active_result.scalar() or 0
+        # ✅ OPTIMIZATION: Single aggregation query with conditional filters (4→1 queries)
+        stmt = select(
+            sa_func.count().filter(RecurringPlan.is_active == True).label("active_count"),
+            sa_func.count().filter(RecurringPlan.is_active == False).label("paused_count"),
+            sa_func.sum(
+                sa_func.case(
+                    (RecurringPlan.frequency_type == "monthly", RecurringPlan.amount),
+                    else_=Decimal("0")
+                )
+            ).filter(RecurringPlan.is_active == True).label("monthly_sum"),
+            sa_func.count().filter(
+                sa_func.and_(
+                    RecurringPlan.is_active == True,
+                    RecurringPlan.next_generation_date <= today
+                )
+            ).label("pending_count"),
+        ).where(RecurringPlan.user_id == user_id)
 
-        # Paused count
-        paused_result = await session.execute(
-            select(sa_func.count())
-            .select_from(RecurringPlan)
-            .where(
-                RecurringPlan.user_id == user_id,
-                RecurringPlan.is_active == False,
-            )
-        )
-        paused_count = paused_result.scalar() or 0
+        result = await session.execute(stmt)
+        row = result.one()
 
-        # Total monthly amount (approximate for non-monthly frequencies)
-        monthly_result = await session.execute(
-            select(sa_func.sum(RecurringPlan.amount))
-            .where(
-                RecurringPlan.user_id == user_id,
-                RecurringPlan.is_active == True,
-                RecurringPlan.frequency_type == "monthly",
-            )
+        logger.info(
+            f"[QUERY_OPT] get_stats: user_id={user_id}, single aggregation "
+            f"(4→1 queries), active={row.active_count}, paused={row.paused_count}, "
+            f"monthly_sum={row.monthly_sum}, pending={row.pending_count}"
         )
-        monthly_sum = monthly_result.scalar() or Decimal("0")
-
-        # Next pending today
-        pending_result = await session.execute(
-            select(sa_func.count())
-            .select_from(RecurringPlan)
-            .where(
-                RecurringPlan.user_id == user_id,
-                RecurringPlan.is_active == True,
-                RecurringPlan.next_generation_date <= today,
-            )
-        )
-        next_pending = pending_result.scalar() or 0
 
         return {
-            "active_count": active_count,
-            "paused_count": paused_count,
-            "total_monthly_amount": monthly_sum,
-            "next_pending_count": next_pending,
+            "active_count": row.active_count or 0,
+            "paused_count": row.paused_count or 0,
+            "total_monthly_amount": row.monthly_sum or Decimal("0"),
+            "next_pending_count": row.pending_count or 0,
         }

@@ -10,6 +10,8 @@ CRUD operations for recurring (scheduled) payments:
 - Get statistics
 """
 
+import hashlib
+import json
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -26,7 +28,9 @@ from backend.app.schemas.recurring_plan import (
     RecurringPlanStats,
     RecurringPlanUpdate,
 )
+from backend.app.services.cache_service import CacheKey, CacheService
 from backend.app.services.recurring_plan_service import RecurringPlanService
+import backend.app.api.v1.endpoints.budget_ws as ws
 
 logger = get_logger(__name__)
 
@@ -36,6 +40,28 @@ router = APIRouter(prefix="/recurring-plans", tags=["recurring-plans"])
 def get_recurring_plan_service() -> RecurringPlanService:
     """Get recurring plan service instance."""
     return RecurringPlanService()
+
+
+def get_cache_service() -> CacheService:
+    """Get cache service instance."""
+    return CacheService()
+
+
+def _generate_filter_hash(filters: dict) -> str:
+    """
+    Generate MD5 hash from filter parameters for cache isolation.
+
+    Ensures different filter combinations get separate cache entries.
+
+    Args:
+        filters: Dictionary of filter parameters
+
+    Returns:
+        12-character MD5 hash of filter parameters
+    """
+    # Sort keys for deterministic hash
+    filter_str = json.dumps(filters, sort_keys=True, default=str)
+    return hashlib.md5(filter_str.encode()).hexdigest()[:12]
 
 
 # NOTE: General route "/" must be defined BEFORE parameterized routes "/{id}"
@@ -50,9 +76,13 @@ async def list_recurring_plans(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
-    List all recurring plans for current user.
+    List all recurring plans for current user with Redis caching.
+
+    **Optimization (v6.6.0):** Uses Redis caching with 2-minute TTL.
+    Cache invalidated after mutations. Different filter combinations cached separately.
 
     Args:
         is_active: Optional filter by active status
@@ -61,10 +91,33 @@ async def list_recurring_plans(
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Paginated list of recurring plans with details
     """
+    # Generate filter hash for cache isolation
+    filters = {
+        "skip": skip,
+        "limit": limit,
+        "is_active": is_active,
+    }
+    filter_hash = _generate_filter_hash(filters) if is_active is not None else None
+
+    # Try cache first
+    cache_key = CacheKey.recurring_plan_list(current_user.id, filter_hash)
+    cached = await cache_service.get(cache_key)
+
+    if cached:
+        logger.info(
+            f"[RECURRING_PLAN_CACHE] List cache HIT: user_id={current_user.id}, "
+            f"filter_hash={filter_hash}"
+        )
+        return RecurringPlanListResponse(**cached)
+
+    logger.info(f"[RECURRING_PLAN_CACHE] List cache MISS, fetching from DB")
+
+    # Fetch from DB
     items, total = await service.list_recurring_plans(
         session=session,
         user_id=current_user.id,
@@ -73,12 +126,18 @@ async def list_recurring_plans(
         limit=limit,
     )
 
-    return RecurringPlanListResponse(
-        items=items,
-        total=total,
-        skip=skip,
-        limit=limit,
-    )
+    result = {
+        "items": items,
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+    # Cache with TTL (2 min)
+    await cache_service.set(cache_key, result, ttl=120)
+    logger.info(f"[RECURRING_PLAN_CACHE] List cached: ttl=120s, filter_hash={filter_hash}")
+
+    return RecurringPlanListResponse(**result)
 
 
 @router.get("/stats", response_model=RecurringPlanStats)
@@ -86,22 +145,42 @@ async def get_recurring_plan_stats(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
-    Get recurring plan statistics for dashboard.
+    Get recurring plan statistics for dashboard with Redis caching.
+
+    **Optimization (v6.6.0):** Uses Redis caching with 5-minute TTL.
+    Cache invalidated after mutations (create, update, delete, activate).
 
     Args:
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Statistics including active count, paused count, monthly amount, pending count
     """
+    # Try cache first
+    cache_key = CacheKey.recurring_plan_stats(current_user.id)
+    cached = await cache_service.get(cache_key)
+
+    if cached:
+        logger.info(f"[RECURRING_PLAN_CACHE] Stats cache HIT: user_id={current_user.id}")
+        return RecurringPlanStats(**cached)
+
+    logger.info(f"[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
+
+    # Fetch from DB (optimized version from Phase 2.2)
     stats = await service.get_stats(
         session=session,
         user_id=current_user.id,
     )
+
+    # Cache with TTL (5 min per requirements)
+    await cache_service.set(cache_key, stats, ttl=300)
+    logger.info(f"[RECURRING_PLAN_CACHE] Stats cached: ttl=300s")
 
     return RecurringPlanStats(**stats)
 
@@ -112,6 +191,7 @@ async def create_recurring_plan(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Create a new recurring plan.
@@ -123,6 +203,7 @@ async def create_recurring_plan(
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Created recurring plan with details
@@ -149,6 +230,14 @@ async def create_recurring_plan(
             f"({data.frequency_type})"
         )
 
+        # Invalidate cache after creation
+        await cache_service.invalidate_recurring_plans(current_user.id)
+        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after CREATE: plan_id={plan.id}")
+
+        # WebSocket broadcast - instant update
+        await ws.broadcast_recurring_plan_created(plan_details)
+        logger.info(f"[WS] Broadcasted recurring_plan_created: plan_id={plan.id}")
+
         return RecurringPlanResponse(**plan_details)
 
     except ValueError as e:
@@ -164,15 +253,20 @@ async def get_recurring_plan(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
-    Get recurring plan details by ID.
+    Get recurring plan details by ID with Redis caching.
+
+    **Optimization (v6.6.0):** Uses Redis caching with 30-minute TTL.
+    Cache invalidated after mutations.
 
     Args:
         plan_id: Recurring plan ID
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Recurring plan with full details
@@ -180,6 +274,17 @@ async def get_recurring_plan(
     Raises:
         404: If plan not found or doesn't belong to user
     """
+    # Try cache first
+    cache_key = CacheKey.recurring_plan_detail(plan_id)
+    cached = await cache_service.get(cache_key)
+
+    if cached:
+        logger.info(f"[RECURRING_PLAN_CACHE] Detail cache HIT: plan_id={plan_id}")
+        return RecurringPlanResponse(**cached)
+
+    logger.info(f"[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
+
+    # Fetch from DB (optimized version from Phase 2.1)
     plan_details = await service.get_plan_with_details(
         session=session,
         plan_id=plan_id,
@@ -191,6 +296,10 @@ async def get_recurring_plan(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Recurring plan with ID {plan_id} not found",
         )
+
+    # Cache with TTL (30 min)
+    await cache_service.set(cache_key, plan_details, ttl=1800)
+    logger.info(f"[RECURRING_PLAN_CACHE] Detail cached: ttl=1800s")
 
     return RecurringPlanResponse(**plan_details)
 
@@ -206,6 +315,7 @@ async def update_recurring_plan(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Update a recurring plan.
@@ -222,6 +332,7 @@ async def update_recurring_plan(
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Updated recurring plan
@@ -250,6 +361,14 @@ async def update_recurring_plan(
         logger.info(
             f"[API] User {current_user.id} updated recurring plan {plan_id}"
         )
+
+        # Invalidate cache after update
+        await cache_service.invalidate_recurring_plans(current_user.id)
+        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after UPDATE: plan_id={plan_id}")
+
+        # WebSocket broadcast - instant update
+        await ws.broadcast_recurring_plan_updated(plan_details)
+        logger.info(f"[WS] Broadcasted recurring_plan_updated: plan_id={plan_id}")
 
         return RecurringPlanResponse(**plan_details)
 
@@ -282,6 +401,7 @@ async def deactivate_recurring_plan(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Deactivate (soft delete) a recurring plan.
@@ -294,6 +414,7 @@ async def deactivate_recurring_plan(
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         No content on success
@@ -313,6 +434,14 @@ async def deactivate_recurring_plan(
         logger.info(
             f"[API] User {current_user.id} deactivated recurring plan {plan_id}"
         )
+
+        # Invalidate cache after deactivation
+        await cache_service.invalidate_recurring_plans(current_user.id)
+        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after DELETE: plan_id={plan_id}")
+
+        # WebSocket broadcast - instant update
+        await ws.broadcast_recurring_plan_deleted(plan_id)
+        logger.info(f"[WS] Broadcasted recurring_plan_deleted: plan_id={plan_id}")
 
     except ValueError as e:
         error_msg = str(e)
@@ -339,6 +468,7 @@ async def activate_recurring_plan(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
+    cache_service: CacheService = Depends(get_cache_service),
 ):
     """
     Reactivate a paused recurring plan.
@@ -348,6 +478,7 @@ async def activate_recurring_plan(
         current_user: Authenticated user
         session: Database session
         service: Recurring plan service
+        cache_service: Cache service
 
     Returns:
         Reactivated recurring plan
@@ -375,6 +506,14 @@ async def activate_recurring_plan(
         logger.info(
             f"[API] User {current_user.id} activated recurring plan {plan_id}"
         )
+
+        # Invalidate cache after activation
+        await cache_service.invalidate_recurring_plans(current_user.id)
+        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after ACTIVATE: plan_id={plan_id}")
+
+        # WebSocket broadcast - instant update
+        await ws.broadcast_recurring_plan_updated(plan_details)
+        logger.info(f"[WS] Broadcasted recurring_plan_updated (ACTIVATE): plan_id={plan_id}")
 
         return RecurringPlanResponse(**plan_details)
 

@@ -353,6 +353,30 @@ async def generate_recurring_facts_job():
                     f"{result['plans_processed']} plans"
                 )
 
+                # ✅ CRITICAL: Invalidate cache + WebSocket broadcast after scheduler generation
+                if result['facts_created'] > 0:
+                    from backend.app.services.cache_service import CacheService
+                    import backend.app.api.v1.endpoints.budget_ws as ws
+
+                    # Invalidate cache for all users (scheduler affects all users)
+                    cache_service = CacheService()
+                    await cache_service.invalidate_recurring_plans(user_id=None)
+                    logger.info(
+                        f"[SCHEDULER] Cache invalidated after generating "
+                        f"{result['facts_created']} facts"
+                    )
+
+                    # Broadcast WebSocket event to ALL users
+                    await ws.broadcast_recurring_plan_facts_generated({
+                        "facts_count": result['facts_created'],
+                        "plans_count": result['plans_processed'],
+                        "reminders_count": result.get('reminders_created', 0),
+                    })
+                    logger.info(
+                        f"[SCHEDULER] Broadcasted recurring_plan_facts_generated: "
+                        f"{result['facts_created']} facts for {result['plans_processed']} plans"
+                    )
+
             finally:
                 # Always release the lock
                 await release_advisory_lock(session, LOCK_ID_RECURRING_PLANS)

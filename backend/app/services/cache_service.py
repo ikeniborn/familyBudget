@@ -112,6 +112,23 @@ class CacheKey:
         """Cache key for recent transactions HTML."""
         return cls(prefix="recent", parts=("html", str(limit)))
 
+    @classmethod
+    def recurring_plan_list(cls, user_id: int, filter_hash: str | None = None) -> "CacheKey":
+        """Cache key for recurring plan list with optional filter hash."""
+        if filter_hash:
+            return cls(prefix="recurring_plans", parts=(str(user_id), "list", filter_hash))
+        return cls(prefix="recurring_plans", parts=(str(user_id), "list"))
+
+    @classmethod
+    def recurring_plan_detail(cls, plan_id: int) -> "CacheKey":
+        """Cache key for single recurring plan detail."""
+        return cls(prefix="recurring_plans", parts=(str(plan_id),))
+
+    @classmethod
+    def recurring_plan_stats(cls, user_id: int) -> "CacheKey":
+        """Cache key for recurring plan statistics."""
+        return cls(prefix="recurring_plans", parts=(str(user_id), "stats"))
+
 
 class CacheService:
     """
@@ -319,6 +336,29 @@ class CacheService:
     async def invalidate_cost_centers(self) -> int:
         """Invalidate all cost center cache."""
         return await self.invalidate_pattern("cost_centers:*")
+
+    async def invalidate_recurring_plans(self, user_id: int | None = None) -> int:
+        """
+        Invalidate recurring plan cache.
+
+        Called after mutations: create, update, delete, activate.
+        Ensures fresh data on next request.
+
+        Args:
+            user_id: If specified, invalidate only this user's cache.
+                     If None, invalidate ALL recurring plan caches (admin operation).
+
+        Returns:
+            Number of keys invalidated
+        """
+        if user_id:
+            pattern = f"recurring_plans:{user_id}:*"
+        else:
+            pattern = "recurring_plans:*"
+
+        count = await self.invalidate_pattern(pattern)
+        logger.info(f"[RECURRING_PLAN_CACHE] Invalidated {count} keys: pattern={pattern}")
+        return count
 
     async def invalidate_dashboard(self) -> int:
         """Invalidate dashboard cache (quick stats, balances)."""
