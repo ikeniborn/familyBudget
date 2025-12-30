@@ -101,7 +101,12 @@
     <!-- Redis Statistics -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">🔴 Статистика Redis</h2>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="card-title text-2xl">🔴 Статистика Redis</h2>
+                <button class="btn btn-sm btn-outline btn-primary" onclick="toggleRedisDetails()">
+                    <span id="redis-details-toggle-text">Показать детали</span>
+                </button>
+            </div>
 
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="redis-stats-container">
                 <div class="stat">
@@ -109,6 +114,64 @@
                         <span class="loading loading-spinner loading-lg"></span>
                     </div>
                     <div class="stat-title">Загрузка...</div>
+                </div>
+            </div>
+
+            <!-- Detailed Redis Stats (hidden by default) -->
+            <div id="redis-details-container" class="hidden mt-6">
+                <div class="divider">Детальная статистика</div>
+
+                <!-- Absolute Numbers (Hits/Misses) -->
+                <div class="stats shadow w-full mb-4">
+                    <div class="stat">
+                        <div class="stat-figure text-success">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="stat-title">Keyspace Hits</div>
+                        <div class="stat-value text-success" id="redis-hits">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-figure text-error">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <div class="stat-title">Keyspace Misses</div>
+                        <div class="stat-value text-error" id="redis-misses">--</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Redis Version</div>
+                        <div class="stat-value text-sm" id="redis-version">--</div>
+                        <div class="stat-desc" id="redis-uptime">Uptime: --</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Memory Peak</div>
+                        <div class="stat-value text-sm text-warning" id="redis-memory-peak">--</div>
+                        <div class="stat-desc" id="redis-clients">Clients: --</div>
+                    </div>
+                </div>
+
+                <!-- Cache Breakdown by Category -->
+                <div class="card bg-base-200">
+                    <div class="card-body">
+                        <h3 class="card-title text-lg">📊 Breakdown по категориям</h3>
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra">
+                                <thead>
+                                    <tr>
+                                        <th>Категория</th>
+                                        <th class="text-right">Ключей</th>
+                                        <th class="text-right">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cache-breakdown-tbody">
+                                    <tr>
+                                        <td colspan="3" class="text-center">
+                                            <span class="loading loading-spinner loading-sm"></span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -281,6 +344,12 @@ async function loadMonitoringData() {
 
         // Load cache metrics
         await loadCacheMetrics();
+
+        // Reload detailed Redis stats if panel is visible
+        const detailsContainer = document.getElementById('redis-details-container');
+        if (detailsContainer && !detailsContainer.classList.contains('hidden')) {
+            await loadDetailedRedisStats();
+        }
     } catch (error) {
         console.error('Error loading monitoring data:', error);
         showError('Не удалось загрузить данные мониторинга');
@@ -820,6 +889,162 @@ function formatBytes(bytes) {
     const value = Math.round((bytes / Math.pow(k, i)) * 100) / 100;
 
     return value + ' ' + sizes[i];
+}
+
+// ============================================================
+// Detailed Redis Statistics
+// ============================================================
+
+// Toggle detailed Redis stats visibility
+function toggleRedisDetails() {
+    const container = document.getElementById('redis-details-container');
+    const toggleText = document.getElementById('redis-details-toggle-text');
+
+    if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        toggleText.textContent = 'Скрыть детали';
+
+        // Load detailed stats when showing
+        loadDetailedRedisStats();
+    } else {
+        container.classList.add('hidden');
+        toggleText.textContent = 'Показать детали';
+    }
+}
+
+// Load detailed Redis statistics
+async function loadDetailedRedisStats() {
+    try {
+        const response = await fetch('/api/v1/admin/redis-stats', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderDetailedRedisStats(data);
+    } catch (error) {
+        console.error('[REDIS_STATS] Error loading detailed stats:', error);
+        showDetailedRedisStatsError();
+    }
+}
+
+// Render detailed Redis statistics
+function renderDetailedRedisStats(data) {
+    // Update absolute numbers (hits/misses)
+    document.getElementById('redis-hits').textContent =
+        data.keyspace_hits ? data.keyspace_hits.toLocaleString('ru-RU') : '--';
+
+    document.getElementById('redis-misses').textContent =
+        data.keyspace_misses ? data.keyspace_misses.toLocaleString('ru-RU') : '--';
+
+    // Update Redis version and uptime
+    document.getElementById('redis-version').textContent =
+        data.redis_version || '--';
+
+    const uptimeDays = data.uptime_days || 0;
+    document.getElementById('redis-uptime').textContent =
+        `Uptime: ${uptimeDays} ${uptimeDays === 1 ? 'день' : uptimeDays < 5 ? 'дня' : 'дней'}`;
+
+    // Update memory peak and clients
+    document.getElementById('redis-memory-peak').textContent =
+        data.used_memory_peak || '--';
+
+    document.getElementById('redis-clients').textContent =
+        `Clients: ${data.connected_clients || 0}`;
+
+    // Render cache breakdown table
+    renderCacheBreakdown(data.cache_breakdown);
+}
+
+// Render cache breakdown by category
+function renderCacheBreakdown(breakdown) {
+    const tbody = document.getElementById('cache-breakdown-tbody');
+
+    if (!breakdown || !breakdown.by_category) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="3" class="text-center text-base-content/60">Нет данных</td>
+            </tr>
+        `;
+        return;
+    }
+
+    const total = breakdown.total_cache_keys || 0;
+    const categories = breakdown.by_category;
+
+    // Category name mapping (Russian)
+    const categoryNames = {
+        'articles': '📂 Articles (статьи)',
+        'financial_centers': '🏦 Financial Centers (счета)',
+        'cost_centers': '💼 Cost Centers (места затрат)',
+        'recurring_plans': '🔄 Recurring Plans (регулярные)',
+        'dashboard': '📊 Dashboard (дашборд)',
+        'recent': '🕐 Recent (недавние)',
+        'other': '📦 Other (прочие)'
+    };
+
+    let html = '';
+
+    // Sort categories by count (descending)
+    const sortedCategories = Object.entries(categories)
+        .sort((a, b) => b[1] - a[1]);
+
+    // Render each category
+    for (const [category, count] of sortedCategories) {
+        if (count === 0) continue; // Skip empty categories
+
+        const percent = total > 0 ? (count / total * 100).toFixed(1) : 0;
+        const displayName = categoryNames[category] || category;
+
+        html += `
+            <tr>
+                <td>${displayName}</td>
+                <td class="text-right font-semibold">${count.toLocaleString('ru-RU')}</td>
+                <td class="text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <progress class="progress progress-primary w-20" value="${percent}" max="100"></progress>
+                        <span class="text-sm">${percent}%</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    // Add total row
+    html += `
+        <tr class="font-bold border-t-2">
+            <td>Итого</td>
+            <td class="text-right">${total.toLocaleString('ru-RU')}</td>
+            <td class="text-right">100%</td>
+        </tr>
+    `;
+
+    tbody.innerHTML = html || `
+        <tr>
+            <td colspan="3" class="text-center text-base-content/60">Кеш пуст</td>
+        </tr>
+    `;
+}
+
+// Show error for detailed stats
+function showDetailedRedisStatsError() {
+    document.getElementById('redis-hits').textContent = 'ERR';
+    document.getElementById('redis-misses').textContent = 'ERR';
+    document.getElementById('redis-version').textContent = '--';
+    document.getElementById('redis-uptime').textContent = 'Uptime: --';
+    document.getElementById('redis-memory-peak').textContent = '--';
+    document.getElementById('redis-clients').textContent = 'Clients: --';
+
+    document.getElementById('cache-breakdown-tbody').innerHTML = `
+        <tr>
+            <td colspan="3" class="text-center">
+                <span class="text-error">❌ Ошибка загрузки данных</span>
+            </td>
+        </tr>
+    `;
 }
 
 // ============================================================
