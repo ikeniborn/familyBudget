@@ -1012,7 +1012,6 @@ async function loadFinancialCenters() {
 
                 // Update fact hints for current month
                 const selectedCategory = createCategoryTreeSelect?.getSelectedCategory();
-                const fcId = createSelect.value ? parseInt(createSelect.value) : null;
 
                 console.log('[FC_CHANGE] Checking if should load fact hints:', {
                     fcId: fcId,

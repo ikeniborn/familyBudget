@@ -26,6 +26,36 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: JavaScript SyntaxError Fix - Duplicate fcId Declaration (v6.5.1)
+- **Change:** Removed duplicate `const fcId` declaration in facts.html causing page load failure
+- **Problem:** /facts page failed to load with JavaScript SyntaxError:
+  ```
+  Uncaught SyntaxError: Identifier 'fcId' has already been declared
+  ```
+- **Root Cause:** Line 1015 in facts.html redeclared `fcId` variable in the same scope as line 992:
+  ```javascript
+  createSelect.addEventListener('change', async (e) => {
+      const fcId = createSelect.value ? parseInt(createSelect.value) : null;  // Line 992 ✓
+      // ... 20 lines of code ...
+      const fcId = createSelect.value ? parseInt(createSelect.value) : null;  // Line 1015 ✗ DUPLICATE
+  });
+  ```
+  - Both declarations in the same async callback function scope
+  - ES6 strict mode rejects duplicate `const` identifiers
+  - Page failed to load, facts not displayed, dropdown functionality broken
+- **Solution:** Removed duplicate declaration on line 1015, reuse existing variable from line 992
+- **Impact:**
+  - ✅ /facts page now loads correctly
+  - ✅ Financial center dropdown functions properly
+  - ✅ Category filtering works as expected
+  - ✅ Fact hints load correctly
+- **Files Modified:**
+  - `frontend/web/templates/facts.html` (line 1015 deleted)
+- **Verification:** Manual syntax check + visual inspection confirmed fix
+- **See also:** Similar patterns checked in transfer.js, plan.html, index.html - all clean
+
+---
+
 ### 2025-12-30: Deployment Resilience - npm Timeout + Retry Protection (v6.5.5)
 - **Change:** Extended Installation Resilience Framework to deployment script - all npm operations now use timeout + retry
 - **Problem:** Deployment hung indefinitely during npm package installation on slow/failing networks:
