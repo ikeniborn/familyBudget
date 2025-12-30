@@ -50,7 +50,7 @@
    - 373 теста (Unit + Integration + E2E)
 
 3. **Real-time Monitoring Dashboard**
-   - Server-Sent Events (SSE) для real-time обновлений
+   - WebSocket (с Long Polling fallback) для real-time обновлений
    - Database metrics, system metrics, recent logs
 
 4. **Автоматизированное развертывание**
@@ -115,7 +115,7 @@
 | **FR-020-021** | CRUD администрирование | Phase 1 | High | ✅ DONE | Веб-интерфейс + 13 admin endpoints |
 | **FR-050** | Автоматическое резервное копирование | Phase 1 | High | ✅ DONE | Локально (7 дней) + S3 (28 дней) |
 | **FR-060** | Bash скрипты для развертывания | Phase 1 | High | ✅ DONE | install.sh + setup.sh + deploy.sh |
-| **FR-051** | Real-time Monitoring Dashboard | Phase 1 | High | ✅ DONE (NEW) | HTMX + SSE, metrics, logs |
+| **FR-051** | Real-time Monitoring Dashboard | Phase 1 | High | ✅ DONE (NEW) | HTMX + WebSocket, metrics, logs |
 | **FR-052** | Enhanced Health Check Endpoints | Phase 1 | Medium | ✅ DONE (NEW) | /health, /health/detailed, /ready, /ping |
 | **FR-053** | Hierarchy API endpoints | Phase 1 | Medium | ✅ DONE (NEW) | /subtree, /ancestors |
 | **FR-001-006** | Telegram Bot Commands | Phase 2 | Critical | ✅ DONE | 8 команд, ConversationHandler, уведомления, отчеты |

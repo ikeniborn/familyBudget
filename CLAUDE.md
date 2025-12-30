@@ -1565,24 +1565,28 @@ fact_history = BudgetFactHistory(
 # → IntegrityError: null value in column "record_type"
 ```
 
-### SSE Single Worker Requirement
+### WebSocket Single Worker Requirement (Legacy - Now Redis Enabled)
 
-**CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).
+**NOTE:** Multi-worker support added via Redis Pub/Sub in backend v5.x+
 
-The SSE implementation uses in-memory BudgetConnectionManager which does NOT share state between workers. Running with multiple workers will cause SSE events to be lost.
+**Legacy constraint (v1.x-v4.x):**
+- WebSocket used in-memory BudgetConnectionManager (no cross-worker sync)
+- WORKERS=1 was mandatory to prevent event loss
 
-**Why this is critical:**
-- SSE is used for real-time updates on main page (metrics, recent records)
-- Each uvicorn worker has its OWN instance of `BudgetConnectionManager`
-- In multi-worker: user A on worker 1 creates transaction → broadcast only goes to worker 1 clients
-- User B on worker 2 does NOT receive event → doesn't see changes without reload
+**Current architecture (v5.x+):**
+- **Redis Pub/Sub** synchronizes events between workers
+- Multi-worker deployment supported (configure WORKERS in .env)
+- Fallback to in-memory if Redis unavailable (single worker only)
 
 **Configuration:**
-- `docker-compose.yml`: `--workers 1` (hardcoded)
-- `setup.sh`: WORKERS=1 (no option to change)
-- Dockerfile: `--workers 1` (default)
+- `docker-compose.yml`: `--workers 1` (default, safe for all setups)
+- `setup.sh`: WORKERS configurable via .env
+- Redis: Optional but recommended for scaling
 
-**For scaling:** Need to implement Redis Pub/Sub for SSE event synchronization between workers.
+**For scaling:**
+- Set `REDIS_ENABLED=true` in .env
+- Configure WORKERS > 1 for load balancing
+- Redis Pub/Sub handles event broadcasting across workers
 
 ### Testing: Verify DB After Operations
 
