@@ -101,12 +101,7 @@
     <!-- Redis Statistics -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">🔴 Статистика Redis</h2>
-                <button class="btn btn-sm btn-outline btn-primary hidden md:inline-flex" onclick="toggleRedisDetails()">
-                    <span id="redis-details-toggle-text">Показать детали</span>
-                </button>
-            </div>
+            <h2 class="card-title text-2xl mb-4">🔴 Статистика Redis</h2>
 
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="redis-stats-container">
                 <div class="stat">
@@ -117,8 +112,8 @@
                 </div>
             </div>
 
-            <!-- Detailed Redis Stats (hidden by default, desktop only) -->
-            <div id="redis-details-container" class="hidden md:block mt-6">
+            <!-- Detailed Redis Stats (desktop only, always visible) -->
+            <div id="redis-details-container" class="mt-6 hidden md:block">
                 <div class="divider">Детальная статистика</div>
 
                 <!-- Absolute Numbers (Hits/Misses) -->
@@ -345,11 +340,8 @@ async function loadMonitoringData() {
         // Load cache metrics
         await loadCacheMetrics();
 
-        // Reload detailed Redis stats if panel is visible
-        const detailsContainer = document.getElementById('redis-details-container');
-        if (detailsContainer && !detailsContainer.classList.contains('hidden')) {
-            await loadDetailedRedisStats();
-        }
+        // Load detailed Redis stats (always on desktop)
+        await loadDetailedRedisStats();
     } catch (error) {
         console.error('Error loading monitoring data:', error);
         showError('Не удалось загрузить данные мониторинга');
