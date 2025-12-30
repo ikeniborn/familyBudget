@@ -1397,24 +1397,34 @@ class ListsManager {
         // FIX: Add z-index class toggle for modal dropdown
         // ============================================
         const modal = document.getElementById('item-modal');
+        console.warn('[LISTS_MODAL] Modal element:', modal);
+
         if (modal) {
             // Get Choices container directly from Choices.js instance API
             // containerOuter.element is the main .choices DOM element
             const choicesContainer = this.choicesInstances.store.containerOuter.element;
+            console.warn('[LISTS_MODAL] Choices container element:', choicesContainer);
+            console.warn('[LISTS_MODAL] Container classes:', choicesContainer ? choicesContainer.className : 'N/A');
 
             if (choicesContainer) {
                 // Create MutationObserver to watch for .is-open class changes
                 const observer = new MutationObserver((mutations) => {
                     mutations.forEach((mutation) => {
+                        console.warn('[LISTS_MODAL] Mutation detected:', mutation.type, mutation.attributeName);
+                        console.warn('[LISTS_MODAL] Current classes:', choicesContainer.className);
+                        console.warn('[LISTS_MODAL] Has is-open:', choicesContainer.classList.contains('is-open'));
+
                         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                             if (choicesContainer.classList.contains('is-open')) {
                                 // Dropdown opened
                                 modal.classList.add('store-dropdown-open');
-                                console.log('[LISTS_MODAL] Store dropdown opened - z-index fix applied');
+                                console.warn('[LISTS_MODAL] ✅ Store dropdown OPENED - z-index fix applied');
+                                console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
                             } else {
                                 // Dropdown closed
                                 modal.classList.remove('store-dropdown-open');
-                                console.log('[LISTS_MODAL] Store dropdown closed - z-index fix removed');
+                                console.warn('[LISTS_MODAL] ❌ Store dropdown CLOSED - z-index fix removed');
+                                console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
                             }
                         }
                     });
@@ -1426,10 +1436,14 @@ class ListsManager {
                     attributeFilter: ['class']
                 });
 
-                console.log('[LISTS_MODAL] Store dropdown z-index fix initialized (MutationObserver)');
+                console.warn('[LISTS_MODAL] 🎯 Store dropdown z-index fix initialized (MutationObserver)');
+                console.warn('[LISTS_MODAL] Observing element:', choicesContainer);
             } else {
-                console.error('[LISTS_MODAL] Choices container not found in instance API');
+                console.error('[LISTS_MODAL] ⚠️ Choices container not found in instance API');
+                console.warn('[LISTS_MODAL] Store instance:', this.choicesInstances.store);
             }
+        } else {
+            console.error('[LISTS_MODAL] ⚠️ Modal element #item-modal not found');
         }
     }
 
