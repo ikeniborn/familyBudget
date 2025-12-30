@@ -47,13 +47,14 @@ update_service_worker() {
     cp "$SW_FILE" "${SW_FILE}.bak"
 
     # Replace CACHE_VERSION_PLACEHOLDER or previous version with new version
-    # Support both single/double quotes and with/without spaces (minified vs source syntax)
-    sed -i.tmp "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"'];/const CACHE_VERSION=\"${NEW_VERSION}\";/" "$SW_FILE"
+    # Support both single/double quotes, with/without spaces, with/without const
+    # Preserve original separator (';' in source, ',' in minified)
+    sed -i.tmp "s/\(const \)\?CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"']\([;,]\)/\1CACHE_VERSION=\"${NEW_VERSION}\"\3/" "$SW_FILE"
     rm -f "${SW_FILE}.tmp"
 
     # Verify replacement
-    # Check both quote styles and spacing variations
-    if grep -qE "const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'];" "$SW_FILE"; then
+    # Check both quote styles, spacing variations, and separators (';' or ',')
+    if grep -qE "(const )?CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'][;,]" "$SW_FILE"; then
         echo -e "  ${GREEN}✓${NC} Service Worker updated: ${BLUE}${NEW_VERSION}${NC}"
         rm -f "${SW_FILE}.bak"
         return 0
