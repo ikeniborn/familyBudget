@@ -1074,6 +1074,13 @@ main() {
         if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
             (
                 cd "$DEPLOY_DIR"
+                # BUGFIX: Configure PATH for terser access in subshell
+                # Parent shell's PATH was restored after npm run build (line 1045)
+                # Subshell needs PATH reconfigured to access terser binary
+                local node_modules_dir="$DEPLOY_DIR/.npm-isolated/node_modules"
+                if [[ -d "$node_modules_dir/.bin" ]]; then
+                    export PATH="$node_modules_dir/.bin:$PATH"
+                fi
                 source scripts/lib/minify.sh
                 minify_service_worker
             )
