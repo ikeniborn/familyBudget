@@ -1421,29 +1421,43 @@ class ListsManager {
                                 console.warn('[LISTS_MODAL] ✅ Store dropdown OPENED - z-index fix applied');
                                 console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
 
-                                // DIAGNOSTIC: Find dropdown element and check its location
-                                const dropdown = choicesContainer.querySelector('.choices__list--dropdown');
-                                if (dropdown) {
-                                    console.warn('[LISTS_MODAL] 🔍 DROPDOWN FOUND:', dropdown);
-                                    console.warn('[LISTS_MODAL] 🔍 Dropdown parent:', dropdown.parentElement);
-                                    console.warn('[LISTS_MODAL] 🔍 Dropdown computed z-index:', window.getComputedStyle(dropdown).zIndex);
+                                // DIAGNOSTIC: Check ALL dropdowns (Choices.js creates multiple)
+                                setTimeout(() => {
+                                    const allDropdowns = document.querySelectorAll('.choices__list--dropdown');
+                                    console.warn('[LISTS_MODAL] 🔍 Total dropdowns in DOM:', allDropdowns.length);
 
-                                    // Check if dropdown is inside modal
-                                    const isInsideModal = modal.contains(dropdown);
-                                    console.warn('[LISTS_MODAL] 🔍 Dropdown is inside modal?', isInsideModal);
+                                    allDropdowns.forEach((dropdown, index) => {
+                                        const style = window.getComputedStyle(dropdown);
+                                        const rect = dropdown.getBoundingClientRect();
+                                        const isVisible = style.display !== 'none' && rect.height > 0;
 
-                                    // Show parent chain
-                                    let parent = dropdown.parentElement;
-                                    let depth = 0;
-                                    console.warn('[LISTS_MODAL] 🔍 Parent chain:');
-                                    while (parent && depth < 10) {
-                                        console.warn(`[LISTS_MODAL]    ${depth}: ${parent.tagName}#${parent.id || 'NO-ID'}.${parent.className}`);
-                                        parent = parent.parentElement;
-                                        depth++;
-                                    }
-                                } else {
-                                    console.error('[LISTS_MODAL] ⚠️ DROPDOWN ELEMENT NOT FOUND');
-                                }
+                                        console.warn(`[LISTS_MODAL] 🔍 Dropdown #${index}:`, {
+                                            display: style.display,
+                                            visibility: style.visibility,
+                                            height: rect.height,
+                                            zIndex: style.zIndex,
+                                            isVisible: isVisible,
+                                            parent: dropdown.parentElement?.className,
+                                            itemsCount: dropdown.children.length
+                                        });
+
+                                        if (isVisible) {
+                                            console.warn(`[LISTS_MODAL] ✅ VISIBLE dropdown #${index} found!`);
+                                            console.warn('[LISTS_MODAL] 🔍 Rect:', rect);
+                                            console.warn('[LISTS_MODAL] 🔍 Inside modal?', modal.contains(dropdown));
+
+                                            // Parent chain for visible dropdown
+                                            let parent = dropdown.parentElement;
+                                            let depth = 0;
+                                            console.warn('[LISTS_MODAL] 🔍 Parent chain:');
+                                            while (parent && depth < 10) {
+                                                console.warn(`[LISTS_MODAL]    ${depth}: ${parent.tagName}#${parent.id || 'NO-ID'}.${parent.className}`);
+                                                parent = parent.parentElement;
+                                                depth++;
+                                            }
+                                        }
+                                    });
+                                }, 100); // Delay to let Choices.js finish rendering
                             } else {
                                 // Dropdown closed
                                 modal.classList.remove('store-dropdown-open');
