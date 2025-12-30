@@ -47,11 +47,13 @@ update_service_worker() {
     cp "$SW_FILE" "${SW_FILE}.bak"
 
     # Replace CACHE_VERSION_PLACEHOLDER or previous version with new version
-    sed -i.tmp "s/const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
+    # Support both single/double quotes and with/without spaces (minified vs source syntax)
+    sed -i.tmp "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"'];/const CACHE_VERSION=\"${NEW_VERSION}\";/" "$SW_FILE"
     rm -f "${SW_FILE}.tmp"
 
     # Verify replacement
-    if grep -q "const CACHE_VERSION = '${NEW_VERSION}';" "$SW_FILE"; then
+    # Check both quote styles and spacing variations
+    if grep -qE "const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'];" "$SW_FILE"; then
         echo -e "  ${GREEN}✓${NC} Service Worker updated: ${BLUE}${NEW_VERSION}${NC}"
         rm -f "${SW_FILE}.bak"
         return 0

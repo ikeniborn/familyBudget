@@ -441,6 +441,127 @@ Deployment ABORTED - cannot deploy with PLACEHOLDER tokens
 3. Fix underlying issue (permissions, sed, etc.)
 4. Re-run deployment
 
+---
+
+## v6.5.4: Quote Compatibility Fix
+
+**Date:** 2025-12-30
+**Type:** Bugfix (Critical)
+**Issue:** Sed pattern incompatibility with minified syntax
+
+### Problem
+
+Deployment failed with error:
+
+```bash
+[STEP 1/2] Updating Service Worker (sw.js)...
+  ✗ Failed to update Service Worker, restoring backup...
+[CRITICAL] Service Worker update failed
+[ERROR] CRITICAL: Failed to update cache busting versions!
+```
+
+**Root Cause:**
+- Sed pattern in `update_service_worker()` (line 50) only supported single quotes `'...'`
+- Terser minification produces double quotes `"..."` without spaces
+- Pattern mismatch → replacement failed → deployment aborted
+
+**Evidence:**
+- Comment on line 139: `# Check Service Worker (minified version uses double quotes)`
+- Developer knew about quote difference but forgot to update sed pattern
+
+### Solution
+
+Updated sed pattern and grep check to support BOTH quote styles.
+
+#### Change 1: Sed Pattern (line 50-51)
+
+**Before:**
+```bash
+sed -i.tmp "s/const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
+```
+
+**After:**
+```bash
+# Support both single/double quotes and with/without spaces (minified vs source syntax)
+sed -i.tmp "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"'];/const CACHE_VERSION=\"${NEW_VERSION}\";/" "$SW_FILE"
+```
+
+**Improvements:**
+- `[[:space:]]*` - Supports spaces/tabs (0 or more) around `=`
+- `[\"']` - Supports BOTH double and single quotes
+- `[^\"']*` - Captures version until any quote
+- Always replaces with double quotes (compatible with minified syntax)
+
+#### Change 2: Grep Check (line 55-56)
+
+**Before:**
+```bash
+if grep -q "const CACHE_VERSION = '${NEW_VERSION}';" "$SW_FILE"; then
+```
+
+**After:**
+```bash
+# Check both quote styles and spacing variations
+if grep -qE "const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'];" "$SW_FILE"; then
+```
+
+**Improvements:**
+- `-E` - Extended regex
+- `[[:space:]]*` - Supports spacing variations
+- `[\"']` - Checks both quote styles
+
+### Test Results
+
+All three scenarios now pass:
+
+#### Test 1: Minified Syntax (double quotes, no spaces)
+```bash
+# Input
+const CACHE_VERSION="v20251229_2003";
+
+# Output
+const CACHE_VERSION="v20251230_1249";
+✅ PASSED
+```
+
+#### Test 2: Source Syntax (single quotes, with spaces)
+```bash
+# Input
+const CACHE_VERSION = 'v20251229_2003';
+
+# Output
+const CACHE_VERSION="v20251230_1249";
+✅ PASSED
+```
+
+#### Test 3: PLACEHOLDER Token
+```bash
+# Input
+const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+
+# Output
+const CACHE_VERSION="v20251230_1249";
+✅ PASSED
+```
+
+### Affected Files
+
+- `scripts/update-cache-busting.sh:50-51` - Updated sed pattern
+- `scripts/update-cache-busting.sh:55-56` - Updated grep check
+
+### Backward Compatibility
+
+✅ **Fully compatible** - New pattern INCLUDES old pattern behavior (single quotes with spaces)
+
+### Why This Wasn't Caught Earlier
+
+1. Script was recently created (v6.5.2)
+2. May not have been tested on real minified files
+3. Or tested only on source `sw.js` (single quotes)
+4. First production run exposed the issue
+
+---
+
 ## References
 
 - Bash scripting best practices: https://google.github.io/styleguide/shellguide.html
