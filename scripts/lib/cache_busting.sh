@@ -6,7 +6,7 @@
 
 # Генерация новой версии на основе timestamp
 generate_cache_version() {
-    echo "$(date +"%Y%m%d_%H%M")"
+    echo "v$(date +"%Y%m%d_%H%M")"
 }
 
 # Генерация версии на основе git commit hash (альтернатива)

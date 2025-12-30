@@ -1130,7 +1130,9 @@ main() {
     echo ""
 
     # Update cache versions AFTER synchronization and minification (in /opt/budget)
-    run_cache_busting "auto" "/opt/budget"
+    # DISABLED: update-cache-busting.sh already updated all versions (line 1106)
+    # Double execution causes version mismatch (different timestamps)
+    # run_cache_busting "auto" "/opt/budget"
     echo ""
 
     # CRITICAL SAFEGUARD: Abort deployment if Service Worker cache version broken
