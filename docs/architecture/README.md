@@ -26,6 +26,35 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: PostgreSQL Health Check Timeout Fix - Prevent Deployment Hang (v6.5.4)
+- **Change:** Added 10-second timeout to PostgreSQL health checks to prevent infinite hang
+- **Problem:** Deployment hung indefinitely when PostgreSQL container was starting or unresponsive:
+  ```
+  [INFO] Checking Service Worker cache version... ✓
+  [SUCCESS] Service Worker cache version: v20251230_0712
+  [INFO] Checking prerequisites (after code sync)...
+  # Hangs here forever - no error, no timeout, no progress
+  ```
+- **Root Cause:** `docker compose exec postgres pg_isready` blocks forever if container not ready:
+  - PostgreSQL container starting slowly → exec waits for container
+  - PostgreSQL in restart loop → exec hangs on unresponsive container
+  - No timeout → deployment freezes, manual Ctrl+C required
+- **Solution:** Added `timeout 10` to all pg_isready health checks:
+  - `verify_postgres_health_post_start()` - line 117 (post-start verification)
+  - `check_postgres_health_pre_deploy()` - line 340 (pre-deploy check)
+  - Changed from `docker compose exec` to `docker exec` (faster, more reliable)
+  - Preserved existing retry logic (3 attempts × 10s timeout = 30s max wait)
+- **Benefits:**
+  - ✅ Deployment won't hang on slow PostgreSQL startup
+  - ✅ Clear error message after 30s if PostgreSQL unavailable
+  - ✅ Faster detection of PostgreSQL issues (10s vs infinite)
+  - ✅ More reliable health checks (direct docker exec vs compose)
+- **Files Changed:**
+  - `scripts/lib/postgres.sh` - Added timeout to 2 health check functions
+- **Testing:** `sudo ./deploy.sh --patch` completes health check in <30s (or fails with clear error)
+
+---
+
 ### 2025-12-30: Cache Busting System Fix v2 - Execution Order Correction (v6.5.3)
 - **Change:** Fixed cache busting execution order - now runs AFTER minification (not before)
 - **Problem:** v6.5.2 script ran BEFORE npm run build, updating sw.js but then minification overwrote changes:
