@@ -26,6 +26,51 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: README Comprehensive Update - Architecture & Features
+- **Change:** Полностью обновлен корневой README.md с отражением всех современных функций и архитектурных особенностей
+- **Motivation:** Существующий README не упоминал 15+ критических функций добавленных в v5.x-v6.x (PWA, WebAuthn, Web Workers, Shopping Lists, Recurring Plans, Redis, WebSocket+SSE)
+- **New Sections:**
+  1. **⚡ Технические преимущества** - что отличает Family Budget от конкурентов:
+     - Offline-First архитектура с Service Worker
+     - Real-Time обновления (WebSocket + SSE dual strategy)
+     - Web Workers (5 workers для производительности)
+     - Агрессивное кэширование (Redis + Service Worker + HTTP)
+     - SCD Type 2 полная история изменений
+     - Closure Table для иерархических запросов
+     - Deduplication для offline sync
+     - Write-Behind паттерн
+  2. **Расширенные функции** в секции "Что умеет":
+     - Shopping Lists с offline sync
+     - Recurring Plans с автонапоминаниями
+     - Web Push уведомления
+     - Управление каналами (Push/Telegram независимо)
+     - Bulk операции для импорта
+     - WebAuthn биометрия (TouchID/FaceID)
+  3. **Улучшенная секция "Безопасность"**:
+     - WebAuthn platform authenticators
+     - Comprehensive audit logging
+     - Sign count validation (клонирование)
+     - Уточнены методы аутентификации
+  4. **Обновленная секция "Технологии"**:
+     - Redis 7, Web Workers, Push API, WebAuthn
+     - WebSocket + SSE dual strategy
+     - Уточнены версии (FastAPI 0.121, PostgreSQL 16, DaisyUI 4)
+- **Fixes:**
+  - Удалена несуществующая ссылка `docs/guides/` (фактически `docs/architecture/guides/`)
+  - Уточнено количество файлов документации (85 файлов)
+  - Конкретизированы банки для импорта (Тинькофф, Сбербанк, Альфа, ВТБ)
+- **Impact:**
+  - README теперь полностью отражает современное состояние проекта
+  - Четко показаны технические преимущества и уникальные особенности
+  - Сохранен user-centric подход с добавлением "wow-факторов"
+  - GitHub landing page теперь продает продукт + технологию
+- **Philosophy:** "Show the value AND the tech. Solve problems with modern architecture."
+- **Files changed:**
+  - `README.md` (расширен с 130 до 157 строк, +27 строк контента)
+  - `docs/architecture/README.md` (этот changelog entry)
+
+---
+
 ### 2025-12-29: Category Selection Fix - Auto-selection Prevention & Hints Validation (v6.7.0)
 - **Change:** Fixed three critical issues in modal windows (Transaction, Plan, Transfer)
 - **Issues Fixed:**
