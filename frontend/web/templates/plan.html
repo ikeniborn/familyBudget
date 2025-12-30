@@ -172,6 +172,14 @@
         </div>
     </div>
 
+    <!-- Recurring Plan Stats Widget -->
+    <div id="recurring-plan-stats" class="stats stats-vertical sm:stats-horizontal shadow w-full">
+        <!-- Populated dynamically by loadStats() -->
+        <div class="flex items-center justify-center py-4 w-full">
+            <span class="loading loading-spinner loading-sm text-primary"></span>
+        </div>
+    </div>
+
     <!-- Stats Section -->
     <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
@@ -633,6 +641,26 @@ function dateRangeToMonth(dateFrom, dateTo) {
     if (parseInt(toDay) !== lastDayOfMonth) return null;
 
     return `${fromYear}-${fromMonth}`;
+}
+
+/**
+ * ✅ OPTIMIZATION: Debounce helper to prevent cascading filter reloads.
+ * Delays execution until user stops changing filters (300ms delay).
+ */
+let syncDebounceTimer = null;
+
+function debouncedSyncFiltersToAnalytics(options = {}, delay = 300) {
+    // Отменить pending sync
+    if (syncDebounceTimer) {
+        clearTimeout(syncDebounceTimer);
+        console.log('[FILTER_SYNC] Debounced - canceling pending sync');
+    }
+
+    // Запланировать новый sync
+    syncDebounceTimer = setTimeout(() => {
+        syncDebounceTimer = null;
+        syncFiltersToAnalytics(options);
+    }, delay);
 }
 
 /**
@@ -1424,8 +1452,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // 5. Update filter indicator
         updateFilterIndicator();
 
-        // 6. Sync to analytics section
-        await syncFiltersToAnalytics();
+        // 6. ✅ OPTIMIZATION: Use debounced sync to prevent cascading reloads
+        debouncedSyncFiltersToAnalytics({ skipReload: false });
 
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
@@ -2106,11 +2134,27 @@ async function loadRemindersForFacts(factIds) {
     if (!factIds || factIds.length === 0) return;
 
     try {
-        // Use batch endpoint to get all reminders for user (not just pending)
-        // This includes sent/failed reminders so we know they exist for updates
-        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
+        // ✅ OPTIMIZATION: Filter by date range (current month ± 1 month buffer)
+        const now = new Date();
+        const startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+            .toISOString().split('T')[0];
+        const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+            .toISOString().split('T')[0];
+
+        const params = new URLSearchParams({
+            date_from: startDate,
+            date_to: endDate,
+            limit: 50  // Reduced from 100 (date filter makes this sufficient)
+        });
+
+        console.log('[PLAN_LOAD] Loading reminders for date range:', startDate, '-', endDate);
+
+        const response = await fetch(`/api/v1/reminders/?${params}`, {
+            credentials: 'include'
+        });
+
         if (!response.ok) {
-            console.warn('Failed to load reminders:', response.status);
+            console.warn('[PLAN_LOAD] Failed to load reminders:', response.status);
             return;
         }
 
@@ -2124,13 +2168,82 @@ async function loadRemindersForFacts(factIds) {
                     remindersMap.set(reminder.fact_id, reminder);
                 }
             });
+            console.log(
+                `[PLAN_LOAD] Loaded ${data.items.length} reminders, ` +
+                `${remindersMap.size} matched current page`
+            );
         }
     } catch (error) {
-        console.error('Error loading reminders:', error);
+        console.error('[PLAN_LOAD] Error loading reminders:', error);
     }
 }
 
 // Load facts from API
+// Load recurring plan statistics asynchronously
+async function loadStats() {
+    const statsContainer = document.getElementById('recurring-plan-stats');
+    if (!statsContainer) return;
+
+    // Show loading state
+    statsContainer.innerHTML = `
+        <div class="flex items-center justify-center py-4 w-full">
+            <span class="loading loading-spinner loading-sm text-primary"></span>
+        </div>
+    `;
+
+    try {
+        console.log('[PLAN_LOAD] Loading recurring plan stats (async)...');
+
+        const response = await fetch('/api/v1/recurring-plans/stats', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const stats = await response.json();
+
+        // Format money value
+        const formatMoney = (amount) => {
+            const value = parseFloat(amount || 0);
+            return value.toLocaleString('ru-RU', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }) + ' ₽';
+        };
+
+        // Update stats widget HTML
+        statsContainer.innerHTML = `
+            <div class="stat">
+                <div class="stat-title">🟢 Активные планы</div>
+                <div class="stat-value text-primary">${stats.active_count || 0}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">⏸️ На паузе</div>
+                <div class="stat-value">${stats.paused_count || 0}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">💰 Итого в месяц</div>
+                <div class="stat-value text-success">${formatMoney(stats.total_monthly_amount)}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">⏳ Ожидают генерации</div>
+                <div class="stat-value text-warning">${stats.next_pending_count || 0}</div>
+            </div>
+        `;
+
+        console.log('[PLAN_LOAD] Recurring plan stats loaded:', stats);
+    } catch (error) {
+        console.error('[PLAN_LOAD] Error loading recurring plan stats:', error);
+        statsContainer.innerHTML = `
+            <div class="alert alert-error w-full">
+                <span>⚠️ Не удалось загрузить статистику регламентных планов</span>
+            </div>
+        `;
+    }
+}
+
 async function loadFacts() {
     const container = document.getElementById('facts-table-container');
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
@@ -2180,6 +2293,10 @@ async function loadFacts() {
 
         // Sync UI with filter state after loading
         AdminFactsCommon.syncFiltersUI(filters);
+
+        // ✅ OPTIMIZATION: Load recurring plan stats asynchronously (fire-and-forget)
+        // Stats load in parallel, don't block table rendering
+        loadStats();
     } catch (error) {
         console.error('Error loading facts:', error);
         const errorMessage = error?.message || String(error);
@@ -2480,53 +2597,105 @@ async function showEditModal(factId) {
         console.warn('[EDIT MODAL] Unknown record_type:', fact.record_type);
     }
 
-    if (fact.recurring_plan_id) {
-        // Это запись из recurring плана
-        console.log('[EDIT MODAL] Fact has recurring_plan_id, loading plan details...');
+    // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
+    const modal = document.getElementById('edit-modal');
+    modal.showModal();
 
-        if (recurringInfoDiv) recurringInfoDiv.classList.remove('hidden');
-        if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
-        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
-
-        // Reset scope to 'single' by default
-        const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
-        if (singleRadio) singleRadio.checked = true;
-
-        // Загрузить данные recurring плана
-        try {
-            const planResponse = await fetch(`/api/v1/recurring-plans/${fact.recurring_plan_id}`, {
-                credentials: 'include'
-            });
-
-            console.log('[EDIT MODAL] Recurring plan API response status:', planResponse.status);
-
-            if (!planResponse.ok) {
-                console.error('[EDIT MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
-                if (planResponse.status === 403) {
-                    console.error('[EDIT MODAL] 403 Forbidden - check user permissions');
-                } else if (planResponse.status === 404) {
-                    console.error('[EDIT MODAL] 404 Not Found - plan may have been deleted');
-                }
-                // Скрыть секцию при ошибке
-                if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
-            } else {
-                currentRecurringPlan = await planResponse.json();
-                console.log('[EDIT MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
-                populateRecurringPlanInfo(currentRecurringPlan);
-                console.log('[EDIT MODAL] Recurring plan info populated');
+    // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
+    if (!modal.dataset.backdropHandlerAdded) {
+        modal.addEventListener('click', (e) => {
+            // Close only if click is directly on dialog (backdrop area)
+            if (e.target === modal) {
+                modal.close();
             }
-        } catch (error) {
-            console.error('[EDIT MODAL] Error loading recurring plan:', error);
-            // Скрыть секцию при ошибке
-            if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
+        });
+        modal.dataset.backdropHandlerAdded = 'true';
+    }
+
+    // ✅ OPTIMIZATION: Check if this is recurring plan before fetching
+    if (!fact.recurring_plan_id) {
+        // Not a recurring plan - hide recurring info section
+        console.log('[EDIT_MODAL] Fact has NO recurring_plan_id, hiding recurring info');
+        if (recurringInfoDiv) {
+            recurringInfoDiv.classList.add('hidden');
         }
-    } else {
-        // Обычная запись (не recurring)
-        console.log('[EDIT MODAL] Fact has NO recurring_plan_id, hiding recurring info');
-        if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
         if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
         if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+        return;  // ✅ Exit early - no need to fetch recurring plan
     }
+
+    // This is a recurring plan fact - prepare UI
+    console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
+
+    if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
+    if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
+
+    // Reset scope to 'single' by default
+    const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+    if (singleRadio) singleRadio.checked = true;
+
+    // ✅ OPTIMIZATION: Show loading state immediately
+    if (recurringInfoDiv) {
+        recurringInfoDiv.innerHTML = `
+            <div class="flex items-center justify-center py-4">
+                <span class="loading loading-spinner loading-md text-primary"></span>
+                <span class="ml-2">Загрузка данных регламентного платежа...</span>
+            </div>
+        `;
+        recurringInfoDiv.classList.remove('hidden');
+    }
+
+    // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
+    (async () => {
+        try {
+            console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
+
+            const planResponse = await fetch(
+                `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
+                { credentials: 'include' }
+            );
+
+            console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
+
+            if (!planResponse.ok) {
+                console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+                if (planResponse.status === 403) {
+                    console.error('[EDIT_MODAL] 403 Forbidden - check user permissions');
+                } else if (planResponse.status === 404) {
+                    console.error('[EDIT_MODAL] 404 Not Found - plan may have been deleted');
+                }
+                // Показать error state
+                if (recurringInfoDiv) {
+                    recurringInfoDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            currentRecurringPlan = await planResponse.json();
+            console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+
+            // Clear loading state and populate content
+            if (recurringInfoDiv) {
+                recurringInfoDiv.innerHTML = ''; // Clear loading spinner
+            }
+            populateRecurringPlanInfo(currentRecurringPlan);
+            console.log('[EDIT_MODAL] Recurring plan info populated');
+
+        } catch (error) {
+            console.error('[EDIT_MODAL] Error loading recurring plan:', error);
+            if (recurringInfoDiv) {
+                recurringInfoDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <span>❌ Ошибка: ${error.message}</span>
+                    </div>
+                `;
+            }
+        }
+    })();
 
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
@@ -2695,22 +2864,6 @@ async function showEditModal(factId) {
             reminderStatusBadge.className = `badge badge-sm ${badge.class}`;
             reminderStatusBadge.classList.remove('hidden');
         }
-    }
-
-    const modal = document.getElementById('edit-modal');
-    modal.showModal();
-
-    // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
-    // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
-    if (!modal.dataset.backdropHandlerAdded) {
-        modal.addEventListener('click', (e) => {
-            // Close only if click is directly on dialog (backdrop area)
-            // NOT if click is on modal-box or its children
-            if (e.target === modal) {
-                modal.close();
-            }
-        });
-        modal.dataset.backdropHandlerAdded = 'true';
     }
 }
 
@@ -5427,6 +5580,36 @@ window.budgetWSClient.on('recurring_plan_created', async (data) => {
     // Перезагрузить таблицу (появилось несколько новых записей)
     await loadFacts();
     showToast('success', `✅ Регламентный платеж создан (${data.facts_generated || '?'} записей)`);
+});
+
+// Регламентный план обновлен
+window.budgetWSClient.on('recurring_plan_updated', async (data) => {
+    console.log('[plan.html] recurring_plan_updated event:', data);
+
+    // Перезагрузить таблицу (план мог изменить видимость)
+    await loadFacts();
+    showToast('info', '🔄 Регламентный платеж обновлён');
+});
+
+// Регламентный план удален
+window.budgetWSClient.on('recurring_plan_deleted', async (data) => {
+    console.log('[plan.html] recurring_plan_deleted event:', data);
+
+    // Перезагрузить таблицу
+    await loadFacts();
+    showToast('warning', '🗑️ Регламентный платеж удалён');
+});
+
+// Новые факты сгенерированы scheduler job (hourly)
+window.budgetWSClient.on('recurring_plan_facts_generated', async (data) => {
+    console.log('[plan.html] recurring_plan_facts_generated event:', data);
+
+    // Перезагрузить таблицу (появились новые записи)
+    await loadFacts();
+
+    if (data.facts_count > 0) {
+        showToast('info', `🔄 Сгенерировано ${data.facts_count} новых записей по регламентным платежам`);
+    }
 });
 
 // Helper: Проверка нужна ли перезагрузка при создании плана
