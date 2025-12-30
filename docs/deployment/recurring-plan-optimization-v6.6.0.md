@@ -540,6 +540,209 @@ curl -s http://localhost:8000/health/detailed | jq
 
 ---
 
+## Redis Cache Monitoring (v6.6.0+)
+
+**Since version 6.6.0:** Admin monitoring page provides detailed Redis cache metrics and breakdown by category.
+
+### Features Added
+
+**Backend Endpoint:** `GET /api/v1/admin/redis-stats` (admin-only)
+
+**Location:** `backend/app/api/v1/admin.py`
+
+**Returns comprehensive Redis metrics:**
+- Memory usage (current + peak)
+- Total keys count
+- **Keyspace hits/misses** (absolute numbers)
+- Hit ratio percentage
+- Redis version + uptime
+- Connected clients
+- **Cache breakdown by category** (new)
+
+**Cache Breakdown Function:** `get_cache_breakdown()`
+
+**Location:** `backend/app/services/redis_service.py:245-291`
+
+**Analyzes cache keys by prefix:**
+```python
+# Key pattern: cache:{category}:{parts}
+breakdown = {
+    "articles": 0,              # Reference data (TTL: 300s)
+    "financial_centers": 0,     # Reference data (TTL: 300s)
+    "cost_centers": 0,          # Reference data (TTL: 300s)
+    "recurring_plans": 0,       # Dynamic data (TTL: 60-300s)
+    "dashboard": 0,             # Dashboard stats (TTL: 30s)
+    "recent": 0,                # Recent fragments (TTL: 10s)
+    "other": 0,                 # Uncategorized
+}
+```
+
+### Frontend Implementation
+
+**Location:** `frontend/web/templates/admin_monitoring.html`
+
+**UI Components:**
+
+1. **Toggle Button** (line 106-108):
+   - "Показать детали" / "Скрыть детали"
+   - Shows/hides detailed stats panel
+
+2. **Detailed Stats Section** (lines 121-176, hidden by default):
+   - **Absolute Numbers:**
+     - Keyspace Hits (with success icon)
+     - Keyspace Misses (with error icon)
+   - **Redis Info:**
+     - Redis Version
+     - Uptime (days)
+     - Memory Peak
+     - Connected Clients
+   - **Cache Breakdown Table:**
+     - Category name (Russian with emoji)
+     - Keys count
+     - Percentage with progress bar
+     - Total row
+
+3. **JavaScript Functions** (lines 888-1042):
+   - `toggleRedisDetails()` - Toggle visibility
+   - `loadDetailedRedisStats()` - Fetch from API
+   - `renderDetailedRedisStats()` - Populate stat fields
+   - `renderCacheBreakdown()` - Render category table
+   - `showDetailedRedisStatsError()` - Error fallback
+
+**Auto-Refresh Behavior:**
+- Detailed stats reload every 5 seconds when panel visible
+- Added to `loadMonitoringData()` function (line 348-352)
+
+### Cache Category Descriptions
+
+| Category | Description | TTL | Key Pattern Example |
+|----------|-------------|-----|---------------------|
+| **articles** | Budget categories (hierarchical) | 300s (5 min) | `cache:articles:1:details` |
+| **financial_centers** | Bank accounts, wallets | 300s (5 min) | `cache:financial_centers:2` |
+| **cost_centers** | Projects, departments | 300s (5 min) | `cache:cost_centers:3` |
+| **recurring_plans** | Recurring payment plans | 60-300s | `cache:recurring_plans:4:list` |
+| **dashboard** | Quick stats, balances | 30s | `cache:dashboard:stats` |
+| **recent** | Recent HTML fragments | 10s | `cache:recent:transactions` |
+| **other** | Uncategorized cache keys | Varies | Any non-matching pattern |
+
+### Configuration (Environment Variables)
+
+**Location:** `backend/app/core/config.py`
+
+```bash
+# .env configuration
+REDIS_CACHE_TTL_REFERENCE=300    # Articles, FC, CC (5 min)
+REDIS_CACHE_TTL_DASHBOARD=30     # Stats, balances (30 sec)
+REDIS_CACHE_TTL_DYNAMIC=60       # Facts list, recurring plans (1 min)
+REDIS_CACHE_TTL_SHORT=10         # Recent fragments (10 sec)
+```
+
+**Applied via CacheTTL class:**
+```python
+# backend/app/services/cache_service.py
+ttl = CacheTTL.REFERENCE()    # Returns 300 from env
+ttl = CacheTTL.DASHBOARD()    # Returns 30 from env
+ttl = CacheTTL.DYNAMIC()      # Returns 60 from env
+ttl = CacheTTL.SHORT()        # Returns 10 from env
+```
+
+### Usage
+
+**Access:** https://budget-dev.ikeniborn.ru/admin/monitoring
+
+**Steps:**
+1. Login as admin user
+2. Navigate to "Мониторинг системы"
+3. Scroll to "🔴 Статистика Redis" card
+4. Click "Показать детали" button
+5. View detailed metrics and breakdown
+
+**Expected Output (Example):**
+
+```
+🔴 Статистика Redis
+┌─────────────┬──────────────┬──────────────┬─────────────┐
+│   Память    │ Ключей в кеше│ Cache Hit   │  Задержка   │
+│   1.35M     │      24      │   Ratio     │   1.23 мс   │
+│             │              │   96.3%     │             │
+└─────────────┴──────────────┴──────────────┴─────────────┘
+
+[Показать детали ▼]
+
+Детальная статистика
+┌─────────────┬──────────────┬──────────────┬─────────────┐
+│ Keyspace    │ Keyspace     │ Redis Version│ Memory Peak │
+│ Hits        │ Misses       │              │             │
+│ 1,234       │ 45           │ 7.0.11       │ 1.89M       │
+│             │              │ Uptime: 5 дней│ Clients: 3 │
+└─────────────┴──────────────┴──────────────┴─────────────┘
+
+📊 Breakdown по категориям
+┌──────────────────────────────────┬────────┬──────────────┐
+│ Категория                        │ Ключей │ %            │
+├──────────────────────────────────┼────────┼──────────────┤
+│ 🔄 Recurring Plans (регулярные)  │   10   │ ████ 41.7%   │
+│ 📂 Articles (статьи)             │    5   │ ██ 20.8%     │
+│ 🏦 Financial Centers (счета)     │    4   │ █ 16.7%      │
+│ 💼 Cost Centers (места затрат)   │    3   │ █ 12.5%      │
+│ 📊 Dashboard (дашборд)           │    2   │ ▌ 8.3%       │
+├──────────────────────────────────┼────────┼──────────────┤
+│ Итого                            │   24   │ 100%         │
+└──────────────────────────────────┴────────┴──────────────┘
+```
+
+### Performance Impact
+
+**Backend:** Minimal overhead (~2-3ms for `get_cache_breakdown()`)
+- Uses `KEYS cache:*` command (acceptable for <10,000 keys)
+- Only executed when admin opens details panel
+- Not part of auto-refresh health check
+
+**Frontend:** Lightweight (~5KB JSON response)
+- Auto-refresh only when panel visible
+- Table rendering ~10-20ms for 7 categories
+
+### Troubleshooting
+
+**Issue:** Breakdown shows 0 keys for all categories
+
+**Cause:** Cache not populated yet (cold start)
+
+**Fix:** Wait 1-2 minutes for cache warmup or trigger cache population:
+```bash
+# Open /plan page to populate recurring_plans cache
+curl -H "Cookie: ..." https://budget-dev.ikeniborn.ru/plan
+
+# Check Redis keys manually
+docker compose exec backend redis-cli
+> KEYS cache:*
+```
+
+**Issue:** "Redis is not available" error
+
+**Cause:** Redis not configured or connection failed
+
+**Fix:** Check Redis configuration in .env:
+```bash
+# .env
+REDIS_URL=redis://localhost:6379/0
+```
+
+**Issue:** Categories not matching cache keys
+
+**Cause:** Custom cache key patterns not following `cache:{category}:*` convention
+
+**Fix:** Update `get_cache_breakdown()` category mapping in `redis_service.py:263-271`
+
+### Related Commits
+
+| Commit | Description |
+|--------|-------------|
+| c8b2ed56 | feat(cache): move CacheTTL constants to environment variables |
+| 90a42dfd | feat(monitoring): add detailed Redis cache metrics and breakdown |
+
+---
+
 ## Git Commits
 
 | Commit | Date | Description |

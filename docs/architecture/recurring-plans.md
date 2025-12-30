@@ -583,6 +583,78 @@ REDIS_ENABLED=false
 | **Frontend** | `frontend/web/templates/plan.html` | Progressive loading, debounce |
 | **Migration** | `backend/db/migrations/versions/20251230_28cb68876eaf_*.py` | Composite indexes |
 
+### Redis Cache Monitoring (v6.6.0+)
+
+**Since version 6.6.0:** Admin monitoring page provides detailed Redis cache metrics and breakdown by category.
+
+**Purpose:** Visibility into cache performance, hit/miss rates, and category distribution for performance tuning.
+
+**Access:** `/admin/monitoring` → "🔴 Статистика Redis" → "Показать детали"
+
+**Features:**
+
+1. **Detailed Metrics Display:**
+   - Keyspace Hits/Misses (absolute numbers)
+   - Redis version and uptime
+   - Memory peak and connected clients
+   - Cache breakdown by category (7 categories)
+
+2. **Cache Category Analysis:**
+   - `articles` - Budget categories (TTL: 300s)
+   - `financial_centers` - Bank accounts (TTL: 300s)
+   - `cost_centers` - Cost centers (TTL: 300s)
+   - `recurring_plans` - Recurring plans (TTL: 60-300s)
+   - `dashboard` - Dashboard stats (TTL: 30s)
+   - `recent` - Recent fragments (TTL: 10s)
+   - `other` - Uncategorized keys
+
+3. **Auto-Refresh:**
+   - Updates every 5 seconds when panel visible
+   - Integrated with existing monitoring auto-refresh
+
+**Implementation:**
+
+**Backend Endpoint:** `GET /api/v1/admin/redis-stats` (admin-only)
+- Location: `backend/app/api/v1/admin.py`
+- Returns: Redis stats + cache breakdown
+- Performance: ~2-3ms overhead (uses `KEYS cache:*`)
+
+**Backend Function:** `get_cache_breakdown()`
+- Location: `backend/app/services/redis_service.py:245-291`
+- Analyzes cache keys by prefix pattern `cache:{category}:*`
+- Returns: Total keys + count per category
+
+**Frontend UI:**
+- Location: `frontend/web/templates/admin_monitoring.html`
+- Toggle button (lines 106-108)
+- Detailed stats section (lines 121-176, hidden by default)
+- JavaScript functions (lines 888-1042):
+  - `toggleRedisDetails()` - Show/hide panel
+  - `loadDetailedRedisStats()` - Fetch from API
+  - `renderDetailedRedisStats()` - Update UI
+  - `renderCacheBreakdown()` - Render table
+
+**Logging:**
+- Backend: `[REDIS_STATS]` - Detailed stats fetch operations
+- Frontend: Console logging for troubleshooting
+
+**Performance Impact:**
+- Backend: Minimal (~2-3ms), only when panel open
+- Frontend: Lightweight (~5KB JSON), auto-refresh when visible
+
+**Use Cases:**
+- Monitor cache hit rate trends (target: >80%)
+- Identify cache distribution imbalances
+- Troubleshoot cache invalidation issues
+- Verify TTL configuration effectiveness
+- Capacity planning (track total keys growth)
+
+**Related Commits:**
+- c8b2ed56 - feat(cache): move CacheTTL constants to environment variables
+- 90a42dfd - feat(monitoring): add detailed Redis cache metrics and breakdown
+
+**See also:** `/docs/deployment/recurring-plan-optimization-v6.6.0.md` → "Redis Cache Monitoring" for detailed usage guide.
+
 ## Migration
 
 **File**: `backend/db/migrations/versions/20251226_e8e69b30e4db_add_yearly_frequency_remove_daily_weekly.py`
