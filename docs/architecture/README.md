@@ -26,6 +26,28 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: .env File Syntax Fix - Quoted Multi-word Values (v6.5.1)
+- **Change:** Fixed bash syntax error in `.env.example` causing deployment failures
+- **Problem:** Line 193 `WEBAUTHN_RP_NAME=Family Budget` (unquoted) caused error:
+  ```
+  /opt/budget/.env: line 193: Budget: command not found
+  ```
+- **Root Cause:** Bash interpreted `Budget` as separate command when `source` loaded .env file
+- **Solution:** Added quotes: `WEBAUTHN_RP_NAME="Family Budget"`
+- **Validation:**
+  - `bash -n .env.example` - syntax check passes
+  - `grep -nE '^[A-Z_]+=.+\s+\w' .env.example` - no unquoted multi-word values found
+- **Impact:**
+  - Deployment validation now passes (`deploy.sh`, `setup.sh`)
+  - All new installations use corrected template
+  - Existing `.env` files NOT affected (user-managed)
+- **Files Changed:**
+  - `.env.example:193` - Added quotes to WEBAUTHN_RP_NAME
+  - `docs/architecture/env-syntax-fix.md` - Full documentation
+- **Prevention Rule:** All environment variables with whitespace MUST be quoted in `.env.example`
+
+---
+
 ### 2025-12-30: Architecture Documentation - SSE to WebSocket Correction
 - **Change:** Исправлена неточность в архитектурной документации и PRD - SSE заменен на WebSocket
 - **Motivation:** SSE упоминался в 32 местах документации, но фактически с v2.0.0 используется WebSocket + Long Polling
