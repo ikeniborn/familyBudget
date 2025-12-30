@@ -858,29 +858,13 @@ main() {
     fi
     echo ""
 
-    # Regenerate PWA icons if trigger file exists (AFTER sync, BEFORE SW cache update)
+    # Regenerate PWA icons if trigger file exists (AFTER sync)
     # This ensures new icons are available before Service Worker cache is updated
     regenerate_pwa_icons_if_needed
 
-    # Update Service Worker cache version (PWA)
-    # IMPORTANT: Must run AFTER sync to avoid git conflicts in source repository
-    # Updates sw.js ONLY in /opt/budget, leaving source repository clean
-    step "Updating Service Worker Cache Version"
-    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
-
-    if [[ -f "scripts/update-sw-version.sh" ]]; then
-        info "Running update-sw-version.sh in deployment directory..."
-        if ! bash scripts/update-sw-version.sh; then
-            error "CRITICAL: Failed to update Service Worker version!"
-            error "Deployment ABORTED - cannot deploy with PLACEHOLDER version"
-            exit 1
-        fi
-        echo ""
-    else
-        error "CRITICAL: scripts/update-sw-version.sh not found!"
-        error "Deployment ABORTED - cannot deploy without SW version update"
-        exit 1
-    fi
+    # NOTE: Cache busting moved AFTER npm run build (see lines ~1110)
+    # This ensures we update sw.min.js (not sw.js) and HTML templates
+    # after all minification is complete
 
     # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
     print_message info "Post-sync check: Verifying npm environment preservation..."
@@ -1103,6 +1087,26 @@ main() {
         local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
         success "Service Worker minified: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
 
+        # Update cache busting versions AFTER minification
+        # CRITICAL: Must run AFTER npm run build to update sw.min.js (not sw.js)
+        # and HTML templates with version timestamp
+        step "Updating Cache Busting Versions (Post-Build)"
+        cd "$DEPLOY_DIR" || error_return "Failed to cd to $DEPLOY_DIR"
+
+        if [[ -f "scripts/update-cache-busting.sh" ]]; then
+            info "Running update-cache-busting.sh after minification..."
+            if ! bash scripts/update-cache-busting.sh; then
+                error "CRITICAL: Failed to update cache busting versions!"
+                error "Deployment ABORTED - cannot deploy with PLACEHOLDER tokens"
+                exit 1
+            fi
+            echo ""
+        else
+            error "CRITICAL: scripts/update-cache-busting.sh not found!"
+            error "Deployment ABORTED - cannot deploy without cache busting update"
+            exit 1
+        fi
+
         # BUGFIX: Restart nginx to remount updated sw.min.js files
         # Docker volumes are mounted at container start. If sw.min.js changes on host,
         # nginx continues serving old version until restarted.
@@ -1148,20 +1152,8 @@ main() {
         fi
     fi
 
-    # Verify cache busting succeeded
-    info "Verifying cache busting results..."
-    placeholder_count=$(grep -r "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | wc -l)
-    if [[ $placeholder_count -gt 0 ]]; then
-        warning "Found $placeholder_count PLACEHOLDER tokens after cache busting"
-        warning "Cache busting may have failed - check permissions and perl installation"
-        echo ""
-        echo "Files with PLACEHOLDER:"
-        grep -l "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | sed 's|.*/||'
-        echo ""
-    else
-        success "Cache busting verified - all PLACEHOLDER tokens replaced"
-    fi
-    echo ""
+    # Cache busting validation is now handled by update-cache-busting.sh
+    # This section removed to avoid duplication
 
     # Verify Service Worker cache version updated
     if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then

@@ -112,7 +112,9 @@ verify_postgres_health_post_start() {
     elapsed=0
 
     while [[ $elapsed -lt $max_wait ]]; do
-        if docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T postgres pg_isready -U "${POSTGRES_USER:-familybudget}" > /dev/null 2>&1; then
+        # Use timeout to prevent infinite hang (10s max per attempt)
+        # Use docker exec directly (faster and more reliable than docker compose exec)
+        if timeout 10 docker exec familybudget-postgres pg_isready -U "${POSTGRES_USER:-familybudget}" > /dev/null 2>&1; then
             health_check_passed=true
             break
         fi
@@ -333,12 +335,14 @@ check_postgres_health_pre_deploy() {
     local attempt=0
 
     while [[ $attempt -lt $max_attempts ]]; do
-        if docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T postgres pg_isready -U "${POSTGRES_USER:-familybudget}" > /dev/null 2>&1; then
+        # Use timeout to prevent infinite hang (10s max per attempt)
+        # Use docker exec directly (faster than docker compose exec)
+        if timeout 10 docker exec familybudget-postgres pg_isready -U "${POSTGRES_USER:-familybudget}" > /dev/null 2>&1; then
             health_check_passed=true
             break
         fi
         attempt=$((attempt + 1))
-        sleep 2
+        [[ $attempt -lt $max_attempts ]] && sleep 2
     done
 
     if [[ "$health_check_passed" == "false" ]]; then

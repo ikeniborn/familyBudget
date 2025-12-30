@@ -26,6 +26,103 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: PostgreSQL Health Check Timeout Fix - Prevent Deployment Hang (v6.5.4)
+- **Change:** Added 10-second timeout to PostgreSQL health checks to prevent infinite hang
+- **Problem:** Deployment hung indefinitely when PostgreSQL container was starting or unresponsive:
+  ```
+  [INFO] Checking Service Worker cache version... ✓
+  [SUCCESS] Service Worker cache version: v20251230_0712
+  [INFO] Checking prerequisites (after code sync)...
+  # Hangs here forever - no error, no timeout, no progress
+  ```
+- **Root Cause:** `docker compose exec postgres pg_isready` blocks forever if container not ready:
+  - PostgreSQL container starting slowly → exec waits for container
+  - PostgreSQL in restart loop → exec hangs on unresponsive container
+  - No timeout → deployment freezes, manual Ctrl+C required
+- **Solution:** Added `timeout 10` to all pg_isready health checks:
+  - `verify_postgres_health_post_start()` - line 117 (post-start verification)
+  - `check_postgres_health_pre_deploy()` - line 340 (pre-deploy check)
+  - Changed from `docker compose exec` to `docker exec` (faster, more reliable)
+  - Preserved existing retry logic (3 attempts × 10s timeout = 30s max wait)
+- **Benefits:**
+  - ✅ Deployment won't hang on slow PostgreSQL startup
+  - ✅ Clear error message after 30s if PostgreSQL unavailable
+  - ✅ Faster detection of PostgreSQL issues (10s vs infinite)
+  - ✅ More reliable health checks (direct docker exec vs compose)
+- **Files Changed:**
+  - `scripts/lib/postgres.sh` - Added timeout to 2 health check functions
+- **Testing:** `sudo ./deploy.sh --patch` completes health check in <30s (or fails with clear error)
+
+---
+
+### 2025-12-30: Cache Busting System Fix v2 - Execution Order Correction (v6.5.3)
+- **Change:** Fixed cache busting execution order - now runs AFTER minification (not before)
+- **Problem:** v6.5.2 script ran BEFORE npm run build, updating sw.js but then minification overwrote changes:
+  ```
+  [WARNING] Found 6 PLACEHOLDER tokens after cache busting  # Still appearing!
+  Files with PLACEHOLDER: admin_logs.html, admin_monitoring.html
+  ```
+- **Root Cause:** Incorrect execution order in deploy.sh:
+  1. update-cache-busting.sh updated sw.js (source file)
+  2. npm run build minified sw.js → sw.min.js (created from OLD sw.js with PLACEHOLDER)
+  3. Result: sw.min.js still had PLACEHOLDER despite cache busting running
+- **Solution:** Moved cache busting AFTER npm run build:
+  - deploy.sh:865-883 → Removed cache busting (pre-build location)
+  - deploy.sh:1090-1108 → Added cache busting (post-build location)
+  - update-cache-busting.sh: Changed to process sw.min.js (not sw.js)
+  - update-cache-busting.sh: Added sw.min.js.gz re-compression
+- **Technical Changes:**
+  - `SW_FILE="sw.js"` → `SW_FILE="sw.min.js"` (minified version)
+  - `SW_FILE_GZ="sw.min.js.gz"` added (re-gzip after update)
+  - Sed pattern changed for minified syntax: `CACHE_VERSION="v..."` (double quotes)
+- **Execution Flow (CORRECT):**
+  1. ✅ npm run build (minifies sw.js → sw.min.js with PLACEHOLDER)
+  2. ✅ update-cache-busting.sh (replaces PLACEHOLDER in sw.min.js + HTML)
+  3. ✅ gzip -9 sw.min.js → sw.min.js.gz (re-compress with new version)
+  4. ✅ Result: All files have correct timestamp, zero PLACEHOLDER tokens
+- **Files Changed:**
+  - `deploy.sh` - Moved cache busting from line 865 to line 1090 (after build)
+  - `scripts/update-cache-busting.sh` - Process sw.min.js + re-gzip
+  - `docs/architecture/cache-busting-fix.md` - Updated with v6.5.3 changes
+- **Validation:** `grep "CACHE_VERSION_PLACEHOLDER" /opt/budget/sw.min.js` returns empty (replaced with v{timestamp})
+
+---
+
+### 2025-12-30: Cache Busting System Fix - Comprehensive HTML Template Support (v6.5.2 - SUPERSEDED)
+- **Change:** Fixed incomplete cache busting - now processes Service Worker AND all HTML templates
+- **Problem:** Deployment warning showed PLACEHOLDER tokens remaining in HTML after cache busting:
+  ```
+  [WARNING] Found 6 PLACEHOLDER tokens after cache busting
+  Files with PLACEHOLDER: admin_logs.html, admin_monitoring.html
+  ```
+- **Root Cause:** Old script `update-sw-version.sh` only processed `sw.js`, ignored 17 HTML templates with `?v=PLACEHOLDER`
+- **Solution:** Created comprehensive `update-cache-busting.sh` script:
+  - ✅ Updates Service Worker (CACHE_VERSION_PLACEHOLDER → v{timestamp})
+  - ✅ Updates ALL HTML templates (?v=PLACEHOLDER → ?v={timestamp})
+  - ✅ Comprehensive validation (zero PLACEHOLDER tokens enforced)
+  - ✅ Detailed reporting (files updated, success/fail counts)
+  - ✅ Idempotent (safe to run multiple times)
+- **Patterns Replaced:**
+  - `?v=PLACEHOLDER` → `?v=v20251230_1830`
+  - `?version=PLACEHOLDER` → `?version=v20251230_1830`
+  - `&v=PLACEHOLDER` → `&v=v20251230_1830`
+- **Integration:**
+  - `deploy.sh:865-883` - Changed to call new comprehensive script
+  - `deploy.sh:1151-1164` - Removed duplicate validation (handled by script)
+  - Old `update-sw-version.sh` deprecated but preserved for backward compat
+- **Impact:**
+  - ✅ Zero PLACEHOLDER tokens after deployment (17 HTML files processed)
+  - ✅ Browser cache properly invalidated on every deploy
+  - ✅ Clean deployment logs (no warnings)
+  - ✅ Automatic validation with clear error messages
+- **Files Changed:**
+  - `scripts/update-cache-busting.sh` - New comprehensive script (200 lines)
+  - `deploy.sh` - Integration + removed duplicate validation
+  - `docs/architecture/cache-busting-fix.md` - Complete documentation
+- **Validation:** `grep -r "PLACEHOLDER" /opt/budget/frontend/web/templates/*.html` returns 0 (all replaced)
+
+---
+
 ### 2025-12-30: .env File Syntax Fix - Quoted Multi-word Values (v6.5.1)
 - **Change:** Fixed bash syntax error in `.env.example` causing deployment failures
 - **Problem:** Line 193 `WEBAUTHN_RP_NAME=Family Budget` (unquoted) caused error:
