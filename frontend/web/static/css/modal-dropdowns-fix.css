@@ -35,3 +35,26 @@ body.modal-open {
     position: relative;
     z-index: 1;
 }
+
+/* ============================================== */
+/* Lists Page Modal - Store Dropdown Fix */
+/* ============================================== */
+
+/* Fix for Store dropdown in #item-modal (Shopping Lists page)
+   Problem: DaisyUI modals don't add .modal-open class to body
+   Solution: Target dialog context directly when dropdown is open */
+
+/* Increase z-index when Store dropdown is open in item-modal */
+#item-modal.store-dropdown-open .choices__list--dropdown {
+    z-index: 1060 !important; /* Above all form fields */
+}
+
+/* Ensure modal-box doesn't clip dropdown */
+#item-modal.store-dropdown-open .modal-box {
+    overflow: visible !important;
+}
+
+/* Ensure form-control doesn't clip dropdown */
+#item-modal.store-dropdown-open .form-control {
+    overflow: visible !important;
+}

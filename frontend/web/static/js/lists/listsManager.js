@@ -1392,6 +1392,26 @@ class ListsManager {
                 containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
             }
         });
+
+        // ============================================
+        // FIX: Add z-index class toggle for modal dropdown
+        // ============================================
+        const modal = document.getElementById('item-modal');
+        if (modal) {
+            // Listen for dropdown open event
+            select.addEventListener('showDropdown', () => {
+                modal.classList.add('store-dropdown-open');
+                console.log('[LISTS_MODAL] Store dropdown opened - z-index fix applied');
+            }, false);
+
+            // Listen for dropdown close event
+            select.addEventListener('hideDropdown', () => {
+                modal.classList.remove('store-dropdown-open');
+                console.log('[LISTS_MODAL] Store dropdown closed - z-index fix removed');
+            }, false);
+
+            console.log('[LISTS_MODAL] Store dropdown z-index fix initialized');
+        }
     }
 
     /**
