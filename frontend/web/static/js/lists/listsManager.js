@@ -1416,10 +1416,34 @@ class ListsManager {
 
                         if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                             if (choicesContainer.classList.contains('is-open')) {
-                                // Dropdown opened
+                                // Dropdown opened - add diagnostic logging
                                 modal.classList.add('store-dropdown-open');
                                 console.warn('[LISTS_MODAL] ✅ Store dropdown OPENED - z-index fix applied');
                                 console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
+
+                                // DIAGNOSTIC: Find dropdown element and check its location
+                                const dropdown = choicesContainer.querySelector('.choices__list--dropdown');
+                                if (dropdown) {
+                                    console.warn('[LISTS_MODAL] 🔍 DROPDOWN FOUND:', dropdown);
+                                    console.warn('[LISTS_MODAL] 🔍 Dropdown parent:', dropdown.parentElement);
+                                    console.warn('[LISTS_MODAL] 🔍 Dropdown computed z-index:', window.getComputedStyle(dropdown).zIndex);
+
+                                    // Check if dropdown is inside modal
+                                    const isInsideModal = modal.contains(dropdown);
+                                    console.warn('[LISTS_MODAL] 🔍 Dropdown is inside modal?', isInsideModal);
+
+                                    // Show parent chain
+                                    let parent = dropdown.parentElement;
+                                    let depth = 0;
+                                    console.warn('[LISTS_MODAL] 🔍 Parent chain:');
+                                    while (parent && depth < 10) {
+                                        console.warn(`[LISTS_MODAL]    ${depth}: ${parent.tagName}#${parent.id || 'NO-ID'}.${parent.className}`);
+                                        parent = parent.parentElement;
+                                        depth++;
+                                    }
+                                } else {
+                                    console.error('[LISTS_MODAL] ⚠️ DROPDOWN ELEMENT NOT FOUND');
+                                }
                             } else {
                                 // Dropdown closed
                                 modal.classList.remove('store-dropdown-open');
