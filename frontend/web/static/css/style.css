@@ -1052,3 +1052,51 @@ button:focus:not(:focus-visible) {
         padding: 0.75rem;
     }
 }
+
+/* ==================================
+   Modal Keyboard Adaptation (v6.6.0)
+   ================================== */
+
+/* CSS Variables (set dynamically via JS) */
+:root {
+    --header-height: 64px;     /* Default, updated by modalKeyboardAdapter */
+    --viewport-height: 100vh;  /* Default, updated by modalKeyboardAdapter */
+}
+
+/* Keyboard Active: Shift to top with offset */
+.modal-box--keyboard-active {
+    margin-top: calc(
+        env(safe-area-inset-top, 0px) +
+        var(--header-height) +
+        10px
+    ) !important;
+
+    margin-bottom: calc(
+        env(safe-area-inset-bottom, 0px) +
+        10px
+    ) !important;
+
+    max-height: calc(
+        var(--viewport-height) -
+        env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px) -
+        var(--header-height) -
+        20px
+    ) !important;
+
+    transition: margin-top 0.3s ease-out,
+                margin-bottom 0.3s ease-out,
+                max-height 0.3s ease-out;
+}
+
+/* Restoring Original Position */
+.modal-box--keyboard-restoring {
+    transition: margin-top 0.3s ease-in,
+                margin-bottom 0.3s ease-in,
+                max-height 0.3s ease-in;
+}
+
+/* Prevent interaction during transition */
+.modal-box--transitioning {
+    pointer-events: none;
+}

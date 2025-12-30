@@ -30,7 +30,7 @@ from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import get_session
+from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.middleware.rate_limiter import limiter
 from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
@@ -166,6 +166,7 @@ webauthn_responses = {
 @limiter.limit("5/minute")
 async def register_options(
     request: Request,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """
@@ -174,27 +175,30 @@ async def register_options(
     Requires: Authenticated user (JWT)
     Rate limit: 5 requests/minute
     """
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-
-    user: User = request.state.user
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
 
     logger.info(
-        f"[WEBAUTHN] Registration options requested: user_id={user.id}, email={user.email}"
+        f"[WEBAUTHN][REGISTER_OPTIONS] Registration challenge requested: "
+        f"user_id={current_user.id}, email={current_user.email}, ip={ip_address}"
     )
 
     try:
         options = await create_registration_challenge(
-            session, user, ip_address, user_agent
+            session, current_user, ip_address, user_agent
         )
+
+        logger.info(
+            f"[WEBAUTHN][REGISTER_OPTIONS] Challenge created successfully: "
+            f"user_id={current_user.id}, challenge_id={options.get('challenge', 'N/A')[:16]}..."
+        )
+
         return options
     except Exception as e:
-        logger.error(f"[WEBAUTHN] Registration options failed: {str(e)}")
+        logger.error(
+            f"[WEBAUTHN][REGISTER_OPTIONS] Failed to create challenge: "
+            f"user_id={current_user.id}, error={str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate registration options: {str(e)}",
@@ -210,6 +214,7 @@ async def register_options(
 @limiter.limit("5/minute")
 async def register_verify(
     request: Request,
+    current_user: CurrentUser,
     data: RegisterVerifyRequest,
     session: AsyncSession = Depends(get_session),
 ) -> RegisterVerifyResponse:
@@ -219,25 +224,19 @@ async def register_verify(
     Requires: Authenticated user (JWT) + valid challenge
     Rate limit: 5 requests/minute
     """
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-
-    user: User = request.state.user
     ip_address = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent")
 
     logger.info(
-        f"[WEBAUTHN] Registration verification started: user_id={user.id}, "
+        f"[WEBAUTHN][REGISTER_VERIFY] Verifying registration: "
+        f"user_id={current_user.id}, device_name={data.device_name}, "
         f"challenge={data.challenge[:20]}..."
     )
 
     try:
         credential = await verify_and_store_credential(
             session,
-            user,
+            current_user,
             data.challenge,
             data.credential,
             data.device_name,
@@ -245,10 +244,16 @@ async def register_verify(
             user_agent,
         )
 
+        logger.info(
+            f"[WEBAUTHN][REGISTER_VERIFY] Registration successful: "
+            f"user_id={current_user.id}, credential_id={credential.credential_id}, "
+            f"device_name={credential.device_name}"
+        )
+
         # Broadcast credential added event via WebSocket
-        logger.debug(f"[WEBAUTHN] Broadcasting credential_added event via WebSocket")
+        logger.debug(f"[WEBAUTHN][REGISTER_VERIFY] Broadcasting credential_added event via WebSocket")
         await broadcast_webauthn_credential_added(
-            user_id=user.id,
+            user_id=current_user.id,
             credential_data={
                 "device_name": credential.device_name,
                 "created_at": credential.created_at.isoformat(),
@@ -261,7 +266,10 @@ async def register_verify(
         )
 
     except ValueError as e:
-        logger.error(f"[WEBAUTHN] Registration verification failed: {str(e)}")
+        logger.error(
+            f"[WEBAUTHN][REGISTER_VERIFY] Verification failed: "
+            f"user_id={current_user.id}, error={str(e)}"
+        )
         if "already registered" in str(e):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -278,7 +286,10 @@ async def register_verify(
                 detail=str(e),
             )
     except Exception as e:
-        logger.error(f"[WEBAUTHN] Registration verification error: {str(e)}")
+        logger.error(
+            f"[WEBAUTHN][REGISTER_VERIFY] Unexpected error: "
+            f"user_id={current_user.id}, error={str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Registration verification failed: {str(e)}",
@@ -437,7 +448,7 @@ async def authenticate_verify(
     summary="List user's WebAuthn credentials",
 )
 async def list_credentials(
-    request: Request,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> CredentialListResponse:
     """
@@ -445,20 +456,15 @@ async def list_credentials(
 
     Requires: Authenticated user (JWT)
     """
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-
-    user: User = request.state.user
-
-    logger.info(f"[WEBAUTHN] Credentials list requested: user_id={user.id}")
+    logger.info(
+        f"[WEBAUTHN][LIST_CREDENTIALS] Listing credentials: "
+        f"user_id={current_user.id}"
+    )
 
     stmt = (
         select(WebAuthnCredential)
         .where(
-            WebAuthnCredential.user_id == user.id,
+            WebAuthnCredential.user_id == current_user.id,
             WebAuthnCredential.is_revoked == False,  # noqa: E712
         )
         .order_by(WebAuthnCredential.created_at.desc())
@@ -466,7 +472,10 @@ async def list_credentials(
     result = await session.exec(stmt)
     credentials = result.all()
 
-    logger.debug(f"[WEBAUTHN] Found {len(credentials)} credentials")
+    logger.info(
+        f"[WEBAUTHN][LIST_CREDENTIALS] Found {len(credentials)} credentials: "
+        f"user_id={current_user.id}"
+    )
 
     return CredentialListResponse(
         credentials=[
@@ -491,6 +500,7 @@ async def list_credentials(
 )
 async def revoke_credential(
     request: Request,
+    current_user: CurrentUser,
     credential_id: str,
     data: CredentialRevokeRequest,
     session: AsyncSession = Depends(get_session),
@@ -505,43 +515,42 @@ async def revoke_credential(
     - Telegram-only users with 2FA: TOTP code
     - Users without password AND 2FA: Must setup one first
     """
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-
-    user: User = request.state.user
-
     logger.info(
-        f"[WEBAUTHN] Credential revocation requested: user_id={user.id}, "
-        f"credential_id={credential_id[:20]}..."
+        f"[WEBAUTHN][REVOKE_CREDENTIAL] Revoke requested: "
+        f"user_id={current_user.id}, credential_id={credential_id[:20]}..."
     )
 
     # Verification logic depends on user auth method
-    if user.password_hash and data.password:
-        logger.debug(f"[WEBAUTHN] Verifying password for email user...")
-        if not verify_password(data.password, user.password_hash):
-            logger.warning(f"[WEBAUTHN] Password verification: FAILED")
+    if current_user.password_hash and data.password:
+        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Verifying password for email user...")
+        if not verify_password(data.password, current_user.password_hash):
+            logger.warning(
+                f"[WEBAUTHN][REVOKE_CREDENTIAL] Password verification failed: "
+                f"user_id={current_user.id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid password",
             )
-        logger.debug(f"[WEBAUTHN] Password verification: PASSED")
+        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Password verification: PASSED")
 
-    elif user.two_factor_enabled and data.totp_code:
-        logger.debug(f"[WEBAUTHN] Verifying TOTP code for Telegram user...")
-        if not verify_totp_code(user.two_factor_secret, data.totp_code):
-            logger.warning(f"[WEBAUTHN] TOTP verification: FAILED")
+    elif current_user.two_factor_enabled and data.totp_code:
+        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Verifying TOTP code for Telegram user...")
+        if not verify_totp_code(current_user.two_factor_secret, data.totp_code):
+            logger.warning(
+                f"[WEBAUTHN][REVOKE_CREDENTIAL] TOTP verification failed: "
+                f"user_id={current_user.id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid TOTP code",
             )
-        logger.debug(f"[WEBAUTHN] TOTP verification: PASSED")
+        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] TOTP verification: PASSED")
 
     else:
         logger.warning(
-            f"[WEBAUTHN] User has no password and no 2FA - cannot verify revocation request"
+            f"[WEBAUTHN][REVOKE_CREDENTIAL] User has no password and no 2FA: "
+            f"user_id={current_user.id}"
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -551,13 +560,17 @@ async def revoke_credential(
     # Load credential
     stmt = select(WebAuthnCredential).where(
         WebAuthnCredential.credential_id == credential_id,
-        WebAuthnCredential.user_id == user.id,
+        WebAuthnCredential.user_id == current_user.id,
         WebAuthnCredential.is_revoked == False,  # noqa: E712
     )
     result = await session.exec(stmt)
     credential = result.first()
 
     if not credential:
+        logger.error(
+            f"[WEBAUTHN][REVOKE_CREDENTIAL] Credential not found: "
+            f"user_id={current_user.id}, credential_id={credential_id[:20]}..."
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Credential not found",
@@ -574,7 +587,7 @@ async def revoke_credential(
     from backend.app.models.webauthn_audit_log import WebAuthnAuditLog
 
     audit_log = WebAuthnAuditLog(
-        user_id=user.id,
+        user_id=current_user.id,
         credential_id=credential_id,
         event_type="credential_revoked",
         ip_address=request.client.host if request.client else None,
@@ -586,14 +599,15 @@ async def revoke_credential(
     await session.commit()
 
     logger.info(
-        f"[WEBAUTHN] Credential revoked: credential_id={credential_id[:20]}..., "
+        f"[WEBAUTHN][REVOKE_CREDENTIAL] Credential revoked successfully: "
+        f"user_id={current_user.id}, credential_id={credential_id[:20]}..., "
         f"revoked_at={credential.revoked_at}"
     )
 
     # Broadcast credential revoked event via WebSocket
-    logger.debug(f"[WEBAUTHN] Broadcasting credential_revoked event via WebSocket")
+    logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Broadcasting credential_revoked event via WebSocket")
     await broadcast_webauthn_credential_revoked(
-        user_id=user.id,
+        user_id=current_user.id,
         credential_id=credential_id,
     )
 

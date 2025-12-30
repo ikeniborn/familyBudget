@@ -4,6 +4,25 @@
 async function checkWebAuthnOnboarding() {
     console.log('[WEBAUTHN_ONBOARDING] Checking if onboarding modal should be shown...');
 
+    // Check if WebAuthn is supported
+    if (!window.PublicKeyCredential) {
+        console.log('[WEBAUTHN_ONBOARDING] WebAuthn not supported on this device - skipping');
+        return;
+    }
+
+    // Check if platform authenticator (biometric) is available
+    try {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) {
+            console.log('[WEBAUTHN_ONBOARDING] No biometric authenticator available on this device - skipping');
+            return;
+        }
+        console.log('[WEBAUTHN_ONBOARDING] ✓ Biometric authenticator available - continuing check');
+    } catch (error) {
+        console.error('[WEBAUTHN_ONBOARDING] Error checking authenticator availability:', error);
+        return;
+    }
+
     // Check if user already dismissed onboarding (local storage flag)
     const dismissed = localStorage.getItem('webauthn_onboarding_dismissed');
     if (dismissed === 'true') {
@@ -27,33 +46,74 @@ async function checkWebAuthnOnboarding() {
         return;
     }
 
+    // Check if user came from 2FA setup (onboarding already shown there)
+    const from2faSetup = sessionStorage.getItem('from_2fa_setup_login');
+    if (from2faSetup === 'true') {
+        console.log('[WEBAUTHN_ONBOARDING] ⊘ Came from 2FA setup - onboarding already shown, skipping');
+        sessionStorage.removeItem('from_2fa_setup_login');
+        sessionStorage.removeItem('just_logged_in');
+        return;
+    }
+
     // Clear the flag (show only once per session)
     sessionStorage.removeItem('just_logged_in');
 
     try {
         // Check WebAuthn status
-        console.log('[WEBAUTHN_ONBOARDING] Fetching WebAuthn status...');
+        console.log('[WEBAUTHN_ONBOARDING] Fetching WebAuthn status from /api/v1/auth/webauthn-status');
+        console.log('[WEBAUTHN_ONBOARDING] Request headers: credentials=include');
+
         const response = await fetch('/api/v1/auth/webauthn-status', {
             credentials: 'include'
         });
 
+        console.log('[WEBAUTHN_ONBOARDING] Response received:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+
         if (!response.ok) {
-            console.warn('[WEBAUTHN_ONBOARDING] Failed to fetch status:', response.status);
+            console.error(
+                '[WEBAUTHN_ONBOARDING] Failed to fetch status:',
+                {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url
+                }
+            );
+
+            // Try to read error response body
+            try {
+                const errorData = await response.json();
+                console.error('[WEBAUTHN_ONBOARDING] Error details:', errorData);
+            } catch (e) {
+                console.error('[WEBAUTHN_ONBOARDING] Could not parse error response');
+            }
+
             return;
         }
 
         const data = await response.json();
-        console.log('[WEBAUTHN_ONBOARDING] Status:', data);
+        console.log('[WEBAUTHN_ONBOARDING] Status received:', {
+            has_credentials: data.has_credentials,
+            user_id: data.user_id
+        });
 
         if (!data.has_credentials) {
             console.log('[WEBAUTHN_ONBOARDING] User has no credentials - showing onboarding modal');
             showWebAuthnOnboardingModal();
         } else {
-            console.log('[WEBAUTHN_ONBOARDING] User already has credentials - skipping onboarding');
+            console.log('[WEBAUTHN_ONBOARDING] User already has credentials (credential_count: N/A) - skipping onboarding');
         }
 
     } catch (error) {
-        console.error('[WEBAUTHN_ONBOARDING] Error checking status:', error);
+        console.error('[WEBAUTHN_ONBOARDING] Exception during status check:', {
+            error: error.message,
+            stack: error.stack,
+            name: error.name
+        });
     }
 }
 
@@ -109,7 +169,7 @@ async function enableWebAuthnFromOnboarding() {
     document.getElementById('webauthn-onboarding-modal').close();
 
     // Redirect to security settings with WebAuthn onboarding flag
-    window.location.href = '/security-settings?webauthn_onboarding=true';
+    window.location.href = '/security?webauthn_onboarding=true';
 }
 
 // Run check on page load (if user just logged in)

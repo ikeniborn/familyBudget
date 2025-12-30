@@ -82,7 +82,10 @@ class BudgetWSClient {
         this._rttMeasurements = [];      // Rolling window of last 5 RTT measurements
         this._rttRollingAverage = 0;     // Average of last 5 measurements
         this._pingTimestamp = null;      // Timestamp when ping sent
-        this.RTT_THRESHOLD = 2000;       // Slow connection threshold (ms)
+        // Read threshold from config (with fallback to 5000ms)
+        this.RTT_THRESHOLD = (typeof window !== 'undefined' && window.FEATURE_FLAGS?.WS_RTT_THRESHOLD_MS)
+            ? window.FEATURE_FLAGS.WS_RTT_THRESHOLD_MS
+            : 5000;
         this.RTT_WINDOW_SIZE = 5;        // Number of measurements to average
 
         // Flag for limit reached state
@@ -1597,7 +1600,7 @@ class BudgetWSClient {
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                debugLog('[BudgetWS] Long polling aborted');
+                debugLog('[BudgetWS] Long polling gracefully cancelled (AbortController triggered)');
                 return;
             }
 
@@ -1638,6 +1641,7 @@ class BudgetWSClient {
      */
     _stopLongPolling() {
         if (this.pollController) {
+            debugLog('[BudgetWS] Gracefully aborting active poll request (prevents nginx 499)');
             this.pollController.abort();
             this.pollController = null;
         }
@@ -1702,6 +1706,8 @@ class BudgetWSClient {
      * @private
      */
     _silentClose() {
+        debugLog('[BudgetWS] Page unload detected - closing connections gracefully');
+
         // Cleanup multi-tab
         if (this.leaderHeartbeatInterval) {
             clearInterval(this.leaderHeartbeatInterval);

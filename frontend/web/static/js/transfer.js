@@ -166,11 +166,27 @@ async function loadTransferPlanHints(direction) {
     const selectedCategory = categoryTree ? categoryTree.getSelectedCategory() : null;
     const articleId = selectedCategory ? selectedCategory.id : null;
 
-    if (!articleId) {
+    // Get financial center ID for the direction
+    const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
+    const fcSelect = document.getElementById(fcSelectId);
+    const financialCenterId = fcSelect ? fcSelect.value : null;
+
+    // ✅ FIX 3: Require BOTH category AND FC for hints
+    if (!articleId || !financialCenterId) {
+        console.log(`[TRANSFER_HINTS] ⚠️ SKIPPED ${direction}:`, {
+            articleId,
+            financialCenterId,
+            missing: !articleId ? 'category' : 'FC'
+        });
         planBtn.innerHTML = 'План: --';
         factBtn.innerHTML = 'Факт: --';
         return;
     }
+
+    console.log(`[TRANSFER_HINTS] ✅ Loading hints for ${direction}:`, {
+        articleId,
+        financialCenterId
+    });
 
     window[timeoutRef] = setTimeout(async () => {
         // Skip API call if offline
@@ -186,11 +202,6 @@ async function loadTransferPlanHints(direction) {
             // Get selected period
             const periodInput = document.getElementById('transfer_plan_month');
             const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
-
-            // Get financial center ID for the direction
-            const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
-            const fcSelect = document.getElementById(fcSelectId);
-            const financialCenterId = fcSelect ? fcSelect.value : null;
 
             const params = new URLSearchParams({
                 period: period,
@@ -335,11 +346,27 @@ async function loadTransferFactHints(direction) {
     const selectedCategory = categoryTree ? categoryTree.getSelectedCategory() : null;
     const articleId = selectedCategory ? selectedCategory.id : null;
 
-    if (!articleId) {
+    // Get financial center ID for the direction
+    const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
+    const fcSelect = document.getElementById(fcSelectId);
+    const financialCenterId = fcSelect ? fcSelect.value : null;
+
+    // ✅ FIX 3: Require BOTH category AND FC for hints
+    if (!articleId || !financialCenterId) {
+        console.log(`[TRANSFER_HINTS] ⚠️ SKIPPED ${direction}:`, {
+            articleId,
+            financialCenterId,
+            missing: !articleId ? 'category' : 'FC'
+        });
         planBtn.innerHTML = 'План: --';
         factBtn.innerHTML = 'Факт: --';
         return;
     }
+
+    console.log(`[TRANSFER_HINTS] ✅ Loading hints for ${direction}:`, {
+        articleId,
+        financialCenterId
+    });
 
     window[timeoutRef] = setTimeout(async () => {
         // Skip API call if offline
@@ -357,11 +384,6 @@ async function loadTransferFactHints(direction) {
             const factDate = dateInput && dateInput.value
                 ? BudgetShared.DateFormatter.formatForAPI(dateInput.value)
                 : new Date().toISOString().split('T')[0];
-
-            // Get financial center ID for the direction
-            const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
-            const fcSelect = document.getElementById(fcSelectId);
-            const financialCenterId = fcSelect ? fcSelect.value : null;
 
             const params = new URLSearchParams({
                 fact_date: factDate,

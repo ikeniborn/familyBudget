@@ -58,7 +58,12 @@
             WS_STATE: true,            // WebSocket badge state transition logging
             NAV: true,                 // Navigation detection for RTT filtering
             RTT_FILTER: true,          // RTT filtering logic
-            CACHE: isDevelopment       // Cache metrics collection (dev only)
+            CACHE: isDevelopment,      // Cache metrics collection (dev only)
+            DUPLICATE_SEARCH: true,    // Shopping list duplicate detection
+            ITEM_SAVE: true,           // Shopping list item save operations
+            LISTS: true,               // Shopping lists general operations
+            MODAL_KB: isDevelopment,   // Modal keyboard adaptation
+            PUSH_BANNER: true          // Push permission banner events
         },
 
         // Environment info (for debugging)

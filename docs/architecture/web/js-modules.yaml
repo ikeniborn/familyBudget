@@ -637,6 +637,98 @@ modules:
       overlayDelay: "50ms (delay before navigation)"
       timeout: "30000ms (max fetch timeout)"
 
+  modalKeyboardAdapter:
+    path: "frontend/web/static/js/utils/modalKeyboardAdapter.js"
+    minified: "modalKeyboardAdapter.min.js"
+    version: "6.6.0"
+    loc: ~450
+    description: "Automatic modal positioning when virtual keyboard opens on mobile/PWA"
+    purpose: |
+      Solves the problem of modal windows being pushed off-screen when virtual
+      keyboard opens on mobile devices. Automatically shifts modal to top with
+      10px offset from header and scrolls active input into view.
+    architecture: "Event-based global handler (zero modification to existing modals)"
+    features:
+      - "VisualViewport API for keyboard detection (95% browser coverage)"
+      - "Fallback detection via window resize + focus tracking"
+      - "Automatic position restoration when keyboard closes"
+      - "Input field scrolling into view"
+      - "Support for all DaisyUI modals (dialog.modal)"
+      - "Edge case handling: multiple modals, orientation change, resize"
+      - "iOS safe area support (notch/home indicator)"
+      - "GPU-accelerated 300ms transitions"
+      - "Resolves my-auto class conflict via dynamic class manipulation"
+    browser_support:
+      safari_ios_13_plus: "VisualViewport API"
+      chrome_android_61_plus: "VisualViewport API"
+      safari_ios_12: "Fallback detection"
+      coverage: "~95% of mobile browsers (2025)"
+    keyboard_detection:
+      primary: "VisualViewport API (heightDiff > 150px)"
+      fallback: "Window resize + focus tracking (heightDiff > 150px)"
+      threshold: "150px height difference"
+    modal_lifecycle:
+      observer: "MutationObserver on document.body"
+      attributes: "['open'] on dialog.modal elements"
+      tracking: "Stores reference to active modal + .modal-box element"
+    css_classes:
+      modal-box--keyboard-active: "Shifts modal to top (margin-top calculated)"
+      modal-box--keyboard-restoring: "Smooth transition back to center"
+      modal-box--transitioning: "Prevents interaction during animation"
+    css_variables:
+      header-height: "Dynamically set via JS (header element offsetHeight)"
+      viewport-height: "Updated on keyboard open/close (visualViewport.height)"
+    key_methods:
+      _setupKeyboardDetection: "Initialize VisualViewport or fallback"
+      _onViewportResize: "Detect keyboard state changes"
+      _setupModalObserver: "Watch for modal open/close"
+      _onModalOpen: "Store active modal reference"
+      _onModalClose: "Clear active modal state"
+      _onKeyboardOpen: "Apply keyboard position + scroll input into view"
+      _onKeyboardClose: "Restore original position"
+      _applyKeyboardPosition: "Add CSS class, remove my-auto conflict"
+      _scrollActiveInputIntoView: "Scroll focused input visible (350ms delay)"
+      _restoreOriginalPosition: "Remove CSS class, restore my-auto"
+      _updateCSSVariables: "Set --header-height, --viewport-height"
+    class_conflict_resolution:
+      problem: "Tailwind my-auto class (margin-top/bottom: auto) conflicts with calculated margins"
+      solution: "Remove my-auto when applying keyboard position, restore when closing"
+      implementation: |
+        _applyKeyboardPosition():
+          this._modalBox.classList.remove('my-auto')
+        _restoreOriginalPosition():
+          this._modalBox.classList.add('my-auto')
+    edge_cases:
+      multiple_modals: "Replaces active modal, restores previous position"
+      orientation_change: "Re-applies position after 300ms delay"
+      window_resize: "Debounced (100ms), re-calculates CSS variables"
+      ios_safe_areas: "Uses env(safe-area-inset-top/bottom)"
+    logging:
+      module: "MODAL_KB (enabled in development only)"
+      logger: "window.logModalKB (Logger class)"
+      key_events:
+        - "Adapter initialization"
+        - "Keyboard detection (open/close)"
+        - "Modal lifecycle (open/close)"
+        - "Position application/restoration"
+        - "Input scrolling"
+        - "Orientation changes"
+        - "CSS variable updates"
+        - "Class manipulation (my-auto removal/restoration)"
+    exports:
+      singleton: "window.modalKeyboardAdapter (auto-initialized)"
+    depends_on:
+      - "Logger class (window.logModalKB)"
+      - "LOGGING_CONFIG.modules.MODAL_KB"
+    integration:
+      script_import: "base.html (after logger.js)"
+      initialization: "Automatic on module load"
+      manual_intervention: "None required (event-based)"
+    documentation:
+      architecture: "/docs/architecture/frontend/modal-keyboard-adaptation.md"
+      test_cases: "TC1-TC5 (keyboard open/close, scroll, orientation, multiple modals, rapid focus)"
+      troubleshooting: "Remote debugging via iOS Safari, Android Chrome DevTools"
+
 # ---------------------------------------------------------------------------
 # VENDOR LIBRARIES
 # ---------------------------------------------------------------------------

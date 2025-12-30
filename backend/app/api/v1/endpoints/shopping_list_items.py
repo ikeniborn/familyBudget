@@ -185,6 +185,13 @@ async def create_shopping_list_item(
     - unit: Unit of measurement (e.g., "kg", "pcs", "l")
     - comment: Additional notes
     """
+    # Log before creation
+    logger.info(
+        f"[ITEM_CREATE] Creating item: user_id={current_user.id}, "
+        f"list_id={item_data.shopping_list_id}, product='{item_data.product_name}', "
+        f"store_id={item_data.store_id}, quantity={item_data.quantity}"
+    )
+
     # Create shopping list item
     item = ShoppingListItem(
         creator_id=current_user.id,  # Audit trail
@@ -202,9 +209,10 @@ async def create_shopping_list_item(
     await session.commit()
     await session.refresh(item)
 
+    # Log after successful creation
     logger.info(
-        f"Created shopping list item {item.id} ({item.product_name}) "
-        f"for list {item.shopping_list_id} by user {current_user.id}"
+        f"[ITEM_CREATE] Item created successfully: item_id={item.id}, "
+        f"product='{item.product_name}'"
     )
 
     # Broadcast SSE event to all connected clients
@@ -257,8 +265,9 @@ async def suggest_products(
     Get product suggestions based on shopping list history.
 
     **Features:**
-    - Case-insensitive substring search using ILIKE
-    - Finds products containing the search query (e.g., "мол" finds "Молоко")
+    - Case-insensitive substring search using func.lower() + LIKE
+    - Works reliably with Cyrillic characters regardless of database collation
+    - Finds products containing the search query (e.g., "мол" finds "Молоко", "МОЛ" finds "молоко")
     - Returns unique products with store and product group info
     - Sorted by last usage, then by usage count
     - Includes usage count for relevance
@@ -326,7 +335,7 @@ async def suggest_products(
             )
             .where(
                 ShoppingListItem.shopping_list_id == shopping_list_id,
-                ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+                func.lower(ShoppingListItem.product_name.collate("ru-RU-x-icu")).like(f"%{search_pattern.lower()}%"),
                 ShoppingListItem.deleted_at.is_not(None),  # Only soft-deleted
             )
             .order_by(ShoppingListItem.deleted_at.desc())  # Most recently deleted first
@@ -369,7 +378,7 @@ async def suggest_products(
         .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
         .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
         .where(
-            ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+            func.lower(ShoppingListItem.product_name.collate("ru-RU-x-icu")).like(f"%{search_pattern.lower()}%"),
             ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
         )
         .group_by(
@@ -431,6 +440,71 @@ async def suggest_products(
         query=q,
         count=len(unique_suggestions),
     )
+
+
+@router.get(
+    "/check-duplicate",
+    response_model=Optional[ShoppingListItemResponse],
+    summary="Check for duplicate item in list",
+    description="Search for existing non-completed item matching product_name and store_id",
+)
+async def check_duplicate_item(
+    shopping_list_id: int = Query(..., description="Shopping list ID"),
+    product_name: str = Query(
+        ..., min_length=1, description="Product name to search"
+    ),
+    store_id: int = Query(..., description="Store ID"),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> Optional[ShoppingListItemResponse]:
+    """
+    Check if similar item exists in shopping list (NOT completed).
+
+    Used for duplicate detection in Add/Edit modal.
+
+    Matching logic:
+    - Same shopping_list_id
+    - Same store_id
+    - Product name matches (case-insensitive EXACT)
+    - NOT completed (is_completed=False)
+    - NOT soft-deleted (deleted_at IS NULL)
+
+    Returns:
+    - Matching item if found (first result)
+    - None if no duplicate found
+    """
+    logger.info(
+        f"[DUPLICATE_SEARCH] Checking duplicate: "
+        f"list_id={shopping_list_id}, product='{product_name}', store_id={store_id}, "
+        f"user_id={current_user.id}"
+    )
+
+    # Query for duplicate (case-insensitive exact match)
+    query = (
+        select(ShoppingListItem)
+        .where(
+            ShoppingListItem.shopping_list_id == shopping_list_id,
+            ShoppingListItem.store_id == store_id,
+            func.lower(ShoppingListItem.product_name)
+            == func.lower(product_name),
+            ShoppingListItem.is_completed == False,
+            ShoppingListItem.deleted_at.is_(None),
+        )
+        .limit(1)
+    )
+
+    result = await session.execute(query)
+    item = result.scalar_one_or_none()
+
+    if item:
+        logger.info(
+            f"[DUPLICATE_SEARCH] Found duplicate: "
+            f"item_id={item.id}, quantity={item.quantity}, unit={item.unit}"
+        )
+        return ShoppingListItemResponse.model_validate(item)
+
+    logger.info("[DUPLICATE_SEARCH] No duplicate found")
+    return None
 
 
 # ==================== ITEM CRUD ENDPOINTS ====================
@@ -519,6 +593,12 @@ async def update_shopping_list_item(
         # No changes, return existing item
         return ShoppingListItemResponse.model_validate(item)
 
+    # Log before update
+    logger.info(
+        f"[ITEM_UPDATE] Updating item: item_id={item_id}, user_id={current_user.id}, "
+        f"changes={update_dict}"
+    )
+
     # Track if is_completed changed to True
     is_completing = (
         "is_completed" in update_dict
@@ -550,9 +630,10 @@ async def update_shopping_list_item(
     await session.commit()
     await session.refresh(item)
 
+    # Log after successful update
     logger.info(
-        f"Updated shopping list item {item_id} ({item.product_name}) "
-        f"version: {item.version}, fields: {changed_fields} by user {current_user.id}"
+        f"[ITEM_UPDATE] Item updated successfully: item_id={item_id}, "
+        f"product='{item.product_name}', quantity={item.quantity}"
     )
 
     # Broadcast SSE event to all connected clients

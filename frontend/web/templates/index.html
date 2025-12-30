@@ -6,44 +6,6 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section (tap to close with localStorage) -->
-        <!-- Hidden by default to prevent FOUC, shown by inline script if not dismissed -->
-        <div id="welcome-section" style="display: none" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative cursor-pointer">
-            <div class="hero-content text-center py-6 pb-8">
-                <div class="max-w-md">
-                    <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
-                    <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
-                </div>
-            </div>
-            <!-- Hint text at the bottom -->
-            <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
-        </div>
-        <script>
-        // Immediate visibility check (prevents FOUC)
-        // Executes before DOMContentLoaded, right after element is parsed
-        (function() {
-            try {
-                const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
-                const welcomeSection = document.getElementById('welcome-section');
-
-                if (!isHidden && welcomeSection) {
-                    // Show welcome section only if user hasn't dismissed it
-                    welcomeSection.style.display = 'block';
-                    console.log('[WELCOME] Section shown (not dismissed by user)');
-                } else if (isHidden) {
-                    console.log('[WELCOME] Section hidden (dismissed by user, preventing render)');
-                }
-            } catch (e) {
-                // If localStorage unavailable, show welcome section (graceful fallback)
-                const welcomeSection = document.getElementById('welcome-section');
-                if (welcomeSection) {
-                    welcomeSection.style.display = 'block';
-                    console.log('[WELCOME] Section shown (localStorage unavailable, fallback to visible)');
-                }
-            }
-        })();
-        </script>
-
         <!-- Quick Stats Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
@@ -88,8 +50,8 @@
 
         <!-- Full Width Layout: Quick Stats, Quick Actions, Recent Transactions -->
         <div class="grid grid-cols-1 gap-6">
-            <!-- Quick Actions Block (Desktop only, hidden on mobile) -->
-            <div class="card bg-base-100 shadow-xl hidden md:block">
+            <!-- Quick Actions Block (Desktop only, hidden on mobile and tablet) -->
+            <div class="card bg-base-100 shadow-xl hidden lg:block">
                 <div class="card-body p-4 md:p-6">
                     <h2 class="card-title text-lg md:text-xl mb-3 md:mb-4">💡 Быстрые действия</h2>
 
@@ -157,8 +119,8 @@
                         </div>
                     </div>
 
-                    <!-- Desktop: Original 3-column layout (visible on >= md) -->
-                    <div class="hidden md:grid md:grid-cols-3 gap-4">
+                    <!-- Desktop: Original 3-column layout (visible on >= lg) -->
+                    <div class="hidden lg:grid lg:grid-cols-3 gap-4">
                         <!-- Факты -->
                         <div class="border border-success/30 rounded-lg p-3 bg-success/5">
                             <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">
@@ -370,24 +332,6 @@
 
     <!-- Modal: Редактировать запись (факт или план) -->
     {{ edit_plan_modal('edit-modal') }}
-
-    <!-- Modal: Confirm Welcome Section Close -->
-    <dialog id="modal_welcome_close_confirm" class="modal">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg mb-4">⚠️ Подтверждение</h3>
-            <p class="py-4">
-                Вы уверены, что хотите скрыть секцию приветствия?<br>
-                <span class="text-sm opacity-70">Она больше не будет отображаться. Чтобы вернуть её, нужно будет очистить кэш браузера.</span>
-            </p>
-            <div class="modal-action">
-                <button onclick="confirmWelcomeClose()" class="btn btn-error btn-sm">Да, скрыть</button>
-                <button onclick="closeWelcomeConfirmModal()" class="btn btn-sm">Отмена</button>
-            </div>
-        </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-        </form>
-    </dialog>
 
     <!-- Modal: Recurring Delete Confirmation -->
     <dialog id="recurring-delete-modal" class="modal">
@@ -2391,61 +2335,6 @@ function openAddTransactionModal() {
 // Ensure function is globally accessible for onclick handlers
 window.openAddTransactionModal = openAddTransactionModal;
 
-// Welcome Section Management
-function checkWelcomeSectionVisibility() {
-    try {
-        const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
-        const welcomeSection = document.getElementById('welcome-section');
-
-        if (isHidden && welcomeSection) {
-            // Hide immediately without animation on page load
-            welcomeSection.style.display = 'none';
-        }
-    } catch (e) {
-        console.error('localStorage not available:', e);
-    }
-}
-
-function showWelcomeCloseConfirmation() {
-    const modal = document.getElementById('modal_welcome_close_confirm');
-    if (modal) {
-        modal.showModal();
-    }
-}
-
-function closeWelcomeConfirmModal() {
-    const modal = document.getElementById('modal_welcome_close_confirm');
-    if (modal) {
-        modal.close();
-    }
-}
-
-function hideWelcomeSection() {
-    const welcomeSection = document.getElementById('welcome-section');
-    if (welcomeSection) {
-        welcomeSection.style.opacity = '0';
-        welcomeSection.style.maxHeight = '0';
-        welcomeSection.style.overflow = 'hidden';
-        welcomeSection.style.padding = '0';
-        welcomeSection.style.margin = '0';
-
-        setTimeout(() => {
-            welcomeSection.style.display = 'none';
-        }, 500);
-    }
-}
-
-function confirmWelcomeClose() {
-    try {
-        localStorage.setItem('welcomeSectionHidden', 'true');
-    } catch (e) {
-        console.error('Failed to save to localStorage:', e);
-    }
-
-    hideWelcomeSection();
-    closeWelcomeConfirmModal();
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[INIT] DOMContentLoaded fired at', new Date().toISOString());
 
@@ -2479,20 +2368,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Welcome section visibility is now handled by inline script (prevents FOUC)
-    // checkWelcomeSectionVisibility() is no longer needed here
-
-    // Add click handler for welcome section (tap to close)
-    const welcomeSection = document.getElementById('welcome-section');
-    if (welcomeSection) {
-        welcomeSection.addEventListener('click', function() {
-            showWelcomeCloseConfirmation();
-        });
-    }
-
     // NOTE: updateOfflineUI() is now handled by base.html
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
     // Elements controlled by base.html: analytics-group, recent-transactions-card, mobile-menu-dropdown, etc.
+
+    // Welcome Toast Notification (shown once on first visit)
+    (function() {
+        try {
+            const hasSeenWelcome = localStorage.getItem('welcomeNotificationShown') === 'true';
+
+            if (!hasSeenWelcome) {
+                console.log('[WELCOME_TOAST] First visit detected - showing welcome notification');
+
+                // Show welcome toast with extended duration (5 seconds)
+                const userName = '{{ user.first_name or user.username }}';
+                const welcomeMessage = `👋 Добро пожаловать, ${userName}! Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.`;
+
+                showToast(welcomeMessage, 'success', 5000);
+
+                // Mark as shown to prevent future displays
+                localStorage.setItem('welcomeNotificationShown', 'true');
+                console.log('[WELCOME_TOAST] Notification shown and marked in localStorage');
+            } else {
+                console.log('[WELCOME_TOAST] Welcome notification already shown previously - skipping');
+            }
+        } catch (e) {
+            console.error('[WELCOME_TOAST] Error showing welcome notification:', e);
+            // If localStorage unavailable, still try to show toast (graceful fallback)
+            try {
+                const userName = '{{ user.first_name or user.username }}';
+                const welcomeMessage = `👋 Добро пожаловать, ${userName}!`;
+                showToast(welcomeMessage, 'success', 5000);
+                console.log('[WELCOME_TOAST] Shown without localStorage (fallback mode)');
+            } catch (fallbackError) {
+                console.error('[WELCOME_TOAST] Fallback also failed:', fallbackError);
+            }
+        }
+    })();
 
     // Preload categories for offline use (both expense and income)
     // This ensures categories are cached before user goes offline
@@ -3428,9 +3340,13 @@ async function loadFinancialCenters() {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
-                // Update fact hints for current month
+                // Update fact hints ONLY if both FC and category selected
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
-                loadFactHints(selectedCategory);
+                if (fcId && selectedCategory) {
+                    loadFactHints(selectedCategory);
+                } else {
+                    console.log('[FC_CHANGE] Not loading hints - missing FC or category');
+                }
             });
         }
 
@@ -3646,6 +3562,11 @@ let factHintsTimeout = null;
 let factHintsController = null;
 
 async function loadFactHints(category = null) {
+    console.log('[FACT_HINTS] loadFactHints() called:', {
+        category: category ? category.id : null,
+        categoryName: category ? category.name : null
+    });
+
     // 1. Clear debounce timeout
     if (factHintsTimeout) clearTimeout(factHintsTimeout);
     if (factHintsController) factHintsController.abort();
@@ -3654,16 +3575,36 @@ async function loadFactHints(category = null) {
     const factBtn = document.getElementById('hint-period-fact');
     if (!planBtn || !factBtn) return;
 
+    // ✅ FIX 3: Check if BOTH account AND category are selected
+    const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+    const financialCenterId = fcSelect ? fcSelect.value : null;
+    const articleId = category?.id;
+
+    console.log('[FACT_HINTS] Validation check:', {
+        fcId: financialCenterId,
+        articleId: articleId,
+        bothSelected: !!(financialCenterId && articleId)
+    });
+
+    if (!financialCenterId || !articleId) {
+        console.log('[FACT_HINTS] ⚠️ SKIPPED: Missing required fields', {
+            fcSelected: !!financialCenterId,
+            categorySelected: !!articleId
+        });
+        planBtn.innerHTML = 'План мес: --';
+        planBtn.disabled = true;
+        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        factBtn.innerHTML = 'Факт мес: --';
+        factBtn.disabled = true;
+        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        return;
+    }
+
+    console.log('[FACT_HINTS] ✅ Validation PASSED');
+
     // 2. Show loading state
     planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
     factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-
-    const articleId = category?.id;
-    if (!articleId) {
-        planBtn.innerHTML = 'План мес: --';
-        factBtn.innerHTML = 'Факт мес: --';
-        return;
-    }
 
     // 3. Debounce 300ms
     factHintsTimeout = setTimeout(async () => {
@@ -6087,10 +6028,21 @@ window.addEventListener('resize', () => {
     }, 100); // 100ms debounce
 
     // Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+    // Quick Actions visibility logging (updated for lg breakpoint - desktop only)
+    const width = window.innerWidth;
+    const breakpoint = width >= 1024 ? 'desktop' : (width >= 768 ? 'tablet' : 'mobile');
+    const quickActionsVisible = width >= 1024; // lg breakpoint (desktop only)
+
     console.log('[INDEX_PAGE] Page loaded:', {
         fabVisible: !!document.getElementById('fab-toolbar'),
-        quickActionsVisible: window.innerWidth >= 768, // md breakpoint
-        breakpoint: window.innerWidth >= 768 ? 'desktop' : 'mobile'
+        quickActionsVisible: quickActionsVisible,
+        breakpoint: breakpoint,
+        width: width,
+        quickActionsDetails: {
+            shouldShow: width >= 1024,
+            hiddenOnTablet: width >= 768 && width < 1024,
+            hiddenOnMobile: width < 768
+        }
     });
 });
 </script>

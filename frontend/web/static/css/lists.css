@@ -491,10 +491,120 @@
     font-size: 0.75rem;
 }
 
+/* ---- Search Field - Fade-in Animation ---- */
+#search-field-container {
+    animation: search-fade-in 0.3s ease-out;
+}
+
+@keyframes search-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#search-field-container.hidden {
+    display: none;
+    animation: none;
+}
+
+/* ---- Swipe Gestures (Mobile) ---- */
+.hierarchy-item {
+    position: relative;
+    overflow: hidden;
+}
+
+/* Transition on content element, NOT parent container */
+.hierarchy-item-content {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hierarchy-item-content.swiping {
+    transition: none; /* Disable transition during drag */
+}
+
+.hierarchy-item.swiped {
+    /* Transform applied to .hierarchy-item-content via JavaScript */
+}
+
+/* Swipe Actions - Hidden by default, shown when swiped */
+.hierarchy-item-swipe-actions {
+    position: absolute;
+    right: 0;
+    top: 0;
+    height: 100%;
+    width: 100%; /* CHANGED from 50%: Full width for right-edge positioning */
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding: 0 0.75rem 0 0; /* CHANGED: Increased padding for visual breathing room */
+    z-index: 5; /* NEW: Above content (z-index: 2) but below modals */
+    /* CHANGED: Gradient starts at 50% (visible area only, since first 50% is hidden behind item) */
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        transparent 50%,
+        var(--fallback-er, oklch(var(--er) / 0.05)) 60%,
+        var(--fallback-er, oklch(var(--er) / 0.1)) 75%,
+        var(--fallback-er, oklch(var(--er) / 0.15)) 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.hierarchy-item.swiped .hierarchy-item-swipe-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.hierarchy-item-swipe-actions .btn {
+    min-height: 2rem;
+    min-width: 2rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    font-size: 1rem;
+    flex-shrink: 0;
+    position: relative; /* NEW: Creates stacking context */
+    z-index: 10; /* NEW: Above gradient background */
+    pointer-events: auto; /* NEW: Explicit click enablement */
+    cursor: pointer; /* NEW: Visual feedback */
+}
+
+/* NEW: Visual debugging aid (remove after testing) */
+.swipe-debug .hierarchy-item-swipe-actions {
+    background: rgba(255, 0, 0, 0.2) !important; /* Red tint to see container bounds */
+}
+
+.swipe-debug .hierarchy-item-swipe-actions .btn {
+    outline: 2px solid lime !important; /* Green outline on buttons */
+}
+
 /* ---- Mobile Optimizations ---- */
+/* ============================================== */
+/* CRITICAL: Hide Desktop FAB Buttons on Touch Devices */
+/* ============================================== */
+/* Applies to ALL touch devices (smartphones, tablets, hybrid laptops) */
+/* regardless of screen size - prevents FAB buttons from showing on iPad, */
+/* Android tablets in landscape mode, and other large touch screens */
+@media (pointer: coarse) {
+    #lists-fab-menu,
+    #add-item-fab,
+    #create-list-fab,
+    #lists-fab-backdrop {
+        display: none !important;
+    }
+}
+
 @media (max-width: 640px) {
     .hierarchy-store {
-        padding: 0.625rem 0.5rem;
+        padding: 0.5rem 0.375rem;
         font-size: 0.875rem;
     }
 
@@ -503,7 +613,7 @@
     }
 
     .hierarchy-group {
-        padding: 0.5rem 0.25rem;
+        padding: 0.375rem 0.25rem;
     }
 
     .hierarchy-group.indent-1 {
@@ -520,8 +630,8 @@
     }
 
     .hierarchy-item {
-        padding: 0.375rem 0.5rem;
-        min-height: 2.5rem;
+        padding: 0.25rem 0.375rem;
+        min-height: 2.25rem;
         font-size: 0.875rem;
     }
 
@@ -530,20 +640,32 @@
         height: 1rem;
     }
 
-    /* Always show actions on mobile (no hover) */
-    .hierarchy-item-actions {
-        opacity: 1;
+    /* Enable swipe gestures on mobile */
+    .hierarchy-item {
+        touch-action: pan-y; /* Allow vertical scroll, enable horizontal swipe */
     }
 
-    .hierarchy-item-actions .btn {
-        min-height: 2rem;
-        min-width: 2rem;
+    /* Hide original inline actions on mobile (use swipe instead) */
+    .hierarchy-item-content .hierarchy-item-actions {
+        display: none;
     }
 
-    /* Allow text wrap on narrow screens */
+    /* Keep ellipsis on narrow screens for better swipe UX */
     .hierarchy-item-name {
-        white-space: normal;
-        word-break: break-word;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Increase toggle button size for better touch targets on mobile */
+    .hierarchy-toggle {
+        font-size: 1rem; /* Увеличено с 0.625rem до 1rem для лучшей видимости */
+        min-width: 1.5rem; /* Увеличено с 1.25rem */
+        padding: 0.125rem; /* Добавлен padding для лучшего touch target */
+    }
+
+    .hierarchy-toggle-placeholder {
+        min-width: 1.5rem; /* Соответствует увеличенному toggle */
     }
 }
 

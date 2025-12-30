@@ -23,6 +23,20 @@
                 Введите email для входа. Вы сможете выбрать метод аутентификации: биометрию (TouchID/FaceID) или пароль.
             </p>
 
+            <!-- Quick Biometric Login (shown if user previously authenticated with WebAuthn on this device) -->
+            <div id="quick-biometric-section" class="hidden space-y-4">
+                <button id="quick-biometric-btn" class="btn btn-primary w-full gap-2" onclick="handleQuickBiometricAuth()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
+                    </svg>
+                    <span id="quick-biometric-label">Войти через биометрию</span>
+                </button>
+                <p id="quick-biometric-email" class="text-sm opacity-70 text-center"></p>
+                <button onclick="showManualLogin()" class="btn btn-outline w-full">
+                    Использовать другой аккаунт
+                </button>
+            </div>
+
             <!-- Шаг 1: Identifier Input (Email или Username) -->
             <form id="identifier-form" class="space-y-4" onsubmit="handleIdentifierSubmit(event)">
                 <div class="form-control w-full">
@@ -462,6 +476,12 @@ async function handleBiometricAuth() {
             console.log('[WEBAUTHN_CLIENT] ✅ Authentication verified successfully');
             console.log('[WEBAUTHN_CLIENT] User:', data.user);
             console.log('[WEBAUTHN_CLIENT] JWT tokens received (cookies set)');
+
+            // Save email for quick biometric login on next visit
+            console.log('[WEBAUTHN_CLIENT] Saving email for quick biometric login...');
+            localStorage.setItem('webauthn_last_email', identifier);
+            console.log('[WEBAUTHN_CLIENT] Email saved to localStorage');
+
             console.log('[WEBAUTHN_CLIENT] Redirecting to dashboard...');
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
@@ -650,5 +670,175 @@ async function handlePasswordLogin(e) {
         btnLoading.classList.add('hidden');
     }
 }
+
+// ============================================================================
+// Quick Biometric Login (for returning users)
+// ============================================================================
+
+async function handleQuickBiometricAuth() {
+    const savedEmail = localStorage.getItem('webauthn_last_email');
+
+    if (!savedEmail) {
+        console.error('[WEBAUTHN_CLIENT] No saved email found for quick login');
+        showManualLogin();
+        return;
+    }
+
+    console.log('[WEBAUTHN_CLIENT] Starting quick biometric auth for saved email:', savedEmail);
+
+    try {
+        // 1. Get authentication options
+        console.log('[WEBAUTHN_CLIENT] Requesting authentication options...');
+        const optionsRes = await fetch('/api/v1/webauthn/authenticate/options', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({identifier: savedEmail})
+        });
+
+        if (!optionsRes.ok) {
+            const error = await optionsRes.json();
+            console.error('[WEBAUTHN_CLIENT] Failed to get options:', error);
+            // Clear saved email if user no longer exists or has no credentials
+            if (optionsRes.status === 404) {
+                console.log('[WEBAUTHN_CLIENT] User not found or no credentials - clearing saved email');
+                clearSavedBiometric();
+            }
+            throw new Error((typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail)) || 'Failed to get authentication options');
+        }
+
+        const options = await optionsRes.json();
+        console.log('[WEBAUTHN_CLIENT] Authentication options received');
+
+        // 2. Convert base64url to ArrayBuffer
+        const challengeBuffer = base64urlToBuffer(options.challenge);
+        const allowCredentials = options.allowCredentials.map(cred => ({
+            ...cred,
+            id: base64urlToBuffer(cred.id)
+        }));
+
+        // 3. Call WebAuthn API (triggers biometric prompt)
+        console.log('[WEBAUTHN_CLIENT] Calling navigator.credentials.get()...');
+        const credential = await navigator.credentials.get({
+            publicKey: {
+                challenge: challengeBuffer,
+                rpId: options.rpId,
+                allowCredentials: allowCredentials,
+                userVerification: options.userVerification,
+                timeout: options.timeout
+            }
+        });
+
+        console.log('[WEBAUTHN_CLIENT] ✅ Biometric authentication successful');
+
+        // 4. Convert credential to JSON
+        const credentialJSON = {
+            id: credential.id,
+            rawId: bufferToBase64url(credential.rawId),
+            response: {
+                authenticatorData: bufferToBase64url(credential.response.authenticatorData),
+                clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+                signature: bufferToBase64url(credential.response.signature),
+                userHandle: credential.response.userHandle
+                    ? bufferToBase64url(credential.response.userHandle)
+                    : null
+            },
+            type: credential.type
+        };
+
+        // 5. Verify authentication
+        console.log('[WEBAUTHN_CLIENT] Sending verification request...');
+        const verifyRes = await fetch('/api/v1/webauthn/authenticate/verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            credentials: 'include',
+            body: JSON.stringify({
+                challenge: options.challenge,
+                credential: credentialJSON
+            })
+        });
+
+        if (verifyRes.ok) {
+            const data = await verifyRes.json();
+            console.log('[WEBAUTHN_CLIENT] ✅ Quick login successful');
+            sessionStorage.setItem('just_logged_in', 'true');
+            window.location.href = '/';
+        } else {
+            const error = await verifyRes.json();
+            console.error('[WEBAUTHN_CLIENT] ❌ Verification failed:', error);
+            if (error.detail?.includes('compromised') || error.detail?.includes('cloned')) {
+                clearSavedBiometric();
+                showError('Credential compromised. Please use alternative login method.');
+                showManualLogin();
+            } else {
+                showError(error.detail || 'Authentication failed');
+            }
+        }
+
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Quick biometric auth error:', error);
+        handleWebAuthnError(error);
+    }
+}
+
+function showManualLogin() {
+    console.log('[WEBAUTHN_CLIENT] Showing manual login form');
+    document.getElementById('quick-biometric-section').classList.add('hidden');
+    document.getElementById('identifier-form').classList.remove('hidden');
+}
+
+async function checkQuickBiometricAvailable() {
+    const savedEmail = localStorage.getItem('webauthn_last_email');
+
+    console.log('[WEBAUTHN_CLIENT] Checking quick biometric availability...');
+    console.log('[WEBAUTHN_CLIENT] Saved email:', savedEmail ? savedEmail : 'none');
+
+    if (!savedEmail) {
+        console.log('[WEBAUTHN_CLIENT] No saved email - showing manual login');
+        return;
+    }
+
+    // Check if WebAuthn is supported
+    if (!await isWebAuthnSupported()) {
+        console.log('[WEBAUTHN_CLIENT] WebAuthn not supported - clearing saved email');
+        clearSavedBiometric();
+        return;
+    }
+
+    // Check if platform authenticator (biometric) is available
+    try {
+        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        if (!available) {
+            console.log('[WEBAUTHN_CLIENT] No biometric authenticator available - clearing saved email');
+            clearSavedBiometric();
+            return;
+        }
+    } catch (error) {
+        console.error('[WEBAUTHN_CLIENT] Error checking authenticator availability:', error);
+        return;
+    }
+
+    console.log('[WEBAUTHN_CLIENT] ✓ Quick biometric login available');
+
+    // Show quick biometric section
+    document.getElementById('quick-biometric-section').classList.remove('hidden');
+    document.getElementById('identifier-form').classList.add('hidden');
+
+    // Update label with saved email
+    document.getElementById('quick-biometric-email').textContent = savedEmail;
+    document.getElementById('quick-biometric-label').textContent = getBiometricLabel();
+
+    console.log('[WEBAUTHN_CLIENT] Quick biometric section shown');
+}
+
+function clearSavedBiometric() {
+    console.log('[WEBAUTHN_CLIENT] Clearing saved biometric email');
+    localStorage.removeItem('webauthn_last_email');
+}
+
+// Check for quick biometric login on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('[WEBAUTHN_CLIENT] Page loaded - checking for quick biometric login');
+    await checkQuickBiometricAvailable();
+});
 </script>
 {% endblock %}

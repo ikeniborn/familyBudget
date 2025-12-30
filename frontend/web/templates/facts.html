@@ -450,6 +450,11 @@ let factHintsTimeout = null;
 let factHintsController = null;
 
 async function loadFactHints(category = null) {
+    console.log('[FACT_HINTS] loadFactHints() called:', {
+        category: category ? category.id : null,
+        categoryName: category ? category.name : null
+    });
+
     // 1. Clear debounce timeout
     if (factHintsTimeout) clearTimeout(factHintsTimeout);
     if (factHintsController) factHintsController.abort();
@@ -458,16 +463,36 @@ async function loadFactHints(category = null) {
     const factBtn = document.getElementById('hint-period-fact');
     if (!planBtn || !factBtn) return;
 
+    // ✅ FIX 3: Check if BOTH account AND category are selected
+    const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+    const financialCenterId = fcSelect ? fcSelect.value : null;
+    const articleId = category?.id;
+
+    console.log('[FACT_HINTS] Validation check:', {
+        fcId: financialCenterId,
+        articleId: articleId,
+        bothSelected: !!(financialCenterId && articleId)
+    });
+
+    if (!financialCenterId || !articleId) {
+        console.log('[FACT_HINTS] ⚠️ SKIPPED: Missing required fields', {
+            fcSelected: !!financialCenterId,
+            categorySelected: !!articleId
+        });
+        planBtn.innerHTML = 'План мес: --';
+        planBtn.disabled = true;
+        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        factBtn.innerHTML = 'Факт мес: --';
+        factBtn.disabled = true;
+        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        return;
+    }
+
+    console.log('[FACT_HINTS] ✅ Validation PASSED');
+
     // 2. Show loading state
     planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
     factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-
-    const articleId = category?.id;
-    if (!articleId) {
-        planBtn.innerHTML = 'План мес: --';
-        factBtn.innerHTML = 'Факт мес: --';
-        return;
-    }
 
     // 3. Debounce 300ms
     factHintsTimeout = setTimeout(async () => {
@@ -987,7 +1012,23 @@ async function loadFinancialCenters() {
 
                 // Update fact hints for current month
                 const selectedCategory = createCategoryTreeSelect?.getSelectedCategory();
-                loadFactHints(selectedCategory);
+                const fcId = createSelect.value ? parseInt(createSelect.value) : null;
+
+                console.log('[FC_CHANGE] Checking if should load fact hints:', {
+                    fcId: fcId,
+                    selectedCategory: selectedCategory ? selectedCategory.id : null,
+                    willLoad: !!(fcId && selectedCategory)
+                });
+
+                if (fcId && selectedCategory) {
+                    console.log('[FC_CHANGE] ✅ Loading fact hints (both fields selected)');
+                    loadFactHints(selectedCategory);
+                } else {
+                    console.log('[FC_CHANGE] ⚠️ NOT loading fact hints (missing fields):', {
+                        fcMissing: !fcId,
+                        categoryMissing: !selectedCategory
+                    });
+                }
             });
         }
 
@@ -2051,7 +2092,14 @@ function setupCreateTransactionTypeButtons() {
 
             // Обновить fact hints для нового типа
             const cat = createCategoryTreeSelect?.getSelectedCategory();
-            loadFactHints(cat);
+            const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+            const fcId = fcSelect ? fcSelect.value : null;
+
+            if (fcId && cat) {
+                loadFactHints(cat);
+            } else {
+                console.log('[TYPE_CHANGE] Not loading hints - missing FC or category');
+            }
         });
     });
 }

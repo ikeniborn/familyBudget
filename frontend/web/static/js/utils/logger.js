@@ -207,6 +207,14 @@ window.logWSState = new Logger('[WS_STATE]', 'WS_STATE');
 window.logNav = new Logger('[NAV]', 'NAV');
 window.logRTTFilter = new Logger('[RTT_FILTER]', 'RTT_FILTER');
 
+// Shopping Lists loggers
+window.logDuplicateSearch = new Logger('[DUPLICATE_SEARCH]', 'DUPLICATE_SEARCH');
+window.logItemSave = new Logger('[ITEM_SAVE]', 'ITEM_SAVE');
+window.logLists = new Logger('[LISTS]', 'LISTS');
+
+// Modal Keyboard Adaptation logger
+window.logModalKB = new Logger('[MODAL_KB]', 'MODAL_KB');
+
 // Log logger initialization (only if logging enabled)
 if (window.LOGGING_CONFIG?.enabled) {
     console.log('[LOGGER] Centralized logging initialized');
@@ -224,6 +232,10 @@ if (window.LOGGING_CONFIG?.enabled) {
         WS_RTT: 'window.logWSRTT',
         WS_STATE: 'window.logWSState',
         NAV: 'window.logNav',
-        RTT_FILTER: 'window.logRTTFilter'
+        RTT_FILTER: 'window.logRTTFilter',
+        DUPLICATE_SEARCH: 'window.logDuplicateSearch',
+        ITEM_SAVE: 'window.logItemSave',
+        LISTS: 'window.logLists',
+        MODAL_KB: 'window.logModalKB'
     });
 }

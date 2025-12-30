@@ -42,7 +42,7 @@ class ImportStaging(SQLModel, table=True):
         ...     fact_date=date(2025, 11, 18),
         ...     amount_string="-900,00",
         ...     description="Кафе",
-        ...     csv_metadata={"category": "Фастфуд", "mcc": "5814", "card": "*5958"},
+        ...     csv_metadata={"category": "Фастфуд"},
         ...     is_selected=False
         ... )
     """
@@ -100,7 +100,8 @@ class ImportStaging(SQLModel, table=True):
     csv_metadata: Optional[dict] = Field(
         default=None,
         sa_column=Column(JSON),
-        description="Bank-specific metadata (category, mcc, card, etc.) for UI filters"
+        description="Bank-specific metadata for UI filters. Structure: {category: str}. "
+                    "Fields info1/info2 removed in v6.x (replaced by include_all_columns transformation)"
     )
 
     # User-assigned enrichment fields (mutable via UI)

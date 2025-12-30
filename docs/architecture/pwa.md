@@ -673,6 +673,353 @@ if ('serviceWorker' in navigator) {
 
 ---
 
+## PWA Icons Generation
+
+**Since:** v5.0.0 (Material Green redesign: v5.6.0)
+**Status:** ✅ Active
+
+### Overview
+
+PWA icons are generated from a single SVG source file using automated tooling that creates all required sizes for different platforms and purposes.
+
+**Generator Script:** `scripts/generate_pwa_icons.sh`
+
+**Source File:** `tmp/budget-icon-v3.svg` (Material Green gradient)
+
+**Output Directory:** `frontend/web/static/icons/`
+
+---
+
+### Dependencies
+
+The icon generation system uses two image processing libraries with automatic fallback:
+
+#### 1. librsvg2-bin (Recommended)
+
+**Package:** `librsvg2-bin`
+**Binary:** `rsvg-convert`
+**Purpose:** SVG to PNG conversion with proper gradient rendering
+
+**Why Recommended:**
+- ✅ Correct SVG gradient rendering (CSS and attribute-based)
+- ✅ Preserves color accuracy (#4CAF50 Material Green)
+- ✅ No grayscale conversion issues
+- ✅ Better quality for complex SVG features
+
+**Installation:**
+```bash
+sudo apt-get install librsvg2-bin
+```
+
+**Validation:**
+```bash
+rsvg-convert --version
+# Output: rsvg-convert version 2.50.x
+```
+
+#### 2. ImageMagick (Fallback)
+
+**Package:** `imagemagick`
+**Binary:** `convert`, `identify`
+**Purpose:** PNG manipulation, favicon generation, fallback SVG conversion
+
+**Why Fallback Only:**
+- ⚠️ SVG gradient rendering issues (converts to grayscale)
+- ⚠️ CSS-based linearGradient not supported properly
+- ✅ Good for PNG manipulation (resize, composite, extent)
+- ✅ Required for favicon.ico multi-size generation
+
+**Installation:**
+```bash
+sudo apt-get install imagemagick
+```
+
+**Validation:**
+```bash
+convert --version
+# Output: Version: ImageMagick 6.9.x
+```
+
+---
+
+### Generated Icon Types
+
+#### 1. PWA Manifest Icons
+
+**icon-192.png** (192×192):
+- Purpose: PWA install prompt, app drawer
+- Used by: Android, Chrome OS
+- Generated with: rsvg-convert (or ImageMagick fallback)
+
+**icon-512.png** (512×512):
+- Purpose: Splash screen, high-DPI displays
+- Used by: Android, Desktop PWA
+- Generated with: rsvg-convert (or ImageMagick fallback)
+
+**icon-maskable-512.png** (512×512 with 20% safe zone):
+- Purpose: Adaptive icons (Android 8+)
+- Safe zone: 80% content, 20% padding (prevents clipping)
+- Used by: Android adaptive icons
+- Generated with: rsvg-convert + ImageMagick pipeline
+
+#### 2. iOS Icons
+
+**apple-touch-icon.png** (180×180):
+- Purpose: iOS home screen, Safari bookmarks
+- Used by: iPhone, iPad
+- Generated with: rsvg-convert (or ImageMagick fallback)
+
+#### 3. Browser Icons
+
+**favicon.ico** (multi-size: 16×16, 32×32, 48×48):
+- Purpose: Browser tab, bookmarks
+- Format: ICO container with 3 embedded PNG sizes
+- Generated with: ImageMagick convert (multi-size ICO creation)
+
+**icon.svg** (vector source):
+- Purpose: Modern browsers, scalable icon
+- Source: Copied from input SVG
+- Used by: Chrome, Firefox, Safari (when supported)
+
+#### 4. iOS Splash Screens
+
+Generated for 10 different iPhone models (portrait orientation):
+
+| Device | Resolution | File |
+|--------|------------|------|
+| iPhone 7/8/SE 2-3 | 750×1334 | splash-750x1334.png |
+| iPhone 7+/8+ | 1242×2208 | splash-1242x2208.png |
+| iPhone X/XS/11 Pro | 1125×2436 | splash-1125x2436.png |
+| iPhone XR/11 | 828×1792 | splash-828x1792.png |
+| iPhone XS Max/11 Pro Max | 1242×2688 | splash-1242x2688.png |
+| iPhone 12 mini/13 mini | 1080×2340 | splash-1080x2340.png |
+| iPhone 12/13/14 | 1170×2532 | splash-1170x2532.png |
+| iPhone 12 Pro Max/14 Plus | 1284×2778 | splash-1284x2778.png |
+| iPhone 14 Pro/15/15 Pro | 1179×2556 | splash-1179x2556.png |
+| iPhone 14 Pro Max/15 Pro Max | 1290×2796 | splash-1290x2796.png |
+
+**Design:**
+- White background (#ffffff)
+- Centered icon (30% of shorter dimension)
+- Generated with: rsvg-convert + ImageMagick composite
+
+---
+
+### Generation Workflow
+
+#### Automatic Detection
+
+The script automatically detects available tools:
+
+```bash
+if command -v rsvg-convert &> /dev/null; then
+    USE_RSVG=true
+    echo "✓ Using rsvg-convert for SVG rendering (recommended)"
+else
+    USE_RSVG=false
+    echo "⚠ rsvg-convert not found, using ImageMagick convert (fallback)"
+    echo "  For better quality, install: sudo apt-get install librsvg2-bin"
+fi
+```
+
+#### Generation Functions
+
+**1. generate_png()** - Standard icon sizes
+- Input: SVG source, target size (e.g., 192)
+- rsvg-convert: Direct resize to target size
+- ImageMagick fallback: Density 300 for quality, then resize
+
+**2. generate_maskable()** - Adaptive icons with safe zone
+- Input: SVG source, target size (512), padding (20%)
+- Pipeline: rsvg-convert → ImageMagick extent
+- Adds padding around icon to prevent clipping
+
+**3. generate_favicon()** - Multi-size ICO
+- Input: SVG source
+- Creates temporary 16, 32, 48 PNG files
+- Combines into single ICO file using ImageMagick
+
+**4. generate_splash()** - iOS splash screens
+- Input: SVG source, width, height, background color
+- Creates background canvas
+- Centers icon (30% of shorter dimension)
+- Pipeline: rsvg-convert → ImageMagick composite
+
+---
+
+### Usage
+
+#### Manual Generation
+
+```bash
+# From project root
+./scripts/generate_pwa_icons.sh
+
+# Or with custom SVG
+./scripts/generate_pwa_icons.sh path/to/custom-icon.svg
+```
+
+#### Automatic During Deployment
+
+Icon generation is **NOT** automatic during deployment. Icons are pre-generated and committed to repository.
+
+**Rationale:**
+- Consistent icons across all environments
+- No build-time dependency on librsvg2-bin/imagemagick
+- Faster deployments (no generation overhead)
+- Version control tracks icon changes
+
+#### When to Regenerate
+
+Regenerate icons only when:
+- ✅ Icon design changes (color, shape, gradient)
+- ✅ New device sizes needed (e.g., iPhone 16)
+- ✅ Branding update (e.g., Material Green → new theme)
+
+**Workflow:**
+1. Update `tmp/budget-icon-v3.svg`
+2. Run `./scripts/generate_pwa_icons.sh`
+3. Validate generated icons (console output shows validation)
+4. Update `manifest.json` theme_color if needed
+5. Update `sw.js` CACHE_VERSION
+6. Commit changes
+7. Deploy
+
+---
+
+### Validation
+
+The script automatically validates generated icons:
+
+```bash
+Verifying generated icons:
+
+  ✓ icon-192.png: 192x192, 12K
+  ✓ icon-512.png: 512x512, 28K
+  ✓ icon-maskable-512.png: 512x512, 30K
+  ✓ apple-touch-icon.png: 180x180, 11K
+  ✓ favicon.ico: 15K
+  ✓ icon.svg: 3.2K
+  ✓ splash-750x1334.png: 750x1334, 45K
+  ✓ splash-1170x2532.png: 1170x2532, 120K
+  ✓ splash-1290x2796.png: 1290x2796, 135K
+
+✓ All icons generated successfully!
+```
+
+**Manual Validation:**
+
+```bash
+# Check icon dimensions
+identify frontend/web/static/icons/icon-192.png
+# Output: icon-192.png PNG 192x192 ...
+
+# Check color mode (should be RGB, not Grayscale)
+identify -verbose frontend/web/static/icons/icon-512.png | grep "Colorspace"
+# Output: Colorspace: sRGB
+
+# Verify gradient color (#4CAF50)
+# Open in browser or image viewer to visually confirm Material Green
+```
+
+---
+
+### Troubleshooting
+
+#### Issue: Icons appear grayscale (black/gray gradient)
+
+**Cause:** ImageMagick SVG parser doesn't handle CSS-based linearGradient
+
+**Solution:**
+```bash
+# Install librsvg2-bin for proper gradient rendering
+sudo apt-get install librsvg2-bin
+
+# Regenerate icons
+./scripts/generate_pwa_icons.sh
+
+# Verify colorspace
+identify -verbose frontend/web/static/icons/icon-512.png | grep "Colorspace"
+# Should output: Colorspace: sRGB (not Gray)
+```
+
+#### Issue: rsvg-convert not found warning
+
+**Cause:** librsvg2-bin not installed
+
+**Impact:** Icons generated with ImageMagick fallback (may have gradient issues)
+
+**Solution:**
+```bash
+# Install recommended library
+sudo apt-get install librsvg2-bin
+
+# Verify installation
+rsvg-convert --version
+```
+
+#### Issue: Incorrect icon sizes in manifest
+
+**Cause:** Manual manifest.json edit after icon regeneration
+
+**Solution:**
+```bash
+# Verify icon sizes match manifest.json
+identify frontend/web/static/icons/icon-192.png
+identify frontend/web/static/icons/icon-512.png
+identify frontend/web/static/icons/icon-maskable-512.png
+
+# Update manifest.json if needed
+```
+
+---
+
+### Design Guidelines
+
+**Material Green Color Scheme (v5.6.0+):**
+- Primary: #4CAF50 (Material Green 500)
+- Secondary: #388E3C (Material Green 700)
+- Gradient: Linear gradient from #4CAF50 to #388E3C
+
+**Safe Zone for Maskable Icons:**
+- Content: 80% of icon area (centered)
+- Padding: 20% total (10% on each side)
+- Prevents clipping on Android adaptive icons
+
+**Splash Screen Design:**
+- Background: White (#ffffff)
+- Icon size: 30% of shorter screen dimension
+- Centered vertically and horizontally
+- No text or branding (per Apple guidelines)
+
+---
+
+### Version History
+
+- **v5.6.0** (2025-12-23): Material Green redesign
+  - Changed gradient from Indigo (#6366F1) to Green (#4CAF50)
+  - Fixed grayscale rendering issue (switched to rsvg-convert)
+  - Updated all icon sizes and splash screens
+  - Added librsvg2-bin dependency
+
+- **v5.0.0** (2024-11): Initial PWA icons implementation
+  - Automated generation script
+  - Support for PWA manifest, iOS, favicon
+  - 10 iPhone splash screen sizes
+
+---
+
+### References
+
+- [Web App Manifest - MDN](https://developer.mozilla.org/en-US/docs/Web/Manifest)
+- [Maskable Icons - web.dev](https://web.dev/maskable-icon/)
+- [Apple Human Interface Guidelines - Icons](https://developer.apple.com/design/human-interface-guidelines/app-icons)
+- [iOS Splash Screens - Apple](https://developer.apple.com/design/human-interface-guidelines/layout)
+- [librsvg Documentation](https://wiki.gnome.org/Projects/LibRsvg)
+- [ImageMagick SVG Documentation](https://imagemagick.org/Usage/draw/)
+
+---
+
 ## Testing Update Flow
 
 ### Test Case: First Install
@@ -1911,6 +2258,233 @@ Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure clos
 
 ---
 
+## Push Notification Permission Banner
+
+**Since:** v6.7.0 (December 2025)
+**Updated:** v6.7.1 (z-index fix, safe-area support, Logger integration)
+**Status:** ✅ Active
+
+### Overview
+
+The push notification permission banner appears on the home page to prompt users to enable browser push notifications for payment reminders and budget alerts.
+
+**Trigger conditions:**
+- User is authenticated
+- Service Worker + Notification API supported
+- `window.budgetPushManager` available
+- Current permission is "default" (not granted/denied)
+- User has not dismissed banner recently (24 hours via localStorage)
+
+**Display timing:** 5 seconds after page load (prevents overwhelming new users)
+
+### UI Layout and Positioning
+
+**Desktop layout:**
+```
++------------------Viewport------------------+
+| [Navbar - z-50]                           |  ← 64px height
+| +-------Banner (z-50)--------+            |  ← 10px gap + safe-area-inset-top
+| | 🔔 Enable notifications     |            |  ← Centered horizontally
+| | [Разрешить] [Позже]         |            |
+| +-----------------------------+            |
+|                                            |
+| [Page Content]                             |
++--------------------------------------------+
+```
+
+**Mobile layout (iOS with safe-area):**
+```
++--------Viewport (with notch)-------+
+|    [Dynamic Island/Notch]          |  ← safe-area-inset-top
+| [Navbar - 64px]                    |
+| +----Banner----+                   |  ← top: 64px + 10px + safe-area
+| | 🔔 Enable    |                   |  ← margin-left: max(16px, safe-area-left)
+| | [Разрешить][Позже]               |  ← margin-right: max(16px, safe-area-right)
+| +--------------+                   |
++------------------------------------+
+```
+
+### CSS Implementation Details
+
+**Z-index hierarchy:**
+```
+Modals: z-[9999]          ← Highest (always on top)
+   ↓
+Banner: z-50              ← Same level as navbar
+   ↓
+Navbar: z-50              ← Base navigation layer
+   ↓
+Page content: z-auto      ← Default stacking context
+```
+
+**Why z-50 works:**
+- Navbar and banner share same z-index (50)
+- DOM order determines stacking (banner appears after navbar in HTML)
+- Dropdown menus are children of navbar, so they stack naturally above banner
+- No conflicts with modals (z-9999 always wins)
+
+**Safe-area handling:**
+
+```css
+/* Top positioning with iOS notch compensation */
+top: calc(64px + 10px + env(safe-area-inset-top, 0px));
+/*       ^     ^         ^
+         |     |         └── iOS notch offset (0 on non-iOS)
+         |     └── Spacing below navbar
+         └── Navbar height
+*/
+
+/* Horizontal padding with notch avoidance */
+margin-left: max(16px, env(safe-area-inset-left, 0px));
+margin-right: max(16px, env(safe-area-inset-right, 0px));
+/*            ^    ^
+              |    └── Safe area on sides (iPhone landscape)
+              └── Minimum padding on all devices
+*/
+```
+
+**Browser compatibility:**
+- `env(safe-area-inset-*)`: iOS 11.2+, Safari 11.2+ (ignored gracefully on other browsers)
+- `max()`: All modern browsers (Chrome 79+, Safari 11.1+, Firefox 75+)
+- Fallback behavior: Non-iOS browsers use fixed 64px + 10px offset with 16px side padding
+
+### JavaScript Architecture
+
+**Logger integration:**
+
+The banner uses the Logger class from `/frontend/web/static/js/utils/logger.js`:
+
+```javascript
+// Logger instance (created in base.html before initPushBanner)
+const logPushBanner = new Logger('[PUSH_BANNER]', 'PUSH_BANNER');
+window.logPushBanner = logPushBanner; // Expose globally for debugging
+
+// Logging categories
+logPushBanner.info('🚀 Initializing...')  // Initialization
+logPushBanner.info('📊 Permission: granted')  // State tracking
+logPushBanner.info('🖱️ Button clicked')  // User interaction
+logPushBanner.error('❌ Subscription failed')  // Errors
+logPushBanner.time('permission-request')  // Performance timing
+```
+
+**Logging configuration:**
+- Module: `PUSH_BANNER: true` in `/frontend/web/static/js/config/logging.js`
+- Can be toggled at runtime: `setLoggingLevel('PUSH_BANNER', false)`
+- Automatic environment detection (disabled in production)
+
+**State machine:**
+
+```
+[Page Load]
+    ↓ (5s delay)
+[Check Permission]
+    ├─ granted → [Exit - no banner]
+    ├─ denied → [Exit - no banner]
+    └─ default → [Show Banner]
+         ↓
+    [User Clicks]
+         ├─ "Разрешить" → [Request Permission]
+         │               ├─ granted → [Subscribe to Push] → [Save to Backend] → [Hide Banner]
+         │               ├─ denied → [Hide Banner]
+         │               └─ default → [No action]
+         └─ "Позже"/"✕" → [Save to localStorage] → [Hide Banner]
+```
+
+**LocalStorage keys:**
+- `push-banner-dismissed`: Integer timestamp (NOT ISO string!) - prevents re-showing for 24 hours
+
+### Implementation Files
+
+**Critical files:**
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `frontend/web/templates/base.html` | 1097-1119 | Banner HTML (z-50, safe-area) |
+| `frontend/web/templates/base.html` | 2241-2446 | JavaScript logic with Logger |
+| `frontend/web/static/js/config/logging.js` | 66 | PUSH_BANNER module config |
+| `frontend/web/static/js/utils/logger.js` | — | Logger class implementation |
+| `frontend/web/static/js/offline/pushManager.js` | — | Push subscription logic |
+
+### Testing Checklist
+
+**Desktop testing:**
+- [ ] Banner appears 5 seconds after page load
+- [ ] Banner centered horizontally below navbar
+- [ ] 10px gap between navbar and banner visible
+- [ ] "Разрешить" button triggers permission prompt
+- [ ] "Позже" button hides banner + saves to localStorage
+- [ ] Refresh page → banner does NOT reappear (dismissed state persisted)
+- [ ] Clear localStorage → banner reappears after 5s
+
+**Mobile testing (iOS Safari):**
+- [ ] Banner does not overlap Dynamic Island/notch
+- [ ] Banner text not cut off in landscape mode (notch on sides)
+- [ ] Banner responsive on iPhone SE (small width)
+- [ ] Banner responsive on iPad (large width)
+- [ ] Safe-area-inset values logged correctly in console
+
+**Z-index testing:**
+- [ ] Open navbar dropdown menu → dropdown appears above banner
+- [ ] Open modal → modal appears above banner
+- [ ] Banner does not obscure navbar buttons
+
+**Logging verification:**
+```bash
+# Filter console logs
+[PUSH_BANNER]
+
+# Expected output sequence:
+1. 🚀 Initializing push permission banner
+2. ✅ Banner elements found {...}
+3. ✅ Browser supports Service Worker + Notifications
+4. 📊 Current notification permission: default
+5. ⏳ Scheduling banner display { delay: "5000ms", ... }
+6. 🎉 Banner displayed { position: {...}, safeArea: {...}, zIndex: "50" }
+7. 🖱️ "Enable" button clicked (if user clicks)
+8. ✅ Permission GRANTED (if granted)
+9. 👋 Banner hidden
+```
+
+**Permission states:**
+- `default`: Banner shows → User can allow/deny
+- `granted`: Banner never shows → Already subscribed
+- `denied`: Banner never shows → User previously denied (requires manual browser reset)
+
+### Troubleshooting
+
+**Banner not appearing:**
+1. Check console for `[PUSH_BANNER]` logs
+2. Verify `Notification.permission` is "default" (not granted/denied)
+3. Clear localStorage: `localStorage.removeItem('push-banner-dismissed')`
+4. Hard refresh page (Ctrl+Shift+R / Cmd+Shift+R)
+
+**Banner overlaps navbar dropdown:**
+1. Check z-index in browser DevTools (should be 50)
+2. Verify DOM order (banner should appear after navbar in HTML)
+3. Check for custom CSS overrides
+
+**Banner cut off on iOS:**
+1. Check console logs for `safeArea` values
+2. Verify `env(safe-area-inset-*)` computed correctly
+3. Test in Safari iOS Simulator (Xcode)
+4. Test physical iPhone with notch (iPhone X+)
+
+**Permission request fails:**
+1. Check Service Worker registration status
+2. Verify VAPID public key in template variable
+3. Check network tab for `/api/v1/users/me/push-subscription` response
+4. Review error logs in `[PUSH_BANNER]` output
+
+### Related Files
+
+- `/frontend/web/templates/base.html` - Banner HTML + JavaScript
+- `/frontend/web/static/js/utils/logger.js` - Logger class
+- `/frontend/web/static/js/config/logging.js` - Logging configuration
+- `/backend/app/api/v1/endpoints/users.py` - Push subscription endpoint
+- `/docs/architecture/pwa.md` - This documentation
+
+---
+
 ## Mobile Menu Pattern for Secondary Pages
 
 ### Overview
@@ -2633,6 +3207,6 @@ window.budgetWSClient.diagnose().rtt
 
 ---
 
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-28
 **Maintainer:** Development Team
 **Status:** ✅ Production Ready

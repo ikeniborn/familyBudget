@@ -138,6 +138,250 @@ class ListsManager {
     }
 
     /**
+     * Initialize duplicate detection listeners
+     */
+    initializeDuplicateDetection() {
+        const productInput = document.getElementById('item-product-name');
+        const storeSelect = document.getElementById('item-store');
+        const quantityInput = document.getElementById('item-quantity');
+
+        if (!productInput || !storeSelect) {
+            console.warn('[LISTS] Duplicate detection inputs not found');
+            return;
+        }
+
+        // Remove old listeners if they exist (prevent duplicates)
+        if (this._debouncedSearch) {
+            productInput.removeEventListener('input', this._debouncedSearch);
+            storeSelect.removeEventListener('change', this._debouncedSearch);
+            console.log('[LISTS] Removed old duplicate detection listeners');
+        }
+
+        if (this._quantityChangeHandler && quantityInput) {
+            quantityInput.removeEventListener('input', this._quantityChangeHandler);
+            console.log('[LISTS] Removed old quantity listener');
+        }
+
+        // Create new debounced search handler
+        let searchTimeout;
+        this._debouncedSearch = () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const productName = productInput.value.trim();
+                const storeId = parseInt(storeSelect.value);
+
+                if (productName && storeId && this.currentListId) {
+                    const duplicate = await this.searchDuplicate(productName, storeId);
+                    if (duplicate) {
+                        this.showDuplicateWarning(duplicate);
+                    } else {
+                        this.hideDuplicateWarning();
+                    }
+                } else {
+                    this.hideDuplicateWarning();
+                }
+            }, 500); // 500ms debounce
+        };
+
+        // Add new listeners
+        productInput.addEventListener('input', this._debouncedSearch);
+        storeSelect.addEventListener('change', this._debouncedSearch);
+
+        // Listen for quantity changes to update future quantity
+        if (quantityInput) {
+            this._quantityChangeHandler = () => {
+                console.log('[FUTURE_QTY] Quantity input changed, updating future quantity display');
+                this.updateFutureQuantity();
+            };
+            quantityInput.addEventListener('input', this._quantityChangeHandler);
+            console.log('[LISTS] Future quantity listener initialized');
+        } else {
+            console.warn('[LISTS] Quantity input not found (id=item-quantity)');
+        }
+
+        console.log('[LISTS] Duplicate detection initialized');
+    }
+
+    /**
+     * Search for duplicate item in current list
+     * @param {string} productName - Product name
+     * @param {number} storeId - Store ID
+     * @returns {Promise<Object|null>} Duplicate item or null
+     */
+    async searchDuplicate(productName, storeId) {
+        if (!productName || !storeId || !this.currentListId) {
+            return null;
+        }
+
+        try {
+            console.log('[DUPLICATE_SEARCH] Searching for duplicate', {
+                productName,
+                storeId,
+                listId: this.currentListId
+            });
+
+            const url = new URL('/api/v1/shopping-list-items/check-duplicate', window.location.origin);
+            url.searchParams.set('shopping_list_id', this.currentListId);
+            url.searchParams.set('product_name', productName.trim());
+            url.searchParams.set('store_id', storeId);
+
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                console.error('[DUPLICATE_SEARCH] API error', { status: response.status });
+                return null;
+            }
+
+            const data = await response.json();
+
+            if (data && data.id) {
+                console.warn('[DUPLICATE_SEARCH] Duplicate found', {
+                    itemId: data.id,
+                    quantity: data.quantity,
+                    unit: data.unit
+                });
+                return data;
+            }
+
+            console.log('[DUPLICATE_SEARCH] No duplicate found');
+            return null;
+
+        } catch (error) {
+            console.error('[DUPLICATE_SEARCH] Error searching duplicate', { error: error.message });
+            return null;
+        }
+    }
+
+    /**
+     * Display duplicate warning in modal
+     * @param {Object} duplicateItem - Duplicate item data
+     */
+    showDuplicateWarning(duplicateItem) {
+        const container = document.getElementById('duplicate-warning-container');
+        const details = document.getElementById('duplicate-details');
+
+        if (!container || !details) {
+            console.warn('[DUPLICATE_SEARCH] Warning UI elements not found');
+            return;
+        }
+
+        // Build details text
+        let detailsText = `<strong>${duplicateItem.product_name}</strong>`;
+
+        if (duplicateItem.quantity && duplicateItem.unit) {
+            detailsText += ` - ${duplicateItem.quantity} ${duplicateItem.unit}`;
+        } else if (duplicateItem.quantity) {
+            detailsText += ` - количество: ${duplicateItem.quantity}`;
+        }
+
+        if (duplicateItem.comment) {
+            detailsText += ` <span class="text-gray-600">(${duplicateItem.comment})</span>`;
+        }
+
+        details.innerHTML = detailsText;
+        container.classList.remove('hidden');
+
+        // Store duplicate item for later use in save
+        this.currentDuplicateItem = duplicateItem;
+
+        // Calculate and show future quantity if quantity already entered
+        this.updateFutureQuantity();
+
+        console.log('[DUPLICATE_SEARCH] Warning displayed', { itemId: duplicateItem.id });
+    }
+
+    /**
+     * Hide duplicate warning
+     */
+    hideDuplicateWarning() {
+        const container = document.getElementById('duplicate-warning-container');
+        if (container) {
+            container.classList.add('hidden');
+        }
+
+        // Hide future quantity
+        const futureQtyContainer = document.getElementById('future-quantity');
+        if (futureQtyContainer) {
+            futureQtyContainer.classList.add('hidden');
+        }
+
+        this.currentDuplicateItem = null;
+        console.log('[DUPLICATE_SEARCH] Warning hidden');
+    }
+
+    /**
+     * Update future quantity display when user enters quantity
+     */
+    updateFutureQuantity() {
+        console.log('[FUTURE_QTY] updateFutureQuantity() called');
+
+        const quantityInput = document.getElementById('item-quantity');
+        const futureQtyContainer = document.getElementById('future-quantity');
+        const futureQtyValue = document.getElementById('future-quantity-value');
+
+        if (!quantityInput) {
+            console.warn('[FUTURE_QTY] Quantity input not found (id=item-quantity)');
+            return;
+        }
+        if (!futureQtyContainer) {
+            console.warn('[FUTURE_QTY] Future quantity container not found (id=future-quantity)');
+            return;
+        }
+        if (!futureQtyValue) {
+            console.warn('[FUTURE_QTY] Future quantity value span not found (id=future-quantity-value)');
+            return;
+        }
+
+        console.log('[FUTURE_QTY] All DOM elements found');
+
+        // Only show if duplicate exists
+        if (!this.currentDuplicateItem) {
+            console.log('[FUTURE_QTY] No duplicate item stored, hiding future quantity');
+            futureQtyContainer.classList.add('hidden');
+            return;
+        }
+
+        console.log('[FUTURE_QTY] Duplicate item exists', {
+            itemId: this.currentDuplicateItem.id,
+            productName: this.currentDuplicateItem.product_name,
+            quantity: this.currentDuplicateItem.quantity,
+            unit: this.currentDuplicateItem.unit
+        });
+
+        const newQuantity = parseFloat(quantityInput.value) || 0;
+        const oldQuantity = parseFloat(this.currentDuplicateItem.quantity) || 0;
+
+        console.log('[FUTURE_QTY] Quantity values', {
+            newQuantity,
+            oldQuantity,
+            inputValue: quantityInput.value
+        });
+
+        // Only show if user entered quantity
+        if (newQuantity > 0) {
+            const futureQuantity = oldQuantity + newQuantity;
+            const unit = this.currentDuplicateItem.unit || '';
+
+            futureQtyValue.textContent = `${futureQuantity} ${unit}`;
+            futureQtyContainer.classList.remove('hidden');
+
+            console.log('[FUTURE_QTY] Future quantity displayed', {
+                oldQuantity,
+                newQuantity,
+                futureQuantity,
+                unit,
+                displayText: futureQtyValue.textContent
+            });
+        } else {
+            console.log('[FUTURE_QTY] New quantity is 0 or empty, hiding future quantity');
+            futureQtyContainer.classList.add('hidden');
+        }
+    }
+
+    /**
      * Show Landing View (grid of shopping list cards)
      */
     async showLandingView() {
@@ -153,8 +397,11 @@ class ListsManager {
         // CRITICAL: Close import wizard when returning to landing view
         closeImportWizard();
 
-        // Hide detail view FAB menu, show create list FAB
+        // Desktop FAB visibility: Landing View
+        // Hide detail view FABs (mass operations + add item)
         this.hideFAB();
+        this.hideAddItemFAB();
+        // Show create list FAB
         this.showCreateListFAB();
 
         // Show landing view, hide detail view
@@ -202,6 +449,24 @@ class ListsManager {
         }
         this.updateHideCompletedButton();
 
+        // Restore search field visibility from localStorage
+        try {
+            const searchVisible = localStorage.getItem('lists_search_visible');
+            if (searchVisible === 'true') {
+                // Show search field by triggering toggle
+                const container = document.getElementById('search-field-container');
+                const button = document.getElementById('toggle-search-btn');
+                if (container && button) {
+                    container.classList.remove('hidden');
+                    button.classList.remove('btn-outline');
+                    button.classList.add('btn-primary');
+                    console.log('[SEARCH] Restored search field visibility:', { visible: true });
+                }
+            }
+        } catch (e) {
+            // Ignore localStorage errors
+        }
+
         // Reset HierarchyView expanded nodes for new list
         // Each list should start with fresh tree state
         if (this.hierarchyView) {
@@ -215,17 +480,19 @@ class ListsManager {
             return;
         }
 
-        // Update header
-        document.getElementById('list-detail-name').textContent = list.name;
-        document.getElementById('list-detail-description').textContent = list.description || 'Без описания';
+        // Update breadcrumb
         document.getElementById('breadcrumb-list-name').textContent = list.name;
 
         // Show detail view, hide landing view
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('detail-view').classList.remove('hidden');
 
+        // Desktop FAB visibility: Detail View
         // Hide create list FAB (only visible in landing view)
         this.hideCreateListFAB();
+        // Show detail view FABs (mass operations + add item)
+        this.showFAB();
+        this.showAddItemFAB();
 
         // Load items for this list
         await this.loadShoppingListItems(listId);
@@ -365,8 +632,7 @@ class ListsManager {
             }
 
             // Update progress badge
-            this.updateProgressBadge();
-
+    
         } catch (error) {
             console.error('[ListsManager] Error loading items:', error);
 
@@ -376,8 +642,7 @@ class ListsManager {
                     const cached = await this.db.getCache(CACHE_KEY);
                     this.currentItems = cached || [];
                     debugLog('[ListsManager] Loaded items from cache (fallback):', this.currentItems.length);
-                    this.updateProgressBadge();
-                } catch (cacheError) {
+                            } catch (cacheError) {
                     console.error('[ListsManager] Error loading items from cache:', cacheError);
                     showToast('Ошибка загрузки товаров', 'error');
                     this.currentItems = [];
@@ -578,11 +843,10 @@ class ListsManager {
     }
 
     /**
-     * Render items table (desktop) and mobile cards
+     * Render items table
      */
     renderItemsTable() {
         const tbody = document.getElementById('items-table-body');
-        const mobileContainer = document.getElementById('mobile-cards-container');
         const emptyState = document.getElementById('table-empty-state');
         const desktopTable = document.getElementById('desktop-table-container');
 
@@ -592,7 +856,6 @@ class ListsManager {
         if (filteredItems.length === 0) {
             // Use table-content-hidden to hide without breaking responsive classes
             if (desktopTable) desktopTable.classList.add('table-content-hidden');
-            if (mobileContainer) mobileContainer.classList.add('table-content-hidden');
             emptyState.classList.remove('hidden');
 
             // Update empty state message based on search or hide completed
@@ -628,7 +891,6 @@ class ListsManager {
 
         // Remove table-content-hidden to show (responsive classes handle desktop/mobile visibility)
         if (desktopTable) desktopTable.classList.remove('table-content-hidden');
-        if (mobileContainer) mobileContainer.classList.remove('table-content-hidden');
         emptyState.classList.add('hidden');
 
         // Render desktop table
@@ -667,106 +929,8 @@ class ListsManager {
             `;
         }).join('');
 
-        // Render mobile cards (sorted by store → group → product)
-        if (mobileContainer) {
-            const sortedItems = this.getSortedItemsForMobile(filteredItems);
-            mobileContainer.innerHTML = sortedItems.map(item => {
-                return this.renderMobileCard(item);
-            }).join('');
-        }
-
         // Update selection UI
         this.updateSelectionUI();
-    }
-
-    /**
-     * Render a single mobile card for an item
-     * Format: Store → Group → Product | Qty Unit | Status | Edit | Delete
-     */
-    renderMobileCard(item) {
-        const store = this.stores.find(s => s.id === item.store_id);
-        const isCompleted = item.is_completed;
-
-        // Build path: Store → Full Group Hierarchy → Product
-        const storeName = store ? this.escapeHtml(store.name) : '?';
-        const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
-        const productName = this.escapeHtml(item.product_name);
-
-        // Format quantity
-        let qtyText = '';
-        if (item.quantity !== null) {
-            qtyText = this.formatQuantity(item.quantity, item.unit);
-            if (item.unit) {
-                qtyText += ' ' + this.escapeHtml(item.unit);
-            }
-        }
-
-        // Status indicator (small dot or checkmark)
-        const statusIcon = isCompleted ? '✓' : '';
-        const statusClass = isCompleted ? 'mobile-card-completed' : '';
-
-        return `
-            <div class="mobile-item-card ${statusClass}" data-item-id="${item.id}">
-                <div class="mobile-card-main" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
-                    <div class="mobile-card-path">
-                        <span class="mobile-card-store">${storeName}</span>
-                        <span class="mobile-card-separator">→</span>
-                        <span class="mobile-card-group">${groupPath ? this.escapeHtml(groupPath) : '?'}</span>
-                        <span class="mobile-card-separator">→</span>
-                        <span class="mobile-card-product">${productName}</span>
-                    </div>
-                    <div class="mobile-card-status">${statusIcon}</div>
-                </div>
-                <div class="mobile-card-details">
-                    ${qtyText ? `<span class="mobile-card-qty">${qtyText}</span>` : ''}
-                    <div class="mobile-card-actions">
-                        <button class="btn btn-xs btn-ghost btn-square" onclick="event.stopPropagation(); openEditItemModal(${item.id})" title="Редактировать">
-                            ✏️
-                        </button>
-                        <button class="btn btn-xs btn-ghost btn-square text-error" onclick="event.stopPropagation(); window.listsManager.deleteItem(${item.id})" title="Удалить">
-                            🗑️
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    /**
-     * Get items sorted for mobile view
-     * Sort order: store → group → product
-     */
-    getSortedItemsForMobile(items = null) {
-        const itemsToSort = items || this.currentItems;
-
-        // Build lookup maps for sorting
-        const storeMap = {};
-        this.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
-
-        const groupMap = {};
-        this.productGroups.forEach(g => { groupMap[g.id] = g.name || ''; });
-
-        // Sort items
-        return [...itemsToSort].sort((a, b) => {
-            // 1. Sort by store name
-            const storeA = (storeMap[a.store_id] || '').toLowerCase();
-            const storeB = (storeMap[b.store_id] || '').toLowerCase();
-            if (storeA !== storeB) {
-                return storeA.localeCompare(storeB, 'ru');
-            }
-
-            // 2. Sort by group name
-            const groupA = (groupMap[a.product_group_id] || '').toLowerCase();
-            const groupB = (groupMap[b.product_group_id] || '').toLowerCase();
-            if (groupA !== groupB) {
-                return groupA.localeCompare(groupB, 'ru');
-            }
-
-            // 3. Sort by product name
-            const productA = (a.product_name || '').toLowerCase();
-            const productB = (b.product_name || '').toLowerCase();
-            return productA.localeCompare(productB, 'ru');
-        });
     }
 
     /**
@@ -915,6 +1079,51 @@ class ListsManager {
     }
 
     /**
+     * Toggle search field visibility
+     * Shows/hides search field with animation
+     * Saves state to localStorage for persistence
+     */
+    toggleSearchField() {
+        const container = document.getElementById('search-field-container');
+        const button = document.getElementById('toggle-search-btn');
+
+        if (!container || !button) {
+            console.error('[SEARCH] Search field elements not found');
+            return;
+        }
+
+        const isVisible = !container.classList.contains('hidden');
+
+        if (isVisible) {
+            // Hide search field
+            container.classList.add('hidden');
+            button.classList.remove('btn-primary');
+            button.classList.add('btn-outline');
+            console.log('[SEARCH] Search field toggled:', { visible: false });
+        } else {
+            // Show search field
+            container.classList.remove('hidden');
+            button.classList.remove('btn-outline');
+            button.classList.add('btn-primary');
+            console.log('[SEARCH] Search field toggled:', { visible: true });
+
+            // Auto-focus search input
+            const searchInput = document.getElementById('items-search');
+            if (searchInput) {
+                setTimeout(() => searchInput.focus(), 100);
+            }
+        }
+
+        // Save state to localStorage
+        try {
+            localStorage.setItem('lists_search_visible', (!isVisible).toString());
+        } catch (e) {
+            // Ignore localStorage errors
+            console.warn('[SEARCH] Failed to save search visibility to localStorage:', e);
+        }
+    }
+
+    /**
      * Update FAB visibility
      * Shows FAB when in detail view (regardless of item count)
      */
@@ -990,14 +1199,66 @@ class ListsManager {
     }
 
     /**
-     * Hide FAB menu (when switching to landing view)
+     * Check if we're on desktop (lg breakpoint = 1024px)
+     * Uses matchMedia for reliable viewport detection (works in Yandex Browser)
+     */
+    isDesktop() {
+        // Desktop = wide screen (>= 1024px) AND primary pointer is NOT touch
+        // CRITICAL: Use 'pointer: fine' (primary pointer) NOT 'any-pointer: fine'
+        // This ensures FAB buttons are hidden when primary input is touch,
+        // even if device has mouse/trackpad available (iPad with keyboard, Surface tablet)
+        const isWideScreen = window.matchMedia('(min-width: 1024px)').matches;
+
+        // Check PRIMARY pointer precision (not secondary/any pointer)
+        // pointer: fine = primary input device has fine precision (mouse/trackpad)
+        // Returns true: Desktop PC, laptop (mouse/trackpad is primary)
+        // Returns false: iPad, Android tablet, Surface in tablet mode (touch is primary)
+        const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+
+        // Also check that primary pointer is NOT touch (defensive check)
+        // pointer: coarse = primary input device is touch
+        const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+
+        console.log('[FAB_DETECTION]', {
+            isWideScreen,
+            hasFinePointer,
+            hasCoarsePointer,
+            result: isWideScreen && hasFinePointer && !hasCoarsePointer,
+            userAgent: navigator.userAgent
+        });
+
+        // All conditions must be true for desktop
+        return isWideScreen && hasFinePointer && !hasCoarsePointer;
+    }
+
+    /**
+     * Show FAB menu (detail view only - mass operations, desktop only)
+     */
+    showFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
+        const fabMenu = document.getElementById('lists-fab-menu');
+        if (fabMenu) {
+            fabMenu.classList.remove('hidden');
+            console.log('[FAB] lists-fab-menu shown');
+            // Don't add 'open' - that's for when user clicks to expand
+        }
+    }
+
+    /**
+     * Hide FAB menu (when switching to landing view, desktop only)
      */
     hideFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const fabMenu = document.getElementById('lists-fab-menu');
         const fabBackdrop = document.getElementById('lists-fab-backdrop');
         if (fabMenu) {
             fabMenu.classList.add('hidden', 'closed');
             fabMenu.classList.remove('open');
+            console.log('[FAB] lists-fab-menu hidden');
         }
         if (fabBackdrop) {
             fabBackdrop.classList.add('hidden', 'opacity-0', 'pointer-events-none');
@@ -1005,36 +1266,61 @@ class ListsManager {
     }
 
     /**
-     * Show create list FAB (landing view only)
+     * Show add item FAB (detail view only - desktop only)
+     */
+    showAddItemFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
+        const addItemFAB = document.getElementById('add-item-fab');
+        if (addItemFAB) {
+            addItemFAB.classList.remove('hidden');
+            console.log('[FAB] add-item-fab shown');
+        }
+    }
+
+    /**
+     * Hide add item FAB (when switching to landing view, desktop only)
+     */
+    hideAddItemFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
+        const addItemFAB = document.getElementById('add-item-fab');
+        if (addItemFAB) {
+            addItemFAB.classList.add('hidden');
+            console.log('[FAB] add-item-fab hidden');
+        }
+    }
+
+    /**
+     * Show create list FAB (landing view only - desktop only)
      */
     showCreateListFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.remove('hidden');
+            console.log('[FAB] create-list-fab shown');
         }
     }
 
     /**
-     * Hide create list FAB (when switching to detail view)
+     * Hide create list FAB (when switching to detail view, desktop only)
      */
     hideCreateListFAB() {
+        const isDesktopResult = this.isDesktop();
+        console.log('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
+        if (!isDesktopResult) return; // Only manage on desktop
         const createListFAB = document.getElementById('create-list-fab');
         if (createListFAB) {
             createListFAB.classList.add('hidden');
+            console.log('[FAB] create-list-fab hidden');
         }
     }
 
-    /**
-     * Update progress badge
-     */
-    updateProgressBadge() {
-        const badge = document.getElementById('list-progress-badge');
-        const totalItems = this.currentItems.length;
-        const completedItems = this.currentItems.filter(item => item.is_completed).length;
-        const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
-        badge.textContent = `${completedItems} / ${totalItems} выполнено (${progressPercent}%)`;
-    }
 
     /**
      * Populate store select dropdown
@@ -1407,7 +1693,6 @@ class ListsManager {
             item.is_completed = isCompleted;
         }
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABVisibility();
         this.updateFABButtons();
 
@@ -1436,8 +1721,7 @@ class ListsManager {
             if (this.isOnline && !error.message?.includes('offline')) {
                 if (item) item.is_completed = !isCompleted;
                 this.renderCurrentView();
-                this.updateProgressBadge();
-                showToast('Ошибка обновления статуса', 'error');
+                        showToast('Ошибка обновления статуса', 'error');
             }
         }
     }
@@ -1456,7 +1740,6 @@ class ListsManager {
         this.currentItems.splice(itemIndex, 1);
         this.selectedItemIds.delete(itemId);
         this.renderCurrentView();
-        this.updateProgressBadge();
 
         try {
             // 2. Delete on server or queue for offline
@@ -1481,8 +1764,7 @@ class ListsManager {
             if (this.isOnline && !error.message?.includes('offline')) {
                 this.currentItems.splice(itemIndex, 0, deletedItem);
                 this.renderCurrentView();
-                this.updateProgressBadge();
-                showToast('Ошибка удаления товара', 'error');
+                        showToast('Ошибка удаления товара', 'error');
             }
         }
     }
@@ -1526,8 +1808,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-
+    
             showToast(`Удалено ${count} товаров`, 'success');
         } catch (error) {
             console.error('[ListsManager] Error deleting selected items:', error);
@@ -1574,8 +1855,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
@@ -1624,8 +1904,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
@@ -1671,8 +1950,7 @@ class ListsManager {
             } else {
                 this.renderItemsTable();
             }
-            this.updateProgressBadge();
-            this.updateFABVisibility();
+                this.updateFABVisibility();
             this.updateFABButtons();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
@@ -1734,6 +2012,73 @@ class ListsManager {
 
         // Ensure FAB remains visible after view switch
         this.updateFABVisibility();
+    }
+
+    /**
+     * Count total nodes in hierarchy (stores + product groups)
+     * @returns {number} Total node count
+     */
+    _getTotalNodeCount() {
+        if (!this.hierarchyView) return 0;
+
+        const hierarchy = this.hierarchyView.buildHierarchy(
+            this.currentItems,
+            this.stores,
+            this.productGroups
+        );
+
+        let total = 0;
+        Object.values(hierarchy).forEach(store => {
+            total++; // Store node
+            total += this._countProductGroupNodes(store.productGroupTree);
+        });
+
+        return total;
+    }
+
+    /**
+     * Recursively count product group nodes in a tree
+     * @param {Object} pgTree - Product group tree
+     * @returns {number} Node count
+     */
+    _countProductGroupNodes(pgTree) {
+        let count = 0;
+        Object.values(pgTree).forEach(pg => {
+            count++; // Product group node
+            count += this._countProductGroupNodes(pg.children);
+        });
+        return count;
+    }
+
+    /**
+     * Update smart toggle button state based on expanded/collapsed nodes
+     */
+    updateHierarchyToggleButton() {
+        const btn = document.getElementById('hierarchy-toggle-btn');
+        const icon = document.getElementById('hierarchy-toggle-icon');
+        const text = document.getElementById('hierarchy-toggle-text');
+
+        if (!btn || !icon || !text) return;
+
+        const totalNodes = this._getTotalNodeCount();
+        const expandedCount = this.hierarchyView ? this.hierarchyView.expandedNodes.size : 0;
+
+        debugLog(`[HIERARCHY] Toggle state: ${expandedCount}/${totalNodes} expanded`);
+
+        // All expanded → show "Collapse"
+        if (expandedCount === totalNodes && totalNodes > 0) {
+            icon.textContent = '⬆️';
+            text.textContent = 'Свернуть';
+            btn.title = 'Свернуть все узлы';
+            btn.dataset.action = 'collapse';
+        }
+        // Any collapsed → show "Expand"
+        else {
+            icon.textContent = '⬇️';
+            text.textContent = 'Развернуть';
+            btn.title = 'Развернуть все узлы';
+            btn.dataset.action = 'expand';
+        }
     }
 
     /**
@@ -1858,7 +2203,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABVisibility();
         this.updateFABButtons();
         this.updateItemsCache();
@@ -1897,7 +2241,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1935,7 +2278,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1977,7 +2319,6 @@ class ListsManager {
 
         // Re-render and update badge
         this.renderCurrentView();
-        this.updateProgressBadge();
         this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
@@ -1991,8 +2332,7 @@ class ListsManager {
         if (this.currentListId) {
             await this.loadShoppingListItems(this.currentListId);
             this.renderCurrentView();
-            this.updateProgressBadge();
-            this.updateFABButtons();
+                this.updateFABButtons();
         }
     }
 
@@ -2349,6 +2689,39 @@ class ListsManager {
         if (suggestion.comment && commentInput) {
             commentInput.value = suggestion.comment;
         }
+
+        // CRITICAL: After filling form from autocomplete, trigger duplicate check and future quantity update
+        console.log('[AUTOCOMPLETE] Form filled from suggestion', {
+            productName: suggestion.product_name,
+            storeId: suggestion.store_id,
+            quantity: suggestion.quantity
+        });
+
+        // Check for duplicates after form is filled
+        const productName = productNameInput?.value?.trim();
+        const storeId = this.choicesInstances?.store?.getValue(true) || storeSelect?.value;
+
+        if (productName && storeId && this.currentListId) {
+            console.log('[AUTOCOMPLETE] Triggering duplicate check after autocomplete selection');
+
+            // Trigger duplicate search asynchronously
+            this.searchDuplicate(productName, parseInt(storeId)).then(duplicate => {
+                if (duplicate) {
+                    console.log('[AUTOCOMPLETE] Duplicate found after autocomplete, showing warning');
+                    this.showDuplicateWarning(duplicate);
+
+                    // If quantity is already filled (from suggestion), update future quantity display
+                    if (quantityInput && quantityInput.value) {
+                        console.log('[AUTOCOMPLETE] Quantity already filled, updating future quantity');
+                        this.updateFutureQuantity();
+                    }
+                } else {
+                    console.log('[AUTOCOMPLETE] No duplicate found after autocomplete');
+                }
+            }).catch(error => {
+                console.error('[AUTOCOMPLETE] Error checking duplicate after autocomplete:', error);
+            });
+        }
     }
 
     /**
@@ -2533,6 +2906,12 @@ function openAddItemModal() {
     // Ensure autocomplete is set up (mobile fix)
     window.listsManager?._setupProductAutocomplete();
 
+    // Initialize duplicate detection
+    window.listsManager?.initializeDuplicateDetection();
+
+    // Hide duplicate warning on modal open
+    window.listsManager?.hideDuplicateWarning();
+
     modal.showModal();
 
     // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
@@ -2600,6 +2979,9 @@ function closeItemModal() {
 /**
  * Handle save item form submission (with offline support)
  */
+/**
+ * Handle save item form submission (with automatic aggregation)
+ */
 async function handleSaveItem(event) {
     event.preventDefault();
     const form = event.target;
@@ -2619,71 +3001,152 @@ async function handleSaveItem(event) {
 
     try {
         const manager = window.listsManager;
+
+        // Check if we should aggregate (duplicate exists and NOT editing)
+        const shouldAggregate = !isEdit && manager.currentDuplicateItem;
+
+        console.log('[ITEM_SAVE] Starting save', {
+            isEdit,
+            shouldAggregate,
+            duplicateItemId: manager.currentDuplicateItem?.id,
+            newQuantity: data.quantity
+        });
+
         let result;
 
-        if (manager.offlineShopping) {
-            // Use OfflineShoppingManager for online/offline support
-            if (isEdit) {
+        if (shouldAggregate) {
+            // AGGREGATE: Update existing item instead of creating new
+            const existingItem = manager.currentDuplicateItem;
+
+            // Calculate aggregated quantity
+            const oldQuantity = parseFloat(existingItem.quantity) || 0;
+            const newQuantity = parseFloat(data.quantity) || 0;
+            const aggregatedQuantity = oldQuantity + newQuantity;
+
+            // Merge comments (old; new)
+            let comment = existingItem.comment || '';
+            if (data.comment) {
+                comment = comment ? `${comment}; ${data.comment}` : data.comment;
+            }
+
+            const updateData = {
+                quantity: aggregatedQuantity,
+                comment: comment
+            };
+
+            console.log('[ITEM_SAVE] Aggregation calculated', {
+                oldQuantity,
+                newQuantity,
+                aggregatedQuantity,
+                unit: existingItem.unit,
+                oldComment: existingItem.comment,
+                newComment: data.comment,
+                mergedComment: comment
+            });
+
+            // Call API to UPDATE existing item
+            if (manager.offlineShopping) {
+                result = await manager.offlineShopping.updateItem(existingItem.id, updateData);
+            } else {
+                const response = await fetch(`/api/v1/shopping-list-items/${existingItem.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(updateData)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
+            }
+
+            console.log('[ITEM_SAVE] Item aggregated successfully', {
+                itemId: existingItem.id,
+                newQuantity: aggregatedQuantity
+            });
+
+            showToast(`Товар объединен (итого: ${aggregatedQuantity} ${existingItem.unit || ''})`, 'success');
+
+            // Optimistic update
+            const item = manager.currentItems.find(i => i.id === existingItem.id);
+            if (item) {
+                item.quantity = aggregatedQuantity;
+                item.comment = comment;
+                manager.renderCurrentView();
+                manager.updateFABButtons();
+                await manager.updateItemsCache();
+            }
+
+        } else if (isEdit) {
+            // EDIT existing item (normal flow)
+            if (manager.offlineShopping) {
                 result = await manager.offlineShopping.updateItem(parseInt(itemId), data);
             } else {
-                data.shopping_list_id = manager.currentListId;
-                result = await manager.offlineShopping.createItem(data);
+                const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
             }
-        } else {
-            // Fallback to direct fetch (no offline support)
-            const url = isEdit
-                ? `/api/v1/shopping-list-items/${itemId}`
-                : '/api/v1/shopping-list-items';
-            if (!isEdit) data.shopping_list_id = manager.currentListId;
 
-            const response = await fetch(url, {
-                method: isEdit ? 'PUT' : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            result = await response.json();
-        }
+            console.log('[ITEM_SAVE] Item updated', { itemId });
+            showToast('Товар обновлен', 'success');
 
-        showToast(isEdit ? 'Товар обновлен' : 'Товар добавлен', 'success');
-        closeItemModal();
-
-        // For EDIT: optimistic update (no race condition)
-        if (isEdit) {
+            // Optimistic update
             const item = manager.currentItems.find(i => i.id === parseInt(itemId));
             if (item) {
                 Object.assign(item, data);
                 manager.renderCurrentView();
-                manager.updateProgressBadge();
                 manager.updateFABButtons();
                 await manager.updateItemsCache();
             }
-        } else if (result.tempId && !result.id) {
-            // CREATE offline: tempId exists but no real server ID
-            // Offline mode needs immediate update (no WebSocket in offline)
-            const newItem = {
-                id: result.tempId,
-                ...data,
-                is_completed: false,
-                _offline: true
-            };
-            // Get store and product group names for display
-            const store = manager.stores?.find(s => s.id === data.store_id);
-            const group = manager.productGroups?.find(g => g.id === data.product_group_id);
-            if (store) newItem.store_name = store.name;
-            if (group) newItem.product_group_name = group.name;
 
-            manager.currentItems.push(newItem);
-            manager.renderCurrentView();
-            manager.updateProgressBadge();
-            manager.updateFABButtons();
-            await manager.updateItemsCache();
+        } else {
+            // CREATE new item (normal flow - no duplicate found)
+            if (manager.offlineShopping) {
+                data.shopping_list_id = manager.currentListId;
+                result = await manager.offlineShopping.createItem(data);
+            } else {
+                data.shopping_list_id = manager.currentListId;
+                const response = await fetch('/api/v1/shopping-list-items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                result = await response.json();
+            }
+
+            console.log('[ITEM_SAVE] Item created', { tempId: result.tempId, id: result.id });
+            showToast('Товар добавлен', 'success');
+
+            // For offline creates: add tempId item immediately
+            if (result.tempId && !result.id) {
+                const newItem = {
+                    id: result.tempId,
+                    ...data,
+                    is_completed: false,
+                    _offline: true
+                };
+                const store = manager.stores?.find(s => s.id === data.store_id);
+                const group = manager.productGroups?.find(g => g.id === data.product_group_id);
+                if (store) newItem.store_name = store.name;
+                if (group) newItem.product_group_name = group.name;
+
+                manager.currentItems.push(newItem);
+                manager.renderCurrentView();
+                manager.updateFABButtons();
+                await manager.updateItemsCache();
+            }
+            // For online creates: WebSocket will add the item
         }
-        // CREATE online (result.id exists): do nothing, WebSocket will add the item
+
+        closeItemModal();
 
     } catch (error) {
-        console.error('[ListsManager] Error saving item:', error);
+        console.error('[ITEM_SAVE] Error saving item:', error);
         showToast('Ошибка сохранения товара', 'error');
     }
 }
@@ -2702,6 +3165,13 @@ function toggleHideCompleted() {
     window.listsManager.toggleHideCompleted();
 }
 
+/**
+ * Toggle search field visibility
+ */
+function toggleSearchField() {
+    window.listsManager?.toggleSearchField();
+}
+
 // ============================================================================
 // FAB SPEED DIAL FUNCTIONS
 // ============================================================================
@@ -2712,6 +3182,7 @@ function toggleHideCompleted() {
 function toggleListsFAB() {
     const menu = document.getElementById('lists-fab-menu');
     const backdrop = document.getElementById('lists-fab-backdrop');
+    const addItemFAB = document.getElementById('add-item-fab');
     if (!menu || !backdrop) return;
 
     const isOpen = menu.classList.contains('open');
@@ -2721,11 +3192,23 @@ function toggleListsFAB() {
         menu.classList.remove('open');
         menu.classList.add('closed');
         backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
+
+        // Show add-item-fab when Speed Dial closes (restore it)
+        if (addItemFAB) {
+            addItemFAB.classList.remove('hidden');
+            console.log('[FAB] add-item-fab shown (Speed Dial closed)');
+        }
     } else {
         // Open FAB
         menu.classList.remove('closed');
         menu.classList.add('open');
         backdrop.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+
+        // Hide add-item-fab when Speed Dial opens (prevent overlap)
+        if (addItemFAB) {
+            addItemFAB.classList.add('hidden');
+            console.log('[FAB] add-item-fab hidden (Speed Dial opened)');
+        }
     }
 }
 
@@ -2829,6 +3312,25 @@ function expandAllNodes() {
 function collapseAllNodes() {
     if (window.hierarchyView) {
         window.hierarchyView.collapseAll();
+    }
+}
+
+/**
+ * Smart toggle for expand/collapse all nodes in hierarchy view
+ * Determines action based on button's data-action attribute
+ */
+function toggleAllNodes() {
+    const btn = document.getElementById('hierarchy-toggle-btn');
+    if (!btn) return;
+
+    const action = btn.dataset.action || 'expand';
+
+    debugLog('[HIERARCHY] Toggle clicked:', action);
+
+    if (action === 'expand') {
+        expandAllNodes();
+    } else {
+        collapseAllNodes();
     }
 }
 
@@ -3003,5 +3505,17 @@ function handleItemsSearch(query) {
 function clearItemsSearch() {
     window.listsManager.clearSearch();
 }
+
+// Export modal functions to window for onclick handlers in HTML
+window.openAddItemModal = openAddItemModal;
+window.openCreateListModal = openCreateListModal;
+window.closeItemModal = closeItemModal;
+window.closeCreateListModal = closeCreateListModal;
+
+// Export FAB functions to window for onclick handlers
+window.toggleListsFAB = toggleListsFAB;
+window.markAllCompletedWithConfirm = markAllCompletedWithConfirm;
+window.unmarkAllCompletedWithConfirm = unmarkAllCompletedWithConfirm;
+window.deleteCompletedWithConfirm = deleteCompletedWithConfirm;
 
 debugLog('[ListsManager] Module loaded');

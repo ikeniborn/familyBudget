@@ -21,12 +21,12 @@ Security Features:
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlmodel import select
+from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
 from backend.app.middleware.rate_limiter import limiter
-from backend.app.core.dependencies import get_session
+from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
@@ -952,7 +952,7 @@ async def register_email(
 
 @router.post(
     "/login",
-    response_model=EmailLoginResponse,
+    response_model=EmailLoginResponse | AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Login with email and password",
     responses=get_common_responses(include_401=True),
@@ -965,6 +965,9 @@ async def register_email(
     3. Check if 2FA is enabled (required for email login)
     4. Create 2FA session (5-min TTL)
     5. Return session_token for 2FA verification
+
+    Admin bypass: Admins receive direct AuthResponse with JWT tokens (skip 2FA).
+    Regular users: Receive EmailLoginResponse with session_token for 2FA verification.
 
     Next step: POST /auth/verify-2fa with session_token and TOTP code.
 
@@ -1061,6 +1064,16 @@ async def login_email(
             f"email={data.email}, 2FA bypassed"
         )
 
+        # Check if user has WebAuthn credentials
+        from backend.app.models.webauthn_credential import WebAuthnCredential
+        has_webauthn = await session.scalar(
+            select(func.count(WebAuthnCredential.id))
+            .where(
+                WebAuthnCredential.user_id == user.id,
+                WebAuthnCredential.is_revoked == False  # noqa: E712
+            )
+        )
+
         # Return AuthResponse (tokens included)
         user_response = UserResponse(
             id=user.id,
@@ -1073,6 +1086,7 @@ async def login_email(
             is_admin=user.is_admin,
             is_active=user.is_active,
             two_factor_enabled=user.two_factor_enabled,
+            has_webauthn_credentials=bool(has_webauthn),
         )
 
         return AuthResponse(
@@ -1969,27 +1983,23 @@ async def check_auth_methods(
     """,
 )
 async def webauthn_status(
-    request: Request,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """Check if user has WebAuthn credentials for onboarding flow."""
-    if not hasattr(request.state, "user"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-    
-    user: User = request.state.user
-    
-    logger.info(f"[AUTH] WebAuthn status check: user_id={user.id}")
-    
-    has_credentials = await user_has_webauthn_credentials(session, user.id)
-    
-    logger.debug(
-        f"[AUTH] WebAuthn status: user_id={user.id}, has_credentials={has_credentials}"
+    logger.info(
+        f"[AUTH][WEBAUTHN_STATUS] Status check requested: "
+        f"user_id={current_user.id}, email={current_user.email}"
     )
-    
+
+    has_credentials = await user_has_webauthn_credentials(session, current_user.id)
+
+    logger.info(
+        f"[AUTH][WEBAUTHN_STATUS] Status result: "
+        f"user_id={current_user.id}, has_credentials={has_credentials}"
+    )
+
     return {
         "has_credentials": has_credentials,
-        "user_id": user.id,
+        "user_id": current_user.id,
     }

@@ -124,7 +124,10 @@
 <script>
 (function() {
     const fabToolbar = document.getElementById('fab-toolbar');
-    if (!fabToolbar) return;
+    if (!fabToolbar) {
+        console.log('[FAB_TOOLBAR] Navigation hidden: User not authenticated');
+        return;
+    }
 
     console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
         page: window.location.pathname,
@@ -133,7 +136,8 @@
         style: 'dropdown-enhanced',
         position: 'fixed bottom',
         safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
-        zIndex: getComputedStyle(fabToolbar).zIndex
+        zIndex: getComputedStyle(fabToolbar).zIndex,
+        userAuthenticated: true
     });
 
     // Offline mode: hide buttons with data-online-only

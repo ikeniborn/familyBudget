@@ -523,26 +523,55 @@ class ChoicesCategoryTree {
      * @param {Array} categories - Categories to display
      */
     initChoices(categories) {
+        console.log('[ChoicesCategoryTree] initChoices() called:', {
+            categoriesCount: categories.length,
+            elementId: this.element.id,
+            mode: this.options.mode
+        });
+
         // Clear placeholder option from select element before Choices.js initialization
         // This prevents placeholder from appearing in dropdown list
         this.element.innerHTML = '';
 
-        // Prepare choices data with parent chain
-        const choices = categories.map(cat => {
-            const parentChain = this.getParentChain(cat.id);
-            const parentText = parentChain.length > 0
-                ? parentChain.map(p => p.name).join(' › ')
-                : '';
+        // ✅ FIX 1: Add empty placeholder choice at the beginning to prevent auto-selection
+        const placeholderValue = this.options.multiple
+            ? ''
+            : '— Выберите категорию —';
 
-            return {
-                value: cat.id,
-                label: cat.name,
-                customProperties: {
-                    usage_count: cat.usage_count || 0,
-                    parent_id: cat.parent_id,
-                    parent_text: parentText,  // Store formatted parent chain
-                }
-            };
+        // Prepare choices data with parent chain
+        const choices = [
+            // Empty placeholder FIRST (always unselected initially)
+            {
+                value: '',
+                label: placeholderValue,
+                disabled: true,
+                selected: false,  // NOT selected (will be selected programmatically if needed)
+                placeholder: true
+            },
+            // Then real categories
+            ...categories.map(cat => {
+                const parentChain = this.getParentChain(cat.id);
+                const parentText = parentChain.length > 0
+                    ? parentChain.map(p => p.name).join(' › ')
+                    : '';
+
+                return {
+                    value: cat.id,
+                    label: cat.name,
+                    selected: false,  // Explicitly NOT selected
+                    customProperties: {
+                        usage_count: cat.usage_count || 0,
+                        parent_id: cat.parent_id,
+                        parent_text: parentText,  // Store formatted parent chain
+                    }
+                };
+            })
+        ];
+
+        console.log('[ChoicesCategoryTree] Choices prepared:', {
+            totalChoices: choices.length,
+            placeholderIncluded: choices[0].placeholder === true,
+            firstRealCategory: choices[1]?.label
         });
 
         // Initialize Choices.js with custom templates
@@ -603,6 +632,12 @@ class ChoicesCategoryTree {
         // Add choices WITHOUT auto-selecting first item
         // 4th parameter FALSE prevents Choices.js from auto-selecting
         this.choices.setChoices(choices, 'value', 'label', false);
+
+        console.log('[ChoicesCategoryTree] Choices.js initialized:', {
+            choicesCount: choices.length,
+            currentValue: this.element.value,
+            activeItems: this.choices.getValue(true)
+        });
 
         // Listen for change events
         this.element.addEventListener('change', (event) => {
@@ -1093,32 +1128,33 @@ class ChoicesCategoryTree {
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                // Preserve ONLY in edit mode when category still available
-                const shouldPreserve = this.options.mode === 'edit' && categoryStillAvailable;
+                // ✅ FIX 2: Preserve selection in BOTH create and edit modes
+                // Only clear if category not available for new FC
+                const shouldPreserve = categoryStillAvailable;  // Remove mode check!
 
                 console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
                     mode: this.options.mode,
                     categoryStillAvailable,
                     shouldPreserve,
-                    previousSelectionId
+                    previousSelectionId,
+                    reasoning: shouldPreserve
+                        ? 'Category available for new FC - preserving'
+                        : 'Category NOT available for new FC - clearing'
                 });
 
                 if (shouldPreserve) {
-                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId} (available in FC ${financialCenterId || 'all'})`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // Clear selection
+                    // Clear selection ONLY if category not available
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
 
-                    if (this.options.mode === 'create') {
-                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
-                        debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
-                    } else if (!categoryStillAvailable && previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
+                    if (!categoryStillAvailable && previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId || 'none'}`);
                         debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
                     } else {
                         console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
