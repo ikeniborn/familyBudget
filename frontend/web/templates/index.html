@@ -1218,13 +1218,12 @@ async function openEditFromDashboard(factId) {
         if (editSelect) {
             editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
 
-            // ✅ FIX: Do NOT pass financialCenterId in constructor for edit modals
-            // This prevents isInitialFiltering=true which would clear the category
-            // We'll call updateFinancialCenter() AFTER setSelectedCategory()
+            // Initialize category tree with mode='edit' to preserve selection
             editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
                 type: categoryType,
                 showLeafOnly: true,
-                // financialCenterId: fact.financial_center_id,  // ← REMOVED for edit mode
+                mode: 'edit',  // ✅ Edit mode - preserves category even on initial FC filter
+                financialCenterId: fact.financial_center_id,
                 onCategoryChange: (category) => {
                 }
             });
@@ -1236,13 +1235,6 @@ async function openEditFromDashboard(factId) {
                 await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
             } else {
                 console.warn('[Edit Modal] Category not found in map:', fact.article_id);
-            }
-
-            // ✅ FIX: Now update financial center filter AFTER category is set
-            // This ensures category is preserved (isInitialFiltering=false because previousFcId is now null → some value)
-            if (fact.financial_center_id) {
-                console.log('[Edit Modal] Updating financial center filter to:', fact.financial_center_id);
-                await editCategoryTreeSelect.updateFinancialCenter(fact.financial_center_id);
             }
 
             // Filter cost centers by financial center
@@ -1607,6 +1599,8 @@ async function openEditPendingRecord(itemId, entity) {
             editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
                 type: categoryType,
                 showLeafOnly: true,
+                mode: 'edit',  // ✅ Edit mode - preserves category even on initial FC filter
+                financialCenterId: data.financial_center_id,
                 onCategoryChange: (category) => {
                 }
             });
@@ -3216,6 +3210,7 @@ async function loadTransactionCategories() {
             transactionCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
                 type: transactionType,
                 showLeafOnly: true,
+                mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
                 onCategoryChange: (category) => {
                     console.log('[CATEGORY] Category changed:', {
                         categoryId: category?.id,
@@ -3258,6 +3253,7 @@ async function loadPlanCategories() {
             planCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
                 type: planType,
                 showLeafOnly: true,
+                mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
                 onCategoryChange: (category) => {
                     debugLog('Plan category changed:', category);
                     // Update plan hints based on selected category

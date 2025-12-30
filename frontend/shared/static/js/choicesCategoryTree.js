@@ -1129,10 +1129,12 @@ class ChoicesCategoryTree {
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                // ✅ FIX: Preserve selection ONLY if NOT initial filtering
-                // This prevents phantom auto-selection when first selecting FC in create modals
-                // BUT allows category to persist when CHANGING FC (if category still available)
-                const shouldPreserve = !isInitialFiltering && categoryStillAvailable;
+                // ✅ FIX: Preserve selection based on mode
+                // - mode='edit': ALWAYS preserve if category available (even on initial FC filter)
+                // - mode='create': Only preserve if NOT initial filtering (prevent phantom auto-select)
+                const shouldPreserve = this.options.mode === 'edit'
+                    ? categoryStillAvailable  // Edit: restore saved state
+                    : (!isInitialFiltering && categoryStillAvailable);  // Create: only if FC changing
 
                 console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
                     mode: this.options.mode,
@@ -1140,11 +1142,13 @@ class ChoicesCategoryTree {
                     categoryStillAvailable,
                     shouldPreserve,
                     previousSelectionId,
-                    reasoning: isInitialFiltering
-                        ? 'Initial FC selection - NOT preserving (prevent phantom auto-select)'
-                        : (shouldPreserve
-                            ? 'FC changed - preserving (category available)'
-                            : 'FC changed - clearing (category NOT available)')
+                    reasoning: this.options.mode === 'edit'
+                        ? (shouldPreserve ? 'Edit mode - preserving (category available)' : 'Edit mode - clearing (category NOT available)')
+                        : (isInitialFiltering
+                            ? 'Create mode - Initial FC selection - NOT preserving (prevent phantom auto-select)'
+                            : (shouldPreserve
+                                ? 'Create mode - FC changed - preserving (category available)'
+                                : 'Create mode - FC changed - clearing (category NOT available)'))
                 });
 
                 if (shouldPreserve) {

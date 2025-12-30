@@ -1646,6 +1646,7 @@ function initializeCreateModalCategories() {
         createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
             type: createType,
             showLeafOnly: true,
+            mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
             onCategoryChange: (category) => {
                 debugLog('Category changed in create modal:', category);
                 // Update plan hints based on selected category
@@ -2759,13 +2760,12 @@ async function showEditModal(factId) {
         // Clear existing options
         editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
 
-        // ✅ FIX: Do NOT pass financialCenterId in constructor for edit modals
-        // This prevents isInitialFiltering=true which would clear the category
-        // We'll call updateFinancialCenter() AFTER setSelectedCategory()
+        // Initialize category tree with mode='edit' to preserve selection
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
             showLeafOnly: true,
-            // financialCenterId: fact.financial_center_id,  // ← REMOVED for edit mode
+            mode: 'edit',  // ✅ Edit mode - preserves category even on initial FC filter
+            financialCenterId: fact.financial_center_id,
             onCategoryChange: (category) => {
                 debugLog('Category changed in edit modal:', category);
             }
@@ -2799,13 +2799,6 @@ async function showEditModal(factId) {
                     } else {
                         console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
                         // Leave default "-- Выберите категорию --" selected
-                    }
-
-                    // ✅ FIX: Now update financial center filter AFTER category is set
-                    // This ensures category is preserved (isInitialFiltering=false because previousFcId is now null → some value)
-                    if (fact.financial_center_id) {
-                        debugLog('[Edit Modal] Updating financial center filter to:', fact.financial_center_id);
-                        await editCategoryTreeSelect.updateFinancialCenter(fact.financial_center_id);
                     }
 
                     // Filter cost centers by financial center
@@ -3672,6 +3665,7 @@ function setupCreatePlanTypeButtons() {
                     createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
                         type: createType,
                         showLeafOnly: true,
+                        mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
                         onCategoryChange: (category) => {
                             debugLog('Category changed in create modal:', category);
                             loadPlanHints(category);
