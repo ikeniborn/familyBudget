@@ -3171,6 +3171,97 @@ window.budgetWSClient.diagnose().rtt
 
 ---
 
+## iOS Safari Quirks & Best Practices
+
+### Pointer Events Bug
+
+**Issue:** On iOS Safari, `pointer-events: none` on a parent element doesn't reliably block child elements that have `pointer-events: auto` + z-index. Elements with `opacity: 0` are visually hidden but can still receive click events.
+
+**Impact:** Invisible UI elements (buttons, links) can be accidentally clicked by users.
+
+**Solution:** Always use `visibility: hidden` in combination with `opacity: 0` for guaranteed non-interactivity.
+
+#### Correct Pattern
+
+```css
+/* Hidden state - NOT clickable */
+.hidden-interactive-element {
+    opacity: 0;
+    visibility: hidden;        /* Guaranteed not clickable on iOS */
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay hiding */
+}
+
+/* Visible state - clickable */
+.visible-interactive-element {
+    opacity: 1;
+    visibility: visible;       /* Guaranteed clickable */
+    pointer-events: auto;
+    transition: opacity 0.3s ease; /* Instant show */
+}
+```
+
+#### Incorrect Pattern (iOS Safari Bug)
+
+```css
+/* ❌ BROKEN on iOS Safari */
+.hidden-interactive-element {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.hidden-interactive-element .button {
+    pointer-events: auto;  /* ❌ Button STILL clickable despite parent pointer-events: none */
+    z-index: 10;
+}
+```
+
+#### Why This Works
+
+| Property | Effect on iOS Safari |
+|----------|---------------------|
+| `opacity: 0` | Visual hiding only, does NOT block pointer events |
+| `pointer-events: none` | Parent-level blocking, but child with `auto` can override |
+| `visibility: hidden` | **Complete removal from interaction tree** - guaranteed not clickable |
+
+**Transition Timing:**
+- **Show** (hidden → visible): `visibility` changes instantly, `opacity` fades in (0.3s)
+- **Hide** (visible → hidden): `opacity` fades out (0.3s), `visibility` changes AFTER delay (0.3s)
+
+**Result:** Smooth animation + guaranteed non-interactivity.
+
+#### Real-World Example
+
+**Shopping Lists Swipe Buttons** (`frontend/web/static/css/lists.css` lines 556-567):
+
+```css
+/* Hidden by default (not swiped) */
+.hierarchy-item-swipe-actions {
+    opacity: 0;
+    visibility: hidden;        /* Prevents ghost clicks on iOS */
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0s 0.3s;
+}
+
+/* Visible when swiped */
+.hierarchy-item.swiped .hierarchy-item-swipe-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s ease;
+}
+```
+
+**Context:** Edit and Delete buttons are revealed by swipe gesture on mobile. Before this fix, buttons were invisible but still clickable on iOS Safari (ghost clicks).
+
+#### Related Issues
+
+- **Fixed:** Shopping lists swipe buttons ghost clicks (v5.8.0, commit 1661efb3)
+- **Browser:** iOS Safari 15.5+, iOS Chrome (all versions)
+- **Severity:** HIGH (breaks mobile UX, causes accidental deletions)
+
+---
+
 ## Future Enhancements
 
 ### Planned Features

@@ -1805,6 +1805,61 @@ Console filter: `NAV|RTT_FILTER|WS_RTT`
 **See:** `/docs/architecture/pwa.md` → "Navigation Detection for RTT Filtering" for complete documentation
 **See:** `/docs/architecture/websocket.md` for WebSocket architecture and RTT monitoring details
 
+### iOS Safari Pointer Events
+
+**Rule:** On iOS Safari, `pointer-events: none` on parent doesn't reliably block child elements with `pointer-events: auto` + z-index. Always use `visibility: hidden` for guaranteed non-interactivity.
+
+**Why:** iOS Safari bug where `opacity: 0` + `pointer-events: none` can still allow clicks through on child elements with `pointer-events: auto`.
+
+**Correct approach:**
+```css
+/* Hidden state - guaranteed NOT clickable */
+.hidden-interactive-element {
+    opacity: 0;
+    visibility: hidden;        /* Guaranteed not clickable on iOS */
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay hide */
+}
+
+/* Visible state - guaranteed clickable */
+.visible-interactive-element {
+    opacity: 1;
+    visibility: visible;       /* Guaranteed clickable */
+    pointer-events: auto;
+    transition: opacity 0.3s ease; /* Instant show */
+}
+```
+
+**Incorrect approach:**
+```css
+/* ❌ WRONG - buttons still clickable on iOS Safari */
+.hidden-interactive-element {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.hidden-interactive-element .button {
+    pointer-events: auto;  /* ❌ iOS Safari allows clicks despite parent none */
+    z-index: 10;
+}
+```
+
+**Why visibility works:**
+- `opacity: 0` - visual hiding only, does NOT block pointer events on iOS
+- `pointer-events: none` - parent-level blocking, but child with `auto` can override
+- `visibility: hidden` - **complete removal from interaction tree** (guaranteed not clickable)
+
+**Transition timing:**
+- **Show:** `visibility` instant, `opacity` fade in (0.3s)
+- **Hide:** `opacity` fade out (0.3s), `visibility` change AFTER delay (0.3s)
+- **Result:** Smooth animation + guaranteed non-interactivity
+
+**Real-world example:**
+Shopping lists swipe buttons (`frontend/web/static/css/lists.css` lines 556-567) - Edit/Delete buttons revealed by swipe gesture. Before fix, buttons were invisible but still clickable on iOS Safari (ghost clicks).
+
+**See:** `frontend/web/static/css/lists.css` lines 556-567 (swipe buttons fix)
+**See:** `/docs/architecture/pwa.md` → "iOS Safari Quirks & Best Practices" for complete documentation
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**
