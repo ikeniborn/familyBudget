@@ -1398,19 +1398,40 @@ class ListsManager {
         // ============================================
         const modal = document.getElementById('item-modal');
         if (modal) {
-            // Listen for dropdown open event
-            select.addEventListener('showDropdown', () => {
-                modal.classList.add('store-dropdown-open');
-                console.log('[LISTS_MODAL] Store dropdown opened - z-index fix applied');
-            }, false);
+            // Wait for Choices.js to create DOM structure
+            setTimeout(() => {
+                // Get Choices container (created by Choices.js)
+                const choicesContainer = select.parentElement.querySelector('.choices');
 
-            // Listen for dropdown close event
-            select.addEventListener('hideDropdown', () => {
-                modal.classList.remove('store-dropdown-open');
-                console.log('[LISTS_MODAL] Store dropdown closed - z-index fix removed');
-            }, false);
+                if (choicesContainer) {
+                    // Create MutationObserver to watch for .is-open class changes
+                    const observer = new MutationObserver((mutations) => {
+                        mutations.forEach((mutation) => {
+                            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                                if (choicesContainer.classList.contains('is-open')) {
+                                    // Dropdown opened
+                                    modal.classList.add('store-dropdown-open');
+                                    console.log('[LISTS_MODAL] Store dropdown opened - z-index fix applied');
+                                } else {
+                                    // Dropdown closed
+                                    modal.classList.remove('store-dropdown-open');
+                                    console.log('[LISTS_MODAL] Store dropdown closed - z-index fix removed');
+                                }
+                            }
+                        });
+                    });
 
-            console.log('[LISTS_MODAL] Store dropdown z-index fix initialized');
+                    // Start observing class attribute changes
+                    observer.observe(choicesContainer, {
+                        attributes: true,
+                        attributeFilter: ['class']
+                    });
+
+                    console.log('[LISTS_MODAL] Store dropdown z-index fix initialized (MutationObserver)');
+                } else {
+                    console.error('[LISTS_MODAL] Choices container not found');
+                }
+            }, 100); // Small delay to ensure Choices.js DOM is ready
         }
     }
 
