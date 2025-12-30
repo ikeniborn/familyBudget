@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func as sa_func
+from sqlalchemy import and_, case, func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -1103,9 +1103,9 @@ class RecurringPlanService:
             sa_func.count().filter(RecurringPlan.is_active == True).label("active_count"),
             sa_func.count().filter(RecurringPlan.is_active == False).label("paused_count"),
             sa_func.sum(
-                sa_func.case(
+                case(
                     (
-                        sa_func.and_(
+                        and_(
                             RecurringPlan.frequency_type == "monthly",
                             RecurringPlan.is_active == True
                         ),
@@ -1115,7 +1115,7 @@ class RecurringPlanService:
                 )
             ).label("monthly_sum"),
             sa_func.count().filter(
-                sa_func.and_(
+                and_(
                     RecurringPlan.is_active == True,
                     RecurringPlan.next_generation_date <= today
                 )
