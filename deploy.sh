@@ -73,7 +73,7 @@ fi
 # =============================================================================
 # LOAD LIBRARY MODULES
 # =============================================================================
-# Phase 1: Simple modules (config, utils, validation, status)
+# Phase 1: Simple modules (config, utils, timeout, validation, status)
 # Phase 2: Service modules (postgres, services, migrations, firewall, backup_integration)
 # Phase 3: Complex modules (sync, docker) - NEW
 # See scripts/lib/README.md for documentation
@@ -81,6 +81,7 @@ fi
 # Phase 1 modules
 source "$SCRIPT_DIR/scripts/lib/config.sh"      # Must be first (no dependencies)
 source "$SCRIPT_DIR/scripts/lib/utils.sh"       # Depends on config.sh
+source "$SCRIPT_DIR/scripts/lib/timeout.sh"     # Depends on config.sh, utils.sh (v6.5.5+ resilience)
 source "$SCRIPT_DIR/scripts/lib/nginx.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/validation.sh"  # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
@@ -660,14 +661,14 @@ repair_npm_environment() {
         }
         cp -f /opt/budget/package-lock.json . 2>/dev/null || true
 
-        print_message info "Installing npm packages (this may take 2-3 minutes)..."
+        print_message info "Installing npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
         if [[ -f "package-lock.json" ]]; then
-            npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            npm_with_retry ci --prefer-offline --no-audit || {
                 print_message error "npm ci failed - trying npm install..."
-                npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+                npm_with_retry install --prefer-offline --no-audit || return 1
             }
         else
-            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+            npm_with_retry install --prefer-offline --no-audit || return 1
         fi
 
         cd /opt/budget || return 1
@@ -705,18 +706,18 @@ repair_npm_environment() {
     fi
 
     # Reinstall
-    print_message info "Installing fresh npm packages (this may take 2-3 minutes)..."
+    print_message info "Installing fresh npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
     if [[ -f "package-lock.json" ]]; then
-        npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+        npm_with_retry ci --prefer-offline --no-audit || {
             print_message error "npm ci failed - trying npm install..."
-            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            npm_with_retry install --prefer-offline --no-audit || {
                 print_message error "npm install failed - cannot auto-repair"
                 cd /opt/budget || return 1
                 return 1
             }
         }
     else
-        npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+        npm_with_retry install --prefer-offline --no-audit || {
             print_message error "npm install failed - cannot auto-repair"
             cd /opt/budget || return 1
             return 1

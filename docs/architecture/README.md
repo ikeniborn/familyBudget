@@ -26,6 +26,62 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: Deployment Resilience - npm Timeout + Retry Protection (v6.5.5)
+- **Change:** Extended Installation Resilience Framework to deployment script - all npm operations now use timeout + retry
+- **Problem:** Deployment hung indefinitely during npm package installation on slow/failing networks:
+  ```
+  [INFO] Installing npm packages (this may take 2-3 minutes)...
+  # npm ci starts - network issue occurs - hangs forever
+  # No timeout, no retry, no progress
+  # User waits 5+ minutes - terminal appears frozen
+  ```
+- **Root Cause:** deploy.sh called npm ci/npm install directly without timeout protection:
+  - Network glitch → npm hangs indefinitely
+  - npm registry slow → no timeout → infinite wait
+  - Transient failure → no retry → deployment fails
+  - Installation Resilience Framework (timeout.sh) existed but not used in deploy.sh
+- **Solution:** Applied timeout.sh resilience infrastructure to deployment:
+  - deploy.sh now sources `scripts/lib/timeout.sh` module
+  - All npm ci/npm install replaced with `npm_with_retry` wrapper
+  - Automatic timeout (15 min) + retry (3x) + exponential backoff
+- **Configuration** (environment variables, optional override):
+  ```bash
+  TIMEOUT_NPM_INSTALL=900   # 15 minutes (default)
+  MAX_RETRY_ATTEMPTS=3      # 3 retries (default)
+  RETRY_BASE_DELAY=5        # 5 seconds initial delay
+  RETRY_MAX_DELAY=60        # 60 seconds max delay
+  ```
+- **Retry Behavior:**
+  - **Attempt 1**: 15-minute timeout → if fails, wait 5 seconds
+  - **Attempt 2**: 15-minute timeout → if fails, wait 10 seconds
+  - **Attempt 3**: 15-minute timeout (final) → if fails, abort with clear error
+  - Success on any attempt → deployment continues
+- **Example Output (successful retry):**
+  ```
+  [INFO] Installing npm packages (timeout: 900s, retry: 3x)...
+  [INFO] [1/3] npm ci...
+  # ... timeout after 15 minutes ...
+  [WARNING] Attempt 1 failed (exit code 124 - timeout). Retrying in 5 seconds...
+  [INFO] [2/3] npm ci...
+  # ... succeeds ...
+  [SUCCESS] npm ci (succeeded on attempt 2)
+  ```
+- **Benefits:**
+  - ✅ No more indefinite hangs on network issues
+  - ✅ Automatic recovery from transient failures
+  - ✅ Clear error messages after max retries
+  - ✅ Configurable timeouts for slow networks
+  - ✅ Same resilience infrastructure as install.sh
+- **Files Changed:**
+  - `deploy.sh:84` - Added `source timeout.sh` to library modules
+  - `deploy.sh:664,666,668,671` - Replaced npm with npm_with_retry (install_npm_packages)
+  - `deploy.sh:709,711,713,720` - Replaced npm with npm_with_retry (install_fresh_npm_packages)
+  - `docs/architecture/README.md` - Added this documentation
+- **Testing:** `sudo ./deploy.sh --sync-mode update --cleanup-mode smart` with slow network
+- **See also:** [installation-resilience.md](./installation-resilience.md) - Original framework docs
+
+---
+
 ### 2025-12-30: PostgreSQL Health Check Timeout Fix - Prevent Deployment Hang (v6.5.4)
 - **Change:** Added 10-second timeout to PostgreSQL health checks to prevent infinite hang
 - **Problem:** Deployment hung indefinitely when PostgreSQL container was starting or unresponsive:
