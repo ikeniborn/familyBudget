@@ -185,6 +185,82 @@ if (fcId && selectedCategory) {
 - ✅ Добавлено логирование причины пропуска
 - ✅ Паритет с transaction modal FC change handler (строки 3344-3349)
 
+### 5. Исправить логику shouldPreserve в ChoicesCategoryTree
+
+**Файл:** `frontend/shared/static/js/choicesCategoryTree.js:1131-1147`
+
+**Проблема:**
+После первого коммита пользователь сообщил что проблема сохраняется - при выборе счёта категория всё ещё автоматически заполняется. Анализ показал что в методе `updateFinancialCenter()` была УБРАНА проверка `isInitialFiltering`, из-за чего категория ВСЕГДА восстанавливалась если доступна.
+
+**Корневая причина:**
+Строка 1133 содержала:
+```javascript
+const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+```
+
+Это означало что категория восстанавливается при ЛЮБОМ изменении счёта, включая ПЕРВЫЙ выбор счёта (isInitialFiltering=true).
+
+**Было:**
+```javascript
+// ✅ FIX 2: Preserve selection in BOTH create and edit modes
+// Only clear if category not available for new FC
+const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+
+console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+    mode: this.options.mode,
+    categoryStillAvailable,
+    shouldPreserve,
+    previousSelectionId,
+    reasoning: shouldPreserve
+        ? 'Category available for new FC - preserving'
+        : 'Category NOT available for new FC - clearing'
+});
+```
+
+**Стало:**
+```javascript
+// ✅ FIX: Preserve selection ONLY if NOT initial filtering
+// This prevents phantom auto-selection when first selecting FC in create modals
+// BUT allows category to persist when CHANGING FC (if category still available)
+const shouldPreserve = !isInitialFiltering && categoryStillAvailable;
+
+console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+    mode: this.options.mode,
+    isInitialFiltering,
+    categoryStillAvailable,
+    shouldPreserve,
+    previousSelectionId,
+    reasoning: isInitialFiltering
+        ? 'Initial FC selection - NOT preserving (prevent phantom auto-select)'
+        : (shouldPreserve
+            ? 'FC changed - preserving (category available)'
+            : 'FC changed - clearing (category NOT available)')
+});
+```
+
+**Изменения:**
+- ✅ Добавлена проверка `!isInitialFiltering` в условие `shouldPreserve`
+- ✅ Обновлено логирование с добавлением `isInitialFiltering` в вывод
+- ✅ Улучшено объяснение reasoning (3 случая вместо 2)
+
+**Поведение:**
+- **Первый выбор счёта** (isInitialFiltering=true): Категория НЕ восстанавливается (остаётся пустой)
+- **Смена счёта** (isInitialFiltering=false): Категория восстанавливается если доступна для нового счёта
+- **Смена счёта + категория недоступна**: Категория очищается
+
+**Также обновлено логирование "Checking if category still available":**
+```javascript
+console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
+    previousSelectionId,
+    categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
+    categoryStillAvailable,
+    isInitialFiltering,
+    willPreserve: !isInitialFiltering && categoryStillAvailable,
+    note: isInitialFiltering ? 'Initial filtering - will NOT preserve' : 'FC changing - will preserve if available',
+    categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
+});
+```
+
 ## Логирование
 
 ### Comprehensive logging добавлен на всех уровнях
@@ -314,9 +390,15 @@ if (fcId && selectedCategory) {
 - Строки 3692-3756: Добавлена функция `updatePlanHintButtons()`
 - Строки 3380-3386: Добавлена проверка FC + category в plan FC change handler
 
-**2. Minified files (автоматически обновлены):**
+**2. `frontend/shared/static/js/choicesCategoryTree.js`:**
+- Строки 1122-1130: Обновлено логирование "Checking if category still available" (добавлен note)
+- Строки 1131-1147: Исправлена логика `shouldPreserve` - добавлена проверка `!isInitialFiltering`
+- Предотвращает phantom auto-selection при первом выборе счёта
+- Позволяет сохранение категории при смене счёта (если доступна)
+
+**3. Minified files (автоматически обновлены):**
 - Все файлы frontend/web/static/js/*.min.js
-- Все файлы frontend/shared/static/js/*.min.js
+- Все файлы frontend/shared/static/js/*.min.js (включая choicesCategoryTree.min.js)
 - sw.min.js
 
 ### Не изменённые файлы (для контекста)
@@ -325,12 +407,7 @@ if (fcId && selectedCategory) {
 - Используется как reference implementation
 - Все функции уже работают правильно
 
-**2. `frontend/shared/static/js/choicesCategoryTree.js`:**
-- Класс `ChoicesCategoryTree` с методом `clearSelection()`
-- Опция `mode: 'create' | 'edit'` для контроля сохранения выбора
-- Метод `updateFinancialCenter()` для фильтрации категорий
-
-**3. `frontend/web/templates/components/modal_plan.html`:**
+**2. `frontend/web/templates/components/modal_plan.html`:**
 - HTML structure с hint buttons (hint-prev-plan, hint-prev-fact)
 
 ## Commit Message
@@ -343,17 +420,24 @@ fix(frontend): fix plan modal category auto-selection and implement plan hints
    из предыдущей сессии (phantom auto-selection)
 2. loadPlanHints() была заглушкой, hints не рассчитывались
 3. Plan Hints загружались без проверки наличия счета И категории
+4. При выборе счета категория автоматически восстанавливалась (из-за отсутствия
+   проверки isInitialFiltering в ChoicesCategoryTree)
 
 Решение:
 - Добавлен clearSelection() в openAddPlanModal() (index.html:4796)
 - Реализован loadPlanHints() вместо заглушки (index.html:3561-3690)
 - Добавлен updatePlanHintButtons() (index.html:3698-3756)
 - Добавлена проверка FC + category в plan FC change handler (index.html:3382-3385)
+- Исправлена логика shouldPreserve в ChoicesCategoryTree (choicesCategoryTree.js:1134)
+  - Добавлена проверка !isInitialFiltering
+  - Предотвращает phantom auto-selection при первом выборе счёта
+  - Сохраняет категорию при смене счёта (если доступна)
 
 Comprehensive logging добавлен для debugging:
 - [MODAL_CREATE] - открытие модального окна
 - [PLAN_HINTS] - загрузка hints
 - [FC_CHANGE] - изменение счета
+- [ChoicesCategoryTree] - проверка isInitialFiltering и shouldPreserve
 
 Скопирована логика из plan.html (строки 1142-1324, 4232-4235).
 Все модальные окна теперь работают единообразно.
@@ -366,8 +450,11 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 ## References
 
 - **Issue:** Phantom category auto-selection + Plan Hints stub
-- **Root cause:** Missing `clearSelection()` + stub `loadPlanHints()`
-- **Architecture pattern:** Паритет с plan.html реализацией
+- **Root causes:**
+  1. Missing `clearSelection()` in `openAddPlanModal()` (index.html)
+  2. Stub `loadPlanHints()` без реальной реализации (index.html)
+  3. Missing `isInitialFiltering` check in `shouldPreserve` logic (choicesCategoryTree.js)
+- **Architecture pattern:** Паритет с plan.html реализацией + правильная логика isInitialFiltering
 - **Related docs:**
   - `/docs/architecture/category-selection-fix.md` - ChoicesCategoryTree clearSelection()
   - `/docs/architecture/frontend-loading-patterns.md` - Modal button state management

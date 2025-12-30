@@ -1124,22 +1124,27 @@ class ChoicesCategoryTree {
                     categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
                     categoryStillAvailable,
                     isInitialFiltering,
-                    willPreserve: categoryStillAvailable,  // Always preserve if available (isInitialFiltering check removed)
+                    willPreserve: !isInitialFiltering && categoryStillAvailable,
+                    note: isInitialFiltering ? 'Initial filtering - will NOT preserve' : 'FC changing - will preserve if available',
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                // ✅ FIX 2: Preserve selection in BOTH create and edit modes
-                // Only clear if category not available for new FC
-                const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+                // ✅ FIX: Preserve selection ONLY if NOT initial filtering
+                // This prevents phantom auto-selection when first selecting FC in create modals
+                // BUT allows category to persist when CHANGING FC (if category still available)
+                const shouldPreserve = !isInitialFiltering && categoryStillAvailable;
 
                 console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
                     mode: this.options.mode,
+                    isInitialFiltering,
                     categoryStillAvailable,
                     shouldPreserve,
                     previousSelectionId,
-                    reasoning: shouldPreserve
-                        ? 'Category available for new FC - preserving'
-                        : 'Category NOT available for new FC - clearing'
+                    reasoning: isInitialFiltering
+                        ? 'Initial FC selection - NOT preserving (prevent phantom auto-select)'
+                        : (shouldPreserve
+                            ? 'FC changed - preserving (category available)'
+                            : 'FC changed - clearing (category NOT available)')
                 });
 
                 if (shouldPreserve) {
