@@ -2420,7 +2420,7 @@ async def batch_delete_facts(
 
 @router.get("/redis-stats")
 async def get_redis_detailed_stats(
-    current_admin: User = Depends(get_admin_user),
+    current_admin: CurrentAdmin,
 ):
     """
     Get detailed Redis cache statistics (admin only).
