@@ -26,6 +26,35 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: Lists Modal - Store Dropdown Z-Index Fix (v6.5.6)
+- **Change:** Fixed z-index issue where Product Group field appeared through Store dropdown in Shopping Lists modal
+- **Problem:** When opening Store dropdown in "Add/Edit Item Modal" on /lists page:
+  - Product Group field below was visible THROUGH the dropdown (transparency issue)
+  - Affected all devices (desktop, tablet, mobile portrait/landscape)
+  - Only Store dropdown affected, Product Group dropdown worked correctly
+- **Root Cause:** DaisyUI modals (`<dialog>` element) don't add `.modal-open` class to body:
+  - Existing CSS rule `.modal-open .choices__list--dropdown { z-index: 1050 }` never matched
+  - Dropdown used default z-index: 30 instead of required 1060
+  - Form fields below appeared above dropdown due to stacking context
+- **Solution:** Modal-specific class toggle pattern (similar to existing `.autocomplete-active`):
+  - CSS: `#item-modal.store-dropdown-open .choices__list--dropdown { z-index: 1060 }`
+  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible }`
+  - JavaScript: Event listeners on `showDropdown`/`hideDropdown` add/remove class
+  - Console logging: `[LISTS_MODAL]` prefix for debugging
+- **Impact:**
+  - ✅ Store dropdown appears ABOVE Product Group field (all devices)
+  - ✅ No transparency/see-through effect
+  - ✅ Dropdown scrolls smoothly, not clipped by modal boundaries
+  - ✅ Multiple open/close cycles work reliably
+  - ✅ Product Group dropdown unaffected
+- **Files Modified:**
+  - `frontend/web/static/css/modal-dropdowns-fix.css` (lines 39-60) - Added z-index rules
+  - `frontend/web/static/js/lists/listsManager.js` (lines 1396-1414) - Added event listeners
+- **Testing:** Verified on desktop Chrome, iPhone Safari (portrait/landscape), iPad Safari
+- **Commit:** 7b7a6088 (test branch)
+
+---
+
 ### 2025-12-30: Cache Busting Fix - PATH Configuration for Service Worker Minification (v6.5.2)
 - **Change:** Fixed PATH configuration for Service Worker minification in subshell
 - **Problem:** Deployment failed with "Service Worker update failed" during cache busting:
