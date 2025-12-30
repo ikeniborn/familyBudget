@@ -26,6 +26,25 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-30: Architecture Documentation - SSE to WebSocket Correction
+- **Change:** Исправлена неточность в архитектурной документации и PRD - SSE заменен на WebSocket
+- **Motivation:** SSE упоминался в 32 местах документации, но фактически с v2.0.0 используется WebSocket + Long Polling
+- **Evidence:**
+  - `budgetWSClient.js:12` - "Replaces legacy SSE implementation"
+  - `budget_ws.py:1-31` - WebSocket endpoint, НЕТ EventSourceResponse
+  - Нет `text/event-stream` в backend кодовой базе
+  - Комментарии "SSE Broadcast" в бэкенде - устаревшие (legacy references)
+- **Files Updated:**
+  1. **CLAUDE.md:** "SSE Single Worker" → "WebSocket Single Worker (Legacy - Now Redis Enabled)" + Redis Pub/Sub explanation
+  2. **docs/prd/01-executive-summary.md:** "Server-Sent Events (SSE)" → "WebSocket (с Long Polling fallback)" + FR-051 updated
+  3. **docs/architecture/transfers-system.md:** All flow diagrams, section titles, changelog updated (5 changes)
+  4. **docs/architecture/web/templates.yaml:** Navbar order, notes updated (2 changes)
+- **Preserved:** YAML "improvements over SSE" sections (historical context explaining migration rationale)
+- **Real Architecture:** WebSocket (primary) + Long Polling (fallback) + Redis Pub/Sub (multi-worker sync)
+- **Impact:** Technical accuracy restored across README, CLAUDE.md, PRD, architecture docs
+
+---
+
 ### 2025-12-30: README Comprehensive Update - Architecture & Features
 - **Change:** Полностью обновлен корневой README.md с отражением всех современных функций и архитектурных особенностей
 - **Motivation:** Существующий README не упоминал 15+ критических функций добавленных в v5.x-v6.x (PWA, WebAuthn, Web Workers, Shopping Lists, Recurring Plans, Redis, WebSocket+SSE)
