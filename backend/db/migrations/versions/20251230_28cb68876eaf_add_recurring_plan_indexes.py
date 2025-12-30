@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import text
 
 
 # revision identifiers, used by Alembic.
@@ -32,29 +33,35 @@ def upgrade() -> None:
        - 50% smaller than full index (only active plans)
 
     Both indexes use CONCURRENTLY to prevent table locking (zero downtime).
+
+    IMPORTANT: CONCURRENTLY requires AUTOCOMMIT isolation level.
     """
+
+    # Get connection with AUTOCOMMIT isolation for CONCURRENTLY support
+    connection = op.get_bind()
+    conn_autocommit = connection.execution_options(isolation_level="AUTOCOMMIT")
 
     # Composite index for stats queries (active/paused/monthly sum)
     # INCLUDE (amount) makes this a covering index (Index Only Scan)
-    op.execute(
-        """
+    conn_autocommit.execute(
+        text("""
         CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_frequency
         ON t_d_recurring_plan(user_id, is_active, frequency_type)
         INCLUDE (amount);
-        """
+        """)
     )
 
     # Partial index for pending count (WHERE clause reduces index size 50%)
     # Only indexes active plans (is_active = TRUE)
-    op.execute(
-        """
+    conn_autocommit.execute(
+        text("""
         CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_recurring_plan_user_active_next_date
         ON t_d_recurring_plan(user_id, is_active, next_generation_date)
         WHERE is_active = TRUE;
-        """
+        """)
     )
 
-    # Update table statistics for query planner
+    # Update table statistics for query planner (can run in transaction)
     op.execute("ANALYZE t_d_recurring_plan;")
 
 
@@ -63,7 +70,18 @@ def downgrade() -> None:
     Remove composite indexes for RecurringPlan.
 
     Uses CONCURRENTLY for zero-downtime rollback.
+
+    IMPORTANT: CONCURRENTLY requires AUTOCOMMIT isolation level.
     """
 
-    op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_next_date;")
-    op.execute("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_frequency;")
+    # Get connection with AUTOCOMMIT isolation for CONCURRENTLY support
+    connection = op.get_bind()
+    conn_autocommit = connection.execution_options(isolation_level="AUTOCOMMIT")
+
+    conn_autocommit.execute(
+        text("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_next_date;")
+    )
+
+    conn_autocommit.execute(
+        text("DROP INDEX CONCURRENTLY IF EXISTS idx_recurring_plan_user_active_frequency;")
+    )
