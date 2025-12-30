@@ -2020,6 +2020,9 @@ async function batchDelete() {
     btn.classList.add('loading', 'loading-spinner');
     btn.textContent = `Удаление... (${count})`;
 
+    // ✅ Force DOM update before starting async operation (fix: loader visible immediately)
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
     try {
         const response = await fetch('/api/v1/facts/batch-delete', {
             method: 'POST',
