@@ -554,13 +554,16 @@
         var(--fallback-er, oklch(var(--er) / 0.15)) 100%
     );
     opacity: 0;
+    visibility: hidden;  /* NEW: Blocks ALL pointer events on iOS Safari */
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay visibility hide */
 }
 
 .hierarchy-item.swiped .hierarchy-item-swipe-actions {
     opacity: 1;
+    visibility: visible;  /* NEW: Make buttons visible and clickable */
     pointer-events: auto;
+    transition: opacity 0.3s ease; /* Instant visibility show (no delay) */
 }
 
 .hierarchy-item-swipe-actions .btn {
@@ -573,7 +576,7 @@
     flex-shrink: 0;
     position: relative; /* NEW: Creates stacking context */
     z-index: 10; /* NEW: Above gradient background */
-    pointer-events: auto; /* NEW: Explicit click enablement */
+    /* Removed: pointer-events: auto - inherited from parent, visibility: hidden overrides anyway */
     cursor: pointer; /* NEW: Visual feedback */
 }
 
