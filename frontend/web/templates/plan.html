@@ -2802,7 +2802,7 @@ async function showEditModal(factId) {
                     }
 
                     // Filter cost centers by financial center
-                    await filterEditCostCenters(fact.financial_center_id);
+                    await filterCostCenterDropdown('#edit-form', fact.financial_center_id);
                 }
             }
         }, 150); // Check every 150ms
@@ -2848,7 +2848,7 @@ async function showEditModal(factId) {
                 console.log('[FC_CHANGE] Category tree updated successfully');
             }
             // Filter cost centers by selected FC
-            await filterEditCostCenters(fcId);
+            await filterCostCenterDropdown('#edit-form', fcId);
 
             // Small delay to allow DOM to settle (mobile browser optimization)
             await new Promise(resolve => setTimeout(resolve, 50));

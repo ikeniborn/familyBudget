@@ -1618,6 +1618,9 @@ async function openEditPendingRecord(itemId, entity) {
                             if (editCategoryTreeSelect.categoryMap.has(data.article_id)) {
                                 await editCategoryTreeSelect.setSelectedCategory(data.article_id);
                             }
+
+                            // Filter cost centers by financial center
+                            await filterEditCostCenters(data.financial_center_id);
                         }
                     }
                 }, 150);
