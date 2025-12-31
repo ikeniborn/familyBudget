@@ -1126,6 +1126,21 @@ main() {
         fi
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
+
+        # FALLBACK: Update cache version in sw.js if minification failed
+        # This ensures CACHE_VERSION is updated even if minification didn't run
+        warning "Attempting to update cache version in sw.js (fallback)..."
+        cd "$DEPLOY_DIR" || error_return "Failed to cd to $DEPLOY_DIR"
+
+        if [[ -f "scripts/update-sw-version.sh" ]]; then
+            if bash scripts/update-sw-version.sh; then
+                info "Cache version updated in sw.js (fallback mode)"
+            else
+                warning "Failed to update cache version in sw.js"
+            fi
+        else
+            warning "update-sw-version.sh not found - cannot update sw.js"
+        fi
     fi
     echo ""
 
@@ -1152,8 +1167,8 @@ main() {
             print_message error "Possible causes:"
             print_message error "  1. npm run build failed silently"
             print_message error "  2. terser minification timeout"
-            print_message error "  3. update-sw-version.sh not running"
-            print_message error "  4. File permissions preventing sw.js update"
+            print_message error "  3. update-cache-busting.sh failed to replace PLACEHOLDER"
+            print_message error "  4. File permissions preventing sw.min.js update"
             print_message error ""
             print_message error "DEPLOYMENT ABORTED - Fix Service Worker first"
             print_message error "═══════════════════════════════════════════════════════════"
