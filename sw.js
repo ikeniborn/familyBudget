@@ -12,9 +12,10 @@
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// ВАЖНО: Автоматически обновляется при деплое через scripts/update-sw-version.sh
-// НЕ изменяйте CACHE_VERSION_PLACEHOLDER вручную!
-const CACHE_VERSION = 'v20251231_0725';
+// ВАЖНО: Автоматически обновляется при деплое через scripts/update-cache-busting.sh
+// Скрипт заменяет PLACEHOLDER → timestamp ПОСЛЕ минификации (sw.js → sw.min.js)
+// В репозитории: CACHE_VERSION_PLACEHOLDER, в деплое: v{YYYYMMDD_HHMM}
+const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
