@@ -777,6 +777,7 @@ async function loadArticles() {
             createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
                 type: createType,
                 showLeafOnly: true,
+                mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
                 onCategoryChange: (category) => {
                     debugLog('Category changed in create modal:', category);
                     // Update fact hints for current month
@@ -1623,6 +1624,7 @@ async function showEditModal(factId) {
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
             showLeafOnly: true,
+            mode: 'edit',  // ✅ Edit mode - preserves category on FC filter
             financialCenterId: fact.financial_center_id,  // Filter by FC
             onCategoryChange: (category) => {
                 debugLog('Category changed in edit modal:', category);

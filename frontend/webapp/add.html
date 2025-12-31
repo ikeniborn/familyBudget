@@ -414,6 +414,7 @@
                             type: formState.factType,
                             auth: window.auth,  // Pass auth instance for Bearer token
                             showLeafOnly: true,
+                            mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
                             onCategoryChange: (category) => {
                                 formState.categoryId = category ? category.id : null;
 

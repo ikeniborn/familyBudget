@@ -532,6 +532,7 @@
                             type: formState.factType,
                             auth: window.auth,  // Pass auth instance for Bearer token
                             showLeafOnly: true,
+                            mode: 'edit',  // ✅ Edit mode - preserves category on FC filter (editing existing record)
                             onCategoryChange: (category) => {
                                 formState.categoryId = category ? category.id : null;
 
