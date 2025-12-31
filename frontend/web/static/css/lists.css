@@ -1517,6 +1517,7 @@ img[loading="lazy"] {
 /* Ensure modal-box doesn't clip dropdown when open */
 #item-modal.store-dropdown-open .modal-box {
     overflow: visible !important;
+    overflow-y: visible !important; /* Override mobile @media overflow-y: auto */
 }
 
 /* Ensure form-control doesn't clip dropdown when open */
