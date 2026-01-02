@@ -28,6 +28,7 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 // они кэшируются при первом посещении (после авторизации)
 const STATIC_CACHE = [
   '/',
+  '/lists',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
