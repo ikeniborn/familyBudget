@@ -1097,19 +1097,6 @@
         </div>
     </div>
 
-    <!-- Pending Sync Badge -->
-    <div id="pending-sync-badge" class="fixed z-50 hidden"
-         style="top: calc(4rem + var(--safe-area-inset-top));
-                left: calc(1rem + var(--safe-area-inset-left));">
-        <div class="badge badge-error gap-2 p-3 shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span id="pending-count">0</span> ожидает синхронизации
-        </div>
-    </div>
-
     <!-- Main Content -->
     <main id="main-content" class="flex-1 container mx-auto max-w-7xl" role="main">
         {% block content %}{% endblock %}
@@ -2139,26 +2126,6 @@
             await periodicSyncBadgeUpdate();
         });
 
-        // Update pending count
-        async function updatePendingCount() {
-            if (!window.offlineManager) return;
-
-            try {
-                const count = await window.offlineManager.getPendingCount();
-                const badge = document.getElementById('pending-sync-badge');
-                const countEl = document.getElementById('pending-count');
-
-                if (count > 0) {
-                    if (badge) badge.classList.remove('hidden');
-                    if (countEl) countEl.textContent = count;
-                } else {
-                    if (badge) badge.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error('[Offline] Error updating pending count:', error);
-            }
-        }
-
         // Update offline UI
         // Considers both navigator.onLine AND SmartNetworkDetector status
         // Backend may be unreachable even if navigator.onLine is true
@@ -2196,24 +2163,16 @@
             allOfflineHiddenItems.forEach(item => {
                 item.style.display = isOnline ? '' : 'none';
             });
-
-            // Update pending count
-            updatePendingCount();
         }
-
-        // Poll pending count every 5 seconds
-        setInterval(updatePendingCount, 5000);
 
         // Listen for sync events from Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'sync-completed') {
                     debugLog('[Offline] Sync completed:', event.data);
-                    updatePendingCount();
                     showToast(`Синхронизировано записей: ${event.data.count}`, 'success');
                 } else if (event.data && event.data.type === 'sync-failed') {
                     debugLog('[Offline] Sync failed:', event.data);
-                    updatePendingCount();
                     showToast(`Ошибка синхронизации: ${event.data.count} записей`, 'error');
                 }
             });
