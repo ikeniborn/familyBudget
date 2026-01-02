@@ -633,6 +633,14 @@ class ChoicesCategoryTree {
         // 4th parameter FALSE prevents Choices.js from auto-selecting
         this.choices.setChoices(choices, 'value', 'label', false);
 
+        // ✅ CRITICAL FIX: Force empty selection after initial setChoices()
+        // Choices.js may auto-select first non-disabled item despite 'false' parameter
+        console.log('[ChoicesCategoryTree] Forcing empty selection after initial setChoices()');
+        this.choices.removeActiveItems();
+        if (this.element) {
+            this.element.value = '';
+        }
+
         console.log('[ChoicesCategoryTree] Choices.js initialized:', {
             choicesCount: choices.length,
             currentValue: this.element.value,
@@ -1110,6 +1118,15 @@ class ChoicesCategoryTree {
                 // Set new choices WITHOUT auto-selecting first item
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
+
+                // ✅ CRITICAL FIX: Force clear selection immediately after setChoices()
+                // Choices.js may ignore the 'false' parameter and auto-select first non-disabled item
+                // This ensures NO selection when filtering categories by financial center
+                console.log('[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)');
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
 
                 // Check if we should preserve selection
                 // Only preserve if:

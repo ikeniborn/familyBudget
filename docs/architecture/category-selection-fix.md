@@ -540,3 +540,114 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
   - `/docs/architecture/modal-hints-fix.md` - Plan modal hints implementation
   - `/docs/architecture/frontend-loading-patterns.md` - Modal button state management
 - **Similar implementations:** None (первая реализация isInitialFiltering-based selection control в ChoicesCategoryTree)
+
+## Critical Fix v6.7.1: Force Empty Selection After setChoices()
+
+**Date:** 2026-01-02
+**Version:** 6.7.1
+
+### Problem After Previous Fixes
+
+Despite fixes in v6.6.1 and v6.7.0+, category auto-selection still occurred in transfer modal when selecting financial center for the first time.
+
+### Root Cause
+
+Choices.js library ignores the 4th parameter `false` in `setChoices()` under certain conditions and automatically selects the first **non-disabled** element from the list.
+
+Since the placeholder is marked as `disabled: true`, Choices.js skips it and selects the first real category (which has `disabled: false`).
+
+### Solution
+
+**Explicitly clear selection** AFTER `setChoices()` call in both:
+1. `initChoices()` - initial load (line ~637)
+2. `updateFinancialCenter()` - when financial center filter changes (line ~1115)
+
+**Code:**
+```javascript
+this.choices.setChoices(choices, 'value', 'label', false);
+
+// ✅ CRITICAL FIX: Force clear selection (prevent Choices.js auto-select)
+console.log('[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)');
+this.choices.removeActiveItems();
+if (this.element) {
+    this.element.value = '';
+}
+```
+
+This guarantees empty selection regardless of Choices.js internal logic.
+
+### Files Modified
+
+- `frontend/shared/static/js/choicesCategoryTree.js` (lines ~637, ~1118)
+- `frontend/shared/static/js/choicesCategoryTree.min.js` (automatic)
+- `docs/architecture/category-selection-fix.md` (this section)
+
+### Testing
+
+**Scenario:** Transfer modal
+1. Open transfer modal → Categories FROM and TO should be EMPTY
+2. Select FROM account → FROM category should REMAIN EMPTY
+3. Select TO account → TO category should REMAIN EMPTY
+4. Manually select FROM category → should work
+5. Change FROM account → category preserved if available, cleared if not
+
+**Expected Logs:**
+```
+[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)
+[ChoicesCategoryTree] Selection preservation decision: {isInitialFiltering: true, shouldPreserve: false}
+```
+
+### Why This Fix Was Necessary
+
+Previous fixes focused on **logic** (mode, isInitialFiltering), but didn't address the **Choices.js behavior** itself. The library has internal logic that may auto-select first non-disabled item, bypassing the `false` parameter.
+
+### Impact
+
+- **Minimal performance impact**: 2 additional calls per dropdown interaction
+- **100% backward compatible**: No API changes
+- **Defensive programming**: Explicitly enforces expected behavior
+
+### Commit Message
+
+```
+fix(frontend): force empty selection after Choices.js setChoices() in transfer modal
+
+Проблема:
+При первом выборе счета в transfer modal категория автоматически заполнялась
+первым элементом списка, несмотря на предыдущие исправления (v6.6.1, v6.7.0+).
+
+Корневая причина:
+Choices.js игнорирует 4-й параметр 'false' в setChoices() и автоматически
+выбирает первый НЕ disabled элемент. Placeholder disabled, поэтому
+Choices.js выбирает первую реальную категорию.
+
+Решение:
+Явно очищаем выбор ПОСЛЕ setChoices() в двух местах:
+1. initChoices() - при инициализации компонента (line ~637)
+2. updateFinancialCenter() - при фильтрации по счету (line ~1118)
+
+Код изменений:
+```javascript
+this.choices.setChoices(choices, 'value', 'label', false);
+
+// Force clear selection (Choices.js may auto-select despite 'false')
+this.choices.removeActiveItems();
+if (this.element) {
+    this.element.value = '';
+}
+```
+
+Файлы:
+- frontend/shared/static/js/choicesCategoryTree.js (~6 строк добавлено)
+- frontend/shared/static/js/choicesCategoryTree.min.js (автоматически)
+- docs/architecture/category-selection-fix.md (добавлен раздел v6.7.1)
+
+Тестирование:
+- Открыть transfer modal → категории пустые
+- Выбрать счет → категории остаются пустыми
+- Переоткрыть модал → категории снова пустые
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
