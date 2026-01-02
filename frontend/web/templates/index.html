@@ -4432,8 +4432,57 @@ class PendingRecordsRenderer {
     }
 }
 
-// Load and display pending records from sync queue
+// ============================================================================
+// Pending Records Management - Deduplication
+// ============================================================================
+
+/**
+ * Deduplication lock for loadPendingRecords()
+ * Prevents race conditions from multiple simultaneous calls
+ * Pattern: Same as OfflineManager.pendingCreates (offlineManager.js:82)
+ * @type {Promise|null}
+ */
+let _loadPendingLock = null;
+
+/**
+ * Update counter for debugging duplicate call detection
+ */
+let _loadPendingCallCount = 0;
+
+// Load and display pending records from sync queue (with deduplication)
 async function loadPendingRecords() {
+    const callId = ++_loadPendingCallCount;
+    debugLog(`[PENDING][DEDUP] loadPendingRecords called (call #${callId})`);
+
+    // ✅ DEDUPLICATION: If another call is in progress, wait for it
+    if (_loadPendingLock) {
+        debugLog(`[PENDING][DEDUP] Call #${callId} waiting for existing operation`);
+        await _loadPendingLock;
+        debugLog(`[PENDING][DEDUP] Call #${callId} completed (deduped)`);
+        return;
+    }
+
+    debugLog(`[PENDING][DEDUP] Call #${callId} starting (first caller)`);
+
+    // Create lock promise
+    _loadPendingLock = (async () => {
+        try {
+            await _loadPendingRecordsImpl(callId);
+        } finally {
+            debugLog(`[PENDING][DEDUP] Call #${callId} releasing lock`);
+            _loadPendingLock = null;
+        }
+    })();
+
+    await _loadPendingLock;
+    debugLog(`[PENDING][DEDUP] Call #${callId} completed (executed)`);
+}
+
+/**
+ * Implementation of loadPendingRecords (internal)
+ */
+async function _loadPendingRecordsImpl(callId) {
+    debugLog(`[PENDING] Starting implementation (call #${callId})...`);
     debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
@@ -4467,6 +4516,10 @@ async function loadPendingRecords() {
             card.classList.add('hidden');
             if (actionsDiv) actionsDiv.classList.add('hidden');
             countBadge.textContent = '0';
+            // ✅ NEW: Update navbar badge
+            if (typeof updateNavbarSyncBadge === 'function') {
+                updateNavbarSyncBadge(0);
+            }
             return;
         }
 
@@ -4529,6 +4582,11 @@ async function loadPendingRecords() {
         countBadge.textContent = result.itemCount;
         tbody.innerHTML = result.desktopHTML;
         mobileList.innerHTML = result.mobileHTML;
+
+        // ✅ NEW: Update navbar badge
+        if (typeof updateNavbarSyncBadge === 'function') {
+            updateNavbarSyncBadge(result.itemCount);
+        }
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }

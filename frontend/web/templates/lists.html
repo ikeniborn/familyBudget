@@ -31,7 +31,7 @@
     <!-- Home Button -->
     <button
         type="button"
-        onclick="window.location.href='/'"
+        onclick="navigateToHome()"
         class="text-primary"
         aria-label="Главная">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -620,5 +620,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Ошибка инициализации страницы', 'error');
     }
 });
+
+/**
+ * Navigate to home page (offline-safe)
+ * Uses showLandingView() for client-side navigation when available
+ * Note: showLandingView is a global function defined in listsManager.js:2910
+ */
+function navigateToHome() {
+    console.log('[NAV] Home button clicked, isOnline:', navigator.onLine);
+
+    // Check if showLandingView is available (from listsManager.js)
+    if (typeof showLandingView === 'function') {
+        console.log('[NAV] Using showLandingView for offline-safe navigation');
+        showLandingView();
+    } else {
+        console.warn('[NAV] showLandingView not available, using redirect fallback');
+        console.log('[NAV] This should not happen if listsManager.js is loaded');
+        window.location.href = '/';
+    }
+}
 </script>
 {% endblock %}
