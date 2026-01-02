@@ -356,14 +356,17 @@ templates.env.globals["config"] = get_settings()
 @app.api_route("/sw.min.js", methods=["GET", "HEAD"], include_in_schema=False)
 async def service_worker():
     """
-    Serve minified Service Worker for PWA
+    Serve minified Service Worker for PWA (v6.8.0+)
 
     CRITICAL: Service Worker must NEVER be cached by browser
     - Cache-Control: no-cache forces revalidation on every request
     - ETag: enables browser to detect file changes (304 Not Modified)
     - Service Worker update detection depends on file content changes
 
-    Note: nginx may override this if location = /sw.min.js exists in config
+    Architecture: nginx proxies /sw.min.js to this backend endpoint
+    - No static file serving in nginx (avoids Docker bind mount inode issues)
+    - Backend reads directly from /app/sw.min.js volume mount
+    - Auto-updates after deployment without container restart
     """
     from fastapi.responses import FileResponse
     from pathlib import Path
