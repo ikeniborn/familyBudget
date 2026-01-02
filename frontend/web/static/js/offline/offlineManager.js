@@ -94,6 +94,12 @@ class OfflineManager {
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
 
+        // Update navbar badge after sync completion
+        window.addEventListener('offline-sync-complete', async () => {
+            console.log('[OfflineManager] offline-sync-complete event → updating navbar badge');
+            await this._updateNavbarBadge();
+        });
+
         // Note: Don't auto-init in constructor - let base.html call init() explicitly
         // This prevents double initialization
     }
@@ -117,6 +123,24 @@ class OfflineManager {
             return this.networkDetector.getStatus();
         }
         return navigator.onLine ? 'online' : 'offline';
+    }
+
+    /**
+     * Update navbar pending sync badge count
+     * @private
+     */
+    async _updateNavbarBadge() {
+        if (typeof updatePendingSyncBadge !== 'function') {
+            return; // Function not available (e.g., not on a page with navbar)
+        }
+
+        try {
+            const { pendingItems } = await this.getUnsyncedItems();
+            console.log(`[OfflineManager] Updating navbar badge: count=${pendingItems.length}`);
+            updatePendingSyncBadge(pendingItems.length, this.syncInProgress);
+        } catch (error) {
+            console.warn('[OfflineManager] Failed to update navbar badge:', error);
+        }
     }
 
     async init() {
@@ -598,6 +622,9 @@ class OfflineManager {
         // Note: No automatic Background Sync registration here
         // Sync is triggered manually by user or when exiting offline mode
 
+        // Update navbar badge
+        await this._updateNavbarBadge();
+
         return {
             id: null,
             tempId,
@@ -686,6 +713,9 @@ class OfflineManager {
             await registration.sync.register('sync-budget-data');
         }
 
+        // Update navbar badge
+        await this._updateNavbarBadge();
+
         return {
             id,
             tempId,
@@ -760,6 +790,9 @@ class OfflineManager {
             const registration = await navigator.serviceWorker.ready;
             await registration.sync.register('sync-budget-data');
         }
+
+        // Update navbar badge
+        await this._updateNavbarBadge();
     }
 
     // ==================== TRANSFERS ====================
@@ -818,6 +851,9 @@ class OfflineManager {
 
         // Note: No automatic Background Sync registration here
         // Sync is triggered manually by user or when exiting offline mode
+
+        // Update navbar badge
+        await this._updateNavbarBadge();
 
         return {
             transfer_id: null,
@@ -885,6 +921,9 @@ class OfflineManager {
 
         // Note: No automatic Background Sync registration here
         // Sync is triggered manually by user or when exiting offline mode
+
+        // Update navbar badge
+        await this._updateNavbarBadge();
 
         return {
             id: null,
@@ -1051,6 +1090,9 @@ class OfflineManager {
                     await this.sync();
                 }, this.retryDelay);
             }
+
+            // Update navbar badge before returning
+            await this._updateNavbarBadge();
 
             return results;
         } finally {

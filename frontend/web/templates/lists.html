@@ -31,7 +31,11 @@
     <!-- Home Button -->
     <button
         type="button"
-        onclick="navigateToHome()"
+        hx-get="/"
+        hx-target="body"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        onclick="navigateHomeOfflineFriendly()"
         class="text-primary"
         aria-label="Главная">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -622,20 +626,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
- * Navigate to home page (offline-safe)
- * Uses showLandingView() for client-side navigation when available
- * Note: showLandingView is a global function defined in listsManager.js:2910
+ * Navigate to home page with offline support
+ * HTMX handles Service Worker cache automatically via hx-get="/"
+ * Service Worker intercepts fetch() → serves cached page
  */
-function navigateToHome() {
-    console.log('[NAV] Home button clicked, isOnline:', navigator.onLine);
+function navigateHomeOfflineFriendly() {
+    console.log('[LISTS_NAV] Navigating to home page (offline-friendly)');
 
-    // Check if showLandingView is available (from listsManager.js)
-    if (typeof showLandingView === 'function') {
-        console.log('[NAV] Using showLandingView for offline-safe navigation');
-        showLandingView();
-    } else {
-        console.warn('[NAV] showLandingView not available, using redirect fallback');
-        console.log('[NAV] This should not happen if listsManager.js is loaded');
+    // HTMX will handle navigation via hx-get="/"
+    // Service Worker intercepts fetch() → serves cached page
+    if (typeof htmx === 'undefined') {
+        console.warn('[LISTS_NAV] HTMX not available, using fallback');
         window.location.href = '/';
     }
 }

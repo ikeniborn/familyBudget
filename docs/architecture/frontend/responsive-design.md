@@ -540,6 +540,36 @@ Mobile-only visual hint for swipe-to-edit gesture in shopping lists. Provides cl
 | Version | Date | Changes |
 |---------|------|---------|
 | 6.7.0 | 2026-01-02 | Initial implementation with pulsing animation |
+| 6.8.0 | 2026-01-02 | Mobile navbar pending sync badge design |
+
+---
+
+## Mobile Navbar Badge Design (v6.8.0+)
+
+Pending sync badge scales responsively:
+
+**Desktop** (sm:):
+- Badge size: `badge-sm` (1.5rem, 14px font)
+- Icon size: `h-6 w-6` (24px)
+- Button size: `btn-md`
+
+**Mobile** (<640px):
+- Badge size: `badge-xs` (1.25rem, 12px font)
+- Icon size: `h-5 w-5` (20px)
+- Button size: `btn-sm`
+
+**Accessibility**:
+- ARIA label: "Ожидают синхронизации"
+- Tooltip on hover: "Ожидают синхронизации (N записей)"
+- High contrast badge (warning yellow on dark/light themes)
+- Disabled state (not clickable) with appropriate cursor
+
+**Touch targets**: Button meets WCAG 2.5.5 AAA (44x44px minimum)
+
+**DaisyUI Indicator Pattern**:
+- Uses `indicator` + `indicator-item` for badge positioning
+- Badge auto-positions at top-right of icon
+- Responsive indicator sizing via Tailwind classes
 
 ---
 

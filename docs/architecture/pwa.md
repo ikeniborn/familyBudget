@@ -3393,120 +3393,72 @@ window.budgetWSClient.diagnose().rtt
 
 ---
 
-## Navbar Sync Badge (v6.8.0+)
+## Offline Navigation Patterns
 
-### Overview
+The app uses HTMX-based navigation for offline-friendly page transitions.
 
-Real-time sync status indicator integrated into the navbar for persistent visibility of pending offline records.
+**Cached Pages**: Only `/` and `/lists` are cached for offline use (configured in Service Worker).
 
-**Location:** `base.html:731` (navbar-end, before offline-icon)
-
-**Update Frequency:**
-- Every 5 seconds (periodic polling)
-- On sync events (network status change)
-- On loadPendingRecords() calls
-
-### Features
-
-1. **Visual Indicator**
-   - Cloud icon with number inside
-   - Red color (`text-error`) when items pending
-   - Pulsing animation (2s ease-in-out infinite)
-   - Hidden when no items pending
-
-2. **Tooltip**
-   - Shows detailed count message
-   - Dynamic text: "1 запись ожидает" / "N записей ожидают"
-
-3. **Progressive Enhancement**
-   - Graceful degradation if elements missing
-   - Works independently of homepage "Pending Records" card
-   - No breaking changes to existing functionality
-
-### Implementation
-
-**HTML Structure:**
+**Navigation Pattern**:
 ```html
-<!-- navbar-end in base.html -->
-<div id="navbar-sync-badge-wrapper" class="hidden tooltip tooltip-bottom">
-    <div class="btn btn-ghost btn-circle btn-sm sm:btn-md relative">
-        <svg><!-- Cloud icon --></svg>
-        <span id="navbar-sync-count" class="absolute inset-0">0</span>
-    </div>
-</div>
+<button hx-get="/" hx-target="body" hx-swap="outerHTML" hx-push-url="true">
+    Home
+</button>
 ```
 
-**CSS Styling:**
-```css
-/* Visibility transition (iOS Safari compatible) */
-#navbar-sync-badge-wrapper.hidden {
-    opacity: 0;
-    visibility: hidden;        /* Required for iOS */
-    pointer-events: none;
-}
+**Why HTMX over window.location**:
+- HTMX uses `fetch()` API → Service Worker intercepts → serves cache
+- `window.location.href` may bypass Service Worker on some browsers (Safari)
+- HTMX provides consistent offline behavior across browsers
+- Fallback to `window.location.href` if HTMX unavailable
 
-/* Pulsing animation */
-@keyframes navbar-sync-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-}
-```
+**Example**: Lists page "Главная" button (lists.html:32-41)
 
-**JavaScript Functions:**
-```javascript
-// Update navbar badge count
-function updateNavbarSyncBadge(count) {
-    // Show/hide based on count
-    // Update tooltip dynamically
-}
+**Logging**: `[LISTS_NAV]` prefix for navigation events
 
-// Periodic updates (every 5s)
-async function periodicSyncBadgeUpdate() {
-    const { items } = await window.offlineManager.getAllUnsyncedItems();
-    updateNavbarSyncBadge(items.length);
-}
-```
+---
 
-### Integration Points
+## Navbar Pending Sync Badge (v6.8.0+)
 
-1. **loadPendingRecords() (index.html)**
-   - Calls `updateNavbarSyncBadge(0)` when no pending items
-   - Calls `updateNavbarSyncBadge(result.itemCount)` after rendering
+The navbar displays a global pending sync badge showing offline items awaiting synchronization.
 
-2. **DOMContentLoaded (base.html)**
-   - `setTimeout(periodicSyncBadgeUpdate, 1000)` - initial update
-   - `setInterval(periodicSyncBadgeUpdate, 5000)` - periodic updates
+**Location**: `base.html:772` (navbar-end section, after offline-icon)
 
-3. **Event Listeners**
-   - `offline-status-change` - backend availability changes
-   - `network-status-change` - network state transitions
+**Icon**: Cloud with upload arrow (indicates data waiting to upload to server)
 
-### Behavior
+**Visibility**:
+- Hidden when count = 0
+- Visible when count > 0
+- Persists across all pages (global navbar)
 
-| Scenario | Badge State | Tooltip |
-|----------|-------------|---------|
-| No pending items | Hidden | N/A |
-| 1 pending item | Visible, pulsing | "1 запись ожидает синхронизации" |
-| 5+ pending items | Visible, pulsing | "5 записей ожидают синхронизации" |
-| Offline → Online | Updates after sync | Reflects new count |
+**Interactions**:
+- **NON-clickable** (disabled button) - purely informational indicator
+- No navigation on click
 
-### Performance
+**Animations**:
+- **Spinning cloud icon** when `syncInProgress = true`
+- **Pulse animation** when new items added
+- **Smooth fade** in/out on visibility change
 
-- **Update Cost:** ~5ms (IndexedDB read)
-- **Network:** Zero (all local)
-- **Battery:** Negligible (stops when tab inactive)
-- **Polling:** 5s intervals (moderate frequency)
+**Update Events**:
+- `offline-item-created` → update badge (via `_updateNavbarBadge()` method calls)
+- `loadPendingRecords()` → update badge (on page load)
+- `offlineManager.sync()` complete → update badge
+- Network status change → triggers loadPendingRecords → updates badge
 
-### Backward Compatibility
+**Functions**:
+- `updatePendingSyncBadge(count, isSyncing)` - Update badge state
+- Auto-hides when count reaches 0
 
-- ✅ Homepage "Pending Records" card remains functional
-- ✅ Fixed position badge (top-left) preserved
-- ✅ All existing call sites work unchanged
-- ✅ No breaking changes
+**Code Locations**:
+- Badge HTML: `base.html:772-798`
+- CSS animations: `base.html:464-497`
+- JavaScript function: `base.html:2600-2647`
+- Event integration: `offlineManager.js:126-138` (helper method), `offlineManager.js:98-101` (event listener), `index.html:4522-4524` (loadPendingRecords)
 
-### Testing
-
-See implementation plan section "Тестирование" for complete testing scenarios.
+**Responsive Design**:
+- Desktop: badge-sm (1.5rem), icon h-6 w-6 (24px)
+- Mobile: badge-xs (1.25rem), icon h-5 w-5 (20px)
 
 ---
 
