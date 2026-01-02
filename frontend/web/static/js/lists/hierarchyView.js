@@ -15,6 +15,7 @@ class SwipeHandler {
     constructor(hierarchyView) {
         this.hierarchyView = hierarchyView;
         this.activeSwipedItemId = null;
+        this.modalOpenedBySwipe = null; // NEW: Track modal opened by swipe
         this.startX = null;
         this.currentX = null;
         this.isDragging = false;
@@ -28,13 +29,14 @@ class SwipeHandler {
             });
         };
 
-        console.log('[SWIPE] SwipeHandler initialized', {
+        console.log('[SWIPE_INIT] SwipeHandler initialized with modal tracking', {
             threshold: `${this.SWIPE_THRESHOLD * 100}%`
         });
 
         this._log('INITIALIZED', {
             threshold: `${this.SWIPE_THRESHOLD * 100}%`,
-            minDistance: '50px (default swipe threshold)'
+            minDistance: '50px (default swipe threshold)',
+            modalTracking: true
         });
     }
 
@@ -123,71 +125,96 @@ class SwipeHandler {
 
         // Determine action based on threshold
         if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
-            // Open swipe (left swipe)
-            this.openSwipe(itemId, itemElement);
+            // Left swipe - OPEN MODAL DIRECTLY
+            this.openEditModal(itemId, itemElement);
             console.log('[SWIPE] Touch end', {
                 itemId,
                 finalDeltaX: deltaX,
                 threshold,
-                action: 'opened'
+                action: 'opened_modal',
+                timestamp: Date.now()
+            });
+        } else if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
+            // Right swipe - CLOSE MODAL IF OPEN
+            this.closeModalIfOpen(itemId);
+            console.log('[SWIPE] Touch end', {
+                itemId,
+                finalDeltaX: deltaX,
+                threshold,
+                action: 'attempted_close_modal',
+                timestamp: Date.now()
             });
         } else {
-            // Close swipe (snap back)
-            this.closeSwipe(itemId, itemElement);
+            // Snap back (gesture incomplete)
+            this.resetSwipe(itemId, itemElement);
             console.log('[SWIPE] Touch end', {
                 itemId,
                 finalDeltaX: deltaX,
                 threshold,
-                action: 'closed'
+                action: 'snap_back'
             });
         }
     }
 
     /**
-     * Open swipe (reveal actions)
+     * Open edit modal (called after successful left swipe)
      */
-    openSwipe(itemId, itemElement) {
-        const itemWidth = itemElement.offsetWidth;
-        const swipeDistance = itemWidth * this.SWIPE_THRESHOLD;
+    openEditModal(itemId, itemElement) {
+        // Reset visual state immediately
+        this.resetSwipe(itemId, itemElement);
 
-        const contentElement = itemElement.querySelector('.hierarchy-item-content');
-        if (!contentElement) return;
+        // Track that this swipe opened the modal
+        this.modalOpenedBySwipe = itemId;
 
-        // Transform ONLY content, not buttons - buttons stay fixed on right
-        contentElement.style.transform = `translateX(-${swipeDistance}px)`;
-        itemElement.classList.add('swiped');
-        this.activeSwipedItemId = itemId;
+        // Call global modal function (defined in listsManager.js)
+        if (typeof openEditItemModal === 'function') {
+            openEditItemModal(itemId);
 
-        console.log('[SWIPE] Swipe opened', { itemId });
-
-        // NEW: Enhanced logging with diagnostic info
-        const actionsContainer = itemElement.querySelector('.hierarchy-item-swipe-actions');
-        this._log('SWIPE_OPENED', {
-            itemId,
-            swipeDistance: `${swipeDistance}px`,
-            transform: contentElement.style.transform,
-            containerWidth: itemElement.offsetWidth,
-            buttonsVisible: true,
-            pointerEvents: actionsContainer ?
-                window.getComputedStyle(actionsContainer).pointerEvents : 'N/A'
-        });
+            console.log('[SWIPE] Modal opened', {
+                itemId,
+                timestamp: Date.now(),
+                source: 'swipe_gesture'
+            });
+        } else {
+            console.error('[SWIPE] openEditItemModal function not found');
+        }
     }
 
     /**
-     * Close swipe (hide actions)
+     * Close modal if currently open (for right swipe)
      */
-    closeSwipe(itemId, itemElement) {
+    closeModalIfOpen(itemId) {
+        const modal = document.getElementById('item-modal');
+
+        // Only close if modal is open AND was opened by swipe for THIS item
+        if (modal && modal.open && this.modalOpenedBySwipe === itemId) {
+            if (typeof closeItemModal === 'function') {
+                closeItemModal();
+
+                console.log('[SWIPE] Modal closed by right swipe', {
+                    itemId,
+                    timestamp: Date.now()
+                });
+
+                this.modalOpenedBySwipe = null;
+            }
+        }
+    }
+
+    /**
+     * Reset swipe visual state (snap back to original position)
+     */
+    resetSwipe(itemId, itemElement) {
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (contentElement) {
             contentElement.style.transform = 'translateX(0)';
         }
-        itemElement.classList.remove('swiped');
 
+        // Clear any swiped state
+        itemElement.classList.remove('swiped');
         if (this.activeSwipedItemId === itemId) {
             this.activeSwipedItemId = null;
         }
-
-        console.log('[SWIPE] Swipe closed', { itemId });
     }
 
     /**
@@ -199,7 +226,7 @@ class SwipeHandler {
         if (this.activeSwipedItemId) {
             const swipedElement = document.querySelector(`.hierarchy-item[data-item-id="${this.activeSwipedItemId}"]`);
             if (swipedElement) {
-                this.closeSwipe(this.activeSwipedItemId, swipedElement);
+                this.resetSwipe(this.activeSwipedItemId, swipedElement);
             }
         }
 
@@ -553,6 +580,15 @@ class HierarchyView {
                             ${this.escapeHtml(item.product_name)}
                         </span>
                         ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+
+                        <!-- NEW: Swipe indicator arrow -->
+                        <div class="swipe-indicator" aria-hidden="true">
+                            <svg class="swipe-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 18l6-6-6-6"/>
+                            </svg>
+                        </div>
+
+                        <!-- Desktop inline actions (unchanged) -->
                         <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
                             <button class="btn btn-xs btn-ghost btn-square"
                                     onclick="openEditItemModal(${item.id})"
@@ -566,20 +602,7 @@ class HierarchyView {
                             </button>
                         </div>
                     </div>
-                    <div class="hierarchy-item-swipe-actions">
-                        <button class="btn btn-xs btn-square btn-ghost"
-                                onclick="console.log('[SWIPE_CLICK] Edit button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); openEditItemModal(${item.id});"
-                                aria-label="Редактировать"
-                                title="Редактировать">
-                            ✏️
-                        </button>
-                        <button class="btn btn-xs btn-square btn-error"
-                                onclick="console.log('[SWIPE_CLICK] Delete button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); window.listsManager.deleteItem(${item.id});"
-                                aria-label="Удалить"
-                                title="Удалить">
-                            🗑️
-                        </button>
-                    </div>
+                    <!-- REMOVED: .hierarchy-item-swipe-actions div -->
                 </div>
             `;
         });

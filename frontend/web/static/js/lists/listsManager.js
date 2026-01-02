@@ -3003,6 +3003,13 @@ function openAddItemModal() {
     // Hide duplicate warning on modal open
     window.listsManager?.hideDuplicateWarning();
 
+    // Hide delete button (not applicable for new items)
+    const deleteBtn = document.getElementById('item-modal-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.classList.add('hidden');
+        console.log('[MODAL_ADD] Delete button hidden (new item mode)');
+    }
+
     modal.showModal();
 
     // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
@@ -3033,6 +3040,13 @@ function openEditItemModal(itemId) {
     document.getElementById('item-unit').value = item.unit || '';
     document.getElementById('item-comment').value = item.comment || '';
     document.getElementById('item-modal-title').textContent = '✏️ Редактировать товар';
+
+    // Show delete button (only for existing items, not new items)
+    const deleteBtn = document.getElementById('item-modal-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.classList.remove('hidden');
+        console.log('[MODAL_EDIT] Delete button shown', { itemId });
+    }
 
     // Update quantity input step based on unit
     const quantityInput = document.getElementById('item-quantity');
@@ -3065,6 +3079,35 @@ function openEditItemModal(itemId) {
 function closeItemModal() {
     const modal = document.getElementById('item-modal');
     modal.close();
+}
+
+/**
+ * Handle delete from modal
+ * Called when user clicks Delete button in edit modal
+ */
+async function handleDeleteFromModal() {
+    const itemIdInput = document.getElementById('item-id');
+    const itemId = parseInt(itemIdInput.value);
+
+    if (!itemId) {
+        console.error('[DELETE_MODAL] No item ID found');
+        return;
+    }
+
+    console.log('[DELETE_MODAL] Delete initiated', {
+        itemId,
+        timestamp: Date.now(),
+        source: 'modal_button'
+    });
+
+    // Close modal first (better UX - user sees item disappear from list)
+    closeItemModal();
+
+    // Delete item using existing deleteItem method
+    // (already handles confirmation, offline support, cache update)
+    await window.listsManager.deleteItem(itemId);
+
+    console.log('[DELETE_MODAL] Delete completed', { itemId });
 }
 
 /**

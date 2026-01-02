@@ -527,66 +527,61 @@
     transition: none; /* Disable transition during drag */
 }
 
-.hierarchy-item.swiped {
-    /* Transform applied to .hierarchy-item-content via JavaScript */
-}
+/* Note: .hierarchy-item.swiped class removed - no longer needed */
+/* Swipe now opens modal directly instead of revealing buttons */
 
-/* Swipe Actions - Hidden by default, shown when swiped */
-.hierarchy-item-swipe-actions {
+/* ---- Swipe Indicator Arrow ---- */
+.swipe-indicator {
     position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    width: 100%; /* CHANGED from 50%: Full width for right-edge positioning */
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    padding: 0 0.75rem 0 0; /* CHANGED: Increased padding for visual breathing room */
-    z-index: 5; /* NEW: Above content (z-index: 2) but below modals */
-    /* CHANGED: Gradient starts at 50% (visible area only, since first 50% is hidden behind item) */
-    background: linear-gradient(
-        to right,
-        transparent 0%,
-        transparent 50%,
-        var(--fallback-er, oklch(var(--er) / 0.05)) 60%,
-        var(--fallback-er, oklch(var(--er) / 0.1)) 75%,
-        var(--fallback-er, oklch(var(--er) / 0.15)) 100%
-    );
-    opacity: 0;
-    visibility: hidden;  /* NEW: Blocks ALL pointer events on iOS Safari */
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    z-index: 3;
     pointer-events: none;
-    transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay visibility hide */
+    opacity: 0.6;
+
+    /* Pulse animation */
+    animation: swipe-pulse 2s ease-in-out infinite;
 }
 
-.hierarchy-item.swiped .hierarchy-item-swipe-actions {
-    opacity: 1;
-    visibility: visible;  /* NEW: Make buttons visible and clickable */
-    pointer-events: auto;
-    transition: opacity 0.3s ease; /* Instant visibility show (no delay) */
+.swipe-arrow {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--fallback-p, oklch(var(--p)));
+    /* Accent color (blue/green from DaisyUI theme) */
 }
 
-.hierarchy-item-swipe-actions .btn {
-    min-height: 2rem;
-    min-width: 2rem;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    font-size: 1rem;
-    flex-shrink: 0;
-    position: relative; /* NEW: Creates stacking context */
-    z-index: 10; /* NEW: Above gradient background */
-    /* Removed: pointer-events: auto - inherited from parent, visibility: hidden overrides anyway */
-    cursor: pointer; /* NEW: Visual feedback */
+@keyframes swipe-pulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: translateY(-50%) translateX(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-50%) translateX(-4px);
+    }
 }
 
-/* NEW: Visual debugging aid (remove after testing) */
-.swipe-debug .hierarchy-item-swipe-actions {
-    background: rgba(255, 0, 0, 0.2) !important; /* Red tint to see container bounds */
+/* Hide on completed items */
+.hierarchy-item.completed .swipe-indicator {
+    display: none;
 }
 
-.swipe-debug .hierarchy-item-swipe-actions .btn {
-    outline: 2px solid lime !important; /* Green outline on buttons */
+/* Hide on desktop (show inline buttons instead) */
+@media (min-width: 1024px) {
+    .swipe-indicator {
+        display: none;
+    }
+}
+
+/* Hide when swiped (avoid visual conflict) */
+.hierarchy-item.swiped .swipe-indicator {
+    opacity: 0;
 }
 
 /* ---- Mobile Optimizations ---- */

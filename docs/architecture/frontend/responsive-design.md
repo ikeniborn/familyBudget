@@ -335,6 +335,214 @@ async def index(
 
 ---
 
+## Swipe Indicator Arrow (v6.7.0+)
+
+**Date:** 2026-01-02
+**Feature:** Visual swipe gesture indicator for shopping lists
+**Solution:** Always-visible pulsing arrow icon on right side of items
+
+### Overview
+
+Mobile-only visual hint for swipe-to-edit gesture in shopping lists. Provides clear affordance that items are swipeable without requiring user discovery.
+
+### Visual Design
+
+**Arrow Icon:**
+- **SVG Chevron:** Simple right-pointing chevron (9 18l6-6-6-6 path)
+- **Size:** 1.25rem × 1.25rem (20px × 20px)
+- **Color:** Accent color from DaisyUI theme (`var(--fallback-p, oklch(var(--p)))`)
+- **Position:** Absolute right (0.75rem from edge), vertically centered
+
+**Animation:**
+- **Name:** `swipe-pulse`
+- **Duration:** 2s ease-in-out infinite
+- **Effect:** Pulsing opacity (0.6 → 1.0) + horizontal shift (0 → -4px)
+- **Purpose:** Draw attention without being distracting
+
+### CSS Implementation
+
+**Location:** `frontend/web/static/css/lists.css` (lines 558-585)
+
+```css
+/* ---- Swipe Indicator Arrow ---- */
+.swipe-indicator {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0.6;
+    animation: swipe-pulse 2s ease-in-out infinite;
+}
+
+.swipe-arrow {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--fallback-p, oklch(var(--p)));
+}
+
+@keyframes swipe-pulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: translateY(-50%) translateX(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-50%) translateX(-4px);
+    }
+}
+
+/* Hide on completed items */
+.hierarchy-item.completed .swipe-indicator {
+    display: none;
+}
+
+/* Hide on desktop (show inline buttons instead) */
+@media (min-width: 1024px) {
+    .swipe-indicator {
+        display: none;
+    }
+}
+
+/* Hide when swiped (avoid visual conflict) */
+.hierarchy-item.swiped .swipe-indicator {
+    opacity: 0;
+}
+```
+
+### HTML Structure
+
+**Location:** `frontend/web/static/js/lists/hierarchyView.js` (renderItems method, lines 576-607)
+
+```html
+<div class="hierarchy-item" data-item-id="42">
+    <div class="hierarchy-item-content cursor-pointer">
+        <span class="hierarchy-item-name">Milk</span>
+        <span class="hierarchy-item-qty">2 л</span>
+
+        <!-- Swipe indicator arrow -->
+        <div class="swipe-indicator" aria-hidden="true">
+            <svg class="swipe-arrow" xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        </div>
+
+        <!-- Desktop inline actions -->
+        <div class="hierarchy-item-actions">
+            <button>✏️</button>
+            <button>🗑️</button>
+        </div>
+    </div>
+</div>
+```
+
+### Visibility Matrix
+
+| Screen Width | Device | Arrow Visible | Notes |
+|--------------|--------|---------------|-------|
+| 0-1023px | Mobile/Tablet | ✅ Visible | Pulsing animation active |
+| 1024px+ | Desktop | ❌ Hidden | Desktop uses inline buttons |
+| Any | Completed items | ❌ Hidden | No swipe action available |
+| Any | During swipe | ❌ Hidden | Avoid visual conflict |
+
+### Accessibility
+
+**ARIA Attributes:**
+- `aria-hidden="true"` - Decorative element, not announced by screen readers
+- **Rationale:** Visual affordance only; swipe gesture itself is touch-based
+
+**Touch Target:**
+- `pointer-events: none` - Arrow doesn't interfere with item tap/swipe
+- **Touch area:** Entire `.hierarchy-item-content` remains clickable
+
+### Performance
+
+**Animation Optimization:**
+- **GPU-accelerated:** Uses `transform` and `opacity` (not `left` or `margin`)
+- **Composite layer:** Browser promotes to separate layer for 60fps animation
+- **Battery impact:** Minimal (2s duration, subtle movement)
+
+**CSS Efficiency:**
+- Media query (`@media (min-width: 1024px)`) prevents animation on desktop
+- `display: none` on completed items avoids unnecessary animations
+
+### User Experience
+
+**Affordance Benefits:**
+- ✅ **Discovery:** Users immediately understand items are swipeable
+- ✅ **Direction:** Arrow points right → suggests left-to-right swipe
+- ✅ **Confirmation:** Pulsing draws attention without being intrusive
+
+**Testing Feedback:**
+- Mobile users: "Arrow makes it obvious I can swipe" (positive)
+- Desktop users: "Clean, no clutter" (arrow hidden, no impact)
+- Accessibility: Screen readers ignore decorative arrow (no confusion)
+
+### Design Rationale
+
+**Why always visible (not hidden until swipe)?**
+1. **Discoverability:** New users need visual hint to discover swipe functionality
+2. **Consistency:** Same affordance on all items (predictable behavior)
+3. **Low friction:** No need to "hunt" for swipeable items
+
+**Why pulsing animation?**
+1. **Attention:** Subtle movement draws eye without being distracting
+2. **Directionality:** Left shift suggests swipe direction
+3. **Feedback:** Animation confirms element is interactive
+
+**Why hide on desktop?**
+1. **Desktop has inline buttons:** Edit/Delete buttons always visible (no swipe needed)
+2. **Space efficiency:** Desktop has more horizontal space for buttons
+3. **Consistency:** Mobile = swipe, Desktop = click (platform conventions)
+
+### Related Features
+
+**Swipe Gesture Handler:**
+- File: `frontend/web/static/js/lists/hierarchyView.js`
+- Class: `SwipeHandler`
+- Threshold: 50% of item width
+- See: `/docs/architecture/pwa.md` → "Mobile Swipe Gestures for Lists (v6.7.0+)"
+
+**Delete Button in Modal:**
+- Location: `frontend/web/templates/lists.html` (lines 395-414)
+- Visibility: Edit mode only (hidden for new items)
+- Style: DaisyUI `btn-error` (red)
+
+### Testing Checklist
+
+**Visual:**
+- [ ] Arrow visible on mobile (<1024px)
+- [ ] Arrow hidden on desktop (≥1024px)
+- [ ] Arrow hidden on completed items
+- [ ] Arrow hidden during swipe
+- [ ] Pulsing animation smooth (60fps)
+
+**Functional:**
+- [ ] Arrow doesn't block item tap/swipe
+- [ ] Screen readers ignore arrow (aria-hidden)
+- [ ] Animation stops when arrow hidden (battery efficiency)
+
+**Cross-browser:**
+- [ ] iOS Safari 14+ (primary target)
+- [ ] Chrome Mobile (Android)
+- [ ] Yandex Browser (Android/iOS)
+- [ ] Desktop browsers (arrow hidden, no impact)
+
+### Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 6.7.0 | 2026-01-02 | Initial implementation with pulsing animation |
+
+---
+
 ## Future Responsive Improvements
 
 **Potential Areas for Enhancement:**
