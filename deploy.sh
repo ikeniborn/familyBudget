@@ -743,6 +743,135 @@ repair_npm_environment() {
     fi
 }
 
+# =============================================================================
+# CHECK GIT REPOSITORY SYNC STATUS
+# =============================================================================
+# Validates that the repository is synchronized with remote origin
+# to prevent deploying outdated code.
+#
+# Checks:
+# - Repository has no uncommitted changes
+# - Local HEAD matches remote branch HEAD
+#
+# Aborts deployment if repository is out of sync.
+#
+# Usage: check_git_sync
+# =============================================================================
+check_git_sync() {
+    # Skip check if not a git repository
+    if [[ ! -d "$SCRIPT_DIR/.git" ]]; then
+        print_message warning "Not a git repository - skipping sync check"
+        return 0
+    fi
+
+    local current_dir
+    current_dir=$(pwd)
+
+    cd "$SCRIPT_DIR" || {
+        print_message error "Failed to access repository directory: $SCRIPT_DIR"
+        exit 1
+    }
+
+    # Get current branch name
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    if [[ -z "$current_branch" ]]; then
+        print_message error "Failed to determine current git branch"
+        cd "$current_dir" || true
+        exit 1
+    fi
+
+    print_message info "Checking git repository sync status..."
+    print_message info "Repository: $SCRIPT_DIR"
+    print_message info "Branch: $current_branch"
+
+    # Check for uncommitted changes
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        print_message warning "Repository has uncommitted changes:"
+        git status --short
+        print_message warning ""
+        print_message warning "This may indicate local modifications that were not pushed."
+        print_message warning "Consider committing and pushing changes before deployment."
+        print_message warning ""
+    fi
+
+    # Fetch latest from remote (quietly)
+    print_message info "Fetching latest changes from origin/$current_branch..."
+    if ! git fetch origin "$current_branch" --quiet 2>/dev/null; then
+        print_message warning "Failed to fetch from origin - network issue or remote not configured"
+        print_message warning "Continuing deployment with local repository state"
+        cd "$current_dir" || true
+        return 0
+    fi
+
+    # Compare local and remote commits
+    local local_commit
+    local remote_commit
+
+    local_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
+    remote_commit=$(git rev-parse "origin/$current_branch" 2>/dev/null || echo "")
+
+    if [[ -z "$local_commit" ]] || [[ -z "$remote_commit" ]]; then
+        print_message error "Failed to retrieve git commit hashes"
+        cd "$current_dir" || true
+        exit 1
+    fi
+
+    # Check sync status
+    if [[ "$local_commit" == "$remote_commit" ]]; then
+        print_message success "✓ Repository is synchronized with origin/$current_branch"
+        print_message info "  Commit: ${local_commit:0:8}"
+        cd "$current_dir" || true
+        return 0
+    fi
+
+    # Repository is out of sync - determine direction
+    local ahead_count
+    local behind_count
+
+    ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || echo "0")
+    behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || echo "0")
+
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error "❌ REPOSITORY OUT OF SYNC WITH REMOTE"
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error ""
+    print_message error "Repository: $SCRIPT_DIR"
+    print_message error "Branch:     $current_branch"
+    print_message error ""
+    print_message error "Local commit:  ${local_commit:0:8} ($(git log -1 --format='%s' HEAD 2>/dev/null || echo 'unknown'))"
+    print_message error "Remote commit: ${remote_commit:0:8} ($(git log -1 --format='%s' origin/$current_branch 2>/dev/null || echo 'unknown'))"
+    print_message error ""
+
+    if [[ $behind_count -gt 0 ]]; then
+        print_message error "⚠️  Local repository is BEHIND remote by $behind_count commit(s)"
+        print_message error ""
+        print_message error "REQUIRED ACTION:"
+        print_message error "  cd $SCRIPT_DIR"
+        print_message error "  git pull origin $current_branch"
+        print_message error ""
+        print_message error "Then re-run deployment."
+    elif [[ $ahead_count -gt 0 ]]; then
+        print_message error "⚠️  Local repository is AHEAD of remote by $ahead_count commit(s)"
+        print_message error ""
+        print_message error "RECOMMENDED ACTION:"
+        print_message error "  cd $SCRIPT_DIR"
+        print_message error "  git push origin $current_branch"
+        print_message error ""
+        print_message error "Or if you want to deploy anyway (not recommended):"
+        print_message error "  Manually confirm that unpushed changes are intentional"
+    fi
+
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error ""
+    print_message error "Deployment ABORTED to prevent deploying outdated or unintended code."
+    print_message error ""
+
+    cd "$current_dir" || true
+    exit 1
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -827,6 +956,12 @@ main() {
         print_message warning "Run install.sh to create npm environment before first deploy"
         print_message warning "Build process will be skipped if npm environment is missing"
     fi
+    echo ""
+
+    # CHECK: Ensure repository is synchronized with remote
+    # Prevents deploying outdated code from un-updated repository
+    step "Git Repository Sync Check"
+    check_git_sync
     echo ""
 
     # Synchronize code from repository to /opt/budget
