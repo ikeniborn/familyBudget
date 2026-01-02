@@ -232,8 +232,16 @@ minify_service_worker() {
         # Inject CACHE_VERSION (v6.8.0+)
         # Uses SAME version format as all JS/CSS files (from cache_busting.sh)
         # This triggers browser update detection automatically when file content changes
-        local cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
-        print_message info "Injecting CACHE_VERSION: $cache_version (matches all JS/CSS files)"
+
+        # Use CACHE_VERSION from environment if set (passed by deploy.sh)
+        # Otherwise generate new version (for local builds)
+        local cache_version="${CACHE_VERSION:-}"
+        if [[ -z "$cache_version" ]]; then
+            cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+            print_message info "Generated CACHE_VERSION: $cache_version (local build)"
+        else
+            print_message info "Using CACHE_VERSION from environment: $cache_version (deployment)"
+        fi
 
         # Replace PLACEHOLDER with actual cache version
         # NOTE: Terser may change quotes (single→double), so we match both styles

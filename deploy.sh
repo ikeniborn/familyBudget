@@ -1164,6 +1164,14 @@ main() {
 
         print_message info "npm build environment configured (PATH + NODE_PATH)"
 
+        # Generate cache version ONCE for entire deployment (v6.8.0+)
+        # This version will be used by:
+        # 1. minify.sh (sw.min.js)
+        # 2. update-cache-busting.sh (HTML templates)
+        # Ensures SAME version across all files
+        export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+        print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
+
         echo ""
         if npm run build 2>&1; then
             echo ""

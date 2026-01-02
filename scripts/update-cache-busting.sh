@@ -18,8 +18,18 @@ NC='\033[0m' # No Color
 SW_FILE="sw.min.js"  # Process MINIFIED version (after npm run build)
 SW_FILE_GZ="sw.min.js.gz"  # Gzip version to update
 TEMPLATES_DIR="frontend/web/templates"
-TIMESTAMP=$(date +"%Y%m%d_%H%M")
-NEW_VERSION="v${TIMESTAMP}"
+
+# Use CACHE_VERSION from environment (set by deploy.sh)
+# Fallback: generate new version if not set (for manual runs)
+if [[ -n "${CACHE_VERSION:-}" ]]; then
+    NEW_VERSION="$CACHE_VERSION"
+    echo -e "${YELLOW}[INFO]${NC} Using CACHE_VERSION from environment: ${BLUE}${NEW_VERSION}${NC}"
+else
+    TIMESTAMP=$(date +"%Y%m%d_%H%M")
+    NEW_VERSION="v${TIMESTAMP}"
+    echo -e "${YELLOW}[WARNING]${NC} CACHE_VERSION not set, generating new version: ${BLUE}${NEW_VERSION}${NC}"
+    echo -e "${YELLOW}[WARNING]${NC} This may cause version mismatch with sw.min.js!"
+fi
 
 # Counters
 total_files=0
@@ -34,33 +44,33 @@ echo ""
 echo -e "${YELLOW}[INFO]${NC} New version: ${BLUE}${NEW_VERSION}${NC}"
 echo ""
 
-# Function: Update Service Worker
-update_service_worker() {
-    echo -e "${YELLOW}[STEP 1/2]${NC} Updating Service Worker (sw.js)..."
+# Function: Validate Service Worker version (v6.8.0+)
+# NOTE: sw.min.js version is injected by minify.sh during npm run build
+# This function only VALIDATES, does NOT modify sw.min.js
+validate_service_worker() {
+    echo -e "${YELLOW}[STEP 1/2]${NC} Validating Service Worker version..."
 
     if [ ! -f "$SW_FILE" ]; then
         echo -e "${RED}[ERROR]${NC} $SW_FILE not found!"
         return 1
     fi
 
-    # Backup
-    cp "$SW_FILE" "${SW_FILE}.bak"
-
-    # Replace CACHE_VERSION_PLACEHOLDER or previous version with new version
-    # Support both single/double quotes, with/without spaces, with/without const
-    # Preserve original separator (';' in source, ',' in minified)
-    sed -i.tmp "s/\(const \)\?CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"']\([;,]\)/\1CACHE_VERSION=\"${NEW_VERSION}\"\3/" "$SW_FILE"
-    rm -f "${SW_FILE}.tmp"
-
-    # Verify replacement
-    # Check both quote styles, spacing variations, and separators (';' or ',')
+    # Check if version matches expected NEW_VERSION
     if grep -qE "(const )?CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'][;,]" "$SW_FILE"; then
-        echo -e "  ${GREEN}✓${NC} Service Worker updated: ${BLUE}${NEW_VERSION}${NC}"
-        rm -f "${SW_FILE}.bak"
+        echo -e "  ${GREEN}✓${NC} Service Worker version correct: ${BLUE}${NEW_VERSION}${NC}"
         return 0
     else
-        echo -e "  ${RED}✗${NC} Failed to update Service Worker, restoring backup..."
-        mv "${SW_FILE}.bak" "$SW_FILE"
+        # Show what version is actually present
+        local actual_version
+        actual_version=$(grep -o 'CACHE_VERSION="[^"]*"' "$SW_FILE" | head -1 || echo "NOT FOUND")
+        echo -e "  ${RED}✗${NC} Service Worker version mismatch!"
+        echo -e "  ${YELLOW}Expected:${NC} ${BLUE}${NEW_VERSION}${NC}"
+        echo -e "  ${YELLOW}Actual:${NC}   ${RED}${actual_version}${NC}"
+        echo -e ""
+        echo -e "  ${YELLOW}[INFO]${NC} This usually means:"
+        echo -e "    - npm run build failed or was skipped"
+        echo -e "    - minify.sh did not run successfully"
+        echo -e "    - CACHE_VERSION env variable not passed to build"
         return 1
     fi
 }
@@ -180,9 +190,12 @@ validate_no_placeholders() {
 
 # Main execution
 main() {
-    # Step 1: Update Service Worker
-    if ! update_service_worker; then
-        echo -e "${RED}[CRITICAL]${NC} Service Worker update failed"
+    # Step 1: Validate Service Worker (v6.8.0+)
+    # NOTE: sw.min.js is already updated by minify.sh during npm run build
+    # We only validate that the version is correct
+    if ! validate_service_worker; then
+        echo -e "${RED}[CRITICAL]${NC} Service Worker validation failed"
+        echo -e "${YELLOW}[INFO]${NC} This is likely caused by minify.sh not running correctly"
         exit 1
     fi
 
