@@ -1258,14 +1258,39 @@ main() {
             exit 1
         fi
 
-        # BUGFIX: Restart nginx to remount updated sw.min.js files
-        # Docker volumes are mounted at container start. If sw.min.js changes on host,
-        # nginx continues serving old version until restarted.
+        # CRITICAL: Update sw.min.js in nginx container (v6.8.0+)
+        # Problem: Docker bind mounts are tied to file inode
+        # When terser creates new sw.min.js, it creates NEW inode
+        # Solution: docker cp + nginx reload (no downtime, faster than recreate)
         if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
-            info "Service Worker updated - restarting nginx to apply changes..."
-            docker compose restart nginx >/dev/null 2>&1 || warning "Failed to restart nginx"
-            # Wait for nginx to become healthy (using proper retry logic)
-            wait_for_service "nginx" 30
+            info "Service Worker updated - copying new files to nginx container..."
+
+            # Copy updated files into running container (bypasses bind mount inode issue)
+            if docker cp "$DEPLOY_DIR/sw.min.js" familybudget-nginx:/usr/share/nginx/html/sw.min.js 2>&1 && \
+               docker cp "$DEPLOY_DIR/sw.min.js.gz" familybudget-nginx:/usr/share/nginx/html/sw.min.js.gz 2>&1; then
+                success "Files copied to nginx container successfully"
+
+                # Reload nginx configuration (graceful, no downtime)
+                info "Reloading nginx to clear internal caches..."
+                if docker exec familybudget-nginx nginx -s reload 2>&1; then
+                    success "Nginx reloaded successfully"
+                else
+                    warning "Nginx reload failed, attempting restart..."
+                    docker compose restart nginx >/dev/null 2>&1 || warning "Restart also failed"
+                    wait_for_service "nginx" 30
+                fi
+            else
+                warning "Failed to copy files to nginx container"
+                warning "Attempting fallback: recreate container..."
+
+                # Fallback: recreate container (slower but guaranteed to work)
+                if docker compose up -d --force-recreate --no-deps nginx 2>&1; then
+                    info "Nginx container recreated successfully"
+                    wait_for_service "nginx" 30
+                else
+                    error "Failed to update nginx - Service Worker may serve stale version"
+                fi
+            fi
         fi
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
