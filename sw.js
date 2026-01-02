@@ -15,12 +15,21 @@
  */
 
 // Debug mode (включить только для отладки)
-const DEBUG = true;
+const DEBUG = false;
 
 // Cache version - автоматически заменяется при минификации
 // Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
-const CACHE_VERSION = 'PLACEHOLDER';
+// FALLBACK: Static version to prevent cache thrashing if build fails
+const CACHE_VERSION_RAW = 'PLACEHOLDER';
+const CACHE_VERSION = CACHE_VERSION_RAW === 'PLACEHOLDER'
+  ? 'v20260102_1800_dev'
+  : CACHE_VERSION_RAW;
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
+
+if (CACHE_VERSION_RAW === 'PLACEHOLDER') {
+  console.warn('[SW] WARNING: Using fallback cache version - build may have failed!');
+  console.warn('[SW] This should NOT happen in production - please run: npm run minify:js');
+}
 
 // Критическая статика БЕЗ версий (для precaching в install event)
 // ТОЛЬКО файлы которые НЕ используют cache busting
