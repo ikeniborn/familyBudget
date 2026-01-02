@@ -20,13 +20,36 @@ setup_backup_cron() {
 
     # Check if crontab is installed
     if ! command -v crontab &> /dev/null; then
-        warning "crontab command not found - backup automation cannot be configured"
         echo ""
-        echo "To install crontab:"
-        echo "  sudo apt-get update && sudo apt-get install -y cron"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        error "CRITICAL: cron package NOT installed!"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""
-        info "Manual backup can be run with: sudo $DEPLOY_DIR/scripts/backup.sh"
-        info "Skipping backup automation setup (non-critical - deployment will continue)"
+        error "Automated backups are DISABLED - no backup cron job will be created!"
+        echo ""
+        error "⚠️  WITHOUT CRON:"
+        echo "  • Daily backups will NOT run automatically"
+        echo "  • S3 uploads will NOT happen"
+        echo "  • Database backup retention will NOT work"
+        echo "  • Risk of DATA LOSS if manual backups are forgotten"
+        echo ""
+        error "REQUIRED ACTION:"
+        echo "  1. Install cron package:"
+        echo "     sudo apt-get update && sudo apt-get install -y cron"
+        echo "     sudo systemctl enable cron && sudo systemctl start cron"
+        echo ""
+        echo "  2. Re-run deployment to configure backup automation:"
+        echo "     cd ~/familyBudget && sudo ./deploy.sh"
+        echo ""
+        echo "  OR run install.sh which will install cron automatically:"
+        echo "     cd ~/familyBudget && sudo ./install.sh"
+        echo ""
+        error "Manual backup can be run with: sudo $DEPLOY_DIR/scripts/backup.sh"
+        echo ""
+        warning "Deployment will continue, but BACKUP AUTOMATION IS NOT CONFIGURED"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        sleep 3  # Give user time to read the error
         return 0
     fi
 

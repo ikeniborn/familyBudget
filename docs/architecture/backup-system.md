@@ -99,6 +99,83 @@
 
 ---
 
+## Критические зависимости
+
+### Cron Daemon (CRITICAL!)
+
+**Статус:** ОБЯЗАТЕЛЬНЫЙ компонент для автоматизации backup
+
+**Проблема:**
+- Если `cron` пакет НЕ установлен → backup automation ПОЛНОСТЬЮ ОТКЛЮЧЕНА
+- `setup_backup_cron()` молча завершается с warning
+- Пользователь может не заметить проблему до первой потери данных
+
+**Симптомы отсутствия cron:**
+```bash
+# При деплое появляется CRITICAL ERROR:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL: cron package NOT installed!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Диагностика:**
+```bash
+# Проверка установки cron
+which crontab
+# Ожидаемый вывод: /usr/bin/crontab
+# Если ошибка: command not found → cron НЕ установлен
+
+# Проверка cron daemon
+sudo systemctl status cron
+# Ожидаемый вывод: Active: active (running)
+```
+
+**Исправление:**
+```bash
+# Установка cron (выполнить на сервере)
+sudo apt-get update
+sudo apt-get install -y cron
+sudo systemctl enable cron
+sudo systemctl start cron
+
+# Проверка
+sudo systemctl status cron
+
+# Настройка backup cron job
+cd ~/familyBudget
+sudo ./deploy.sh  # Автоматически настроит crontab
+
+# Или вручную:
+sudo crontab -e
+# Добавить: 0 2 * * * /bin/bash /opt/budget/scripts/backup.sh >> /opt/budget/logs/backup.log 2>&1
+```
+
+**Предотвращение:**
+- `install.sh` теперь устанавливает `cron` автоматически (v6.8.1+)
+- `backup_integration.sh` показывает КРИТИЧЕСКУЮ ошибку если cron отсутствует
+
+**Риски при отсутствии cron:**
+- ❌ Daily backups НЕ создаются автоматически
+- ❌ S3 uploads НЕ происходят
+- ❌ Retention policy НЕ работает (старые backup НЕ удаляются)
+- ⚠️  Риск DATA LOSS при аварии сервера
+
+**Верификация автоматизации:**
+```bash
+# Проверить что cron job создан
+sudo crontab -l | grep backup
+
+# Проверить логи последнего cron запуска
+ls -lh /opt/budget/backups/logs/
+cat /opt/budget/backups/logs/backup_$(date +%Y%m%d).log
+
+# Проверить что бэкапы создаются ежедневно
+ls -lh /opt/budget/backups/ | grep backup
+# Должны быть файлы за последние 7 дней
+```
+
+---
+
 ## Локальные бэкапы
 
 ### Технология

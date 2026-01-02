@@ -233,6 +233,147 @@ MAX_RETRY_ATTEMPTS=5      # 5 retries instead of 3
 
 ---
 
+## Backup Automation Not Working
+
+**Since:** v6.8.1 - Critical error visibility improved
+
+### Symptoms
+
+- ✅ Manual backup works: `sudo bash /opt/budget/scripts/backup.sh`
+- ❌ Automatic daily backups do NOT run
+- No backup files created for recent days (gaps in `/opt/budget/backups/`)
+- S3 uploads do NOT happen automatically
+
+### Root Cause
+
+**cron package NOT installed** on the server
+
+During deployment, `setup_backup_cron()` checks for `crontab` command:
+- If NOT found → shows CRITICAL ERROR (v6.8.1+)
+- Previously (v6.8.0 and earlier) → silent warning, easily missed
+
+### Diagnostic Steps
+
+**1. Check if cron is installed:**
+```bash
+which crontab
+# Expected: /usr/bin/crontab
+# If error: command not found → cron NOT installed
+```
+
+**2. Check cron daemon status:**
+```bash
+sudo systemctl status cron
+# Expected: Active: active (running)
+# If error: Unit cron.service not found → cron NOT installed
+```
+
+**3. Check crontab entries:**
+```bash
+sudo crontab -l
+# Expected: 0 2 * * * /bin/bash /opt/budget/scripts/backup.sh ...
+# If error: crontab: command not found → cron NOT installed
+```
+
+**4. Check backup logs:**
+```bash
+ls -lh /opt/budget/backups/logs/
+# Should see daily logs: backup_YYYYMMDD.log
+# If missing days → backups not running
+```
+
+### Solution
+
+**Step 1: Install cron**
+```bash
+# On budget-prod server
+sudo apt-get update
+sudo apt-get install -y cron
+sudo systemctl enable cron
+sudo systemctl start cron
+sudo systemctl status cron  # Verify running
+```
+
+**Step 2: Configure backup cron job**
+
+**Option A: Re-run deployment (recommended)**
+```bash
+cd ~/familyBudget
+git pull origin main  # Get latest with cron fixes
+sudo ./deploy.sh
+# deploy.sh will automatically call setup_backup_cron()
+```
+
+**Option B: Manual crontab configuration**
+```bash
+sudo crontab -e
+# Add this line:
+0 2 * * * /bin/bash /opt/budget/scripts/backup.sh >> /opt/budget/logs/backup.log 2>&1
+```
+
+**Step 3: Verify cron job configured**
+```bash
+sudo crontab -l | grep backup
+# Expected output:
+# 0 2 * * * /bin/bash /opt/budget/scripts/backup.sh >> /opt/budget/logs/backup.log 2>&1
+```
+
+**Step 4: Test automated backup**
+```bash
+# Option 1: Wait until 2:00 AM and check logs next day
+cat /opt/budget/backups/logs/backup_$(date +%Y%m%d).log
+
+# Option 2: Trigger cron manually for immediate test
+sudo run-parts /etc/cron.daily  # If backup.sh is in cron.daily
+# OR
+sudo -i /bin/bash /opt/budget/scripts/backup.sh --verbose
+```
+
+### Prevention
+
+**install.sh now installs cron automatically (v6.8.1+)**
+
+New servers should run:
+```bash
+cd ~/familyBudget
+sudo ./install.sh  # Installs cron + all dependencies
+```
+
+**Deployment warning improved (v6.8.1+)**
+
+If cron missing, deployment shows:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL: cron package NOT installed!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  WITHOUT CRON:
+  • Daily backups will NOT run automatically
+  • S3 uploads will NOT happen
+  • Risk of DATA LOSS
+
+REQUIRED ACTION:
+  sudo apt-get install -y cron && sudo systemctl enable cron
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Verification Checklist
+
+After fixing, verify automation works:
+
+- [ ] `which crontab` → returns `/usr/bin/crontab`
+- [ ] `sudo systemctl status cron` → Active: active (running)
+- [ ] `sudo crontab -l` → shows backup job at 2:00 AM
+- [ ] Wait 24 hours, check `/opt/budget/backups/` for new backup file
+- [ ] Check S3 bucket for new backup: `python3 scripts/s3_backup.py list --bucket <name>`
+
+### See Also
+
+- [Backup System Architecture](../backup-system.md#критические-зависимости) - Cron dependency details
+- [Backup Operations Guide](backup-operations.md) - Daily/weekly checks
+
+---
+
 ## Related Issues
 
 ### PostgreSQL Health Check Timeout
