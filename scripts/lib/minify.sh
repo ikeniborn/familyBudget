@@ -249,32 +249,40 @@ minify_service_worker() {
         fi
 
         # Replace PLACEHOLDER with actual cache version
-        # NOTE: Terser may change quotes (single→double), so we match both styles
-        # Also replace inlined template literal (budget-PLACEHOLDER → budget-v{VERSION})
+        # Strategy: Multiple patterns in order of specificity (most specific first)
+        # 1. CACHE_VERSION assignment (with optional spaces)
+        # 2. budget- prefix (cache name template)
+        # 3. Catch-all for any remaining PLACEHOLDER (comments, etc.)
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS sed requires empty string for in-place edit
             sed -i '' \
-                -e "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+                -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
                 -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+                -e "s/PLACEHOLDER/${cache_version}/g" \
                 "$sw_minified"
         else
             # Linux sed
             sed -i \
-                -e "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+                -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
                 -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+                -e "s/PLACEHOLDER/${cache_version}/g" \
                 "$sw_minified"
         fi
 
         # CRITICAL: Verify PLACEHOLDER was replaced
         if grep -q "PLACEHOLDER" "$sw_minified"; then
             print_message error "CRITICAL: sw.min.js still contains PLACEHOLDER after sed replacement!"
-            print_message error "This means the sed pattern did not match."
+            print_message error "This means the sed pattern did not match all occurrences."
             print_message error ""
             print_message error "Debug info:"
             print_message error "  CACHE_VERSION from env: ${CACHE_VERSION:-<not set>}"
             print_message error "  cache_version variable: $cache_version"
-            print_message error "  Checking sw.min.js content:"
-            grep -n "PLACEHOLDER" "$sw_minified" || true
+            print_message error ""
+            print_message error "All PLACEHOLDER occurrences in sw.min.js:"
+            grep -n "PLACEHOLDER" "$sw_minified" | head -20 || true
+            print_message error ""
+            print_message error "Context around PLACEHOLDER (±50 chars):"
+            grep -o ".{0,50}PLACEHOLDER.{0,50}" "$sw_minified" | head -5 || true
             print_message error ""
             print_message error "DEPLOYMENT BLOCKED - Service Worker would fail"
             return 1
