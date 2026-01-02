@@ -134,20 +134,41 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - удаляем старые кеши и уведомляем клиентов
+// Activate event - мигрируем критичные страницы и удаляем старые кеши
 self.addEventListener('activate', (event) => {
   console.log('[SW] 🚀 Activating Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
     (async () => {
-      // Удаляем старые кеши
       const cacheNames = await caches.keys();
-      const cacheDeletes = cacheNames
-        .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
-        .map((name) => {
-          console.log('[SW] 🗑️ Deleting old cache:', name);
-          return caches.delete(name);
-        });
+      const oldCaches = cacheNames.filter((name) => name.startsWith('budget-') && name !== CACHE_NAME);
+
+      // CRITICAL: Migrate offline pages from old cache to new cache BEFORE deleting
+      // This ensures offline pages remain available even during SW updates
+      if (oldCaches.length > 0) {
+        console.log('[SW] 📦 Migrating offline pages from old cache...');
+        const newCache = await caches.open(CACHE_NAME);
+
+        for (const oldCacheName of oldCaches) {
+          const oldCache = await caches.open(oldCacheName);
+
+          // Copy each OFFLINE_PAGE from old cache to new cache
+          for (const pathname of OFFLINE_PAGES) {
+            const cachedResponse = await oldCache.match(pathname, { ignoreVary: true });
+            if (cachedResponse) {
+              console.log('[SW] ♻️ Migrating:', pathname, 'from', oldCacheName);
+              await newCache.put(pathname, cachedResponse);
+            }
+          }
+        }
+        console.log('[SW] ✓ Migration complete');
+      }
+
+      // Now safe to delete old caches
+      const cacheDeletes = oldCaches.map((name) => {
+        console.log('[SW] 🗑️ Deleting old cache:', name);
+        return caches.delete(name);
+      });
 
       await Promise.all(cacheDeletes);
       console.log(`[SW] ✓ Deleted ${cacheDeletes.length} old cache(s)`);
