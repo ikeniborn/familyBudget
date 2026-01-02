@@ -74,7 +74,12 @@
                         </button>
 
                         <!-- Priority 3: Списки -->
-                        <a href="/lists" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-accent text-accent-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                        <a href="/lists"
+                           hx-get="/lists"
+                           hx-target="body"
+                           hx-swap="outerHTML"
+                           hx-push-url="true"
+                           class="flex flex-col items-center gap-1 p-3 rounded-xl bg-accent text-accent-content hover:brightness-95 active:scale-95 transition-all shadow-md">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
                             </svg>
@@ -184,7 +189,13 @@
                                     </svg>
                                     Панель аналитики
                                 </a>
-                                <a id="lists-btn" href="/lists" class="btn btn-sm btn-outline btn-accent justify-start gap-2">
+                                <a id="lists-btn"
+                                   href="/lists"
+                                   hx-get="/lists"
+                                   hx-target="body"
+                                   hx-swap="outerHTML"
+                                   hx-push-url="true"
+                                   class="btn btn-sm btn-outline btn-accent justify-start gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
