@@ -1,21 +1,25 @@
 /**
  * Service Worker для Family Budget PWA
+ *
  * Стратегия кеширования:
  * - Статика с cache busting (CSS/JS): Cache First с ignoreSearch
  * - API endpoints: Network First
  * - HTML страницы: Network First
  *
- * ВАЖНО: CACHE_VERSION должна обновляться при каждом деплое!
- * Используйте git hash или timestamp для автоматической инвалидации кеша.
+ * Версионирование (v6.8.0+):
+ * - CACHE_VERSION: Автоматически обновляется при каждом деплое
+ * - Использует ЕДИНУЮ версию со всеми JS/CSS файлами (v{YYYYMMDD_HHMM})
+ * - PLACEHOLDER заменяется в minify.sh через generate_cache_version()
+ * - Изменение версии → браузер автоматически обнаруживает обновление SW
+ * - Deployment: npm run minify:js → версия инжектится автоматически
  */
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// ВАЖНО: Автоматически обновляется при деплое через scripts/update-cache-busting.sh
-// Скрипт заменяет PLACEHOLDER → timestamp ПОСЛЕ минификации (sw.js → sw.min.js)
-// В репозитории: CACHE_VERSION_PLACEHOLDER, в деплое: v{YYYYMMDD_HHMM}
-const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+// Cache version - автоматически заменяется при минификации
+// Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
+const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)

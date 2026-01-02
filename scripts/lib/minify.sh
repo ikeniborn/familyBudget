@@ -229,6 +229,29 @@ minify_service_worker() {
     local terser_exit=$?
 
     if [[ $terser_exit -eq 0 ]] && [[ -f "$sw_minified" ]]; then
+        # Inject CACHE_VERSION (v6.8.0+)
+        # Uses SAME version format as all JS/CSS files (from cache_busting.sh)
+        # This triggers browser update detection automatically when file content changes
+        local cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+        print_message info "Injecting CACHE_VERSION: $cache_version (matches all JS/CSS files)"
+
+        # Replace PLACEHOLDER with actual cache version
+        # NOTE: Terser may change quotes (single→double), so we match both styles
+        # Also replace inlined template literal (budget-PLACEHOLDER → budget-v{VERSION})
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS sed requires empty string for in-place edit
+            sed -i '' \
+                -e "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+                -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+                "$sw_minified"
+        else
+            # Linux sed
+            sed -i \
+                -e "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+                -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+                "$sw_minified"
+        fi
+
         local original_size=$(stat -c%s "$sw_source" 2>/dev/null || stat -f%z "$sw_source" 2>/dev/null)
         local minified_size=$(stat -c%s "$sw_minified" 2>/dev/null || stat -f%z "$sw_minified" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))

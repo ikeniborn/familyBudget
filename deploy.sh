@@ -1261,21 +1261,8 @@ main() {
         fi
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
-
-        # FALLBACK: Update cache version in sw.js if minification failed
-        # This ensures CACHE_VERSION is updated even if minification didn't run
-        warning "Attempting to update cache version in sw.js (fallback)..."
-        cd "$DEPLOY_DIR" || error_return "Failed to cd to $DEPLOY_DIR"
-
-        if [[ -f "scripts/update-sw-version.sh" ]]; then
-            if bash scripts/update-sw-version.sh; then
-                info "Cache version updated in sw.js (fallback mode)"
-            else
-                warning "Failed to update cache version in sw.js"
-            fi
-        else
-            warning "update-sw-version.sh not found - cannot update sw.js"
-        fi
+        warning "IMPORTANT: sw.js contains PLACEHOLDER and should NOT be served to users"
+        warning "Run 'npm run minify:js' to generate sw.min.js with proper cache version"
     fi
     echo ""
 

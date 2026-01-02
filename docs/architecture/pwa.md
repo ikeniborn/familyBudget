@@ -185,6 +185,73 @@ Family Budget uses **manual update strategy with simple text indicator** to give
 
 ---
 
+### Cache Versioning Strategy (v6.8.0+)
+
+**Change:** Unified cache busting approach for Service Worker and all static assets.
+
+**Problem (before v6.8.0):**
+- Service Worker used separate `BUILD_TIMESTAMP` variable
+- Static assets used `?v=PLACEHOLDER` replaced by `update-cache-busting.sh`
+- Different version formats → potential cache consistency issues
+- Manual version updates via `update-sw-version.sh` (error-prone)
+
+**Solution (v6.8.0+):**
+- ✅ **Single version format**: `v{YYYYMMDD_HHMM}` (e.g., `v20260102_1847`)
+- ✅ **Unified injection**: `minify.sh` injects version for ALL files
+- ✅ **Same version**: SW and static assets share EXACT same version
+- ✅ **Automatic**: Version generated during `npm run minify:js`
+- ✅ **No manual steps**: No separate scripts needed
+
+**How It Works:**
+
+1. **Source Code (Repository)**:
+   ```javascript
+   // sw.js
+   const CACHE_VERSION = 'PLACEHOLDER';  // Never changes in repo
+   const CACHE_NAME = `budget-${CACHE_VERSION}`;
+   ```
+
+2. **Minification (`npm run minify:js`)**:
+   ```bash
+   # scripts/lib/minify.sh generates version
+   cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+   # → v20260102_1847
+
+   # Replace in sw.min.js:
+   sed -i "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"v20260102_1847\"/g"
+   sed -i "s/budget-PLACEHOLDER/budget-v20260102_1847/g"
+   ```
+
+3. **Minified Output (sw.min.js)**:
+   ```javascript
+   const CACHE_VERSION="v20260102_1847";
+   const CACHE_NAME="budget-v20260102_1847";
+   ```
+
+4. **Browser Detection**:
+   - File content changed → Browser detects SW update automatically
+   - No query string needed on sw.min.js URL
+   - Version shown in logs: `[SW] 📦 Installing Service Worker version: v20260102_1847`
+
+**Benefits:**
+- ✅ **Cache consistency**: SW and static assets always have matching versions
+- ✅ **Automatic updates**: Browser detects changes without manual intervention
+- ✅ **Simple deployment**: Just run `npm run minify:js` → version injected
+- ✅ **No placeholders**: sw.min.js always has valid version (never PLACEHOLDER in production)
+- ✅ **Single source of truth**: Version generation in one place (minify.sh)
+
+**Important Notes:**
+- **sw.js source**: Always has `PLACEHOLDER` (never modified directly)
+- **sw.min.js production**: Always has real version (generated during build)
+- **Deployment**: If sw.min.js missing, deployment warns loudly (no silent fallback)
+- **Deprecated**: `update-sw-version.sh` no longer used (kept for backward compatibility)
+
+**See Also:**
+- Implementation: `scripts/lib/minify.sh` (minify_service_worker function)
+- Cache busting: `scripts/lib/cache_busting.sh` (generate_cache_version function)
+
+---
+
 ### Update Flow
 
 #### Step 1: New Version Deployed

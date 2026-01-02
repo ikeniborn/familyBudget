@@ -1,11 +1,31 @@
 #!/bin/bash
+# ⚠️  DEPRECATED (v6.8.0+) - This script is NO LONGER USED
+#
+# Reason: Cache version injection moved to minify.sh (scripts/lib/minify.sh)
+# - Version is injected during minification (npm run minify:js)
+# - sw.min.js gets versioned, NOT sw.js
+# - Uses SAME version as all JS/CSS files (unified cache busting)
+#
+# This script remains for backward compatibility but is NOT called by deploy.sh
+# See: scripts/lib/minify.sh (minify_service_worker function)
+#
+# ════════════════════════════════════════════════════════════════════════════
+# Legacy documentation (for reference):
 # Helper script для автоматического обновления Service Worker CACHE_VERSION
 # Использует timestamp в формате cache busting (YYYYMMDD_HHMM)
 #
-# ВАЖНО: sw.js в репозитории содержит PLACEHOLDER: const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+# ВАЖНО: sw.js в репозитории содержит PLACEHOLDER: const CACHE_VERSION = 'PLACEHOLDER';
 # Этот скрипт заменяет PLACEHOLDER на реальную версию при деплое в /opt/budget
+# ════════════════════════════════════════════════════════════════════════════
 
 set -e
+
+echo "⚠️  WARNING: This script is deprecated and no longer used!"
+echo "   Cache version is now injected during minification (npm run minify:js)"
+echo "   See scripts/lib/minify.sh for current implementation"
+echo ""
+echo "   Continuing with legacy behavior for backward compatibility..."
+echo ""
 
 # Цвета для вывода
 RED='\033[0;31m'
