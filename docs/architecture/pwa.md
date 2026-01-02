@@ -206,32 +206,66 @@ Family Budget uses **manual update strategy with simple text indicator** to give
 
 1. **Source Code (Repository)**:
    ```javascript
-   // sw.js
-   const CACHE_VERSION = 'PLACEHOLDER';  // Never changes in repo
+   // sw.js (always contains PLACEHOLDER)
+   const CACHE_VERSION = 'PLACEHOLDER';
    const CACHE_NAME = `budget-${CACHE_VERSION}`;
    ```
 
-2. **Minification (`npm run minify:js`)**:
-   ```bash
-   # scripts/lib/minify.sh generates version
-   cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
-   # → v20260102_1847
-
-   # Replace in sw.min.js:
-   sed -i "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"v20260102_1847\"/g"
-   sed -i "s/budget-PLACEHOLDER/budget-v20260102_1847/g"
+   ```html
+   <!-- HTML templates (always contain PLACEHOLDER) -->
+   <script src="/static/js/app.min.js?v=PLACEHOLDER"></script>
+   <link rel="stylesheet" href="/static/css/main.min.css?v=PLACEHOLDER">
    ```
 
-3. **Minified Output (sw.min.js)**:
+2. **Deployment Process (on server /opt/budget)**:
+
+   **Step 1: Sync Code**
+   ```bash
+   # rsync from ~/familyBudget → /opt/budget
+   # All files copied with PLACEHOLDER intact
+   ```
+
+   **Step 2: Generate Version ONCE**
+   ```bash
+   # deploy.sh generates version for entire deployment
+   export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+   # → CACHE_VERSION="v20260102_1847"
+   ```
+
+   **Step 3: Build & Minify**
+   ```bash
+   # npm run build → minify.sh uses $CACHE_VERSION from ENV
+   # Replace in sw.min.js:
+   sed -i "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"v20260102_1847\"/g"
+   # Result: sw.min.js contains v20260102_1847
+   ```
+
+   **Step 4: Cache Busting HTML**
+   ```bash
+   # update-cache-busting.sh uses SAME $CACHE_VERSION
+   # 1. Validates sw.min.js has correct version
+   # 2. Replaces PLACEHOLDER in HTML templates
+   # Result: All files have v20260102_1847
+   ```
+
+3. **Deployment Output (/opt/budget)**:
    ```javascript
+   // sw.min.js
    const CACHE_VERSION="v20260102_1847";
    const CACHE_NAME="budget-v20260102_1847";
+   ```
+
+   ```html
+   <!-- HTML templates -->
+   <script src="/static/js/app.min.js?v=v20260102_1847"></script>
+   <link rel="stylesheet" href="/static/css/main.min.css?v=v20260102_1847">
    ```
 
 4. **Browser Detection**:
    - File content changed → Browser detects SW update automatically
    - No query string needed on sw.min.js URL
    - Version shown in logs: `[SW] 📦 Installing Service Worker version: v20260102_1847`
+   - **Guaranteed**: SW and HTML files have IDENTICAL version
 
 **Benefits:**
 - ✅ **Cache consistency**: SW and static assets always have matching versions
@@ -241,14 +275,25 @@ Family Budget uses **manual update strategy with simple text indicator** to give
 - ✅ **Single source of truth**: Version generation in one place (minify.sh)
 
 **Important Notes:**
-- **sw.js source**: Always has `PLACEHOLDER` (never modified directly)
-- **sw.min.js production**: Always has real version (generated during build)
-- **Deployment**: If sw.min.js missing, deployment warns loudly (no silent fallback)
-- **Deprecated**: `update-sw-version.sh` no longer used (kept for backward compatibility)
+- **Repository**: sw.js and HTML templates ALWAYS contain `PLACEHOLDER` (never modified in git)
+- **Deployment directory**: /opt/budget contains ACTUAL versions after deployment
+- **Version generation**: Happens ONCE in deploy.sh, used by ALL subsequent steps
+- **No race conditions**: Version generated before build → guaranteed consistency
+- **Validation**: update-cache-busting.sh validates sw.min.js version matches HTML
+- **Deleted**: `update-sw-version.sh` removed (no longer needed)
+
+**Critical Workflow:**
+1. Repository: PLACEHOLDER (committed to git)
+2. rsync → /opt/budget: PLACEHOLDER (copied as-is)
+3. deploy.sh: Generate version ONCE → export CACHE_VERSION
+4. npm run build: minify.sh reads $CACHE_VERSION → inject to sw.min.js
+5. update-cache-busting.sh: reads $CACHE_VERSION → update HTML templates
+6. Result: All files have SAME version in /opt/budget
 
 **See Also:**
-- Implementation: `scripts/lib/minify.sh` (minify_service_worker function)
-- Cache busting: `scripts/lib/cache_busting.sh` (generate_cache_version function)
+- Deployment: `deploy.sh` (line ~1172: CACHE_VERSION generation)
+- Service Worker minification: `scripts/lib/minify.sh` (minify_service_worker function)
+- HTML cache busting: `scripts/update-cache-busting.sh` (validate_service_worker + update_html_templates)
 
 ---
 
