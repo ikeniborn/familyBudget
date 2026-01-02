@@ -236,9 +236,14 @@ minify_service_worker() {
         # Use CACHE_VERSION from environment if set (passed by deploy.sh)
         # Otherwise generate new version (for local builds)
         local cache_version="${CACHE_VERSION:-}"
+
+        # DEBUG: Log environment variable state
+        print_message info "DEBUG: CACHE_VERSION env var = '${CACHE_VERSION:-<not set>}'"
+
         if [[ -z "$cache_version" ]]; then
             cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
-            print_message info "Generated CACHE_VERSION: $cache_version (local build)"
+            print_message warning "CACHE_VERSION not set in environment - generating locally: $cache_version"
+            print_message warning "This should NOT happen during deployment (only local builds)"
         else
             print_message info "Using CACHE_VERSION from environment: $cache_version (deployment)"
         fi
@@ -258,6 +263,23 @@ minify_service_worker() {
                 -e "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
                 -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
                 "$sw_minified"
+        fi
+
+        # CRITICAL: Verify PLACEHOLDER was replaced
+        if grep -q "PLACEHOLDER" "$sw_minified"; then
+            print_message error "CRITICAL: sw.min.js still contains PLACEHOLDER after sed replacement!"
+            print_message error "This means the sed pattern did not match."
+            print_message error ""
+            print_message error "Debug info:"
+            print_message error "  CACHE_VERSION from env: ${CACHE_VERSION:-<not set>}"
+            print_message error "  cache_version variable: $cache_version"
+            print_message error "  Checking sw.min.js content:"
+            grep -n "PLACEHOLDER" "$sw_minified" || true
+            print_message error ""
+            print_message error "DEPLOYMENT BLOCKED - Service Worker would fail"
+            return 1
+        else
+            print_message success "✓ PLACEHOLDER replaced with $cache_version in sw.min.js"
         fi
 
         local original_size=$(stat -c%s "$sw_source" 2>/dev/null || stat -f%z "$sw_source" 2>/dev/null)

@@ -1177,6 +1177,29 @@ main() {
             echo ""
             print_message success "Static assets built and minified successfully"
             echo ""
+
+            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+)
+            if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+                if grep -q "PLACEHOLDER" "$DEPLOY_DIR/sw.min.js"; then
+                    print_message error "CRITICAL: sw.min.js contains PLACEHOLDER after build!"
+                    print_message error "Service Worker version was not updated during minification"
+                    print_message error ""
+                    print_message error "This will cause PWA cache issues for users"
+                    print_message error ""
+                    print_message error "Debug info:"
+                    print_message error "  CACHE_VERSION set to: ${CACHE_VERSION:-<not set>}"
+                    print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
+                    grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
+                    print_message error ""
+                    print_message error "DEPLOYMENT BLOCKED - please fix minify.sh"
+                    exit 1
+                else
+                    SW_VERSION=$(grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
+                    print_message success "✓ Service Worker version verified: $SW_VERSION"
+                fi
+            else
+                print_message warning "sw.min.js not found - Service Worker may not be available"
+            fi
         else
             echo ""
             print_message warning "Build failed - check npm logs above"
