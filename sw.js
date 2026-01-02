@@ -15,7 +15,7 @@
  */
 
 // Debug mode (включить только для отладки)
-const DEBUG = false;
+const DEBUG = true;
 
 // Cache version - автоматически заменяется при минификации
 // Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
@@ -24,11 +24,10 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
 // ТОЛЬКО файлы которые НЕ используют cache busting
-// ВАЖНО: /facts и /plan НЕ включены - это защищённые страницы,
-// они кэшируются при первом посещении (после авторизации)
+// ВАЖНО: /facts, /plan и /lists НЕ включены - это защищённые страницы,
+// они кэшируются при первом посещении (после авторизации с credentials)
 const STATIC_CACHE = [
   '/',
-  '/lists',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
@@ -237,10 +236,13 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           // Кешируем только OFFLINE_PAGES для offline доступа
-          if (OFFLINE_PAGES.includes(url.pathname)) {
+          if (OFFLINE_PAGES.includes(url.pathname) && response.ok) {
+            if (DEBUG) console.log('[SW] Caching HTML page for offline:', url.pathname);
             const clonedResponse = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clonedResponse);
+              // Cache by URL pathname (not full request) to match HTMX requests
+              cache.put(url.pathname, clonedResponse);
+              if (DEBUG) console.log('[SW] ✓ Cached:', url.pathname);
             });
           }
           return response;
@@ -261,7 +263,8 @@ self.addEventListener('fetch', (event) => {
             );
           }
 
-          return caches.match(request)
+          // Match by URL pathname, ignore headers (HTMX adds HX-Request header)
+          return caches.match(url.pathname, { ignoreVary: true })
             .then(cachedResponse => {
               if (cachedResponse) {
                 if (DEBUG) console.log('[SW] Serving HTML from cache (offline):', url.pathname);
