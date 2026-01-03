@@ -217,6 +217,26 @@
     const isDesktop = window.innerWidth >= 1024;
     const mode = isDesktop ? 'desktop-fab' : 'mobile-nav';
 
+    // Desktop FAB: show only on specific pages
+    const allowedPages = ['/', '/facts', '/plan'];
+    const currentPage = window.location.pathname;
+    const isPageAllowed = allowedPages.includes(currentPage);
+
+    if (isDesktop && !isPageAllowed) {
+        // Hide desktop FAB on pages not in the allowed list
+        const desktopWrapper = fabToolbar.querySelector('.desktop-fab-wrapper');
+        const desktopBackdrop = document.getElementById('desktop-fab-backdrop');
+
+        if (desktopWrapper) desktopWrapper.style.display = 'none';
+        if (desktopBackdrop) desktopBackdrop.style.display = 'none';
+
+        console.log('[FAB_TOOLBAR] Desktop FAB hidden:', {
+            page: currentPage,
+            reason: 'Page not in allowed list',
+            allowedPages: allowedPages
+        });
+    }
+
     console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
         page: window.location.pathname,
         mode: mode,
@@ -232,7 +252,8 @@
         position: isDesktop ? 'fixed bottom-right' : 'fixed bottom',
         safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
         zIndex: getComputedStyle(fabToolbar).zIndex,
-        userAuthenticated: true
+        userAuthenticated: true,
+        desktopFabVisible: isDesktop ? isPageAllowed : 'N/A'
     });
 
     // Desktop FAB: Speed Dial toggle function
@@ -411,51 +432,7 @@
             console.log('[FAB_TOOLBAR] /lists page: Mobile center FAB adapted for context-aware behavior');
         }
 
-        // Desktop FAB adaptation for /lists (NEW)
-        const desktopFabBtn = document.getElementById('desktop-fab-btn');
-        const desktopFabDropdown = desktopFabBtn?.closest('.dropdown');
-
-        if (desktopFabDropdown && window.innerWidth >= 1024) {
-            desktopFabBtn.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const checkListContext = () => {
-                    const detailView = document.getElementById('detail-view');
-                    return detailView && !detailView.classList.contains('hidden');
-                };
-
-                if (checkListContext()) {
-                    console.log('[FAB_TOOLBAR] Desktop FAB /lists: Adding item to active list');
-                    if (typeof openAddItemModal === 'function') {
-                        openAddItemModal();
-                    } else {
-                        console.warn('[FAB_TOOLBAR] openAddItemModal not found');
-                    }
-                } else {
-                    console.log('[FAB_TOOLBAR] Desktop FAB /lists: Creating new list');
-                    if (typeof openCreateListModal === 'function') {
-                        openCreateListModal();
-                    } else {
-                        console.warn('[FAB_TOOLBAR] openCreateListModal not found');
-                    }
-                }
-            };
-
-            // Remove dropdown on /lists
-            desktopFabDropdown.classList.remove('dropdown');
-            const dropdownMenu = desktopFabDropdown.querySelector('.dropdown-content');
-            if (dropdownMenu) dropdownMenu.remove();
-
-            // Hide backdrop on /lists (not needed without dropdown)
-            const backdrop = document.getElementById('desktop-fab-backdrop');
-            if (backdrop) {
-                backdrop.style.display = 'none';
-                console.log('[FAB_TOOLBAR] Desktop FAB backdrop hidden on /lists page');
-            }
-
-            console.log('[FAB_TOOLBAR] Desktop FAB /lists: Adapted for context-aware behavior');
-        }
+        // Note: Desktop FAB is hidden on /lists page (handled by allowedPages check above)
     }
 
     // Log button clicks (mobile nav only)
