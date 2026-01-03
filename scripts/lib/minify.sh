@@ -288,23 +288,25 @@ minify_service_worker() {
             "$sw_prepared"
     fi
 
-    # CRITICAL: Verify PLACEHOLDER was replaced in sw.prepared.js
-    if grep -q "PLACEHOLDER" "$sw_prepared"; then
-        print_message error "CRITICAL: $sw_prepared still contains PLACEHOLDER after sed replacement!"
-        print_message error "This means the sed pattern did not match all occurrences."
+    # CRITICAL: Verify PLACEHOLDER was replaced in CACHE_VERSION assignment
+    # Note: Don't check for ALL occurrences - the file has intentional PLACEHOLDER references
+    # in validation code like: if (CACHE_VERSION === 'PLACEHOLDER')
+    if grep -q "const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]" "$sw_prepared"; then
+        print_message error "CRITICAL: $sw_prepared still contains PLACEHOLDER in CACHE_VERSION assignment!"
+        print_message error "The sed pattern did not match the CACHE_VERSION declaration."
         print_message error ""
         print_message error "Debug info:"
         print_message error "  CACHE_VERSION from env: ${CACHE_VERSION:-<not set>}"
         print_message error "  cache_version variable: $cache_version"
         print_message error ""
-        print_message error "All PLACEHOLDER occurrences in $sw_prepared:"
-        grep -n "PLACEHOLDER" "$sw_prepared" | head -20 || true
+        print_message error "CACHE_VERSION declaration in $sw_prepared:"
+        grep -n "const CACHE_VERSION" "$sw_prepared" | head -5 || true
         print_message error ""
         print_message error "DEPLOYMENT BLOCKED - Service Worker would fail"
         rm -f "$sw_prepared"
         return 1
     else
-        print_message success "✓ PLACEHOLDER replaced with $cache_version in $sw_prepared"
+        print_message success "✓ PLACEHOLDER replaced with $cache_version in CACHE_VERSION assignment"
     fi
 
     # Minify sw.prepared.js (with CACHE_VERSION already injected) → sw.min.js
