@@ -447,6 +447,13 @@
             const dropdownMenu = desktopFabDropdown.querySelector('.dropdown-content');
             if (dropdownMenu) dropdownMenu.remove();
 
+            // Hide backdrop on /lists (not needed without dropdown)
+            const backdrop = document.getElementById('desktop-fab-backdrop');
+            if (backdrop) {
+                backdrop.style.display = 'none';
+                console.log('[FAB_TOOLBAR] Desktop FAB backdrop hidden on /lists page');
+            }
+
             console.log('[FAB_TOOLBAR] Desktop FAB /lists: Adapted for context-aware behavior');
         }
     }
