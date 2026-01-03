@@ -1174,7 +1174,11 @@ main() {
         print_message info "npm build environment configured (PATH + NODE_PATH)"
 
         echo ""
-        if npm run build 2>&1; then
+        # CRITICAL: Pass CACHE_VERSION explicitly to npm subprocess
+        # npm run minify:js spawns new bash process that needs this variable
+        # Use env to ensure variable propagation across npm script chain
+        print_message info "Passing CACHE_VERSION=$CACHE_VERSION to npm build"
+        if env CACHE_VERSION="$CACHE_VERSION" npm run build 2>&1; then
             echo ""
             print_message success "Static assets built and minified successfully"
             echo ""
