@@ -454,6 +454,8 @@ html.offline-mode .save-btn:hover {
 
     .desktop-fab-wrapper {
         display: block;
+        z-index: 1000;  /* Above backdrop (999) */
+        position: relative;
     }
 }
 

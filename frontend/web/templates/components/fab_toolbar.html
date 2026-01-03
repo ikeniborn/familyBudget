@@ -145,7 +145,7 @@
             <!-- 4. Перевод (план) -->
             <div class="fab-menu-item flex items-center gap-2">
                 <span class="badge badge-neutral shadow">Перевод (план)</span>
-                <button onclick="openPlanTransferModal(); window.toggleDesktopFAB();"
+                <button onclick="openPlanTransferModal();"
                         class="btn btn-primary btn-circle shadow-lg"
                         title="Перевод (план)"
                         aria-label="Перевод (план)">
@@ -158,7 +158,7 @@
             <!-- 3. Расход/Доход (план) -->
             <div class="fab-menu-item flex items-center gap-2">
                 <span class="badge badge-neutral shadow">Расход/Доход (план)</span>
-                <button onclick="openAddPlanModal(); window.toggleDesktopFAB();"
+                <button onclick="openAddPlanModal();"
                         class="btn btn-primary btn-circle shadow-lg"
                         title="Расход/Доход (план)"
                         aria-label="Расход/Доход (план)">
@@ -171,7 +171,7 @@
             <!-- 2. Перевод (факт) -->
             <div class="fab-menu-item flex items-center gap-2">
                 <span class="badge badge-neutral shadow">Перевод (факт)</span>
-                <button onclick="openFactTransferModal(); window.toggleDesktopFAB();"
+                <button onclick="openFactTransferModal();"
                         class="btn btn-primary btn-circle shadow-lg"
                         title="Перевод (факт)"
                         aria-label="Перевод (факт)">
@@ -184,7 +184,7 @@
             <!-- 1. Расход/Доход (факт) -->
             <div class="fab-menu-item flex items-center gap-2">
                 <span class="badge badge-neutral shadow">Расход/Доход (факт)</span>
-                <button onclick="openAddTransactionModal(); window.toggleDesktopFAB();"
+                <button onclick="openAddTransactionModal();"
                         class="btn btn-primary btn-circle shadow-lg"
                         title="Расход/Доход (факт)"
                         aria-label="Расход/Доход (факт)">
@@ -200,7 +200,7 @@
     <!-- Desktop FAB backdrop -->
     <div id="desktop-fab-backdrop"
          class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden"
-         style="z-index: 49;"
+         style="z-index: 999;"
          onclick="window.toggleDesktopFAB()"></div>
 
 </nav>
@@ -287,7 +287,33 @@
                     action: actionText,
                     timestamp: new Date().toISOString()
                 });
+
+                // Auto-close FAB after clicking menu item (with slight delay to allow modal to open)
+                setTimeout(() => {
+                    if (desktopFabWrapper.classList.contains('open')) {
+                        window.toggleDesktopFAB();
+                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed after menu item click');
+                    }
+                }, 100);
             });
+        });
+
+        // Auto-close FAB when any modal opens
+        const modalObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                    const modal = mutation.target;
+                    if (modal.hasAttribute('open') && desktopFabWrapper.classList.contains('open')) {
+                        window.toggleDesktopFAB();
+                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed due to modal opening');
+                    }
+                }
+            });
+        });
+
+        // Observe all modals
+        document.querySelectorAll('dialog.modal').forEach(modal => {
+            modalObserver.observe(modal, { attributes: true });
         });
     }
 
