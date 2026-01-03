@@ -258,12 +258,14 @@ minify_service_worker() {
 
         # Replace PLACEHOLDER with actual cache version
         # Strategy: Multiple patterns in order of specificity (most specific first)
-        # 1. CACHE_VERSION assignment (with optional spaces)
-        # 2. budget- prefix (cache name template)
-        # 3. Catch-all for any remaining PLACEHOLDER (comments, etc.)
+        # 1. CACHE_VERSION_RAW assignment (sw.js fallback pattern)
+        # 2. CACHE_VERSION assignment (for backwards compatibility)
+        # 3. budget- prefix (cache name template)
+        # 4. Catch-all for any remaining PLACEHOLDER (comments, etc.)
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS sed requires empty string for in-place edit
             sed -i '' \
+                -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
                 -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
                 -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
                 -e "s/PLACEHOLDER/${cache_version}/g" \
@@ -271,6 +273,7 @@ minify_service_worker() {
         else
             # Linux sed
             sed -i \
+                -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
                 -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
                 -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
                 -e "s/PLACEHOLDER/${cache_version}/g" \
