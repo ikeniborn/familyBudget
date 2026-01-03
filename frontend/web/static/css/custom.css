@@ -651,6 +651,49 @@ html.offline-mode .save-btn:hover {
     }
 }
 
+/* ==================================
+   Desktop FAB Speed Dial Animations
+   ================================== */
+
+/* Desktop FAB menu items - hidden when closed */
+.desktop-fab-wrapper.closed .fab-menu-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+    pointer-events: none;
+}
+
+/* Desktop FAB menu items - visible when open */
+.desktop-fab-wrapper.open .fab-menu-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Individual menu item transition */
+.fab-menu-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Staggered animation delays for cascade effect */
+.fab-menu-item:nth-child(1) { transition-delay: 0.05s; }
+.fab-menu-item:nth-child(2) { transition-delay: 0.1s; }
+.fab-menu-item:nth-child(3) { transition-delay: 0.15s; }
+.fab-menu-item:nth-child(4) { transition-delay: 0.2s; }
+
+/* FAB button icon rotation on open */
+.desktop-fab-wrapper .fab-button svg {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-fab-wrapper.open .fab-button svg {
+    transform: rotate(45deg);
+}
+
+/* Desktop FAB backdrop transition */
+#desktop-fab-backdrop {
+    transition: opacity 0.3s ease-out;
+}
+
 /* Accessibility: reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .fab-container {
@@ -664,6 +707,18 @@ html.offline-mode .save-btn:hover {
     .fab-button:hover,
     .fab-button:active {
         transform: none;
+    }
+
+    .fab-button svg {
+        transition: none;
+    }
+
+    .fab-menu-item {
+        transition-duration: 0.01ms !important;
+    }
+
+    #desktop-fab-backdrop {
+        transition-duration: 0.01ms !important;
     }
 
     .icon-btn {

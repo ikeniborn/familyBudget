@@ -125,9 +125,10 @@
     </div> <!-- .mobile-nav-wrapper -->
 
     <!-- Desktop FAB (≥ 1024px) -->
-    <div class="desktop-fab-wrapper">
-        <div class="dropdown dropdown-left dropdown-end">
-            <button tabindex="0"
+    <div class="desktop-fab-wrapper closed">
+        <div class="flex flex-col-reverse items-end gap-3">
+            <!-- Main FAB button -->
+            <button onclick="window.toggleDesktopFAB()"
                     class="fab-button"
                     id="desktop-fab-btn"
                     aria-label="Быстрое добавление. Открыть меню для создания транзакций и планов"
@@ -139,63 +140,68 @@
                 </svg>
             </button>
 
-            <ul tabindex="0"
-                class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-64"
-                role="menu"
-                aria-labelledby="desktop-fab-btn">
+            <!-- Speed Dial menu items (appear above button) -->
 
-                <!-- 1. Расход/Доход (факт) -->
-                <li role="none">
-                    <a role="menuitem"
-                       onclick="openAddTransactionModal(); document.activeElement.blur();">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                        </svg>
-                        <span>Расход/Доход (факт)</span>
-                    </a>
-                </li>
+            <!-- 4. Перевод (план) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Перевод (план)</span>
+                <button onclick="openPlanTransferModal(); window.toggleDesktopFAB();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Перевод (план)"
+                        aria-label="Перевод (план)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </button>
+            </div>
 
-                <!-- 2. Перевод (факт) -->
-                <li role="none">
-                    <a role="menuitem"
-                       onclick="openFactTransferModal(); document.activeElement.blur();">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                        <span>Перевод (факт)</span>
-                    </a>
-                </li>
+            <!-- 3. Расход/Доход (план) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Расход/Доход (план)</span>
+                <button onclick="openAddPlanModal(); window.toggleDesktopFAB();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Расход/Доход (план)"
+                        aria-label="Расход/Доход (план)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </button>
+            </div>
 
-                <!-- Separator -->
-                <li class="menu-title" role="none">
-                    <span>Планирование</span>
-                </li>
+            <!-- 2. Перевод (факт) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Перевод (факт)</span>
+                <button onclick="openFactTransferModal(); window.toggleDesktopFAB();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Перевод (факт)"
+                        aria-label="Перевод (факт)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </button>
+            </div>
 
-                <!-- 3. Расход/Доход (план) -->
-                <li role="none">
-                    <a role="menuitem"
-                       onclick="openAddPlanModal(); document.activeElement.blur();">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span>Расход/Доход (план)</span>
-                    </a>
-                </li>
+            <!-- 1. Расход/Доход (факт) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Расход/Доход (факт)</span>
+                <button onclick="openAddTransactionModal(); window.toggleDesktopFAB();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Расход/Доход (факт)"
+                        aria-label="Расход/Доход (факт)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
+            </div>
 
-                <!-- 4. Перевод (план) -->
-                <li role="none">
-                    <a role="menuitem"
-                       onclick="openPlanTransferModal(); document.activeElement.blur();">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                        </svg>
-                        <span>Перевод (план)</span>
-                    </a>
-                </li>
-
-            </ul>
         </div>
     </div> <!-- .desktop-fab-wrapper -->
+
+    <!-- Desktop FAB backdrop -->
+    <div id="desktop-fab-backdrop"
+         class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden"
+         style="z-index: 49;"
+         onclick="window.toggleDesktopFAB()"></div>
 
 </nav>
 
@@ -222,31 +228,59 @@
             ? (window.innerWidth >= 1280 ? '64px' : '56px')
             : 'N/A',
         offlineMode: document.documentElement.classList.contains('offline-mode'),
-        style: isDesktop ? 'material-design-fab' : 'dropdown-enhanced',
+        style: isDesktop ? 'speed-dial-fab' : 'dropdown-enhanced',
         position: isDesktop ? 'fixed bottom-right' : 'fixed bottom',
         safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
         zIndex: getComputedStyle(fabToolbar).zIndex,
         userAuthenticated: true
     });
 
-    // Desktop FAB: event handlers
-    const desktopFabBtn = document.getElementById('desktop-fab-btn');
-    if (desktopFabBtn) {
-        desktopFabBtn.addEventListener('click', (e) => {
-            const dropdown = e.currentTarget.closest('.dropdown');
-            const isOpen = dropdown?.classList.contains('dropdown-open');
+    // Desktop FAB: Speed Dial toggle function
+    window.toggleDesktopFAB = function() {
+        const wrapper = document.querySelector('.desktop-fab-wrapper');
+        const backdrop = document.getElementById('desktop-fab-backdrop');
+        const fabBtn = document.getElementById('desktop-fab-btn');
 
-            console.log('[FAB_TOOLBAR] Desktop FAB clicked:', {
+        if (!wrapper || !backdrop) {
+            console.error('[FAB_TOOLBAR] Desktop FAB elements not found');
+            return;
+        }
+
+        const isOpen = wrapper.classList.contains('open');
+
+        if (isOpen) {
+            // Close FAB
+            wrapper.classList.remove('open');
+            wrapper.classList.add('closed');
+            backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
+            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
+
+            console.log('[FAB_TOOLBAR] Desktop FAB closed:', {
                 timestamp: new Date().toISOString(),
-                dropdownOpen: isOpen,
-                action: 'toggle-menu'
+                action: 'close-menu'
             });
-        });
+        } else {
+            // Open FAB
+            wrapper.classList.remove('closed');
+            wrapper.classList.add('open');
+            backdrop.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
 
-        // Log menu item clicks
-        document.querySelectorAll('.desktop-fab-wrapper .dropdown-content a').forEach((menuItem, index) => {
+            console.log('[FAB_TOOLBAR] Desktop FAB opened:', {
+                timestamp: new Date().toISOString(),
+                action: 'open-menu',
+                menuItemsCount: wrapper.querySelectorAll('.fab-menu-item').length
+            });
+        }
+    };
+
+    // Desktop FAB: Log menu item clicks
+    const desktopFabWrapper = document.querySelector('.desktop-fab-wrapper');
+    if (desktopFabWrapper) {
+        document.querySelectorAll('.desktop-fab-wrapper .fab-menu-item button').forEach((menuItem, index) => {
             menuItem.addEventListener('click', (e) => {
-                const actionText = e.currentTarget.querySelector('span')?.textContent;
+                const actionText = e.currentTarget.getAttribute('aria-label') ||
+                                   e.currentTarget.previousElementSibling?.textContent;
 
                 console.log('[FAB_TOOLBAR] Desktop FAB menu item clicked:', {
                     index,
