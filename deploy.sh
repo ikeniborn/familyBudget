@@ -1085,8 +1085,36 @@ main() {
     # CRITICAL FIX: Write to file for minify.sh to read
     # npm run build may not propagate env vars correctly across script chain
     # minify.sh will read from this file if CACHE_VERSION env var is empty
-    echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"
-    print_message info "Written CACHE_VERSION to .cache-version file for minify.sh"
+    # IMPORTANT: Fix ownership when running with sudo to prevent permission issues
+    if echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"; then
+        # Fix ownership if running as root (sudo deploy.sh)
+        if [[ $EUID -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
+            chown "$SUDO_USER:$SUDO_USER" "$DEPLOY_DIR/.cache-version" || {
+                print_message warning "Could not fix .cache-version ownership (non-critical)"
+            }
+        fi
+
+        # Verify file was written correctly
+        if [[ -f "$DEPLOY_DIR/.cache-version" ]]; then
+            local written_version=$(cat "$DEPLOY_DIR/.cache-version")
+            if [[ "$written_version" == "$CACHE_VERSION" ]]; then
+                print_message info "Written CACHE_VERSION to .cache-version: $CACHE_VERSION"
+                print_message info "File ownership: $(stat -c '%U:%G' "$DEPLOY_DIR/.cache-version" 2>/dev/null || stat -f '%Su:%Sg' "$DEPLOY_DIR/.cache-version")"
+            else
+                print_message error "CRITICAL: .cache-version content mismatch!"
+                print_message error "  Expected: $CACHE_VERSION"
+                print_message error "  Actual:   $written_version"
+                exit 1
+            fi
+        else
+            print_message error "CRITICAL: Failed to create .cache-version file"
+            exit 1
+        fi
+    else
+        print_message error "CRITICAL: Cannot write to .cache-version file"
+        print_message error "Check permissions: ls -la $DEPLOY_DIR/.cache-version"
+        exit 1
+    fi
     echo ""
 
     if [[ ! -d "$npm_isolated_dir" ]]; then
