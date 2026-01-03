@@ -377,35 +377,82 @@ html.offline-mode .save-btn:hover {
     }
 }
 
-/* Bottom Navigation - MOBILE ONLY (hidden on desktop) */
-.bottom-nav {
+/* ==================================
+   FAB Container - Adaptive Navigation
+   Mobile: Bottom nav bar (5 buttons)
+   Desktop: Floating Action Button (right-bottom)
+   ================================== */
+
+/* FAB Container - base styles */
+.fab-container {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
     z-index: 50;
-    background-color: oklch(var(--b1));
-    border-top: 1px solid oklch(var(--bc) / 0.1);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-
-    /* Safe-area padding (minimal bottom padding for closer positioning) */
-    padding-bottom: 0.5rem; /* 8px fixed - closer to screen bottom */
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-
-    /* GPU acceleration */
     transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    -webkit-overflow-scrolling: touch;
+}
 
-    /* Hide on desktop (≥1024px) */
+/* Mobile wrapper - visible by default */
+.mobile-nav-wrapper {
+    display: block;
+}
+
+/* Desktop wrapper - hidden by default */
+.desktop-fab-wrapper {
     display: none;
 }
 
-/* Show ONLY on mobile/tablet (< 1024px) */
+/* Mobile/Tablet: Bottom Navigation Bar (< 1024px) */
 @media (max-width: 1023px) {
-    .bottom-nav {
+    .fab-container {
+        /* Mobile: Bottom nav bar (full width) */
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: oklch(var(--b1));
+        border-top: 1px solid oklch(var(--bc) / 0.1);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+
+        /* Safe-area padding */
+        padding-bottom: 0.5rem;
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+
+        /* GPU acceleration */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-nav-wrapper {
+        display: block;
+    }
+
+    .desktop-fab-wrapper {
+        display: none;
+    }
+}
+
+/* Desktop: Floating Action Button (≥ 1024px) */
+@media (min-width: 1024px) {
+    .fab-container {
+        /* Desktop: Fixed button in right-bottom corner */
+        bottom: 2rem;  /* 32px from edge */
+        right: 2rem;
+        left: auto;
+        top: auto;
+        width: auto;
+
+        /* Reset mobile styles */
+        background-color: transparent;
+        border-top: none;
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .mobile-nav-wrapper {
+        display: none;
+    }
+
+    .desktop-fab-wrapper {
         display: block;
     }
 }
@@ -476,35 +523,149 @@ html.offline-mode .save-btn:hover {
     stroke-width: 2.5;
 }
 
-/* Dropdown menu above toolbar */
-.bottom-nav .dropdown-content {
+/* Dropdown menu above toolbar (mobile) */
+.mobile-nav-wrapper .dropdown-content {
     z-index: 60;
 }
 
-/* Center dropdowns above buttons to prevent overflow on narrow screens */
-.bottom-nav .dropdown {
+/* Center dropdowns above buttons to prevent overflow on narrow screens (mobile) */
+.mobile-nav-wrapper .dropdown {
     position: relative;
 }
 
-.bottom-nav .dropdown-content {
+.mobile-nav-wrapper .dropdown-content {
     position: absolute;
     left: 50% !important; /* Center relative to parent button */
     right: auto !important; /* Override DaisyUI default */
     transform: translateX(-50%) !important; /* Horizontal centering */
 }
 
-/* Hide on print */
+/* ==================================
+   Desktop FAB Button Styles
+   Material Design Floating Action Button
+   ================================== */
+
+/* FAB Button */
+.fab-button {
+    /* Size: 56px standard, 64px on large desktop */
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+
+    /* Shape */
+    border-radius: 50%;
+    border: none;
+
+    /* Color */
+    background-color: oklch(var(--p));
+    color: oklch(var(--pc));
+
+    /* Material Design Elevation 6 (rest state) */
+    box-shadow:
+        0 3px 5px -1px rgba(0, 0, 0, 0.2),
+        0 6px 10px 0 rgba(0, 0, 0, 0.14),
+        0 1px 18px 0 rgba(0, 0, 0, 0.12);
+
+    /* Centering icon */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Interactivity */
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* GPU acceleration */
+    transform: translateZ(0);
+    will-change: transform, box-shadow;
+}
+
+.fab-button:hover {
+    /* Elevation 8 (hover) */
+    box-shadow:
+        0 5px 5px -3px rgba(0, 0, 0, 0.2),
+        0 8px 10px 1px rgba(0, 0, 0, 0.14),
+        0 3px 14px 2px rgba(0, 0, 0, 0.12);
+
+    /* Subtle scale */
+    transform: scale(1.05) translateZ(0);
+
+    /* Darken slightly */
+    background-color: oklch(var(--p) / 0.9);
+}
+
+.fab-button:active {
+    /* Elevation 12 (pressed) */
+    box-shadow:
+        0 7px 8px -4px rgba(0, 0, 0, 0.2),
+        0 12px 17px 2px rgba(0, 0, 0, 0.14),
+        0 5px 22px 4px rgba(0, 0, 0, 0.12);
+
+    /* Scale down for tactile feedback */
+    transform: scale(0.95) translateZ(0);
+}
+
+/* Icon inside FAB */
+.fab-button svg {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2.5;
+}
+
+/* Large desktop: increased FAB size */
+@media (min-width: 1280px) {
+    .fab-button {
+        width: 64px;
+        height: 64px;
+        min-width: 64px;
+        min-height: 64px;
+    }
+
+    .fab-button svg {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Desktop FAB dropdown menu */
+.desktop-fab-wrapper .dropdown-content {
+    /* Position: up-left from button */
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 0.75rem;
+    z-index: 60;
+    width: 16rem;
+
+    /* Material Design Elevation 8 */
+    box-shadow:
+        0 5px 5px -3px rgba(0, 0, 0, 0.2),
+        0 8px 10px 1px rgba(0, 0, 0, 0.14),
+        0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Hide FAB on print */
 @media print {
-    .bottom-nav {
+    .fab-container {
         display: none;
     }
 }
 
 /* Accessibility: reduced motion */
 @media (prefers-reduced-motion: reduce) {
-    .bottom-nav {
+    .fab-container {
         transition: none;
     }
+
+    .fab-button {
+        transition: none;
+    }
+
+    .fab-button:hover,
+    .fab-button:active {
+        transform: none;
+    }
+
     .icon-btn {
         transition: none;
     }

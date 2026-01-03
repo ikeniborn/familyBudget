@@ -1,6 +1,9 @@
-<!-- Fixed Bottom Navigation (Compact Icons) -->
-<nav id="fab-toolbar" class="bottom-nav">
-    <div class="nav-container">
+<!-- Adaptive FAB Navigation: Mobile = Bottom nav | Desktop = Floating button -->
+<nav id="fab-toolbar" class="fab-container">
+
+    <!-- Mobile/Tablet Navigation (< 1024px) -->
+    <div class="mobile-nav-wrapper">
+        <div class="nav-container">
 
         <!-- Button 1: Главная -->
         <a href="/"
@@ -118,7 +121,82 @@
             <span class="icon-label">Списки</span>
         </a>
 
-    </div>
+        </div> <!-- .nav-container -->
+    </div> <!-- .mobile-nav-wrapper -->
+
+    <!-- Desktop FAB (≥ 1024px) -->
+    <div class="desktop-fab-wrapper">
+        <div class="dropdown dropdown-left dropdown-end">
+            <button tabindex="0"
+                    class="fab-button"
+                    id="desktop-fab-btn"
+                    aria-label="Быстрое добавление. Открыть меню для создания транзакций и планов"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    title="Добавить запись">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+            </button>
+
+            <ul tabindex="0"
+                class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-64"
+                role="menu"
+                aria-labelledby="desktop-fab-btn">
+
+                <!-- 1. Расход/Доход (факт) -->
+                <li role="none">
+                    <a role="menuitem"
+                       onclick="openAddTransactionModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Расход/Доход (факт)</span>
+                    </a>
+                </li>
+
+                <!-- 2. Перевод (факт) -->
+                <li role="none">
+                    <a role="menuitem"
+                       onclick="openFactTransferModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Перевод (факт)</span>
+                    </a>
+                </li>
+
+                <!-- Separator -->
+                <li class="menu-title" role="none">
+                    <span>Планирование</span>
+                </li>
+
+                <!-- 3. Расход/Доход (план) -->
+                <li role="none">
+                    <a role="menuitem"
+                       onclick="openAddPlanModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Расход/Доход (план)</span>
+                    </a>
+                </li>
+
+                <!-- 4. Перевод (план) -->
+                <li role="none">
+                    <a role="menuitem"
+                       onclick="openPlanTransferModal(); document.activeElement.blur();">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>Перевод (план)</span>
+                    </a>
+                </li>
+
+            </ul>
+        </div>
+    </div> <!-- .desktop-fab-wrapper -->
+
 </nav>
 
 <script>
@@ -129,23 +207,65 @@
         return;
     }
 
+    // Detect display mode (mobile vs desktop)
+    const isDesktop = window.innerWidth >= 1024;
+    const mode = isDesktop ? 'desktop-fab' : 'mobile-nav';
+
     console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
         page: window.location.pathname,
-        buttonsCount: fabToolbar.querySelectorAll('.icon-btn, .dropdown').length,
+        mode: mode,
+        deviceType: isDesktop ? 'desktop' : (window.innerWidth >= 768 ? 'tablet' : 'mobile'),
+        buttonsCount: isDesktop
+            ? 1  // Desktop: only FAB button
+            : fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown').length,
+        fabSize: isDesktop
+            ? (window.innerWidth >= 1280 ? '64px' : '56px')
+            : 'N/A',
         offlineMode: document.documentElement.classList.contains('offline-mode'),
-        style: 'dropdown-enhanced',
-        position: 'fixed bottom',
+        style: isDesktop ? 'material-design-fab' : 'dropdown-enhanced',
+        position: isDesktop ? 'fixed bottom-right' : 'fixed bottom',
         safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
         zIndex: getComputedStyle(fabToolbar).zIndex,
         userAuthenticated: true
     });
 
-    // Offline mode: hide buttons with data-online-only
+    // Desktop FAB: event handlers
+    const desktopFabBtn = document.getElementById('desktop-fab-btn');
+    if (desktopFabBtn) {
+        desktopFabBtn.addEventListener('click', (e) => {
+            const dropdown = e.currentTarget.closest('.dropdown');
+            const isOpen = dropdown?.classList.contains('dropdown-open');
+
+            console.log('[FAB_TOOLBAR] Desktop FAB clicked:', {
+                timestamp: new Date().toISOString(),
+                dropdownOpen: isOpen,
+                action: 'toggle-menu'
+            });
+        });
+
+        // Log menu item clicks
+        document.querySelectorAll('.desktop-fab-wrapper .dropdown-content a').forEach((menuItem, index) => {
+            menuItem.addEventListener('click', (e) => {
+                const actionText = e.currentTarget.querySelector('span')?.textContent;
+
+                console.log('[FAB_TOOLBAR] Desktop FAB menu item clicked:', {
+                    index,
+                    action: actionText,
+                    timestamp: new Date().toISOString()
+                });
+            });
+        });
+    }
+
+    // Offline mode: hide buttons with data-online-only (mobile only)
     function updateOfflineVisibility() {
         const isOffline = document.documentElement.classList.contains('offline-mode');
-        const onlineOnlyElements = fabToolbar.querySelectorAll('[data-online-only]');
 
-        onlineOnlyElements.forEach(el => {
+        // Only for mobile wrapper
+        const mobileWrapper = fabToolbar.querySelector('.mobile-nav-wrapper');
+        const onlineOnlyElements = mobileWrapper?.querySelectorAll('[data-online-only]');
+
+        onlineOnlyElements?.forEach(el => {
             if (isOffline) {
                 el.style.display = 'none';
                 console.log('[FAB_TOOLBAR] Hidden in offline:', el.getAttribute('aria-label') || el.querySelector('.icon-label')?.textContent);
@@ -156,7 +276,9 @@
 
         console.log('[FAB_TOOLBAR] Offline visibility updated:', {
             isOffline,
-            hiddenCount: isOffline ? onlineOnlyElements.length : 0
+            mode: mode,
+            hiddenCount: isOffline ? (onlineOnlyElements?.length || 0) : 0,
+            affectedMode: 'mobile-only'
         });
     }
 
@@ -226,12 +348,51 @@
             const dropdownMenu = centerFabDropdown.querySelector('.dropdown-content');
             if (dropdownMenu) dropdownMenu.remove();
 
-            console.log('[FAB_TOOLBAR] /lists page: Center FAB adapted for context-aware behavior');
+            console.log('[FAB_TOOLBAR] /lists page: Mobile center FAB adapted for context-aware behavior');
+        }
+
+        // Desktop FAB adaptation for /lists (NEW)
+        const desktopFabBtn = document.getElementById('desktop-fab-btn');
+        const desktopFabDropdown = desktopFabBtn?.closest('.dropdown');
+
+        if (desktopFabDropdown && window.innerWidth >= 1024) {
+            desktopFabBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const checkListContext = () => {
+                    const detailView = document.getElementById('detail-view');
+                    return detailView && !detailView.classList.contains('hidden');
+                };
+
+                if (checkListContext()) {
+                    console.log('[FAB_TOOLBAR] Desktop FAB /lists: Adding item to active list');
+                    if (typeof openAddItemModal === 'function') {
+                        openAddItemModal();
+                    } else {
+                        console.warn('[FAB_TOOLBAR] openAddItemModal not found');
+                    }
+                } else {
+                    console.log('[FAB_TOOLBAR] Desktop FAB /lists: Creating new list');
+                    if (typeof openCreateListModal === 'function') {
+                        openCreateListModal();
+                    } else {
+                        console.warn('[FAB_TOOLBAR] openCreateListModal not found');
+                    }
+                }
+            };
+
+            // Remove dropdown on /lists
+            desktopFabDropdown.classList.remove('dropdown');
+            const dropdownMenu = desktopFabDropdown.querySelector('.dropdown-content');
+            if (dropdownMenu) dropdownMenu.remove();
+
+            console.log('[FAB_TOOLBAR] Desktop FAB /lists: Adapted for context-aware behavior');
         }
     }
 
-    // Log button clicks
-    fabToolbar.querySelectorAll('.icon-btn, .dropdown button').forEach((btn, index) => {
+    // Log button clicks (mobile nav only)
+    fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown button').forEach((btn, index) => {
         btn.addEventListener('click', (e) => {
             const buttonLabel = btn.getAttribute('aria-label') || btn.querySelector('.icon-label')?.textContent;
             console.log(`[FAB_TOOLBAR] Button clicked:`, {
@@ -242,9 +403,9 @@
         });
     });
 
-    // Active state management (highlight current page)
+    // Active state management (highlight current page - mobile nav only)
     const currentPath = window.location.pathname;
-    fabToolbar.querySelectorAll('a.icon-btn').forEach(btn => {
+    fabToolbar.querySelectorAll('.mobile-nav-wrapper a.icon-btn').forEach(btn => {
         const href = btn.getAttribute('href');
         if (href && (currentPath === href || (href !== '/' && currentPath.startsWith(href)))) {
             btn.classList.add('active');
