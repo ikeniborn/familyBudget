@@ -112,10 +112,13 @@ update_html_templates() {
 
         # Replace all PLACEHOLDER tokens with new version
         # Supports patterns:
-        # - ?v=PLACEHOLDER
-        # - ?version=PLACEHOLDER
-        # - &v=PLACEHOLDER
-        sed -i.tmp "s/\([?&]v\?e\?r\?s\?i\?o\?n\?=\)PLACEHOLDER/\1${NEW_VERSION}/g" "$file"
+        # - ?v=PLACEHOLDER or &v=PLACEHOLDER
+        # - ?version=PLACEHOLDER or &version=PLACEHOLDER
+        # Using two separate patterns for clarity and reliability
+        sed -i.tmp \
+          -e "s/\([?&]\)v=PLACEHOLDER/\1v=${NEW_VERSION}/g" \
+          -e "s/\([?&]\)version=PLACEHOLDER/\1version=${NEW_VERSION}/g" \
+          "$file"
         rm -f "${file}.tmp"
 
         # Verify replacement (no PLACEHOLDER should remain)
@@ -149,10 +152,15 @@ validate_no_placeholders() {
 
     local placeholder_count=0
 
-    # Check Service Worker (minified version uses double quotes)
+    # Check Service Worker for unreplaced PLACEHOLDER in CACHE_VERSION assignment
+    # CRITICAL: Check for actual PLACEHOLDER token, not CACHE_VERSION_PLACEHOLDER
+    # sw.js uses: const CACHE_VERSION = 'PLACEHOLDER'
     if [ -f "$SW_FILE" ]; then
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$SW_FILE" 2>/dev/null; then
-            echo -e "  ${RED}✗${NC} Service Worker still contains CACHE_VERSION_PLACEHOLDER"
+        if grep -q "CACHE_VERSION.*['\"]PLACEHOLDER['\"]" "$SW_FILE" 2>/dev/null; then
+            echo -e "  ${RED}✗${NC} Service Worker still contains PLACEHOLDER in CACHE_VERSION"
+            # Show actual line for debugging
+            local placeholder_line=$(grep -o "CACHE_VERSION.*['\"]PLACEHOLDER['\"]" "$SW_FILE" | head -1)
+            echo -e "  ${YELLOW}Found:${NC} ${placeholder_line}"
             ((placeholder_count++))
         fi
     fi
