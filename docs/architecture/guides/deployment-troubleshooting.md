@@ -380,6 +380,101 @@ After fixing, verify automation works:
 
 See: [Architecture README - v6.5.4](../README.md#2025-12-30-postgresql-health-check-timeout-fix---prevent-deployment-hang-v654)
 
-### Cache Busting PLACEHOLDER Warnings
+### Service Worker Cache Busting Failures
 
-See: [Architecture README - v6.5.3](../README.md#2025-12-30-cache-busting-system-fix-v2---execution-order-correction-v653)
+**Since:** v6.8.1 - Automatic ownership fix + validation improvements
+
+#### Symptoms
+
+```
+[STEP 1/2] Validating Service Worker version...
+  ✗ Service Worker version mismatch!
+  Expected: v20260103_0649
+  Actual:   CACHE_VERSION="v20251230_2235"
+
+[ERROR] CRITICAL: Failed to update cache busting versions!
+```
+
+- Service Worker не обновляется при деплое (5+ итераций)
+- Версия в `sw.min.js` устаревшая (несколько дней назад)
+- Деплой падает на этапе валидации cache busting
+
+#### Root Cause
+
+**Primary:** `.cache-version` file owned by `root:root` when running `sudo ./deploy.sh`
+
+**Sequence:**
+1. First deploy: `sudo ./deploy.sh` creates `.cache-version` as `root:root` ✓
+2. Second deploy: `sudo ./deploy.sh` tries to overwrite → **silently fails** (permission denied)
+3. `minify.sh` reads **stale version** from `.cache-version`
+4. `sw.min.js` created with **old CACHE_VERSION**
+5. Validation fails: expected ≠ actual
+
+**Secondary (fixed in v6.8.1):** Validation script had critical bugs:
+- Searched for `CACHE_VERSION_PLACEHOLDER` instead of `PLACEHOLDER` (never detected failures!)
+- Complex regex for HTML templates caused edge cases
+
+#### Quick Fix
+
+```bash
+# 1. Fix file ownership
+sudo chown ikeniborn:ikeniborn /opt/budget/.cache-version
+
+# 2. Remove old Service Worker (force regeneration)
+sudo rm -f /opt/budget/sw.min.js /opt/budget/sw.min.js.gz
+
+# 3. Deploy without sudo (recommended)
+cd ~/familyBudget
+git pull origin test
+bash deploy.sh --sync-mode update --cleanup-mode smart --patch
+
+# 4. Verify fix
+ls -la /opt/budget/.cache-version /opt/budget/sw.min.js
+cat /opt/budget/.cache-version
+grep -o 'CACHE_VERSION="[^"]*"' /opt/budget/sw.min.js | head -1
+
+# Expected: same version in both files, owned by ikeniborn:ikeniborn
+```
+
+#### Prevention (v6.8.1+)
+
+Deployment script now automatically:
+1. Fixes ownership when running with sudo: `chown $SUDO_USER:$SUDO_USER .cache-version`
+2. Validates file content matches expected version
+3. Logs file ownership for diagnostics
+4. Fails fast on write errors
+
+**Recommendation:** Run `deploy.sh` **without sudo** when possible
+
+#### Validation Improvements (v6.8.1+)
+
+1. **CRITICAL FIX:** Detects actual `PLACEHOLDER` token (not `CACHE_VERSION_PLACEHOLDER`)
+2. Simplified regex for HTML templates (more reliable)
+3. Shows found PLACEHOLDER line for debugging
+4. `minify.sh` checks file staleness (ignores files > 5 minutes old)
+
+#### Diagnostics
+
+Check current state:
+
+```bash
+# File ownership
+ls -la /opt/budget/.cache-version
+
+# Version in file
+cat /opt/budget/.cache-version
+
+# Version in Service Worker
+grep -o 'CACHE_VERSION="[^"]*"' /opt/budget/sw.min.js | head -1
+
+# File age
+stat /opt/budget/.cache-version
+
+# Deploy logs
+tail -100 /opt/budget/logs/deploy.log | grep -E "cache-version|CACHE_VERSION|ownership"
+```
+
+#### See Also
+
+- [Architecture README - v6.5.3](../README.md#2025-12-30-cache-busting-system-fix-v2---execution-order-correction-v653) - Earlier cache busting fixes
+- [PWA Architecture](../pwa.md) - Service Worker caching strategy
