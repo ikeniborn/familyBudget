@@ -395,17 +395,48 @@ pytest -m integration               # Integration only
 npx playwright test                 # E2E tests
 ```
 
-### Build System
+### Build Requirements
 
+**CRITICAL RULE:** Minification is NOT required during development.
+
+```bash
+# ✅ Development workflow - Quick iteration
+# 1. Edit code
+vim frontend/web/static/js/app.js
+
+# 2. Syntax check ONLY
+node --check frontend/web/static/js/app.js
+
+# 3. Test locally
+uvicorn backend.app.main:app --reload
+
+# 4. When ready to commit → THEN minify
+npm run build
+git add . && git commit -m "feat: new feature"
+```
+
+**When Minification IS Required:**
+- Before committing to `main` or `test` branches
+- Before deployment (automatically via `deploy.sh`)
+- When testing Service Worker updates
+- Before creating pull requests
+
+**Why This Matters:**
+- Minification adds 30-60s to each build cycle
+- Development focuses on functionality first
+- Final optimization happens in deployment pipeline
+- Syntax errors caught by linters/type checkers
+
+**Build Commands:**
 ```bash
 npm run build           # Full build (CSS + JS + minify + precompress)
 npm run watch:css       # Watch Tailwind CSS
-npm run minify:js       # Minify JavaScript
-npm run minify:css      # Minify CSS
+npm run minify:js       # Minify JavaScript only
+npm run minify:css      # Minify CSS only
 npm run precompress     # Gzip pre-compression
 ```
 
-**See:** `/docs/architecture/build-system.md` for optimization details
+**See:** `docs/architecture/build-system.md` → Development vs Production Build Requirements
 
 ### Installation Script
 

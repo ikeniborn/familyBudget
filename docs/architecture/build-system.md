@@ -279,6 +279,244 @@ npm run build
 
 ---
 
+## Development vs Production Build Requirements
+
+### Development Mode (IMPORTANT)
+
+**Rule:** During development, minification is NOT required. Only syntax validation is mandatory.
+
+**Quick Development Cycle:**
+```bash
+# ✅ REQUIRED: Syntax check only
+python -m py_compile backend/app/main.py
+node --check frontend/web/static/js/app.js
+
+# ❌ NOT REQUIRED during development
+npm run minify:js    # Skip during active development
+npm run minify:css   # Skip during active development
+```
+
+**When to Skip Minification:**
+- Local testing with `uvicorn --reload`
+- Hot-reload development
+- Iterative bug fixes
+- PRD implementation drafts
+
+**When Minification IS Required:**
+1. Before committing to `main` branch
+2. Before creating pull requests
+3. Before deployment to staging/production
+4. When testing Service Worker cache busting
+
+**Rationale:**
+- Minification adds 30-60 seconds to build time
+- Development focuses on functionality first
+- Syntax errors caught by linters/type checkers
+- Final optimization happens in CI/CD pipeline
+
+**Development workflow:**
+```bash
+# ✅ Quick iteration cycle
+# 1. Edit code
+vim frontend/web/static/js/app.js
+
+# 2. Syntax check ONLY
+node --check frontend/web/static/js/app.js
+
+# 3. Test locally
+uvicorn backend.app.main:app --reload
+
+# 4. When ready to commit → THEN minify
+npm run build
+git add . && git commit -m "feat: new feature"
+```
+
+---
+
+## Cache Busting
+
+**Script:** `scripts/update-cache-busting.sh`
+**Version:** 6.5.4+
+
+### Overview
+
+Cache busting system ensures browser cache invalidation on deployment by replacing PLACEHOLDER tokens with version timestamps.
+
+**Files processed:**
+1. Service Worker (`sw.min.js`) - `CACHE_VERSION` constant
+2. HTML templates (17+ files) - `?v=PLACEHOLDER` query parameters
+
+**Version format:** `v{YYYYMMDD}_{HHMM}` (e.g., `v20251230_1830`)
+
+### PLACEHOLDER Token Validation
+
+**Critical:** PLACEHOLDER tokens MUST be replaced before deployment.
+
+**Files with PLACEHOLDER:**
+- `frontend/web/static/js/service-worker.js` - `const CACHE_VERSION = 'PLACEHOLDER';`
+- All HTML templates - `<script src="/static/js/file.js?v=PLACEHOLDER">`
+
+**Replacement Process:**
+1. `npm run build` minifies files
+2. `scripts/update-cache-busting.sh` replaces PLACEHOLDER with timestamp
+3. Script validates zero PLACEHOLDER tokens remain
+
+**Example:**
+```javascript
+// Before (source file):
+const CACHE_VERSION = 'PLACEHOLDER';  // ✅ Valid - will be replaced
+
+// After minification + cache busting:
+const CACHE_VERSION="v20250103_143022";  // ✅ Replaced by script
+```
+
+**HTML templates:**
+```html
+<!-- Before -->
+<script src="/static/js/file.js?v=PLACEHOLDER"></script>
+
+<!-- After -->
+<script src="/static/js/file.js?v=v20250103_143022"></script>
+```
+
+### Execution Order (CRITICAL)
+
+**Correct order in deploy.sh (v6.5.3+):**
+```bash
+# 1. Minify files first
+npm run build  # Creates sw.min.js from sw.js
+
+# 2. THEN run cache busting
+bash scripts/update-cache-busting.sh  # Updates sw.min.js
+```
+
+**Why order matters:**
+- Cache busting BEFORE minification → changes overwritten ❌
+- Cache busting AFTER minification → changes preserved ✅
+
+### Troubleshooting Cache Busting
+
+#### Error: PLACEHOLDER token corrupted or missing
+
+**Error message:**
+```bash
+[CRITICAL] Failed to update cache busting versions!
+[ERROR] PLACEHOLDER still present after cache busting
+```
+
+**Cause:** Manual edits removed PLACEHOLDER or changed assignment pattern
+
+**Fix:**
+```bash
+# 1. Restore PLACEHOLDER in correct format
+const CACHE_VERSION = 'PLACEHOLDER';  // Must match exactly
+
+# 2. Verify pattern
+grep "const CACHE_VERSION = 'PLACEHOLDER'" frontend/web/static/js/service-worker.js
+
+# 3. Re-run build
+npm run build
+bash scripts/update-cache-busting.sh
+```
+
+#### Error: sed pattern failed to replace PLACEHOLDER
+
+**Symptoms:** Script reports success but PLACEHOLDER still exists
+
+**Cause:** Quote style mismatch (single vs double quotes) or spacing issues
+
+**Fix:**
+```bash
+# Check current syntax in minified file
+grep "CACHE_VERSION" frontend/web/static/js/sw.min.js
+
+# Script supports both patterns (v6.5.4+):
+# const CACHE_VERSION="v..."  (minified, double quotes, no spaces)
+# const CACHE_VERSION = 'v...'  (source, single quotes, with spaces)
+
+# Verify script version
+head -10 scripts/update-cache-busting.sh | grep "Version"
+# Should be v6.5.4 or higher
+```
+
+#### Error: File permissions prevent replacement
+
+**Symptoms:** Script shows "FAILED" for multiple files
+
+**Diagnosis:**
+```bash
+# Check file permissions
+ls -l frontend/web/templates/*.html
+# Should be: -rw-r--r-- (644)
+
+# Check if script can write
+touch /opt/budget/frontend/web/templates/test.txt
+# If fails → permission issue
+```
+
+**Fix:**
+```bash
+# Fix permissions
+chmod 644 frontend/web/templates/*.html
+chmod 644 frontend/web/static/js/sw.min.js
+
+# Re-run cache busting
+bash scripts/update-cache-busting.sh
+```
+
+#### Error: Missing sed/perl
+
+**Symptoms:** Command not found errors
+
+**Fix:**
+```bash
+# Check if sed installed
+which sed
+# Expected: /usr/bin/sed
+
+# Install if missing
+sudo apt-get install -y sed
+
+# Re-run deployment
+cd ~/familyBudget
+sudo ./deploy.sh --patch
+```
+
+### Validation Command
+
+**Post-deployment check:**
+```bash
+# Verify zero PLACEHOLDER tokens in production
+grep -r "PLACEHOLDER" /opt/budget/frontend/web/templates/*.html | wc -l
+# Expected output: 0
+
+# Check Service Worker version
+grep "CACHE_VERSION" /opt/budget/frontend/web/static/js/sw.min.js
+# Expected output: const CACHE_VERSION="v20250103_..."
+```
+
+**Pre-deployment check (repository):**
+```bash
+# Source files SHOULD have PLACEHOLDER (by design)
+grep -r "PLACEHOLDER" frontend/web/templates/*.html | wc -l
+# Expected output: 17+ (templates keep PLACEHOLDER in git)
+```
+
+### Related Files
+
+**Created:**
+- `scripts/update-cache-busting.sh` - Comprehensive cache busting (v6.5.2+)
+
+**Deprecated:**
+- `scripts/update-sw-version.sh` - Old SW-only script (not called by deploy.sh)
+
+**Modified:**
+- `deploy.sh` - Integrates cache busting post-build
+
+**See:** `/docs/architecture/cache-busting-fix.md` for complete troubleshooting guide (to be merged)
+
+---
+
 ## Performance Benchmarks
 
 **Build times (local development machine):**

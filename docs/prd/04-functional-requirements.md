@@ -752,7 +752,7 @@ Unified форма для редактирования и удаления тр�
 4. Period selector (Месяц/Квартал/Год/Свой)
 5. Auto date calculation для preset periods
 6. Custom period с date pickers (start < end validation)
-7. Recurring checkbox (UI готов, backend support TODO Phase 4+)
+7. Recurring checkbox (UI готов, backend support - Planned Feature v7.0+)
 8. MainButton "Сохранить план" → POST `/api/v1/facts` с record_type="plan"
 
 **Dependencies:**
