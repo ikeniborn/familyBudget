@@ -1348,6 +1348,82 @@ img[loading="lazy"] {
     object-fit: cover;
 }
 
+/* ==================================
+   Lists Page FAB Sizing - Desktop Adaptive
+   ================================== */
+
+/* Desktop FAB buttons - custom sizing (replaces DaisyUI btn-lg) */
+@media (min-width: 1024px) {
+    /* Main FAB buttons */
+    #add-item-fab,
+    #create-list-fab,
+    .fab-main {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+
+    /* Icons inside main FAB */
+    #add-item-fab svg,
+    #create-list-fab svg,
+    .fab-main svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Speed Dial menu item buttons */
+    .fab-item button {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+
+    .fab-item button svg {
+        width: 20px;  /* Slightly smaller for visual hierarchy */
+        height: 20px;
+    }
+}
+
+/* Large desktop: increased FAB (≥1280px) */
+@media (min-width: 1280px) {
+    /* Main FAB buttons */
+    #add-item-fab,
+    #create-list-fab,
+    .fab-main {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        min-height: 64px !important;
+    }
+
+    /* Icons scale proportionally */
+    #add-item-fab svg,
+    #create-list-fab svg,
+    .fab-main svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* Speed Dial menu item buttons */
+    .fab-item button {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        min-height: 64px !important;
+    }
+
+    .fab-item button svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
 /* ============================================== */
 /* FAB Speed Dial Menu */
 /* ============================================== */
@@ -1441,13 +1517,18 @@ img[loading="lazy"] {
     }
 
     .fab-item button {
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        min-height: 40px !important;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
         border-radius: 50% !important;
         padding: 0 !important;
         aspect-ratio: 1/1;
+    }
+
+    .fab-item button svg {
+        width: 24px;  /* Standard icon size for 48px button */
+        height: 24px;
     }
 
     .fab-item .badge {

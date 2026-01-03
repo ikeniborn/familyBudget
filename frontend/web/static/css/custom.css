@@ -435,8 +435,8 @@ html.offline-mode .save-btn:hover {
 @media (min-width: 1024px) {
     .fab-container {
         /* Desktop: Fixed button in right-bottom corner */
-        bottom: 2rem;  /* 32px from edge */
-        right: 2rem;
+        bottom: 1.5rem;  /* 24px from edge */
+        right: 1.5rem;
         left: auto;
         top: auto;
         width: auto;
@@ -507,20 +507,20 @@ html.offline-mode .save-btn:hover {
 
 /* Center FAB button (primary action) */
 .center-fab {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     background: oklch(var(--p));
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: -8px;
+    margin-top: -12px;  /* Proportional increase for visual balance */
     box-shadow: 0 2px 8px oklch(var(--p) / 0.3);
 }
 
 .center-fab svg {
-    width: 24px;
-    height: 24px;
+    width: 28px;  /* Proportionally: 24 × (48/40) ≈ 28 */
+    height: 28px;
     color: oklch(var(--pc));
     stroke-width: 2.5;
 }
