@@ -1074,6 +1074,15 @@ main() {
     local node_modules_dir="$npm_isolated_dir/node_modules"
     local build_allowed=true
 
+    # Generate cache version ONCE for entire deployment (v6.8.0+)
+    # CRITICAL: Export BEFORE build_allowed check so it's available for:
+    # 1. npm run build → minify.sh (normal flow)
+    # 2. Fallback subshell minification (if build_allowed=false)
+    # 3. update-cache-busting.sh validation
+    export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+    print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
+    echo ""
+
     if [[ ! -d "$npm_isolated_dir" ]]; then
         print_message error "Production npm environment not found: $npm_isolated_dir"
         print_message error "This directory must exist in production (not copied from repository)"
@@ -1163,14 +1172,6 @@ main() {
         export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
 
         print_message info "npm build environment configured (PATH + NODE_PATH)"
-
-        # Generate cache version ONCE for entire deployment (v6.8.0+)
-        # This version will be used by:
-        # 1. minify.sh (sw.min.js)
-        # 2. update-cache-busting.sh (HTML templates)
-        # Ensures SAME version across all files
-        export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
-        print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
 
         echo ""
         if npm run build 2>&1; then
