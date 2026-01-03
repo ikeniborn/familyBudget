@@ -19,16 +19,16 @@ const DEBUG = false;
 
 // Cache version - автоматически заменяется при минификации
 // Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
-// FALLBACK: Static version to prevent cache thrashing if build fails
-const CACHE_VERSION_RAW = 'PLACEHOLDER';
-const CACHE_VERSION = CACHE_VERSION_RAW === 'PLACEHOLDER'
-  ? 'v20260102_1800_dev'
-  : CACHE_VERSION_RAW;
+// IMPORTANT: minify.sh replaces PLACEHOLDER with actual version BEFORE terser minification
+// This prevents terser from optimizing the condition and hardcoding fallback value
+const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
-if (CACHE_VERSION_RAW === 'PLACEHOLDER') {
-  console.warn('[SW] WARNING: Using fallback cache version - build may have failed!');
-  console.warn('[SW] This should NOT happen in production - please run: npm run minify:js');
+// Validation: warn if PLACEHOLDER wasn't replaced (build script error)
+if (CACHE_VERSION === 'PLACEHOLDER') {
+  console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
+  console.error('[SW] Service Worker will NOT work correctly');
+  console.error('[SW] Please check minify.sh execution');
 }
 
 // Критическая статика БЕЗ версий (для precaching в install event)

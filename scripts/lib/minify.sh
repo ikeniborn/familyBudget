@@ -254,26 +254,17 @@ minify_service_worker() {
     print_message info "Replacing PLACEHOLDER with $cache_version in $sw_prepared"
 
     # Replace PLACEHOLDER with actual cache version in sw.prepared.js
-    # Strategy: Multiple patterns in order of specificity (most specific first)
-    # 1. CACHE_VERSION_RAW assignment (sw.js fallback pattern)
-    # 2. CACHE_VERSION assignment (for backwards compatibility)
-    # 3. budget- prefix (cache name template)
-    # 4. Catch-all for any remaining PLACEHOLDER (comments, etc.)
+    # Strategy: Replace CACHE_VERSION = 'PLACEHOLDER' with actual version
+    # This MUST happen BEFORE terser minification to prevent optimization issues
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires empty string for in-place edit
         sed -i '' \
-            -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
-            -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
-            -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
-            -e "s/PLACEHOLDER/${cache_version}/g" \
+            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/const CACHE_VERSION = '${cache_version}'/g" \
             "$sw_prepared"
     else
         # Linux sed
         sed -i \
-            -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
-            -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
-            -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
-            -e "s/PLACEHOLDER/${cache_version}/g" \
+            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/const CACHE_VERSION = '${cache_version}'/g" \
             "$sw_prepared"
     fi
 
