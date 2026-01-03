@@ -1243,10 +1243,20 @@ main() {
         rm -rf "$sw_min" "$sw_min_gz"
     fi
 
-    # Check 2: Create if files are missing (first deployment or deleted)
+    # Check 2: Recreate sw.min.js if npm run build was skipped (build_allowed=false)
+    # OR if files are missing (first deployment)
+    # CRITICAL: Always regenerate if npm run build didn't run (CACHE_VERSION mismatch)
+    local need_regenerate=false
+
     if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
         warning "Service Worker minified files missing - creating..."
+        need_regenerate=true
+    elif [[ "$build_allowed" == false ]]; then
+        warning "npm run build was skipped (build_allowed=false) - regenerating Service Worker..."
+        need_regenerate=true
+    fi
 
+    if [[ "$need_regenerate" == true ]]; then
         # Re-run minification for Service Worker only
         if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
             (
