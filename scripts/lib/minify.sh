@@ -234,6 +234,7 @@ minify_service_worker() {
         # This triggers browser update detection automatically when file content changes
 
         # Use CACHE_VERSION from environment if set (passed by deploy.sh)
+        # Otherwise try reading from .cache-version file (written by deploy.sh)
         # Otherwise generate new version (for local builds)
         local cache_version="${CACHE_VERSION:-}"
 
@@ -241,9 +242,16 @@ minify_service_worker() {
         print_message info "DEBUG: CACHE_VERSION env var = '${CACHE_VERSION:-<not set>}'"
 
         if [[ -z "$cache_version" ]]; then
-            cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
-            print_message warning "CACHE_VERSION not set in environment - generating locally: $cache_version"
-            print_message warning "This should NOT happen during deployment (only local builds)"
+            # Try reading from .cache-version file (deploy.sh writes this)
+            if [[ -f ".cache-version" ]]; then
+                cache_version=$(cat ".cache-version" | tr -d '\n\r')
+                print_message info "CACHE_VERSION read from .cache-version file: $cache_version (deployment)"
+            else
+                # Fallback: generate locally
+                cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+                print_message warning "CACHE_VERSION not found in env or file - generating locally: $cache_version"
+                print_message warning "This should NOT happen during deployment (only local builds)"
+            fi
         else
             print_message info "Using CACHE_VERSION from environment: $cache_version (deployment)"
         fi

@@ -244,6 +244,7 @@ certbot/
 # Deployment state files (generated during deployment)
 .last_deployed_version
 .migration_checksums
+.cache-version
 
 # Nginx generated configs (auto-generated from templates)
 nginx/conf.d/app.conf

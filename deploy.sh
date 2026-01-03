@@ -1081,6 +1081,12 @@ main() {
     # 3. update-cache-busting.sh validation
     export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
     print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
+
+    # CRITICAL FIX: Write to file for minify.sh to read
+    # npm run build may not propagate env vars correctly across script chain
+    # minify.sh will read from this file if CACHE_VERSION env var is empty
+    echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"
+    print_message info "Written CACHE_VERSION to .cache-version file for minify.sh"
     echo ""
 
     if [[ ! -d "$npm_isolated_dir" ]]; then
