@@ -1247,6 +1247,9 @@ main() {
                 if [[ -d "$node_modules_dir/.bin" ]]; then
                     export PATH="$node_modules_dir/.bin:$PATH"
                 fi
+                # BUGFIX: Export CACHE_VERSION for minify_service_worker
+                # Subshells don't inherit non-exported variables from parent
+                export CACHE_VERSION="${CACHE_VERSION}"
                 source scripts/lib/minify.sh
                 minify_service_worker
             )
