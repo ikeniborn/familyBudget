@@ -275,15 +275,16 @@ minify_service_worker() {
     # Replace PLACEHOLDER with actual cache version in sw.prepared.js
     # Strategy: Replace CACHE_VERSION = 'PLACEHOLDER' with actual version
     # This MUST happen BEFORE terser minification to prevent optimization issues
+    # Pattern includes optional semicolon at the end to match both formats
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS sed requires empty string for in-place edit
         sed -i '' \
-            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/const CACHE_VERSION = '${cache_version}'/g" \
+            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"];*/const CACHE_VERSION = '${cache_version}';/g" \
             "$sw_prepared"
     else
         # Linux sed
         sed -i \
-            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/const CACHE_VERSION = '${cache_version}'/g" \
+            -e "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"];*/const CACHE_VERSION = '${cache_version}';/g" \
             "$sw_prepared"
     fi
 
