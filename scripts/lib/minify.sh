@@ -233,8 +233,27 @@ minify_service_worker() {
     if [[ -z "$cache_version" ]]; then
         # Try reading from .cache-version file (deploy.sh writes this)
         if [[ -f ".cache-version" ]]; then
-            cache_version=$(cat ".cache-version" | tr -d '\n\r')
-            print_message info "CACHE_VERSION read from .cache-version file: $cache_version (deployment)"
+            # Check if file is fresh (modified within last 5 minutes)
+            # This prevents using stale version if file was not updated due to permission issues
+            local file_age_seconds=0
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS
+                file_age_seconds=$(( $(date +%s) - $(stat -f %m ".cache-version") ))
+            else
+                # Linux
+                file_age_seconds=$(( $(date +%s) - $(stat -c %Y ".cache-version") ))
+            fi
+
+            if [[ $file_age_seconds -lt 300 ]]; then
+                # File is fresh (< 5 minutes old) - safe to use
+                cache_version=$(cat ".cache-version" | tr -d '\n\r')
+                print_message info "CACHE_VERSION read from .cache-version file: $cache_version (deployment, ${file_age_seconds}s old)"
+            else
+                # File is stale (> 5 minutes old) - regenerate instead
+                print_message warning ".cache-version file is stale (${file_age_seconds}s old) - generating new version"
+                cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+                print_message warning "Generated fresh CACHE_VERSION: $cache_version"
+            fi
         else
             # Fallback: generate locally
             cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
