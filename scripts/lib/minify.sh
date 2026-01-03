@@ -220,86 +220,95 @@ minify_service_worker() {
 
     print_message info "→ Processing Service Worker..."
 
-    # Minify sw.js with advanced configuration
-    print_message info "Minifying: $sw_source"
+    # CRITICAL: Get CACHE_VERSION BEFORE minification
+    # terser optimizes conditions and hardcodes fallback value if PLACEHOLDER not replaced first
+    # Use CACHE_VERSION from environment if set (passed by deploy.sh)
+    # Otherwise try reading from .cache-version file (written by deploy.sh)
+    # Otherwise generate new version (for local builds)
+    local cache_version="${CACHE_VERSION:-}"
+
+    # DEBUG: Log environment variable state
+    print_message info "DEBUG: CACHE_VERSION env var = '${CACHE_VERSION:-<not set>}'"
+
+    if [[ -z "$cache_version" ]]; then
+        # Try reading from .cache-version file (deploy.sh writes this)
+        if [[ -f ".cache-version" ]]; then
+            cache_version=$(cat ".cache-version" | tr -d '\n\r')
+            print_message info "CACHE_VERSION read from .cache-version file: $cache_version (deployment)"
+        else
+            # Fallback: generate locally
+            cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
+            print_message warning "CACHE_VERSION not found in env or file - generating locally: $cache_version"
+            print_message warning "This should NOT happen during deployment (only local builds)"
+        fi
+    else
+        print_message info "Using CACHE_VERSION from environment: $cache_version (deployment)"
+    fi
+
+    # CRITICAL: Prepare sw.js with CACHE_VERSION BEFORE minification
+    # Copy sw.js → sw.prepared.js with PLACEHOLDER replaced
+    # This prevents terser from hardcoding fallback version
+    local sw_prepared="sw.prepared.js"
+    cp "$sw_source" "$sw_prepared"
+
+    print_message info "Replacing PLACEHOLDER with $cache_version in $sw_prepared"
+
+    # Replace PLACEHOLDER with actual cache version in sw.prepared.js
+    # Strategy: Multiple patterns in order of specificity (most specific first)
+    # 1. CACHE_VERSION_RAW assignment (sw.js fallback pattern)
+    # 2. CACHE_VERSION assignment (for backwards compatibility)
+    # 3. budget- prefix (cache name template)
+    # 4. Catch-all for any remaining PLACEHOLDER (comments, etc.)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS sed requires empty string for in-place edit
+        sed -i '' \
+            -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
+            -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+            -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+            -e "s/PLACEHOLDER/${cache_version}/g" \
+            "$sw_prepared"
+    else
+        # Linux sed
+        sed -i \
+            -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
+            -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
+            -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
+            -e "s/PLACEHOLDER/${cache_version}/g" \
+            "$sw_prepared"
+    fi
+
+    # CRITICAL: Verify PLACEHOLDER was replaced in sw.prepared.js
+    if grep -q "PLACEHOLDER" "$sw_prepared"; then
+        print_message error "CRITICAL: $sw_prepared still contains PLACEHOLDER after sed replacement!"
+        print_message error "This means the sed pattern did not match all occurrences."
+        print_message error ""
+        print_message error "Debug info:"
+        print_message error "  CACHE_VERSION from env: ${CACHE_VERSION:-<not set>}"
+        print_message error "  cache_version variable: $cache_version"
+        print_message error ""
+        print_message error "All PLACEHOLDER occurrences in $sw_prepared:"
+        grep -n "PLACEHOLDER" "$sw_prepared" | head -20 || true
+        print_message error ""
+        print_message error "DEPLOYMENT BLOCKED - Service Worker would fail"
+        rm -f "$sw_prepared"
+        return 1
+    else
+        print_message success "✓ PLACEHOLDER replaced with $cache_version in $sw_prepared"
+    fi
+
+    # Minify sw.prepared.js (with CACHE_VERSION already injected) → sw.min.js
+    print_message info "Minifying: $sw_prepared → $sw_minified"
     local terser_output
-    terser_output=$(timeout 60s terser "$sw_source" \
+    terser_output=$(timeout 60s terser "$sw_prepared" \
         --config-file .terserrc.json \
         --output "$sw_minified" 2>&1)
     local terser_exit=$?
 
+    # Clean up temporary file
+    rm -f "$sw_prepared"
+
     if [[ $terser_exit -eq 0 ]] && [[ -f "$sw_minified" ]]; then
-        # Inject CACHE_VERSION (v6.8.0+)
-        # Uses SAME version format as all JS/CSS files (from cache_busting.sh)
-        # This triggers browser update detection automatically when file content changes
-
-        # Use CACHE_VERSION from environment if set (passed by deploy.sh)
-        # Otherwise try reading from .cache-version file (written by deploy.sh)
-        # Otherwise generate new version (for local builds)
-        local cache_version="${CACHE_VERSION:-}"
-
-        # DEBUG: Log environment variable state
-        print_message info "DEBUG: CACHE_VERSION env var = '${CACHE_VERSION:-<not set>}'"
-
-        if [[ -z "$cache_version" ]]; then
-            # Try reading from .cache-version file (deploy.sh writes this)
-            if [[ -f ".cache-version" ]]; then
-                cache_version=$(cat ".cache-version" | tr -d '\n\r')
-                print_message info "CACHE_VERSION read from .cache-version file: $cache_version (deployment)"
-            else
-                # Fallback: generate locally
-                cache_version=$(date -u +"%Y%m%d_%H%M" | sed 's/^/v/')
-                print_message warning "CACHE_VERSION not found in env or file - generating locally: $cache_version"
-                print_message warning "This should NOT happen during deployment (only local builds)"
-            fi
-        else
-            print_message info "Using CACHE_VERSION from environment: $cache_version (deployment)"
-        fi
-
-        # Replace PLACEHOLDER with actual cache version
-        # Strategy: Multiple patterns in order of specificity (most specific first)
-        # 1. CACHE_VERSION_RAW assignment (sw.js fallback pattern)
-        # 2. CACHE_VERSION assignment (for backwards compatibility)
-        # 3. budget- prefix (cache name template)
-        # 4. Catch-all for any remaining PLACEHOLDER (comments, etc.)
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS sed requires empty string for in-place edit
-            sed -i '' \
-                -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
-                -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
-                -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
-                -e "s/PLACEHOLDER/${cache_version}/g" \
-                "$sw_minified"
-        else
-            # Linux sed
-            sed -i \
-                -e "s/CACHE_VERSION_RAW[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION_RAW = '${cache_version}'/g" \
-                -e "s/CACHE_VERSION[[:space:]]*=[[:space:]]*['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"${cache_version}\"/g" \
-                -e "s/budget-PLACEHOLDER/budget-${cache_version}/g" \
-                -e "s/PLACEHOLDER/${cache_version}/g" \
-                "$sw_minified"
-        fi
-
-        # CRITICAL: Verify PLACEHOLDER was replaced
-        if grep -q "PLACEHOLDER" "$sw_minified"; then
-            print_message error "CRITICAL: sw.min.js still contains PLACEHOLDER after sed replacement!"
-            print_message error "This means the sed pattern did not match all occurrences."
-            print_message error ""
-            print_message error "Debug info:"
-            print_message error "  CACHE_VERSION from env: ${CACHE_VERSION:-<not set>}"
-            print_message error "  cache_version variable: $cache_version"
-            print_message error ""
-            print_message error "All PLACEHOLDER occurrences in sw.min.js:"
-            grep -n "PLACEHOLDER" "$sw_minified" | head -20 || true
-            print_message error ""
-            print_message error "Context around PLACEHOLDER (±50 chars):"
-            grep -o ".{0,50}PLACEHOLDER.{0,50}" "$sw_minified" | head -5 || true
-            print_message error ""
-            print_message error "DEPLOYMENT BLOCKED - Service Worker would fail"
-            return 1
-        else
-            print_message success "✓ PLACEHOLDER replaced with $cache_version in sw.min.js"
-        fi
+        print_message success "✓ terser minification complete"
 
         local original_size=$(stat -c%s "$sw_source" 2>/dev/null || stat -f%z "$sw_source" 2>/dev/null)
         local minified_size=$(stat -c%s "$sw_minified" 2>/dev/null || stat -f%z "$sw_minified" 2>/dev/null)

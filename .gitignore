@@ -245,6 +245,7 @@ certbot/
 .last_deployed_version
 .migration_checksums
 .cache-version
+sw.prepared.js
 
 # Nginx generated configs (auto-generated from templates)
 nginx/conf.d/app.conf
