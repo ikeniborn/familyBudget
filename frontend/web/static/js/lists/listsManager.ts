@@ -10,7 +10,7 @@ declare const HierarchyView: any;
 declare const ImportManager: any;
 declare const IndexedDBManager: any;
 declare const Choices: any;
-declare const showConfirmDialog: (message: string, onConfirm: () => void) => void;
+declare const showConfirmDialog: (message: string, title?: string) => Promise<boolean>;
 
 // Declare window extensions
 declare global {
@@ -19,14 +19,29 @@ declare global {
         importManager?: any;
         hierarchyView?: any;
         deleteListId?: number;
+        showLandingView?: () => void;
         openAddItemModal?: () => void;
         openCreateListModal?: () => void;
         closeItemModal?: () => void;
         closeCreateListModal?: () => void;
+        handleCreateList?: (event: Event) => Promise<void>;
+        openEditItemModal?: (itemId: number) => void;
+        handleDeleteFromModal?: () => Promise<void>;
+        handleSaveItem?: (event: Event) => Promise<void>;
+        toggleSelectAll?: () => void;
+        toggleSearchField?: () => void;
         toggleListsFAB?: () => void;
-        markAllCompletedWithConfirm?: () => void;
-        unmarkAllCompletedWithConfirm?: () => void;
-        deleteCompletedWithConfirm?: () => void;
+        markAllCompletedWithConfirm?: () => Promise<void>;
+        unmarkAllCompletedWithConfirm?: () => Promise<void>;
+        deleteCompletedWithConfirm?: () => Promise<void>;
+        switchView?: (viewName: string) => void;
+        toggleAllNodes?: () => void;
+        openDeleteListModal?: (listId: number, listName: string) => void;
+        closeDeleteListModal?: () => void;
+        confirmDeleteList?: () => Promise<void>;
+        toggleImportWizard?: () => void;
+        handleItemsSearch?: (query: string) => void;
+        clearItemsSearch?: () => void;
     }
 }
 
@@ -2364,7 +2379,7 @@ class ListsManager {
         this.updateItemsCache();
 
         // Show notification
-        showToast(`Добавлен товар: ${item.product_name}`, 'info', 3000);
+        showToast(`Добавлен товар: ${item.product_name}`, 'info');
     }
 
     /**
@@ -2439,7 +2454,7 @@ class ListsManager {
         this.updateItemsCache();
 
         // Show notification
-        showToast(`Удалён товар: ${removedItem.product_name}`, 'info', 3000);
+        showToast(`Удалён товар: ${removedItem.product_name}`, 'info');
     }
 
     /**
@@ -3431,7 +3446,7 @@ async function markAllCompletedWithConfirm() {
     const manager = window.listsManager;
     if (!manager) return;
 
-    const uncompletedCount = manager.currentItems.filter(item => !item.is_completed).length;
+    const uncompletedCount = manager.currentItems.filter((item: any) => !item.is_completed).length;
 
     if (uncompletedCount === 0) {
         showToast('Все товары уже отмечены', 'info');
@@ -3457,7 +3472,7 @@ async function unmarkAllCompletedWithConfirm() {
     const manager = window.listsManager;
     if (!manager) return;
 
-    const completedCount = manager.currentItems.filter(item => item.is_completed).length;
+    const completedCount = manager.currentItems.filter((item: any) => item.is_completed).length;
 
     if (completedCount === 0) {
         showToast('Нет отмеченных товаров', 'info');
@@ -3483,7 +3498,7 @@ async function deleteCompletedWithConfirm() {
     const manager = window.listsManager;
     if (!manager) return;
 
-    const completedItems = manager.currentItems.filter(item => item.is_completed);
+    const completedItems = manager.currentItems.filter((item: any) => item.is_completed);
 
     if (completedItems.length === 0) {
         showToast('Нет отмеченных товаров', 'info');
@@ -3553,16 +3568,17 @@ function toggleAllNodes() {
  * @param {number} listId - Shopping list ID
  * @param {string} listName - Shopping list name (escaped)
  */
-function openDeleteListModal(listId: number, listName) {
+function openDeleteListModal(listId: number, listName: string) {
     // Store listId for later use
     window.deleteListId = listId;
 
     // Update modal content
-    document.getElementById('delete-list-name').textContent = listName;
+    const nameElement = document.getElementById('delete-list-name');
+    if (nameElement) nameElement.textContent = listName;
 
     // Open modal
-    const modal = document.getElementById('delete-list-modal');
-    modal.showModal();
+    const modal = document.getElementById('delete-list-modal') as HTMLDialogElement | null;
+    if (modal) modal.showModal();
 
     debugLog('[DeleteList] Modal opened for list:', listId);
 }
@@ -3571,9 +3587,9 @@ function openDeleteListModal(listId: number, listName) {
  * Close delete list modal
  */
 function closeDeleteListModal() {
-    const modal = document.getElementById('delete-list-modal');
-    modal.close();
-    window.deleteListId = null;
+    const modal = document.getElementById('delete-list-modal') as HTMLDialogElement | null;
+    if (modal) modal.close();
+    window.deleteListId = undefined;
 
     debugLog('[DeleteList] Modal closed');
 }
@@ -3632,7 +3648,7 @@ async function confirmDeleteList() {
 
     } catch (error) {
         console.error('[DeleteList] Error deleting list:', error);
-        showToast(`❌ Ошибка удаления: ${error.message}`, 'error');
+        showToast(`❌ Ошибка удаления: ${(error as Error).message}`, 'error');
     }
 }
 
@@ -3695,7 +3711,7 @@ function toggleImportWizard() {
         closeImportWizard();
     } else {
         // Opening - show wizard and initialize
-        container.classList.remove('hidden');
+        if (container) container.classList.remove('hidden');
         if (icon) icon.textContent = '▼';
         if (hint) hint.classList.add('hidden');
         initializeImportWizard();
@@ -3717,15 +3733,34 @@ function clearItemsSearch() {
 }
 
 // Export modal functions to window for onclick handlers in HTML
+window.showLandingView = showLandingView;
 window.openAddItemModal = openAddItemModal;
 window.openCreateListModal = openCreateListModal;
 window.closeItemModal = closeItemModal;
 window.closeCreateListModal = closeCreateListModal;
+window.handleCreateList = handleCreateList;
+window.openEditItemModal = openEditItemModal;
+window.handleDeleteFromModal = handleDeleteFromModal;
+window.handleSaveItem = handleSaveItem;
 
 // Export FAB functions to window for onclick handlers
+window.toggleSelectAll = toggleSelectAll;
+window.toggleSearchField = toggleSearchField;
 window.toggleListsFAB = toggleListsFAB;
 window.markAllCompletedWithConfirm = markAllCompletedWithConfirm;
 window.unmarkAllCompletedWithConfirm = unmarkAllCompletedWithConfirm;
 window.deleteCompletedWithConfirm = deleteCompletedWithConfirm;
+window.switchView = switchView;
+window.toggleAllNodes = toggleAllNodes;
+
+// Export delete list functions to window
+window.openDeleteListModal = openDeleteListModal;
+window.closeDeleteListModal = closeDeleteListModal;
+window.confirmDeleteList = confirmDeleteList;
+
+// Export import wizard functions to window
+window.toggleImportWizard = toggleImportWizard;
+window.handleItemsSearch = handleItemsSearch;
+window.clearItemsSearch = clearItemsSearch;
 
 debugLog('[ListsManager] Module loaded');

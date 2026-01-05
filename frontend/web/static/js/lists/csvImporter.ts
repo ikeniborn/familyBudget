@@ -1030,8 +1030,8 @@ class CSVImporter {
             // Build data cells
             const dataCells = mappedFields.map(({ field }) => {
                 const value = row.data[field] || '';
-                const hasError = row.errors?.some(e => e.field === field);
-                const hasWarning = row.warnings?.some(w => w.field === field);
+                const hasError = row.errors?.some((e: any) => e.field === field);
+                const hasWarning = row.warnings?.some((w: any) => w.field === field);
                 const cellClass = hasError ? 'bg-error/20 text-error' : (hasWarning ? 'bg-warning/20 text-warning' : '');
 
                 return `<td class="${cellClass}">${this.escapeHtml(value)}</td>`;
@@ -1687,7 +1687,7 @@ class CSVImporter {
                 }
 
                 // Reset wizard
-                this.container.innerHTML = '';
+                if (this.container) this.container.innerHTML = '';
 
             } else {
                 // Show errors
