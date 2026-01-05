@@ -93,25 +93,33 @@ export default [
         mangle: { properties: false }
       })
     ].filter(Boolean)
-  }
+  },
 
   // webapp (Telegram Mini App) bundle (Phase 2.5+)
-  // TODO: Uncomment after creating frontend/webapp/static/js/index.ts
-  /*
   {
     input: 'frontend/webapp/static/js/index.ts',
     output: {
       file: 'frontend/webapp/static/js/dist/webapp.bundle.js',
       format: 'iife',
       name: 'WebApp',
-      sourcemap: !production
+      sourcemap: !production,
+      generatedCode: {
+        constBindings: true
+      }
     },
     plugins: [
-      typescript({ tsconfig: './tsconfig.json' }),
+      typescript({
+        tsconfig: './tsconfig.json',
+        sourceMap: !production,
+        inlineSources: !production,
+        declaration: false
+      }),
       resolve({ browser: true }),
       commonjs(),
-      production && terser()
+      production && terser({
+        compress: { passes: 2, drop_console: false },
+        mangle: { properties: false }
+      })
     ].filter(Boolean)
   }
-  */
 ];

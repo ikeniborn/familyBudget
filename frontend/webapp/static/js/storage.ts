@@ -196,7 +196,10 @@ class TelegramStorage {
   }
 }
 
-// Export to window for global access
+// Export to window for global access (backward compatibility)
 if (typeof window !== 'undefined') {
   (window as any).TelegramStorage = TelegramStorage;
 }
+
+// ES Module export (Phase 2.5)
+export default TelegramStorage;
