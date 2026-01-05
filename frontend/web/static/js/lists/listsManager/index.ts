@@ -71,10 +71,9 @@ export {
 } from './rendering/listRenderer';
 
 // ============================================================================
-// Features (TODO: Create feature modules)
+// Features (Phase 3.3: Complete)
 // ============================================================================
 
-/*
 export {
   handleSearch,
   clearSearch,
@@ -83,14 +82,15 @@ export {
 
 export {
   toggleSelectAll,
-  deleteSelected
+  selectCompleted,
+  deleteSelected,
+  updateSelectionUI
 } from './features/multiSelect';
 
 export {
-  showProductSuggestions,
-  selectSuggestion
+  setupProductAutocomplete,
+  hideProductSuggestions
 } from './features/autocomplete';
-*/
 
 // ============================================================================
 // UI (TODO: Create UI modules)
