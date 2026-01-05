@@ -12,7 +12,8 @@
     "minify:js": "bash scripts/lib/minify.sh js",
     "minify:css": "bash scripts/lib/minify.sh css",
     "precompress": "bash scripts/precompress-assets.sh",
-    "build": "npm run type-check && npm run build:css && npm run bundle && npm run minify:js && npm run minify:css && npm run precompress",
+    "build:prod": "npm run build:css && npm run bundle && npm run minify:js && npm run minify:css && npm run precompress",
+    "build": "npm run type-check && npm run build:prod",
     "validate:minified": "bash scripts/lib/minify.sh validate",
     "prepare": "husky install"
   },
