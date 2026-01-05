@@ -114,6 +114,71 @@ docker compose logs -f backend
 - `/docs/architecture/recurring-plans.md` - Recurring payments system
 - `/docs/architecture/notifications.md` - Push + Telegram notifications
 - `/docs/architecture/transfers-system.md` - Transfer deduplication
+- `/docs/architecture/es-modules-migration.md` - ES Modules migration (v7.0.0)
+
+### Module System (v7.0.0+)
+
+**Build System:** Rollup + TypeScript
+**Module Format:** ES Modules (ESM)
+**Bundle Output:** IIFE for browser compatibility
+
+#### Module Structure
+
+All large modules follow consistent structure:
+- `core/`: State management (ZERO dependencies!) + core operations
+- `operations/` or `rendering/`: Main functionality
+- `features/`: Optional features (search, autocomplete, multi-tab, etc.)
+- `ui/`: UI components (modals, toasts, dialogs)
+- `integration/`: External integrations (API, WebSocket, offline)
+- `index.ts`: Barrel export (public API)
+
+#### Development Commands
+
+```bash
+# Watch mode (auto-rebuild on file changes)
+npm run watch              # CSS + JS watch
+
+# Development build (with sourcemaps)
+npm run bundle:dev         # All bundles
+
+# Production build (minified + gzipped)
+npm run build              # Full build (CSS + JS + precompress)
+
+# Type check (0 errors required)
+npm run type-check
+
+# Bundle size analysis
+npm run analyze            # Opens bundle-stats.html
+```
+
+#### Import Patterns
+
+```typescript
+// Barrel exports (recommended)
+import { loadShoppingLists, createItem } from '@web/lists/listsManager';
+
+// Direct imports (when needed)
+import { ListsState } from '@web/lists/listsManager/core/ListsState';
+
+// Type-only imports
+import type { ShoppingList, ShoppingItem } from '@web/lists/listsManager';
+```
+
+#### Module Foundations (Phase 2.1-2.5)
+
+**Status:** Foundation modules created (state management only)
+
+| Module | State File | Lines | Bundle Size |
+|--------|-----------|-------|-------------|
+| listsManager | ListsState.ts | 161 | 34KB total |
+| budgetWSClient | WSState.ts | 308 | 34KB total |
+| csvImporter | ImportState.ts | 204 | 34KB total |
+| offlineManager | OfflineState.ts | 167 | 34KB total |
+| webapp | storage.ts | 206 | 8.4KB |
+
+**Future (Phase 3+):** Extract remaining logic from monolithic files
+
+**See:** `/docs/architecture/es-modules-migration.md` for complete migration guide
 
 ### Database Patterns
 
