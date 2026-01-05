@@ -51,6 +51,12 @@ jspm_packages/
 # TypeScript
 typings/
 *.tsbuildinfo
+*.d.ts.map
+# Temporary files from TypeScript compilation (minify.sh)
+*.temp.js
+
+# DO NOT ignore custom type definitions
+!types/**/*.d.ts
 
 # Optional npm cache directory
 .npm

@@ -32,6 +32,11 @@ if [[ -d ".npm-isolated/node_modules/.bin" ]]; then
     export PATH="$PWD/.npm-isolated/node_modules/.bin:$PATH"
 fi
 
+# Also add local node_modules/.bin to PATH (fallback)
+if [[ -d "node_modules/.bin" ]]; then
+    export PATH="$PWD/node_modules/.bin:$PATH"
+fi
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -171,6 +176,90 @@ minify_js_file() {
     fi
 }
 
+minify_ts_file() {
+    local input_file="$1"
+    local output_file="${input_file%.ts}.min.js"
+    local temp_file="${input_file%.ts}.temp.js"
+    local input_dir=$(dirname "$input_file")
+    local input_name=$(basename "$input_file" .ts)
+    local compiled_js="${input_dir}/${input_name}.js"
+
+    print_message info "Compiling TypeScript: $input_file"
+
+    # Step 1: Compile .ts to .js using TypeScript compiler
+    # TypeScript generates .js in same directory as .ts file
+    local tsc_output
+    tsc_output=$(npx tsc "$input_file" \
+        --target ES2020 \
+        --module ESNext \
+        --lib ES2020,DOM,DOM.Iterable \
+        --skipLibCheck \
+        --removeComments false \
+        2>&1)
+    local tsc_exit=$?
+
+    # Move compiled .js to .temp.js (avoid conflicts with original .js)
+    if [[ $tsc_exit -eq 0 ]] && [[ -f "$compiled_js" ]]; then
+        mv "$compiled_js" "$temp_file"
+    fi
+
+    if [[ $tsc_exit -ne 0 ]] || [[ ! -f "$temp_file" ]]; then
+        print_message error "TypeScript compilation failed: $input_file"
+        if [[ -n "$tsc_output" ]]; then
+            echo "$tsc_output" | head -5 >&2
+        fi
+        rm -f "$temp_file" "$compiled_js"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+
+    print_message info "Minifying compiled JS: $temp_file → $output_file"
+
+    # Step 2: Minify compiled .temp.js
+    local terser_output
+    terser_output=$(timeout 60s terser "$temp_file" \
+        --config-file .terserrc.json \
+        --output "$output_file" 2>&1)
+    local terser_exit=$?
+
+    # Cleanup temp file
+    rm -f "$temp_file"
+
+    # Handle timeout (exit code 124)
+    if [[ $terser_exit -eq 124 ]]; then
+        print_message error "Timeout: $input_file (exceeded 60 seconds)"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+
+    if [[ $terser_exit -eq 0 ]] && [[ -f "$output_file" ]]; then
+        # Success - calculate size reduction
+        local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
+        local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
+
+        if [[ $original_size -gt 0 ]]; then
+            local reduction=$((100 - (minified_size * 100 / original_size)))
+            print_message success "✓ $output_file (${reduction}% smaller)"
+        else
+            print_message success "✓ $output_file"
+        fi
+
+        ((MINIFIED_JS_COUNT++))
+        return 0
+    else
+        # Failed - show error details
+        print_message error "Failed to minify: $input_file"
+        if [[ -n "$terser_output" ]]; then
+            echo "$terser_output" | head -3 >&2
+        fi
+
+        # Cleanup partial files
+        rm -f "$output_file"
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+}
+
 minify_js_directory() {
     local dir="$1"
 
@@ -179,16 +268,32 @@ minify_js_directory() {
         return 0
     fi
 
-    print_message info "Processing JS directory: $dir"
+    print_message info "Processing JS/TS directory: $dir"
 
-    # Count files first for debugging
-    local file_count=$(find "$dir" -type f -name "*.js" ! -name "*.min.js" ! -path "*/vendor/*" | wc -l)
-    print_message info "Found $file_count JS files to minify in $dir"
+    # Count JS and TS files for debugging
+    local js_count=$(find "$dir" -type f -name "*.js" ! -name "*.min.js" ! -name "*.temp.js" ! -path "*/vendor/*" | wc -l)
+    local ts_count=$(find "$dir" -type f -name "*.ts" ! -path "*/vendor/*" | wc -l)
+    print_message info "Found $js_count JS files and $ts_count TS files to minify in $dir"
 
-    # Find all .js files (excluding .min.js and vendor/)
+    # Process TypeScript files first
+    while IFS= read -r -d '' file; do
+        # Skip vendor directory
+        if [[ "$file" =~ /vendor/ ]]; then
+            continue
+        fi
+
+        minify_ts_file "$file"
+    done < <(find "$dir" -type f -name "*.ts" -print0)
+
+    # Process JavaScript files
     while IFS= read -r -d '' file; do
         # Skip already minified files
         if [[ "$file" =~ \.min\.js$ ]]; then
+            continue
+        fi
+
+        # Skip temp files
+        if [[ "$file" =~ \.temp\.js$ ]]; then
             continue
         fi
 
@@ -198,7 +303,7 @@ minify_js_directory() {
         fi
 
         minify_js_file "$file"
-    done < <(find "$dir" -type f -name "*.js" ! -name "*.min.js" -print0)
+    done < <(find "$dir" -type f -name "*.js" ! -name "*.min.js" ! -name "*.temp.js" -print0)
 
     print_message info "Finished processing $dir"
 }
