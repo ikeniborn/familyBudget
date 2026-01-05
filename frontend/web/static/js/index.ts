@@ -16,11 +16,11 @@
 // Core Utilities
 // ============================================================================
 
-// Phase 2.2: listsManager (in progress)
+// Phase 2.2: listsManager (foundation complete)
 import * as listsManager from './lists/listsManager/index';
 
-// Phase 2.3: budgetWSClient (TODO)
-// import BudgetWSClient from './budget/budgetWSClient/index';
+// Phase 2.3: budgetWSClient (foundation complete)
+import * as budgetWSClient from './budget/budgetWSClient/index';
 
 // Phase 2.4: offlineManager (TODO)
 // import OfflineManager from './offline/offlineManager/index';
@@ -55,28 +55,39 @@ async function initializeApp(): Promise<void> {
   console.log('[APP] Initializing Family Budget application...');
 
   try {
-    // Phase 2.2: Initialize lists manager (minimal for now)
+    // Phase 2.2: Initialize lists manager (foundation)
     console.log('[APP] listsManager module loaded');
-    console.log('[APP] State functions available:', {
+    console.log('[APP] listsManager state functions available:', {
       getState: typeof listsManager.getState,
       updateState: typeof listsManager.updateState,
       resetState: typeof listsManager.resetState
     });
 
-    // TODO Phase 2.2+: Initialize other modules
-    // const offlineManager = new OfflineManager();
-    // await offlineManager.initialize();
+    // Phase 2.3: Initialize budgetWSClient (foundation)
+    console.log('[APP] budgetWSClient module loaded');
+    console.log('[APP] budgetWSClient state functions available:', {
+      getState: typeof budgetWSClient.getState,
+      updateState: typeof budgetWSClient.updateState,
+      resetState: typeof budgetWSClient.resetState
+    });
 
+    // TODO Phase 2.3+: Initialize WebSocket connection
     // const wsClient = new BudgetWSClient(getWebSocketURL());
     // await wsClient.connect();
 
+    // TODO Phase 2.4: Initialize offline manager
+    // const offlineManager = new OfflineManager();
+    // await offlineManager.initialize();
+
+    // TODO Phase 2.2: Complete listsManager initialization
     // await listsManager.initializeListsManager();
 
     // TODO Phase 2.6: Remove after full migration (backward compatibility)
     // For now, expose on window for legacy code
     (window as any).listsManager = listsManager;
+    (window as any).budgetWSClient = budgetWSClient;
 
-    console.log('[APP] Application initialized successfully');
+    console.log('[APP] Application initialized successfully (Phase 2.1-2.3 foundation)');
   } catch (error) {
     console.error('[APP] Application initialization failed', error);
     throw error;
@@ -116,8 +127,8 @@ if (document.readyState === 'loading') {
 // ============================================================================
 
 export {
-  listsManager
-  // budgetWSClient,
+  listsManager,
+  budgetWSClient
   // offlineManager,
   // csvImporter
 };
