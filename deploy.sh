@@ -1314,6 +1314,7 @@ main() {
 
     # Check 2: Recreate sw.min.js if npm run build was skipped (build_allowed=false)
     # OR if files are missing (first deployment)
+    # OR if sw.js is newer than sw.min.js (sw.js updated)
     # CRITICAL: Always regenerate if npm run build didn't run (CACHE_VERSION mismatch)
     local need_regenerate=false
 
@@ -1322,6 +1323,9 @@ main() {
         need_regenerate=true
     elif [[ "$build_allowed" == false ]]; then
         warning "npm run build was skipped (build_allowed=false) - regenerating Service Worker..."
+        need_regenerate=true
+    elif [[ -f "$DEPLOY_DIR/sw.js" ]] && [[ "$DEPLOY_DIR/sw.js" -nt "$sw_min" ]]; then
+        warning "sw.js is newer than sw.min.js - regenerating Service Worker..."
         need_regenerate=true
     fi
 
