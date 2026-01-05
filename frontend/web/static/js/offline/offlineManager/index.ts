@@ -1,129 +1,63 @@
 /**
- * offlineManager - Public API for offline CRUD operations with sync
+ * Offline Manager - Module Structure
  *
- * Modular architecture (Phase 2.4: ES Modules Migration):
- * - core/: State management + queue operations
- * - operations/: CRUD operations (create, update, delete)
- * - sync/: Sync engine with retry logic
+ * Phase 2.4: Foundation (types extracted)
  *
- * Features:
- * - Offline CRUD for Facts, Transfers, Plans, Shopping Lists
- * - Automatic sync when network restored
- * - Background Sync API support (Chrome, Edge)
- * - Fallback for Safari (polling)
- * - Conflict resolution with retry logic
- * - SmartNetworkDetector integration
- * - Web Worker for sync hash generation
+ * STATUS: offlineManager.ts (1,436 lines) - offline sync queue manager
+ * STRATEGY: Types extracted, class remains for future gradual refactoring
  *
- * Usage:
- * ```typescript
- * import OfflineManager from '@web/offline/offlineManager';
- *
- * const offlineManager = new OfflineManager();
- * await offlineManager.init();
- * await offlineManager.createFact(data);
- * ```
+ * Current usage: window.offlineManager (global instance)
  */
 
 // ============================================================================
-// Core State
+// Type Definitions (Phase 2.4: Complete)
 // ============================================================================
 
-export { getState, updateState, resetState } from './core/OfflineState';
+export {
+    createInitialState,
+    getState,
+    updateState,
+    resetState,
+    initializeState
+} from './core/OfflineState';
+
 export type {
-  OfflineState,
-  SyncResult,
-  OfflineManagerInfo,
-  NetworkStatusChangeOptions
+    SyncResult,
+    OfflineManagerInfo,
+    NetworkStatusChangeOptions,
+    PendingOperation,
+    OfflineManagerState
 } from './core/OfflineState';
 
 // ============================================================================
-// Queue Manager (TODO: Create queueManager.ts)
+// Future Modules (not yet implemented)
 // ============================================================================
 
 /*
+// Operations queue
 export {
-  addToQueue,
-  removeFromQueue,
-  getQueueItems,
-  clearQueue
-} from './core/queueManager';
-*/
+    queueCreate,
+    queueUpdate,
+    queueDelete,
+    getPendingCount
+} from './operations/queue';
 
-// ============================================================================
-// Create Operations (TODO: Create create.ts)
-// ============================================================================
-
-/*
+// Sync engine
 export {
-  createFact,
-  createFactOnline,
-  createFactOffline,
-  createTransfer,
-  createTransferOnline,
-  createTransferOffline,
-  createPlan,
-  createPlanOnline,
-  createPlanOffline,
-  createRecurringPlan,
-  createRecurringPlanOnline,
-  createRecurringPlanOffline
-} from './operations/create';
-*/
-
-// ============================================================================
-// Update Operations (TODO: Create update.ts)
-// ============================================================================
-
-/*
-export {
-  updateFact,
-  updateFactOnline,
-  updateFactOffline
-} from './operations/update';
-*/
-
-// ============================================================================
-// Delete Operations (TODO: Create delete.ts)
-// ============================================================================
-
-/*
-export {
-  deleteFact,
-  deleteFactOnline,
-  deleteFactOffline
-} from './operations/delete';
-*/
-
-// ============================================================================
-// Sync Engine (TODO: Create syncEngine.ts)
-// ============================================================================
-
-/*
-export {
-  sync,
-  syncQueue,
-  syncItemEnhanced,
-  syncCreateEnhanced,
-  syncUpdateEnhanced,
-  syncDeleteEnhanced
+    syncAll,
+    syncOne,
+    retryFailed
 } from './sync/syncEngine';
-*/
 
-// ============================================================================
-// Temporary: Re-export legacy class for compatibility
-// ============================================================================
+// Network detection
+export {
+    detectNetworkStatus,
+    onNetworkChange
+} from './sync/networkDetector';
 
-// TODO Phase 2.4: Remove after full modularization
-// For now, we only have OfflineState, so we can't instantiate OfflineManager yet
-// This will be uncommented once operation modules are created
-
-/*
-export class OfflineManager {
-  constructor() {
-    // Implementation using modules
-  }
-}
-
-export default OfflineManager;
+// Conflict resolution
+export {
+    resolveConflict,
+    getConflictStrategy
+} from './sync/conflictResolver';
 */

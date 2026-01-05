@@ -123,7 +123,7 @@ function updateHideCompletedButton(): void {
  * - Mark all completed (✅): Hide if ALL items are completed
  * - Unmark all completed (❌): Hide if ALL items are NOT completed
  */
-function updateFABButtons(): void {
+export function updateFABButtons(): void {
   const state = getState();
 
   // Early exit if no items

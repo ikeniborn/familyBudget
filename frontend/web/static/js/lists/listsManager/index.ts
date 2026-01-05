@@ -48,7 +48,8 @@ export {
   updateItem,
   deleteItem,
   deleteMultipleItems,
-  toggleItemCompleted
+  toggleItemCompleted,
+  updateItemsCache
 } from './core/listOperations';
 
 export type { ItemData } from './core/listOperations';
@@ -67,7 +68,8 @@ export {
 export {
   renderLandingView,
   renderDetailView,
-  renderShoppingListCards
+  renderShoppingListCards,
+  updateFABVisibility
 } from './rendering/listRenderer';
 
 // ============================================================================
@@ -77,7 +79,8 @@ export {
 export {
   handleSearch,
   clearSearch,
-  toggleHideCompleted
+  toggleHideCompleted,
+  updateFABButtons
 } from './features/searchFilter';
 
 export {
@@ -110,13 +113,12 @@ export {
 } from './ui/modalManager';
 
 // ============================================================================
-// Integration (TODO: Create integration modules)
+// Integration (Phase 3.5: Complete)
 // ============================================================================
 
-/*
 export {
   handleItemCreated,
   handleItemUpdated,
-  handleItemDeleted
-} from './integration/wsEventHandler';
-*/
+  handleItemDeleted,
+  handleItemCompletedToggled
+} from './integration/wsEventHandlers';

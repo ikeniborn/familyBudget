@@ -1,171 +1,157 @@
 /**
- * Offline Manager State Management
+ * Offline Manager - State Management
  *
- * Central state for offlineManager module.
- * This module has ZERO dependencies to prevent circular dependencies.
+ * Centralized state for offline operations queue and sync status.
  *
  * Phase 2.4: ES Modules Migration
- * Extracted from: frontend/web/static/js/offline/offlineManager.ts lines 42-141
+ * Extracted from: frontend/web/static/js/offline/offlineManager.ts
  */
-
-export {}; // Force module scope
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
 export interface SyncResult {
-  success: boolean;
-  error?: string;
-  tempId?: string;
-  serverId?: number;
+    success: boolean;
+    error?: string;
+    tempId?: string;
+    serverId?: number;
 }
 
 export interface OfflineManagerInfo {
-  online: boolean;
-  pendingCount: number;
-  syncInProgress: boolean;
-  lastSyncAttempt: string | null;
+    online: boolean;
+    pendingCount: number;
+    syncInProgress: boolean;
+    lastSyncAttempt: string | null;
 }
 
 export interface NetworkStatusChangeOptions {
-  source?: string;
-  [key: string]: any;
+    source?: string;
+    [key: string]: any;
 }
 
-export interface OfflineState {
-  // Database reference (IndexedDBManager)
-  db: any;
-
-  // Sync state
-  syncInProgress: boolean;
-  retryDelay: number;
-  maxRetries: number;
-  retryTimeout: ReturnType<typeof setTimeout> | null;
-
-  // Initialization
-  isInitialized: boolean;
-
-  // Toast management (debouncing)
-  lastToastTime: number;
-  toastDebounceMs: number;
-  lastOfflineToastTime: number;
-
-  // Navigation detection
-  isNavigating: boolean;
-  navigationTimeout: ReturnType<typeof setTimeout> | null;
-
-  // Deduplication cache
-  pendingCreates: Map<string, Promise<any>>;
-
-  // Adaptive timeout for cold backend
-  isFirstRequest: boolean;
-  firstRequestTimeout: number;
-  normalTimeout: number;
-  optimizedTimeout: number;
-
-  // Network detector (SmartNetworkDetector)
-  networkDetector: any;
-
-  // Web Worker reference (class-level in original)
-  workerWrapper: any;
+export interface PendingOperation {
+    id: string;
+    type: 'CREATE' | 'UPDATE' | 'DELETE';
+    entity: 'fact' | 'transfer' | 'plan' | 'shopping_list' | 'shopping_item';
+    data: any;
+    tempId?: string;
+    retryCount: number;
+    createdAt: number;
 }
 
 // ============================================================================
-// State Storage (Singleton)
-// ============================================================================
-
-let state: OfflineState = {
-  // Database (will be set in init)
-  db: null,
-
-  // Sync state
-  syncInProgress: false,
-  retryDelay: 5000, // 5 seconds
-  maxRetries: 5,
-  retryTimeout: null,
-
-  // Initialization
-  isInitialized: false,
-
-  // Toast management
-  lastToastTime: 0,
-  toastDebounceMs: 10000, // 10s to prevent spam
-  lastOfflineToastTime: 0,
-
-  // Navigation detection
-  isNavigating: false,
-  navigationTimeout: null,
-
-  // Deduplication
-  pendingCreates: new Map(),
-
-  // Adaptive timeout
-  isFirstRequest: true,
-  firstRequestTimeout: 8000, // 8s for first request (cold backend)
-  normalTimeout: 3000,       // 3s for normal requests
-  optimizedTimeout: 2000,    // 2s optimized
-
-  // Network detector
-  networkDetector: null,
-
-  // Web Worker
-  workerWrapper: null
-};
-
-// ============================================================================
-// State Accessors
+// State Interface
 // ============================================================================
 
 /**
- * Get current offline manager state (read-only)
- */
-export const getState = (): Readonly<OfflineState> => state;
-
-/**
- * Update state (partial updates)
+ * Complete state for OfflineManager
  *
- * @param updates - Partial state object with fields to update
+ * Manages:
+ * - Pending operations queue (IndexedDB)
+ * - Sync status and progress
+ * - Network detection
+ * - Retry logic
  */
-export const updateState = (updates: Partial<OfflineState>): void => {
-  state = { ...state, ...updates };
-};
+export interface OfflineManagerState {
+    // IndexedDB manager
+    db: any; // IndexedDBManager
+
+    // Sync status
+    syncInProgress: boolean;
+    isInitialized: boolean;
+
+    // Retry configuration
+    retryDelay: number;
+    maxRetries: number;
+    retryTimeout: ReturnType<typeof setTimeout> | null;
+
+    // Toast debouncing
+    lastToastTime: number;
+    toastDebounceMs: number;
+    lastOfflineToastTime: number;
+
+    // Navigation detection
+    isNavigating: boolean;
+    navigationTimeout: ReturnType<typeof setTimeout> | null;
+
+    // Pending operations map (dedupe)
+    pendingCreates: Map<string, Promise<any>>;
+
+    // Network detection
+    networkDetector: any; // SmartNetworkDetector
+    isFirstRequest: boolean;
+    firstRequestTimeout: number;
+    normalTimeout: number;
+    optimizedTimeout: number;
+}
+
+// ============================================================================
+// Initial State Factory
+// ============================================================================
 
 /**
- * Reset state to initial values
+ * Create initial Offline Manager state
  */
-export const resetState = (): void => {
-  // Clean up resources
-  if (state.retryTimeout) {
-    clearTimeout(state.retryTimeout);
-  }
-  if (state.navigationTimeout) {
-    clearTimeout(state.navigationTimeout);
-  }
-  if (state.networkDetector) {
-    // Network detector cleanup would be handled by its own module
-    state.networkDetector = null;
-  }
+export function createInitialState(db: any): OfflineManagerState {
+    return {
+        // IndexedDB manager
+        db,
 
-  // Reset state
-  state = {
-    db: null,
-    syncInProgress: false,
-    retryDelay: 5000,
-    maxRetries: 5,
-    retryTimeout: null,
-    isInitialized: false,
-    lastToastTime: 0,
-    toastDebounceMs: 10000,
-    lastOfflineToastTime: 0,
-    isNavigating: false,
-    navigationTimeout: null,
-    pendingCreates: new Map(),
-    isFirstRequest: true,
-    firstRequestTimeout: 8000,
-    normalTimeout: 3000,
-    optimizedTimeout: 2000,
-    networkDetector: null,
-    workerWrapper: null
-  };
+        // Sync status
+        syncInProgress: false,
+        isInitialized: false,
+
+        // Retry configuration
+        retryDelay: 5000, // 5 seconds
+        maxRetries: 3,
+        retryTimeout: null,
+
+        // Toast debouncing
+        lastToastTime: 0,
+        toastDebounceMs: 5000, // 5 seconds
+        lastOfflineToastTime: 0,
+
+        // Navigation detection
+        isNavigating: false,
+        navigationTimeout: null,
+
+        // Pending operations
+        pendingCreates: new Map(),
+
+        // Network detection
+        networkDetector: null,
+        isFirstRequest: true,
+        firstRequestTimeout: 8000, // 8 seconds for first request
+        normalTimeout: 5000, // 5 seconds normally
+        optimizedTimeout: 3000 // 3 seconds optimized
+    };
+}
+
+// ============================================================================
+// Singleton State (mimics class instance pattern)
+// ============================================================================
+
+let state: OfflineManagerState | null = null;
+
+export const getState = (): OfflineManagerState => {
+    if (!state) {
+        throw new Error('[OfflineState] State not initialized. Call createInitialState() first.');
+    }
+    return state;
+};
+
+export const updateState = (updates: Partial<OfflineManagerState>): void => {
+    if (!state) {
+        throw new Error('[OfflineState] State not initialized. Call createInitialState() first.');
+    }
+    state = { ...state, ...updates };
+};
+
+export const resetState = (db: any): void => {
+    state = createInitialState(db);
+};
+
+export const initializeState = (db: any): void => {
+    state = createInitialState(db);
 };

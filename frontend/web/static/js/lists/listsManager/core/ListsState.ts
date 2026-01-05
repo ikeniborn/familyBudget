@@ -32,6 +32,7 @@ export interface ShoppingItem {
   quantity: number;
   unit: string;
   is_completed: boolean;
+  completed_at?: string;
   store_id: number | null;
   product_group_id: number | null;
   notes: string | null;

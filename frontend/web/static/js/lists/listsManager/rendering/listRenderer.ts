@@ -137,7 +137,7 @@ function hideCreateListFAB(): void {
  * Update FAB visibility based on current view
  * Shows FAB when in detail view (regardless of item count)
  */
-function updateFABVisibility(): void {
+export function updateFABVisibility(): void {
   const fabMenu = document.getElementById('lists-fab-menu');
   const fabBackdrop = document.getElementById('lists-fab-backdrop');
 

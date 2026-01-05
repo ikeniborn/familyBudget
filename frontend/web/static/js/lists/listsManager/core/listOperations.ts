@@ -338,7 +338,7 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
 /**
  * Update items cache in IndexedDB
  */
-async function updateItemsCache(): Promise<void> {
+export async function updateItemsCache(): Promise<void> {
   const state = getState();
 
   if (state.db && state.currentListId) {
