@@ -54,7 +54,7 @@ export {
 export type { ItemData } from './core/listOperations';
 
 // ============================================================================
-// Rendering (Phase 3.2: Partial)
+// Rendering (Phase 3.2: Complete)
 // ============================================================================
 
 export {
@@ -64,13 +64,11 @@ export {
   getProductGroupBreadcrumbs
 } from './rendering/tableBuilder';
 
-// TODO: Create listRenderer.ts
-/*
 export {
   renderLandingView,
-  renderDetailView
+  renderDetailView,
+  renderShoppingListCards
 } from './rendering/listRenderer';
-*/
 
 // ============================================================================
 // Features (TODO: Create feature modules)

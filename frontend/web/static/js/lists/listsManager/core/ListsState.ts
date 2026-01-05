@@ -20,6 +20,9 @@ export interface ShoppingList {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  description?: string;          // Optional description
+  total_items?: number;          // Total item count (from API)
+  completed_items?: number;      // Completed item count (from API)
 }
 
 export interface ShoppingItem {
