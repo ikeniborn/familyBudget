@@ -93,16 +93,21 @@ export {
 } from './features/autocomplete';
 
 // ============================================================================
-// UI (TODO: Create UI modules)
+// UI (Phase 3.4: Complete)
 // ============================================================================
 
-/*
 export {
   openAddItemModal,
   openEditItemModal,
-  closeItemModal
+  closeItemModal,
+  handleDeleteFromModal,
+  openCreateListModal,
+  closeCreateListModal,
+  handleCreateList,
+  openDeleteListModal,
+  closeDeleteListModal,
+  confirmDeleteList
 } from './ui/modalManager';
-*/
 
 // ============================================================================
 // Integration (TODO: Create integration modules)
