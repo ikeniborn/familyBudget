@@ -968,6 +968,30 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # CRITICAL: Sync package.json to .npm-isolated if changed
+    # - After sync_code_to_deploy: package.json is up-to-date in /opt/budget
+    # - Before npm build: .npm-isolated/package.json must match root package.json
+    # - Install new dependencies if package.json changed
+    if [[ -f "$DEPLOY_DIR/.npm-isolated/package.json" && -f "$DEPLOY_DIR/package.json" ]]; then
+        if ! diff -q "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json" >/dev/null 2>&1; then
+            print_message info "package.json changed - syncing to .npm-isolated"
+            cp "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json"
+
+            # Install new dependencies in isolated environment
+            print_message info "Installing new npm dependencies..."
+            cd "$DEPLOY_DIR/.npm-isolated" || error "Failed to enter .npm-isolated directory"
+            if npm install --no-save 2>&1; then
+                print_message success "npm dependencies updated successfully"
+            else
+                print_message warning "npm install failed - build may fail"
+            fi
+            cd "$DEPLOY_DIR" || error "Failed to return to deploy directory"
+        else
+            print_message info "package.json unchanged - skipping .npm-isolated sync"
+        fi
+    fi
+    echo ""
+
     # Analyze sync changes for smart restart decisions
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
@@ -1183,18 +1207,20 @@ main() {
             exit 1
         fi
 
-        # ARCHITECTURE FIX (2025-11-21):
-        # - Use NODE_PATH instead of symlinks for module resolution
+        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-05):
+        # - Use NODE_PATH for CommonJS require() module resolution
+        # - Use temporary symlink for ES modules (rollup.config.mjs) import resolution
         # - Problem: Symlinked node_modules breaks nested require() in bundled modules
         #   (browserslist → node-releases/data/processed/envs.json fails)
-        # - Solution: Set NODE_PATH to tell Node.js where to find modules directly
+        # - Solution 1: Set NODE_PATH to tell Node.js where to find CommonJS modules
+        # - Solution 2: Create temporary symlink for Rollup ES imports (removed after build)
 
-        # CRITICAL: Remove /opt/budget/node_modules (symlink OR directory)
-        # - Only .npm-isolated/node_modules should exist
-        # - If /opt/budget/node_modules exists, npm will use IT instead of NODE_PATH
-        # - This causes "Cannot find module" errors for incomplete installations
+        # CRITICAL: Remove /opt/budget/node_modules before build (if exists)
+        # - Only .npm-isolated/node_modules should exist (accessed via NODE_PATH or symlink)
+        # - If /opt/budget/node_modules exists BEFORE build, npm may use wrong version
+        # - Temporary symlink will be created DURING build for Rollup (line ~1215)
         if [[ -e "$PWD/node_modules" ]]; then
-            print_message info "Removing $PWD/node_modules (will use .npm-isolated/node_modules)"
+            print_message info "Removing $PWD/node_modules (will recreate temporarily for Rollup)"
             rm -rf "$PWD/node_modules"
             print_message success "Removed - using .npm-isolated/node_modules exclusively"
         fi
@@ -1206,6 +1232,15 @@ main() {
         export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
 
         print_message info "npm build environment configured (PATH + NODE_PATH)"
+
+        # CRITICAL FIX (2026-01-05): ES modules (rollup.config.mjs) don't use NODE_PATH
+        # - Rollup config uses ES import which ignores NODE_PATH
+        # - Create temporary symlink for ES module resolution
+        # - Will be removed after build (line ~1252)
+        if [[ ! -e "$PWD/node_modules" ]]; then
+            ln -sf "$node_modules_dir" "$PWD/node_modules"
+            print_message info "Created temporary node_modules symlink for Rollup ES imports"
+        fi
 
         echo ""
         # CRITICAL: Pass CACHE_VERSION explicitly to npm subprocess
@@ -1244,6 +1279,12 @@ main() {
             print_message warning "Build failed - check npm logs above"
             print_message warning "Continuing with existing/unminified assets"
             echo ""
+        fi
+
+        # Remove temporary symlink (created for Rollup ES imports)
+        if [[ -L "$PWD/node_modules" ]]; then
+            rm -f "$PWD/node_modules"
+            print_message info "Removed temporary node_modules symlink"
         fi
 
         # Restore PATH and NODE_PATH (remove isolated paths)
