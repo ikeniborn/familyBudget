@@ -40,17 +40,18 @@ export {
 } from './core/stateManager';
 
 // ============================================================================
-// CRUD Operations (TODO: Create listOperations.ts)
+// CRUD Operations (Phase 3.1 part 2: Complete)
 // ============================================================================
 
-/*
 export {
   createItem,
   updateItem,
   deleteItem,
+  deleteMultipleItems,
   toggleItemCompleted
 } from './core/listOperations';
-*/
+
+export type { ItemData } from './core/listOperations';
 
 // ============================================================================
 // Rendering (TODO: Create rendering modules)
