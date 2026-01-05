@@ -73,6 +73,9 @@ export interface ListsState {
   // IndexedDB instance (offline support)
   db: any | null;
 
+  // Offline shopping manager (Phase 3.1)
+  offlineShopping: any | null;
+
   // Debounced functions
   debouncedSearch: (() => void) | null;
   quantityChangeHandler: ((e: Event) => void) | null;
@@ -101,6 +104,7 @@ let state: ListsState = {
   choicesInstances: {},
   hierarchyView: null,
   db: null,
+  offlineShopping: null,
   debouncedSearch: null,
   quantityChangeHandler: null,
   handleUnitChange: null,
@@ -152,6 +156,7 @@ export const resetState = (): void => {
     choicesInstances: {},
     hierarchyView: null,
     db: null,
+    offlineShopping: null,
     debouncedSearch: null,
     quantityChangeHandler: null,
     handleUnitChange: null,

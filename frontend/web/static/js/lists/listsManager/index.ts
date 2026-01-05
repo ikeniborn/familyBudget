@@ -28,17 +28,16 @@ export type {
 } from './core/ListsState';
 
 // ============================================================================
-// State Manager (TODO: Create stateManager.ts)
+// State Manager (Phase 3.1: Complete)
 // ============================================================================
 
-/*
 export {
   initializeListsManager,
+  isOnline,
   loadShoppingLists,
   loadShoppingListItems,
   switchToList
 } from './core/stateManager';
-*/
 
 // ============================================================================
 // CRUD Operations (TODO: Create listOperations.ts)
