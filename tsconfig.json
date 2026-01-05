@@ -4,7 +4,7 @@
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",  // CHANGED: Support Rollup bundler (was: "node")
 
     /* Strict Type Checking */
     "strict": true,
@@ -23,10 +23,10 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Emit */
-    "declaration": true,
-    "sourceMap": false,
+    "declaration": false,  // CHANGED: No .d.ts files for browser bundles (was: true)
+    "sourceMap": true,     // CHANGED: Enable source maps for debugging (was: false)
     "removeComments": false,
-    "noEmit": true,
+    "noEmit": false,       // CHANGED: Allow Rollup to compile (was: true)
 
     /* Interop Constraints */
     "isolatedModules": true,
@@ -54,6 +54,8 @@
     "frontend/**/vendor",
     "frontend/**/*.min.js",
     "frontend/**/*.temp.js",
+    "frontend/**/dist",      // NEW: Exclude Rollup output directories
+    "frontend/**/*.bundle.js", // NEW: Exclude bundle files
     ".nvm-isolated"
   ]
 }
