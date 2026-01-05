@@ -54,19 +54,22 @@ export {
 export type { ItemData } from './core/listOperations';
 
 // ============================================================================
-// Rendering (TODO: Create rendering modules)
+// Rendering (Phase 3.2: Partial)
 // ============================================================================
 
+export {
+  renderItemsTable,
+  renderCurrentView,
+  filterItemsBySearch,
+  getProductGroupBreadcrumbs
+} from './rendering/tableBuilder';
+
+// TODO: Create listRenderer.ts
 /*
 export {
   renderLandingView,
   renderDetailView
 } from './rendering/listRenderer';
-
-export {
-  renderItemsTable,
-  updateItemInTable
-} from './rendering/tableBuilder';
 */
 
 // ============================================================================
