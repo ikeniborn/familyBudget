@@ -188,8 +188,20 @@ minify_ts_file() {
 
     # Step 1: Compile .ts to .js using TypeScript compiler
     # TypeScript generates .js in same directory as .ts file
+    # Use isolated tsc to avoid conflicts with global installations
     local tsc_output
-    tsc_output=$(npx tsc "$input_file" \
+    local tsc_cmd
+
+    # Try isolated npm environment first, then fall back to npx
+    if [[ -x ".npm-isolated/node_modules/.bin/tsc" ]]; then
+        tsc_cmd=".npm-isolated/node_modules/.bin/tsc"
+    elif [[ -x "node_modules/.bin/tsc" ]]; then
+        tsc_cmd="node_modules/.bin/tsc"
+    else
+        tsc_cmd="npx tsc"
+    fi
+
+    tsc_output=$("$tsc_cmd" "$input_file" \
         --target ES2020 \
         --module ESNext \
         --lib ES2020,DOM,DOM.Iterable \
