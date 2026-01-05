@@ -834,6 +834,7 @@ class CalendarWidget {
    * @private
    */
   _createCustomTriggerButton() {
+    if (!this.triggerContainer) return;
     const container = document.querySelector(this.triggerContainer);
     if (!container) {
       console.warn(`CalendarWidget: triggerContainer "${this.triggerContainer}" not found, falling back to default buttons`);
@@ -895,7 +896,9 @@ class CalendarWidget {
     this.triggerButtons.push(button);
 
     // Wrap input in relative container if not already wrapped
+    if (!targetInput) return;
     const parent = targetInput.parentElement;
+    if (!parent) return;
     if (!parent.classList.contains('relative')) {
       const wrapper = document.createElement('div');
       wrapper.className = 'relative flex-1';
@@ -1006,7 +1009,9 @@ class CalendarWidget {
       </div>
     `;
 
-    this.calendarElement.innerHTML = html;
+    if (this.calendarElement) {
+      this.calendarElement.innerHTML = html;
+    }
   }
 
   /**
@@ -1098,11 +1103,11 @@ class CalendarWidget {
    */
   _isDateSelected(date: Date): boolean {
     if (this.mode === 'single') {
-      return this.selectedDate && date.getTime() === this.selectedDate.getTime();
+      return !!(this.selectedDate && date.getTime() === this.selectedDate.getTime());
     }
     if (this.mode === 'range') {
-      const startMatch = this.startDate && date.getTime() === this.startDate.getTime();
-      const endMatch = this.endDate && date.getTime() === this.endDate.getTime();
+      const startMatch = !!(this.startDate && date.getTime() === this.startDate.getTime());
+      const endMatch = !!(this.endDate && date.getTime() === this.endDate.getTime());
       return startMatch || endMatch;
     }
     return false;
@@ -1123,8 +1128,8 @@ class CalendarWidget {
    */
   _isRangeBoundary(date: Date): boolean {
     if (this.mode !== 'range') return false;
-    const startMatch = this.startDate && date.getTime() === this.startDate.getTime();
-    const endMatch = this.endDate && date.getTime() === this.endDate.getTime();
+    const startMatch = !!(this.startDate && date.getTime() === this.startDate.getTime());
+    const endMatch = !!(this.endDate && date.getTime() === this.endDate.getTime());
     return startMatch || endMatch;
   }
 
@@ -1234,9 +1239,9 @@ class CalendarWidget {
     });
 
     // Allow manual input
-    if (this.mode === 'single') {
+    if (this.mode === 'single' && this.inputElement) {
       this.inputElement.addEventListener('blur', () => {
-        const value = this.inputElement.value;
+        const value = this.inputElement?.value || '';
         if (DateFormatter.isValidDisplayFormat(value)) {
           const date = DateFormatter.parse(value);
           if (date) {
@@ -1686,7 +1691,7 @@ class ChoicesCategoryTree {
     static _pendingRequests = new Map();  // key: "type:showInactive:fcPart" -> Promise
 
     // Web Worker for hierarchy processing (Phase 2: Performance Optimization)
-    static _workerWrapper = null;
+    static _workerWrapper: any = null;
 
     // Instance properties
     selector: string;
@@ -1705,19 +1710,20 @@ class ChoicesCategoryTree {
         mode: string;
     };
     choices: any | null;
-    categories: any[];
-    categoryMap: Map<any, any>;
-    childrenMap: Map<any, any>;
-    _initPromise: Promise<void> | null;
+    categories!: any[];
+    categoryMap!: Map<any, any>;
+    childrenMap!: Map<any, any>;
+    _initPromise!: (() => void) | null;
+    _clearAllBtn?: HTMLButtonElement;
 
     /**
      * Initialize Web Worker for category hierarchy processing.
      * Called automatically on first use, or can be preloaded.
      */
     static initializeWorker() {
-        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+        if (!this._workerWrapper && typeof (window as any).WorkerWrapper !== 'undefined') {
             try {
-                this._workerWrapper = new WorkerWrapper('/static/js/workers/hierarchyWorker.min.js', {
+                this._workerWrapper = new (window as any).WorkerWrapper('/static/js/workers/hierarchyWorker.min.js', {
                     idleTimeout: 30000,  // 30s for category tree (less aggressive than default)
                     debugMode: window.DEBUG_MODE || false
                 });
@@ -1738,7 +1744,7 @@ class ChoicesCategoryTree {
      * @param {boolean} options.showInactive - Include archived categories (default: false)
      * @returns {Promise<void>}
      */
-    static async preloadCategories(options = {}) {
+    static async preloadCategories(options: any = {}) {
         const apiBaseUrl = options.apiBaseUrl || '/api/v1';
         const showInactive = options.showInactive || false;
 
@@ -1753,13 +1759,13 @@ class ChoicesCategoryTree {
 
             // Skip if already cached
             if (ChoicesCategoryTree._cache.has(cacheKey)) {
-                debugLog(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
+                if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
                 return;
             }
 
             // Skip if request already in flight
             if (ChoicesCategoryTree._pendingRequests.has(cacheKey)) {
-                debugLog(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
+                if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
                 return ChoicesCategoryTree._pendingRequests.get(cacheKey);
             }
 
@@ -1784,7 +1790,7 @@ class ChoicesCategoryTree {
                     timestamp: Date.now()
                 });
 
-                debugLog(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
+                if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
             } catch (error: any) {
                 console.warn(`[ChoicesCategoryTree] Network error preloading ${type} categories:`, error.message);
             }
@@ -1806,7 +1812,7 @@ class ChoicesCategoryTree {
      * @param {boolean} options.showInactive - Include archived categories (default: false)
      * @param {number|null} options.financialCenterId - OPTIONAL: Filter categories by financial center ID
      */
-    constructor(selector, options = {}) {
+    constructor(selector: string, options: any = {}) {
         this.selector = selector;
         this.element = document.querySelector(selector);
 
@@ -1894,7 +1900,7 @@ class ChoicesCategoryTree {
 
         // Check if we're offline - skip API call and use cache or empty
         if (!navigator.onLine) {
-            debugLog('[ChoicesCategoryTree] Offline mode - skipping API call, using cache');
+            if (typeof (window as any).debugLog === "function") (window as any).debugLog('[ChoicesCategoryTree] Offline mode - skipping API call, using cache');
             // Try to find any cached data for this type (without FC filter)
             const fallbackKey = `${this.options.type}:${this.options.showInactive}:all`;
             const fallback = ChoicesCategoryTree._cache.get(fallbackKey);
@@ -1913,7 +1919,7 @@ class ChoicesCategoryTree {
         }
 
         // Build headers conditionally
-        const headers = {};
+        const headers: Record<string, string> = {};
 
         // If auth instance provided, use Bearer token (Telegram WebApp)
         if (this.auth && typeof this.auth.getToken === 'function') {
@@ -1933,7 +1939,7 @@ class ChoicesCategoryTree {
             if (!response.ok) {
                 // Graceful degradation for 401 Unauthorized (user not authenticated)
                 if (response.status === 401) {
-                    debugLog('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
                     return [];  // Empty categories array
                 }
 
@@ -1958,7 +1964,7 @@ class ChoicesCategoryTree {
             // Try to use stale cache if available (ignore TTL in offline mode)
             const staleCache = ChoicesCategoryTree._cache.get(cacheKey);
             if (staleCache && staleCache.data && staleCache.data.length > 0) {
-                debugLog('[ChoicesCategoryTree] Using stale cache for offline mode');
+                if (typeof (window as any).debugLog === "function") (window as any).debugLog('[ChoicesCategoryTree] Using stale cache for offline mode');
                 return staleCache.data;
             }
 
@@ -1968,7 +1974,7 @@ class ChoicesCategoryTree {
                 const allCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
                 const allCache = ChoicesCategoryTree._cache.get(allCacheKey);
                 if (allCache && allCache.data && allCache.data.length > 0) {
-                    debugLog(`[ChoicesCategoryTree] Offline: No cache for FC ${this.options.financialCenterId}, using all categories`);
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Offline: No cache for FC ${this.options.financialCenterId}, using all categories`);
                     // Note: This returns all categories, not filtered by FC
                     // User can still select categories, filtering will apply when back online
                     return allCache.data;
@@ -2080,8 +2086,8 @@ class ChoicesCategoryTree {
 
         // Otherwise, create and return a Promise that will be resolved
         // when buildHierarchyMaps() completes
-        return new Promise((resolve) => {
-            this._initPromise = resolve;
+        return new Promise<void>((resolve) => {
+            this._initPromise = resolve as () => void;
         });
     }
 
@@ -2113,7 +2119,7 @@ class ChoicesCategoryTree {
      * @param {number} categoryId - Category ID
      * @returns {Promise<Array>|Array} Array of parent categories (root to parent)
      */
-    getParentChain(categoryId) {
+    getParentChain(categoryId: number): any[] | Promise<any> {
         const category = this.categoryMap.get(categoryId);
 
         if (!category || !category.parent_id) {
@@ -2133,8 +2139,8 @@ class ChoicesCategoryTree {
      * Synchronous parent chain (original implementation).
      * @private
      */
-    _getParentChainSync(categoryId) {
-        const chain = [];
+    _getParentChainSync(categoryId: number): any[] {
+        const chain: any[] = [];
         const category = this.categoryMap.get(categoryId);
 
         if (!category || !category.parent_id) {
@@ -2158,14 +2164,14 @@ class ChoicesCategoryTree {
      * Worker-based parent chain for large datasets.
      * @private
      */
-    async _getParentChainWorker(categoryId) {
+    async _getParentChainWorker(categoryId: number): Promise<any> {
         try {
             ChoicesCategoryTree.initializeWorker();
 
             // Convert Maps to plain objects for worker
             const categoryMap = Object.fromEntries(this.categoryMap);
 
-            const result = await ChoicesCategoryTree._workerWrapper.execute({
+            const result = await ChoicesCategoryTree._workerWrapper?.execute({
                 action: 'getParentChain',
                 data: { categoryId, categoryMap }
             });
@@ -2182,16 +2188,18 @@ class ChoicesCategoryTree {
      *
      * @param {Array} categories - Categories to display
      */
-    initChoices(categories) {
+    initChoices(categories: any[]): void {
         // Clear placeholder option from select element before Choices.js initialization
         // This prevents placeholder from appearing in dropdown list
-        this.element.innerHTML = '';
+        if (this.element) {
+            this.element.innerHTML = '';
+        }
 
         // Prepare choices data with parent chain
-        const choices = categories.map(cat => {
+        const choices = categories.map((cat: any) => {
             const parentChain = this.getParentChain(cat.id);
-            const parentText = parentChain.length > 0
-                ? parentChain.map(p => p.name).join(' › ')
+            const parentText = (Array.isArray(parentChain) && parentChain.length > 0)
+                ? parentChain.map((p: any) => p.name).join(' › ')
                 : '';
 
             return {
@@ -2233,7 +2241,7 @@ class ChoicesCategoryTree {
             },
 
             // Custom templates for dropdown items (show parent chain)
-            callbackOnCreateTemplates: (template) => {
+            callbackOnCreateTemplates: (template: any) => {
                 return this.options.multiple
                     ? this._createMultipleTemplates(template)
                     : this._createSingleTemplates(template);
@@ -2262,39 +2270,44 @@ class ChoicesCategoryTree {
 
         // Add choices WITHOUT auto-selecting first item
         // 4th parameter FALSE prevents Choices.js from auto-selecting
-        this.choices.setChoices(choices, 'value', 'label', false);
+        if (this.choices) {
+            this.choices.setChoices(choices, 'value', 'label', false);
+        }
 
         // Listen for change events
-        this.element.addEventListener('change', (event) => {
-            console.log('[ChoicesCategoryTree] Change event:', {
-                elementId: this.element.id,
-                value: event.target.value,
-                timestamp: new Date().toISOString()
+        if (this.element) {
+            this.element.addEventListener('change', (event) => {
+                console.log('[ChoicesCategoryTree] Change event:', {
+                    elementId: this.element?.id,
+                    value: (event.target as HTMLSelectElement)?.value,
+                    timestamp: new Date().toISOString()
+                });
+                this.handleCategoryChange(event);
             });
-            this.handleCategoryChange(event);
-        });
+        }
 
         // Add event listeners for Choices.js dropdown interaction (debugging iOS Safari)
-        if (this.choices) {
+        if (this.choices && this.element) {
             this.element.addEventListener('showDropdown', () => {
                 console.log('[ChoicesCategoryTree] Dropdown opened:', {
-                    elementId: this.element.id,
+                    elementId: this.element?.id,
                     timestamp: new Date().toISOString()
                 });
             });
 
             this.element.addEventListener('hideDropdown', () => {
                 console.log('[ChoicesCategoryTree] Dropdown closed:', {
-                    elementId: this.element.id,
+                    elementId: this.element?.id,
                     timestamp: new Date().toISOString()
                 });
             });
 
             this.element.addEventListener('choice', (event) => {
+                const customEvent = event as CustomEvent;
                 console.log('[ChoicesCategoryTree] Item selected:', {
-                    elementId: this.element.id,
-                    choiceId: event.detail.choice.value,
-                    choiceLabel: event.detail.choice.label,
+                    elementId: this.element?.id,
+                    choiceId: customEvent.detail?.choice?.value,
+                    choiceLabel: customEvent.detail?.choice?.label,
                     timestamp: new Date().toISOString()
                 });
             });
@@ -2310,10 +2323,10 @@ class ChoicesCategoryTree {
      * Create templates for single-select mode (existing behavior).
      * @private
      */
-    _createSingleTemplates(template) {
+    _createSingleTemplates(template: any): any {
         return {
             // Dropdown item template (shown in dropdown list)
-            choice: (classNames, data) => {
+            choice: (classNames: any, data: any) => {
                 const parentText = data.customProperties?.parent_text || '';
                 const label = data.label;
 
@@ -2333,7 +2346,7 @@ class ChoicesCategoryTree {
             },
 
             // Selected item template (shown after selection)
-            item: (classNames, data) => {
+            item: (classNames: any, data: any) => {
                 // For selected item, show only label (no parent chain)
                 return template(`
                     <div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}"
@@ -2355,12 +2368,12 @@ class ChoicesCategoryTree {
      * When showClearButton=true: comma-separated text (use clear-all button)
      * @private
      */
-    _createMultipleTemplates(template) {
+    _createMultipleTemplates(template: any): any {
         const showRemoveButtons = !this.options.showClearButton;
 
         return {
             // Dropdown item template (same as single - shows parent chain)
-            choice: (classNames, data) => {
+            choice: (classNames: any, data: any) => {
                 const parentText = data.customProperties?.parent_text || '';
                 const label = data.label;
 
@@ -2380,7 +2393,7 @@ class ChoicesCategoryTree {
             },
 
             // Selected item template
-            item: (classNames, data) => {
+            item: (classNames: any, data: any) => {
                 if (showRemoveButtons) {
                     // Badge style with individual remove button
                     return template(`
@@ -2421,7 +2434,7 @@ class ChoicesCategoryTree {
      * @private
      */
     _addClearAllButton() {
-        const choicesContainer = this.element.closest('.choices');
+        const choicesContainer = this.element?.closest('.choices');
         if (!choicesContainer) return;
 
         // Create wrapper for clear button (positioned under form)
@@ -2443,7 +2456,9 @@ class ChoicesCategoryTree {
         wrapper.appendChild(clearBtn);
 
         // Insert AFTER choices container (под формой)
-        choicesContainer.parentElement.insertBefore(wrapper, choicesContainer.nextSibling);
+        if (choicesContainer.parentElement) {
+            choicesContainer.parentElement.insertBefore(wrapper, choicesContainer.nextSibling);
+        }
 
         // Handle click
         clearBtn.addEventListener('click', (e) => {
@@ -2473,13 +2488,13 @@ class ChoicesCategoryTree {
      *
      * @param {Event} event - Change event
      */
-    async handleCategoryChange(event) {
+    async handleCategoryChange(event: Event) {
         if (!this.options.onCategoryChange) return;
 
         if (this.options.multiple) {
             // Multi-select mode: get all selected items using Choices.js API
             const selectedItems = this.choices?.getValue() || [];
-            const selectedCategories = selectedItems.map(item => {
+            const selectedCategories = selectedItems.map((item: any) => {
                 const categoryId = parseInt(item.value);
                 return this.categoryMap.get(categoryId);
             }).filter(Boolean);  // Remove nulls
@@ -2488,7 +2503,7 @@ class ChoicesCategoryTree {
             this._updateClearAllVisibility();
         } else {
             // Single-select mode (existing behavior)
-            const categoryId = parseInt(event.target.value);
+            const categoryId = parseInt((event.target as HTMLSelectElement).value);
             if (!categoryId) return;
 
             const category = this.categoryMap.get(categoryId);
@@ -2501,7 +2516,7 @@ class ChoicesCategoryTree {
      *
      * @param {string} message - Error message
      */
-    showError(message) {
+    showError(message: string) {
         if (window.Telegram && window.Telegram.WebApp) {
             window.Telegram.WebApp.showAlert(message);
         } else {
@@ -2520,7 +2535,7 @@ class ChoicesCategoryTree {
 
         // Complete DOM cleanup to prevent reinitialization errors
         if (this.element) {
-            this.element.value = '';
+            (this.element as HTMLSelectElement).value = '';
             this.element.classList.remove('choices__input', 'choices__input--cloned');
             this.element.removeAttribute('data-choice');
         }
@@ -2536,7 +2551,7 @@ class ChoicesCategoryTree {
      *
      * @param {string} newType - New category type ('income' or 'expense')
      */
-    async updateType(newType) {
+    async updateType(newType: string) {
         // Update type in options
         this.options.type = newType;
 
@@ -2548,7 +2563,7 @@ class ChoicesCategoryTree {
 
         // Reset selection (single mode fallback)
         if (this.element) {
-            this.element.value = '';
+            (this.element as HTMLSelectElement).value = '';
         }
 
         try {
@@ -2569,10 +2584,10 @@ class ChoicesCategoryTree {
                 this.choices.clearStore();
 
                 // Prepare new choices data with parent chain
-                const choices = displayCategories.map(cat => {
+                const choices = displayCategories.map((cat: any) => {
                     const parentChain = this.getParentChain(cat.id);
-                    const parentText = parentChain.length > 0
-                        ? parentChain.map(p => p.name).join(' › ')
+                    const parentText = (Array.isArray(parentChain) && parentChain.length > 0)
+                        ? parentChain.map((p: any) => p.name).join(' › ')
                         : '';
 
                     return {
@@ -2593,7 +2608,7 @@ class ChoicesCategoryTree {
                 // Clear any existing selection (shouldn't be any, but to be safe)
                 this.choices.removeActiveItems();
                 if (this.element) {
-                    this.element.value = '';
+                    (this.element as HTMLSelectElement).value = '';
                 }
 
                 // Log warning if no categories available (likely offline without cache)
@@ -2630,7 +2645,7 @@ class ChoicesCategoryTree {
      *
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
-    async updateFinancialCenter(financialCenterId) {
+    async updateFinancialCenter(financialCenterId: number | null) {
         console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
         console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
         console.log(`[ChoicesCategoryTree] Current options:`, {
@@ -2666,7 +2681,7 @@ class ChoicesCategoryTree {
         // CRITICAL FIX: Read directly from element.value instead of choices.getValue()
         // choices.getValue() may return undefined even when element has a value
         // This happens when category is set via element.value = '123' before Choices.js syncs
-        const elementValue = this.element ? this.element.value : null;
+        const elementValue = this.element ? (this.element as HTMLSelectElement).value : null;
         const previousSelectionId = elementValue ? parseInt(elementValue) : null;
 
         // Also get Choices.js API value for logging (but don't rely on it for logic)
@@ -2710,10 +2725,10 @@ class ChoicesCategoryTree {
                 this.choices.clearStore();
 
                 // Prepare new choices data with parent chain
-                const choices = displayCategories.map(cat => {
+                const choices = displayCategories.map((cat: any) => {
                     const parentChain = this.getParentChain(cat.id);
-                    const parentText = parentChain.length > 0
-                        ? parentChain.map(p => p.name).join(' › ')
+                    const parentText = (Array.isArray(parentChain) && parentChain.length > 0)
+                        ? parentChain.map((p: any) => p.name).join(' › ')
                         : '';
 
                     return {
@@ -2766,31 +2781,31 @@ class ChoicesCategoryTree {
                 if (shouldPreserve) {
                     console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
                     await this.setSelectedCategory(previousSelectionId);
-                    debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
                     // Clear selection
                     this.choices.removeActiveItems();
                     if (this.element) {
-                        this.element.value = '';
+                        (this.element as HTMLSelectElement).value = '';
                     }
 
                     if (this.options.mode === 'create') {
                         console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
-                        debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
+                        if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
                     } else if (!categoryStillAvailable && previousSelectionId) {
                         console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
-                        debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
+                        if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
                     } else {
                         console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
-                        debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
+                        if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                     }
                 }
 
                 // Log info about filtering
                 if (financialCenterId) {
-                    debugLog(`[ChoicesCategoryTree] Filtered to FC ${financialCenterId}: ${choices.length} categories`);
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Filtered to FC ${financialCenterId}: ${choices.length} categories`);
                 } else {
-                    debugLog(`[ChoicesCategoryTree] Showing all categories: ${choices.length}`);
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Showing all categories: ${choices.length}`);
                 }
 
                 // Warn if using fallback data (all categories) due to offline
@@ -2803,7 +2818,7 @@ class ChoicesCategoryTree {
             console.log(`[ChoicesCategoryTree] Final state:`, {
                 financialCenterId: this.options.financialCenterId,
                 categoriesCount: this.categories.length,
-                finalElementValue: this.element ? this.element.value : null,
+                finalElementValue: this.element ? (this.element as HTMLSelectElement).value : null,
                 finalActiveItems: this.choices ? this.choices.getValue(true) : null
             });
         } catch (error: any) {
@@ -2818,7 +2833,7 @@ class ChoicesCategoryTree {
      * @returns {Object|null} Selected category or null
      */
     getSelectedCategory() {
-        const categoryId = parseInt(this.element.value);
+        const categoryId = this.element ? parseInt((this.element as HTMLSelectElement).value) : NaN;
         return categoryId ? this.categoryMap.get(categoryId) : null;
     }
 
@@ -2837,7 +2852,7 @@ class ChoicesCategoryTree {
 
         // Clear DOM element value
         if (this.element) {
-            this.element.value = '';
+            (this.element as HTMLSelectElement).value = '';
             console.log('[ChoicesCategoryTree] Element value cleared');
         }
 
@@ -2857,7 +2872,7 @@ class ChoicesCategoryTree {
         }
 
         const selectedItems = this.choices.getValue() || [];
-        return selectedItems.map(item => {
+        return selectedItems.map((item: any) => {
             const categoryId = parseInt(item.value);
             return this.categoryMap.get(categoryId);
         }).filter(Boolean);
@@ -2866,8 +2881,9 @@ class ChoicesCategoryTree {
     /**
      * Clear all selected categories (for multiple mode).
      * Triggers onCategoryChange callback with empty array.
+     * @deprecated - use clearSelection() instead
      */
-    clearSelection() {
+    _clearSelection_DEPRECATED() {
         if (!this.choices) return;
 
         // Remove all selected items using Choices.js API
@@ -2889,7 +2905,7 @@ class ChoicesCategoryTree {
      * @param {number} maxRetries - Maximum retry attempts (default: 3)
      * @param {number} retryDelay - Delay between retries in ms (default: 100)
      */
-    async setSelectedCategory(categoryId, maxRetries = 3, retryDelay = 100) {
+    async setSelectedCategory(categoryId: number, maxRetries: number = 3, retryDelay: number = 100) {
         if (!this.choices) {
             console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
             return;
@@ -2900,7 +2916,7 @@ class ChoicesCategoryTree {
             const availableChoices = this.choices._store?.choices || [];
 
             // Find the choice we're trying to set
-            const targetChoice = availableChoices.find(c => c.value == categoryId || c.value === categoryId.toString());
+            const targetChoice = availableChoices.find((c: any) => c.value == categoryId || c.value === categoryId.toString());
 
             if (targetChoice) {
                 // CRITICAL: Use the same type as stored in choices
@@ -2929,19 +2945,19 @@ class ChoicesCategoryTree {
 }
 
 
-    //=============================================================================
-    // Export BudgetShared namespace to window
-    //=============================================================================
+//=============================================================================
+// Export BudgetShared namespace to window
+//=============================================================================
 
-    window.BudgetShared = {
-        DateFormatter,
-        CalendarWidget,
-        ChoicesCategoryTree
-    };
+(window as any).BudgetShared = {
+    DateFormatter,
+    CalendarWidget,
+    ChoicesCategoryTree
+};
 
-    // Legacy global exports for backward compatibility
-    window.DateFormatter = DateFormatter;
-    window.CalendarWidget = CalendarWidget;
-    window.ChoicesCategoryTree = ChoicesCategoryTree;
+// Legacy global exports for backward compatibility
+(window as any).DateFormatter = DateFormatter;
+(window as any).CalendarWidget = CalendarWidget;
+(window as any).ChoicesCategoryTree = ChoicesCategoryTree;
 
 })(window);

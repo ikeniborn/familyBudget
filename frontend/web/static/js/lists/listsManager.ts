@@ -221,7 +221,7 @@ class ListsManager {
         }
 
         // Create new debounced search handler
-        let searchTimeout;
+        let searchTimeout: ReturnType<typeof setTimeout> | undefined;
         this._debouncedSearch = () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
@@ -409,13 +409,13 @@ class ListsManager {
             unit: this.currentDuplicateItem.unit
         });
 
-        const newQuantity = parseFloat(quantityInput.value) || 0;
+        const newQuantity = parseFloat((quantityInput as HTMLInputElement).value) || 0;
         const oldQuantity = parseFloat(this.currentDuplicateItem.quantity) || 0;
 
         console.log('[FUTURE_QTY] Quantity values', {
             newQuantity,
             oldQuantity,
-            inputValue: quantityInput.value
+            inputValue: (quantityInput as HTMLInputElement).value
         });
 
         // Only show if user entered quantity
@@ -489,7 +489,7 @@ class ListsManager {
 
         // Reset search query for new list
         this.searchQuery = '';
-        const searchInput = document.getElementById('items-search');
+        const searchInput = document.getElementById('items-search') as HTMLInputElement | null;
         if (searchInput) searchInput.value = '';
         const clearBtn = document.getElementById('clear-search-btn');
         if (clearBtn) clearBtn.classList.add('hidden');
@@ -539,11 +539,14 @@ class ListsManager {
         }
 
         // Update breadcrumb
-        document.getElementById('breadcrumb-list-name').textContent = list.name;
+        const breadcrumbElement = document.getElementById('breadcrumb-list-name');
+        if (breadcrumbElement) breadcrumbElement.textContent = list.name;
 
         // Show detail view, hide landing view
-        document.getElementById('landing-view').classList.add('hidden');
-        document.getElementById('detail-view').classList.remove('hidden');
+        const landingView = document.getElementById('landing-view');
+        const detailView = document.getElementById('detail-view');
+        if (landingView) landingView.classList.add('hidden');
+        if (detailView) detailView.classList.remove('hidden');
 
         // Desktop FAB visibility: Detail View
         // Hide create list FAB (only visible in landing view)
@@ -836,14 +839,15 @@ class ListsManager {
         const emptyState = document.getElementById('empty-state');
 
         if (this.shoppingLists.length === 0) {
-            grid.classList.add('hidden');
-            emptyState.classList.remove('hidden');
+            if (grid) grid.classList.add('hidden');
+            if (emptyState) emptyState.classList.remove('hidden');
             return;
         }
 
-        grid.classList.remove('hidden');
-        emptyState.classList.add('hidden');
+        if (grid) grid.classList.remove('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
 
+        if (!grid) return;
         grid.innerHTML = this.shoppingLists.map(list => {
             const totalItems = list.total_items || 0;
             const completedItems = list.completed_items || 0;
@@ -885,12 +889,12 @@ class ListsManager {
      * Returns: "Root → Parent → Child"
      */
     getProductGroupBreadcrumbs(groupId: number) {
-        const groupMap = {};
+        const groupMap: Record<number, any> = {};
         this.productGroups.forEach(group => {
             groupMap[group.id] = group;
         });
 
-        const path = [];
+        const path: any[] = [];
         let currentId = groupId;
         while (currentId && groupMap[currentId]) {
             path.unshift(groupMap[currentId].name);
@@ -914,12 +918,12 @@ class ListsManager {
         if (filteredItems.length === 0) {
             // Use table-content-hidden to hide without breaking responsive classes
             if (desktopTable) desktopTable.classList.add('table-content-hidden');
-            emptyState.classList.remove('hidden');
+            if (emptyState) emptyState.classList.remove('hidden');
 
             // Update empty state message based on search or hide completed
-            const emptyTitle = emptyState.querySelector('h3');
-            const emptyText = emptyState.querySelector('p');
-            const emptyButton = emptyState.querySelector('button');
+            const emptyTitle = emptyState?.querySelector('h3');
+            const emptyText = emptyState?.querySelector('p');
+            const emptyButton = emptyState?.querySelector('button');
             const hasCompletedItems = this.currentItems.some(item => item.is_completed);
 
             if (this.searchQuery && this.searchQuery.trim() !== '') {
@@ -949,9 +953,10 @@ class ListsManager {
 
         // Remove table-content-hidden to show (responsive classes handle desktop/mobile visibility)
         if (desktopTable) desktopTable.classList.remove('table-content-hidden');
-        emptyState.classList.add('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
 
         // Render desktop table
+        if (!tbody) return;
         tbody.innerHTML = filteredItems.map(item => {
             const store = this.stores.find(s => s.id === item.store_id);
             const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
@@ -1010,15 +1015,15 @@ class ListsManager {
         const query = this.searchQuery.toLowerCase().trim();
 
         // Build lookup maps
-        const storeMap = {};
+        const storeMap: Record<number, string> = {};
         this.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
 
-        const groupMap = {};
+        const groupMap: Record<number, any> = {};
         this.productGroups.forEach(g => { groupMap[g.id] = g; });
 
         // Helper to get all ancestor names for a group
         const getGroupAncestorNames = (groupId: number) => {
-            const names = [];
+            const names: string[] = [];
             let currentId = groupId;
             while (currentId && groupMap[currentId]) {
                 names.push(groupMap[currentId].name || '');
@@ -1084,7 +1089,7 @@ class ListsManager {
      * Clear search query
      */
     clearSearch() {
-        const input = document.getElementById('items-search');
+        const input = document.getElementById('items-search') as HTMLInputElement | null;
         if (input) {
             input.value = '';
         }
@@ -1564,8 +1569,8 @@ class ListsManager {
      * Build product group hierarchy tree
      */
     buildProductGroupTree(groups: any[]) {
-        const map = {};
-        const roots = [];
+        const map: Record<number, any> = {};
+        const roots: any[] = [];
 
         // Create map
         groups.forEach(group => {
@@ -1631,14 +1636,14 @@ class ListsManager {
      */
     buildProductGroupChoices() {
         // Build group map for parent lookup
-        const groupMap = {};
+        const groupMap: Record<number, any> = {};
         this.productGroups.forEach(group => {
             groupMap[group.id] = group;
         });
 
         // Helper to get full parent chain (excluding leaf itself)
         const getParentChain = (groupId: number) => {
-            const path = [];
+            const path: string[] = [];
             let currentId = groupMap[groupId]?.parent_id;
 
             while (currentId && groupMap[currentId]) {
@@ -1662,7 +1667,7 @@ class ListsManager {
         leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
         // Build choices array
-        const choices = [];
+        const choices: any[] = [];
         leafGroups
             .filter(pg => pg.is_active)
             .forEach(pg => {
@@ -1694,17 +1699,19 @@ class ListsManager {
      * - other units: step=1 (integer only)
      */
     initUnitChangeListener() {
-        const unitSelect = document.getElementById('item-unit');
-        const quantityInput = document.getElementById('item-quantity');
+        const unitSelect = document.getElementById('item-unit') as HTMLSelectElement | null;
+        const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
 
         if (!unitSelect || !quantityInput) return;
 
         // Remove existing listener if any
-        unitSelect.removeEventListener('change', this.handleUnitChange);
+        if (this.handleUnitChange) {
+            unitSelect.removeEventListener('change', this.handleUnitChange);
+        }
 
         // Create bound handler
         this.handleUnitChange = (event: Event) => {
-            const unit = (event.target as HTMLInputElement).value;
+            const unit = (event.target as HTMLSelectElement).value;
             this.updateQuantityInputStep(unit, quantityInput);
         };
 
@@ -1728,7 +1735,7 @@ class ListsManager {
             // Round current value to integer if it has decimals
             const currentValue = parseFloat(quantityInput.value);
             if (!isNaN(currentValue) && currentValue !== Math.round(currentValue)) {
-                quantityInput.value = Math.round(currentValue);
+                quantityInput.value = String(Math.round(currentValue));
             }
         }
     }
@@ -1789,8 +1796,8 @@ class ListsManager {
      * Adding null checks to prevent errors.
      */
     updateSelectionUI() {
-        const deleteBtn = document.getElementById('delete-selected-btn');
-        const selectAllBtn = document.getElementById('select-all-btn');
+        const deleteBtn = document.getElementById('delete-selected-btn') as HTMLButtonElement | null;
+        const selectAllBtn = document.getElementById('select-all-btn') as HTMLButtonElement | null;
 
         // Update delete button state - preserve mobile-friendly structure
         if (deleteBtn) {
@@ -2126,10 +2133,10 @@ class ListsManager {
         }
 
         if (viewName === 'table') {
-            document.getElementById('table-view').classList.remove('hidden');
-            document.getElementById('hierarchy-view').classList.add('hidden');
-            document.getElementById('table-view-btn').classList.remove('btn-outline');
-            document.getElementById('hierarchy-view-btn').classList.add('btn-outline');
+            document.getElementById('table-view')?.classList.remove('hidden');
+            document.getElementById('hierarchy-view')?.classList.add('hidden');
+            document.getElementById('table-view-btn')?.classList.remove('btn-outline');
+            document.getElementById('hierarchy-view-btn')?.classList.add('btn-outline');
 
             // Show table controls, hide hierarchy controls
             const tableControls = document.getElementById('table-controls');
@@ -2140,10 +2147,10 @@ class ListsManager {
             // Re-render table to sync checkbox states
             this.renderItemsTable();
         } else if (viewName === 'hierarchy') {
-            document.getElementById('table-view').classList.add('hidden');
-            document.getElementById('hierarchy-view').classList.remove('hidden');
-            document.getElementById('table-view-btn').classList.add('btn-outline');
-            document.getElementById('hierarchy-view-btn').classList.remove('btn-outline');
+            document.getElementById('table-view')?.classList.add('hidden');
+            document.getElementById('hierarchy-view')?.classList.remove('hidden');
+            document.getElementById('table-view-btn')?.classList.add('btn-outline');
+            document.getElementById('hierarchy-view-btn')?.classList.remove('btn-outline');
 
             // Hide table controls, show hierarchy controls
             const tableControls = document.getElementById('table-controls');
@@ -2177,7 +2184,7 @@ class ListsManager {
         );
 
         let total = 0;
-        Object.values(hierarchy).forEach(store => {
+        Object.values(hierarchy).forEach((store: any) => {
             total++; // Store node
             total += this._countProductGroupNodes(store.productGroupTree);
         });
@@ -2502,7 +2509,7 @@ class ListsManager {
         }
 
         const handler = () => {
-            this.handleProductInput(input.value);
+            this.handleProductInput((input as HTMLInputElement).value);
         };
 
         // Multiple events for cross-browser mobile compatibility
@@ -2510,7 +2517,7 @@ class ListsManager {
         input.addEventListener('keyup', handler);      // Fallback for mobile keyboards
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
 
-        input._autocompleteInitialized = true;
+        (input as any)._autocompleteInitialized = true;
 
         // Setup click handler for dropdown (iOS fix)
         this._setupSuggestionsClickHandler();
@@ -2525,12 +2532,12 @@ class ListsManager {
      */
     _setupSuggestionsClickHandler() {
         const dropdown = document.getElementById('product-suggestions-dropdown');
-        if (!dropdown || dropdown._clickHandlerInitialized) {
+        if (!dropdown || (dropdown as any)._clickHandlerInitialized) {
             return;
         }
 
         // Shared handler for both touch and click events
-        const handleSelection = (event, isTouchEvent = false) => {
+        const handleSelection = (event: any, isTouchEvent = false) => {
             // Find closest .suggestion-item (handles taps/clicks on child elements)
             const suggestionItem = event.target.closest('.suggestion-item');
             if (!suggestionItem) return;
@@ -2557,7 +2564,7 @@ class ListsManager {
             handleSelection(event, false);
         });
 
-        dropdown._clickHandlerInitialized = true;
+        (dropdown as any)._clickHandlerInitialized = true;
         debugLog('[ListsManager] Suggestions click/touch handlers initialized (iOS-compatible)');
     }
 
@@ -2565,7 +2572,7 @@ class ListsManager {
      * Handle product input for autocomplete
      * @param {string} value - Input value
      */
-    handleProductInput(value) {
+    handleProductInput(value: string) {
         // Clear previous debounce timer
         if (this._autocompleteTimer) {
             clearTimeout(this._autocompleteTimer);
@@ -2606,7 +2613,7 @@ class ListsManager {
 
                 // Add shopping_list_id if we have a current list (enables restore of deleted items)
                 if (this.currentListId) {
-                    params.append('shopping_list_id', this.currentListId);
+                    params.append('shopping_list_id', String(this.currentListId));
                     params.append('include_deleted', 'true');
                 }
 
@@ -2620,7 +2627,7 @@ class ListsManager {
                     // Cache suggestions for offline use (only active ones)
                     if (this.db && suggestions.length > 0) {
                         await this._cacheProductSuggestions(
-                            suggestions.filter(s => !s.is_deleted)
+                            suggestions.filter((s: any) => !s.is_deleted)
                         );
                     }
                 }
@@ -2682,7 +2689,6 @@ class ListsManager {
         const input = document.getElementById('item-product-name');
         if (input) {
             const inputRect = input.getBoundingClientRect();
-            const viewportWidth = window.innerWidth;
             const viewportHeight = window.innerHeight;
 
             // Calculate position (below input, aligned left)
@@ -2717,7 +2723,7 @@ class ListsManager {
      * Handles both regular suggestions (fill form) and deleted items (restore via API)
      * @param {number} index - Suggestion index
      */
-    async selectSuggestion(index) {
+    async selectSuggestion(index: number) {
         const suggestion = this._currentSuggestions?.[index];
         if (!suggestion) return;
 
@@ -2739,7 +2745,7 @@ class ListsManager {
      * @param {Object} suggestion - Suggestion with id and is_deleted=true
      * @private
      */
-    async _restoreDeletedItem(suggestion) {
+    async _restoreDeletedItem(suggestion: any) {
         if (!suggestion.id) {
             console.error('[ListsManager] Cannot restore: no item ID');
             return;
@@ -2765,20 +2771,20 @@ class ListsManager {
 
             // Hide dropdown and close modal
             this.hideProductSuggestions();
-            const modal = document.getElementById('item-modal');
-            if (modal) modal.close();
+            const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+            if (modal) (modal as any).close();
 
             // Show success toast
             showToast(`Товар "${suggestion.product_name}" восстановлен`, 'success');
 
             // Reload items to show restored item
             if (this.currentListId) {
-                await this.loadItems(this.currentListId);
+                await this.loadShoppingListItems(this.currentListId);
             }
 
             debugLog('[ListsManager] Restored item:', restoredItem);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('[ListsManager] Error restoring item:', error);
             showToast(`Ошибка восстановления: ${error.message}`, 'error');
 
@@ -2793,13 +2799,13 @@ class ListsManager {
      * @param {Object} suggestion - Product suggestion
      * @private
      */
-    _fillFormFromSuggestion(suggestion) {
-        const productNameInput = document.getElementById('item-product-name');
-        const storeSelect = document.getElementById('item-store');
-        const productGroupSelect = document.getElementById('item-product-group');
-        const quantityInput = document.getElementById('item-quantity');
-        const unitSelect = document.getElementById('item-unit');
-        const commentInput = document.getElementById('item-comment');
+    _fillFormFromSuggestion(suggestion: any) {
+        const productNameInput = document.getElementById('item-product-name') as HTMLInputElement | null;
+        const storeSelect = document.getElementById('item-store') as HTMLSelectElement | null;
+        const productGroupSelect = document.getElementById('item-product-group') as HTMLSelectElement | null;
+        const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
+        const unitSelect = document.getElementById('item-unit') as HTMLSelectElement | null;
+        const commentInput = document.getElementById('item-comment') as HTMLInputElement | null;
 
         // Product name
         if (productNameInput) {
@@ -2811,7 +2817,7 @@ class ListsManager {
             if (this.choicesInstances?.store) {
                 this.choicesInstances.store.setChoiceByValue(String(suggestion.store_id));
             } else if (storeSelect) {
-                storeSelect.value = suggestion.store_id;
+                storeSelect.value = String(suggestion.store_id);
             }
         }
 
@@ -2820,13 +2826,13 @@ class ListsManager {
             if (this.choicesInstances?.productGroup) {
                 this.choicesInstances.productGroup.setChoiceByValue(String(suggestion.product_group_id));
             } else if (productGroupSelect) {
-                productGroupSelect.value = suggestion.product_group_id;
+                productGroupSelect.value = String(suggestion.product_group_id);
             }
         }
 
         // Quantity (from deleted item)
         if (suggestion.quantity && quantityInput) {
-            quantityInput.value = suggestion.quantity;
+            quantityInput.value = String(suggestion.quantity);
         }
 
         // Unit (from deleted item)
@@ -2860,7 +2866,7 @@ class ListsManager {
                     this.showDuplicateWarning(duplicate);
 
                     // If quantity is already filled (from suggestion), update future quantity display
-                    if (quantityInput && quantityInput.value) {
+                    if (quantityInput?.value) {
                         console.log('[AUTOCOMPLETE] Quantity already filled, updating future quantity');
                         this.updateFutureQuantity();
                     }
@@ -2882,7 +2888,7 @@ class ListsManager {
             dropdown.classList.add('hidden');
             dropdown.innerHTML = '';
         }
-        this._currentSuggestions = null;
+        this._currentSuggestions = [];
     }
 
     /**
@@ -2947,7 +2953,7 @@ class ListsManager {
      * @returns {string}
      * @private
      */
-    _escapeHtml(str) {
+    _escapeHtml(str: string) {
         if (!str) return '';
         const div = document.createElement('div');
         div.textContent = str;
@@ -2973,18 +2979,18 @@ function showLandingView() {
  * Open create list modal
  */
 function openCreateListModal() {
-    const modal = document.getElementById('create-list-modal');
-    const form = document.getElementById('create-list-form');
-    form.reset();
-    modal.showModal();
+    const modal = document.getElementById('create-list-modal') as HTMLDialogElement | null;
+    const form = document.getElementById('create-list-form') as HTMLFormElement | null;
+    if (form) form.reset();
+    if (modal) (modal as any).showModal();
 }
 
 /**
  * Close create list modal
  */
 function closeCreateListModal() {
-    const modal = document.getElementById('create-list-modal');
-    modal.close();
+    const modal = document.getElementById('create-list-modal') as HTMLDialogElement | null;
+    if (modal) (modal as any).close();
 }
 
 /**
@@ -2992,7 +2998,7 @@ function closeCreateListModal() {
  */
 async function handleCreateList(event: Event) {
     event.preventDefault();
-    const form = event.target;
+    const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
 
     const data = {
@@ -3033,11 +3039,13 @@ async function handleCreateList(event: Event) {
  * Open add item modal
  */
 function openAddItemModal() {
-    const modal = document.getElementById('item-modal');
-    const form = document.getElementById('item-form');
-    form.reset();
-    document.getElementById('item-id').value = '';
-    document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
+    const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+    const form = document.getElementById('item-form') as HTMLFormElement | null;
+    if (form) form.reset();
+    const itemIdInput = document.getElementById('item-id') as HTMLInputElement | null;
+    if (itemIdInput) itemIdInput.value = '';
+    const modalTitle = document.getElementById('item-modal-title');
+    if (modalTitle) modalTitle.textContent = '📝 Добавить товар';
 
     // Reinitialize Choices.js with latest data (fixes issue after CSV import)
     // This ensures newly created stores/groups are visible
@@ -3047,7 +3055,7 @@ function openAddItemModal() {
     }
 
     // Reset quantity input step to default (integer)
-    const quantityInput = document.getElementById('item-quantity');
+    const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
     if (quantityInput) {
         quantityInput.step = '1';
     }
@@ -3068,7 +3076,7 @@ function openAddItemModal() {
         console.log('[MODAL_ADD] Delete button hidden (new item mode)');
     }
 
-    modal.showModal();
+    if (modal) (modal as any).showModal();
 
     // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
     setTimeout(() => {
@@ -3085,19 +3093,26 @@ function openAddItemModal() {
  * Open edit item modal
  */
 function openEditItemModal(itemId: number) {
-    const item = window.listsManager.currentItems.find(i => i.id === itemId);
+    const item = window.listsManager.currentItems.find((i: any) => i.id === itemId);
     if (!item) {
         showToast('Товар не найден', 'error');
         return;
     }
 
-    const modal = document.getElementById('item-modal');
-    document.getElementById('item-id').value = item.id;
-    document.getElementById('item-product-name').value = item.product_name;
-    document.getElementById('item-quantity').value = item.quantity !== null ? item.quantity : '';
-    document.getElementById('item-unit').value = item.unit || '';
-    document.getElementById('item-comment').value = item.comment || '';
-    document.getElementById('item-modal-title').textContent = '✏️ Редактировать товар';
+    const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+    const itemIdInput = document.getElementById('item-id') as HTMLInputElement | null;
+    const productNameInput = document.getElementById('item-product-name') as HTMLInputElement | null;
+    const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
+    const unitSelect = document.getElementById('item-unit') as HTMLSelectElement | null;
+    const commentInput = document.getElementById('item-comment') as HTMLInputElement | null;
+    const modalTitle = document.getElementById('item-modal-title');
+
+    if (itemIdInput) itemIdInput.value = String(item.id);
+    if (productNameInput) productNameInput.value = item.product_name;
+    if (quantityInput) quantityInput.value = item.quantity !== null ? String(item.quantity) : '';
+    if (unitSelect) unitSelect.value = item.unit || '';
+    if (commentInput) commentInput.value = item.comment || '';
+    if (modalTitle) modalTitle.textContent = '✏️ Редактировать товар';
 
     // Show delete button (only for existing items, not new items)
     const deleteBtn = document.getElementById('item-modal-delete-btn');
@@ -3107,8 +3122,10 @@ function openEditItemModal(itemId: number) {
     }
 
     // Update quantity input step based on unit
-    const quantityInput = document.getElementById('item-quantity');
-    window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
+    const quantityInputForUnit = document.getElementById('item-quantity') as HTMLInputElement | null;
+    if (quantityInputForUnit) {
+        window.listsManager.updateQuantityInputStep(item.unit || '', quantityInputForUnit);
+    }
 
     // Reinitialize Choices.js with latest data (fixes issue after CSV import)
     // This ensures newly created stores/groups are visible
@@ -3128,15 +3145,15 @@ function openEditItemModal(itemId: number) {
     // Ensure autocomplete is set up (mobile fix)
     window.listsManager?._setupProductAutocomplete();
 
-    modal.showModal();
+    if (modal) (modal as any).showModal();
 }
 
 /**
  * Close item modal
  */
 function closeItemModal() {
-    const modal = document.getElementById('item-modal');
-    modal.close();
+    const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+    if (modal) (modal as any).close();
 }
 
 /**
@@ -3144,7 +3161,8 @@ function closeItemModal() {
  * Called when user clicks Delete button in edit modal
  */
 async function handleDeleteFromModal() {
-    const itemIdInput = document.getElementById('item-id');
+    const itemIdInput = document.getElementById('item-id') as HTMLInputElement | null;
+    if (!itemIdInput) return;
     const itemId = parseInt(itemIdInput.value);
 
     if (!itemId) {
@@ -3176,17 +3194,17 @@ async function handleDeleteFromModal() {
  */
 async function handleSaveItem(event: Event) {
     event.preventDefault();
-    const form = event.target;
+    const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
 
     const itemId = formData.get('item_id');
     const isEdit = itemId !== '';
 
-    const data = {
-        store_id: parseInt(formData.get('store_id')),
-        product_group_id: parseInt(formData.get('product_group_id')),
+    const data: any = {
+        store_id: parseInt(String(formData.get('store_id'))),
+        product_group_id: parseInt(String(formData.get('product_group_id'))),
         product_name: formData.get('product_name'),
-        quantity: formData.get('quantity') ? parseFloat(formData.get('quantity')) : null,
+        quantity: formData.get('quantity') ? parseFloat(String(formData.get('quantity'))) : null,
         unit: formData.get('unit') || null,
         comment: formData.get('comment') || null
     };
@@ -3258,7 +3276,7 @@ async function handleSaveItem(event: Event) {
             showToast(`Товар объединен (итого: ${aggregatedQuantity} ${existingItem.unit || ''})`, 'success');
 
             // Optimistic update
-            const item = manager.currentItems.find(i => i.id === existingItem.id);
+            const item = manager.currentItems.find((i: any) => i.id === existingItem.id);
             if (item) {
                 item.quantity = aggregatedQuantity;
                 item.comment = comment;
@@ -3270,7 +3288,7 @@ async function handleSaveItem(event: Event) {
         } else if (isEdit) {
             // EDIT existing item (normal flow)
             if (manager.offlineShopping) {
-                result = await manager.offlineShopping.updateItem(parseInt(itemId), data);
+                result = await manager.offlineShopping.updateItem(parseInt(String(itemId)), data);
             } else {
                 const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
                     method: 'PUT',
@@ -3286,7 +3304,7 @@ async function handleSaveItem(event: Event) {
             showToast('Товар обновлен', 'success');
 
             // Optimistic update
-            const item = manager.currentItems.find(i => i.id === parseInt(itemId));
+            const item = manager.currentItems.find((i: any) => i.id === parseInt(String(itemId)));
             if (item) {
                 Object.assign(item, data);
                 manager.renderCurrentView();
@@ -3322,8 +3340,8 @@ async function handleSaveItem(event: Event) {
                     is_completed: false,
                     _offline: true
                 };
-                const store = manager.stores?.find(s => s.id === data.store_id);
-                const group = manager.productGroups?.find(g => g.id === data.product_group_id);
+                const store = manager.stores?.find((s: any) => s.id === data.store_id);
+                const group = manager.productGroups?.find((g: any) => g.id === data.product_group_id);
                 if (store) newItem.store_name = store.name;
                 if (group) newItem.product_group_name = group.name;
 
