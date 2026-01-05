@@ -198,7 +198,7 @@ class CSVImporter {
      * Get onclick handler for any step navigation
      * @param {number} step - Step number (1-5)
      */
-    getStepOnClick(step) {
+    getStepOnClick(step: number) {
         if (step === 1) {
             return this.getStep1OnClick();
         }
@@ -224,6 +224,8 @@ class CSVImporter {
         this.currentStep = 1;
 
         const varName = this.globalVarName;
+
+        if (!this.container) return;
 
         this.container.innerHTML = `
             <div class="csv-wizard-step">
@@ -285,7 +287,9 @@ class CSVImporter {
      * Handle file select
      */
     async handleFileSelect(event: Event) {
-        const file = event.target.files[0];
+        const target = event.target as HTMLInputElement;
+        if (!target?.files) return;
+        const file = target.files[0];
         if (!file) return;
 
         if (!file.name.endsWith('.csv')) {
@@ -297,7 +301,8 @@ class CSVImporter {
 
         try {
             // Read file content
-            this.fileContent = await this.readFileContent(file);
+            const content = await this.readFileContent(file);
+            this.fileContent = typeof content === 'string' ? content : null;
 
             // Show loading
             showToast('Анализ файла...', 'info');
@@ -316,10 +321,10 @@ class CSVImporter {
     /**
      * Read file content as text
      */
-    readFileContent(file: File) {
+    readFileContent(file: File): Promise<string | ArrayBuffer | null> {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
+            reader.onload = (e) => resolve(e.target?.result || null);
             reader.onerror = reject;
             reader.readAsText(file);
         });
@@ -331,6 +336,9 @@ class CSVImporter {
     async analyzeFile() {
         try {
             // Encode file content to base64 (worker-based for large files)
+            if (!this.fileContent) {
+                throw new Error('File content is empty');
+            }
             const fileContent = await this.encodeBase64(this.fileContent);
 
             // Call backend API for auto-detection
@@ -357,6 +365,10 @@ class CSVImporter {
 
             // Fallback to client-side detection if API fails
             debugLog('[CSVImporter] Falling back to client-side detection');
+
+            if (!this.fileContent) {
+                throw new Error('File content is empty');
+            }
 
             const lines = this.fileContent.split('\n').filter(l => l.trim());
             if (lines.length === 0) {
@@ -396,7 +408,7 @@ class CSVImporter {
     /**
      * Detect CSV delimiter
      */
-    detectDelimiter(firstLine) {
+    detectDelimiter(firstLine: string) {
         const delimiters = [';', ',', '\t', '|'];
         let maxCount = 0;
         let bestDelimiter = ';';
@@ -415,8 +427,8 @@ class CSVImporter {
     /**
      * Auto-map columns to expected fields
      */
-    autoMapColumns(columns) {
-        const mapping = {};
+    autoMapColumns(columns: string[]) {
+        const mapping: Record<string, string | null> = {};
         const synonyms = {
             'store': ['магазин', 'store', 'shop', 'место'],
             'product_group': ['группа', 'category', 'категория', 'group', 'продуктовая группа'],
@@ -455,6 +467,8 @@ class CSVImporter {
         const step1OnClick = this.getStep1OnClick();
         const varName = this.globalVarName;
 
+        if (!this.container) return;
+
         this.container.innerHTML = `
             <div class="csv-wizard-step">
                 <div class="mb-4">
@@ -490,7 +504,7 @@ class CSVImporter {
                 <div class="mb-6">
                     <h4 class="font-bold mb-2">Обнаруженные колонки (${result.detected_columns.length}):</h4>
                     <div class="flex flex-wrap gap-2">
-                        ${result.detected_columns.map(col => `
+                        ${result.detected_columns.map((col: string) => `
                             <div class="badge badge-lg badge-primary">${this.escapeHtml(col)}</div>
                         `).join('')}
                     </div>
@@ -502,13 +516,13 @@ class CSVImporter {
                         <table class="table table-sm table-zebra">
                             <thead>
                                 <tr>
-                                    ${result.detected_columns.map(col => `<th>${this.escapeHtml(col)}</th>`).join('')}
+                                    ${result.detected_columns.map((col: string) => `<th>${this.escapeHtml(col)}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>
-                                ${result.sample_rows.slice(0, 5).map(row => `
+                                ${result.sample_rows.slice(0, 5).map((row: any) => `
                                     <tr>
-                                        ${result.detected_columns.map(col => `<td>${this.escapeHtml(row[col] || '')}</td>`).join('')}
+                                        ${result.detected_columns.map((col: string) => `<td>${this.escapeHtml(row[col] || '')}</td>`).join('')}
                                     </tr>
                                 `).join('')}
                             </tbody>
@@ -540,6 +554,8 @@ class CSVImporter {
         const autoMapping = result.auto_mapping;
         const step1OnClick = this.getStep1OnClick();
         const varName = this.globalVarName;
+
+        if (!this.container) return;
 
         // Initialize column mapping from auto-mapping
         this.columnMapping = { ...autoMapping };
@@ -576,7 +592,7 @@ class CSVImporter {
                 </div>
 
                 <div class="space-y-4 mb-6">
-                    ${result.detected_columns.map(column => `
+                    ${result.detected_columns.map((column: string) => `
                         <div class="form-control">
                             <label class="label">
                                 <span class="label-text font-medium">
@@ -620,7 +636,7 @@ class CSVImporter {
      * Update column mapping
      */
     updateMapping(column: string, fieldName: string) {
-        this.columnMapping[column] = fieldName || null;
+        this.columnMapping[column] = fieldName || '';
         this.validateMapping();
         debugLog('[CSVImporter] Updated mapping:', this.columnMapping);
     }
@@ -680,6 +696,8 @@ class CSVImporter {
         const step1OnClick = this.getStep1OnClick();
         const varName = this.globalVarName;
 
+        if (!this.container) return;
+
         // Show loading state
         this.container.innerHTML = `
             <div class="csv-wizard-step">
@@ -723,8 +741,11 @@ class CSVImporter {
      * @param {boolean} options.create_missing_references - Filter reference errors
      * @param {boolean} options.aggregate_duplicates - Aggregate duplicate rows
      */
-    async callPreviewAPI(options = {}) {
+    async callPreviewAPI(options: { create_missing_references?: boolean; aggregate_duplicates?: boolean } = {}) {
         // Encode file content to base64 (worker-based for large files)
+        if (!this.fileContent) {
+            throw new Error('File content is empty');
+        }
         const fileContent = await this.encodeBase64(this.fileContent);
 
         // Prepare request payload
@@ -764,16 +785,16 @@ class CSVImporter {
      */
     async revalidateWithOptions() {
         // Read current checkbox states and save to importOptions
-        const createMissingCheckbox = document.getElementById('create-missing-checkbox');
-        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
-        const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
-        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+        const createMissingCheckbox = document.getElementById('create-missing-checkbox') as HTMLInputElement | null;
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox') as HTMLInputElement | null;
+        const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox') as HTMLInputElement | null;
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox') as HTMLInputElement | null;
 
         // Save all checkbox states to preserve across rerender
-        this.importOptions.createMissingReferences = createMissingCheckbox ? createMissingCheckbox.checked : false;
-        this.importOptions.aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
-        this.importOptions.skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
-        this.importOptions.skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
+        this.importOptions.createMissingReferences = createMissingCheckbox?.checked || false;
+        this.importOptions.aggregateDuplicates = aggregateDuplicatesCheckbox?.checked || false;
+        this.importOptions.skipInvalid = skipInvalidCheckbox?.checked || false;
+        this.importOptions.skipDuplicates = skipDuplicatesCheckbox?.checked || false;
 
         const options = {
             create_missing_references: this.importOptions.createMissingReferences,
@@ -783,7 +804,7 @@ class CSVImporter {
         debugLog('[CSVImporter] Revalidating with options:', options);
 
         // Show loading on button
-        const importButton = document.getElementById('import-button');
+        const importButton = document.getElementById('import-button') as HTMLButtonElement | null;
         if (importButton) {
             importButton.disabled = true;
             importButton.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Пересчёт...';
@@ -820,12 +841,11 @@ class CSVImporter {
      */
     handleSkipDuplicatesChange() {
         // Get DOM elements
-        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
-        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox') as HTMLInputElement | null;
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox') as HTMLInputElement | null;
 
         // Read current state
-        const skipDuplicatesEnabled = skipDuplicatesCheckbox ?
-            skipDuplicatesCheckbox.checked : false;
+        const skipDuplicatesEnabled = skipDuplicatesCheckbox?.checked || false;
 
         // Save to importOptions
         this.importOptions.skipDuplicates = skipDuplicatesEnabled;
@@ -834,8 +854,7 @@ class CSVImporter {
         debugLog('[CSVImporter] Skip Duplicates toggled:', skipDuplicatesEnabled);
 
         // Auto-uncheck Aggregate if incompatible (both can't be true)
-        if (skipDuplicatesEnabled && aggregateDuplicatesCheckbox &&
-            aggregateDuplicatesCheckbox.checked) {
+        if (skipDuplicatesEnabled && aggregateDuplicatesCheckbox?.checked) {
             aggregateDuplicatesCheckbox.checked = false;
             this.importOptions.aggregateDuplicates = false;
             debugLog('[CSVImporter] Auto-disabled Aggregate Duplicates (incompatible with Skip)');
@@ -851,8 +870,8 @@ class CSVImporter {
      * @param {string} field - Field name (store, product_group, product_name)
      * @returns {string[]} Sorted unique values
      */
-    getUniqueFilterValues(field) {
-        const values = new Set();
+    getUniqueFilterValues(field: string): string[] {
+        const values = new Set<string>();
         for (const row of this.allPreviewRows) {
             const value = row.data[field];
             if (value && value.trim()) {
@@ -918,7 +937,7 @@ class CSVImporter {
      * @param {string} filterType - Filter type (store, group, product)
      * @param {string} value - Filter value
      */
-    handleFilterChange(filterType, value) {
+    handleFilterChange(filterType: 'store' | 'group' | 'product', value: string) {
         this.previewFilters[filterType] = value;
         // Reset to first page when filter changes
         this.previewPagination.currentPage = 1;
@@ -930,7 +949,7 @@ class CSVImporter {
      * Handle rows per page change
      * @param {number} value - New rows per page value
      */
-    handleRowsPerPageChange(value) {
+    handleRowsPerPageChange(value: string) {
         this.previewPagination.rowsPerPage = parseInt(value, 10);
         // Reset to first page when page size changes
         this.previewPagination.currentPage = 1;
@@ -941,7 +960,7 @@ class CSVImporter {
      * Handle page change
      * @param {number} page - New page number
      */
-    handlePageChange(page) {
+    handlePageChange(page: number) {
         const { totalPages } = this.getFilteredPaginatedRows();
         if (page >= 1 && page <= totalPages) {
             this.previewPagination.currentPage = page;
@@ -958,9 +977,9 @@ class CSVImporter {
         this.updatePreviewTable();
 
         // Reset filter inputs
-        const storeFilter = document.getElementById('preview-filter-store');
-        const groupFilter = document.getElementById('preview-filter-group');
-        const productFilter = document.getElementById('preview-filter-product');
+        const storeFilter = document.getElementById('preview-filter-store') as HTMLSelectElement | null;
+        const groupFilter = document.getElementById('preview-filter-group') as HTMLSelectElement | null;
+        const productFilter = document.getElementById('preview-filter-product') as HTMLInputElement | null;
         if (storeFilter) storeFilter.value = '';
         if (groupFilter) groupFilter.value = '';
         if (productFilter) productFilter.value = '';
@@ -1021,7 +1040,7 @@ class CSVImporter {
             // Build error/warning tooltip
             const issues = [...(row.errors || []), ...(row.warnings || [])];
             const issueTooltip = issues.length > 0
-                ? `title="${issues.map(i => this.escapeHtml(i.message)).join('; ')}"`
+                ? `title="${issues.map((i: any) => this.escapeHtml(i.message)).join('; ')}"`
                 : '';
 
             return `
@@ -1225,7 +1244,7 @@ class CSVImporter {
      * @param {Object} result - Preview API result
      * @returns {boolean} True if there are reference errors OR option is enabled
      */
-    hasReferenceErrors(result) {
+    hasReferenceErrors(result: any) {
         // Keep checkbox visible if user already enabled the option
         if (this.importOptions.createMissingReferences) {
             return true;
@@ -1235,7 +1254,7 @@ class CSVImporter {
         if (!result.errors || result.errors.length === 0) {
             return false;
         }
-        return result.errors.some(e => e.error_type === 'reference');
+        return result.errors.some((e: any) => e.error_type === 'reference');
     }
 
     /**
@@ -1250,7 +1269,7 @@ class CSVImporter {
      * @param {Object} result - Preview API result
      * @returns {boolean} True if there are duplicate warnings OR aggregation is enabled
      */
-    hasDuplicateWarnings(result) {
+    hasDuplicateWarnings(result: any) {
         // Hide aggregate checkbox if skip duplicates is enabled (mutually exclusive)
         if (this.importOptions.skipDuplicates) {
             return false;
@@ -1298,7 +1317,7 @@ class CSVImporter {
                 </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
-                        ${result.errors.slice(0, 10).map(e => `
+                        ${result.errors.slice(0, 10).map((e: any) => `
                             <li>Строка ${e.row_index + 1}: <strong>${this.escapeHtml(e.field)}</strong> - ${this.escapeHtml(e.message)}</li>
                         `).join('')}
                         ${result.errors.length > 10 ? `<li class="text-base-content/70">... и еще ${result.errors.length - 10} ошибок</li>` : ''}
@@ -1316,7 +1335,7 @@ class CSVImporter {
                 </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
-                        ${result.warnings.slice(0, 10).map(w => `
+                        ${result.warnings.slice(0, 10).map((w: any) => `
                             <li>Строка ${w.row_index + 1}: <strong>${this.escapeHtml(w.field)}</strong> - ${this.escapeHtml(w.message)}</li>
                         `).join('')}
                         ${result.warnings.length > 10 ? `<li class="text-base-content/70">... и еще ${result.warnings.length - 10} предупреждений</li>` : ''}
@@ -1324,6 +1343,8 @@ class CSVImporter {
                 </div>
             </div>
         ` : '';
+
+        if (!this.container) return;
 
         this.container.innerHTML = `
             <div class="csv-wizard-step">
@@ -1452,9 +1473,11 @@ class CSVImporter {
     /**
      * Render preview error
      */
-    renderPreviewError(errorMessage) {
+    renderPreviewError(errorMessage: string) {
         const step1OnClick = this.getStep1OnClick();
         const varName = this.globalVarName;
+
+        if (!this.container) return;
 
         this.container.innerHTML = `
             <div class="csv-wizard-step">
@@ -1492,7 +1515,7 @@ class CSVImporter {
     /**
      * Get CSS class for row based on validation status
      */
-    getRowValidationClass(status) {
+    getRowValidationClass(status: string) {
         switch (status) {
             case 'error': return 'bg-error/10';
             case 'warning': return 'bg-warning/10';
@@ -1503,7 +1526,7 @@ class CSVImporter {
     /**
      * Get badge HTML for validation status
      */
-    getStatusBadge(status) {
+    getStatusBadge(status: string) {
         switch (status) {
             case 'error': return '<span class="badge badge-error badge-sm">❌</span>';
             case 'warning': return '<span class="badge badge-warning badge-sm">⚠️</span>';
@@ -1514,8 +1537,8 @@ class CSVImporter {
     /**
      * Get human-readable field label
      */
-    getFieldLabel(field) {
-        const labels = {
+    getFieldLabel(field: string) {
+        const labels: Record<string, string> = {
             'store': '🏪 Магазин',
             'product_group': '📦 Группа',
             'product_name': '🛒 Товар',
@@ -1558,19 +1581,22 @@ class CSVImporter {
             }
 
             // Read checkbox options
-            const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
-            const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
-            const createMissingCheckbox = document.getElementById('create-missing-checkbox');
-            const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
-            const skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
-            const skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
-            const createMissing = createMissingCheckbox ? createMissingCheckbox.checked : false;
-            const aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
+            const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox') as HTMLInputElement | null;
+            const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox') as HTMLInputElement | null;
+            const createMissingCheckbox = document.getElementById('create-missing-checkbox') as HTMLInputElement | null;
+            const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox') as HTMLInputElement | null;
+            const skipInvalid = skipInvalidCheckbox?.checked || false;
+            const skipDuplicates = skipDuplicatesCheckbox?.checked || false;
+            const createMissing = createMissingCheckbox?.checked || false;
+            const aggregateDuplicates = aggregateDuplicatesCheckbox?.checked || false;
 
             // Show loading
             showToast('Импорт данных...', 'info');
 
             // Encode file content to base64 (worker-based for large files)
+            if (!this.fileContent) {
+                throw new Error('File content is empty');
+            }
             const fileContent = await this.encodeBase64(this.fileContent);
 
             // Prepare request payload
@@ -1643,12 +1669,12 @@ class CSVImporter {
                 }
 
                 // Show created references in success toast
-                const createdRefs = [];
+                const createdRefs: string[] = [];
                 if (result.created_stores?.length > 0) {
-                    createdRefs.push(`Магазины: ${result.created_stores.map(s => s.name).join(', ')}`);
+                    createdRefs.push(`Магазины: ${result.created_stores.map((s: any) => s.name).join(', ')}`);
                 }
                 if (result.created_product_groups?.length > 0) {
-                    createdRefs.push(`Группы: ${result.created_product_groups.map(g => g.name).join(', ')}`);
+                    createdRefs.push(`Группы: ${result.created_product_groups.map((g: any) => g.name).join(', ')}`);
                 }
                 if (createdRefs.length > 0) {
                     showToast(`📦 Создано:\n${createdRefs.join('\n')}`, 'info', 5000);
@@ -1656,7 +1682,7 @@ class CSVImporter {
 
                 // Close import accordion
                 const importWizardContainer = document.getElementById('import-wizard-container');
-                if (importWizardContainer && !importWizardContainer.classList.contains('hidden')) {
+                if (importWizardContainer && typeof toggleImportWizard !== 'undefined' && !importWizardContainer.classList.contains('hidden')) {
                     toggleImportWizard(); // Use the new toggle function
                 }
 
@@ -1665,7 +1691,7 @@ class CSVImporter {
 
             } else {
                 // Show errors
-                const errorMessages = result.errors.slice(0, 5).map(e =>
+                const errorMessages = result.errors.slice(0, 5).map((e: any) =>
                     `Строка ${e.row_index + 1}: ${e.message}`
                 ).join('\n');
 
@@ -1685,7 +1711,7 @@ class CSVImporter {
     /**
      * Escape HTML
      */
-    escapeHtml(text) {
+    escapeHtml(text: string) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;

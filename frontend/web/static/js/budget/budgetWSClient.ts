@@ -169,8 +169,8 @@ class BudgetWSClient {
     // Multi-tab support
     private isLeader: boolean;
     private channel: BroadcastChannel | null;
-    private leaderHeartbeatInterval: ReturnType<typeof setInterval> | null;
-    private _followerCheckInterval: ReturnType<typeof setInterval> | null;
+    private leaderHeartbeatInterval: number | null;
+    private _followerCheckInterval: number | null;
     private lastLeaderHeartbeat: number;
     private HEARTBEAT_INTERVAL: number;
     private LEADER_TIMEOUT: number;
@@ -179,7 +179,7 @@ class BudgetWSClient {
 
     // Status indicator debouncing
     private _lastIndicatorState: WSBadgeState | null;
-    private _indicatorDebounceTimer: ReturnType<typeof setTimeout> | null;
+    private _indicatorDebounceTimer: number | null;
     private INDICATOR_DEBOUNCE_MS: number;
 
     // Sticky state mechanism
@@ -772,8 +772,8 @@ class BudgetWSClient {
      * Try to acquire leader lock (fast path for Chrome/Firefox/Edge)
      * @private
      */
-    async _tryBecomeLeader() {
-        return new Promise((resolve) => {
+    async _tryBecomeLeader(): Promise<void> {
+        return new Promise<void>((resolve) => {
             let resolved = false;
 
             const timeout = setTimeout(() => {
@@ -882,16 +882,16 @@ class BudgetWSClient {
     _startFollowerMode() {
         this.lastLeaderHeartbeat = Date.now();
 
-        this._followerCheckInterval = setInterval(() => {
+        this._followerCheckInterval = window.setInterval(() => {
             if (this.isLeader) {
-                clearInterval(this._followerCheckInterval);
+                clearInterval(this._followerCheckInterval!);
                 this._followerCheckInterval = null;
                 return;
             }
 
             const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
             if (timeSinceHeartbeat > this.LEADER_TIMEOUT) {
-                clearInterval(this._followerCheckInterval);
+                clearInterval(this._followerCheckInterval!);
                 this._followerCheckInterval = null;
 
                 // Try to become leader
@@ -916,7 +916,7 @@ class BudgetWSClient {
             clearInterval(this.leaderHeartbeatInterval);
         }
 
-        this.leaderHeartbeatInterval = setInterval(() => {
+        this.leaderHeartbeatInterval = window.setInterval(() => {
             this._broadcastMessage({
                 type: 'heartbeat',
                 timestamp: Date.now(),
@@ -1334,7 +1334,7 @@ class BudgetWSClient {
                 }
             };
 
-            this.ws.onerror = (error) => {
+            this.ws.onerror = () => {
                 this._setError('WS error event');
                 clearTimeout(connectionTimeout);
             };
@@ -2238,7 +2238,7 @@ class BudgetWSClient {
         if (!indicator) return;
 
         // STEP 1: Determine current state (priority order)
-        let state;
+        let state: WSBadgeState;
 
         if (!this.enabled) {
             state = 'disabled';
@@ -2326,7 +2326,7 @@ class BudgetWSClient {
         const shouldDebounce = this._iosDeviceMode || !isConnectedState;
         if (shouldDebounce) {
             const debounceMs = this._iosDeviceMode ? 2000 : this.INDICATOR_DEBOUNCE_MS;
-            this._indicatorDebounceTimer = setTimeout(() => {
+            this._indicatorDebounceTimer = window.setTimeout(() => {
                 this._indicatorDebounceTimer = null;
             }, debounceMs);
         }
@@ -2614,7 +2614,7 @@ class BudgetWSClient {
         // Show modal
         const modal = document.getElementById('ws-diagnostics-modal');
         if (modal) {
-            modal.showModal();
+            (modal as HTMLDialogElement).showModal();
             logWSDiag.info('Diagnostic modal opened');
         } else {
             logWSDiag.error('Modal element not found (#ws-diagnostics-modal)');
@@ -2671,17 +2671,17 @@ if (typeof window !== 'undefined') {
 
     // Triple-tap on status indicator to show diagnostics (for iOS Safari)
     let tapCount = 0;
-    let tapTimeout: ReturnType<typeof setTimeout> | null = null;
+    let tapTimeout: number | null = null;
     document.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).id === 'budget-sse-status-indicator' || (e.target as HTMLElement).closest('#budget-sse-status-indicator')) {
             tapCount++;
             if (tapCount >= 3) {
                 tapCount = 0;
-                clearTimeout(tapTimeout);
+                if (tapTimeout !== null) clearTimeout(tapTimeout);
                 window.budgetWSClient.showDiagnostics();
             } else {
-                clearTimeout(tapTimeout);
-                tapTimeout = setTimeout(() => { tapCount = 0; }, 500);
+                if (tapTimeout !== null) clearTimeout(tapTimeout);
+                tapTimeout = window.setTimeout(() => { tapCount = 0; }, 500);
             }
         }
     });

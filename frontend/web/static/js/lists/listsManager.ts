@@ -132,7 +132,7 @@ class ListsManager {
 
             // Listen for network status changes (sync when back online)
             window.addEventListener('offline-status-change', async (event: Event) => {
-                const { online } = event.detail || {};
+                const { online } = (event as CustomEvent).detail || {};
                 this.updateOfflineUI(!online);
 
                 if (online) {
@@ -225,8 +225,8 @@ class ListsManager {
         this._debouncedSearch = () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
-                const productName = productInput.value.trim();
-                const storeId = parseInt(storeSelect.value);
+                const productName = (productInput as HTMLInputElement).value.trim();
+                const storeId = parseInt((storeSelect as HTMLSelectElement).value);
 
                 if (productName && storeId && this.currentListId) {
                     const duplicate = await this.searchDuplicate(productName, storeId);
@@ -266,7 +266,7 @@ class ListsManager {
      * @param {number} storeId - Store ID
      * @returns {Promise<Object|null>} Duplicate item or null
      */
-    async searchDuplicate(productName: string, storeId) {
+    async searchDuplicate(productName: string, storeId: number) {
         if (!productName || !storeId || !this.currentListId) {
             return null;
         }
@@ -279,9 +279,9 @@ class ListsManager {
             });
 
             const url = new URL('/api/v1/shopping-list-items/check-duplicate', window.location.origin);
-            url.searchParams.set('shopping_list_id', this.currentListId);
+            url.searchParams.set('shopping_list_id', String(this.currentListId));
             url.searchParams.set('product_name', productName.trim());
-            url.searchParams.set('store_id', storeId);
+            url.searchParams.set('store_id', String(storeId));
 
             const response = await fetch(url, {
                 method: 'GET',
@@ -308,7 +308,7 @@ class ListsManager {
             return null;
 
         } catch (error) {
-            console.error('[DUPLICATE_SEARCH] Error searching duplicate', { error: error.message });
+            console.error('[DUPLICATE_SEARCH] Error searching duplicate', { error: (error as Error).message });
             return null;
         }
     }
@@ -463,8 +463,8 @@ class ListsManager {
         this.showCreateListFAB();
 
         // Show landing view, hide detail view
-        document.getElementById('landing-view').classList.remove('hidden');
-        document.getElementById('detail-view').classList.add('hidden');
+        document.getElementById('landing-view')?.classList.remove('hidden');
+        document.getElementById('detail-view')?.classList.add('hidden');
 
         // Load shopping lists
         await this.loadShoppingLists();
@@ -1704,7 +1704,7 @@ class ListsManager {
 
         // Create bound handler
         this.handleUnitChange = (event: Event) => {
-            const unit = event.target.value;
+            const unit = (event.target as HTMLInputElement).value;
             this.updateQuantityInputStep(unit, quantityInput);
         };
 
@@ -1717,7 +1717,7 @@ class ListsManager {
      * @param {string} unit - Selected unit
      * @param {HTMLInputElement} quantityInput - Quantity input element
      */
-    updateQuantityInputStep(unit: string, quantityInput) {
+    updateQuantityInputStep(unit: string, quantityInput: HTMLInputElement) {
         if (unit === 'кг') {
             // For kg: allow one decimal place
             quantityInput.step = '0.1';
@@ -1736,7 +1736,7 @@ class ListsManager {
     /**
      * Toggle item selection
      */
-    toggleItemSelection(itemId: number, isSelected) {
+    toggleItemSelection(itemId: number, isSelected: boolean) {
         if (isSelected) {
             this.selectedItemIds.add(itemId);
         } else {
@@ -1835,7 +1835,7 @@ class ListsManager {
     /**
      * Toggle item completed status (with offline support)
      */
-    async toggleItemCompleted(itemId: number, isCompleted) {
+    async toggleItemCompleted(itemId: number, isCompleted: boolean) {
         // 1. Optimistic UI update - update state and render immediately
         const item = this.currentItems.find(i => i.id === itemId);
         if (item) {
@@ -1867,7 +1867,7 @@ class ListsManager {
             console.error('[ListsManager] Error toggling item completed:', error);
             // 4. Revert only if truly online and error occurred
             // (offline errors are expected and handled by offlineShopping)
-            if (this.isOnline && !error.message?.includes('offline')) {
+            if (this.isOnline && !(error as Error).message?.includes('offline')) {
                 if (item) item.is_completed = !isCompleted;
                 this.renderCurrentView();
                         showToast('Ошибка обновления статуса', 'error');
@@ -1910,7 +1910,7 @@ class ListsManager {
         } catch (error) {
             console.error('[ListsManager] Error deleting item:', error);
             // 4. Revert deletion only if truly online and error occurred
-            if (this.isOnline && !error.message?.includes('offline')) {
+            if (this.isOnline && !(error as Error).message?.includes('offline')) {
                 this.currentItems.splice(itemIndex, 0, deletedItem);
                 this.renderCurrentView();
                         showToast('Ошибка удаления товара', 'error');
@@ -2247,7 +2247,7 @@ class ListsManager {
      * @param {string|null} unit - The unit type
      * @returns {string|null} Formatted quantity string
      */
-    formatQuantity(quantity: number, unit) {
+    formatQuantity(quantity: number, unit: string) {
         if (quantity === null || quantity === undefined) {
             return null;
         }
@@ -2326,7 +2326,7 @@ class ListsManager {
      * Add item to UI (from WebSocket event)
      * @param {Object} item - Item data from server (must contain shopping_list_id)
      */
-    addItemToUI(item) {
+    addItemToUI(item: any) {
         if (!item || !item.id) {
             debugLog('[ListsManager] Invalid item for addItemToUI');
             return;
@@ -2364,7 +2364,7 @@ class ListsManager {
      * Update item in UI (from WebSocket event)
      * @param {Object} item - Updated item data from server (must contain shopping_list_id)
      */
-    updateItemInUI(item) {
+    updateItemInUI(item: any) {
         if (!item || !item.id) {
             debugLog('[ListsManager] Invalid item for updateItemInUI');
             return;
@@ -2400,7 +2400,7 @@ class ListsManager {
      * @param {number} itemId - Item ID to remove
      * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
-    removeItemFromUI(itemId: number, shoppingListId) {
+    removeItemFromUI(itemId: number, shoppingListId: number) {
         if (!itemId) {
             debugLog('[ListsManager] Invalid itemId for removeItemFromUI');
             return;
@@ -2441,7 +2441,7 @@ class ListsManager {
      * @param {boolean} isCompleted - New completed status
      * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
-    toggleItemCompletedInUI(itemId: number, isCompleted, shoppingListId) {
+    toggleItemCompletedInUI(itemId: number, isCompleted: boolean, shoppingListId: number) {
         if (!itemId) {
             debugLog('[ListsManager] Invalid itemId for toggleItemCompletedInUI');
             return;
@@ -2648,7 +2648,7 @@ class ListsManager {
      * Dropdown is rendered in body with position: fixed and positioned via JS
      * @param {Array} suggestions - Product suggestions
      */
-    renderSuggestionsDropdown(suggestions) {
+    renderSuggestionsDropdown(suggestions: any[]) {
         const dropdown = document.getElementById('product-suggestions-dropdown');
         if (!dropdown) return;
 

@@ -58,7 +58,7 @@ class DateFormatter {
    * DateFormatter.formatForAPI('27.10.2025') // => '2025-10-27'
    * DateFormatter.formatForAPI('7.2.2025') // => '2025-02-07'
    */
-  static formatForAPI(displayDate) {
+  static formatForAPI(displayDate: string): string {
     if (!displayDate) return '';
 
     const parts = displayDate.split('.');
@@ -133,7 +133,7 @@ class DateFormatter {
    * DateFormatter.isValidDisplayFormat('27.10.2025') // => true
    * DateFormatter.isValidDisplayFormat('2025-10-27') // => false
    */
-  static isValidDisplayFormat(dateStr) {
+  static isValidDisplayFormat(dateStr: string): boolean {
     if (!dateStr) return false;
 
     const parts = dateStr.split('.');
@@ -163,7 +163,7 @@ class DateFormatter {
    * DateFormatter.isValidISOFormat('2025-10-27') // => true
    * DateFormatter.isValidISOFormat('27-10-2025') // => false
    */
-  static isValidISOFormat(dateStr) {
+  static isValidISOFormat(dateStr: string): boolean {
     if (!dateStr) return false;
 
     const parts = dateStr.split('-');
@@ -193,7 +193,7 @@ class DateFormatter {
    * DateFormatter.formatDateTime(new Date('2025-10-27T15:30:00'))
    * // => '27.10.2025 15:30'
    */
-  static formatDateTime(date) {
+  static formatDateTime(date: Date | string): string {
     const d = typeof date === 'string' ? new Date(date) : date;
 
     const day = String(d.getDate()).padStart(2, '0');
@@ -255,7 +255,7 @@ class DateFormatter {
    * @example
    * DateFormatter.formatForDisplayWithMonthName('2025-10-27') // => '27 октября 2025'
    */
-  static formatForDisplayWithMonthName(isoDate) {
+  static formatForDisplayWithMonthName(isoDate: string): string {
     if (!isoDate) return '';
 
     const parts = isoDate.split('-');
@@ -281,7 +281,7 @@ class DateFormatter {
    * @example
    * DateFormatter.formatForAPIFromMonthName('27 октября 2025') // => '2025-10-27'
    */
-  static formatForAPIFromMonthName(displayDate) {
+  static formatForAPIFromMonthName(displayDate: string): string {
     if (!displayDate) return '';
 
     // Parse "27 октября 2025" format
@@ -318,7 +318,7 @@ class DateFormatter {
    * DateFormatter.isValidMonthNameFormat('27 октября 2025') // => true
    * DateFormatter.isValidMonthNameFormat('27-10-2025') // => false
    */
-  static isValidMonthNameFormat(dateStr) {
+  static isValidMonthNameFormat(dateStr: string): boolean {
     if (!dateStr) return false;
 
     const parts = dateStr.trim().split(/\s+/);
@@ -377,7 +377,7 @@ class DateFormatter {
    * DateFormatter.setNativeDateInput(input, '02.11.2025')
    * // Sets input.value = '2025-11-02'
    */
-  static setNativeDateInput(inputElement, displayDate) {
+  static setNativeDateInput(inputElement: HTMLInputElement | null, displayDate: string): void {
     if (!inputElement) return;
 
     if (displayDate && this.isValidDisplayFormat(displayDate)) {
@@ -398,7 +398,7 @@ class DateFormatter {
    * DateFormatter.getNativeDateInput(input)
    * // input.value = '2025-11-02' → returns '02.11.2025'
    */
-  static getNativeDateInput(inputElement) {
+  static getNativeDateInput(inputElement: HTMLInputElement | null): string {
     if (!inputElement || !inputElement.value) return '';
 
     return this.formatForDisplay(inputElement.value);
@@ -414,7 +414,7 @@ class DateFormatter {
    * DateFormatter.initNativeDateInput(input)
    * // Sets input.value = '2025-11-02' (today)
    */
-  static initNativeDateInput(inputElement) {
+  static initNativeDateInput(inputElement: HTMLInputElement | null): void {
     if (!inputElement) return;
 
     inputElement.value = this.todayISO();
@@ -441,14 +441,14 @@ class DateFormatter {
    * DateFormatter.toUserTimezone('2025-12-06T09:30:00Z', null)
    * // => Uses browser's local timezone
    */
-  static toUserTimezone(utcIsoString, userTimezone = null) {
+  static toUserTimezone(utcIsoString: string, userTimezone: string | null = null): string {
     if (!utcIsoString) return '';
 
     try {
       const date = new Date(utcIsoString);
       if (isNaN(date.getTime())) return '';
 
-      const options = {
+      const options: Intl.DateTimeFormatOptions = {
         timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         day: '2-digit',
         month: '2-digit',
@@ -489,14 +489,14 @@ class DateFormatter {
    * DateFormatter.dateToUserTimezone('2025-12-06T23:30:00Z', 'Europe/Moscow')
    * // => '07.12.2025' (next day in Moscow due to +3)
    */
-  static dateToUserTimezone(utcIsoString, userTimezone = null) {
+  static dateToUserTimezone(utcIsoString: string, userTimezone: string | null = null): string {
     if (!utcIsoString) return '';
 
     try {
       const date = new Date(utcIsoString);
       if (isNaN(date.getTime())) return '';
 
-      const options = {
+      const options: Intl.DateTimeFormatOptions = {
         timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         day: '2-digit',
         month: '2-digit',
@@ -569,7 +569,7 @@ class DateFormatter {
    * DateFormatter.toUtcForApi('06.12.2025 12:30', 'Europe/Moscow')
    * // => '2025-12-06T09:30:00.000Z' (Moscow UTC+3)
    */
-  static toUtcForApi(localDatetime, userTimezone = null) {
+  static toUtcForApi(localDatetime: string, userTimezone: string | null = null): string | null {
     if (!localDatetime) return null;
 
     try {
@@ -632,7 +632,7 @@ class DateFormatter {
    * DateFormatter.formatDateTimeWithTz('2025-12-06T09:30:00Z', 'Europe/Moscow')
    * // => '06.12.2025 12:30 (MSK)'
    */
-  static formatDateTimeWithTz(date, userTimezone = null) {
+  static formatDateTimeWithTz(date: Date | string, userTimezone: string | null = null): string {
     if (!date) return '';
 
     try {
@@ -641,7 +641,7 @@ class DateFormatter {
 
       const tz = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      const options = {
+      const options: Intl.DateTimeFormatOptions = {
         timeZone: tz,
         day: '2-digit',
         month: '2-digit',
@@ -708,19 +708,21 @@ class CalendarWidget {
   onSelect: Function;
   minDate: Date | null;
   maxDate: Date | null;
-  inputElement: HTMLInputElement | null;
-  selectedDate: Date | null;
-  startInputElement: HTMLInputElement | null;
-  endInputElement: HTMLInputElement | null;
-  startDate: Date | null;
-  endDate: Date | null;
-  selectingEnd: boolean;
+  inputElement!: HTMLInputElement | null;
+  selectedDate!: Date | null;
+  startInputElement!: HTMLInputElement | null;
+  endInputElement!: HTMLInputElement | null;
+  startDate!: Date | null;
+  endDate!: Date | null;
+  selectingEnd!: boolean;
   currentMonth: number;
   currentYear: number;
   isOpen: boolean;
   calendarElement: HTMLElement | null;
   triggerButton: HTMLElement | null;
   triggerButtons: HTMLElement[];
+  _isInsideDialog?: boolean;
+  _originalParent?: HTMLElement | null;
 
   /**
    * @param {Object} options - Configuration options
@@ -785,7 +787,7 @@ class CalendarWidget {
     this._attachEventListeners();
 
     // Parse existing date from input
-    if (this.mode === 'single' && this.inputElement.value) {
+    if (this.mode === 'single' && this.inputElement?.value) {
       const parsed = DateFormatter.parse(this.inputElement.value);
       if (parsed) {
         this.selectedDate = parsed;
@@ -795,11 +797,11 @@ class CalendarWidget {
     }
 
     if (this.mode === 'range') {
-      if (this.startInputElement.value) {
+      if (this.startInputElement?.value) {
         const parsed = DateFormatter.parse(this.startInputElement.value);
         if (parsed) this.startDate = parsed;
       }
-      if (this.endInputElement.value) {
+      if (this.endInputElement?.value) {
         const parsed = DateFormatter.parse(this.endInputElement.value);
         if (parsed) this.endDate = parsed;
       }
@@ -871,7 +873,7 @@ class CalendarWidget {
    * Create a single calendar button for an input element
    * @private
    */
-  _createSingleButton(targetInput) {
+  _createSingleButton(targetInput: HTMLInputElement | null) {
     // Create button
     const button = document.createElement('button');
     button.type = 'button';
@@ -1084,7 +1086,7 @@ class CalendarWidget {
    * Check if date is disabled
    * @private
    */
-  _isDateDisabled(date) {
+  _isDateDisabled(date: Date): boolean {
     if (this.minDate && date < this.minDate) return true;
     if (this.maxDate && date > this.maxDate) return true;
     return false;
@@ -1094,7 +1096,7 @@ class CalendarWidget {
    * Check if date is selected
    * @private
    */
-  _isDateSelected(date) {
+  _isDateSelected(date: Date): boolean {
     if (this.mode === 'single') {
       return this.selectedDate && date.getTime() === this.selectedDate.getTime();
     }
@@ -1110,7 +1112,7 @@ class CalendarWidget {
    * Check if date is in selected range
    * @private
    */
-  _isDateInRange(date) {
+  _isDateInRange(date: Date): boolean {
     if (this.mode !== 'range' || !this.startDate || !this.endDate) return false;
     return date > this.startDate && date < this.endDate;
   }
@@ -1119,7 +1121,7 @@ class CalendarWidget {
    * Check if date is a range boundary (start or end date)
    * @private
    */
-  _isRangeBoundary(date) {
+  _isRangeBoundary(date: Date): boolean {
     if (this.mode !== 'range') return false;
     const startMatch = this.startDate && date.getTime() === this.startDate.getTime();
     const endMatch = this.endDate && date.getTime() === this.endDate.getTime();
@@ -1130,7 +1132,7 @@ class CalendarWidget {
    * Format date to ISO string (YYYY-MM-DD)
    * @private
    */
-  _formatDateISO(date) {
+  _formatDateISO(date: Date): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -1146,11 +1148,11 @@ class CalendarWidget {
     // to support multiple buttons in range mode
 
     // Calendar actions (event delegation)
-    this.calendarElement.addEventListener('click', (e) => {
+    this.calendarElement?.addEventListener('click', (e) => {
       // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
       e.stopPropagation();
 
-      const target = e.target.closest('[data-action]');
+      const target = (e.target as HTMLElement)?.closest('[data-action]') as HTMLElement | null;
       if (!target) return;
 
       const action = target.dataset.action;
@@ -1175,26 +1177,26 @@ class CalendarWidget {
     });
 
     // Month/Year dropdowns
-    this.calendarElement.addEventListener('change', (e) => {
-      const target = e.target;
+    this.calendarElement?.addEventListener('change', (e) => {
+      const target = e.target as HTMLSelectElement;
 
-      if (target.dataset.action === 'select-month') {
+      if (target?.dataset.action === 'select-month') {
         this.currentMonth = parseInt(target.value);
         this._render();
       }
 
-      if (target.dataset.action === 'select-year') {
+      if (target?.dataset.action === 'select-year') {
         this.currentYear = parseInt(target.value);
         this._render();
       }
     });
 
     // Date selection
-    this.calendarElement.addEventListener('click', (e) => {
+    this.calendarElement?.addEventListener('click', (e) => {
       // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
       e.stopPropagation();
 
-      const dateButton = e.target.closest('[data-date]');
+      const dateButton = (e.target as HTMLElement)?.closest('[data-date]') as HTMLButtonElement | null;
       if (!dateButton || dateButton.disabled) return;
 
       const dateStr = dateButton.dataset.date;
@@ -1208,10 +1210,10 @@ class CalendarWidget {
       if (!this.isOpen) return;
 
       // Check if click is inside calendar
-      if (this.calendarElement.contains(e.target)) return;
+      if (this.calendarElement?.contains(e.target as Node)) return;
 
       // Check if click is on any trigger button
-      const clickedButton = this.triggerButtons.some(btn => btn.contains(e.target));
+      const clickedButton = this.triggerButtons.some(btn => btn.contains(e.target as Node));
       if (clickedButton) return;
 
       // Range mode: don't close on outside click (user must click "Закрыть" button)
@@ -1251,11 +1253,13 @@ class CalendarWidget {
    * Handle date selection
    * @private
    */
-  _handleDateSelection(date) {
+  _handleDateSelection(date: Date): void {
     if (this.mode === 'single') {
       this.selectedDate = date;
       const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
-      this.inputElement.value = displayDate;
+      if (this.inputElement) {
+        this.inputElement.value = displayDate;
+      }
       this.onSelect(displayDate);
       this.close();
     }
@@ -1267,8 +1271,12 @@ class CalendarWidget {
         this.endDate = null;
         this.selectingEnd = true;
         const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
-        this.startInputElement.value = displayDate;
-        this.endInputElement.value = '';
+        if (this.startInputElement) {
+          this.startInputElement.value = displayDate;
+        }
+        if (this.endInputElement) {
+          this.endInputElement.value = '';
+        }
         this._render();
       } else {
         // Select end date
@@ -1282,8 +1290,12 @@ class CalendarWidget {
 
         const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
         const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-        this.startInputElement.value = startDisplay;
-        this.endInputElement.value = endDisplay;
+        if (this.startInputElement) {
+          this.startInputElement.value = startDisplay;
+        }
+        if (this.endInputElement) {
+          this.endInputElement.value = endDisplay;
+        }
         this.selectingEnd = false;
         this._render(); // Re-render to show selected range, but don't close calendar
         // onSelect will be called when user clicks "Закрыть" button
@@ -1334,8 +1346,12 @@ class CalendarWidget {
 
     this.startDate = null;
     this.endDate = null;
-    this.startInputElement.value = '';
-    this.endInputElement.value = '';
+    if (this.startInputElement) {
+      this.startInputElement.value = '';
+    }
+    if (this.endInputElement) {
+      this.endInputElement.value = '';
+    }
     this.selectingEnd = false;
     this._render();
   }
@@ -1353,20 +1369,24 @@ class CalendarWidget {
     if (!targetInput) return;
 
     // Check if input is inside an open dialog
-    const dialogElement = targetInput.closest('dialog[open]');
+    const dialogElement = targetInput?.closest('dialog[open]');
 
     if (dialogElement) {
       // Input is inside an open dialog - move calendar into .modal-box for proper layering
       const modalBox = dialogElement.querySelector('.modal-box');
-      if (modalBox && this.calendarElement.parentElement !== modalBox) {
+      if (modalBox && this.calendarElement && this.calendarElement.parentElement !== modalBox) {
         // Store original parent for restoration
         this._originalParent = this.calendarElement.parentElement;
         // Move calendar into dialog's modal-box
-        modalBox.appendChild(this.calendarElement);
+        if (this.calendarElement) {
+          modalBox.appendChild(this.calendarElement);
+        }
         // Switch to absolute positioning within dialog
-        this.calendarElement.classList.remove('fixed');
-        this.calendarElement.classList.add('absolute');
-        this.calendarElement.style.position = 'absolute';
+        this.calendarElement?.classList.remove('fixed');
+        this.calendarElement?.classList.add('absolute');
+        if (this.calendarElement) {
+          this.calendarElement.style.position = 'absolute';
+        }
         this._isInsideDialog = true;
       }
     }
@@ -1377,7 +1397,7 @@ class CalendarWidget {
    * @private
    */
   _restoreToBody() {
-    if (this._isInsideDialog && this._originalParent) {
+    if (this._isInsideDialog && this._originalParent && this.calendarElement) {
       // Move calendar back to original parent (document.body)
       this._originalParent.appendChild(this.calendarElement);
       // Restore fixed positioning
@@ -1399,8 +1419,10 @@ class CalendarWidget {
     this._moveToDialog();
 
     // Make visible but transparent for positioning calculation
-    this.calendarElement.style.visibility = 'visible';
-    this.calendarElement.style.opacity = '0';
+    if (this.calendarElement) {
+      this.calendarElement.style.visibility = 'visible';
+      this.calendarElement.style.opacity = '0';
+    }
 
     // Calculate and set position
     this._positionCalendar();
@@ -1409,7 +1431,9 @@ class CalendarWidget {
     // This prevents visual "jumps" on mobile devices
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        this.calendarElement.style.opacity = '1';
+        if (this.calendarElement) {
+          this.calendarElement.style.opacity = '1';
+        }
         this._render(); // Re-render to show current selection
       });
     });
@@ -1431,8 +1455,8 @@ class CalendarWidget {
     const calendarWidth = 320; // Match width in _createCalendarElement
 
     // Use REAL calendar height instead of approximate 400px to prevent visual jumps
-    const calendarRect = this.calendarElement.getBoundingClientRect();
-    const calendarHeight = calendarRect.height || 400; // Fallback to 400 if height is 0
+    const calendarRect = this.calendarElement?.getBoundingClientRect();
+    const calendarHeight = calendarRect?.height || 400; // Fallback to 400 if height is 0
 
     // For position: fixed, use document.documentElement.clientWidth (excludes scrollbar)
     // window.innerWidth can include scrollbar on some devices causing misalignment
@@ -1444,12 +1468,12 @@ class CalendarWidget {
     // If inside dialog, calculate position relative to dialog instead of viewport
     let scrollTop = 0;
     let scrollLeft = 0;
-    let modalBox = null;
+    let modalBox: Element | null = null;
     if (this._isInsideDialog) {
-      modalBox = this.calendarElement.parentElement;
+      modalBox = this.calendarElement?.parentElement || null;
       if (modalBox) {
-        scrollTop = modalBox.scrollTop;
-        scrollLeft = modalBox.scrollLeft;
+        scrollTop = (modalBox as HTMLElement).scrollTop;
+        scrollLeft = (modalBox as HTMLElement).scrollLeft;
       }
     }
 
@@ -1495,7 +1519,7 @@ class CalendarWidget {
 
     if (this._isInsideDialog && modalBox) {
       // For modal-box: check space within modal-box
-      const modalHeight = modalBox.clientHeight;
+      const modalHeight = (modalBox as HTMLElement).clientHeight;
       const inputOffsetTop = inputRect.top - modalBox.getBoundingClientRect().top + scrollTop;
 
       spaceBelow = modalHeight - (inputOffsetTop + inputRect.height);
@@ -1519,12 +1543,12 @@ class CalendarWidget {
     // Mobile: Center calendar horizontally, vertical positioning depends on context
     if (viewportWidth < 768) {
       // Check if calendar is inside modal-box (direct check, more reliable)
-      const parent = this.calendarElement.parentElement;
+      const parent = this.calendarElement?.parentElement;
       const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
 
       if (isInsideModalBox) {
         // Calendar inside modal-box: center horizontally within modal-box
-        const modalWidth = parent.clientWidth;
+        const modalWidth = (parent as HTMLElement).clientWidth;
 
         // Simple centering formula: left = (containerWidth - calendarWidth) / 2
         left = (modalWidth - calendarWidth) / 2;
@@ -1560,12 +1584,12 @@ class CalendarWidget {
 
     // Desktop in dialog: Center horizontally within modal-box
     if (isDesktop) {
-      const parent = this.calendarElement.parentElement;
+      const parent = this.calendarElement?.parentElement;
       const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
 
       if (isInsideModalBox) {
         // Calendar inside modal-box: center within modal-box
-        const modalWidth = parent.clientWidth;
+        const modalWidth = (parent as HTMLElement).clientWidth;
 
         // Simple centering formula: left = (containerWidth - calendarWidth) / 2
         left = (modalWidth - calendarWidth) / 2;
@@ -1573,8 +1597,10 @@ class CalendarWidget {
     }
 
     // Apply position
-    this.calendarElement.style.top = `${top}px`;
-    this.calendarElement.style.left = `${left}px`;
+    if (this.calendarElement) {
+      this.calendarElement.style.top = `${top}px`;
+      this.calendarElement.style.left = `${left}px`;
+    }
   }
 
   /**
@@ -1597,8 +1623,10 @@ class CalendarWidget {
    */
   close() {
     this.isOpen = false;
-    this.calendarElement.style.visibility = 'hidden';
-    this.calendarElement.style.opacity = '0';
+    if (this.calendarElement) {
+      this.calendarElement.style.visibility = 'hidden';
+      this.calendarElement.style.opacity = '0';
+    }
 
     // Restore calendar back to document.body if it was moved to a dialog
     this._restoreToBody();
@@ -1664,7 +1692,7 @@ class ChoicesCategoryTree {
     selector: string;
     element: HTMLElement | null;
     auth: any | null;
-    options: {
+    options!: {
         type: string;
         onCategoryChange: Function | null;
         apiBaseUrl: string;
