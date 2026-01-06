@@ -144,7 +144,7 @@ minify_js_file() {
     # Handle timeout (exit code 124)
     if [[ $terser_exit -eq 124 ]]; then
         print_message error "Timeout: $input_file (exceeded 60 seconds)"
-        ((ERRORS_COUNT++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 
@@ -160,7 +160,8 @@ minify_js_file() {
             print_message success "✓ $output_file"
         fi
 
-        ((MINIFIED_JS_COUNT++))
+        # BUGFIX: Use assignment form instead of ((...++))
+        MINIFIED_JS_COUNT=$((MINIFIED_JS_COUNT + 1))
         return 0
     else
         # Failed - show error details
@@ -171,7 +172,8 @@ minify_js_file() {
 
         # Cleanup partial files
         rm -f "$output_file"
-        ((ERRORS_COUNT++))
+        # BUGFIX: Use assignment form instead of ((...++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 }
@@ -221,7 +223,7 @@ minify_ts_file() {
             echo "$tsc_output" | head -5 >&2
         fi
         rm -f "$temp_file" "$compiled_js"
-        ((ERRORS_COUNT++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 
@@ -240,7 +242,7 @@ minify_ts_file() {
     # Handle timeout (exit code 124)
     if [[ $terser_exit -eq 124 ]]; then
         print_message error "Timeout: $input_file (exceeded 60 seconds)"
-        ((ERRORS_COUNT++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 
@@ -256,7 +258,8 @@ minify_ts_file() {
             print_message success "✓ $output_file"
         fi
 
-        ((MINIFIED_JS_COUNT++))
+        # BUGFIX: Use assignment form instead of ((...++))
+        MINIFIED_JS_COUNT=$((MINIFIED_JS_COUNT + 1))
         return 0
     else
         # Failed - show error details
@@ -267,7 +270,8 @@ minify_ts_file() {
 
         # Cleanup partial files
         rm -f "$output_file"
-        ((ERRORS_COUNT++))
+        # BUGFIX: Use assignment form instead of ((...++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 }
@@ -444,7 +448,11 @@ minify_service_worker() {
         local minified_size=$(stat -c%s "$sw_minified" 2>/dev/null || stat -f%z "$sw_minified" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
         print_message success "✓ $sw_minified (${reduction}% smaller: ${original_size}B → ${minified_size}B)"
-        ((MINIFIED_JS_COUNT++))
+
+        # BUGFIX: Use assignment form instead of ((MINIFIED_JS_COUNT++))
+        # When count=0, ((0++)) returns old value (0), and ((0)) has exit status 1
+        # With set -e in parent script, this terminates execution prematurely
+        MINIFIED_JS_COUNT=$((MINIFIED_JS_COUNT + 1))
 
         # Create gzip pre-compressed version for nginx gzip_static
         if command -v gzip &> /dev/null; then
@@ -467,7 +475,7 @@ minify_service_worker() {
         if [[ -n "$terser_output" ]]; then
             echo "$terser_output" | head -3 >&2
         fi
-        ((ERRORS_COUNT++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 }
@@ -529,7 +537,7 @@ minify_css_file() {
         local reduction=$((100 - (minified_size * 100 / original_size)))
 
         print_message success "✓ $output_file (${reduction}% smaller)"
-        ((MINIFIED_CSS_COUNT++))
+        MINIFIED_CSS_COUNT=$((MINIFIED_CSS_COUNT + 1))
         return 0
     else
         local postcss_exit=$?
@@ -547,7 +555,7 @@ minify_css_file() {
             fi
         fi
 
-        ((ERRORS_COUNT++))
+        ERRORS_COUNT=$((ERRORS_COUNT + 1))
         return 1
     fi
 }
