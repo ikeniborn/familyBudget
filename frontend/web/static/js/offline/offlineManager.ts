@@ -20,6 +20,9 @@
 const _offlineLog = window.DEBUG_MODE ? console.log.bind(console) : function() {};
 const _offlineWarn = window.DEBUG_MODE ? console.warn.bind(console) : function() {};
 
+// Type declaration for IndexedDBManager (loaded via idb.ts)
+declare const IndexedDBManager: any;
+
 interface SyncResult {
     success: boolean;
     error?: string;
@@ -43,7 +46,7 @@ class OfflineManager {
     // Web Worker for sync hash generation
     private static _workerWrapper: any = null;
 
-    private db: IndexedDBManager;
+    private db: any;
     private syncInProgress: boolean;
     private retryDelay: number;
     // @ts-ignore - Used in full implementation
@@ -135,7 +138,7 @@ class OfflineManager {
 
         // Update navbar badge after sync
         window.addEventListener('offline-sync-complete', async () => {
-            console.log('[OfflineManager] offline-sync-complete event → updating navbar badge');
+            _offlineLog('[OfflineManager] offline-sync-complete event → updating navbar badge');
             await this._updateNavbarBadge();
         });
     }

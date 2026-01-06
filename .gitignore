@@ -309,3 +309,4 @@ temp/
 
 # Backup directory (local only)
 backup-pre-optimization/
+bundle-stats*.html

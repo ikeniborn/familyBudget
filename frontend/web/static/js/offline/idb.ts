@@ -52,6 +52,20 @@ interface ContentHashData {
     record_type?: string;
 }
 
+export interface SyncQueueEntry {
+    id?: number;
+    operation: string;
+    entityType?: string;
+    entityId?: string | number;
+    tempId?: string;
+    data: any;
+    status: 'pending' | 'syncing' | 'completed' | 'failed';
+    syncAttempts?: number;
+    timestamp?: number;
+    created_at?: string;
+    createdAt?: number;
+}
+
 class IndexedDBManager {
     private db: IDBDatabase | null = null;
     private isInitialized: boolean = false;
@@ -1119,3 +1133,7 @@ class IndexedDBManager {
 if (typeof window !== 'undefined') {
     window.IndexedDBManager = IndexedDBManager;
 }
+
+// ES Module exports for testing
+export { IndexedDBManager };
+export default IndexedDBManager;
