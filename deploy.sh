@@ -1346,7 +1346,14 @@ main() {
                 export CACHE_VERSION="${CACHE_VERSION}"
                 source scripts/lib/minify.sh
                 minify_service_worker
-            )
+            ) 2>&1 | tee -a "$LOG_FILE"
+
+            # CRITICAL: Check subshell exit status
+            # set -e will exit immediately if subshell fails, but we want to log the error first
+            local subshell_exit_code=${PIPESTATUS[0]}
+            if [[ $subshell_exit_code -ne 0 ]]; then
+                error_return "Service Worker regeneration subshell failed with exit code: $subshell_exit_code"
+            fi
         else
             error_return "Cannot create Service Worker minified files: sw.js not found"
         fi
