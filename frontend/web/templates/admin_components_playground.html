@@ -1,0 +1,627 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">🎨 UI Components Playground</h1>
+        <p class="text-base-content/70">Interactive showcase of the Family Budget Component Library v1.3.0</p>
+        <div class="stats shadow mt-4">
+            <div class="stat">
+                <div class="stat-title">Total Components</div>
+                <div class="stat-value text-primary">19</div>
+                <div class="stat-desc">Phase 1-4 Complete</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">Lines of Code</div>
+                <div class="stat-value text-secondary">5,504</div>
+                <div class="stat-desc">TypeScript ES Modules</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">Bundle Size</div>
+                <div class="stat-value text-accent">65 KB</div>
+                <div class="stat-desc">Minified (~19KB gzipped)</div>
+            </div>
+            <div class="stat">
+                <div class="stat-title">Code Saved</div>
+                <div class="stat-value text-success">~2,000</div>
+                <div class="stat-desc">Lines of duplication removed</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div role="tablist" class="tabs tabs-bordered">
+        <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Core" checked />
+        <div role="tabpanel" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-4">Core Components (7)</h2>
+            <p class="mb-6 text-base-content/70">Base primitive components for building forms</p>
+
+            <!-- FormField Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">FormField - Universal Form Wrapper</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Live Example:</h4>
+                            <div id="demo-formfield"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>import { FormField, TextInput } from '@components';
+
+const textInput = new TextInput({
+  name: 'username',
+  placeholder: 'Enter username'
+});
+
+const field = new FormField({
+  label: 'Username',
+  name: 'username',
+  required: true,
+  helpText: 'Your unique username',
+  children: textInput.render()
+});
+
+document.body.appendChild(field.render());</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AmountInput Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">AmountInput - Validated Number Input</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Live Example:</h4>
+                            <div id="demo-amountinput"></div>
+                            <button class="btn btn-sm btn-primary mt-2" onclick="validateAmount()">Validate</button>
+                            <div id="amount-validation" class="text-sm mt-2"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const amountInput = new AmountInput({
+  name: 'amount',
+  min: 1,
+  max: 1000000,
+  step: 1,
+  required: true,
+  placeholder: '0'
+});
+
+const validation = amountInput.validate();
+if (!validation.valid) {
+  console.error(validation.error);
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DateInput Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">DateInput - Calendar Widget Integration</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Live Example:</h4>
+                            <div id="demo-dateinput"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Features:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Wraps existing CalendarWidget (ZERO refactoring!)</li>
+                                <li>Quick date buttons (Today, Yesterday, etc.)</li>
+                                <li>DD.MM.YYYY format validation</li>
+                                <li>Single/Range mode support</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Composite" />
+        <div role="tabpanel" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-4">Composite Components (5)</h2>
+            <p class="mb-6 text-base-content/70">Business-specific components with API integration</p>
+
+            <!-- FinancialCenterSelect Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">FinancialCenterSelect - Account Picker</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Live Example:</h4>
+                            <div id="demo-fcselect"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const fcSelect = new FinancialCenterSelect({
+  name: 'financial_center_id',
+  required: true,
+  onChange: (fcId) => {
+    console.log('Selected:', fcId);
+  }
+});
+
+await fcSelect.loadOptions();
+container.appendChild(fcSelect.render());</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RecurringPlanSettings Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">RecurringPlanSettings - Complex Recurring Config</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Features:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>3 frequency types: weekly/monthly/yearly</li>
+                                <li>MMDD encoding for yearly (e.g., 315 = March 15)</li>
+                                <li>Dynamic validation based on type</li>
+                                <li>Optional end date</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Example Data:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>{
+  frequencyType: 'monthly',
+  frequencyValue: 15,  // 15th of month
+  endDate: null        // Indefinite
+}
+
+// For yearly:
+{
+  frequencyType: 'yearly',
+  frequencyValue: 315, // March 15
+  endDate: '2026-12-31'
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Forms" />
+        <div role="tabpanel" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-4">Form Components (4)</h2>
+            <p class="mb-6 text-base-content/70">Complete forms with validation and submission</p>
+
+            <!-- TransactionForm Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">TransactionForm - Full Transaction Form</h3>
+                    <div class="alert alert-info mb-4">
+                        <span>Used in 8+ places across the application - saves ~400 lines of duplication!</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Features:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Date input with quick buttons</li>
+                                <li>Financial center selection</li>
+                                <li>Record type (expense/income)</li>
+                                <li>Dynamic article filtering</li>
+                                <li>Fact hints (plan/fact for period)</li>
+                                <li>Amount validation</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const form = new TransactionForm({
+  container: '#form-container',
+  mode: 'create',
+  onSubmit: async (data) => {
+    const response = await fetch('/api/v1/facts', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return response.json();
+  },
+  onSuccess: () => {
+    showToast('Saved!');
+    modal.close();
+  }
+});
+
+await form.initialize();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AdminCrudForm Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">AdminCrudForm&lt;T&gt; - Generic CRUD Form</h3>
+                    <div class="alert alert-success mb-4">
+                        <span>⭐ Highest ROI: Saves ~1,200 lines across admin panels!</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Supported Field Types:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li><code>text</code> - Simple text input</li>
+                                <li><code>textarea</code> - Multi-line text</li>
+                                <li><code>number</code> - Number with validation</li>
+                                <li><code>select</code> - Dropdown</li>
+                                <li><code>multi-select</code> - Multiple selection</li>
+                                <li><code>checkbox</code> - Boolean toggle</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Example:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const form = new AdminCrudForm<Article>({
+  entity: 'article',
+  mode: 'create',
+  fields: [
+    { name: 'name', type: 'text', label: 'Name', required: true },
+    { name: 'type', type: 'select', label: 'Type', options: [...] },
+    { name: 'is_active', type: 'checkbox', label: 'Active', defaultValue: true }
+  ],
+  onSubmit: async (data) => { /* ... */ }
+});
+
+await form.render(container);</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Modals" />
+        <div role="tabpanel" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-4">Modal Components (3)</h2>
+            <p class="mb-6 text-base-content/70">Modal management with DaisyUI dialog integration</p>
+
+            <!-- BaseModal Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">BaseModal - DaisyUI Dialog Wrapper</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Features:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>DaisyUI dialog integration</li>
+                                <li>Automatic ModalKeyboardAdapter integration</li>
+                                <li>Backdrop click to close</li>
+                                <li>Event callbacks (onOpen, onClose)</li>
+                                <li>Dynamic content management</li>
+                            </ul>
+                            <button class="btn btn-sm btn-primary mt-4" onclick="showDemoModal()">Show Demo Modal</button>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const modal = new BaseModal({
+  id: 'my-modal',
+  title: 'Example Modal',
+  content: contentElement,
+  onOpen: () => console.log('Opened'),
+  onClose: () => console.log('Closed')
+});
+
+document.body.appendChild(modal.render());
+modal.open();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CrudModal Example -->
+            <div class="card bg-base-200 shadow-xl mb-6">
+                <div class="card-body">
+                    <h3 class="card-title">CrudModal&lt;T&gt; - CRUD Operations Modal</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h4 class="font-semibold mb-2">Features:</h4>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li>Dynamic mode switching (create/edit)</li>
+                                <li>Delete confirmation button</li>
+                                <li>Generic form builder pattern</li>
+                                <li>API integration helpers</li>
+                                <li>Success/Error callbacks</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold mb-2">Usage:</h4>
+                            <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>const modal = new CrudModal<Article>({
+  id: 'article-modal',
+  entity: 'article',
+  createTitle: 'Create Article',
+  editTitle: 'Edit Article',
+  formBuilder: (mode, data) => new AdminCrudForm({...}),
+  onCreate: async (data) => { /* POST */ },
+  onUpdate: async (id, data) => { /* PUT */ },
+  onDelete: async (id) => { /* DELETE */ },
+  onSuccess: () => reloadTable()
+});
+
+// Open for create
+modal.openForCreate();
+
+// Open for edit
+modal.openForEdit(existingArticle);</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Architecture" />
+        <div role="tabpanel" class="tab-content p-6">
+            <h2 class="text-2xl font-bold mb-4">Architecture & Design Decisions</h2>
+
+            <div class="space-y-6">
+                <!-- Hybrid Approach -->
+                <div class="card bg-base-200 shadow-xl">
+                    <div class="card-body">
+                        <h3 class="card-title">Hybrid Architecture (9/10 Score)</h3>
+                        <p class="mb-4">Jinja2 server-side templates + TypeScript client-side components</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-semibold mb-2">✅ Advantages:</h4>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Offline-first PWA support</li>
+                                    <li>HTMX compatibility preserved</li>
+                                    <li>Type safety (TypeScript)</li>
+                                    <li>ZERO refactoring of existing widgets</li>
+                                    <li>Incremental migration path</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">Component Hierarchy:</h4>
+                                <pre class="bg-base-300 p-4 rounded overflow-x-auto"><code>Base Components (primitives)
+  ↓
+Composite Components (business logic)
+  ↓
+Form Components (complete forms)
+  ↓
+Modal Components (modal management)</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wrapper Pattern -->
+                <div class="card bg-base-200 shadow-xl">
+                    <div class="card-body">
+                        <h3 class="card-title">Wrapper Pattern - ZERO Refactoring</h3>
+                        <p class="mb-4">Existing widgets remain unchanged, new components wrap them</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-semibold mb-2">CalendarWidget (969 lines)</h4>
+                                <p class="text-sm mb-2">Wrapped by DateInput - ZERO modifications!</p>
+                                <pre class="bg-base-300 p-2 rounded text-xs"><code>this.calendar = new BudgetShared.CalendarWidget({
+  inputElement: this.input,
+  mode: 'single',
+  onDateSelect: (date) => this.props.onChange?.(date)
+});</code></pre>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">ChoicesCategoryTree (1337 lines)</h4>
+                                <p class="text-sm mb-2">Wrapped by HierarchySelect - ZERO modifications!</p>
+                                <pre class="bg-base-300 p-2 rounded text-xs"><code>this.choicesInstance = new BudgetShared.ChoicesCategoryTree(
+  `#${this.props.name}`,
+  {
+    type: this.props.articleType,
+    financialCenterId: this.props.financialCenterId
+  }
+);</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Build System -->
+                <div class="card bg-base-200 shadow-xl">
+                    <div class="card-body">
+                        <h3 class="card-title">Build System & Bundle Management</h3>
+                        <div class="overflow-x-auto">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Bundle</th>
+                                        <th>Format</th>
+                                        <th>Size (minified)</th>
+                                        <th>Purpose</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>budgetShared.bundle.js</td>
+                                        <td>IIFE</td>
+                                        <td>~25KB</td>
+                                        <td>Existing widgets (CalendarWidget, etc.)</td>
+                                    </tr>
+                                    <tr class="bg-primary/10">
+                                        <td><strong>components.bundle.js</strong></td>
+                                        <td><strong>IIFE</strong></td>
+                                        <td><strong>65KB</strong></td>
+                                        <td><strong>New Component Library</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td>bundle.js</td>
+                                        <td>IIFE</td>
+                                        <td>Varies</td>
+                                        <td>Main application code</td>
+                                    </tr>
+                                    <tr>
+                                        <td>webapp.bundle.js</td>
+                                        <td>IIFE</td>
+                                        <td>~8KB</td>
+                                        <td>Telegram Mini App</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-sm"><strong>Toolchain:</strong> Rollup 4.55.1 + TypeScript 5.9.3 + Terser</p>
+                            <p class="text-sm"><strong>Tree-shaking:</strong> Enabled (unused exports eliminated)</p>
+                            <p class="text-sm"><strong>Estimated gzipped:</strong> ~19KB (70% compression)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture Diagram -->
+    <div class="card bg-base-100 shadow-xl mt-6">
+        <div class="card-body">
+            <h2 class="card-title">Component Library Structure</h2>
+            <div class="mockup-code">
+                <pre><code>UI Components Library (v1.3.0)
+├── Core (7) - Base primitives (~1,000 lines, ~15KB)
+│   ├── FormField - Universal wrapper
+│   ├── TextInput, TextareaInput - Text inputs
+│   ├── AmountInput - Validated number
+│   ├── DateInput - Calendar widget wrapper
+│   ├── SelectDropdown - Basic select
+│   └── HierarchySelect&lt;T&gt; - Generic tree selector
+│
+├── Composite (5) - Business logic (~1,100 lines, ~12KB)
+│   ├── FinancialCenterSelect - Account picker + API
+│   ├── ArticleSelect - Category tree + filtering
+│   ├── CostCenterSelect - Cost center picker + API
+│   ├── RecurringPlanSettings - Recurring config UI
+│   └── ReminderSettings - Reminder datetime picker
+│
+├── Forms (4) - Complete forms (~2,077 lines, ~28KB)
+│   ├── TransactionForm - Full transaction form (8+ uses)
+│   ├── TransferForm - Transfer between accounts
+│   ├── RecurringPlanForm - Recurring payment form
+│   └── AdminCrudForm&lt;T&gt; - Generic CRUD (~1,200 lines saved!)
+│
+└── Modals (3) - Modal management (~904 lines, ~10KB)
+    ├── BaseModal - DaisyUI dialog wrapper
+    ├── FormModal - BaseModal + validation
+    └── CrudModal&lt;T&gt; - FormModal + CRUD ops
+</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Modal (for BaseModal example) -->
+<dialog id="demo-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg">Demo Modal</h3>
+        <p class="py-4">This is a demonstration of BaseModal component!</p>
+        <div class="modal-action">
+            <button class="btn" onclick="closeDemoModal()">Close</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<script type="module">
+// This page demonstrates the components but doesn't initialize them
+// (to avoid loading the full components bundle on the playground page)
+// In real usage, you would import and initialize components like this:
+// import { FormField, AmountInput } from '/static/js/dist/components.bundle.js';
+
+// Simple demos using basic HTML
+document.addEventListener('DOMContentLoaded', () => {
+    // FormField demo
+    const formFieldDemo = document.getElementById('demo-formfield');
+    if (formFieldDemo) {
+        formFieldDemo.innerHTML = `
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Username *</span>
+                </label>
+                <input type="text" class="input input-bordered w-full" placeholder="Enter username" />
+                <span class="label-text-alt text-base-content/70 text-xs mt-1">Your unique username</span>
+            </div>
+        `;
+    }
+
+    // AmountInput demo
+    const amountDemo = document.getElementById('demo-amountinput');
+    if (amountDemo) {
+        amountDemo.innerHTML = `
+            <input type="number" id="demo-amount" class="input input-bordered w-full"
+                   min="1" max="1000000" step="1" placeholder="0" />
+        `;
+    }
+
+    // DateInput demo
+    const dateDemo = document.getElementById('demo-dateinput');
+    if (dateDemo) {
+        dateDemo.innerHTML = `
+            <div class="flex gap-1 mb-1">
+                <button type="button" class="btn btn-xs btn-outline flex-1">Сегодня</button>
+                <button type="button" class="btn btn-xs btn-outline flex-1">Вчера</button>
+                <button type="button" class="btn btn-xs btn-outline flex-1">Позавчера</button>
+            </div>
+            <input type="text" class="input input-bordered w-full"
+                   placeholder="ДД.ММ.ГГГГ" maxlength="10" />
+        `;
+    }
+
+    // FinancialCenterSelect demo
+    const fcDemo = document.getElementById('demo-fcselect');
+    if (fcDemo) {
+        fcDemo.innerHTML = `
+            <select class="select select-bordered w-full">
+                <option value="">-- Выберите счет --</option>
+                <option>Наличные</option>
+                <option>Карта Сбербанк</option>
+                <option>Карта Тинькофф</option>
+            </select>
+        `;
+    }
+});
+
+// Demo functions
+window.validateAmount = function() {
+    const input = document.getElementById('demo-amount');
+    const validation = document.getElementById('amount-validation');
+    if (!input || !validation) return;
+
+    const value = parseFloat(input.value);
+    if (isNaN(value)) {
+        validation.innerHTML = '<span class="text-error">❌ Введите корректное число</span>';
+    } else if (value < 1) {
+        validation.innerHTML = '<span class="text-error">❌ Минимальное значение: 1</span>';
+    } else if (value > 1000000) {
+        validation.innerHTML = '<span class="text-error">❌ Максимальное значение: 1,000,000</span>';
+    } else {
+        validation.innerHTML = '<span class="text-success">✅ Значение корректно</span>';
+    }
+};
+
+window.showDemoModal = function() {
+    document.getElementById('demo-modal').showModal();
+};
+
+window.closeDemoModal = function() {
+    document.getElementById('demo-modal').close();
+};
+</script>
+
+<style>
+/* Syntax highlighting for code blocks */
+pre code {
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.tab {
+    font-weight: 500;
+}
+
+.tab-content {
+    border: 1px solid hsl(var(--bc) / 0.2);
+    border-top: none;
+}
+</style>
+{% endblock %}

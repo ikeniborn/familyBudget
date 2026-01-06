@@ -121,5 +121,38 @@ export default [
         mangle: { properties: false }
       })
     ].filter(Boolean)
+  },
+
+  // UI Components library bundle (Phase 4.1: Foundation)
+  {
+    input: 'frontend/web/static/js/modules/uiComponents/index.ts',
+    output: {
+      file: 'frontend/web/static/js/dist/components.bundle.js',
+      format: 'iife',
+      name: 'UIComponents',
+      sourcemap: !production,
+      generatedCode: {
+        constBindings: true
+      }
+    },
+    plugins: [
+      typescript({
+        tsconfig: './tsconfig.json',
+        sourceMap: !production,
+        inlineSources: !production,
+        declaration: false
+      }),
+      resolve({ browser: true }),
+      commonjs(),
+      production && terser({
+        compress: { passes: 2, drop_console: false },
+        mangle: { properties: false }
+      }),
+      production && visualizer({
+        filename: 'bundle-stats-components.html',
+        gzipSize: true,
+        brotliSize: true
+      })
+    ].filter(Boolean)
   }
 ];

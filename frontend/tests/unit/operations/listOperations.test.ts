@@ -24,6 +24,9 @@ describe('listOperations', () => {
         // Reset all mocks
         vi.clearAllMocks();
 
+        // Re-initialize fetch as mock after clearAllMocks
+        global.fetch = vi.fn();
+
         // Mock offline shopping manager
         mockOfflineShopping = {
             createItem: vi.fn(),

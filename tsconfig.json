@@ -38,7 +38,8 @@
     "paths": {
       "@web/*": ["frontend/web/static/js/*"],
       "@webapp/*": ["frontend/webapp/static/js/*"],
-      "@shared/*": ["frontend/shared/static/js/*"]
+      "@shared/*": ["frontend/shared/static/js/*"],
+      "@components/*": ["frontend/web/static/js/modules/uiComponents/*"]
     }
   },
 
