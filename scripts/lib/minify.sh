@@ -457,6 +457,11 @@ minify_service_worker() {
         else
             print_message warning "gzip not found - skipping pre-compressed version"
         fi
+
+        # Explicit return to ensure subshell exits with success status
+        # BUGFIX: Without this, ((MINIFIED_JS_COUNT++)) when count=0 returns exit status 1,
+        # causing deploy.sh with set -e to terminate prematurely
+        return 0
     else
         print_message error "Failed to minify Service Worker: $sw_source"
         if [[ -n "$terser_output" ]]; then
