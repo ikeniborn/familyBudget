@@ -56,20 +56,32 @@ validate_service_worker() {
     fi
 
     # Check if version matches expected NEW_VERSION
-    if grep -qE "(const )?CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']${NEW_VERSION}[\"'][;,]" "$SW_FILE"; then
+    # NOTE: After Vite minification, variable names are mangled (e.g. CACHE_VERSION -> f)
+    # So we search for the version string directly instead of variable name
+    if grep -qF "\"${NEW_VERSION}\"" "$SW_FILE" || grep -qF "'${NEW_VERSION}'" "$SW_FILE"; then
         echo -e "  ${GREEN}✓${NC} Service Worker version correct: ${BLUE}${NEW_VERSION}${NC}"
         return 0
     else
-        # Show what version is actually present
+        # Show what version is actually present (search for version pattern vYYYYMMDD_HHMM or vYYYYMMDD_suffix)
         local actual_version
-        actual_version=$(grep -o 'CACHE_VERSION="[^"]*"' "$SW_FILE" | head -1 || echo "NOT FOUND")
+        actual_version=$(grep -oE '"v[0-9]{8}_[a-zA-Z0-9]+"' "$SW_FILE" | head -1 | tr -d '"' || echo "")
+
+        # Try single quotes if double quotes not found
+        if [ -z "$actual_version" ]; then
+            actual_version=$(grep -oE "'v[0-9]{8}_[a-zA-Z0-9]+'" "$SW_FILE" | head -1 | tr -d "'" || echo "")
+        fi
+
+        if [ -z "$actual_version" ]; then
+            actual_version="NOT FOUND"
+        fi
+
         echo -e "  ${RED}✗${NC} Service Worker version mismatch!"
         echo -e "  ${YELLOW}Expected:${NC} ${BLUE}${NEW_VERSION}${NC}"
         echo -e "  ${YELLOW}Actual:${NC}   ${RED}${actual_version}${NC}"
         echo -e ""
         echo -e "  ${YELLOW}[INFO]${NC} This usually means:"
         echo -e "    - npm run build failed or was skipped"
-        echo -e "    - minify.sh did not run successfully"
+        echo -e "    - vite-plugin-sw-version.ts did not inject CACHE_VERSION"
         echo -e "    - CACHE_VERSION env variable not passed to build"
         return 1
     fi
