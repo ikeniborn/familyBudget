@@ -899,11 +899,11 @@
                     <h3 class="font-bold text-lg mb-4">🔄 Доступно обновление</h3>
                     <p class="mb-2">Доступна новая версия приложения.</p>
                     <div id="sw-version-info" class="mb-3 p-3 bg-base-200 rounded-lg">
-                        <div class="flex items-center justify-center gap-2 text-sm">
-                            <span class="opacity-70">Версия:</span>
-                            <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono">(неизвестно)</span>
+                        <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                            <span class="opacity-70 whitespace-nowrap">Версия:</span>
+                            <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono break-all">(неизвестно)</span>
                             <span class="opacity-70">→</span>
-                            <span id="sw-new-version" class="badge badge-warning badge-sm font-mono">(неизвестно)</span>
+                            <span id="sw-new-version" class="badge badge-warning badge-sm font-mono break-all">(неизвестно)</span>
                         </div>
                     </div>
                     <p class="mb-6 text-sm opacity-70">
@@ -1923,6 +1923,11 @@
                     showUpdateIcon();
                 }
             }
+
+            // Expose functions to global scope for onclick handlers
+            window.handleUpdateClick = handleUpdateClick;
+            window.handleUpdateNow = handleUpdateNow;
+            window.handleUpdateLater = handleUpdateLater;
 
             /**
              * Получить CACHE_VERSION из Service Worker через MessageChannel
