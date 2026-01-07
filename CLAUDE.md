@@ -350,14 +350,28 @@ docker compose logs backend | grep "DELETE.*articles/45"
 
 ### 6. Service Worker Updates (v6.4.1+)
 
-**Strategy:** Manual update with "new" text indicator (no auto-reload).
+**Strategy:** Manual update with "new" text indicator and version display.
 
+**Modal Features (v7.x+):**
+- **Version Display:** Shows transition `v20260107_1330 → v20260107_1400`
+- **Current Version:** Gray badge from `localStorage.getItem('pwa_sw_version')`
+- **New Version:** Yellow warning badge from `localStorage.getItem('pwa_new_version')`
+- **Edge Cases:** Displays `(неизвестно)` for missing versions
+- **User Choice:** "Позже" (defer) or "Обновить сейчас" (reload + clear cache)
+
+**Update Flow:**
+1. New SW detected → `controllerchange` event fires
+2. Version comparison → "new" indicator appears in header
+3. User clicks indicator → Modal shows version transition
+4. User confirms → Unregister SW, clear all caches, reload page
+
+**Build Requirements:**
 ```bash
-# Update version
-scripts/update-sw-version.sh
+# Development: No build needed for testing
+npm run dev  # Vite dev server with HMR
 
-# Build and deploy
-npm run minify:js
+# Production: Full build before deployment
+npm run build  # Vite build + minify + gzip
 ```
 
 **See:** `/docs/architecture/pwa.md` → Service Worker Updates for complete flow

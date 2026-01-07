@@ -893,6 +893,41 @@
                 </button>
             </div>
 
+            <!-- Service Worker Update Confirmation Modal -->
+            <dialog id="sw-update-modal" class="modal">
+                <div class="modal-box max-w-md">
+                    <h3 class="font-bold text-lg mb-4">🔄 Доступно обновление</h3>
+                    <p class="mb-2">Доступна новая версия приложения.</p>
+                    <div id="sw-version-info" class="mb-3 p-3 bg-base-200 rounded-lg">
+                        <div class="flex items-center justify-center gap-2 text-sm">
+                            <span class="opacity-70">Версия:</span>
+                            <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono">(неизвестно)</span>
+                            <span class="opacity-70">→</span>
+                            <span id="sw-new-version" class="badge badge-warning badge-sm font-mono">(неизвестно)</span>
+                        </div>
+                    </div>
+                    <p class="mb-6 text-sm opacity-70">
+                        Для применения обновления необходимо перезагрузить страницу.
+                        Несохранённые данные будут потеряны.
+                    </p>
+                    <div class="modal-action">
+                        <button type="button"
+                                class="btn btn-ghost"
+                                onclick="handleUpdateLater()">
+                            Позже
+                        </button>
+                        <button type="button"
+                                class="btn btn-primary"
+                                onclick="handleUpdateNow()">
+                            Обновить сейчас
+                        </button>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button onclick="handleUpdateLater()">close</button>
+                </form>
+            </dialog>
+
             <!-- Theme Toggle -->
             <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
                 <input type="checkbox" class="theme-controller" value="dark" aria-label="Toggle dark mode" />
@@ -1708,31 +1743,172 @@
 
             /**
              * Handle user clicking the update indicator
-             * Saves new version and reloads the page to apply update
+             * Shows confirmation modal instead of immediate reload
              */
             function handleUpdateClick() {
-                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update');
+                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator');
 
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] Updating to version:', newVersion);
+                console.log('[SW_UPDATE] Available version:', newVersion || '(unknown)');
 
-                if (!newVersion) {
-                    console.error('[SW_UPDATE] ERROR: No new version stored, reloading anyway');
+                // Show confirmation modal
+                const modal = document.getElementById('sw-update-modal');
+                if (!modal) {
+                    console.error('[SW_UPDATE] ERROR: Update modal not found in DOM');
+                    console.log('[SW_UPDATE] Falling back to immediate reload');
+                    handleUpdateNow(); // Fallback
+                    return;
                 }
 
-                // Update saved version before reload
-                if (newVersion) {
-                    localStorage.setItem(SW_VERSION_KEY, newVersion);
-                    console.log('[SW_UPDATE] ✓ Saved new version to localStorage:', newVersion);
+                // Populate version information before showing modal
+                const currentVersion = localStorage.getItem(SW_VERSION_KEY);
+                populateVersionInfo(currentVersion, newVersion);
+
+                console.log('[SW_UPDATE] Opening confirmation modal');
+                modal.showModal();
+            }
+
+            /**
+             * Handle "Reload now" action
+             * Unregisters Service Worker, clears all caches, then reloads
+             */
+            async function handleUpdateNow() {
+                console.log('[SW_UPDATE] 🔄 User confirmed update - starting cleanup process');
+
+                const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+                console.log('[SW_UPDATE] Updating to version:', newVersion || '(unknown)');
+
+                try {
+                    // Step 1: Unregister Service Worker
+                    console.log('[SW_UPDATE] Step 1/3: Unregistering Service Worker...');
+                    const registration = await navigator.serviceWorker.getRegistration();
+
+                    if (registration) {
+                        const unregistered = await registration.unregister();
+                        if (unregistered) {
+                            console.log('[SW_UPDATE] ✅ Service Worker unregistered successfully');
+                        } else {
+                            console.warn('[SW_UPDATE] ⚠️ Service Worker unregister returned false');
+                        }
+                    } else {
+                        console.warn('[SW_UPDATE] ⚠️ No Service Worker registration found');
+                    }
+
+                    // Step 2: Clear all caches
+                    console.log('[SW_UPDATE] Step 2/3: Clearing all caches...');
+                    const cacheNames = await caches.keys();
+                    console.log('[SW_UPDATE] Found caches:', cacheNames);
+
+                    if (cacheNames.length > 0) {
+                        const deleteResults = await Promise.all(
+                            cacheNames.map(async (cacheName) => {
+                                const deleted = await caches.delete(cacheName);
+                                console.log(`[SW_UPDATE] Cache "${cacheName}": ${deleted ? '✅ deleted' : '⚠️ failed'}`);
+                                return deleted;
+                            })
+                        );
+
+                        const deletedCount = deleteResults.filter(Boolean).length;
+                        console.log(`[SW_UPDATE] ✅ Cleared ${deletedCount}/${cacheNames.length} caches`);
+                    } else {
+                        console.log('[SW_UPDATE] No caches to clear');
+                    }
+
+                    // Step 3: Update localStorage and reload
+                    console.log('[SW_UPDATE] Step 3/3: Updating version and reloading...');
+
+                    if (newVersion) {
+                        localStorage.setItem(SW_VERSION_KEY, newVersion);
+                        console.log('[SW_UPDATE] ✅ Saved new version to localStorage:', newVersion);
+                    } else {
+                        console.warn('[SW_UPDATE] ⚠️ No new version available, clearing old version');
+                    }
+
+                    // Clean up update flags
+                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                    localStorage.removeItem(SW_NEW_VERSION_KEY);
+                    console.log('[SW_UPDATE] ✅ Cleaned up update flags from localStorage');
+
+                    // Close modal before reload
+                    const modal = document.getElementById('sw-update-modal');
+                    if (modal) {
+                        modal.close();
+                        console.log('[SW_UPDATE] ✅ Modal closed');
+                    }
+
+                    console.log('[SW_UPDATE] ⟳ Initiating page reload...');
+                    window.location.reload(true); // Hard reload (bypass cache)
+
+                } catch (error) {
+                    console.error('[SW_UPDATE] ❌ ERROR during update process:', error);
+                    console.error('[SW_UPDATE] Error details:', {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    });
+
+                    // Attempt reload anyway (best effort)
+                    console.log('[SW_UPDATE] Attempting reload despite error...');
+                    window.location.reload(true);
+                }
+            }
+
+            /**
+             * Handle "Later" action
+             * Closes modal and keeps update indicator visible
+             */
+            function handleUpdateLater() {
+                console.log('[SW_UPDATE] ⏸️ User chose "Later" - closing modal');
+
+                const modal = document.getElementById('sw-update-modal');
+                if (modal) {
+                    modal.close();
+                    console.log('[SW_UPDATE] ✅ Modal closed');
                 }
 
-                // Clean up update flags
-                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
-                localStorage.removeItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] ✓ Cleaned up update flags from localStorage');
+                console.log('[SW_UPDATE] Update indicator remains visible for future action');
+                console.log('[SW_UPDATE] User can click "new" indicator again to retry');
+            }
 
-                console.log('[SW_UPDATE] ⟳ Initiating page reload to apply new version...');
-                window.location.reload();
+            /**
+             * Populate version information in the update modal
+             * Displays current and new Service Worker versions with fallback handling
+             * @param {string|null} currentVersion - Current installed version from localStorage
+             * @param {string|null} newVersion - New available version from localStorage
+             */
+            function populateVersionInfo(currentVersion, newVersion) {
+                console.log('[SW_UPDATE] Populating version info in modal...');
+
+                const currentElem = document.getElementById('sw-current-version');
+                const newElem = document.getElementById('sw-new-version');
+
+                // Defensive check: Ensure DOM elements exist
+                if (!currentElem || !newElem) {
+                    console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
+                    console.warn('[SW_UPDATE] Modal will show without version information');
+                    return;
+                }
+
+                // Display current version with fallback
+                const currentText = currentVersion || '(неизвестно)';
+                currentElem.textContent = currentText;
+                console.log('[SW_UPDATE] Modal - Current version displayed:', currentText);
+
+                // Display new version with fallback
+                const newText = newVersion || '(неизвестно)';
+                newElem.textContent = newText;
+                console.log('[SW_UPDATE] Modal - New version displayed:', newText);
+
+                // Log version transition for debugging
+                if (currentVersion && newVersion) {
+                    console.log(`[SW_UPDATE] ✅ Version transition ready: ${currentVersion} → ${newVersion}`);
+                } else if (!currentVersion && newVersion) {
+                    console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
+                } else if (currentVersion && !newVersion) {
+                    console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
+                } else {
+                    console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
+                }
             }
 
             /**

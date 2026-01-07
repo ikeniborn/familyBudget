@@ -381,19 +381,77 @@ UPDATE AVAILABLE PATH:
     Result: "new" text appears in header with fade-in + subtle pulse animation
 ```
 
-#### Step 6: User Clicks Update Indicator
+#### Step 6: User Clicks Update Indicator (Version Display)
+
+**User Action:** Clicks "new" text indicator in header
+
+**System Flow:**
+```
+Console: [SW_UPDATE] 🖱️ User clicked "new" text indicator
+Browser: Retrieve versions from localStorage
+  → Current: localStorage.getItem('pwa_sw_version')  // e.g., v20260107_1330
+  → New: localStorage.getItem('pwa_new_version')     // e.g., v20260107_1400
+Console: [SW_UPDATE] Available version: v20260107_1400
+Console: [SW_UPDATE] Populating version info in modal...
+Browser: Populate version display elements
+  → #sw-current-version: v20260107_1330 (gray badge)
+  → #sw-new-version: v20260107_1400 (yellow badge)
+Console: [SW_UPDATE] Modal - Current version displayed: v20260107_1330
+Console: [SW_UPDATE] Modal - New version displayed: v20260107_1400
+Console: [SW_UPDATE] ✅ Version transition ready: v20260107_1330 → v20260107_1400
+Console: [SW_UPDATE] Opening confirmation modal
+Browser: Show modal dialog
+```
+
+**Modal Content:**
+- 🔄 **Heading:** "Доступно обновление"
+- 📝 **Text:** "Доступна новая версия приложения."
+- 🏷️ **Version Display:** `Версия: v20260107_1330 → v20260107_1400`
+  - Current version: gray badge (neutral)
+  - New version: yellow/warning badge (emphasis)
+  - Format: monospace font for readability
+- ⚠️ **Warning:** "Для применения обновления необходимо перезагрузить страницу. Несохранённые данные будут потеряны."
+- 🔘 **Actions:** "Позже" (defer) | "Обновить сейчас" (proceed)
+
+**Edge Cases:**
+
+| Scenario | Current Version | New Version | Display |
+|----------|----------------|-------------|---------|
+| Normal update | v20260107_1330 | v20260107_1400 | v20260107_1330 → v20260107_1400 |
+| First install | null | v20260107_1400 | (неизвестно) → v20260107_1400 |
+| Missing new version* | v20260107_1330 | null | v20260107_1330 → (неизвестно) |
+| Both missing** | null | null | (неизвестно) → (неизвестно) |
+
+_*Should not happen in normal flow (indicates bug)_
+_**Indicates localStorage corruption or manual clearing_
+
+**Benefits:**
+- ✅ User confirmation: User knows exact version being installed
+- ✅ Debugging support: Users can report specific version numbers in bug reports
+- ✅ Transparency: Clear communication of what's changing
+- ✅ Version verification: User can check if update is necessary
+
+---
+
+#### Step 7: User Confirms Update
 
 ```
-User: Clicks "new" text indicator in header
-Console: [SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update
-Browser: Get new version from localStorage
-Console: [SW_UPDATE] Updating to version: v20251227_1630
+User: Clicks "Обновить сейчас"
+Console: [SW_UPDATE] 🔄 User confirmed update - starting cleanup process
+Console: [SW_UPDATE] Updating to version: v20260107_1400
+Console: [SW_UPDATE] Step 1/3: Unregistering Service Worker...
+Browser: Unregister Service Worker
+Console: [SW_UPDATE] ✅ Service Worker unregistered successfully
+Console: [SW_UPDATE] Step 2/3: Clearing all caches...
+Browser: Clear all caches (budget-v20260107_1330)
+Console: [SW_UPDATE] ✅ Cleared 1/1 caches
+Console: [SW_UPDATE] Step 3/3: Updating version and reloading...
 Browser: Save new version to localStorage (pwa_sw_version)
-Console: [SW_UPDATE] ✓ Saved new version to localStorage: v20251227_1630
+Console: [SW_UPDATE] ✅ Saved new version to localStorage: v20260107_1400
 Browser: Clean up update flags (pwa_update_available, pwa_new_version)
-Console: [SW_UPDATE] ✓ Cleaned up update flags from localStorage
-Console: [SW_UPDATE] ⟳ Initiating page reload to apply new version...
-Browser: RELOAD via window.location.reload()
+Console: [SW_UPDATE] ✅ Cleaned up update flags from localStorage
+Console: [SW_UPDATE] ⟳ Initiating page reload...
+Browser: RELOAD via window.location.reload(true)
 Result: Page reloads, user on new version, indicator hidden
 ```
 
