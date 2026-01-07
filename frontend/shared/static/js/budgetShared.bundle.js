@@ -1,1 +1,2222 @@
-!function(){"use strict";!function(e){class t{static formatForAPI(e){if(!e)return"";const t=e.split(".");if(3!==t.length)return"";const[i,n,a]=t;return`${a}-${n.padStart(2,"0")}-${i.padStart(2,"0")}`}static formatForDisplay(e){if(!e)return"";const t=e.split("-");if(3!==t.length)return"";const[i,n,a]=t;return`${a}.${n}.${i}`}static today(){const e=new Date;return`${String(e.getDate()).padStart(2,"0")}.${String(e.getMonth()+1).padStart(2,"0")}.${e.getFullYear()}`}static todayISO(){const e=new Date;return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}static isValidDisplayFormat(e){if(!e)return!1;const t=e.split(".");if(3!==t.length)return!1;const[i,n,a]=t.map(Number);if(a<1900||a>2100)return!1;if(n<1||n>12)return!1;if(i<1||i>31)return!1;const s=new Date(a,n-1,i);return s.getFullYear()===a&&s.getMonth()===n-1&&s.getDate()===i}static isValidISOFormat(e){if(!e)return!1;const t=e.split("-");if(3!==t.length)return!1;const[i,n,a]=t.map(Number);if(i<1900||i>2100)return!1;if(n<1||n>12)return!1;if(a<1||a>31)return!1;const s=new Date(i,n-1,a);return s.getFullYear()===i&&s.getMonth()===n-1&&s.getDate()===a}static formatDateTime(e){const t="string"==typeof e?new Date(e):e;return`${String(t.getDate()).padStart(2,"0")}.${String(t.getMonth()+1).padStart(2,"0")}.${t.getFullYear()} ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`}static parse(e){if(!e)return null;let t,i,n;if(e.includes(".")){const a=e.split(".");if(3!==a.length)return null;[n,i,t]=a.map(Number)}else{if(!e.includes("-"))return null;{const a=e.split("-");if(3!==a.length)return null;[t,i,n]=a.map(Number)}}const a=new Date(t,i-1,n);return a.getFullYear()!==t||a.getMonth()!==i-1||a.getDate()!==n?null:a}static formatForDisplayWithMonthName(e){if(!e)return"";const t=e.split("-");if(3!==t.length)return"";const[i,n,a]=t,s=parseInt(n,10)-1;return s<0||s>11?"":`${parseInt(a,10)} ${this.RUSSIAN_MONTHS[s]} ${i}`}static formatForAPIFromMonthName(e){if(!e)return"";const t=e.trim().split(/\s+/);if(3!==t.length)return"";const[i,n,a]=t,s=parseInt(i,10),o=parseInt(a,10),r=this.RUSSIAN_MONTHS.findIndex((e=>e.toLowerCase()===n.toLowerCase()));return-1===r?"":`${o}-${String(r+1).padStart(2,"0")}-${String(s).padStart(2,"0")}`}static isValidMonthNameFormat(e){if(!e)return!1;const t=e.trim().split(/\s+/);if(3!==t.length)return!1;const[i,n,a]=t,s=parseInt(i,10),o=parseInt(a,10);if(isNaN(o)||o<1900||o>2100)return!1;if(isNaN(s)||s<1||s>31)return!1;const r=this.RUSSIAN_MONTHS.findIndex((e=>e.toLowerCase()===n.toLowerCase()));if(-1===r)return!1;const l=r+1,c=new Date(o,l-1,s);return c.getFullYear()===o&&c.getMonth()===l-1&&c.getDate()===s}static todayWithMonthName(){const e=new Date,t=e.getDate(),i=e.getMonth(),n=e.getFullYear();return`${t} ${this.RUSSIAN_MONTHS[i]} ${n}`}static setNativeDateInput(e,t){e&&(t&&this.isValidDisplayFormat(t)?e.value=this.formatForAPI(t):e.value="")}static getNativeDateInput(e){return e&&e.value?this.formatForDisplay(e.value):""}static initNativeDateInput(e){e&&(e.value=this.todayISO())}static toUserTimezone(e,t=null){if(!e)return"";try{const i=new Date(e);if(isNaN(i.getTime()))return"";const n={timeZone:t||Intl.DateTimeFormat().resolvedOptions().timeZone,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:!1},a=new Intl.DateTimeFormat("ru-RU",n).formatToParts(i);let s="",o="",r="",l="",c="";for(const e of a)"day"===e.type?s=e.value:"month"===e.type?o=e.value:"year"===e.type?r=e.value:"hour"===e.type?l=e.value:"minute"===e.type&&(c=e.value);return`${s}.${o}.${r} ${l}:${c}`}catch(e){return console.error("DateFormatter.toUserTimezone error:",e),""}}static dateToUserTimezone(e,t=null){if(!e)return"";try{const i=new Date(e);if(isNaN(i.getTime()))return"";const n={timeZone:t||Intl.DateTimeFormat().resolvedOptions().timeZone,day:"2-digit",month:"2-digit",year:"numeric"},a=new Intl.DateTimeFormat("ru-RU",n).formatToParts(i);let s="",o="",r="";for(const e of a)"day"===e.type?s=e.value:"month"===e.type?o=e.value:"year"===e.type&&(r=e.value);return`${s}.${o}.${r}`}catch(e){return console.error("DateFormatter.dateToUserTimezone error:",e),""}}static todayInTimezone(e=null){return this.dateToUserTimezone((new Date).toISOString(),e)}static todayISOInTimezone(e=null){const t=this.todayInTimezone(e);return this.formatForAPI(t)}static toUtcForApi(e,t=null){if(!e)return null;try{const i=e.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/);if(!i)return null;const[,n,a,s,o,r]=i,l=`${s}-${a}-${n}T${o}:${r}:00`,c=new Date(l);if(t){const e=new Intl.DateTimeFormat("en-US",{timeZone:t,timeZoneName:"longOffset"}).formatToParts(c).find((e=>"timeZoneName"===e.type));if(e){const t=e.value.match(/GMT([+-])(\d{2}):(\d{2})/);if(t){const[,e,i,n]=t,a=(60*parseInt(i)+parseInt(n))*("+"===e?1:-1);return new Date(c.getTime()-60*a*1e3).toISOString()}}}return c.toISOString()}catch(e){return console.error("DateFormatter.toUtcForApi error:",e),null}}static formatDateTimeWithTz(e,t=null){if(!e)return"";try{const i="string"==typeof e?new Date(e):e;if(isNaN(i.getTime()))return"";const n={timeZone:t||Intl.DateTimeFormat().resolvedOptions().timeZone,day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hour12:!1,timeZoneName:"short"},a=new Intl.DateTimeFormat("ru-RU",n).formatToParts(i);let s="",o="",r="",l="",c="",h="";for(const e of a)"day"===e.type?s=e.value:"month"===e.type?o=e.value:"year"===e.type?r=e.value:"hour"===e.type?l=e.value:"minute"===e.type?c=e.value:"timeZoneName"===e.type&&(h=e.value);return`${s}.${o}.${r} ${l}:${c} (${h})`}catch(e){return console.error("DateFormatter.formatDateTimeWithTz error:",e),""}}static getBrowserTimezone(){return Intl.DateTimeFormat().resolvedOptions().timeZone}}t.RUSSIAN_MONTHS=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];class i{constructor(e){if(this.mode=e.mode||"single",this.triggerContainer=e.triggerContainer||null,this.onSelect=e.onSelect||(()=>{}),this.minDate=e.minDate||null,this.maxDate=e.maxDate||null,"single"===this.mode){if(this.inputElement=e.inputElement,!this.inputElement)throw new Error("CalendarWidget: inputElement is required for single mode");this.selectedDate=e.defaultDate||null}if("range"===this.mode){if(this.startInputElement=e.startInputElement,this.endInputElement=e.endInputElement,!this.startInputElement||!this.endInputElement)throw new Error("CalendarWidget: startInputElement and endInputElement are required for range mode");this.startDate=null,this.endDate=null,this.selectingEnd=!1}this.currentMonth=(new Date).getMonth(),this.currentYear=(new Date).getFullYear(),this.isOpen=!1,this.calendarElement=null,this.triggerButton=null,this.triggerButtons=[],this._init()}_init(){if(this._createTriggerButton(),this._createCalendarElement(),this._attachEventListeners(),"single"===this.mode&&this.inputElement?.value){const e=t.parse(this.inputElement.value);e&&(this.selectedDate=e,this.currentMonth=e.getMonth(),this.currentYear=e.getFullYear())}if("range"===this.mode){if(this.startInputElement?.value){const e=t.parse(this.startInputElement.value);e&&(this.startDate=e)}if(this.endInputElement?.value){const e=t.parse(this.endInputElement.value);e&&(this.endDate=e)}}}_createTriggerButton(){"single"===this.mode?this._createSingleButton(this.inputElement):this.triggerContainer?this._createCustomTriggerButton():(this._createSingleButton(this.startInputElement),this._createSingleButton(this.endInputElement))}_createCustomTriggerButton(){if(!this.triggerContainer)return;const e=document.querySelector(this.triggerContainer);if(!e)return console.warn(`CalendarWidget: triggerContainer "${this.triggerContainer}" not found, falling back to default buttons`),this._createSingleButton(this.startInputElement),void this._createSingleButton(this.endInputElement);const t=document.createElement("button");t.type="button",t.className="btn btn-ghost",t.innerHTML='\n      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">\n        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"\n              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />\n      </svg>\n    ',t.setAttribute("aria-label","Открыть календарь"),this.triggerButton=t,this.triggerButtons.push(t),e.appendChild(t),t.addEventListener("click",(e=>{e.preventDefault(),e.stopPropagation(),this.open()}))}_createSingleButton(e){const t=document.createElement("button");if(t.type="button",t.className="btn btn-ghost btn-sm absolute right-2 top-1/2 -translate-y-1/2",t.innerHTML='\n      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">\n        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"\n              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />\n      </svg>\n    ',t.setAttribute("aria-label","Открыть календарь"),this.triggerButton||(this.triggerButton=t),this.triggerButtons.push(t),!e)return;const i=e.parentElement;if(i){if(i.classList.contains("relative"))i.appendChild(t);else{const n=document.createElement("div");n.className="relative flex-1",e.classList.contains("flex-1")&&(e.classList.remove("flex-1"),e.classList.add("w-full")),i.insertBefore(n,e),n.appendChild(e),n.appendChild(t)}t.addEventListener("click",(e=>{e.preventDefault(),e.stopPropagation(),this.open()}))}}_createCalendarElement(){this.calendarElement=document.createElement("div"),this.calendarElement.className="calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300",this.calendarElement.style.width="320px",this.calendarElement.style.position="fixed",this.calendarElement.style.zIndex="9999",this.calendarElement.style.visibility="hidden",this.calendarElement.style.opacity="0",this.calendarElement.style.transition="opacity 0.15s ease-out",document.body.appendChild(this.calendarElement),this._render()}_render(){const e=`\n      <div class="p-4">\n        \x3c!-- Header: Month/Year navigation --\x3e\n        <div class="flex items-center justify-between mb-4">\n          <button type="button" class="btn btn-ghost btn-sm btn-circle" data-action="prev-month" aria-label="Предыдущий месяц">\n            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">\n              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />\n            </svg>\n          </button>\n\n          <div class="flex items-center gap-2">\n            <select class="select select-bordered" data-action="select-month" aria-label="Выбрать месяц">\n              ${i.MONTH_NAMES.map(((e,t)=>`<option value="${t}" ${t===this.currentMonth?"selected":""}>${e}</option>`)).join("")}\n            </select>\n\n            <select class="select select-bordered" data-action="select-year" aria-label="Выбрать год">\n              ${this._generateYearOptions()}\n            </select>\n          </div>\n\n          <button type="button" class="btn btn-ghost btn-sm btn-circle" data-action="next-month" aria-label="Следующий месяц">\n            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">\n              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />\n            </svg>\n          </button>\n        </div>\n\n        \x3c!-- Day names header --\x3e\n        <div class="grid grid-cols-7 gap-1 mb-2">\n          ${i.DAY_NAMES.map((e=>`<div class="text-center text-xs font-medium text-base-content/60 py-1">${e}</div>`)).join("")}\n        </div>\n\n        \x3c!-- Calendar grid --\x3e\n        <div class="grid grid-cols-7 gap-1" data-calendar-grid>\n          ${this._generateCalendarDays()}\n        </div>\n\n        \x3c!-- Footer: Quick actions --\x3e\n        <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">\n          <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">\n            Сегодня\n          </button>\n          ${"range"===this.mode?'\n            <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="clear-range">\n              Очистить\n            </button>\n          ':""}\n          <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">\n            Закрыть\n          </button>\n        </div>\n      </div>\n    `;this.calendarElement&&(this.calendarElement.innerHTML=e)}_generateYearOptions(){const e=(new Date).getFullYear(),t=e+10;let i="";for(let n=e-10;n<=t;n++)i+=`<option value="${n}" ${n===this.currentYear?"selected":""}>${n}</option>`;return i}_generateCalendarDays(){const e=new Date(this.currentYear,this.currentMonth,1),t=new Date(this.currentYear,this.currentMonth+1,0);let n=e.getDay();n=0===n?6:n-1;const a=t.getDate(),s=new Date;s.setHours(0,0,0,0);let o="";for(let e=0;e<n;e++)o+='<div class="aspect-square"></div>';for(let e=1;e<=a;e++){const t=new Date(this.currentYear,this.currentMonth,e);t.setHours(0,0,0,0);const n=t.getTime()===s.getTime(),a=this._isDateDisabled(t),r=this._isDateSelected(t),l=this._isDateInRange(t);let c="btn btn-sm btn-ghost w-full aspect-square p-0";n&&(c+=" border border-primary"),r&&(c+=" btn-primary"),this._isRangeBoundary(t)&&(c+=" border-2 border-error"),l&&!r&&(c+=" bg-range-highlight"),a&&(c+=" btn-disabled opacity-30"),o+=`\n        <button\n          type="button"\n          class="${c}"\n          data-date="${this._formatDateISO(t)}"\n          ${a?"disabled":""}\n          aria-label="${e} ${i.MONTH_NAMES[this.currentMonth]} ${this.currentYear}"\n        >\n          ${e}\n        </button>\n      `}return o}_isDateDisabled(e){return!!(this.minDate&&e<this.minDate)||!!(this.maxDate&&e>this.maxDate)}_isDateSelected(e){if("single"===this.mode)return!(!this.selectedDate||e.getTime()!==this.selectedDate.getTime());if("range"===this.mode){const t=!(!this.startDate||e.getTime()!==this.startDate.getTime()),i=!(!this.endDate||e.getTime()!==this.endDate.getTime());return t||i}return!1}_isDateInRange(e){return!("range"!==this.mode||!this.startDate||!this.endDate)&&e>this.startDate&&e<this.endDate}_isRangeBoundary(e){if("range"!==this.mode)return!1;const t=!(!this.startDate||e.getTime()!==this.startDate.getTime()),i=!(!this.endDate||e.getTime()!==this.endDate.getTime());return t||i}_formatDateISO(e){return`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,"0")}-${String(e.getDate()).padStart(2,"0")}`}_attachEventListeners(){this.calendarElement?.addEventListener("click",(e=>{e.stopPropagation();const t=e.target?.closest("[data-action]");if(t)switch(t.dataset.action){case"prev-month":this.previousMonth();break;case"next-month":this.nextMonth();break;case"today":this.selectToday();break;case"clear-range":this.clearRange();break;case"close":this.applyAndClose()}})),this.calendarElement?.addEventListener("change",(e=>{const t=e.target;"select-month"===t?.dataset.action&&(this.currentMonth=parseInt(t.value),this._render()),"select-year"===t?.dataset.action&&(this.currentYear=parseInt(t.value),this._render())})),this.calendarElement?.addEventListener("click",(e=>{e.stopPropagation();const t=e.target?.closest("[data-date]");if(!t||t.disabled)return;const i=t.dataset.date,n=new Date(i+"T00:00:00");this._handleDateSelection(n)})),document.addEventListener("click",(e=>{this.isOpen&&(this.calendarElement?.contains(e.target)||this.triggerButtons.some((t=>t.contains(e.target)))||"range"!==this.mode&&this.close())})),document.addEventListener("keydown",(e=>{this.isOpen&&"Escape"===e.key&&(this.close(),e.preventDefault())})),"single"===this.mode&&this.inputElement&&this.inputElement.addEventListener("blur",(()=>{const e=this.inputElement?.value||"";if(t.isValidDisplayFormat(e)){const i=t.parse(e);i&&(this.selectedDate=i,this.currentMonth=i.getMonth(),this.currentYear=i.getFullYear())}}))}_handleDateSelection(e){if("single"===this.mode){this.selectedDate=e;const i=t.formatForDisplay(this._formatDateISO(e));this.inputElement&&(this.inputElement.value=i),this.onSelect(i),this.close()}if("range"===this.mode)if(!this.startDate||this.startDate&&this.endDate){this.startDate=e,this.endDate=null,this.selectingEnd=!0;const i=t.formatForDisplay(this._formatDateISO(e));this.startInputElement&&(this.startInputElement.value=i),this.endInputElement&&(this.endInputElement.value=""),this._render()}else{e<this.startDate?(this.endDate=this.startDate,this.startDate=e):this.endDate=e;const i=t.formatForDisplay(this._formatDateISO(this.startDate)),n=t.formatForDisplay(this._formatDateISO(this.endDate));this.startInputElement&&(this.startInputElement.value=i),this.endInputElement&&(this.endInputElement.value=n),this.selectingEnd=!1,this._render()}}previousMonth(){0===this.currentMonth?(this.currentMonth=11,this.currentYear--):this.currentMonth--,this._render()}nextMonth(){11===this.currentMonth?(this.currentMonth=0,this.currentYear++):this.currentMonth++,this._render()}selectToday(){const e=new Date;e.setHours(0,0,0,0),this._handleDateSelection(e)}clearRange(){"range"===this.mode&&(this.startDate=null,this.endDate=null,this.startInputElement&&(this.startInputElement.value=""),this.endInputElement&&(this.endInputElement.value=""),this.selectingEnd=!1,this._render())}_moveToDialog(){const e="single"===this.mode?this.inputElement:this.startInputElement;if(!e)return;const t=e?.closest("dialog[open]");if(t){const e=t.querySelector(".modal-box");e&&this.calendarElement&&this.calendarElement.parentElement!==e&&(this._originalParent=this.calendarElement.parentElement,this.calendarElement&&e.appendChild(this.calendarElement),this.calendarElement?.classList.remove("fixed"),this.calendarElement?.classList.add("absolute"),this.calendarElement&&(this.calendarElement.style.position="absolute"),this._isInsideDialog=!0)}}_restoreToBody(){this._isInsideDialog&&this._originalParent&&this.calendarElement&&(this._originalParent.appendChild(this.calendarElement),this.calendarElement.classList.remove("absolute"),this.calendarElement.classList.add("fixed"),this.calendarElement.style.position="fixed",this._isInsideDialog=!1,this._originalParent=null)}open(){this.isOpen=!0,this._moveToDialog(),this.calendarElement&&(this.calendarElement.style.visibility="visible",this.calendarElement.style.opacity="0"),this._positionCalendar(),requestAnimationFrame((()=>{requestAnimationFrame((()=>{this.calendarElement&&(this.calendarElement.style.opacity="1"),this._render()}))}))}_positionCalendar(){const t="single"===this.mode?this.inputElement:this.startInputElement;if(!t)return;const i=t.getBoundingClientRect(),n=320,a=this.calendarElement?.getBoundingClientRect(),s=a?.height||400,o=document.documentElement.clientWidth||e.innerWidth,r=e.innerHeight,l=o>=768,c=l?4:8;let h,d,u,g,p=0,m=0,y=null;if(this._isInsideDialog&&(y=this.calendarElement?.parentElement||null,y&&(p=y.scrollTop,m=y.scrollLeft)),this._isInsideDialog&&y){const e=y.getBoundingClientRect(),t=i.top-e.top+p,n=i.left-e.left+m;h=t+i.height+c,d=n}else h=i.bottom+c,d=i.left;if(l&&!this._isInsideDialog)d=i.right-n;else if(l&&this._isInsideDialog&&y){const e=y.getBoundingClientRect();d=i.right-e.left+m-n}if(!l&&d+n>o&&(d=o-n-c),d<c&&(d=c),this._isInsideDialog&&y){const e=y.clientHeight,t=i.top-y.getBoundingClientRect().top+p;u=e-(t+i.height),g=t,u<s&&g>s&&(h=t-s-c)}else u=r-i.bottom,g=i.top,u<s&&g>s&&(h=i.top-s-c);if(o<768){const e=this.calendarElement?.parentElement;if(e&&e.classList&&e.classList.contains("modal-box"))d=(e.clientWidth-n)/2,d<c&&(d=c);else{d=Math.round((o-n)/2);const e=c,t=o-n-c;d=Math.max(e,Math.min(d,t)),h=(r-s)/2,h<c&&(h=c)}}if(l){const e=this.calendarElement?.parentElement;e&&e.classList&&e.classList.contains("modal-box")&&(d=(e.clientWidth-n)/2)}this.calendarElement&&(this.calendarElement.style.top=`${h}px`,this.calendarElement.style.left=`${d}px`)}applyAndClose(){if("range"===this.mode&&this.startDate&&this.endDate){const e=t.formatForDisplay(this._formatDateISO(this.startDate)),i=t.formatForDisplay(this._formatDateISO(this.endDate));this.onSelect(e,i)}this.close()}close(){this.isOpen=!1,this.calendarElement&&(this.calendarElement.style.visibility="hidden",this.calendarElement.style.opacity="0"),this._restoreToBody()}toggle(){this.isOpen?this.close():this.open()}destroy(){this.isOpen&&this.close(),this.calendarElement&&this.calendarElement.remove(),this.triggerButtons.forEach((e=>{e&&e.parentNode&&e.remove()})),this.triggerButtons=[],this.triggerButton=null,this.calendarElement=null}}i.MONTH_NAMES=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],i.DAY_NAMES=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];class n{static initializeWorker(){if(!this._workerWrapper&&void 0!==e.WorkerWrapper)try{this._workerWrapper=new e.WorkerWrapper("/static/js/workers/hierarchyWorker.min.js",{idleTimeout:3e4,debugMode:e.DEBUG_MODE||!1})}catch(e){console.warn("[ChoicesCategoryTree] Failed to initialize worker:",e),this._workerWrapper=null}}static async preloadCategories(t={}){const i=t.apiBaseUrl||"/api/v1",a=t.showInactive||!1,s=["expense","income","debit","credit"].map((async t=>{const s=`${t}:${a}:all`;if(n._cache.has(s))return void("function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] ${t} categories already cached, skipping preload`));if(n._pendingRequests.has(s))return"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] ${t} categories request already in progress, waiting`),n._pendingRequests.get(s);const o=`${i}/articles?type=${t}&sort_by=usage_count&limit=1000&include_inactive=${a}`;try{const i=await fetch(o,{credentials:"same-origin"});if(!i.ok)return void console.warn(`[ChoicesCategoryTree] Failed to preload ${t} categories: HTTP ${i.status}`);const a=(await i.json()).articles||[];n._cache.set(s,{data:a,timestamp:Date.now()}),"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] Preloaded ${a.length} ${t} categories`)}catch(e){console.warn(`[ChoicesCategoryTree] Network error preloading ${t} categories:`,e.message)}}));await Promise.all(s)}constructor(e,t={}){this.selector=e,this.element=document.querySelector(e),this.element?(this.auth=t.auth||null,this.options={type:t.type||"expense",onCategoryChange:t.onCategoryChange||t.onChange||null,apiBaseUrl:t.apiBaseUrl||"/api/v1",showLeafOnly:!1!==t.showLeafOnly,showInactive:t.showInactive||!1,financialCenterId:t.financialCenterId||null,multiple:t.multiple||!1,showPath:!1!==t.showPath,showClearButton:!1!==t.showClearButton,mode:t.mode||"edit"},console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`),this.choices=null,this.categories=[],this.categoryMap=new Map,this.childrenMap=new Map,this._initPromise=null,this.init()):console.error(`[ChoicesCategoryTree] Element not found: ${e}`)}async init(){try{await this.loadCategories(),this.buildHierarchyMaps();const e=this.options.showLeafOnly?this.getLeafCategories():this.categories;this.initChoices(e)}catch(e){console.error("[ChoicesCategoryTree] Initialization error:",e),this.showError("Ошибка загрузки категорий")}}async loadCategories(){const t=this.options.financialCenterId||"all",i=`${this.options.type}:${this.options.showInactive}:${t}`,a=n._cache.get(i);if(a&&Date.now()-a.timestamp<3e4)return void(this.categories=a.data);const s=n._pendingRequests.get(i);if(s)return void(this.categories=await s);if(!navigator.onLine){"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] Offline mode - skipping API call, using cache");const t=`${this.options.type}:${this.options.showInactive}:all`,i=n._cache.get(t);return i?void(this.categories=i.data):void(this.categories=[])}let o=`${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;this.options.financialCenterId&&(o+=`&financial_center_id=${this.options.financialCenterId}`);const r={};if(this.auth&&"function"==typeof this.auth.getToken){const e=this.auth.getToken();if(!e)throw new Error("No authentication token available");r.Authorization=`Bearer ${e}`}const l=fetch(o,{headers:r,credentials:"same-origin"}).then((async t=>{if(!t.ok){if(401===t.status)return"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)"),[];throw new Error(`Failed to load categories: HTTP ${t.status} ${t.statusText}`)}const a=(await t.json()).articles||[];return n._cache.set(i,{data:a,timestamp:Date.now()}),a})).catch((t=>{console.warn("[ChoicesCategoryTree] Network error loading categories (offline?):",t.message);const a=n._cache.get(i);if(a&&a.data&&a.data.length>0)return"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] Using stale cache for offline mode"),a.data;if(this.options.financialCenterId){const t=`${this.options.type}:${this.options.showInactive}:all`,i=n._cache.get(t);if(i&&i.data&&i.data.length>0)return"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] Offline: No cache for FC ${this.options.financialCenterId}, using all categories`),i.data}return console.warn("[ChoicesCategoryTree] No cached categories available for offline mode"),[]})).finally((()=>{n._pendingRequests.delete(i)}));n._pendingRequests.set(i,l),this.categories=await l}async buildHierarchyMaps(){const t=performance.now();if(n._workerWrapper&&this.categories.length>0)try{n.initializeWorker();const i=await n._workerWrapper.execute({action:"buildMaps",data:{categories:this.categories}});this.categoryMap=new Map(Object.entries(i.categoryMap)),this.childrenMap=new Map(Object.entries(i.childrenMap).map((([e,t])=>[parseInt(e),t])));const a=Math.round(performance.now()-t);return e.DEBUG_MODE&&console.log(`[ChoicesCategoryTree] Worker buildMaps: ${a}ms (${this.categories.length} categories)`),void(this._initPromise&&(this._initPromise(),this._initPromise=null))}catch(e){console.warn("[ChoicesCategoryTree] Worker buildMaps failed, using synchronous:",e)}this.categoryMap.clear(),this.childrenMap.clear();for(const e of this.categories)this.categoryMap.set(e.id,e),e.parent_id&&(this.childrenMap.has(e.parent_id)||this.childrenMap.set(e.parent_id,[]),this.childrenMap.get(e.parent_id).push(e.id));const i=Math.round(performance.now()-t);e.DEBUG_MODE&&console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${i}ms (${this.categories.length} categories)`),this._initPromise&&(this._initPromise(),this._initPromise=null)}async waitForReady(){return this.categoryMap&&this.categoryMap.size>0&&this.choices&&this.choices._store?.choices.length>0?Promise.resolve():new Promise((e=>{this._initPromise=e}))}getLeafCategories(){return this.categories.filter((e=>"boolean"==typeof e.is_leaf?e.is_leaf:!this.childrenMap.has(e.id)))}getParentChain(e){const t=this.categoryMap.get(e);return t&&t.parent_id?this.categories.length>100&&n._workerWrapper?this._getParentChainWorker(e):this._getParentChainSync(e):[]}_getParentChainSync(e){const t=[],i=this.categoryMap.get(e);if(!i||!i.parent_id)return t;let n=i.parent_id;for(;n;){const e=this.categoryMap.get(n);if(!e)break;t.unshift(e),n=e.parent_id}return t}async _getParentChainWorker(e){try{n.initializeWorker();const t=Object.fromEntries(this.categoryMap);return await(n._workerWrapper?.execute({action:"getParentChain",data:{categoryId:e,categoryMap:t}}))}catch(t){return console.warn("[ChoicesCategoryTree] Worker getParentChain failed, using synchronous:",t),this._getParentChainSync(e)}}initChoices(e){this.element&&(this.element.innerHTML="");const t=e.map((e=>{const t=this.getParentChain(e.id),i=Array.isArray(t)&&t.length>0?t.map((e=>e.name)).join(" › "):"";return{value:e.id,label:e.name,customProperties:{usage_count:e.usage_count||0,parent_id:e.parent_id,parent_text:i}}}));this.choices=new Choices(this.element,{searchEnabled:!0,searchPlaceholderValue:"Поиск категории...",placeholder:!0,placeholderValue:this.options.multiple?"":"— Выберите категорию —",noResultsText:"Не найдено",noChoicesText:"Нет доступных категорий",itemSelectText:"",shouldSort:!1,removeItemButton:this.options.multiple&&!this.options.showClearButton,fuseOptions:{threshold:.3,distance:100,ignoreLocation:!0,keys:["label"]},callbackOnCreateTemplates:e=>this.options.multiple?this._createMultipleTemplates(e):this._createSingleTemplates(e),classNames:{containerOuter:["choices","choices-tailwind",this.options.multiple?"is-multiple":""].filter(Boolean),containerInner:["choices__inner"],input:["choices__input"],inputCloned:["choices__input--cloned"],list:["choices__list"],listItems:["choices__list--multiple"],listSingle:["choices__list--single"],listDropdown:["choices__list--dropdown"],item:["choices__item"],itemSelectable:["choices__item--selectable"],itemDisabled:["choices__item--disabled"],itemChoice:["choices__item--choice"],placeholder:["choices__placeholder"],group:["choices__group"],groupHeading:["choices__heading"],button:["choices__button"]}}),this.choices&&this.choices.setChoices(t,"value","label",!1),this.element&&this.element.addEventListener("change",(e=>{console.log("[ChoicesCategoryTree] Change event:",{elementId:this.element?.id,value:e.target?.value,timestamp:(new Date).toISOString()}),this.handleCategoryChange(e)})),this.choices&&this.element&&(this.element.addEventListener("showDropdown",(()=>{console.log("[ChoicesCategoryTree] Dropdown opened:",{elementId:this.element?.id,timestamp:(new Date).toISOString()})})),this.element.addEventListener("hideDropdown",(()=>{console.log("[ChoicesCategoryTree] Dropdown closed:",{elementId:this.element?.id,timestamp:(new Date).toISOString()})})),this.element.addEventListener("choice",(e=>{const t=e;console.log("[ChoicesCategoryTree] Item selected:",{elementId:this.element?.id,choiceId:t.detail?.choice?.value,choiceLabel:t.detail?.choice?.label,timestamp:(new Date).toISOString()})}))),this.options.multiple&&this.options.showClearButton&&this._addClearAllButton()}_createSingleTemplates(e){return{choice:(t,i)=>{const n=i.customProperties?.parent_text||"",a=i.label;return e(`\n                    <div class="${t.item} ${t.itemChoice} ${i.disabled?t.itemDisabled:t.itemSelectable}"\n                         data-select-text=""\n                         data-choice\n                         ${i.disabled?'data-choice-disabled aria-disabled="true"':"data-choice-selectable"}\n                         data-id="${i.id}"\n                         data-value="${i.value}"\n                         ${i.groupId>0?'role="treeitem"':'role="option"'}\n                         style="padding-left: 0.75rem;">\n                        <span style="font-weight: 500;">${a}</span>\n                        ${n?`<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${n})</span>`:""}\n                    </div>\n                `)},item:(t,i)=>e(`\n                    <div class="${t.item} ${i.highlighted?t.highlightedState:t.itemSelectable}"\n                         data-item\n                         data-id="${i.id}"\n                         data-value="${i.value}"\n                         ${i.active?'aria-selected="true"':""}\n                         ${i.disabled?'aria-disabled="true"':""}>\n                        ${i.label}\n                    </div>\n                `)}}_createMultipleTemplates(e){const t=!this.options.showClearButton;return{choice:(t,i)=>{const n=i.customProperties?.parent_text||"",a=i.label;return e(`\n                    <div class="${t.item} ${t.itemChoice} ${i.disabled?t.itemDisabled:t.itemSelectable}"\n                         data-select-text=""\n                         data-choice\n                         ${i.disabled?'data-choice-disabled aria-disabled="true"':"data-choice-selectable"}\n                         data-id="${i.id}"\n                         data-value="${i.value}"\n                         role="option"\n                         style="padding-left: 0.75rem;">\n                        <span style="font-weight: 500;">${a}</span>\n                        ${n?`<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${n})</span>`:""}\n                    </div>\n                `)},item:(i,n)=>e(t?`\n                        <div class="${i.item} choices__item--badge"\n                             data-item\n                             data-id="${n.id}"\n                             data-value="${n.value}"\n                             ${n.active?'aria-selected="true"':""}\n                             ${n.disabled?'aria-disabled="true"':""}>\n                            <span class="choices__item--badge-text">${n.label}</span>\n                            <button type="button"\n                                    class="${i.button}"\n                                    data-button=""\n                                    aria-label="Удалить ${n.label}">\n                                ×\n                            </button>\n                        </div>\n                    `:`\n                        <span class="${i.item} choices__item--comma"\n                              data-item\n                              data-id="${n.id}"\n                              data-value="${n.value}"\n                              ${n.active?'aria-selected="true"':""}\n                              ${n.disabled?'aria-disabled="true"':""}>\n                            ${n.label}\n                        </span>\n                    `)}}_addClearAllButton(){const e=this.element?.closest(".choices");if(!e)return;const t=document.createElement("div");t.className="choices__clear-wrapper";const i=document.createElement("button");i.type="button",i.className="choices__clear-all",i.innerHTML='\n            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">\n                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />\n            </svg>\n        ',i.title="Очистить все",i.style.display="none",t.appendChild(i),e.parentElement&&e.parentElement.insertBefore(t,e.nextSibling),i.addEventListener("click",(e=>{e.preventDefault(),e.stopPropagation(),this.clearSelection()})),this._clearAllBtn=i}_updateClearAllVisibility(){if(!this._clearAllBtn)return;const e=this.choices?.getValue()?.length>0;this._clearAllBtn.style.display=e?"flex":"none"}async handleCategoryChange(e){if(this.options.onCategoryChange)if(this.options.multiple){const e=(this.choices?.getValue()||[]).map((e=>{const t=parseInt(e.value);return this.categoryMap.get(t)})).filter(Boolean);this.options.onCategoryChange(e),this._updateClearAllVisibility()}else{const t=parseInt(e.target.value);if(!t)return;const i=this.categoryMap.get(t);this.options.onCategoryChange(i)}}showError(t){e.Telegram&&e.Telegram.WebApp?e.Telegram.WebApp.showAlert(t):alert(t)}destroy(){this.choices&&(this.choices.destroy(),this.choices=null),this.element&&(this.element.value="",this.element.classList.remove("choices__input","choices__input--cloned"),this.element.removeAttribute("data-choice")),this.categories=[],this.categoryMap.clear(),this.childrenMap.clear()}async updateType(e){this.options.type=e,this.options.multiple&&this.choices&&(this.choices.removeActiveItems(),this._updateClearAllVisibility()),this.element&&(this.element.value="");try{await this.loadCategories(),this.buildHierarchyMaps();const t=this.options.showLeafOnly?this.getLeafCategories():this.categories;if(this.choices){this.choices.clearStore();const i=t.map((e=>{const t=this.getParentChain(e.id),i=Array.isArray(t)&&t.length>0?t.map((e=>e.name)).join(" › "):"";return{value:e.id,label:e.name,customProperties:{usage_count:e.usage_count||0,parent_id:e.parent_id,parent_text:i}}}));this.choices.setChoices(i,"value","label",!1),this.choices.removeActiveItems(),this.element&&(this.element.value=""),0===i.length&&console.warn(`[ChoicesCategoryTree] No ${e} categories available - user may be offline without cached data`)}}catch(e){console.error("[ChoicesCategoryTree] Error updating type:",e)}}async refresh(){this.choices&&(this.choices.destroy(),this.choices=null),await this.init()}async updateFinancialCenter(t){console.log("[ChoicesCategoryTree] ========== updateFinancialCenter START =========="),console.log(`[ChoicesCategoryTree] Input: financialCenterId=${t}`),console.log("[ChoicesCategoryTree] Current options:",{type:this.options.type,showLeafOnly:this.options.showLeafOnly,previousFinancialCenterId:this.options.financialCenterId});const i=this.options.financialCenterId,a=null===i&&null!==t;if(console.log("[ChoicesCategoryTree] Filter change type:",{previousFcId:i,newFcId:t,isInitialFiltering:a,note:a?"Initial filter - do NOT preserve selection":"FC changed - preserve if valid"}),this.options.financialCenterId=t,t){const e=`${this.options.type}:${this.options.showInactive}:${t}`;n._cache.delete(e),console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${e}`)}const s=this.element?this.element.value:null,o=s?parseInt(s):null,r=this.choices?this.choices.getValue(!0):null,l=r&&Array.isArray(r)&&r.length>0;console.log("[ChoicesCategoryTree] Current selection state:",{elementValue:s,previousSelectionId:o,activeItems:r,hasActiveSelection:l,note:s&&!l?"Element has value but Choices.js not synced yet":"OK"});try{await this.loadCategories(),console.log("[ChoicesCategoryTree] Loaded categories:",{totalCount:this.categories.length,categoryMapSize:this.categoryMap.size,sampleCategories:this.categories.slice(0,3).map((e=>({id:e.id,name:e.name})))}),this.buildHierarchyMaps();const i=this.options.showLeafOnly?this.getLeafCategories():this.categories;if(console.log("[ChoicesCategoryTree] Display categories after leaf filter:",{displayCount:i.length,showLeafOnly:this.options.showLeafOnly}),this.choices){this.choices.clearStore();const n=i.map((e=>{const t=this.getParentChain(e.id),i=Array.isArray(t)&&t.length>0?t.map((e=>e.name)).join(" › "):"";return{value:e.id,label:e.name,customProperties:{usage_count:e.usage_count||0,parent_id:e.parent_id,parent_text:i}}}));console.log("[ChoicesCategoryTree] Prepared choices for Choices.js:",{choicesCount:n.length,sampleChoices:n.slice(0,3).map((e=>({value:e.value,label:e.label})))}),this.choices.setChoices(n,"value","label",!1);const s=o&&this.categoryMap.has(o);console.log("[ChoicesCategoryTree] Checking if category still available:",{previousSelectionId:o,categoryMapHasIt:o?this.categoryMap.has(o):"N/A",categoryStillAvailable:s,isInitialFiltering:a,willPreserve:s,categoryMapKeys:Array.from(this.categoryMap.keys()).slice(0,10)});const r="edit"===this.options.mode&&s;console.log("[ChoicesCategoryTree] Selection preservation decision:",{mode:this.options.mode,categoryStillAvailable:s,shouldPreserve:r,previousSelectionId:o}),r?(console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${o} (available in FC ${t})`),await this.setSelectedCategory(o),"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] Preserved selection: ${o}`)):(this.choices.removeActiveItems(),this.element&&(this.element.value=""),"create"===this.options.mode?(console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${o}`),"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] Cleared selection (create mode)")):!s&&o?(console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${o} not available for FC ${t}`),"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] Cleared selection (category not available)")):(console.log("[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty"),"function"==typeof e.debugLog&&e.debugLog("[ChoicesCategoryTree] No previous selection - keeping empty"))),t?"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] Filtered to FC ${t}: ${n.length} categories`):"function"==typeof e.debugLog&&e.debugLog(`[ChoicesCategoryTree] Showing all categories: ${n.length}`),0!==n.length||navigator.onLine||console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${t}`)}console.log("[ChoicesCategoryTree] ========== updateFinancialCenter END =========="),console.log("[ChoicesCategoryTree] Final state:",{financialCenterId:this.options.financialCenterId,categoriesCount:this.categories.length,finalElementValue:this.element?this.element.value:null,finalActiveItems:this.choices?this.choices.getValue(!0):null})}catch(e){console.error("[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:",e),console.log("[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========")}}getSelectedCategory(){const e=this.element?parseInt(this.element.value):NaN;return e?this.categoryMap.get(e):null}clearSelection(){console.log("[ChoicesCategoryTree] clearSelection() called"),this.choices&&(this.choices.removeActiveItems(),console.log("[ChoicesCategoryTree] Choices.js active items removed")),this.element&&(this.element.value="",console.log("[ChoicesCategoryTree] Element value cleared")),console.log("[ChoicesCategoryTree] ✅ Selection cleared successfully")}getSelectedCategories(){if(!this.choices||!this.options.multiple){const e=this.getSelectedCategory();return e?[e]:[]}return(this.choices.getValue()||[]).map((e=>{const t=parseInt(e.value);return this.categoryMap.get(t)})).filter(Boolean)}_clearSelection_DEPRECATED(){this.choices&&(this.choices.removeActiveItems(),this._updateClearAllVisibility(),this.options.onCategoryChange&&this.options.onCategoryChange([]))}async setSelectedCategory(e,t=3,i=100){if(this.choices)for(let n=0;n<t;n++){const a=(this.choices._store?.choices||[]).find((t=>t.value==e||t.value===e.toString()));if(a){const e=a.value;return void this.choices.setChoiceByValue(e)}n<t-1&&await new Promise((e=>setTimeout(e,i)))}else console.error("[ChoicesCategoryTree] setSelectedCategory failed - no choices instance")}}n._cache=new Map,n._pendingRequests=new Map,n._workerWrapper=null,e.BudgetShared={DateFormatter:t,CalendarWidget:i,ChoicesCategoryTree:n},e.DateFormatter=t,e.CalendarWidget=i,e.ChoicesCategoryTree=n}(window)}();
+(function() {
+  "use strict";
+  (function(window2) {
+    const _DateFormatter = class _DateFormatter {
+      /**
+       * Convert user-friendly date (DD.MM.YYYY) to API format (YYYY-MM-DD).
+       *
+       * @param {string} displayDate - Date in DD.MM.YYYY format
+       * @returns {string} Date in YYYY-MM-DD format
+       *
+       * @example
+       * DateFormatter.formatForAPI('27.10.2025') // => '2025-10-27'
+       * DateFormatter.formatForAPI('7.2.2025') // => '2025-02-07'
+       */
+      static formatForAPI(displayDate) {
+        if (!displayDate) return "";
+        const parts = displayDate.split(".");
+        if (parts.length !== 3) return "";
+        const [day, month, year] = parts;
+        const paddedMonth = month.padStart(2, "0");
+        const paddedDay = day.padStart(2, "0");
+        return `${year}-${paddedMonth}-${paddedDay}`;
+      }
+      /**
+       * Convert API date (YYYY-MM-DD) to user-friendly format (DD.MM.YYYY).
+       *
+       * @param {string} isoDate - Date in YYYY-MM-DD format
+       * @returns {string} Date in DD.MM.YYYY format
+       *
+       * @example
+       * DateFormatter.formatForDisplay('2025-10-27') // => '27.10.2025'
+       */
+      static formatForDisplay(isoDate) {
+        if (!isoDate) return "";
+        const parts = isoDate.split("-");
+        if (parts.length !== 3) return "";
+        const [year, month, day] = parts;
+        return `${day}.${month}.${year}`;
+      }
+      /**
+       * Get current date in DD.MM.YYYY format.
+       *
+       * @returns {string} Current date in DD.MM.YYYY format
+       *
+       * @example
+       * DateFormatter.today() // => '27.10.2025'
+       */
+      static today() {
+        const now = /* @__PURE__ */ new Date();
+        const day = String(now.getDate()).padStart(2, "0");
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const year = now.getFullYear();
+        return `${day}.${month}.${year}`;
+      }
+      /**
+       * Get current date in YYYY-MM-DD format (for API).
+       * Uses LOCAL timezone, not UTC.
+       *
+       * @returns {string} Current date in YYYY-MM-DD format
+       *
+       * @example
+       * DateFormatter.todayISO() // => '2025-10-27'
+       */
+      static todayISO() {
+        const now = /* @__PURE__ */ new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+      /**
+       * Validate date format (DD.MM.YYYY).
+       *
+       * @param {string} dateStr - Date string to validate
+       * @returns {boolean} True if valid DD.MM.YYYY format
+       *
+       * @example
+       * DateFormatter.isValidDisplayFormat('27.10.2025') // => true
+       * DateFormatter.isValidDisplayFormat('2025-10-27') // => false
+       */
+      static isValidDisplayFormat(dateStr) {
+        if (!dateStr) return false;
+        const parts = dateStr.split(".");
+        if (parts.length !== 3) return false;
+        const [day, month, year] = parts.map(Number);
+        if (year < 1900 || year > 2100) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+      }
+      /**
+       * Validate ISO date format (YYYY-MM-DD).
+       *
+       * @param {string} dateStr - Date string to validate
+       * @returns {boolean} True if valid YYYY-MM-DD format
+       *
+       * @example
+       * DateFormatter.isValidISOFormat('2025-10-27') // => true
+       * DateFormatter.isValidISOFormat('27-10-2025') // => false
+       */
+      static isValidISOFormat(dateStr) {
+        if (!dateStr) return false;
+        const parts = dateStr.split("-");
+        if (parts.length !== 3) return false;
+        const [year, month, day] = parts.map(Number);
+        if (year < 1900 || year > 2100) return false;
+        if (month < 1 || month > 12) return false;
+        if (day < 1 || day > 31) return false;
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+      }
+      /**
+       * Format date for display with time.
+       *
+       * @param {Date|string} date - Date object or ISO string
+       * @returns {string} Formatted date and time (DD.MM.YYYY HH:MM)
+       *
+       * @example
+       * DateFormatter.formatDateTime(new Date('2025-10-27T15:30:00'))
+       * // => '27.10.2025 15:30'
+       */
+      static formatDateTime(date) {
+        const d = typeof date === "string" ? new Date(date) : date;
+        const day = String(d.getDate()).padStart(2, "0");
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, "0");
+        const minutes = String(d.getMinutes()).padStart(2, "0");
+        return `${day}.${month}.${year} ${hours}:${minutes}`;
+      }
+      /**
+       * Parse date from various formats to Date object.
+       *
+       * @param {string} dateStr - Date string (DD.MM.YYYY or YYYY-MM-DD)
+       * @returns {Date|null} Parsed Date object or null if invalid
+       *
+       * @example
+       * DateFormatter.parse('27.10.2025') // => Date object
+       * DateFormatter.parse('2025-10-27') // => Date object
+       */
+      static parse(dateStr) {
+        if (!dateStr) return null;
+        let year, month, day;
+        if (dateStr.includes(".")) {
+          const parts = dateStr.split(".");
+          if (parts.length !== 3) return null;
+          [day, month, year] = parts.map(Number);
+        } else if (dateStr.includes("-")) {
+          const parts = dateStr.split("-");
+          if (parts.length !== 3) return null;
+          [year, month, day] = parts.map(Number);
+        } else {
+          return null;
+        }
+        const date = new Date(year, month - 1, day);
+        if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+          return null;
+        }
+        return date;
+      }
+      /**
+       * Convert API date (YYYY-MM-DD) to user-friendly format with Russian month name (ДД месяца ГГГГ).
+       *
+       * @param {string} isoDate - Date in YYYY-MM-DD format
+       * @returns {string} Date in "ДД месяца ГГГГ" format
+       *
+       * @example
+       * DateFormatter.formatForDisplayWithMonthName('2025-10-27') // => '27 октября 2025'
+       */
+      static formatForDisplayWithMonthName(isoDate) {
+        if (!isoDate) return "";
+        const parts = isoDate.split("-");
+        if (parts.length !== 3) return "";
+        const [year, month, day] = parts;
+        const monthIndex = parseInt(month, 10) - 1;
+        if (monthIndex < 0 || monthIndex > 11) return "";
+        const dayNum = parseInt(day, 10);
+        return `${dayNum} ${this.RUSSIAN_MONTHS[monthIndex]} ${year}`;
+      }
+      /**
+       * Convert user-friendly date with month name (ДД месяца ГГГГ) to API format (YYYY-MM-DD).
+       *
+       * @param {string} displayDate - Date in "ДД месяца ГГГГ" format
+       * @returns {string} Date in YYYY-MM-DD format
+       *
+       * @example
+       * DateFormatter.formatForAPIFromMonthName('27 октября 2025') // => '2025-10-27'
+       */
+      static formatForAPIFromMonthName(displayDate) {
+        if (!displayDate) return "";
+        const parts = displayDate.trim().split(/\s+/);
+        if (parts.length !== 3) return "";
+        const [dayStr, monthName, yearStr] = parts;
+        const day = parseInt(dayStr, 10);
+        const year = parseInt(yearStr, 10);
+        const monthIndex = this.RUSSIAN_MONTHS.findIndex(
+          (m) => m.toLowerCase() === monthName.toLowerCase()
+        );
+        if (monthIndex === -1) return "";
+        const month = monthIndex + 1;
+        const monthPadded = String(month).padStart(2, "0");
+        const dayPadded = String(day).padStart(2, "0");
+        return `${year}-${monthPadded}-${dayPadded}`;
+      }
+      /**
+       * Validate date format with Russian month name (ДД месяца ГГГГ).
+       *
+       * @param {string} dateStr - Date string to validate
+       * @returns {boolean} True if valid "ДД месяца ГГГГ" format
+       *
+       * @example
+       * DateFormatter.isValidMonthNameFormat('27 октября 2025') // => true
+       * DateFormatter.isValidMonthNameFormat('27-10-2025') // => false
+       */
+      static isValidMonthNameFormat(dateStr) {
+        if (!dateStr) return false;
+        const parts = dateStr.trim().split(/\s+/);
+        if (parts.length !== 3) return false;
+        const [dayStr, monthName, yearStr] = parts;
+        const day = parseInt(dayStr, 10);
+        const year = parseInt(yearStr, 10);
+        if (isNaN(year) || year < 1900 || year > 2100) return false;
+        if (isNaN(day) || day < 1 || day > 31) return false;
+        const monthIndex = this.RUSSIAN_MONTHS.findIndex(
+          (m) => m.toLowerCase() === monthName.toLowerCase()
+        );
+        if (monthIndex === -1) return false;
+        const month = monthIndex + 1;
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+      }
+      /**
+       * Get current date in "ДД месяца ГГГГ" format.
+       *
+       * @returns {string} Current date with Russian month name
+       *
+       * @example
+       * DateFormatter.todayWithMonthName() // => '27 октября 2025'
+       */
+      static todayWithMonthName() {
+        const now = /* @__PURE__ */ new Date();
+        const day = now.getDate();
+        const monthIndex = now.getMonth();
+        const year = now.getFullYear();
+        return `${day} ${this.RUSSIAN_MONTHS[monthIndex]} ${year}`;
+      }
+      /**
+       * Set value for native date input (<input type="date">).
+       * Native date input accepts YYYY-MM-DD format.
+       *
+       * @param {HTMLInputElement} inputElement - Date input element
+       * @param {string} displayDate - Date in DD.MM.YYYY format
+       *
+       * @example
+       * DateFormatter.setNativeDateInput(input, '02.11.2025')
+       * // Sets input.value = '2025-11-02'
+       */
+      static setNativeDateInput(inputElement, displayDate) {
+        if (!inputElement) return;
+        if (displayDate && this.isValidDisplayFormat(displayDate)) {
+          inputElement.value = this.formatForAPI(displayDate);
+        } else {
+          inputElement.value = "";
+        }
+      }
+      /**
+       * Get value from native date input as DD.MM.YYYY.
+       * Native date input returns YYYY-MM-DD format.
+       *
+       * @param {HTMLInputElement} inputElement - Date input element
+       * @returns {string} Date in DD.MM.YYYY format or empty string
+       *
+       * @example
+       * DateFormatter.getNativeDateInput(input)
+       * // input.value = '2025-11-02' → returns '02.11.2025'
+       */
+      static getNativeDateInput(inputElement) {
+        if (!inputElement || !inputElement.value) return "";
+        return this.formatForDisplay(inputElement.value);
+      }
+      /**
+       * Initialize native date input with today's date.
+       * Sets value in YYYY-MM-DD format (native format).
+       *
+       * @param {HTMLInputElement} inputElement - Date input element
+       *
+       * @example
+       * DateFormatter.initNativeDateInput(input)
+       * // Sets input.value = '2025-11-02' (today)
+       */
+      static initNativeDateInput(inputElement) {
+        if (!inputElement) return;
+        inputElement.value = this.todayISO();
+      }
+      // ============================================================================
+      // Timezone-aware methods
+      // ============================================================================
+      /**
+       * Convert UTC ISO datetime string to user's timezone for display.
+       *
+       * Uses the browser's Intl.DateTimeFormat for timezone conversion.
+       * If no userTimezone specified, uses browser's local timezone.
+       *
+       * @param {string} utcIsoString - ISO datetime string in UTC (e.g., "2025-12-06T09:30:00Z")
+       * @param {string|null} userTimezone - IANA timezone (e.g., "Europe/Moscow") or null for browser local
+       * @returns {string} Formatted local datetime (DD.MM.YYYY HH:MM)
+       *
+       * @example
+       * DateFormatter.toUserTimezone('2025-12-06T09:30:00Z', 'Europe/Moscow')
+       * // => '06.12.2025 12:30' (UTC+3)
+       *
+       * DateFormatter.toUserTimezone('2025-12-06T09:30:00Z', null)
+       * // => Uses browser's local timezone
+       */
+      static toUserTimezone(utcIsoString, userTimezone = null) {
+        if (!utcIsoString) return "";
+        try {
+          const date = new Date(utcIsoString);
+          if (isNaN(date.getTime())) return "";
+          const options = {
+            timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+          };
+          const formatter = new Intl.DateTimeFormat("ru-RU", options);
+          const parts = formatter.formatToParts(date);
+          let day = "", month = "", year = "", hour = "", minute = "";
+          for (const part of parts) {
+            if (part.type === "day") day = part.value;
+            else if (part.type === "month") month = part.value;
+            else if (part.type === "year") year = part.value;
+            else if (part.type === "hour") hour = part.value;
+            else if (part.type === "minute") minute = part.value;
+          }
+          return `${day}.${month}.${year} ${hour}:${minute}`;
+        } catch (e) {
+          console.error("DateFormatter.toUserTimezone error:", e);
+          return "";
+        }
+      }
+      /**
+       * Convert UTC ISO date string to user's timezone for display (date only).
+       *
+       * @param {string} utcIsoString - ISO datetime string in UTC
+       * @param {string|null} userTimezone - IANA timezone or null for browser local
+       * @returns {string} Formatted local date (DD.MM.YYYY)
+       *
+       * @example
+       * DateFormatter.dateToUserTimezone('2025-12-06T23:30:00Z', 'Europe/Moscow')
+       * // => '07.12.2025' (next day in Moscow due to +3)
+       */
+      static dateToUserTimezone(utcIsoString, userTimezone = null) {
+        if (!utcIsoString) return "";
+        try {
+          const date = new Date(utcIsoString);
+          if (isNaN(date.getTime())) return "";
+          const options = {
+            timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+          };
+          const formatter = new Intl.DateTimeFormat("ru-RU", options);
+          const parts = formatter.formatToParts(date);
+          let day = "", month = "", year = "";
+          for (const part of parts) {
+            if (part.type === "day") day = part.value;
+            else if (part.type === "month") month = part.value;
+            else if (part.type === "year") year = part.value;
+          }
+          return `${day}.${month}.${year}`;
+        } catch (e) {
+          console.error("DateFormatter.dateToUserTimezone error:", e);
+          return "";
+        }
+      }
+      /**
+       * Get current date in user's timezone (DD.MM.YYYY).
+       *
+       * Unlike today() which uses browser's local timezone,
+       * this method allows specifying a custom timezone.
+       *
+       * @param {string|null} userTimezone - IANA timezone or null for browser local
+       * @returns {string} Current date in user's timezone (DD.MM.YYYY)
+       *
+       * @example
+       * DateFormatter.todayInTimezone('Europe/Moscow')
+       * // => '06.12.2025' (current date in Moscow)
+       */
+      static todayInTimezone(userTimezone = null) {
+        return this.dateToUserTimezone((/* @__PURE__ */ new Date()).toISOString(), userTimezone);
+      }
+      /**
+       * Get current date in user's timezone (YYYY-MM-DD for API).
+       *
+       * @param {string|null} userTimezone - IANA timezone or null for browser local
+       * @returns {string} Current date in API format (YYYY-MM-DD)
+       *
+       * @example
+       * DateFormatter.todayISOInTimezone('Europe/Moscow')
+       * // => '2025-12-06'
+       */
+      static todayISOInTimezone(userTimezone = null) {
+        const displayDate = this.todayInTimezone(userTimezone);
+        return this.formatForAPI(displayDate);
+      }
+      /**
+       * Convert local datetime input to UTC ISO string for API.
+       *
+       * Parses a local datetime string (DD.MM.YYYY HH:MM) in the specified
+       * timezone and converts it to UTC ISO string.
+       *
+       * Note: This is a simplified implementation. For production use with
+       * complex DST handling, consider using libraries like Luxon or date-fns-tz.
+       *
+       * @param {string} localDatetime - Local datetime in "DD.MM.YYYY HH:MM" format
+       * @param {string|null} userTimezone - IANA timezone the input is in
+       * @returns {string|null} UTC ISO string or null if invalid
+       *
+       * @example
+       * DateFormatter.toUtcForApi('06.12.2025 12:30', 'Europe/Moscow')
+       * // => '2025-12-06T09:30:00.000Z' (Moscow UTC+3)
+       */
+      static toUtcForApi(localDatetime, userTimezone = null) {
+        if (!localDatetime) return null;
+        try {
+          const match = localDatetime.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/);
+          if (!match) return null;
+          const [, day, month, year, hour, minute] = match;
+          const dateStr = `${year}-${month}-${day}T${hour}:${minute}:00`;
+          const localDate = new Date(dateStr);
+          if (userTimezone) {
+            const formatter = new Intl.DateTimeFormat("en-US", {
+              timeZone: userTimezone,
+              timeZoneName: "longOffset"
+            });
+            const parts = formatter.formatToParts(localDate);
+            const tzPart = parts.find((p) => p.type === "timeZoneName");
+            if (tzPart) {
+              const offsetMatch = tzPart.value.match(/GMT([+-])(\d{2}):(\d{2})/);
+              if (offsetMatch) {
+                const [, sign, hours, minutes] = offsetMatch;
+                const offsetMinutes = (parseInt(hours) * 60 + parseInt(minutes)) * (sign === "+" ? 1 : -1);
+                const utcDate = new Date(localDate.getTime() - offsetMinutes * 60 * 1e3);
+                return utcDate.toISOString();
+              }
+            }
+          }
+          return localDate.toISOString();
+        } catch (e) {
+          console.error("DateFormatter.toUtcForApi error:", e);
+          return null;
+        }
+      }
+      /**
+       * Format datetime with timezone for display (includes timezone indicator).
+       *
+       * @param {Date|string} date - Date object or ISO string
+       * @param {string|null} userTimezone - IANA timezone or null for browser local
+       * @returns {string} Formatted date and time with timezone (DD.MM.YYYY HH:MM (TZ))
+       *
+       * @example
+       * DateFormatter.formatDateTimeWithTz('2025-12-06T09:30:00Z', 'Europe/Moscow')
+       * // => '06.12.2025 12:30 (MSK)'
+       */
+      static formatDateTimeWithTz(date, userTimezone = null) {
+        if (!date) return "";
+        try {
+          const d = typeof date === "string" ? new Date(date) : date;
+          if (isNaN(d.getTime())) return "";
+          const tz = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const options = {
+            timeZone: tz,
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZoneName: "short"
+          };
+          const formatter = new Intl.DateTimeFormat("ru-RU", options);
+          const parts = formatter.formatToParts(d);
+          let day = "", month = "", year = "", hour = "", minute = "", tzName = "";
+          for (const part of parts) {
+            if (part.type === "day") day = part.value;
+            else if (part.type === "month") month = part.value;
+            else if (part.type === "year") year = part.value;
+            else if (part.type === "hour") hour = part.value;
+            else if (part.type === "minute") minute = part.value;
+            else if (part.type === "timeZoneName") tzName = part.value;
+          }
+          return `${day}.${month}.${year} ${hour}:${minute} (${tzName})`;
+        } catch (e) {
+          console.error("DateFormatter.formatDateTimeWithTz error:", e);
+          return "";
+        }
+      }
+      /**
+       * Get browser's current timezone name (IANA format).
+       *
+       * @returns {string} Browser's timezone (e.g., "Europe/Moscow")
+       *
+       * @example
+       * DateFormatter.getBrowserTimezone()
+       * // => 'Europe/Moscow'
+       */
+      static getBrowserTimezone() {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      }
+    };
+    _DateFormatter.RUSSIAN_MONTHS = [
+      "января",
+      "февраля",
+      "марта",
+      "апреля",
+      "мая",
+      "июня",
+      "июля",
+      "августа",
+      "сентября",
+      "октября",
+      "ноября",
+      "декабря"
+    ];
+    let DateFormatter = _DateFormatter;
+    const _CalendarWidget = class _CalendarWidget {
+      /**
+       * @param {Object} options - Configuration options
+       * @param {HTMLElement} [options.inputElement] - Input element for single date picker
+       * @param {HTMLElement} [options.startInputElement] - Start date input for range picker
+       * @param {HTMLElement} [options.endInputElement] - End date input for range picker
+       * @param {string} [options.mode='single'] - Picker mode: 'single' or 'range'
+       * @param {string} [options.triggerContainer] - CSS selector for custom trigger button container (range mode only)
+       * @param {Function} [options.onSelect] - Callback when date is selected
+       * @param {Date} [options.defaultDate] - Default selected date
+       * @param {Date} [options.minDate] - Minimum selectable date
+       * @param {Date} [options.maxDate] - Maximum selectable date
+       */
+      constructor(options) {
+        this.mode = options.mode || "single";
+        this.triggerContainer = options.triggerContainer || null;
+        this.onSelect = options.onSelect || (() => {
+        });
+        this.minDate = options.minDate || null;
+        this.maxDate = options.maxDate || null;
+        if (this.mode === "single") {
+          this.inputElement = options.inputElement;
+          if (!this.inputElement) {
+            throw new Error("CalendarWidget: inputElement is required for single mode");
+          }
+          this.selectedDate = options.defaultDate || null;
+        }
+        if (this.mode === "range") {
+          this.startInputElement = options.startInputElement;
+          this.endInputElement = options.endInputElement;
+          if (!this.startInputElement || !this.endInputElement) {
+            throw new Error("CalendarWidget: startInputElement and endInputElement are required for range mode");
+          }
+          this.startDate = null;
+          this.endDate = null;
+          this.selectingEnd = false;
+        }
+        this.currentMonth = (/* @__PURE__ */ new Date()).getMonth();
+        this.currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+        this.isOpen = false;
+        this.calendarElement = null;
+        this.triggerButton = null;
+        this.triggerButtons = [];
+        this._init();
+      }
+      /**
+       * Initialize calendar widget
+       * @private
+       */
+      _init() {
+        this._createTriggerButton();
+        this._createCalendarElement();
+        this._attachEventListeners();
+        if (this.mode === "single" && this.inputElement?.value) {
+          const parsed = DateFormatter.parse(this.inputElement.value);
+          if (parsed) {
+            this.selectedDate = parsed;
+            this.currentMonth = parsed.getMonth();
+            this.currentYear = parsed.getFullYear();
+          }
+        }
+        if (this.mode === "range") {
+          if (this.startInputElement?.value) {
+            const parsed = DateFormatter.parse(this.startInputElement.value);
+            if (parsed) this.startDate = parsed;
+          }
+          if (this.endInputElement?.value) {
+            const parsed = DateFormatter.parse(this.endInputElement.value);
+            if (parsed) this.endDate = parsed;
+          }
+        }
+      }
+      /**
+       * Create calendar icon button next to input
+       * @private
+       */
+      _createTriggerButton() {
+        if (this.mode === "single") {
+          this._createSingleButton(this.inputElement);
+        } else {
+          if (this.triggerContainer) {
+            this._createCustomTriggerButton();
+          } else {
+            this._createSingleButton(this.startInputElement);
+            this._createSingleButton(this.endInputElement);
+          }
+        }
+      }
+      /**
+       * Create custom trigger button in specified container (range mode only)
+       * @private
+       */
+      _createCustomTriggerButton() {
+        if (!this.triggerContainer) return;
+        const container = document.querySelector(this.triggerContainer);
+        if (!container) {
+          console.warn(`CalendarWidget: triggerContainer "${this.triggerContainer}" not found, falling back to default buttons`);
+          this._createSingleButton(this.startInputElement);
+          this._createSingleButton(this.endInputElement);
+          return;
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-ghost";
+        button.innerHTML = `
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    `;
+        button.setAttribute("aria-label", "Открыть календарь");
+        this.triggerButton = button;
+        this.triggerButtons.push(button);
+        container.appendChild(button);
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.open();
+        });
+      }
+      /**
+       * Create a single calendar button for an input element
+       * @private
+       */
+      _createSingleButton(targetInput) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-ghost btn-sm absolute right-2 top-1/2 -translate-y-1/2";
+        button.innerHTML = `
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    `;
+        button.setAttribute("aria-label", "Открыть календарь");
+        if (!this.triggerButton) {
+          this.triggerButton = button;
+        }
+        this.triggerButtons.push(button);
+        if (!targetInput) return;
+        const parent = targetInput.parentElement;
+        if (!parent) return;
+        if (!parent.classList.contains("relative")) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "relative flex-1";
+          if (targetInput.classList.contains("flex-1")) {
+            targetInput.classList.remove("flex-1");
+            targetInput.classList.add("w-full");
+          }
+          parent.insertBefore(wrapper, targetInput);
+          wrapper.appendChild(targetInput);
+          wrapper.appendChild(button);
+        } else {
+          parent.appendChild(button);
+        }
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.open();
+        });
+      }
+      /**
+       * Create calendar dropdown element
+       * @private
+       */
+      _createCalendarElement() {
+        this.calendarElement = document.createElement("div");
+        this.calendarElement.className = "calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300";
+        this.calendarElement.style.width = "320px";
+        this.calendarElement.style.position = "fixed";
+        this.calendarElement.style.zIndex = "9999";
+        this.calendarElement.style.visibility = "hidden";
+        this.calendarElement.style.opacity = "0";
+        this.calendarElement.style.transition = "opacity 0.15s ease-out";
+        document.body.appendChild(this.calendarElement);
+        this._render();
+      }
+      /**
+       * Render calendar UI
+       * @private
+       */
+      _render() {
+        const html = `
+      <div class="p-4">
+        <!-- Header: Month/Year navigation -->
+        <div class="flex items-center justify-between mb-4">
+          <button type="button" class="btn btn-ghost btn-sm btn-circle" data-action="prev-month" aria-label="Предыдущий месяц">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <div class="flex items-center gap-2">
+            <select class="select select-bordered" data-action="select-month" aria-label="Выбрать месяц">
+              ${_CalendarWidget.MONTH_NAMES.map(
+          (name, i) => `<option value="${i}" ${i === this.currentMonth ? "selected" : ""}>${name}</option>`
+        ).join("")}
+            </select>
+
+            <select class="select select-bordered" data-action="select-year" aria-label="Выбрать год">
+              ${this._generateYearOptions()}
+            </select>
+          </div>
+
+          <button type="button" class="btn btn-ghost btn-sm btn-circle" data-action="next-month" aria-label="Следующий месяц">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Day names header -->
+        <div class="grid grid-cols-7 gap-1 mb-2">
+          ${_CalendarWidget.DAY_NAMES.map(
+          (day) => `<div class="text-center text-xs font-medium text-base-content/60 py-1">${day}</div>`
+        ).join("")}
+        </div>
+
+        <!-- Calendar grid -->
+        <div class="grid grid-cols-7 gap-1" data-calendar-grid>
+          ${this._generateCalendarDays()}
+        </div>
+
+        <!-- Footer: Quick actions -->
+        <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">
+          <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">
+            Сегодня
+          </button>
+          ${this.mode === "range" ? `
+            <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="clear-range">
+              Очистить
+            </button>
+          ` : ""}
+          <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">
+            Закрыть
+          </button>
+        </div>
+      </div>
+    `;
+        if (this.calendarElement) {
+          this.calendarElement.innerHTML = html;
+        }
+      }
+      /**
+       * Generate year options for dropdown
+       * @private
+       */
+      _generateYearOptions() {
+        const currentYear = (/* @__PURE__ */ new Date()).getFullYear();
+        const startYear = currentYear - 10;
+        const endYear = currentYear + 10;
+        let options = "";
+        for (let year = startYear; year <= endYear; year++) {
+          options += `<option value="${year}" ${year === this.currentYear ? "selected" : ""}>${year}</option>`;
+        }
+        return options;
+      }
+      /**
+       * Generate calendar day cells
+       * @private
+       */
+      _generateCalendarDays() {
+        const firstDay = new Date(this.currentYear, this.currentMonth, 1);
+        const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+        let firstDayOfWeek = firstDay.getDay();
+        firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+        const daysInMonth = lastDay.getDate();
+        const today = /* @__PURE__ */ new Date();
+        today.setHours(0, 0, 0, 0);
+        let html = "";
+        for (let i = 0; i < firstDayOfWeek; i++) {
+          html += '<div class="aspect-square"></div>';
+        }
+        for (let day = 1; day <= daysInMonth; day++) {
+          const date = new Date(this.currentYear, this.currentMonth, day);
+          date.setHours(0, 0, 0, 0);
+          const isToday = date.getTime() === today.getTime();
+          const isDisabled = this._isDateDisabled(date);
+          const isSelected = this._isDateSelected(date);
+          const isInRange = this._isDateInRange(date);
+          const isRangeBoundary = this._isRangeBoundary(date);
+          let btnClass = "btn btn-sm btn-ghost w-full aspect-square p-0";
+          if (isToday) btnClass += " border border-primary";
+          if (isSelected) btnClass += " btn-primary";
+          if (isRangeBoundary) btnClass += " border-2 border-error";
+          if (isInRange && !isSelected) btnClass += " bg-range-highlight";
+          if (isDisabled) btnClass += " btn-disabled opacity-30";
+          html += `
+        <button
+          type="button"
+          class="${btnClass}"
+          data-date="${this._formatDateISO(date)}"
+          ${isDisabled ? "disabled" : ""}
+          aria-label="${day} ${_CalendarWidget.MONTH_NAMES[this.currentMonth]} ${this.currentYear}"
+        >
+          ${day}
+        </button>
+      `;
+        }
+        return html;
+      }
+      /**
+       * Check if date is disabled
+       * @private
+       */
+      _isDateDisabled(date) {
+        if (this.minDate && date < this.minDate) return true;
+        if (this.maxDate && date > this.maxDate) return true;
+        return false;
+      }
+      /**
+       * Check if date is selected
+       * @private
+       */
+      _isDateSelected(date) {
+        if (this.mode === "single") {
+          return !!(this.selectedDate && date.getTime() === this.selectedDate.getTime());
+        }
+        if (this.mode === "range") {
+          const startMatch = !!(this.startDate && date.getTime() === this.startDate.getTime());
+          const endMatch = !!(this.endDate && date.getTime() === this.endDate.getTime());
+          return startMatch || endMatch;
+        }
+        return false;
+      }
+      /**
+       * Check if date is in selected range
+       * @private
+       */
+      _isDateInRange(date) {
+        if (this.mode !== "range" || !this.startDate || !this.endDate) return false;
+        return date > this.startDate && date < this.endDate;
+      }
+      /**
+       * Check if date is a range boundary (start or end date)
+       * @private
+       */
+      _isRangeBoundary(date) {
+        if (this.mode !== "range") return false;
+        const startMatch = !!(this.startDate && date.getTime() === this.startDate.getTime());
+        const endMatch = !!(this.endDate && date.getTime() === this.endDate.getTime());
+        return startMatch || endMatch;
+      }
+      /**
+       * Format date to ISO string (YYYY-MM-DD)
+       * @private
+       */
+      _formatDateISO(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+      /**
+       * Attach event listeners
+       * @private
+       */
+      _attachEventListeners() {
+        this.calendarElement?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const target = e.target?.closest("[data-action]");
+          if (!target) return;
+          const action = target.dataset.action;
+          switch (action) {
+            case "prev-month":
+              this.previousMonth();
+              break;
+            case "next-month":
+              this.nextMonth();
+              break;
+            case "today":
+              this.selectToday();
+              break;
+            case "clear-range":
+              this.clearRange();
+              break;
+            case "close":
+              this.applyAndClose();
+              break;
+          }
+        });
+        this.calendarElement?.addEventListener("change", (e) => {
+          const target = e.target;
+          if (target?.dataset.action === "select-month") {
+            this.currentMonth = parseInt(target.value);
+            this._render();
+          }
+          if (target?.dataset.action === "select-year") {
+            this.currentYear = parseInt(target.value);
+            this._render();
+          }
+        });
+        this.calendarElement?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const dateButton = e.target?.closest("[data-date]");
+          if (!dateButton || dateButton.disabled) return;
+          const dateStr = dateButton.dataset.date;
+          const date = /* @__PURE__ */ new Date(dateStr + "T00:00:00");
+          this._handleDateSelection(date);
+        });
+        document.addEventListener("click", (e) => {
+          if (!this.isOpen) return;
+          if (this.calendarElement?.contains(e.target)) return;
+          const clickedButton = this.triggerButtons.some((btn) => btn.contains(e.target));
+          if (clickedButton) return;
+          if (this.mode === "range") return;
+          this.close();
+        });
+        document.addEventListener("keydown", (e) => {
+          if (!this.isOpen) return;
+          if (e.key === "Escape") {
+            this.close();
+            e.preventDefault();
+          }
+        });
+        if (this.mode === "single" && this.inputElement) {
+          this.inputElement.addEventListener("blur", () => {
+            const value = this.inputElement?.value || "";
+            if (DateFormatter.isValidDisplayFormat(value)) {
+              const date = DateFormatter.parse(value);
+              if (date) {
+                this.selectedDate = date;
+                this.currentMonth = date.getMonth();
+                this.currentYear = date.getFullYear();
+              }
+            }
+          });
+        }
+      }
+      /**
+       * Handle date selection
+       * @private
+       */
+      _handleDateSelection(date) {
+        if (this.mode === "single") {
+          this.selectedDate = date;
+          const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
+          if (this.inputElement) {
+            this.inputElement.value = displayDate;
+          }
+          this.onSelect(displayDate);
+          this.close();
+        }
+        if (this.mode === "range") {
+          if (!this.startDate || this.startDate && this.endDate) {
+            this.startDate = date;
+            this.endDate = null;
+            this.selectingEnd = true;
+            const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
+            if (this.startInputElement) {
+              this.startInputElement.value = displayDate;
+            }
+            if (this.endInputElement) {
+              this.endInputElement.value = "";
+            }
+            this._render();
+          } else {
+            if (date < this.startDate) {
+              this.endDate = this.startDate;
+              this.startDate = date;
+            } else {
+              this.endDate = date;
+            }
+            const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+            const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+            if (this.startInputElement) {
+              this.startInputElement.value = startDisplay;
+            }
+            if (this.endInputElement) {
+              this.endInputElement.value = endDisplay;
+            }
+            this.selectingEnd = false;
+            this._render();
+          }
+        }
+      }
+      /**
+       * Navigate to previous month
+       */
+      previousMonth() {
+        if (this.currentMonth === 0) {
+          this.currentMonth = 11;
+          this.currentYear--;
+        } else {
+          this.currentMonth--;
+        }
+        this._render();
+      }
+      /**
+       * Navigate to next month
+       */
+      nextMonth() {
+        if (this.currentMonth === 11) {
+          this.currentMonth = 0;
+          this.currentYear++;
+        } else {
+          this.currentMonth++;
+        }
+        this._render();
+      }
+      /**
+       * Select today's date
+       */
+      selectToday() {
+        const today = /* @__PURE__ */ new Date();
+        today.setHours(0, 0, 0, 0);
+        this._handleDateSelection(today);
+      }
+      /**
+       * Clear range selection
+       */
+      clearRange() {
+        if (this.mode !== "range") return;
+        this.startDate = null;
+        this.endDate = null;
+        if (this.startInputElement) {
+          this.startInputElement.value = "";
+        }
+        if (this.endInputElement) {
+          this.endInputElement.value = "";
+        }
+        this.selectingEnd = false;
+        this._render();
+      }
+      /**
+       * Move calendar into dialog if input is inside an open dialog element
+       * This is necessary because HTML5 <dialog> creates a top layer above any z-index
+       * @private
+       */
+      _moveToDialog() {
+        const targetInput = this.mode === "single" ? this.inputElement : this.startInputElement;
+        if (!targetInput) return;
+        const dialogElement = targetInput?.closest("dialog[open]");
+        if (dialogElement) {
+          const modalBox = dialogElement.querySelector(".modal-box");
+          if (modalBox && this.calendarElement && this.calendarElement.parentElement !== modalBox) {
+            this._originalParent = this.calendarElement.parentElement;
+            if (this.calendarElement) {
+              modalBox.appendChild(this.calendarElement);
+            }
+            this.calendarElement?.classList.remove("fixed");
+            this.calendarElement?.classList.add("absolute");
+            if (this.calendarElement) {
+              this.calendarElement.style.position = "absolute";
+            }
+            this._isInsideDialog = true;
+          }
+        }
+      }
+      /**
+       * Restore calendar back to document.body if it was moved to a dialog
+       * @private
+       */
+      _restoreToBody() {
+        if (this._isInsideDialog && this._originalParent && this.calendarElement) {
+          this._originalParent.appendChild(this.calendarElement);
+          this.calendarElement.classList.remove("absolute");
+          this.calendarElement.classList.add("fixed");
+          this.calendarElement.style.position = "fixed";
+          this._isInsideDialog = false;
+          this._originalParent = null;
+        }
+      }
+      /**
+       * Open calendar
+       */
+      open() {
+        this.isOpen = true;
+        this._moveToDialog();
+        if (this.calendarElement) {
+          this.calendarElement.style.visibility = "visible";
+          this.calendarElement.style.opacity = "0";
+        }
+        this._positionCalendar();
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (this.calendarElement) {
+              this.calendarElement.style.opacity = "1";
+            }
+            this._render();
+          });
+        });
+      }
+      /**
+       * Position calendar relative to input element
+       * Uses fixed positioning for non-dialog, absolute positioning for dialog
+       * @private
+       */
+      _positionCalendar() {
+        const targetInput = this.mode === "single" ? this.inputElement : this.startInputElement;
+        if (!targetInput) return;
+        const inputRect = targetInput.getBoundingClientRect();
+        const calendarWidth = 320;
+        const calendarRect = this.calendarElement?.getBoundingClientRect();
+        const calendarHeight = calendarRect?.height || 400;
+        const viewportWidth = document.documentElement.clientWidth || window2.innerWidth;
+        const viewportHeight = window2.innerHeight;
+        const isDesktop = viewportWidth >= 768;
+        const spacing = isDesktop ? 4 : 8;
+        let scrollTop = 0;
+        let scrollLeft = 0;
+        let modalBox = null;
+        if (this._isInsideDialog) {
+          modalBox = this.calendarElement?.parentElement || null;
+          if (modalBox) {
+            scrollTop = modalBox.scrollTop;
+            scrollLeft = modalBox.scrollLeft;
+          }
+        }
+        let top, left;
+        if (this._isInsideDialog && modalBox) {
+          const modalRect = modalBox.getBoundingClientRect();
+          const inputOffsetTop = inputRect.top - modalRect.top + scrollTop;
+          const inputOffsetLeft = inputRect.left - modalRect.left + scrollLeft;
+          top = inputOffsetTop + inputRect.height + spacing;
+          left = inputOffsetLeft;
+        } else {
+          top = inputRect.bottom + spacing;
+          left = inputRect.left;
+        }
+        if (isDesktop && !this._isInsideDialog) {
+          left = inputRect.right - calendarWidth;
+        } else if (isDesktop && this._isInsideDialog && modalBox) {
+          const modalRect = modalBox.getBoundingClientRect();
+          left = inputRect.right - modalRect.left + scrollLeft - calendarWidth;
+        }
+        if (!isDesktop && left + calendarWidth > viewportWidth) {
+          left = viewportWidth - calendarWidth - spacing;
+        }
+        if (left < spacing) {
+          left = spacing;
+        }
+        let spaceBelow, spaceAbove;
+        if (this._isInsideDialog && modalBox) {
+          const modalHeight = modalBox.clientHeight;
+          const inputOffsetTop = inputRect.top - modalBox.getBoundingClientRect().top + scrollTop;
+          spaceBelow = modalHeight - (inputOffsetTop + inputRect.height);
+          spaceAbove = inputOffsetTop;
+          if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+            top = inputOffsetTop - calendarHeight - spacing;
+          }
+        } else {
+          spaceBelow = viewportHeight - inputRect.bottom;
+          spaceAbove = inputRect.top;
+          if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+            top = inputRect.top - calendarHeight - spacing;
+          }
+        }
+        if (viewportWidth < 768) {
+          const parent = this.calendarElement?.parentElement;
+          const isInsideModalBox = parent && parent.classList && parent.classList.contains("modal-box");
+          if (isInsideModalBox) {
+            const modalWidth = parent.clientWidth;
+            left = (modalWidth - calendarWidth) / 2;
+            if (left < spacing) left = spacing;
+          } else {
+            left = Math.round((viewportWidth - calendarWidth) / 2);
+            const minOffset = spacing;
+            const maxOffset = viewportWidth - calendarWidth - spacing;
+            left = Math.max(minOffset, Math.min(left, maxOffset));
+            top = (viewportHeight - calendarHeight) / 2;
+            if (top < spacing) top = spacing;
+          }
+        }
+        if (isDesktop) {
+          const parent = this.calendarElement?.parentElement;
+          const isInsideModalBox = parent && parent.classList && parent.classList.contains("modal-box");
+          if (isInsideModalBox) {
+            const modalWidth = parent.clientWidth;
+            left = (modalWidth - calendarWidth) / 2;
+          }
+        }
+        if (this.calendarElement) {
+          this.calendarElement.style.top = `${top}px`;
+          this.calendarElement.style.left = `${left}px`;
+        }
+      }
+      /**
+       * Apply selection and close calendar (called by "Закрыть" button)
+       */
+      applyAndClose() {
+        if (this.mode === "range" && this.startDate && this.endDate) {
+          const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+          const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+          this.onSelect(startDisplay, endDisplay);
+        }
+        this.close();
+      }
+      /**
+       * Close calendar
+       */
+      close() {
+        this.isOpen = false;
+        if (this.calendarElement) {
+          this.calendarElement.style.visibility = "hidden";
+          this.calendarElement.style.opacity = "0";
+        }
+        this._restoreToBody();
+      }
+      /**
+       * Toggle calendar open/close
+       */
+      toggle() {
+        if (this.isOpen) {
+          this.close();
+        } else {
+          this.open();
+        }
+      }
+      /**
+       * Destroy calendar widget and remove from DOM
+       * Prevents memory leaks when recreating calendars in modals
+       */
+      destroy() {
+        if (this.isOpen) {
+          this.close();
+        }
+        if (this.calendarElement) {
+          this.calendarElement.remove();
+        }
+        this.triggerButtons.forEach((btn) => {
+          if (btn && btn.parentNode) {
+            btn.remove();
+          }
+        });
+        this.triggerButtons = [];
+        this.triggerButton = null;
+        this.calendarElement = null;
+      }
+    };
+    _CalendarWidget.MONTH_NAMES = [
+      "Январь",
+      "Февраль",
+      "Март",
+      "Апрель",
+      "Май",
+      "Июнь",
+      "Июль",
+      "Август",
+      "Сентябрь",
+      "Октябрь",
+      "Ноябрь",
+      "Декабрь"
+    ];
+    _CalendarWidget.DAY_NAMES = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+    let CalendarWidget = _CalendarWidget;
+    const _ChoicesCategoryTree = class _ChoicesCategoryTree {
+      /**
+       * Initialize Web Worker for category hierarchy processing.
+       * Called automatically on first use, or can be preloaded.
+       */
+      static initializeWorker() {
+        if (!this._workerWrapper && typeof window2.WorkerWrapper !== "undefined") {
+          try {
+            this._workerWrapper = new window2.WorkerWrapper("/static/js/workers/hierarchyWorker.min.js", {
+              idleTimeout: 3e4,
+              // 30s for category tree (less aggressive than default)
+              debugMode: window2.DEBUG_MODE || false
+            });
+          } catch (error) {
+            console.warn("[ChoicesCategoryTree] Failed to initialize worker:", error);
+            this._workerWrapper = null;
+          }
+        }
+      }
+      /**
+       * Preload categories for offline use.
+       * Call this on page load to cache both expense and income categories.
+       * Categories will be available in offline mode after preloading.
+       *
+       * @param {Object} options - Preload options
+       * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
+       * @param {boolean} options.showInactive - Include archived categories (default: false)
+       * @returns {Promise<void>}
+       */
+      static async preloadCategories(options = {}) {
+        const apiBaseUrl = options.apiBaseUrl || "/api/v1";
+        const showInactive = options.showInactive || false;
+        const types = ["expense", "income", "debit", "credit"];
+        const preloadPromises = types.map(async (type) => {
+          const cacheKey = `${type}:${showInactive}:all`;
+          if (_ChoicesCategoryTree._cache.has(cacheKey)) {
+            if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
+            return;
+          }
+          if (_ChoicesCategoryTree._pendingRequests.has(cacheKey)) {
+            if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
+            return _ChoicesCategoryTree._pendingRequests.get(cacheKey);
+          }
+          const url = `${apiBaseUrl}/articles?type=${type}&sort_by=usage_count&limit=1000&include_inactive=${showInactive}`;
+          try {
+            const response = await fetch(url, {
+              credentials: "same-origin"
+            });
+            if (!response.ok) {
+              console.warn(`[ChoicesCategoryTree] Failed to preload ${type} categories: HTTP ${response.status}`);
+              return;
+            }
+            const data = await response.json();
+            const categories = data.articles || [];
+            _ChoicesCategoryTree._cache.set(cacheKey, {
+              data: categories,
+              timestamp: Date.now()
+            });
+            if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
+          } catch (error) {
+            console.warn(`[ChoicesCategoryTree] Network error preloading ${type} categories:`, error.message);
+          }
+        });
+        await Promise.all(preloadPromises);
+      }
+      /**
+       * Initialize category tree selector.
+       *
+       * @param {string} selector - CSS selector for select element
+       * @param {Object} options - Configuration options
+       * @param {string} options.type - Category type ('income' or 'expense')
+       * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
+       * @param {Function} options.onCategoryChange - Callback when category changes
+       * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
+       * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
+       * @param {boolean} options.showInactive - Include archived categories (default: false)
+       * @param {number|null} options.financialCenterId - OPTIONAL: Filter categories by financial center ID
+       */
+      constructor(selector, options = {}) {
+        this.selector = selector;
+        this.element = document.querySelector(selector);
+        if (!this.element) {
+          console.error(`[ChoicesCategoryTree] Element not found: ${selector}`);
+          return;
+        }
+        this.auth = options.auth || null;
+        this.options = {
+          type: options.type || "expense",
+          // Support both callback names for compatibility (onChange for analytics page)
+          onCategoryChange: options.onCategoryChange || options.onChange || null,
+          apiBaseUrl: options.apiBaseUrl || "/api/v1",
+          showLeafOnly: options.showLeafOnly !== false,
+          // Default true
+          showInactive: options.showInactive || false,
+          // Default false - hide archived categories
+          financialCenterId: options.financialCenterId || null,
+          // Filter by FC (null = all)
+          // Multi-select support (for analytics page category filter)
+          multiple: options.multiple || false,
+          showPath: options.showPath !== false,
+          // Default true - show breadcrumb path
+          showClearButton: options.showClearButton !== false,
+          // Default true - show clear-all button for multiple mode
+          mode: options.mode || "edit"
+          // NEW: 'create' | 'edit' - controls selection preservation in updateFinancialCenter()
+        };
+        console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`);
+        this.choices = null;
+        this.categories = [];
+        this.categoryMap = /* @__PURE__ */ new Map();
+        this.childrenMap = /* @__PURE__ */ new Map();
+        this._initPromise = null;
+        this.init();
+      }
+      /**
+       * Initialize component.
+       */
+      async init() {
+        try {
+          await this.loadCategories();
+          this.buildHierarchyMaps();
+          const displayCategories = this.options.showLeafOnly ? this.getLeafCategories() : this.categories;
+          this.initChoices(displayCategories);
+        } catch (error) {
+          console.error("[ChoicesCategoryTree] Initialization error:", error);
+          this.showError("Ошибка загрузки категорий");
+        }
+      }
+      /**
+       * Load categories from API.
+       * Uses Bearer token (WebApp) or cookie-based auth (web interface).
+       */
+      async loadCategories() {
+        const fcPart = this.options.financialCenterId || "all";
+        const cacheKey = `${this.options.type}:${this.options.showInactive}:${fcPart}`;
+        const cached = _ChoicesCategoryTree._cache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < 3e4) {
+          this.categories = cached.data;
+          return;
+        }
+        const pendingRequest = _ChoicesCategoryTree._pendingRequests.get(cacheKey);
+        if (pendingRequest) {
+          this.categories = await pendingRequest;
+          return;
+        }
+        if (!navigator.onLine) {
+          if (typeof window2.debugLog === "function") window2.debugLog("[ChoicesCategoryTree] Offline mode - skipping API call, using cache");
+          const fallbackKey = `${this.options.type}:${this.options.showInactive}:all`;
+          const fallback = _ChoicesCategoryTree._cache.get(fallbackKey);
+          if (fallback) {
+            this.categories = fallback.data;
+            return;
+          }
+          this.categories = [];
+          return;
+        }
+        let url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
+        if (this.options.financialCenterId) {
+          url += `&financial_center_id=${this.options.financialCenterId}`;
+        }
+        const headers = {};
+        if (this.auth && typeof this.auth.getToken === "function") {
+          const token = this.auth.getToken();
+          if (!token) {
+            throw new Error("No authentication token available");
+          }
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+        const requestPromise = fetch(url, {
+          headers,
+          credentials: "same-origin"
+          // Include cookies
+        }).then(async (response) => {
+          if (!response.ok) {
+            if (response.status === 401) {
+              if (typeof window2.debugLog === "function") window2.debugLog("[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)");
+              return [];
+            }
+            throw new Error(`Failed to load categories: HTTP ${response.status} ${response.statusText}`);
+          }
+          const data = await response.json();
+          const categories = data.articles || [];
+          _ChoicesCategoryTree._cache.set(cacheKey, {
+            data: categories,
+            timestamp: Date.now()
+          });
+          return categories;
+        }).catch((error) => {
+          console.warn("[ChoicesCategoryTree] Network error loading categories (offline?):", error.message);
+          const staleCache = _ChoicesCategoryTree._cache.get(cacheKey);
+          if (staleCache && staleCache.data && staleCache.data.length > 0) {
+            if (typeof window2.debugLog === "function") window2.debugLog("[ChoicesCategoryTree] Using stale cache for offline mode");
+            return staleCache.data;
+          }
+          if (this.options.financialCenterId) {
+            const allCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
+            const allCache = _ChoicesCategoryTree._cache.get(allCacheKey);
+            if (allCache && allCache.data && allCache.data.length > 0) {
+              if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Offline: No cache for FC ${this.options.financialCenterId}, using all categories`);
+              return allCache.data;
+            }
+          }
+          console.warn("[ChoicesCategoryTree] No cached categories available for offline mode");
+          return [];
+        }).finally(() => {
+          _ChoicesCategoryTree._pendingRequests.delete(cacheKey);
+        });
+        _ChoicesCategoryTree._pendingRequests.set(cacheKey, requestPromise);
+        this.categories = await requestPromise;
+      }
+      /**
+       * Build hierarchy maps for efficient lookups.
+       * Uses Web Worker for performance (with automatic fallback to sync processing).
+       */
+      async buildHierarchyMaps() {
+        const startTime = performance.now();
+        if (_ChoicesCategoryTree._workerWrapper && this.categories.length > 0) {
+          try {
+            _ChoicesCategoryTree.initializeWorker();
+            const result = await _ChoicesCategoryTree._workerWrapper.execute({
+              action: "buildMaps",
+              data: { categories: this.categories }
+            });
+            this.categoryMap = new Map(Object.entries(result.categoryMap));
+            this.childrenMap = new Map(
+              Object.entries(result.childrenMap).map(([key, val]) => [parseInt(key), val])
+            );
+            const duration2 = Math.round(performance.now() - startTime);
+            if (window2.DEBUG_MODE) {
+              console.log(`[ChoicesCategoryTree] Worker buildMaps: ${duration2}ms (${this.categories.length} categories)`);
+            }
+            if (this._initPromise) {
+              this._initPromise();
+              this._initPromise = null;
+            }
+            return;
+          } catch (error) {
+            console.warn("[ChoicesCategoryTree] Worker buildMaps failed, using synchronous:", error);
+          }
+        }
+        this.categoryMap.clear();
+        this.childrenMap.clear();
+        for (const category of this.categories) {
+          this.categoryMap.set(category.id, category);
+          if (category.parent_id) {
+            if (!this.childrenMap.has(category.parent_id)) {
+              this.childrenMap.set(category.parent_id, []);
+            }
+            this.childrenMap.get(category.parent_id).push(category.id);
+          }
+        }
+        const duration = Math.round(performance.now() - startTime);
+        if (window2.DEBUG_MODE) {
+          console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${duration}ms (${this.categories.length} categories)`);
+        }
+        if (this._initPromise) {
+          this._initPromise();
+          this._initPromise = null;
+        }
+      }
+      /**
+       * Wait for the category tree to be fully initialized.
+       * This method allows callers to wait for initialization to complete
+       * without polling with setInterval. It returns a Promise that resolves
+       * when categoryMap is populated and Choices.js is ready.
+       *
+       * Usage:
+       *   const tree = new ChoicesCategoryTree('#selector', options);
+       *   await tree.waitForReady();
+       *   await tree.setSelectedCategory(categoryId);
+       *
+       * @returns {Promise<void>} Resolves when initialization is complete
+       */
+      async waitForReady() {
+        if (this.categoryMap && this.categoryMap.size > 0 && this.choices && this.choices._store?.choices.length > 0) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          this._initPromise = resolve;
+        });
+      }
+      /**
+       * Get leaf categories (categories without children).
+       * Uses API-provided is_leaf flag if available, otherwise calculates locally.
+       *
+       * IMPORTANT: When filtering by financial_center_id, the API returns only
+       * categories available for that FC. The childrenMap built from filtered
+       * list may incorrectly mark parent categories as leaves (because their
+       * children were filtered out). The API-provided is_leaf flag is calculated
+       * from the FULL database, so it's always correct.
+       */
+      getLeafCategories() {
+        return this.categories.filter((cat) => {
+          if (typeof cat.is_leaf === "boolean") {
+            return cat.is_leaf;
+          }
+          return !this.childrenMap.has(cat.id);
+        });
+      }
+      /**
+       * Get parent chain for a category (from root to parent, excluding self).
+       * Uses Web Worker for large datasets (>100 categories), synchronous for small.
+       *
+       * @param {number} categoryId - Category ID
+       * @returns {Promise<Array>|Array} Array of parent categories (root to parent)
+       */
+      getParentChain(categoryId) {
+        const category = this.categoryMap.get(categoryId);
+        if (!category || !category.parent_id) {
+          return [];
+        }
+        if (this.categories.length > 100 && _ChoicesCategoryTree._workerWrapper) {
+          return this._getParentChainWorker(categoryId);
+        }
+        return this._getParentChainSync(categoryId);
+      }
+      /**
+       * Synchronous parent chain (original implementation).
+       * @private
+       */
+      _getParentChainSync(categoryId) {
+        const chain = [];
+        const category = this.categoryMap.get(categoryId);
+        if (!category || !category.parent_id) {
+          return chain;
+        }
+        let currentParentId = category.parent_id;
+        while (currentParentId) {
+          const parent = this.categoryMap.get(currentParentId);
+          if (!parent) break;
+          chain.unshift(parent);
+          currentParentId = parent.parent_id;
+        }
+        return chain;
+      }
+      /**
+       * Worker-based parent chain for large datasets.
+       * @private
+       */
+      async _getParentChainWorker(categoryId) {
+        try {
+          _ChoicesCategoryTree.initializeWorker();
+          const categoryMap = Object.fromEntries(this.categoryMap);
+          const result = await _ChoicesCategoryTree._workerWrapper?.execute({
+            action: "getParentChain",
+            data: { categoryId, categoryMap }
+          });
+          return result;
+        } catch (error) {
+          console.warn("[ChoicesCategoryTree] Worker getParentChain failed, using synchronous:", error);
+          return this._getParentChainSync(categoryId);
+        }
+      }
+      /**
+       * Initialize Choices.js with categories.
+       *
+       * @param {Array} categories - Categories to display
+       */
+      initChoices(categories) {
+        if (this.element) {
+          this.element.innerHTML = "";
+        }
+        const choices = categories.map((cat) => {
+          const parentChain = this.getParentChain(cat.id);
+          const parentText = Array.isArray(parentChain) && parentChain.length > 0 ? parentChain.map((p) => p.name).join(" › ") : "";
+          return {
+            value: cat.id,
+            label: cat.name,
+            customProperties: {
+              usage_count: cat.usage_count || 0,
+              parent_id: cat.parent_id,
+              parent_text: parentText
+              // Store formatted parent chain
+            }
+          };
+        });
+        this.choices = new Choices(this.element, {
+          searchEnabled: true,
+          searchPlaceholderValue: "Поиск категории...",
+          placeholder: true,
+          // Different placeholder for single/multiple modes
+          placeholderValue: this.options.multiple ? "" : "— Выберите категорию —",
+          noResultsText: "Не найдено",
+          noChoicesText: "Нет доступных категорий",
+          itemSelectText: "",
+          shouldSort: false,
+          // Keep our API sorting (by usage_count)
+          // Enable/disable individual remove buttons based on showClearButton option
+          // If showClearButton=true: use clear-all button, disable individual remove
+          // If showClearButton=false: enable individual remove buttons
+          removeItemButton: this.options.multiple && !this.options.showClearButton,
+          // Fuzzy search configuration (built-in Fuse.js)
+          fuseOptions: {
+            threshold: 0.3,
+            // Match threshold (0.0 = perfect, 1.0 = anything)
+            distance: 100,
+            // Character distance for matches
+            ignoreLocation: true,
+            // Don't care where in string match occurs
+            keys: ["label"]
+            // Search in label field
+          },
+          // Custom templates for dropdown items (show parent chain)
+          callbackOnCreateTemplates: (template) => {
+            return this.options.multiple ? this._createMultipleTemplates(template) : this._createSingleTemplates(template);
+          },
+          // Styling
+          classNames: {
+            containerOuter: ["choices", "choices-tailwind", this.options.multiple ? "is-multiple" : ""].filter(Boolean),
+            containerInner: ["choices__inner"],
+            input: ["choices__input"],
+            inputCloned: ["choices__input--cloned"],
+            list: ["choices__list"],
+            listItems: ["choices__list--multiple"],
+            listSingle: ["choices__list--single"],
+            listDropdown: ["choices__list--dropdown"],
+            item: ["choices__item"],
+            itemSelectable: ["choices__item--selectable"],
+            itemDisabled: ["choices__item--disabled"],
+            itemChoice: ["choices__item--choice"],
+            placeholder: ["choices__placeholder"],
+            group: ["choices__group"],
+            groupHeading: ["choices__heading"],
+            button: ["choices__button"]
+          }
+        });
+        if (this.choices) {
+          this.choices.setChoices(choices, "value", "label", false);
+        }
+        if (this.element) {
+          this.element.addEventListener("change", (event) => {
+            console.log("[ChoicesCategoryTree] Change event:", {
+              elementId: this.element?.id,
+              value: event.target?.value,
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            });
+            this.handleCategoryChange(event);
+          });
+        }
+        if (this.choices && this.element) {
+          this.element.addEventListener("showDropdown", () => {
+            console.log("[ChoicesCategoryTree] Dropdown opened:", {
+              elementId: this.element?.id,
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            });
+          });
+          this.element.addEventListener("hideDropdown", () => {
+            console.log("[ChoicesCategoryTree] Dropdown closed:", {
+              elementId: this.element?.id,
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            });
+          });
+          this.element.addEventListener("choice", (event) => {
+            const customEvent = event;
+            console.log("[ChoicesCategoryTree] Item selected:", {
+              elementId: this.element?.id,
+              choiceId: customEvent.detail?.choice?.value,
+              choiceLabel: customEvent.detail?.choice?.label,
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            });
+          });
+        }
+        if (this.options.multiple && this.options.showClearButton) {
+          this._addClearAllButton();
+        }
+      }
+      /**
+       * Create templates for single-select mode (existing behavior).
+       * @private
+       */
+      _createSingleTemplates(template) {
+        return {
+          // Dropdown item template (shown in dropdown list)
+          choice: (classNames, data) => {
+            const parentText = data.customProperties?.parent_text || "";
+            const label = data.label;
+            return template(`
+                    <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
+                         data-select-text=""
+                         data-choice
+                         ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : "data-choice-selectable"}
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}
+                         style="padding-left: 0.75rem;">
+                        <span style="font-weight: 500;">${label}</span>
+                        ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ""}
+                    </div>
+                `);
+          },
+          // Selected item template (shown after selection)
+          item: (classNames, data) => {
+            return template(`
+                    <div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}"
+                         data-item
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         ${data.active ? 'aria-selected="true"' : ""}
+                         ${data.disabled ? 'aria-disabled="true"' : ""}>
+                        ${data.label}
+                    </div>
+                `);
+          }
+        };
+      }
+      /**
+       * Create templates for multi-select mode.
+       * When showClearButton=false: badges with individual remove buttons
+       * When showClearButton=true: comma-separated text (use clear-all button)
+       * @private
+       */
+      _createMultipleTemplates(template) {
+        const showRemoveButtons = !this.options.showClearButton;
+        return {
+          // Dropdown item template (same as single - shows parent chain)
+          choice: (classNames, data) => {
+            const parentText = data.customProperties?.parent_text || "";
+            const label = data.label;
+            return template(`
+                    <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
+                         data-select-text=""
+                         data-choice
+                         ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : "data-choice-selectable"}
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         role="option"
+                         style="padding-left: 0.75rem;">
+                        <span style="font-weight: 500;">${label}</span>
+                        ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ""}
+                    </div>
+                `);
+          },
+          // Selected item template
+          item: (classNames, data) => {
+            if (showRemoveButtons) {
+              return template(`
+                        <div class="${classNames.item} choices__item--badge"
+                             data-item
+                             data-id="${data.id}"
+                             data-value="${data.value}"
+                             ${data.active ? 'aria-selected="true"' : ""}
+                             ${data.disabled ? 'aria-disabled="true"' : ""}>
+                            <span class="choices__item--badge-text">${data.label}</span>
+                            <button type="button"
+                                    class="${classNames.button}"
+                                    data-button=""
+                                    aria-label="Удалить ${data.label}">
+                                ×
+                            </button>
+                        </div>
+                    `);
+            } else {
+              return template(`
+                        <span class="${classNames.item} choices__item--comma"
+                              data-item
+                              data-id="${data.id}"
+                              data-value="${data.value}"
+                              ${data.active ? 'aria-selected="true"' : ""}
+                              ${data.disabled ? 'aria-disabled="true"' : ""}>
+                            ${data.label}
+                        </span>
+                    `);
+            }
+          }
+        };
+      }
+      /**
+       * Add "Clear All" button under the form (for multiple mode).
+       * @private
+       */
+      _addClearAllButton() {
+        const choicesContainer = this.element?.closest(".choices");
+        if (!choicesContainer) return;
+        const wrapper = document.createElement("div");
+        wrapper.className = "choices__clear-wrapper";
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "choices__clear-all";
+        clearBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        `;
+        clearBtn.title = "Очистить все";
+        clearBtn.style.display = "none";
+        wrapper.appendChild(clearBtn);
+        if (choicesContainer.parentElement) {
+          choicesContainer.parentElement.insertBefore(wrapper, choicesContainer.nextSibling);
+        }
+        clearBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.clearSelection();
+        });
+        this._clearAllBtn = clearBtn;
+      }
+      /**
+       * Update clear-all button visibility based on selection.
+       * @private
+       */
+      _updateClearAllVisibility() {
+        if (!this._clearAllBtn) return;
+        const hasItems = this.choices?.getValue()?.length > 0;
+        this._clearAllBtn.style.display = hasItems ? "flex" : "none";
+      }
+      /**
+       * Handle category change event.
+       * Supports both single and multiple selection modes.
+       *
+       * @param {Event} event - Change event
+       */
+      async handleCategoryChange(event) {
+        if (!this.options.onCategoryChange) return;
+        if (this.options.multiple) {
+          const selectedItems = this.choices?.getValue() || [];
+          const selectedCategories = selectedItems.map((item) => {
+            const categoryId = parseInt(item.value);
+            return this.categoryMap.get(categoryId);
+          }).filter(Boolean);
+          this.options.onCategoryChange(selectedCategories);
+          this._updateClearAllVisibility();
+        } else {
+          const categoryId = parseInt(event.target.value);
+          if (!categoryId) return;
+          const category = this.categoryMap.get(categoryId);
+          this.options.onCategoryChange(category);
+        }
+      }
+      /**
+       * Show error message.
+       *
+       * @param {string} message - Error message
+       */
+      showError(message) {
+        if (window2.Telegram && window2.Telegram.WebApp) {
+          window2.Telegram.WebApp.showAlert(message);
+        } else {
+          alert(message);
+        }
+      }
+      /**
+       * Destroy component and cleanup.
+       */
+      destroy() {
+        if (this.choices) {
+          this.choices.destroy();
+          this.choices = null;
+        }
+        if (this.element) {
+          this.element.value = "";
+          this.element.classList.remove("choices__input", "choices__input--cloned");
+          this.element.removeAttribute("data-choice");
+        }
+        this.categories = [];
+        this.categoryMap.clear();
+        this.childrenMap.clear();
+      }
+      /**
+       * Update category type without full reinitialization.
+       * More efficient than destroy() + new instance.
+       *
+       * @param {string} newType - New category type ('income' or 'expense')
+       */
+      async updateType(newType) {
+        this.options.type = newType;
+        if (this.options.multiple && this.choices) {
+          this.choices.removeActiveItems();
+          this._updateClearAllVisibility();
+        }
+        if (this.element) {
+          this.element.value = "";
+        }
+        try {
+          await this.loadCategories();
+          this.buildHierarchyMaps();
+          const displayCategories = this.options.showLeafOnly ? this.getLeafCategories() : this.categories;
+          if (this.choices) {
+            this.choices.clearStore();
+            const choices = displayCategories.map((cat) => {
+              const parentChain = this.getParentChain(cat.id);
+              const parentText = Array.isArray(parentChain) && parentChain.length > 0 ? parentChain.map((p) => p.name).join(" › ") : "";
+              return {
+                value: cat.id,
+                label: cat.name,
+                customProperties: {
+                  usage_count: cat.usage_count || 0,
+                  parent_id: cat.parent_id,
+                  parent_text: parentText
+                }
+              };
+            });
+            this.choices.setChoices(choices, "value", "label", false);
+            this.choices.removeActiveItems();
+            if (this.element) {
+              this.element.value = "";
+            }
+            if (choices.length === 0) {
+              console.warn(`[ChoicesCategoryTree] No ${newType} categories available - user may be offline without cached data`);
+            }
+          }
+        } catch (error) {
+          console.error("[ChoicesCategoryTree] Error updating type:", error);
+        }
+      }
+      /**
+       * Refresh categories (reload from API).
+       */
+      async refresh() {
+        if (this.choices) {
+          this.choices.destroy();
+          this.choices = null;
+        }
+        await this.init();
+      }
+      /**
+       * Update financial center ID for category filtering.
+       * Invalidates specific FC cache and reloads categories.
+       * In offline mode, falls back to "all" categories cache.
+       *
+       * @param {number|null} financialCenterId - Financial center ID (null = show all)
+       */
+      async updateFinancialCenter(financialCenterId) {
+        console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
+        console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
+        console.log(`[ChoicesCategoryTree] Current options:`, {
+          type: this.options.type,
+          showLeafOnly: this.options.showLeafOnly,
+          previousFinancialCenterId: this.options.financialCenterId
+        });
+        const previousFcId = this.options.financialCenterId;
+        const isInitialFiltering = previousFcId === null && financialCenterId !== null;
+        console.log(`[ChoicesCategoryTree] Filter change type:`, {
+          previousFcId,
+          newFcId: financialCenterId,
+          isInitialFiltering,
+          note: isInitialFiltering ? "Initial filter - do NOT preserve selection" : "FC changed - preserve if valid"
+        });
+        this.options.financialCenterId = financialCenterId;
+        if (financialCenterId) {
+          const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
+          _ChoicesCategoryTree._cache.delete(specificCacheKey);
+          console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${specificCacheKey}`);
+        }
+        const elementValue = this.element ? this.element.value : null;
+        const previousSelectionId = elementValue ? parseInt(elementValue) : null;
+        const activeItems = this.choices ? this.choices.getValue(true) : null;
+        const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
+        console.log(`[ChoicesCategoryTree] Current selection state:`, {
+          elementValue,
+          previousSelectionId,
+          activeItems,
+          hasActiveSelection,
+          note: elementValue && !hasActiveSelection ? "Element has value but Choices.js not synced yet" : "OK"
+        });
+        try {
+          await this.loadCategories();
+          console.log(`[ChoicesCategoryTree] Loaded categories:`, {
+            totalCount: this.categories.length,
+            categoryMapSize: this.categoryMap.size,
+            sampleCategories: this.categories.slice(0, 3).map((c) => ({ id: c.id, name: c.name }))
+          });
+          this.buildHierarchyMaps();
+          const displayCategories = this.options.showLeafOnly ? this.getLeafCategories() : this.categories;
+          console.log(`[ChoicesCategoryTree] Display categories after leaf filter:`, {
+            displayCount: displayCategories.length,
+            showLeafOnly: this.options.showLeafOnly
+          });
+          if (this.choices) {
+            this.choices.clearStore();
+            const choices = displayCategories.map((cat) => {
+              const parentChain = this.getParentChain(cat.id);
+              const parentText = Array.isArray(parentChain) && parentChain.length > 0 ? parentChain.map((p) => p.name).join(" › ") : "";
+              return {
+                value: cat.id,
+                label: cat.name,
+                customProperties: {
+                  usage_count: cat.usage_count || 0,
+                  parent_id: cat.parent_id,
+                  parent_text: parentText
+                }
+              };
+            });
+            console.log(`[ChoicesCategoryTree] Prepared choices for Choices.js:`, {
+              choicesCount: choices.length,
+              sampleChoices: choices.slice(0, 3).map((c) => ({ value: c.value, label: c.label }))
+            });
+            this.choices.setChoices(choices, "value", "label", false);
+            const categoryStillAvailable = previousSelectionId && this.categoryMap.has(previousSelectionId);
+            console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
+              previousSelectionId,
+              categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : "N/A",
+              categoryStillAvailable,
+              isInitialFiltering,
+              willPreserve: categoryStillAvailable,
+              // Always preserve if available (isInitialFiltering check removed)
+              categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
+            });
+            const shouldPreserve = this.options.mode === "edit" && categoryStillAvailable;
+            console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+              mode: this.options.mode,
+              categoryStillAvailable,
+              shouldPreserve,
+              previousSelectionId
+            });
+            if (shouldPreserve) {
+              console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
+              await this.setSelectedCategory(previousSelectionId);
+              if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+            } else {
+              this.choices.removeActiveItems();
+              if (this.element) {
+                this.element.value = "";
+              }
+              if (this.options.mode === "create") {
+                console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
+                if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
+              } else if (!categoryStillAvailable && previousSelectionId) {
+                console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
+                if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
+              } else {
+                console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
+                if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
+              }
+            }
+            if (financialCenterId) {
+              if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Filtered to FC ${financialCenterId}: ${choices.length} categories`);
+            } else {
+              if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Showing all categories: ${choices.length}`);
+            }
+            if (choices.length === 0 && !navigator.onLine) {
+              console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${financialCenterId}`);
+            }
+          }
+          console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END ==========`);
+          console.log(`[ChoicesCategoryTree] Final state:`, {
+            financialCenterId: this.options.financialCenterId,
+            categoriesCount: this.categories.length,
+            finalElementValue: this.element ? this.element.value : null,
+            finalActiveItems: this.choices ? this.choices.getValue(true) : null
+          });
+        } catch (error) {
+          console.error("[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:", error);
+          console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========`);
+        }
+      }
+      /**
+       * Get selected category.
+       *
+       * @returns {Object|null} Selected category or null
+       */
+      getSelectedCategory() {
+        const categoryId = this.element ? parseInt(this.element.value) : NaN;
+        return categoryId ? this.categoryMap.get(categoryId) : null;
+      }
+      /**
+       * Clear category selection.
+       * Used in create modals to reset selection state.
+       */
+      clearSelection() {
+        console.log("[ChoicesCategoryTree] clearSelection() called");
+        if (this.choices) {
+          this.choices.removeActiveItems();
+          console.log("[ChoicesCategoryTree] Choices.js active items removed");
+        }
+        if (this.element) {
+          this.element.value = "";
+          console.log("[ChoicesCategoryTree] Element value cleared");
+        }
+        console.log("[ChoicesCategoryTree] ✅ Selection cleared successfully");
+      }
+      /**
+       * Get all selected categories (for multiple mode).
+       *
+       * @returns {Array} Array of selected category objects
+       */
+      getSelectedCategories() {
+        if (!this.choices || !this.options.multiple) {
+          const cat = this.getSelectedCategory();
+          return cat ? [cat] : [];
+        }
+        const selectedItems = this.choices.getValue() || [];
+        return selectedItems.map((item) => {
+          const categoryId = parseInt(item.value);
+          return this.categoryMap.get(categoryId);
+        }).filter(Boolean);
+      }
+      /**
+       * Clear all selected categories (for multiple mode).
+       * Triggers onCategoryChange callback with empty array.
+       * @deprecated - use clearSelection() instead
+       */
+      _clearSelection_DEPRECATED() {
+        if (!this.choices) return;
+        this.choices.removeActiveItems();
+        this._updateClearAllVisibility();
+        if (this.options.onCategoryChange) {
+          this.options.onCategoryChange([]);
+        }
+      }
+      /**
+       * Set selected category with retry logic for async category loading.
+       *
+       * @param {number} categoryId - Category ID to select
+       * @param {number} maxRetries - Maximum retry attempts (default: 3)
+       * @param {number} retryDelay - Delay between retries in ms (default: 100)
+       */
+      async setSelectedCategory(categoryId, maxRetries = 3, retryDelay = 100) {
+        if (!this.choices) {
+          console.error("[ChoicesCategoryTree] setSelectedCategory failed - no choices instance");
+          return;
+        }
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          const availableChoices = this.choices._store?.choices || [];
+          const targetChoice = availableChoices.find((c) => c.value == categoryId || c.value === categoryId.toString());
+          if (targetChoice) {
+            const valueToSet = targetChoice.value;
+            this.choices.setChoiceByValue(valueToSet);
+            return;
+          }
+          if (attempt < maxRetries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          }
+        }
+        console.debug(
+          "[ChoicesCategoryTree] Category not found in available choices:",
+          categoryId,
+          "(may be deleted, wrong type, or filtered out)"
+        );
+      }
+    };
+    _ChoicesCategoryTree._cache = /* @__PURE__ */ new Map();
+    _ChoicesCategoryTree._pendingRequests = /* @__PURE__ */ new Map();
+    _ChoicesCategoryTree._workerWrapper = null;
+    let ChoicesCategoryTree = _ChoicesCategoryTree;
+    window2.BudgetShared = {
+      DateFormatter,
+      CalendarWidget,
+      ChoicesCategoryTree
+    };
+    window2.DateFormatter = DateFormatter;
+    window2.CalendarWidget = CalendarWidget;
+    window2.ChoicesCategoryTree = ChoicesCategoryTree;
+  })(window);
+})();
+//# sourceMappingURL=budgetShared.bundle.js.map
