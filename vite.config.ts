@@ -8,6 +8,7 @@ const production = process.env.NODE_ENV === 'production';
 
 export default defineConfig({
   build: {
+    outDir: '.', // Явно указываем корень проекта как выходную директорию
     emptyOutDir: false, // Не удалять другие файлы
     minify: production ? 'esbuild' : false,
     sourcemap: !production,
