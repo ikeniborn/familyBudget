@@ -3728,17 +3728,21 @@ console.log('[LISTS_SWIPE] Indicator diagnostic:', {
 - После деплоя браузер получал старые cached файлы
 
 **Solution**:
-1. **Minification** (manual for legacy files):
-   ```bash
-   npx terser hierarchyView.js -c -m -o hierarchyView.min.js
-   npx postcss lists.css -o lists.min.css --use cssnano
-   gzip -9 -k -f hierarchyView.min.js lists.min.css
-   ```
+1. **Automated Minification** (integrated in deploy.sh v1.2.0+):
+   - `npm run build:prod` - builds all Vite bundles
+   - **Legacy files minification** (automatic in deploy.sh:1280-1328):
+     ```bash
+     npx terser hierarchyView.js -c -m -o hierarchyView.min.js
+     npx postcss lists.css -o lists.min.css --use cssnano
+     gzip -9 -k -f hierarchyView.min.js lists.min.css
+     ```
+   - Происходит автоматически при каждом деплое
 
 2. **Deploy Process**:
    - `deploy.sh` автоматически заменяет PLACEHOLDER → `v20260107_HHMM`
    - Service Worker CACHE_VERSION обновляется
    - Старые кэши удаляются при активации нового SW
+   - Legacy files минифицируются автоматически после Vite build
 
 **Files Updated** (v7.x+):
 - `lists.css:533-592` - New CSS classes + animations

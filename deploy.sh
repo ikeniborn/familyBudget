@@ -1276,6 +1276,56 @@ main() {
             else
                 print_message warning "sw.min.js not found - Service Worker may not be available"
             fi
+
+            # Minify legacy files (hierarchyView.js, lists.css) - NOT included in Vite build
+            print_message info "Minifying legacy files (hierarchyView.js, lists.css)..."
+            echo ""
+
+            # Minify hierarchyView.js
+            if [[ -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" ]]; then
+                if npx terser "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" \
+                    -c -m \
+                    -o "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
+                    print_message success "✓ hierarchyView.js minified successfully"
+
+                    # Gzip precompression
+                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
+                        print_message success "✓ hierarchyView.min.js.gz created"
+                    else
+                        print_message warning "Failed to create hierarchyView.min.js.gz (non-critical)"
+                    fi
+                else
+                    print_message error "Failed to minify hierarchyView.js"
+                    print_message error "Deployment will continue with unminified file"
+                fi
+            else
+                print_message warning "hierarchyView.js not found - skipping minification"
+            fi
+
+            # Minify lists.css
+            if [[ -f "$DEPLOY_DIR/frontend/web/static/css/lists.css" ]]; then
+                if npx postcss "$DEPLOY_DIR/frontend/web/static/css/lists.css" \
+                    -o "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" \
+                    --no-map --use cssnano 2>&1; then
+                    print_message success "✓ lists.css minified successfully"
+
+                    # Gzip precompression
+                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" 2>&1; then
+                        print_message success "✓ lists.min.css.gz created"
+                    else
+                        print_message warning "Failed to create lists.min.css.gz (non-critical)"
+                    fi
+                else
+                    print_message error "Failed to minify lists.css"
+                    print_message error "Deployment will continue with unminified file"
+                fi
+            else
+                print_message warning "lists.css not found - skipping minification"
+            fi
+
+            echo ""
+            print_message success "Legacy files minification completed"
+            echo ""
         else
             echo ""
             print_message warning "Build failed - check npm logs above"
