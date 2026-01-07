@@ -160,8 +160,28 @@ class SwipeHandler {
      * Open edit modal (called after successful left swipe)
      */
     openEditModal(itemId, itemElement) {
+        const contentElement = itemElement.querySelector('.hierarchy-item-content');
+        const beforeTransform = contentElement ? contentElement.style.transform : 'none';
+
+        console.log('[SWIPE_OPEN] Resetting swipe state before modal open', {
+            itemId,
+            beforeTransform,
+            timestamp: Date.now()
+        });
+
         // Reset visual state immediately
         this.resetSwipe(itemId, itemElement);
+
+        const afterTransform = contentElement ? contentElement.style.transform : 'none';
+        const isCleared = afterTransform === 'translateX(0px)' || afterTransform === '' || afterTransform === 'none';
+
+        console.log('[SWIPE_OPEN] Swipe state reset completed', {
+            itemId,
+            beforeTransform,
+            afterTransform,
+            cleared: isCleared,
+            warning: !isCleared ? 'Transform not properly cleared!' : null
+        });
 
         // Track that this swipe opened the modal
         this.modalOpenedBySwipe = itemId;
@@ -173,7 +193,8 @@ class SwipeHandler {
             console.log('[SWIPE] Modal opened', {
                 itemId,
                 timestamp: Date.now(),
-                source: 'swipe_gesture'
+                source: 'swipe_gesture',
+                modalOpenedBySwipe: this.modalOpenedBySwipe
             });
         } else {
             console.error('[SWIPE] openEditItemModal function not found');

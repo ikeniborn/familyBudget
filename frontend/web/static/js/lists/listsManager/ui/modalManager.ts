@@ -195,10 +195,68 @@ export function openEditItemModal(itemId: number): void {
 
 /**
  * Close item modal
+ *
+ * IMPORTANT: Cleans up swipe state before closing to prevent visual glitches
+ * where items remain shifted (translateX) after modal closes.
  */
 export function closeItemModal(): void {
+  // STEP 1: Cleanup swipe state BEFORE closing modal
+  // This prevents items from staying shifted left after swipe-to-edit
+  const hierarchyView = (window as any).hierarchyView;
+  if (hierarchyView?.swipeHandler) {
+    const swipeHandler = hierarchyView.swipeHandler;
+
+    // If modal was opened by swipe, reset the swiped item
+    if (swipeHandler.modalOpenedBySwipe) {
+      const itemId = swipeHandler.modalOpenedBySwipe;
+      const swipedElement = document.querySelector(
+        `.hierarchy-item[data-item-id="${itemId}"]`
+      ) as HTMLElement | null;
+
+      if (swipedElement) {
+        const contentElement = swipedElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
+        const hadTransform = contentElement?.style.transform || 'none';
+
+        console.log('[MODAL_CLOSE] Cleaning up swipe state', {
+          itemId,
+          hadTransform,
+          timestamp: Date.now(),
+          source: 'closeItemModal'
+        });
+
+        // Reset transform and state
+        swipeHandler.resetSwipe(itemId, swipedElement);
+
+        const afterTransform = contentElement?.style.transform || 'none';
+        console.log('[MODAL_CLOSE] Swipe state cleaned', {
+          itemId,
+          beforeTransform: hadTransform,
+          afterTransform,
+          cleared: afterTransform === 'translateX(0px)' || afterTransform === '' || afterTransform === 'none'
+        });
+      } else {
+        console.warn('[MODAL_CLOSE] Swiped element not found in DOM', { itemId });
+      }
+
+      // Always clear the flag even if element not found
+      // This prevents stale state if item was deleted
+      swipeHandler.modalOpenedBySwipe = null;
+      console.log('[MODAL_CLOSE] Swipe flag cleared');
+    } else {
+      console.log('[MODAL_CLOSE] Modal not opened by swipe, no cleanup needed');
+    }
+  } else {
+    console.log('[MODAL_CLOSE] SwipeHandler not available (desktop or hierarchy view not initialized)');
+  }
+
+  // STEP 2: Close modal
   const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
-  if (modal) (modal as any).close();
+  if (modal) {
+    console.log('[MODAL_CLOSE] Closing item modal');
+    (modal as any).close();
+  } else {
+    console.error('[MODAL_CLOSE] Modal element not found');
+  }
 }
 
 /**

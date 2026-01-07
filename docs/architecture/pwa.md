@@ -2477,6 +2477,70 @@ deleteBtn.classList.add('hidden');
 [DELETE_MODAL] Delete initiated { itemId: 42, source: 'modal_button' }
 ```
 
+### Cleanup on Modal Close (v7.x+)
+
+**Since:** v7.x (January 2026)
+**Problem:** After swipe-to-edit, closing the modal left items shifted left with empty space on right (particularly on iOS Safari)
+
+**Solution:**
+
+When the edit modal closes (via button, backdrop, or ESC), `closeItemModal()` performs cleanup:
+
+1. **Checks if modal was opened by swipe** (`modalOpenedBySwipe` flag)
+2. **Finds the swiped item element** in DOM via `data-item-id` attribute
+3. **Calls `resetSwipe()`** to clear:
+   - Inline transform style (`translateX(0)`)
+   - `.swiped` CSS class
+   - `activeSwipedItemId` state
+4. **Clears the tracking flag** (`modalOpenedBySwipe = null`)
+
+**Implementation:**
+
+```typescript
+// frontend/web/static/js/lists/listsManager/ui/modalManager.ts:202-260
+export function closeItemModal(): void {
+  const hierarchyView = (window as any).hierarchyView;
+  if (hierarchyView?.swipeHandler) {
+    const swipeHandler = hierarchyView.swipeHandler;
+
+    if (swipeHandler.modalOpenedBySwipe) {
+      const itemId = swipeHandler.modalOpenedBySwipe;
+      const swipedElement = document.querySelector(
+        `.hierarchy-item[data-item-id="${itemId}"]`
+      ) as HTMLElement | null;
+
+      if (swipedElement) {
+        console.log('[MODAL_CLOSE] Cleaning up swipe state', { itemId });
+        swipeHandler.resetSwipe(itemId, swipedElement);
+      }
+
+      swipeHandler.modalOpenedBySwipe = null;
+      console.log('[MODAL_CLOSE] Swipe flag cleared');
+    }
+  }
+
+  const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  if (modal) modal.close();
+}
+```
+
+**Benefits:**
+- Prevents visual glitches where items remain shifted after modal closes
+- Works for all close methods (Cancel button, backdrop click, ESC key)
+- Handles edge cases (item deleted while modal open)
+- No performance impact (cleanup only runs for swipe-opened modals)
+
+**Logging prefix:** `[MODAL_CLOSE]` - All cleanup operations
+
+**Expected console output:**
+```javascript
+[SWIPE_OPEN] Resetting swipe state before modal open { itemId: 42, beforeTransform: "translateX(-180px)" }
+[SWIPE_OPEN] Swipe state reset completed { cleared: true, afterTransform: "translateX(0px)" }
+[MODAL_CLOSE] Cleaning up swipe state { itemId: 42, hadTransform: "translateX(0px)" }
+[MODAL_CLOSE] Swipe state cleaned { cleared: true, afterTransform: "none" }
+[MODAL_CLOSE] Swipe flag cleared
+```
+
 ### Performance
 
 **Improvements over previous implementation:**

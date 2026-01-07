@@ -185,6 +185,9 @@ class ListsManager {
             // Initialize HierarchyView
             if (typeof HierarchyView !== 'undefined') {
                 this.hierarchyView = new HierarchyView(this);
+                // CRITICAL: Export globally for swipe cleanup and HTML onclick handlers
+                (window as any).hierarchyView = this.hierarchyView;
+                debugLog('[ListsManager] HierarchyView initialized and exposed globally');
             } else {
                 console.warn('[ListsManager] HierarchyView not loaded');
             }

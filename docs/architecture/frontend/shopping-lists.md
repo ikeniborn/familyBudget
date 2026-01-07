@@ -386,6 +386,183 @@ describe('formatQuantity', () => {
 
 ---
 
+## Mobile Swipe Gestures (v7.x+)
+
+### Swipe State Cleanup
+
+**Implementation:** `frontend/web/static/js/lists/listsManager/ui/modalManager.ts:199-260`
+
+**Problem Solved:**
+After swipe-to-edit gesture, closing the modal (via Cancel button, backdrop, or ESC) left items visually shifted (translateX) with empty space on the right side. This was particularly noticeable on iOS Safari.
+
+**Root Cause:**
+- `closeItemModal()` originally only called `modal.close()` without cleaning up swipe state
+- HTML5 dialog backdrop (`<form method="dialog">`) closes modal without triggering JavaScript handlers
+- `modalOpenedBySwipe` flag remained set, creating stale state
+
+**Solution:**
+
+#### Cleanup Flow
+
+When the edit modal closes (via any method), `closeItemModal()` performs cleanup:
+
+1. **Check SwipeHandler Availability**
+   - Accesses `window.hierarchyView.swipeHandler`
+   - Skips cleanup if HierarchyView not initialized (desktop/table view)
+
+2. **Verify Modal Opened by Swipe**
+   - Checks `modalOpenedBySwipe` flag
+   - Only cleans up if modal was opened via swipe gesture (not regular clicks)
+
+3. **Find Swiped Element**
+   - Queries DOM for `.hierarchy-item[data-item-id="${itemId}"]`
+   - Handles edge case where item was deleted while modal open
+
+4. **Reset Transform**
+   - Calls `swipeHandler.resetSwipe(itemId, swipedElement)`
+   - Resets inline style: `transform: translateX(0)`
+   - Removes `.swiped` CSS class
+   - Clears `activeSwipedItemId` state
+
+5. **Clear Tracking Flag**
+   - Sets `modalOpenedBySwipe = null`
+   - Prevents stale state for subsequent operations
+
+6. **Close Modal**
+   - Calls `modal.close()` after cleanup complete
+
+#### Code Reference
+
+```typescript
+// modalManager.ts:202-260
+export function closeItemModal(): void {
+  // STEP 1: Cleanup swipe state BEFORE closing modal
+  const hierarchyView = (window as any).hierarchyView;
+  if (hierarchyView?.swipeHandler) {
+    const swipeHandler = hierarchyView.swipeHandler;
+
+    if (swipeHandler.modalOpenedBySwipe) {
+      const itemId = swipeHandler.modalOpenedBySwipe;
+      const swipedElement = document.querySelector(
+        `.hierarchy-item[data-item-id="${itemId}"]`
+      ) as HTMLElement | null;
+
+      if (swipedElement) {
+        console.log('[MODAL_CLOSE] Cleaning up swipe state', {
+          itemId,
+          hadTransform: swipedElement.querySelector('.hierarchy-item-content')?.style.transform,
+          timestamp: Date.now()
+        });
+
+        swipeHandler.resetSwipe(itemId, swipedElement);
+      }
+
+      swipeHandler.modalOpenedBySwipe = null;
+    }
+  }
+
+  // STEP 2: Close modal
+  const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  if (modal) modal.close();
+}
+```
+
+#### Global Exposure
+
+HierarchyView is exposed globally for cleanup and HTML onclick handlers:
+
+```typescript
+// listsManager.ts:186-190
+if (typeof HierarchyView !== 'undefined') {
+    this.hierarchyView = new HierarchyView(this);
+    (window as any).hierarchyView = this.hierarchyView;
+    debugLog('[ListsManager] HierarchyView initialized and exposed globally');
+}
+```
+
+#### Enhanced Logging
+
+`openEditModal()` includes comprehensive logging for debugging:
+
+```javascript
+// hierarchyView.js:162-202
+openEditModal(itemId, itemElement) {
+    const contentElement = itemElement.querySelector('.hierarchy-item-content');
+    const beforeTransform = contentElement ? contentElement.style.transform : 'none';
+
+    console.log('[SWIPE_OPEN] Resetting swipe state before modal open', {
+        itemId,
+        beforeTransform,
+        timestamp: Date.now()
+    });
+
+    this.resetSwipe(itemId, itemElement);
+
+    const afterTransform = contentElement ? contentElement.style.transform : 'none';
+    console.log('[SWIPE_OPEN] Swipe state reset completed', {
+        cleared: afterTransform === 'translateX(0px)' || afterTransform === '',
+        warning: !isCleared ? 'Transform not properly cleared!' : null
+    });
+
+    this.modalOpenedBySwipe = itemId;
+    openEditItemModal(itemId);
+}
+```
+
+#### Edge Cases Handled
+
+| Scenario | Behavior |
+|----------|----------|
+| Item not found (deleted) | Flag still cleared, cleanup skips transform reset |
+| Multiple rapid swipes | Only current item cleaned up |
+| Modal closed via backdrop/ESC | Same cleanup as Cancel button |
+| Modal closed via Save | Same cleanup (flag cleared, transform reset) |
+| Desktop/table view | Cleanup skipped (SwipeHandler not initialized) |
+| Non-swipe modal open | Cleanup skipped (modalOpenedBySwipe = null) |
+
+#### iOS Safari Considerations
+
+**Known Quirks:**
+- `visibility: hidden` required for guaranteed non-interactivity
+- Touch event timing may differ from other browsers
+- Dialog backdrop click behavior consistent with standard
+
+**Testing Priority:** iOS Safari (primary), Android Chrome (secondary)
+
+**Logging Prefixes:**
+- `[MODAL_CLOSE]` - All cleanup operations
+- `[SWIPE_OPEN]` - Modal opened via swipe
+- `[SWIPE]` - General swipe events
+
+#### Verification
+
+**Browser Console Diagnostics:**
+```javascript
+// Check swipe state
+window.hierarchyView.swipeHandler.modalOpenedBySwipe  // Should be null when modal closed
+window.hierarchyView.swipeHandler.activeSwipedItemId  // Should be null
+
+// Visual inspection - find stuck transforms
+document.querySelectorAll('.hierarchy-item-content').forEach(el => {
+  if (el.style.transform && el.style.transform !== 'translateX(0px)') {
+    console.log('Found stuck transform:', el.style.transform, el.closest('.hierarchy-item'));
+  }
+});
+```
+
+**Expected Logs (Successful Cleanup):**
+```
+[SWIPE_OPEN] Resetting swipe state before modal open {itemId: 123, beforeTransform: "translateX(-180px)"}
+[SWIPE_OPEN] Swipe state reset completed {cleared: true, afterTransform: "translateX(0px)"}
+[SWIPE] Modal opened {itemId: 123, source: "swipe_gesture"}
+[MODAL_CLOSE] Cleaning up swipe state {itemId: 123, hadTransform: "translateX(0px)"}
+[MODAL_CLOSE] Swipe state cleaned {cleared: true, afterTransform: "none"}
+[MODAL_CLOSE] Swipe flag cleared
+[MODAL_CLOSE] Closing item modal
+```
+
+---
+
 ## Related Documentation
 
 - [Database Schema](/docs/architecture/database/shopping-lists.md)
