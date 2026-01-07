@@ -205,6 +205,10 @@ sw.min.js
 sw.min.js.map
 sw.min.js.gz
 
+# Vite bundle files and sourcemaps (build artifacts)
+frontend/**/static/**/*.bundle.js.map
+*.bundle.js.map
+
 # Vendor files (third-party libraries) - TRACKED в git
 # Минифицированные vendor файлы должны быть в git для доставки на сервер
 !frontend/**/static/**/vendor/*.min.js
