@@ -1254,8 +1254,10 @@ main() {
 
             # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
             if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-                if grep -q "PLACEHOLDER" "$DEPLOY_DIR/sw.min.js"; then
-                    print_message error "CRITICAL: sw.min.js contains PLACEHOLDER after build!"
+                # Check if CACHE_VERSION itself contains PLACEHOLDER (NOT validation check variable)
+                if grep -q 'CACHE_VERSION.*=.*"PLACEHOLDER"' "$DEPLOY_DIR/sw.min.js" || \
+                   grep -q "CACHE_VERSION.*=.*'PLACEHOLDER'" "$DEPLOY_DIR/sw.min.js"; then
+                    print_message error "CRITICAL: CACHE_VERSION not replaced in sw.min.js!"
                     print_message error "Service Worker version was not updated during Vite build"
                     print_message error ""
                     print_message error "This will cause PWA cache issues for users"
@@ -1263,12 +1265,12 @@ main() {
                     print_message error "Debug info:"
                     print_message error "  CACHE_VERSION set to: ${CACHE_VERSION:-<not set>}"
                     print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
-                    grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
+                    grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
                     print_message error ""
                     print_message error "DEPLOYMENT BLOCKED - please check vite-plugin-sw-version.ts"
                     exit 1
                 else
-                    SW_VERSION=$(grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
+                    SW_VERSION=$(grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
                     print_message success "✓ Service Worker version verified: $SW_VERSION"
                 fi
             else
