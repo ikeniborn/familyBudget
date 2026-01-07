@@ -624,7 +624,7 @@
     }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1023px) {
     .hierarchy-store {
         padding: 0.5rem 0.375rem;
         font-size: 0.875rem;
@@ -662,12 +662,12 @@
         height: 1rem;
     }
 
-    /* Enable swipe gestures on mobile */
+    /* Enable swipe gestures on mobile and tablet */
     .hierarchy-item {
         touch-action: pan-y; /* Allow vertical scroll, enable horizontal swipe */
     }
 
-    /* Hide original inline actions on mobile (use swipe instead) */
+    /* Hide inline actions on mobile and tablet (use swipe instead) */
     .hierarchy-item-content .hierarchy-item-actions {
         display: none;
     }

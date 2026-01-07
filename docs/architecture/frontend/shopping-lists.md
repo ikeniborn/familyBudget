@@ -388,6 +388,38 @@ describe('formatQuantity', () => {
 
 ## Mobile Swipe Gestures (v7.x+)
 
+### Device-Specific Behavior
+
+**Breakpoints (Updated v7.x):**
+
+| Device Category | Screen Width | Inline Buttons (Edit/Delete) | Swipe Indicator | Interaction Method |
+|-----------------|--------------|------------------------------|-----------------|-------------------|
+| **Mobile** | <768px | Hidden (`display: none`) | Visible (animated) | Swipe gestures only |
+| **Tablet (iPad)** | 768px-1023px | Hidden (`display: none`) | Visible (animated) | Swipe gestures only |
+| **Desktop** | ≥1024px | Visible (on hover) | Hidden | Mouse hover + click |
+
+**CSS Implementation:** `frontend/web/static/css/lists.css:627`
+```css
+@media (max-width: 1023px) {
+    /* Hide inline actions on mobile and tablet (use swipe instead) */
+    .hierarchy-item-content .hierarchy-item-actions {
+        display: none;
+    }
+}
+```
+
+**Rationale:**
+- **Touch-first design:** iPad users prefer swipe gestures over hover interactions
+- **Consistent mobile experience:** Tablets use same interaction pattern as phones
+- **Clear desktop boundary:** 1024px provides natural split between touch and pointer devices
+
+**Historical Change (v7.x):**
+- **Before:** Tablets (640px-1023px) showed inline buttons on hover
+- **After:** Tablets now use swipe-only (same as mobile)
+- **Impact:** Unified touch experience across mobile and tablet
+
+---
+
 ### Swipe State Cleanup
 
 **Implementation:** `frontend/web/static/js/lists/listsManager/ui/modalManager.ts:199-260`
