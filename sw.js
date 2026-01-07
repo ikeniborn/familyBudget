@@ -24,8 +24,9 @@ const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Validation: warn if PLACEHOLDER wasn't replaced (build script error)
-// Use runtime check to prevent terser from inlining the condition
-if (CACHE_VERSION.includes('PLACEHOLDER')) {
+// Use runtime string construction to prevent terser constant folding
+const PLACEHOLDER_CHECK = 'PLACE' + 'HOLDER'; // Split to prevent replacement
+if (CACHE_VERSION.includes(PLACEHOLDER_CHECK)) {
   console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
   console.error('[SW] Service Worker will NOT work correctly');
   console.error('[SW] Please check minify.sh execution');
