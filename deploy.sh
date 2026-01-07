@@ -1794,7 +1794,9 @@ main() {
                     if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
                         warning "✗ Service Worker contains PLACEHOLDER"
                         smoke_test_failed=true
-                    elif echo "$sw_content" | grep -qE "CACHE_VERSION.*=.*['\"]v[0-9]{8}_[0-9]{4}"; then
+                    elif echo "$sw_content" | grep -qE "['\"]v[0-9]{8}_[0-9]{4}['\"]"; then
+                        # NOTE: After Vite minification, CACHE_VERSION variable name is mangled (e.g. -> f)
+                        # So we search for version string directly instead of variable name
                         sw_ver=$(echo "$sw_content" | grep -oE "v[0-9]{8}_[0-9]{4}" | head -1)
                         success "✓ Service Worker has version: $sw_ver"
                     else
