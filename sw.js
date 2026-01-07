@@ -20,12 +20,12 @@ const DEBUG = false;
 // Cache version - автоматически заменяется при минификации
 // Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
 // IMPORTANT: minify.sh replaces PLACEHOLDER with actual version BEFORE terser minification
-// This prevents terser from optimizing the condition and hardcoding fallback value
 const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Validation: warn if PLACEHOLDER wasn't replaced (build script error)
-if (CACHE_VERSION === 'PLACEHOLDER') {
+// Use runtime check to prevent terser from inlining the condition
+if (CACHE_VERSION.includes('PLACEHOLDER')) {
   console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
   console.error('[SW] Service Worker will NOT work correctly');
   console.error('[SW] Please check minify.sh execution');
