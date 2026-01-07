@@ -482,6 +482,23 @@ Users control Web Push and Telegram notifications independently.
 
 **See:** `/docs/architecture/notifications.md` for architecture
 
+### Shopping List Quantity Format (v7.x+)
+
+**Display:** Always shows integers (rounded from decimals if needed)
+**Input:** HTML restricts to integers (`step="1"`)
+**Storage:** NUMERIC(10,3) for backward compatibility
+
+**Examples:**
+- User enters: 5 → Stored as 5.000 → Displayed as "5"
+- Legacy data: 2.5 kg → Displayed as "3 kg" (rounded)
+- Empty: NULL → Displayed as "—"
+
+**Implementation:**
+- Frontend validation: `normalizeQuantityToInteger()` in listsManager.ts:3207
+- Display formatting: `Math.round()` in tableBuilder.ts:51
+- HTML constraint: `<input step="1" min="0">` in lists.html:350
+- Backend: Accepts decimals, logs warnings for non-integers
+
 ### Bulk Delete Optimization (v6.6.0+)
 
 WebSocket summary events eliminate toast spam during mass deletions.
