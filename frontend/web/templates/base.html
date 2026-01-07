@@ -912,19 +912,19 @@
                     </p>
                     <div class="modal-action">
                         <button type="button"
-                                class="btn btn-ghost"
-                                onclick="handleUpdateLater()">
+                                id="sw-update-later-btn"
+                                class="btn btn-ghost">
                             Позже
                         </button>
                         <button type="button"
-                                class="btn btn-primary"
-                                onclick="handleUpdateNow()">
+                                id="sw-update-now-btn"
+                                class="btn btn-primary">
                             Обновить сейчас
                         </button>
                     </div>
                 </div>
                 <form method="dialog" class="modal-backdrop">
-                    <button onclick="handleUpdateLater()">close</button>
+                    <button id="sw-update-backdrop-btn">close</button>
                 </form>
             </dialog>
 
@@ -1928,6 +1928,49 @@
             window.handleUpdateClick = handleUpdateClick;
             window.handleUpdateNow = handleUpdateNow;
             window.handleUpdateLater = handleUpdateLater;
+
+            // Initialize modal button listeners on DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('[SW_UPDATE] Initializing modal button listeners');
+
+                const updateNowBtn = document.getElementById('sw-update-now-btn');
+                const updateLaterBtn = document.getElementById('sw-update-later-btn');
+                const backdropBtn = document.getElementById('sw-update-backdrop-btn');
+
+                if (updateNowBtn) {
+                    updateNowBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ "Обновить сейчас" button clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateNow();
+                    });
+                    console.log('[SW_UPDATE] ✅ "Обновить сейчас" listener attached');
+                } else {
+                    console.error('[SW_UPDATE] ❌ "Обновить сейчас" button not found in DOM!');
+                }
+
+                if (updateLaterBtn) {
+                    updateLaterBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ "Позже" button clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateLater();
+                    });
+                    console.log('[SW_UPDATE] ✅ "Позже" listener attached');
+                } else {
+                    console.error('[SW_UPDATE] ❌ "Позже" button not found in DOM!');
+                }
+
+                if (backdropBtn) {
+                    backdropBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ Modal backdrop clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateLater();
+                    });
+                    console.log('[SW_UPDATE] ✅ Backdrop listener attached');
+                }
+            });
 
             /**
              * Получить CACHE_VERSION из Service Worker через MessageChannel
