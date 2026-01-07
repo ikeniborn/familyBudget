@@ -200,6 +200,7 @@ frontend/**/static/**/*.min.js
 frontend/**/static/**/*.min.css
 # Service Worker minified (generated during deploy)
 sw.min.js
+sw.min.js.map
 sw.min.js.gz
 
 # Vendor files (third-party libraries) - TRACKED в git
