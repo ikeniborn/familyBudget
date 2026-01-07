@@ -3202,6 +3202,36 @@ async function handleDeleteFromModal() {
 }
 
 /**
+ * Normalize quantity to integer (CRITICAL: prevents decimal quantities)
+ */
+function normalizeQuantityToInteger(quantity: number | null): number | null {
+  if (quantity === null || quantity === undefined) {
+    return null;
+  }
+
+  const numValue = Number(quantity);
+
+  // Check if it's a valid number
+  if (isNaN(numValue)) {
+    console.error('[LISTS_VALIDATION] Invalid quantity value:', quantity);
+    return null;
+  }
+
+  // Force rounding for non-integers
+  if (!Number.isInteger(numValue)) {
+    const rounded = Math.round(numValue);
+    console.warn('[LISTS_VALIDATION] Non-integer quantity detected, auto-rounding:', {
+      original: numValue,
+      rounded: rounded
+    });
+    return rounded;
+  }
+
+  console.log('[LISTS_VALIDATION] Quantity is valid integer:', numValue);
+  return numValue;
+}
+
+/**
  * Handle save item form submission (with offline support)
  */
 /**
@@ -3215,11 +3245,18 @@ async function handleSaveItem(event: Event) {
     const itemId = formData.get('item_id');
     const isEdit = itemId !== '';
 
+    // Parse and normalize quantity (force integer)
+    const rawQuantity = formData.get('quantity');
+    const parsedQuantity = rawQuantity ? parseFloat(String(rawQuantity)) : null;
+    const normalizedQuantity = normalizeQuantityToInteger(parsedQuantity);
+
+    console.log('[LISTS_SAVE] Normalized quantity:', { raw: rawQuantity, normalized: normalizedQuantity });
+
     const data: any = {
         store_id: parseInt(String(formData.get('store_id'))),
         product_group_id: parseInt(String(formData.get('product_group_id'))),
         product_name: formData.get('product_name'),
-        quantity: formData.get('quantity') ? parseFloat(String(formData.get('quantity'))) : null,
+        quantity: normalizedQuantity,
         unit: formData.get('unit') || null,
         comment: formData.get('comment') || null
     };

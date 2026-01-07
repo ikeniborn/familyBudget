@@ -47,10 +47,12 @@ function escapeHtml(unsafe: string | null | undefined): string {
 function formatQuantity(quantity: number | null, unit: string | null): string {
   if (quantity === null) return '—';
 
-  // Round to 2 decimal places if decimal, otherwise show integer
-  const formatted = quantity % 1 === 0 ? quantity.toString() : quantity.toFixed(2);
+  // Always round to nearest integer
+  const rounded = Math.round(quantity);
 
-  return unit ? `${formatted} ${unit}` : formatted;
+  console.log(`[LISTS_TABLE] Formatting quantity: raw=${quantity}, rounded=${rounded}, unit=${unit}`);
+
+  return unit ? `${rounded} ${unit}` : rounded.toString();
 }
 
 /**

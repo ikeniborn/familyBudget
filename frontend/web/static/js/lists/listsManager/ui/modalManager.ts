@@ -172,11 +172,8 @@ export function openEditItemModal(itemId: number): void {
     console.log('[MODAL_EDIT] Delete button shown', { itemId });
   }
 
-  // Update quantity input step based on unit
-  const quantityInputForUnit = document.getElementById('item-quantity') as HTMLInputElement | null;
-  if (quantityInputForUnit && typeof updateQuantityInputStep === 'function') {
-    updateQuantityInputStep(item.unit || '', quantityInputForUnit);
-  }
+  // Quantity input is now always integer (step="1" in HTML)
+  console.log('[LISTS_MODAL] Quantity input configured for integers only (step=1)');
 
   // Reinitialize Choices.js with latest data
   initStoreChoices();
@@ -663,15 +660,3 @@ function updateFutureQuantity(): void {
   });
 }
 
-/**
- * Update quantity input step based on unit
- */
-function updateQuantityInputStep(unit: string, inputElement: HTMLInputElement): void {
-  // Decimal units need step="0.01", integer units need step="1"
-  const decimalUnits = ['кг', 'л', 'kg', 'l', 'liter', 'litre'];
-  const isDecimal = decimalUnits.some(u => unit.toLowerCase().includes(u));
-
-  inputElement.step = isDecimal ? '0.01' : '1';
-
-  console.log('[QUANTITY_STEP] Updated', { unit, step: inputElement.step });
-}
