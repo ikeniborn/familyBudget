@@ -197,6 +197,7 @@ sql/*.pyc
 
 # Minified files (build artifacts) - НЕ vendor!
 frontend/**/static/**/*.min.js
+frontend/**/static/**/*.min.js.map
 frontend/**/static/**/*.min.css
 # Service Worker minified (generated during deploy)
 sw.min.js
