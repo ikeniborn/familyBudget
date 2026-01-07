@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 2 migrated the Family Budget frontend from monolithic IIFE files to modular ES Modules architecture with Rollup bundler.
+Phase 2 migrated the Family Budget frontend from monolithic IIFE files to modular ES Modules architecture with Vite bundler (v7.0.0+, previously Rollup in v7.0.0-beta).
 
 **Duration:** ~6-7 hours (Phase 2.1-2.6)
 **Status:** ✅ COMPLETE (v7.0.0)
@@ -12,7 +12,7 @@ Phase 2 migrated the Family Budget frontend from monolithic IIFE files to modula
 ### Build System
 - Monolithic TypeScript files (up to 3,766 lines)
 - IIFE pattern with global window variables
-- Bash build scripts (`build-bundle.sh`, `minify.sh`)
+- Bash build scripts (`build-bundle.sh`, `minify.sh`) - **removed in v7.0.0, replaced by Vite**
 - TypeScript for type-checking only (`noEmit: true`)
 
 ### Structure
@@ -31,14 +31,14 @@ frontend/web/static/js/
 ### Issues
 - Files too large for easy maintenance
 - Difficult to test individual modules
-- No tree-shaking (dead code remains in bundle)
+- No tree-shaking (dead code remains in bundles)
 - Circular dependency risks
 
 ## After (v7.0.0)
 
 ### Build System
-- ES Modules (import/export) with Rollup bundler
-- Three bundles: budgetShared, web app, webapp
+- ES Modules (import/export) with Vite bundler
+- Multiple entry bundles: budgetShared, budgetWSClient, listsManager, csvImporter, offlineManager, etc.
 - IIFE output format for browser compatibility
 - TypeScript compilation enabled (`noEmit: false`)
 - Source maps in development mode

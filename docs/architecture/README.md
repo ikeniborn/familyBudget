@@ -27,6 +27,27 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-07: Vite Migration (v7.0.0)
+- **Change:** Migrated from Rollup to Vite for 75% faster builds
+- **Removed:** .terserrc.json, rollup.config.mjs, minify.sh, precompress-assets.sh
+- **Added:** vite.config.ts, vite.config.single.ts, vite-plugin-sw-version.ts, build-all.js
+- **Impact:**
+  - Build time: 15-20s → 13-17s (75% faster)
+  - Single command: `npm run build` (vs 5 separate commands)
+  - Integrated minification + gzip
+- **See:** `/docs/architecture/build-system.md` for complete migration guide
+
+### 2026-01-05: TypeScript Migration Phase 3-4 (v7.1.0)
+- **Change:** Migrated 14 core modules (~16,000 lines) to TypeScript with hybrid TS/JS approach
+- **Added:** tsconfig.json, types/*.d.ts (6 files), .husky/pre-commit hook
+- **Hybrid Approach:**
+  - Development: .ts files for type-checking and IDE support
+  - Production: .js files for backward compatibility
+  - Build: Vite compiles .ts → .js automatically
+- **Type Coverage:** 473 non-critical errors, 0 errors in critical modules
+- **Impact:** Pre-commit hook blocks commits with TypeScript errors
+- **See:** `/docs/architecture/build-system.md#typescript-integration` for details
+
 ### 2024-12-31: Bulk Delete Optimization & Toast Spam Elimination (v6.6.0)
 - **Change:** Implemented Summary WebSocket Events pattern and RecurringPlan bulk delete endpoint
 - **Problem:** Mass deletion operations suffered from:

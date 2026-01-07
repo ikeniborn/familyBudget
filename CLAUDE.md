@@ -118,7 +118,7 @@ docker compose logs -f backend
 
 ### Module System (v7.0.0+)
 
-**Build System:** Rollup + TypeScript
+**Build System:** Vite + TypeScript
 **Module Format:** ES Modules (ESM)
 **Bundle Output:** IIFE for browser compatibility
 
@@ -135,20 +135,30 @@ All large modules follow consistent structure:
 #### Development Commands
 
 ```bash
+# Production build (minified + gzipped)
+npm run build              # Vite build (TypeScript → minified JS + CSS)
+
+# Development mode with HMR
+npm run dev                # Vite dev server (instant updates)
+
 # Watch mode (auto-rebuild on file changes)
 npm run watch              # CSS + JS watch
 
-# Development build (with sourcemaps)
-npm run bundle:dev         # All bundles
-
-# Production build (minified + gzipped)
-npm run build              # Full build (CSS + JS + precompress)
-
 # Type check (0 errors required)
-npm run type-check
+npm run type-check         # TypeScript validation
+npm run type-check:watch   # Watch mode
 
 # Bundle size analysis
 npm run analyze            # Opens bundle-stats.html
+```
+
+**Deprecated Commands (v7.0.0+):**
+```bash
+# ❌ REMOVED - Do not use!
+npm run bundle             # Use: npm run build
+npm run bundle:dev         # Use: npm run dev
+npm run minify:js          # Use: npm run build (automatic)
+npm run minify:css         # Use: npm run build (automatic)
 ```
 
 #### Import Patterns
@@ -163,6 +173,47 @@ import { ListsState } from '@web/lists/listsManager/core/ListsState';
 // Type-only imports
 import type { ShoppingList, ShoppingItem } from '@web/lists/listsManager';
 ```
+
+#### TypeScript Hybrid Approach (v7.1.0+)
+
+**Critical**: Family Budget uses hybrid TypeScript/JavaScript approach:
+- **Development**: .ts files for type-checking and IDE support
+- **Production**: .js files remain for backward compatibility
+- **Build**: Vite compiles .ts → .js automatically during build
+
+**Type Definition Files (types/):**
+- `api.d.ts` - API responses, network types (170 lines)
+- `models.d.ts` - Domain models (User, BudgetFact, Article, etc.) (219 lines)
+- `global.d.ts` - Window namespace extensions (144 lines)
+- `indexeddb.d.ts` - IndexedDB schema (167 lines)
+- `navigator.d.ts` - Browser APIs (Network Information) (165 lines)
+- `telegram.d.ts` - Telegram WebApp types (246 lines)
+
+**Pre-commit Hook:**
+```bash
+# .husky/pre-commit automatically runs:
+npm run type-check
+
+# If TypeScript errors found → commit BLOCKED
+# Fix errors in .ts files → retry commit
+```
+
+**Development Workflow:**
+```bash
+# 1. Edit TypeScript files (.ts)
+vim frontend/web/static/js/offline/offlineManager.ts
+
+# 2. Type check (optional, runs automatically on commit)
+npm run type-check
+
+# 3. Build (compiles .ts → .js)
+npm run build
+
+# 4. Commit (automatic type-check via pre-commit hook)
+git commit -m "feat: new feature"
+```
+
+**See:** `/docs/architecture/build-system.md` for complete TypeScript integration guide
 
 #### Module Foundations (Phase 2.1-2.5)
 
