@@ -1,15 +1,43 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { copyFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import compression from 'vite-plugin-compression';
 import { visualizer } from 'rollup-plugin-visualizer';
 import swCacheVersionPlugin from './vite-plugin-sw-version';
 
 const production = process.env.NODE_ENV === 'production';
 
+// Post-build plugin: копирует файлы из dist/ в финальные локации
+function postBuildCopy() {
+  return {
+    name: 'post-build-copy',
+    closeBundle() {
+      const files = [
+        { src: 'dist/budgetShared.js', dest: 'frontend/shared/static/js/budgetShared.bundle.js' },
+        { src: 'dist/bundle.js', dest: 'frontend/web/static/js/dist/bundle.js' },
+        { src: 'dist/webapp.js', dest: 'frontend/webapp/static/js/dist/webapp.bundle.js' },
+        { src: 'dist/components.js', dest: 'frontend/web/static/js/dist/components.bundle.js' },
+        { src: 'dist/sw.js', dest: 'sw.min.js' }
+      ];
+
+      files.forEach(({ src, dest }) => {
+        try {
+          mkdirSync(dirname(dest), { recursive: true });
+          copyFileSync(src, dest);
+          // Silent copy - errors only
+        } catch (err) {
+          throw new Error(`Failed to copy ${src} to ${dest}: ${err.message}`);
+        }
+      });
+    }
+  };
+}
+
 export default defineConfig({
   build: {
-    outDir: '.', // Явно указываем корень проекта как выходную директорию
-    emptyOutDir: false, // Не удалять другие файлы
+    outDir: 'dist', // Безопасная директория для сборки
+    emptyOutDir: true, // Очищать dist/ перед каждой сборкой
     minify: production ? 'esbuild' : false,
     sourcemap: !production,
     target: 'es2020',
@@ -31,17 +59,8 @@ export default defineConfig({
         inlineDynamicImports: false,
         manualChunks: undefined, // Отключить автоматическое разделение на chunks
 
-        // Динамические имена файлов
-        entryFileNames: (chunkInfo) => {
-          const entryPaths: Record<string, string> = {
-            budgetShared: 'frontend/shared/static/js/budgetShared.bundle.js',
-            bundle: 'frontend/web/static/js/dist/bundle.js',
-            webapp: 'frontend/webapp/static/js/dist/webapp.bundle.js',
-            components: 'frontend/web/static/js/dist/components.bundle.js',
-            sw: 'sw.min.js'
-          };
-          return entryPaths[chunkInfo.name] || '[name].js';
-        },
+        // Упрощенные имена файлов в dist/ (без путей)
+        entryFileNames: '[name].js',
 
         // Оптимизация
         generatedCode: {
@@ -54,6 +73,9 @@ export default defineConfig({
   plugins: [
     // Service Worker cache version injection
     swCacheVersionPlugin(),
+
+    // Post-build file copying (dist/ → final locations)
+    postBuildCopy(),
 
     // Gzip compression
     production && compression({

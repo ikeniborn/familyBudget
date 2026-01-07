@@ -313,3 +313,6 @@ temp/
 # Backup directory (local only)
 backup-pre-optimization/
 bundle-stats*.html
+
+# Vite build temporary directory
+dist/

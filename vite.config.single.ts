@@ -17,8 +17,13 @@ const isServiceWorker = process.env.VITE_IS_SW === 'true';
 
 export default defineConfig({
   build: {
-    outDir: '.', // Output в корень проекта, не в dist/
-    emptyOutDir: false, // Не удалять файлы (5 билдов пишут в разные места)
+    // ⚠️ IMPORTANT: outDir='.' generates Vite warning but is safe here
+    // - We control exact output paths via entryFileNames (no wildcards)
+    // - 5 builds write to different non-overlapping locations
+    // - Source files are never overwritten (TypeScript in frontend/, output in static/)
+    // - Alternative (separate outDir + post-build copy) adds complexity without benefit
+    outDir: '.', // Output directly to final locations
+    emptyOutDir: false, // Never delete files (5 sequential builds to different paths)
     minify: production ? 'esbuild' : false,
     sourcemap: !production,
     target: 'es2020',
@@ -29,7 +34,7 @@ export default defineConfig({
       output: {
         format: 'iife',
         name: globalName,
-        entryFileNames: entryOutput,
+        entryFileNames: entryOutput, // Exact path, no patterns
         generatedCode: {
           constBindings: true
         }
