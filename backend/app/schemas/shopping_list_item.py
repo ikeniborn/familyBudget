@@ -59,8 +59,8 @@ class ShoppingListItemCreate(BaseModel):
     quantity: Optional[Decimal] = Field(
         default=None,
         ge=0,
-        description="Quantity to buy (OPTIONAL)",
-        examples=[2.5, None]
+        description="Quantity to buy (OPTIONAL, integers preferred)",
+        examples=[1, 2, 5, None]
     )
 
     unit: Optional[str] = Field(
