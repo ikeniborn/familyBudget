@@ -1207,20 +1207,20 @@ main() {
             exit 1
         fi
 
-        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-05):
+        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-07):
         # - Use NODE_PATH for CommonJS require() module resolution
-        # - Use temporary symlink for ES modules (rollup.config.mjs) import resolution
+        # - Use temporary symlink for ES modules (vite.config.single.ts) import resolution
         # - Problem: Symlinked node_modules breaks nested require() in bundled modules
         #   (browserslist → node-releases/data/processed/envs.json fails)
         # - Solution 1: Set NODE_PATH to tell Node.js where to find CommonJS modules
-        # - Solution 2: Create temporary symlink for Rollup ES imports (removed after build)
+        # - Solution 2: Create temporary symlink for Vite ES imports (removed after build)
 
         # CRITICAL: Remove /opt/budget/node_modules before build (if exists)
         # - Only .npm-isolated/node_modules should exist (accessed via NODE_PATH or symlink)
         # - If /opt/budget/node_modules exists BEFORE build, npm may use wrong version
-        # - Temporary symlink will be created DURING build for Rollup (line ~1215)
+        # - Temporary symlink will be created DURING build for Vite (line ~1240)
         if [[ -e "$PWD/node_modules" ]]; then
-            print_message info "Removing $PWD/node_modules (will recreate temporarily for Rollup)"
+            print_message info "Removing $PWD/node_modules (will recreate temporarily for Vite)"
             rm -rf "$PWD/node_modules"
             print_message success "Removed - using .npm-isolated/node_modules exclusively"
         fi
@@ -1233,30 +1233,30 @@ main() {
 
         print_message info "npm build environment configured (PATH + NODE_PATH)"
 
-        # CRITICAL FIX (2026-01-05): ES modules (rollup.config.mjs) don't use NODE_PATH
-        # - Rollup config uses ES import which ignores NODE_PATH
+        # CRITICAL FIX (2026-01-07): ES modules (vite.config.single.ts) don't use NODE_PATH
+        # - Vite config uses ES import which ignores NODE_PATH
         # - Create temporary symlink for ES module resolution
-        # - Will be removed after build (line ~1252)
+        # - Will be removed after build (line ~1285)
         if [[ ! -e "$PWD/node_modules" ]]; then
             ln -sf "$node_modules_dir" "$PWD/node_modules"
-            print_message info "Created temporary node_modules symlink for Rollup ES imports"
+            print_message info "Created temporary node_modules symlink for Vite ES imports"
         fi
 
         echo ""
-        # CRITICAL: Pass CACHE_VERSION explicitly to npm subprocess
-        # npm run minify:js spawns new bash process that needs this variable
+        # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
+        # build-all.js reads these variables for production minification
         # Use env to ensure variable propagation across npm script chain
-        print_message info "Passing CACHE_VERSION=$CACHE_VERSION to npm build"
-        if env CACHE_VERSION="$CACHE_VERSION" npm run build:prod 2>&1; then
+        print_message info "Passing CACHE_VERSION=$CACHE_VERSION and NODE_ENV=production to Vite build"
+        if env NODE_ENV=production CACHE_VERSION="$CACHE_VERSION" npm run build:prod 2>&1; then
             echo ""
             print_message success "Static assets built and minified successfully"
             echo ""
 
-            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+)
+            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
             if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
                 if grep -q "PLACEHOLDER" "$DEPLOY_DIR/sw.min.js"; then
                     print_message error "CRITICAL: sw.min.js contains PLACEHOLDER after build!"
-                    print_message error "Service Worker version was not updated during minification"
+                    print_message error "Service Worker version was not updated during Vite build"
                     print_message error ""
                     print_message error "This will cause PWA cache issues for users"
                     print_message error ""
@@ -1265,7 +1265,7 @@ main() {
                     print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
                     grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
                     print_message error ""
-                    print_message error "DEPLOYMENT BLOCKED - please fix minify.sh"
+                    print_message error "DEPLOYMENT BLOCKED - please check vite-plugin-sw-version.ts"
                     exit 1
                 else
                     SW_VERSION=$(grep -o 'CACHE_VERSION="[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
