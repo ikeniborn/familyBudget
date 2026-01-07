@@ -600,9 +600,28 @@
 <script>
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // НОВОЕ: Диагностика устройства
+    console.log('[LISTS_INIT] === DOMContentLoaded fired ===');
+    console.log('[LISTS_INIT] User-Agent:', navigator.userAgent);
+    console.log('[LISTS_INIT] Screen size:', window.innerWidth, 'x', window.innerHeight);
+    console.log('[LISTS_INIT] Online status:', navigator.onLine);
+    console.log('[LISTS_INIT] Viewport:', {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio
+    });
+
     try {
+        console.log('[LISTS_INIT] Starting listsManager.init()');
+        performance.mark('lists-init-start'); // Performance tracking
+
         // Initialize Lists Manager
         await window.listsManager.init();
+
+        performance.mark('lists-init-end');
+        performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
+        const measure = performance.getEntriesByName('lists-initialization')[0];
+        console.log(`[LISTS_INIT] ✅ Initialization completed in ${measure.duration.toFixed(2)}ms`);
 
         // Make hierarchyView globally accessible for onclick handlers
         if (window.listsManager.hierarchyView) {
@@ -620,8 +639,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         debugLog('[Lists] Page initialized');
     } catch (error) {
-        console.error('[Lists] Initialization error:', error);
-        showToast('Ошибка инициализации страницы', 'error');
+        // УЛУЧШЕНО: Детальное логирование ошибки
+        console.error('[LISTS_INIT] === CRITICAL ERROR ===');
+        console.error('[LISTS_INIT] Error:', error);
+        console.error('[LISTS_INIT] Error name:', error.name);
+        console.error('[LISTS_INIT] Error message:', error.message);
+        console.error('[LISTS_INIT] Error stack:', error.stack);
+
+        showToast('Ошибка инициализации страницы: ' + error.message, 'error');
     }
 });
 
