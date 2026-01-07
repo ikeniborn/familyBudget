@@ -1,5 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { copyFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import compression from 'vite-plugin-compression';
 import { visualizer } from 'rollup-plugin-visualizer';
 import swCacheVersionPlugin from './vite-plugin-sw-version';
@@ -13,28 +15,70 @@ const entryOutput = process.env.VITE_ENTRY_OUTPUT || 'frontend/web/static/js/dis
 const globalName = process.env.VITE_GLOBAL_NAME || 'App';
 const isServiceWorker = process.env.VITE_IS_SW === 'true';
 
+// Post-build plugin: копирует файлы из .vite-build/ в финальные локации
+function postBuildCopy() {
+  return {
+    name: 'post-build-copy-single',
+    closeBundle() {
+      const { readFileSync, writeFileSync, existsSync } = require('fs');
+      const { basename } = require('path');
+
+      try {
+        const src = `.vite-build/${entryName}.js`;
+        const srcMap = `.vite-build/${entryName}.js.map`;
+        const dest = entryOutput;
+        const destMap = `${dest}.map`;
+
+        // Создать родительскую директорию если не существует
+        mkdirSync(dirname(dest), { recursive: true });
+
+        // Копировать JS файл и обновить sourceMappingURL
+        let content = readFileSync(src, 'utf-8');
+
+        // Обновить ссылку на sourcemap если она есть
+        if (content.includes('sourceMappingURL')) {
+          const destBasename = basename(dest);
+          content = content.replace(
+            /\/\/# sourceMappingURL=.*/,
+            `//# sourceMappingURL=${destBasename}.map`
+          );
+        }
+
+        writeFileSync(dest, content, 'utf-8');
+
+        // Копировать sourcemap если существует
+        if (existsSync(srcMap)) {
+          copyFileSync(srcMap, destMap);
+        }
+
+        // Silent copy - только ошибки логируются
+      } catch (err) {
+        throw new Error(`Failed to copy ${entryName}.js to ${entryOutput}: ${err.message}`);
+      }
+    }
+  };
+}
+
 // Build info logged by build-all.js, no need to duplicate here
 
 export default defineConfig({
   build: {
-    // ⚠️ IMPORTANT: outDir='.' generates Vite warning but is safe here
-    // - We control exact output paths via entryFileNames (no wildcards)
-    // - 5 builds write to different non-overlapping locations
-    // - Source files are never overwritten (TypeScript in frontend/, output in static/)
-    // - Alternative (separate outDir + post-build copy) adds complexity without benefit
-    outDir: '.', // Output directly to final locations
-    emptyOutDir: false, // Never delete files (5 sequential builds to different paths)
+    // Безопасная временная директория для сборки (устраняет Vite warning)
+    outDir: '.vite-build',
+    emptyOutDir: true, // Очищать перед каждой сборкой
     minify: production ? 'esbuild' : false,
     sourcemap: !production,
     target: 'es2020',
 
     rollupOptions: {
-      input: resolve(__dirname, entryInput),
+      input: {
+        [entryName]: resolve(__dirname, entryInput)
+      },
 
       output: {
         format: 'iife',
         name: globalName,
-        entryFileNames: entryOutput, // Exact path, no patterns
+        entryFileNames: '[name].js', // [name] = entryName из input object key
         generatedCode: {
           constBindings: true
         }
@@ -45,6 +89,9 @@ export default defineConfig({
   plugins: [
     // Service Worker plugin только для sw.js
     isServiceWorker && swCacheVersionPlugin(),
+
+    // Post-build file copying (.vite-build/ → final location)
+    postBuildCopy(),
 
     // Gzip compression
     production && compression({
