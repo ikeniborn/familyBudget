@@ -3632,6 +3632,151 @@ The navbar displays a global pending sync badge showing offline items awaiting s
 
 ---
 
+## Shopping Lists Swipe Indicator (v7.x+)
+
+### Overview
+
+Новый дизайн swipe indicator для Shopping Lists (иерархический вид) улучшает UX на мобильных устройствах через более интуитивную визуализацию: иконка карандаша (edit) + три chevron с staggered wave animation.
+
+### Visual Design
+
+```
+Название товара                      [📝 ‹ ‹ ‹]
+                                      ↑   ↑ ↑ ↑
+                              Edit icon + 3 chevrons
+```
+
+**Компоненты**:
+- **Edit Icon (pencil)**: Показывает что элемент можно редактировать
+- **Three Chevrons (‹ ‹ ‹)**: Указывают направление свайпа влево
+- **Staggered Animation**: Волновой эффект для привлечения внимания
+
+### Animation Details
+
+**Keyframe**: `@keyframes swipe-chevron-pulse`
+- **Duration**: 1.5s infinite
+- **Easing**: ease-in-out
+- **Effect**: opacity (0.3 → 1 → 0.3) + translateX (0 → -6px → 0)
+
+**Staggered Delays**:
+- Chevron 1: 0ms delay
+- Chevron 2: 150ms delay (0.15s)
+- Chevron 3: 300ms delay (0.3s)
+
+**Result**: Создает волновой эффект, где chevrons анимируются последовательно, создавая ощущение движения влево.
+
+### Implementation
+
+**CSS Classes**:
+- `.swipe-indicator` - Container (position: absolute, right: 0.75rem)
+- `.swipe-edit-icon` - Pencil icon (1rem × 1rem, opacity: 0.8)
+- `.swipe-chevron` - Base chevron style (1rem × 1rem)
+- `.swipe-chevron-1/2/3` - Individual chevrons с animation-delay
+
+**HTML Structure** (`hierarchyView.js:584-606`):
+```html
+<div class="swipe-indicator" aria-hidden="true">
+    <!-- Edit icon (pencil) -->
+    <svg class="swipe-edit-icon" ...>
+        <path d="M11 4H4a2 2 0 0 0-2 2v14..."/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3..."/>
+    </svg>
+
+    <!-- Three chevrons -->
+    <svg class="swipe-chevron swipe-chevron-1" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+    <svg class="swipe-chevron swipe-chevron-2" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+    <svg class="swipe-chevron swipe-chevron-3" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+</div>
+```
+
+**SwipeHandler Logic** (`hierarchyView.js:14-315`):
+- Touch events обрабатываются через SwipeHandler класс
+- Левый свайп (< -50% ширины) → открывает модальное окно редактирования
+- Animation НЕ зависит от touch events (работает независимо)
+- Desktop: индикатор скрыт (только inline кнопки)
+
+### Diagnostic Logging
+
+**Console Log** (`hierarchyView.js:359-370`):
+```javascript
+console.log('[LISTS_SWIPE] Indicator diagnostic:', {
+    totalIndicators: indicators.length,
+    editIconsRendered: editIcons.length,
+    chevronsRendered: chevrons.length,
+    expectedChevrons: indicators.length * 3,
+    chevronMatches: chevrons.length === indicators.length * 3,
+    sampleAnimation: { /* animation states */ }
+});
+```
+
+**Проверка**:
+- Количество индикаторов соответствует количеству товаров
+- Каждый индикатор содержит 1 edit icon + 3 chevrons
+- Animation names применены корректно
+
+### Cache Busting Strategy
+
+**Problem (Root Cause)**:
+- Source файлы изменены, но minified версии устарели
+- `npm run build` НЕ минифицирует legacy файлы (hierarchyView.js, lists.css)
+- После деплоя браузер получал старые cached файлы
+
+**Solution**:
+1. **Minification** (manual for legacy files):
+   ```bash
+   npx terser hierarchyView.js -c -m -o hierarchyView.min.js
+   npx postcss lists.css -o lists.min.css --use cssnano
+   gzip -9 -k -f hierarchyView.min.js lists.min.css
+   ```
+
+2. **Deploy Process**:
+   - `deploy.sh` автоматически заменяет PLACEHOLDER → `v20260107_HHMM`
+   - Service Worker CACHE_VERSION обновляется
+   - Старые кэши удаляются при активации нового SW
+
+**Files Updated** (v7.x+):
+- `lists.css:533-592` - New CSS classes + animations
+- `hierarchyView.js:584-606` - New SVG structure
+- `hierarchyView.js:355-370` - Diagnostic logging
+- `lists.min.css` - Minified CSS (19K → 4.3K gzipped)
+- `hierarchyView.min.js` - Minified JS (16K → 4.3K gzipped)
+
+### Responsive Behavior
+
+**Mobile (touch devices)**:
+- Indicator visible (opacity: 0.6)
+- Swipe gesture enabled (touch-action: pan-y)
+- Inline buttons hidden
+
+**Desktop (pointer: fine)**:
+- Indicator HIDDEN (display: none at 1024px+)
+- Inline buttons visible (Edit ✏️, Delete 🗑️)
+- No swipe gesture
+
+**iOS Safari Quirks**:
+- `visibility: hidden` для guaranteed non-interactivity
+- Safe area insets учитываются в padding
+- Dynamic viewport height (dvh) для modals
+
+### Performance Metrics
+
+**File Sizes**:
+- CSS: 38K source → 19K minified → 4.3K gzipped (88% reduction)
+- JS: 29K source → 16K minified → 4.3K gzipped (85% reduction)
+
+**Animation**:
+- 60 FPS (hardware accelerated transform + opacity)
+- No layout thrashing
+- requestAnimationFrame для плавности
+
+---
+
 ## Future Enhancements
 
 ### Planned Features

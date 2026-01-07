@@ -352,6 +352,23 @@ class HierarchyView {
         // Setup swipe handlers for all items
         this.swipeHandler.setupSwipeHandlers();
 
+        // DIAGNOSTIC: Verify swipe indicators rendered correctly (v7.x+)
+        const indicators = this.container.querySelectorAll('.swipe-indicator');
+        const editIcons = this.container.querySelectorAll('.swipe-edit-icon');
+        const chevrons = this.container.querySelectorAll('.swipe-chevron');
+        console.log('[LISTS_SWIPE] Indicator diagnostic:', {
+            totalIndicators: indicators.length,
+            editIconsRendered: editIcons.length,
+            chevronsRendered: chevrons.length,
+            expectedChevrons: indicators.length * 3,
+            chevronMatches: chevrons.length === indicators.length * 3,
+            sampleAnimation: chevrons.length > 0 ? {
+                chevron1: window.getComputedStyle(chevrons[0]).animationName,
+                chevron2: chevrons.length > 1 ? window.getComputedStyle(chevrons[1]).animationName : 'N/A',
+                chevron3: chevrons.length > 2 ? window.getComputedStyle(chevrons[2]).animationName : 'N/A'
+            } : 'No chevrons found'
+        });
+
         // Update smart toggle button state
         this.listsManager.updateHierarchyToggleButton();
     }
