@@ -8,12 +8,18 @@
     "format": "black {file}",
     "format_check": "black --check {file}"
   },
+  "typescript": {
+    "type_check": "npx tsc --noEmit",
+    "type_check_watch": "npx tsc --noEmit --watch",
+    "type_check_file": "npx tsc --noEmit {file}",
+    "compile": "npx tsc",
+    "note": "TypeScript compilation handled by Vite (npm run build)"
+  },
   "javascript": {
     "syntax_check": "node --check {file}",
     "lint": "eslint {file}",
     "lint_fix": "eslint --fix {file}",
-    "minify": "npx terser {file} -o {file}.min.js",
-    "minify_css": "npx cssnano {file} {file}.min.css"
+    "note": "Minification handled by Vite (npm run build), do NOT use terser/cssnano directly"
   },
   "bash": {
     "syntax_check": "bash -n {file}",
@@ -24,5 +30,18 @@
   },
   "json": {
     "syntax_check": "python -c 'import json; json.load(open(\"{file}\"))'"
+  },
+  "build": {
+    "description": "Project build commands (Vite v7.0.0+)",
+    "production_build": "npm run build",
+    "dev_server": "npm run dev",
+    "watch_mode": "npm run watch",
+    "bundle_analysis": "npm run analyze",
+    "deprecated": {
+      "npm_run_bundle": "Use 'npm run build' instead",
+      "npm_run_bundle_dev": "Use 'npm run dev' instead",
+      "npm_run_minify_js": "Use 'npm run build' (automatic)",
+      "npm_run_minify_css": "Use 'npm run build' (automatic)"
+    }
   }
 }
