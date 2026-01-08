@@ -305,15 +305,43 @@ class SwipeHandler {
             itemElement._touchMoveHandler = (e) => this.handleTouchMove(e, itemId, itemElement);
             itemElement._touchEndHandler = (e) => this.handleTouchEnd(e, itemId, itemElement);
 
-            // Click handler for content: close swipe if swiped
+            // Click handler for content: toggle completion or close swipe
             if (contentElement) {
                 contentElement._clickHandler = (e) => {
-                    // Only close if this item is currently swiped
+                    // CRITICAL: Block clicks on swipe indicator (iOS Safari PWA fix)
+                    if (e.target.closest('.swipe-indicator')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        console.log('[CONTENT_CLICK] Blocked - click on indicator', {
+                            itemId,
+                            target: e.target.tagName,
+                            closest: e.target.closest('.swipe-indicator')?.className
+                        });
+                        return;
+                    }
+
+                    // Close swipe if currently swiped
                     if (itemElement.classList.contains('swiped')) {
                         e.preventDefault();
                         e.stopPropagation();
                         this.closeSwipe(itemId, itemElement);
                         console.log('[SWIPE] Content clicked - closing swipe', { itemId });
+                        return;
+                    }
+
+                    // Toggle item completion
+                    const isCompleted = itemElement.dataset.itemCompleted === 'true';
+                    console.log('[CONTENT_CLICK] Toggle completion', {
+                        itemId,
+                        currentState: isCompleted,
+                        newState: !isCompleted
+                    });
+
+                    if (window.listsManager && typeof window.listsManager.toggleItemCompleted === 'function') {
+                        window.listsManager.toggleItemCompleted(itemId, !isCompleted);
+                    } else {
+                        console.error('[CONTENT_CLICK] listsManager.toggleItemCompleted not found');
                     }
                 };
                 contentElement.addEventListener('click', contentElement._clickHandler);
@@ -668,15 +696,15 @@ class HierarchyView {
             const isCompleted = item.is_completed;
 
             html += `
-                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <div class="hierarchy-item-content cursor-pointer" onclick="if (event.target.closest('.swipe-indicator')) { console.log('[INLINE_CLICK] Blocked click on indicator'); return; } window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}" data-item-completed="${isCompleted}">
+                    <div class="hierarchy-item-content cursor-pointer">
                         <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
                             ${this.escapeHtml(item.product_name)}
                         </span>
                         ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
 
                         <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
-                        <!-- Click blocking: inline onclick checks event.target.closest('.swipe-indicator') -->
+                        <!-- Click blocking: programmatic handler in setupSwipeHandlers() -->
                         <div class="swipe-indicator" aria-hidden="true">
                             <!-- Edit icon (pencil) -->
                             <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
