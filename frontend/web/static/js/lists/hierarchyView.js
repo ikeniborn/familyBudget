@@ -85,7 +85,8 @@ class SwipeHandler {
                 const targetTransform = -(itemElement.offsetWidth * this.SWIPE_THRESHOLD - swipeDistance);
                 contentElement.style.transform = `translateX(${targetTransform}px)`;
             } else {
-                contentElement.style.transform = 'translateX(0)';
+                // CRITICAL: Remove transform completely to avoid creating containing block
+                contentElement.style.removeProperty('transform');
             }
             return;
         }
@@ -224,23 +225,31 @@ class SwipeHandler {
 
     /**
      * Reset swipe visual state (snap back to original position)
+     *
+     * CRITICAL: Must remove inline transform completely, not just set to 'translateX(0)'.
+     * Reason: Any transform value creates a new containing block, causing
+     * absolutely positioned .swipe-indicator to position relative to content
+     * instead of .hierarchy-item (breaks right: 0.75rem positioning).
      */
     resetSwipe(itemId, itemElement) {
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (contentElement) {
-            // Remove swiping class to re-enable transitions
+            // Step 1: Remove swiping class to re-enable transitions
             contentElement.classList.remove('swiping');
 
-            // Force layout reflow to ensure clean state
+            // Step 2: Force reflow to apply transition re-enablement
             void contentElement.offsetHeight;
 
-            // Reset transform
-            contentElement.style.transform = 'translateX(0)';
+            // Step 3: Remove inline transform (triggers animated transition back)
+            // CRITICAL: Must remove completely, not set to 'translateX(0)'.
+            // Any transform value creates a containing block, breaking .swipe-indicator positioning.
+            contentElement.style.removeProperty('transform');
 
-            console.log('[SWIPE_RESET] Transform and classes reset', {
+            console.log('[SWIPE_RESET] Transform removed and classes reset', {
                 itemId,
                 hasSwiping: contentElement.classList.contains('swiping'),
-                transform: contentElement.style.transform
+                hasInlineTransform: contentElement.style.transform !== '',
+                computedTransform: window.getComputedStyle(contentElement).transform
             });
         }
 
