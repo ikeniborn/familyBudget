@@ -452,6 +452,124 @@ async function nonDeduplicatedOperation() {
 
 **See:** `index.html:4435-4479` for complete implementation
 
+### 9. FAB Navigation Positioning (v7.x+)
+
+**Rule:** Use `!important` for display properties to prevent CSS override conflicts.
+
+**Pattern:**
+
+```css
+/* Mobile (< 1024px) */
+@media (max-width: 1023px) {
+    .fab-container {
+        position: fixed !important;  /* Prevent override */
+        bottom: 0;
+        left: 0;
+        right: 0;
+
+        /* Safe-area-inset for iPhone notch */
+        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    }
+
+    .mobile-nav-wrapper {
+        display: block !important;
+    }
+
+    .desktop-fab-wrapper {
+        display: none !important;
+    }
+}
+
+/* Desktop (≥ 1024px) */
+@media (min-width: 1024px) {
+    .fab-container {
+        position: fixed !important;
+        bottom: 1.5rem;
+        right: 1.5rem;
+    }
+
+    .mobile-nav-wrapper {
+        display: none !important;
+        visibility: hidden !important;  /* iOS Safari protection */
+    }
+
+    .desktop-fab-wrapper {
+        display: block !important;
+    }
+}
+```
+
+**iOS Safari Protection:**
+
+```css
+/* Speed Dial closed state - MUST include visibility: hidden */
+.desktop-fab-wrapper.closed .fab-menu-item {
+    opacity: 0;
+    visibility: hidden;  /* Required for iOS Safari */
+    pointer-events: none;
+    transition: opacity 0.3s, visibility 0s 0.3s, transform 0.3s;
+}
+
+/* Speed Dial open state */
+.desktop-fab-wrapper.open .fab-menu-item {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s, visibility 0s, transform 0.3s;
+}
+```
+
+**Why `!important` is necessary:**
+- Multiple stylesheets may compete for specificity
+- Prevents accidental override from utility classes
+- Guarantees mobile/desktop exclusive display
+
+**Why `visibility: hidden` is required:**
+- iOS Safari can still click elements with `opacity: 0` + `pointer-events: none`
+- `visibility: hidden` provides guaranteed non-interactivity
+- Transition delay (`0s 0.3s`) prevents flicker during animation
+
+**Resize Listener Pattern (v7.x+):**
+
+```javascript
+// Dynamic breakpoint switching with debouncing
+let resizeTimeout;
+const BREAKPOINT = 1024;
+let currentMode = mode;  // Track current mode
+
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimeout);
+
+    resizeTimeout = setTimeout(function() {
+        const newIsDesktop = window.innerWidth >= BREAKPOINT;
+        const newMode = newIsDesktop ? 'desktop-fab' : 'mobile-nav';
+
+        // Only update if mode actually changed (crossing breakpoint)
+        if (newMode !== currentMode) {
+            console.log('[FAB_TOOLBAR] Breakpoint crossed:', {
+                from: currentMode,
+                to: newMode,
+                windowWidth: window.innerWidth,
+                breakpoint: BREAKPOINT
+            });
+
+            currentMode = newMode;
+
+            // Toggle visibility of mobile nav and desktop FAB
+            // ... (see fab_toolbar.html for complete implementation)
+        }
+    }, 200);  // 200ms debounce delay
+});
+```
+
+**Benefits:**
+- Works on tablet rotation (landscape ↔ portrait) without page reload
+- Handles desktop window resize dynamically
+- Debouncing prevents excessive re-renders
+- Preserves page-specific visibility logic (allowedPages)
+
+**See:** `/docs/architecture/frontend/responsive-design.md` → FAB Navigation Architecture
+
 ## Important Features
 
 ### Admin Authentication Bypass (v6.3.0+)

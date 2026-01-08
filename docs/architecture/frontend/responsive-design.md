@@ -5,7 +5,8 @@ This document tracks all responsive design modifications and breakpoint adjustme
 ## Table of Contents
 
 1. [Breakpoint Strategy](#breakpoint-strategy)
-2. [Quick Actions Block - Tablet Hide (v6.6.0)](#quick-actions-block---tablet-hide-v660)
+2. [FAB Navigation Architecture (v7.x)](#fab-navigation-architecture-v7x)
+3. [Quick Actions Block - Tablet Hide (v6.6.0)](#quick-actions-block---tablet-hide-v660)
 
 ---
 
@@ -25,6 +26,111 @@ Family Budget uses Tailwind CSS breakpoint system:
 - Mobile-first approach (base styles for 0-639px)
 - Progressive enhancement for larger screens
 - Critical features available on all devices
+
+---
+
+## FAB Navigation Architecture (v7.x)
+
+**Date:** 2026-01-08
+**Issue:** Mobile navigation not fixed at bottom, displayed on desktop, missing safe-area-inset for iPhone notch
+**Solution:** CSS positioning fixes with `!important`, safe-area-inset padding, visibility protection, resize listener
+
+### Positioning Strategy
+
+**Mobile/Tablet (< 1024px):**
+- Navigation bar fixed at bottom of viewport
+- Full width with 5 buttons (Home, Analytics, Add, Facts/Plans, Lists)
+- Safe-area-inset padding for iPhone notch compatibility
+- Z-index: 50 (above content, below modals)
+
+**Desktop (≥ 1024px):**
+- Floating Action Button (FAB) at bottom-right corner
+- Speed Dial menu with 4 action items
+- Only visible on pages: /, /facts, /plan
+- Z-index: 1000 (above backdrop: 999)
+
+### Dynamic Breakpoint Switching (v7.x+)
+
+**Resize Listener:**
+- Automatically switches between mobile nav and desktop FAB when window crosses 1024px breakpoint
+- No page reload required - works on tablet rotation and desktop window resize
+- Debounced with 200ms delay to prevent excessive re-renders
+- Closes desktop FAB automatically when switching to mobile mode
+- Preserves allowedPages logic during resize (desktop FAB hidden on non-allowed pages)
+
+**Supported Scenarios:**
+- Tablet rotation: landscape (≥1024px) ↔ portrait (<1024px)
+- Desktop window resize: dragging browser edge across breakpoint
+- Split-screen multitasking: window width changes dynamically
+
+**Console Logging:**
+```javascript
+[FAB_TOOLBAR] Breakpoint crossed: {
+  from: "desktop-fab",
+  to: "mobile-nav",
+  windowWidth: 768,
+  breakpoint: 1024
+}
+```
+
+### Critical CSS Requirements
+
+**Must use `!important` for display properties:**
+- Prevents override from other stylesheets
+- Ensures mobile navigation never shows on desktop
+- Ensures desktop FAB never shows on mobile
+
+**Must use `visibility: hidden` for iOS Safari:**
+- `opacity: 0` + `pointer-events: none` insufficient on iOS
+- Hidden elements can still be clickable without `visibility: hidden`
+- Applies to Speed Dial closed state
+
+**Must include `env(safe-area-inset-bottom)`:**
+- Required for iPhone with notch (X/11/12/13/14/15/16)
+- Prevents navigation bar overlap with Home indicator
+- Calculated as: `calc(0.5rem + env(safe-area-inset-bottom))`
+
+### Responsive Breakpoints
+
+| Breakpoint | Device | Navigation Style |
+|-----------|--------|------------------|
+| < 768px | Mobile | Bottom bar (5 buttons) |
+| 768-1023px | Tablet | Bottom bar (5 buttons) |
+| ≥ 1024px | Desktop | FAB (Speed Dial) |
+
+### Page Visibility Rules
+
+**Desktop FAB visible only on:**
+- `/` (Главная - Home)
+- `/facts` (Факты - Facts)
+- `/plan` (План - Plan)
+
+**Desktop FAB hidden on:**
+- `/lists` (Списки - Shopping Lists)
+- `/analytics` (Аналитика - Analytics)
+- `/admin` (Администрирование - Admin)
+- All other pages
+
+### Z-Index Hierarchy
+
+| Z-Index | Element | Purpose |
+|---------|---------|---------|
+| 50 | `.fab-container` | Base navigation |
+| 60 | `.dropdown-content` | Dropdown menus |
+| 999 | `#desktop-fab-backdrop` | Overlay when FAB open |
+| 1000 | `.desktop-fab-wrapper` | FAB menu items |
+| 1001+ | Lists page FABs | Context-specific |
+
+### Implementation Files
+
+**CSS:** `frontend/web/static/css/custom.css`
+- Lines 405-434: Mobile navigation (< 1024px)
+- Lines 438-465: Desktop FAB (≥ 1024px)
+- Lines 666-681: Speed Dial animations
+
+**HTML/JavaScript:** `frontend/web/templates/components/fab_toolbar.html`
+- Lines 259-349: Resize listener with debouncing
+- Lines 351-382: CSS diagnostics logging
 
 ---
 

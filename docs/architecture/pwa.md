@@ -3696,6 +3696,92 @@ The navbar displays a global pending sync badge showing offline items awaiting s
 
 ---
 
+## FAB Navigation Integration (v7.x+)
+
+### Overview
+
+The PWA navigation adapts seamlessly between mobile and desktop with automatic breakpoint switching on window resize.
+
+### Mobile PWA (standalone mode)
+
+- Fixed bottom navigation bar with 5 buttons
+- Safe-area-inset padding for iPhone notch (X/11/12/13/14/15/16)
+- Works in offline mode with `data-online-only` attribute filtering
+- Full width layout with center FAB button (48px diameter)
+
+### Desktop PWA
+
+- Floating Action Button (FAB) with Speed Dial menu (56-64px)
+- Context-aware visibility (only on /, /facts, /plan pages)
+- Auto-hide on modal open via MutationObserver
+- Bottom-right corner positioning (24px from edge)
+
+### Dynamic Breakpoint Switching
+
+**Resize Listener**:
+- Automatically switches between mobile nav and desktop FAB when window crosses 1024px breakpoint
+- No page reload required - works on tablet rotation and desktop window resize
+- Debounced with 200ms delay to prevent excessive re-renders
+- Closes desktop FAB automatically when switching to mobile mode
+
+**Supported Scenarios**:
+- Tablet rotation: landscape (≥1024px) ↔ portrait (<1024px)
+- Desktop window resize: dragging browser edge across breakpoint
+- Split-screen multitasking: window width changes dynamically
+
+### Viewport Configuration
+
+**Critical requirement for safe-area-inset:**
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+```
+
+**Key attributes**:
+- `viewport-fit=cover` - Required for `env(safe-area-inset-*)` to work on iPhone
+- Without this, `safe-area-inset-bottom` returns 0 on all devices
+
+### Console Logging
+
+Diagnostic logs help verify correct navigation behavior:
+
+```javascript
+// Initialization
+[FAB_TOOLBAR] Enhanced navigation initialized: {
+  mode: "desktop-fab",
+  deviceType: "desktop",
+  desktopFabVisible: true
+}
+
+// Breakpoint crossing
+[FAB_TOOLBAR] Breakpoint crossed: {
+  from: "desktop-fab",
+  to: "mobile-nav",
+  windowWidth: 768,
+  breakpoint: 1024
+}
+
+// CSS diagnostics
+[FAB_TOOLBAR] CSS Diagnostics: {
+  fabContainer: { position: "fixed", bottom: "0px", paddingBottom: "20.5px" },
+  safeArea: { bottom: "12px" }  // iPhone notch value
+}
+```
+
+### Implementation Files
+
+**CSS**: `frontend/web/static/css/custom.css`
+- Lines 405-434: Mobile navigation (< 1024px)
+- Lines 438-465: Desktop FAB (≥ 1024px)
+
+**HTML/JavaScript**: `frontend/web/templates/components/fab_toolbar.html`
+- Lines 259-349: Resize listener with debouncing
+- Lines 351-382: CSS diagnostics logging
+
+**See**: `/docs/architecture/frontend/responsive-design.md` → FAB Navigation Architecture for complete documentation
+
+---
+
 ## Shopping Lists Swipe Indicator (v7.x+)
 
 ### Overview

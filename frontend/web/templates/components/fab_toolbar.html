@@ -256,6 +256,131 @@
         desktopFabVisible: isDesktop ? isPageAllowed : 'N/A'
     });
 
+    // Resize listener: Automatically switch between mobile nav and desktop FAB
+    let resizeTimeout;
+    const BREAKPOINT = 1024;
+    let currentMode = mode;  // Track current mode
+
+    window.addEventListener('resize', function() {
+        // Debounce: wait 200ms after last resize event
+        clearTimeout(resizeTimeout);
+
+        resizeTimeout = setTimeout(function() {
+            const newIsDesktop = window.innerWidth >= BREAKPOINT;
+            const newMode = newIsDesktop ? 'desktop-fab' : 'mobile-nav';
+
+            // Only update if mode actually changed (crossing breakpoint)
+            if (newMode !== currentMode) {
+                console.log('[FAB_TOOLBAR] Breakpoint crossed:', {
+                    from: currentMode,
+                    to: newMode,
+                    windowWidth: window.innerWidth,
+                    breakpoint: BREAKPOINT
+                });
+
+                currentMode = newMode;
+
+                // Force CSS re-evaluation by toggling visibility
+                const mobileWrapper = fabToolbar.querySelector('.mobile-nav-wrapper');
+                const desktopWrapper = fabToolbar.querySelector('.desktop-fab-wrapper');
+                const desktopBackdrop = document.getElementById('desktop-fab-backdrop');
+
+                if (newIsDesktop) {
+                    // Switch to desktop mode
+                    const currentPage = window.location.pathname;
+                    const isPageAllowed = allowedPages.includes(currentPage);
+
+                    // Hide mobile nav
+                    if (mobileWrapper) {
+                        mobileWrapper.style.display = 'none';
+                        mobileWrapper.style.visibility = 'hidden';
+                    }
+
+                    // Show desktop FAB (only on allowed pages)
+                    if (desktopWrapper && isPageAllowed) {
+                        desktopWrapper.style.display = 'block';
+                        desktopWrapper.style.visibility = 'visible';
+                        desktopWrapper.classList.remove('open');
+                        desktopWrapper.classList.add('closed');
+                    } else if (desktopWrapper) {
+                        desktopWrapper.style.display = 'none';
+                        desktopWrapper.style.visibility = 'hidden';
+                    }
+
+                    // Hide backdrop
+                    if (desktopBackdrop) {
+                        desktopBackdrop.classList.add('hidden');
+                        desktopBackdrop.style.opacity = '0';
+                        desktopBackdrop.style.pointerEvents = 'none';
+                    }
+
+                    console.log('[FAB_TOOLBAR] Switched to desktop mode:', {
+                        desktopFabVisible: isPageAllowed,
+                        page: currentPage
+                    });
+                } else {
+                    // Switch to mobile mode
+
+                    // Show mobile nav
+                    if (mobileWrapper) {
+                        mobileWrapper.style.display = 'block';
+                        mobileWrapper.style.visibility = 'visible';
+                    }
+
+                    // Hide desktop FAB
+                    if (desktopWrapper) {
+                        desktopWrapper.style.display = 'none';
+                        desktopWrapper.style.visibility = 'hidden';
+                        desktopWrapper.classList.remove('open');
+                        desktopWrapper.classList.add('closed');
+                    }
+
+                    // Hide backdrop
+                    if (desktopBackdrop) {
+                        desktopBackdrop.classList.add('hidden');
+                        desktopBackdrop.style.opacity = '0';
+                        desktopBackdrop.style.pointerEvents = 'none';
+                    }
+
+                    console.log('[FAB_TOOLBAR] Switched to mobile mode');
+                }
+            }
+        }, 200);  // 200ms debounce delay
+    });
+
+    // Log computed CSS values for debugging
+    const fabToolbarStyles = window.getComputedStyle(fabToolbar);
+    const mainContentStyles = window.getComputedStyle(document.getElementById('main-content'));
+
+    console.log('[FAB_TOOLBAR] CSS Diagnostics:', {
+        fabContainer: {
+            position: fabToolbarStyles.position,
+            bottom: fabToolbarStyles.bottom,
+            left: fabToolbarStyles.left,
+            right: fabToolbarStyles.right,
+            paddingBottom: fabToolbarStyles.paddingBottom,
+            display: fabToolbarStyles.display,
+            zIndex: fabToolbarStyles.zIndex,
+        },
+        mobileNav: {
+            display: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).display,
+            visibility: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).visibility,
+        },
+        desktopFab: {
+            display: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).display,
+            visibility: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).visibility,
+        },
+        mainContent: {
+            paddingBottom: mainContentStyles.paddingBottom,
+        },
+        safeArea: {
+            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top'),
+            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right'),
+            bottom: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
+            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left'),
+        }
+    });
+
     // Desktop FAB: Speed Dial toggle function
     window.toggleDesktopFAB = function() {
         const wrapper = document.querySelector('.desktop-fab-wrapper');
