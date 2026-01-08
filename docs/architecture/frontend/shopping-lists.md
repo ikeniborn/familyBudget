@@ -595,6 +595,142 @@ document.querySelectorAll('.hierarchy-item-content').forEach(el => {
 
 ---
 
+## Completed Items Behavior (v7.x+)
+
+### Visual and Interaction Changes
+
+When a shopping item is marked as completed (checkbox checked), the UI adapts to optimize screen space and disable unnecessary interactions:
+
+**CSS Changes:** `frontend/web/static/css/lists.css:617-624`
+
+```css
+/* Hide on completed items and expand quantity to right edge */
+.hierarchy-item.completed .swipe-indicator {
+    display: none;
+}
+
+.hierarchy-item.completed .hierarchy-item-text {
+    padding-right: 0;  /* Remove padding - quantity expands to right edge */
+}
+```
+
+**JavaScript Changes:** `frontend/web/static/js/lists/hierarchyView.js:46-51`
+
+```javascript
+handleTouchStart(e, itemId, itemElement) {
+    // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
+    if (itemElement.classList.contains('completed')) {
+        console.log('[SWIPE] Skipped - item is completed', { itemId });
+        return;
+    }
+    // ...
+}
+```
+
+---
+
+### State Transition
+
+**Item Unchecked (Active):**
+```
+┌──────────────────────────────────────────────────┐
+│ ☐ Milk      5 kg          ⟨ ⟨ ⟩           │
+│   └─text─┘  └qty┘  └─6rem padding─┘ └indicator┘ │
+│                                                  │
+│ Swipe enabled ✓                                  │
+│ Indicator visible ✓                              │
+│ Padding-right: 6rem ✓                            │
+└──────────────────────────────────────────────────┘
+```
+
+**Item Checked (Completed):**
+```
+┌──────────────────────────────────────────────────┐
+│ ☑ Milk      5 kg                                 │
+│   └─text─┘  └qty (expanded to right edge)──────┘│
+│                                                  │
+│ Swipe disabled ✗                                 │
+│ Indicator hidden ✗                               │
+│ Padding-right: 0 ✓                               │
+└──────────────────────────────────────────────────┘
+```
+
+---
+
+### Rationale
+
+**Space Optimization:**
+- Completed items don't need edit/delete actions (tap to uncomplete is primary action)
+- Hiding swipe indicator reclaims ~96px of horizontal space
+- Quantity expands to right edge for better visual balance
+
+**Interaction Simplification:**
+- Disabling swipe prevents accidental modal opens on completed items
+- User can still uncomplete via checkbox tap
+- Edit/delete available after unchecking
+
+**Performance:**
+- Early return in `handleTouchStart` avoids unnecessary calculations
+- DOM class-based detection (`classList.contains('completed')`)
+- No additional event listeners or watchers needed
+
+---
+
+### Edge Cases Handled
+
+| Scenario | Behavior |
+|----------|----------|
+| **Check item → Swipe attempt** | Swipe disabled, logs `[SWIPE] Skipped - item is completed` |
+| **Uncheck item → Swipe attempt** | Swipe enabled, indicator visible, opens modal |
+| **Completed item without quantity** | Padding still removed, "—" placeholder at right edge |
+| **Desktop view (≥1024px)** | Padding already 0, no visual change on complete/uncomplete |
+| **Tablet view (768px-1023px)** | Same as mobile (padding removed, indicator hidden) |
+| **Modal open when item completed** | Modal stays open, swipe state unaffected |
+
+---
+
+### Testing Verification
+
+**Mobile/Tablet (<1024px):**
+1. ✅ Unchecked item: Swipe indicator visible, padding-right: 6rem
+2. ✅ Check item: Indicator disappears, quantity expands right
+3. ✅ Swipe attempt on completed: No response (disabled)
+4. ✅ Uncheck item: Indicator returns, padding restored, swipe works
+
+**Desktop (≥1024px):**
+1. ✅ Indicator already hidden (media query)
+2. ✅ Padding already 0
+3. ✅ No visual change on complete/uncomplete
+
+**Browser Console Diagnostics:**
+```javascript
+// Check completed item swipe state
+const completedItem = document.querySelector('.hierarchy-item.completed');
+const contentElement = completedItem?.querySelector('.hierarchy-item-content');
+
+console.log({
+  hasCompletedClass: completedItem?.classList.contains('completed'),
+  paddingRight: window.getComputedStyle(completedItem.querySelector('.hierarchy-item-text')).paddingRight,
+  indicatorDisplay: window.getComputedStyle(completedItem.querySelector('.swipe-indicator')).display,
+  swipeDisabled: !window.hierarchyView?.swipeHandler?.isDragging
+});
+
+// Expected output for completed item:
+// {
+//   hasCompletedClass: true,
+//   paddingRight: "0px",
+//   indicatorDisplay: "none",
+//   swipeDisabled: true
+// }
+```
+
+**Commit History:**
+- `a382f236` - Initial implementation of completed item behavior
+- Related: `180473ef` - Desktop quantity dynamic positioning
+- Related: `4a1041c0` - Swipe indicator spacing fixes
+
+---
+
 ## Related Documentation
 
 - [Database Schema](/docs/architecture/database/shopping-lists.md)
