@@ -308,6 +308,28 @@ class SwipeHandler {
             // Click handler for content: toggle completion or close swipe
             if (contentElement) {
                 contentElement._clickHandler = (e) => {
+                    // CRITICAL: Block clicks in right zone (where swipe indicator is)
+                    // Indicator has pointer-events: none, so clicks pass through to content
+                    // Need to check click coordinates, not just e.target
+                    const rect = contentElement.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const clickFromRight = rect.width - clickX;
+
+                    // Block clicks in right 120px zone (indicator zone)
+                    // Indicator width: ~90px (icon + 3 chevrons + gaps + padding)
+                    if (clickFromRight < 120) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        console.log('[CONTENT_CLICK] Blocked - click in indicator zone', {
+                            itemId,
+                            clickFromRight: Math.round(clickFromRight),
+                            target: e.target.tagName,
+                            contentWidth: Math.round(rect.width)
+                        });
+                        return;
+                    }
+
                     // CRITICAL: Block clicks on swipe indicator (iOS Safari PWA fix)
                     if (e.target.closest('.swipe-indicator')) {
                         e.preventDefault();
