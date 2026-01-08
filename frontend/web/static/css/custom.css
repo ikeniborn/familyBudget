@@ -427,10 +427,12 @@ html.offline-mode .save-btn:hover {
 
     .mobile-nav-wrapper {
         display: block !important;
+        visibility: visible !important;
     }
 
     .desktop-fab-wrapper {
         display: none !important;
+        visibility: hidden !important;
     }
 }
 
@@ -664,6 +666,7 @@ html.offline-mode .save-btn:hover {
 
 /* Desktop FAB menu items - hidden when closed */
 .desktop-fab-wrapper.closed .fab-menu-item {
+    display: none;  /* Force hide - like Main FAB in lists */
     opacity: 0;
     visibility: hidden;  /* iOS Safari protection */
     transform: scale(0.5) translateY(20px);
@@ -673,6 +676,7 @@ html.offline-mode .save-btn:hover {
 
 /* Desktop FAB menu items - visible when open */
 .desktop-fab-wrapper.open .fab-menu-item {
+    display: flex;  /* Show as flex (for layout) */
     opacity: 1;
     visibility: visible;  /* Explicit visible */
     transform: scale(1) translateY(0);
