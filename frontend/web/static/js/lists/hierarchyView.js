@@ -45,7 +45,11 @@ class SwipeHandler {
      */
     handleTouchStart(e, itemId, itemElement) {
         this.startX = e.touches[0].clientX;
+        this.startY = e.touches[0].clientY;
+        this.currentX = this.startX; // CRITICAL: Initialize to prevent undefined in handleTouchEnd
+        this.currentY = this.startY;
         this.isDragging = true;
+        this.hasMoved = false; // Track if finger actually moved
 
         // Close other swiped items
         if (this.activeSwipedItemId && this.activeSwipedItemId !== itemId) {
@@ -61,6 +65,7 @@ class SwipeHandler {
         console.log('[SWIPE] Touch start', {
             itemId,
             startX: this.startX,
+            startY: this.startY,
             timestamp: Date.now()
         });
     }
@@ -72,7 +77,15 @@ class SwipeHandler {
         if (!this.isDragging) return;
 
         this.currentX = e.touches[0].clientX;
+        this.currentY = e.touches[0].clientY;
         const deltaX = this.currentX - this.startX;
+        const deltaY = this.currentY - this.startY;
+
+        // CRITICAL: Mark as moved if finger moved more than 5px (prevents accidental taps)
+        const movementDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (movementDistance > 5) {
+            this.hasMoved = true;
+        }
 
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (!contentElement) return;
@@ -123,6 +136,18 @@ class SwipeHandler {
 
         // Remove swiping class (re-enable transition)
         contentElement.classList.remove('swiping');
+
+        // CRITICAL: Ignore tap without movement (prevents accidental modal opens)
+        if (!this.hasMoved) {
+            this.resetSwipe(itemId, itemElement);
+            console.log('[SWIPE] Touch end - TAP IGNORED (no movement)', {
+                itemId,
+                deltaX,
+                hasMoved: false,
+                action: 'tap_ignored'
+            });
+            return;
+        }
 
         // Determine action based on threshold
         if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
