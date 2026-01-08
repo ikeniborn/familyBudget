@@ -464,6 +464,8 @@
     align-items: center;
     gap: 0.375rem;  /* Small gap between name and quantity */
     min-width: 0;  /* Required for ellipsis to work */
+    position: relative;  /* Create stacking context */
+    z-index: 2;  /* Above swipe indicator (z-index: 1) */
 }
 
 .hierarchy-item-name {
@@ -558,7 +560,7 @@
     display: flex;
     align-items: center;
     gap: 0.125rem;  /* Tight spacing between elements */
-    z-index: 3;
+    z-index: 1;  /* Below text (z-index: 2) to prevent covering quantity */
     pointer-events: none;
     opacity: 0.6;
     /* No animation on container - chevrons animate individually */
@@ -707,6 +709,13 @@
 
     .hierarchy-toggle-placeholder {
         min-width: 1.5rem; /* Соответствует увеличенному toggle */
+    }
+}
+
+/* ---- Desktop: Hide swipe indicator (show buttons instead) ---- */
+@media (min-width: 1024px) {
+    .swipe-indicator {
+        display: none;  /* Hide swipe indicator on desktop - use inline buttons instead */
     }
 }
 
