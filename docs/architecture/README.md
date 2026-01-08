@@ -27,6 +27,28 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-08: Task Execution Template (v6.0.0)
+- **Change:** Created Family Budget-specific task execution template (task-lite-familybudget-v6.0.md)
+- **Purpose:** Standardized workflow for Claude Code with project-specific requirements
+- **Features:**
+  - Adaptive workflow (minimal/standard/complex complexity levels)
+  - Ralph-loop integration for iterative tasks (TypeScript fixes, linting, etc.)
+  - Project-specific validation commands (npm run type-check, pytest, ruff, etc.)
+  - Mandatory requirements (pre-flight docs check, logging, self-review, documentation updates)
+  - Domain skills reference (api-development, bot-development, db-management, frontend-development, etc.)
+  - Completion promises for automation (TypeScript: "Found 0 errors", Build: "build complete", etc.)
+  - Emergency rollback procedures
+- **Impact:**
+  - ✅ Consistent development workflow across all tasks
+  - ✅ Automated quality checks (type-check, linting, tests)
+  - ✅ Mandatory documentation updates after changes
+  - ✅ Comprehensive logging standards ([AUTH], [WS_BULK], [DEDUP], etc.)
+  - ✅ Clear error handling and rollback strategies
+- **Files Added (1):**
+  - Root: `task-lite-familybudget-v6.0.md` (650 lines)
+- **Documentation:** Self-documenting template with examples and best practices
+- **See:** `task-lite-familybudget-v6.0.md` for complete workflow guide
+
 ### 2026-01-07: Vite Migration (v7.0.0)
 - **Change:** Migrated from Rollup to Vite for 75% faster builds
 - **Removed:** .terserrc.json, rollup.config.mjs, minify.sh, precompress-assets.sh
