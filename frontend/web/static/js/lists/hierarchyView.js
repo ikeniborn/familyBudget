@@ -745,10 +745,13 @@ class HierarchyView {
             html += `
                 <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}" data-item-completed="${isCompleted}">
                     <div class="hierarchy-item-content cursor-pointer">
-                        <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
-                            ${this.escapeHtml(item.product_name)}
-                        </span>
-                        ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                        <!-- Text group: name + quantity together -->
+                        <div class="hierarchy-item-text">
+                            <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
+                                ${this.escapeHtml(item.product_name)}
+                            </span>
+                            ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                        </div>
 
                         <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
                         <!-- Click blocking: programmatic handler in setupSwipeHandlers() -->
