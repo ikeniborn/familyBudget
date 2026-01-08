@@ -478,7 +478,7 @@
     flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.15s ease;
-    margin-left: 0.5rem;
+    margin-left: auto;
 }
 
 .hierarchy-item:hover .hierarchy-item-actions {
@@ -528,6 +528,9 @@
 
 /* Transition on content element, NOT parent container */
 .hierarchy-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
