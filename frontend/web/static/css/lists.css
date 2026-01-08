@@ -464,7 +464,6 @@
     align-items: center;
     gap: 0.375rem;  /* Small gap between name and quantity */
     min-width: 0;  /* Required for ellipsis to work */
-    overflow: hidden;
 }
 
 .hierarchy-item-name {
