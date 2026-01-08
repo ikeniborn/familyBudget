@@ -641,6 +641,31 @@ class HierarchyView {
                         </span>
                         ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
 
+                        <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
+                        <!-- Uses stopPropagation to prevent clicks from triggering parent onclick -->
+                        <div class="swipe-indicator" aria-hidden="true" onclick="event.stopPropagation()">
+                            <!-- Edit icon (pencil) -->
+                            <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+
+                            <!-- Chevron 1 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+
+                            <!-- Chevron 2 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+
+                            <!-- Chevron 3 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+                        </div>
+
                         <!-- Desktop inline actions (unchanged) -->
                         <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
                             <button class="btn btn-xs btn-ghost btn-square"
@@ -654,31 +679,6 @@ class HierarchyView {
                                 🗑️
                             </button>
                         </div>
-                    </div>
-
-                    <!-- CRITICAL: Swipe indicator OUTSIDE content to avoid transform issues (v7.x+) -->
-                    <!-- Positioned relative to .hierarchy-item, NOT affected by content transform -->
-                    <div class="swipe-indicator" aria-hidden="true">
-                        <!-- Edit icon (pencil) -->
-                        <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                        </svg>
-
-                        <!-- Chevron 1 (left arrow) -->
-                        <svg class="swipe-chevron swipe-chevron-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 18l-6-6 6-6"/>
-                        </svg>
-
-                        <!-- Chevron 2 (left arrow) -->
-                        <svg class="swipe-chevron swipe-chevron-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 18l-6-6 6-6"/>
-                        </svg>
-
-                        <!-- Chevron 3 (left arrow) -->
-                        <svg class="swipe-chevron swipe-chevron-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 18l-6-6 6-6"/>
-                        </svg>
                     </div>
                 </div>
             `;
