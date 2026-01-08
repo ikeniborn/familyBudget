@@ -285,6 +285,7 @@ class SwipeHandler {
         items.forEach(itemElement => {
             const itemId = parseInt(itemElement.dataset.itemId);
             const contentElement = itemElement.querySelector('.hierarchy-item-content');
+            const swipeIndicator = itemElement.querySelector('.swipe-indicator');
 
             // Remove old listeners (if any)
             itemElement.removeEventListener('touchstart', itemElement._touchStartHandler);
@@ -292,6 +293,11 @@ class SwipeHandler {
             itemElement.removeEventListener('touchend', itemElement._touchEndHandler);
             if (contentElement) {
                 contentElement.removeEventListener('click', contentElement._clickHandler);
+            }
+            if (swipeIndicator) {
+                swipeIndicator.removeEventListener('touchstart', swipeIndicator._blockTouchStart);
+                swipeIndicator.removeEventListener('touchend', swipeIndicator._blockTouchEnd);
+                swipeIndicator.removeEventListener('click', swipeIndicator._blockClick);
             }
 
             // Create bound handlers
@@ -311,6 +317,34 @@ class SwipeHandler {
                     }
                 };
                 contentElement.addEventListener('click', contentElement._clickHandler);
+            }
+
+            // CRITICAL: Block ALL events on swipe indicator (iOS Safari fix)
+            // Prevents indicator from triggering parent onclick handlers
+            if (swipeIndicator) {
+                swipeIndicator._blockTouchStart = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Touch start blocked', { itemId });
+                };
+                swipeIndicator._blockTouchEnd = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Touch end blocked', { itemId });
+                };
+                swipeIndicator._blockClick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Click blocked', { itemId });
+                };
+
+                // Add event listeners with capture phase for maximum blocking
+                swipeIndicator.addEventListener('touchstart', swipeIndicator._blockTouchStart, { passive: false, capture: true });
+                swipeIndicator.addEventListener('touchend', swipeIndicator._blockTouchEnd, { passive: false, capture: true });
+                swipeIndicator.addEventListener('click', swipeIndicator._blockClick, { capture: true });
             }
 
             // Add listeners with passive: false for preventDefault() support
@@ -642,8 +676,8 @@ class HierarchyView {
                         ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
 
                         <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
-                        <!-- Uses stopPropagation to prevent clicks from triggering parent onclick -->
-                        <div class="swipe-indicator" aria-hidden="true" onclick="event.stopPropagation()">
+                        <!-- Touch event blocking handled programmatically in setupSwipeHandlers() -->
+                        <div class="swipe-indicator" aria-hidden="true">
                             <!-- Edit icon (pencil) -->
                             <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
