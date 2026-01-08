@@ -228,7 +228,20 @@ class SwipeHandler {
     resetSwipe(itemId, itemElement) {
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (contentElement) {
+            // Remove swiping class to re-enable transitions
+            contentElement.classList.remove('swiping');
+
+            // Force layout reflow to ensure clean state
+            void contentElement.offsetHeight;
+
+            // Reset transform
             contentElement.style.transform = 'translateX(0)';
+
+            console.log('[SWIPE_RESET] Transform and classes reset', {
+                itemId,
+                hasSwiping: contentElement.classList.contains('swiping'),
+                transform: contentElement.style.transform
+            });
         }
 
         // Clear any swiped state
