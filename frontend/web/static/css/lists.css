@@ -492,6 +492,7 @@
     margin-left: 1rem;  /* Space between quantity and buttons on desktop */
 }
 
+/* Mobile/Tablet: fade in/out with opacity (buttons always take space) */
 .hierarchy-item:hover .hierarchy-item-actions {
     opacity: 1;
 }
@@ -721,6 +722,16 @@
 
     .hierarchy-item-text {
         padding-right: 0;  /* Remove padding on desktop - indicator is hidden */
+    }
+
+    /* Desktop: hide buttons completely (don't take space) until hover */
+    .hierarchy-item-actions {
+        display: none;  /* Hidden - quantity moves to right edge */
+        opacity: 1;     /* Always opaque when visible */
+    }
+
+    .hierarchy-item:hover .hierarchy-item-actions {
+        display: flex;  /* Show on hover - quantity shifts left */
     }
 }
 
