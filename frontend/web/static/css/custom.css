@@ -386,6 +386,9 @@ html.offline-mode .save-btn:hover {
 /* FAB Container - base styles */
 .fab-container {
     position: fixed;
+    bottom: 0;  /* Always at bottom (overridden on desktop) */
+    left: 0;
+    right: 0;
     z-index: 50;
     transform: translateZ(0);
 }
