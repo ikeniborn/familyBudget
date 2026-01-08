@@ -466,6 +466,7 @@
     min-width: 0;  /* Required for ellipsis to work */
     position: relative;  /* Create stacking context */
     z-index: 2;  /* Above swipe indicator (z-index: 1) */
+    padding-right: 6rem;  /* Reserve space for swipe indicator on mobile (~96px) */
 }
 
 .hierarchy-item-name {
@@ -488,7 +489,7 @@
     flex-shrink: 0;
     opacity: 0;
     transition: opacity 0.15s ease;
-    margin-left: auto;
+    margin-left: 1rem;  /* Space between quantity and buttons on desktop */
 }
 
 .hierarchy-item:hover .hierarchy-item-actions {
@@ -716,6 +717,10 @@
 @media (min-width: 1024px) {
     .swipe-indicator {
         display: none;  /* Hide swipe indicator on desktop - use inline buttons instead */
+    }
+
+    .hierarchy-item-text {
+        padding-right: 0;  /* Remove padding on desktop - indicator is hidden */
     }
 }
 
