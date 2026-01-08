@@ -669,14 +669,14 @@ class HierarchyView {
 
             html += `
                 <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <div class="hierarchy-item-content cursor-pointer" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                    <div class="hierarchy-item-content cursor-pointer" onclick="if (event.target.closest('.swipe-indicator')) { console.log('[INLINE_CLICK] Blocked click on indicator'); return; } window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
                         <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
                             ${this.escapeHtml(item.product_name)}
                         </span>
                         ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
 
                         <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
-                        <!-- Touch event blocking handled programmatically in setupSwipeHandlers() -->
+                        <!-- Click blocking: inline onclick checks event.target.closest('.swipe-indicator') -->
                         <div class="swipe-indicator" aria-hidden="true">
                             <!-- Edit icon (pencil) -->
                             <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
