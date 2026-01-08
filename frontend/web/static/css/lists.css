@@ -614,9 +614,13 @@
     }
 }
 
-/* Hide on completed items */
+/* Hide on completed items and expand quantity to right edge */
 .hierarchy-item.completed .swipe-indicator {
     display: none;
+}
+
+.hierarchy-item.completed .hierarchy-item-text {
+    padding-right: 0;  /* Remove padding - quantity expands to right edge */
 }
 
 /* Hide on desktop (show inline buttons instead) */

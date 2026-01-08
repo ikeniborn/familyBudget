@@ -44,6 +44,12 @@ class SwipeHandler {
      * Handle touch start event
      */
     handleTouchStart(e, itemId, itemElement) {
+        // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
+        if (itemElement.classList.contains('completed')) {
+            console.log('[SWIPE] Skipped - item is completed', { itemId });
+            return;
+        }
+
         this.startX = e.touches[0].clientX;
         this.startY = e.touches[0].clientY;
         this.currentX = this.startX; // CRITICAL: Initialize to prevent undefined in handleTouchEnd
