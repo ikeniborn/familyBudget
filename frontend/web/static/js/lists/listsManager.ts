@@ -576,23 +576,30 @@ class ListsManager {
         // Load items for this list
         await this.loadShoppingListItems(listId);
 
-        // Restore saved view preference from localStorage
-        let savedView = 'table'; // default
-        try {
-            const stored = localStorage.getItem('lists_view_preference');
-            if (stored === 'table' || stored === 'hierarchy') {
-                savedView = stored;
-                debugLog('[ListsManager] Restored view preference:', savedView);
-            }
-        } catch (e) {
-            // localStorage may be unavailable
-        }
-
-        // Apply saved view (this also renders the content)
-        if (savedView === 'hierarchy' && this.hierarchyView) {
-            this.switchView('hierarchy');
+        // Initialize responsive view (mobile < 640px defaults to hierarchy)
+        // This also restores saved preference and renders content
+        // Uses modular implementation from listRenderer.ts via window
+        if (typeof (window as any).initializeResponsiveView === 'function') {
+            (window as any).initializeResponsiveView();
         } else {
-            this.switchView('table');
+            // Fallback: old logic if modular function not loaded
+            let savedView = 'table'; // default
+            try {
+                const stored = localStorage.getItem('lists_view_preference');
+                if (stored === 'table' || stored === 'hierarchy') {
+                    savedView = stored;
+                    debugLog('[ListsManager] Restored view preference:', savedView);
+                }
+            } catch (e) {
+                // localStorage may be unavailable
+            }
+
+            // Apply saved view (this also renders the content)
+            if (savedView === 'hierarchy' && this.hierarchyView) {
+                this.switchView('hierarchy');
+            } else {
+                this.switchView('table');
+            }
         }
 
         // Update FAB visibility AFTER switchView to ensure it's visible in all views
