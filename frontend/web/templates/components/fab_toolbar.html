@@ -310,8 +310,8 @@
                     // Hide backdrop
                     if (desktopBackdrop) {
                         desktopBackdrop.classList.add('hidden');
-                        desktopBackdrop.style.opacity = '0';
-                        desktopBackdrop.style.pointerEvents = 'none';
+                        desktopBackdrop.classList.remove('opacity-100');
+                        desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     }
 
                     console.log('[FAB_TOOLBAR] Switched to desktop mode:', {
@@ -338,8 +338,8 @@
                     // Hide backdrop
                     if (desktopBackdrop) {
                         desktopBackdrop.classList.add('hidden');
-                        desktopBackdrop.style.opacity = '0';
-                        desktopBackdrop.style.pointerEvents = 'none';
+                        desktopBackdrop.classList.remove('opacity-100');
+                        desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     }
 
                     console.log('[FAB_TOOLBAR] Switched to mobile mode');
@@ -398,7 +398,9 @@
             // Close FAB
             wrapper.classList.remove('open');
             wrapper.classList.add('closed');
-            backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
+            backdrop.classList.add('hidden');
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
             if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
 
             console.log('[FAB_TOOLBAR] Desktop FAB closed:', {
@@ -409,7 +411,9 @@
             // Open FAB
             wrapper.classList.remove('closed');
             wrapper.classList.add('open');
-            backdrop.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+            backdrop.classList.remove('hidden');
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            backdrop.classList.add('opacity-100');
             if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
 
             console.log('[FAB_TOOLBAR] Desktop FAB opened:', {
