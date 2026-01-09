@@ -1100,15 +1100,13 @@ main() {
 
     # Generate cache version ONCE for entire deployment (v6.8.0+)
     # CRITICAL: Export BEFORE build_allowed check so it's available for:
-    # 1. npm run build → minify.sh (normal flow)
-    # 2. Fallback subshell minification (if build_allowed=false)
-    # 3. update-cache-busting.sh validation
+    # 1. npm run build → Vite plugin (vite-plugin-sw-version.ts)
+    # 2. update-cache-busting.sh validation
     export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
     print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
 
-    # CRITICAL FIX: Write to file for minify.sh to read
-    # npm run build may not propagate env vars correctly across script chain
-    # minify.sh will read from this file if CACHE_VERSION env var is empty
+    # Write to file for Vite plugin and validation scripts
+    # vite-plugin-sw-version.ts reads CACHE_VERSION from env or .cache-version file
     # IMPORTANT: Fix ownership when running with sudo to prevent permission issues
     if echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"; then
         # Fix ownership if running as root (sudo deploy.sh)
@@ -1326,6 +1324,20 @@ main() {
             echo ""
             print_message success "Legacy files minification completed"
             echo ""
+
+            # Minify individual JS files in frontend/shared/static/js (v7.0.1+)
+            # These files are referenced directly in HTML templates and are not bundled by Vite
+            print_message info "Minifying individual JS files in frontend/shared/static/js..."
+            if [[ -f "$DEPLOY_DIR/scripts/minify-individual-files.sh" ]]; then
+                if bash "$DEPLOY_DIR/scripts/minify-individual-files.sh" 2>&1; then
+                    print_message success "✓ Individual JS files minified successfully"
+                else
+                    print_message warning "Individual JS minification failed (non-critical)"
+                fi
+            else
+                print_message warning "scripts/minify-individual-files.sh not found - skipping"
+            fi
+            echo ""
         else
             echo ""
             print_message warning "Build failed - check npm logs above"
@@ -1364,58 +1376,18 @@ main() {
         rm -rf "$sw_min" "$sw_min_gz"
     fi
 
-    # Check 2: Recreate sw.min.js if npm run build was skipped (build_allowed=false)
-    # OR if files are missing (first deployment)
-    # OR if sw.js is newer than sw.min.js (sw.js updated)
-    # CRITICAL: Always regenerate if npm run build didn't run (CACHE_VERSION mismatch)
-    local need_regenerate=false
-
+    # Check 2: Validate Service Worker files exist (created by Vite during npm run build)
+    # Service Worker is built through: npm run build → build-all.js → vite.config.single.ts
+    # Vite handles: minification, gzip compression, CACHE_VERSION injection
     if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
-        warning "Service Worker minified files missing - creating..."
-        need_regenerate=true
-    elif [[ "$build_allowed" == false ]]; then
-        warning "npm run build was skipped (build_allowed=false) - regenerating Service Worker..."
-        need_regenerate=true
-    elif [[ -f "$DEPLOY_DIR/sw.js" ]] && [[ "$DEPLOY_DIR/sw.js" -nt "$sw_min" ]]; then
-        warning "sw.js is newer than sw.min.js - regenerating Service Worker..."
-        need_regenerate=true
-    fi
-
-    if [[ "$need_regenerate" == true ]]; then
-        # Re-run minification for Service Worker only
-        if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
-            (
-                cd "$DEPLOY_DIR"
-                # BUGFIX: Configure PATH for terser access in subshell
-                # Parent shell's PATH was restored after npm run build (line 1045)
-                # Subshell needs PATH reconfigured to access terser binary
-                local node_modules_dir="$DEPLOY_DIR/.npm-isolated/node_modules"
-                if [[ -d "$node_modules_dir/.bin" ]]; then
-                    export PATH="$node_modules_dir/.bin:$PATH"
-                fi
-                # BUGFIX: Export CACHE_VERSION for minify_service_worker
-                # Subshells don't inherit non-exported variables from parent
-                export CACHE_VERSION="${CACHE_VERSION}"
-                source scripts/lib/minify.sh
-                minify_service_worker
-            ) 2>&1 | tee -a "$LOG_FILE"
-
-            # CRITICAL: Check subshell exit status
-            # set -e will exit immediately if subshell fails, but we want to log the error first
-            local subshell_exit_code=${PIPESTATUS[0]}
-            if [[ $subshell_exit_code -ne 0 ]]; then
-                error_return "Service Worker regeneration subshell failed with exit code: $subshell_exit_code"
-            fi
-        else
-            error_return "Cannot create Service Worker minified files: sw.js not found"
-        fi
-    fi
-
-    # Final validation
-    if [[ -f "$sw_min" ]] && [[ -f "$sw_min_gz" ]]; then
+        warning "Service Worker files missing after build"
+        warning "IMPORTANT: sw.min.js must be created by 'npm run build' (Vite handles all processing)"
+        warning "If build was skipped, Service Worker will not be updated"
+        warning "Manual regeneration is no longer supported (minify.sh removed in v7.0.0)"
+    else
         local sw_min_size=$(stat -c%s "$sw_min" 2>/dev/null || stat -f%z "$sw_min" 2>/dev/null)
         local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
-        success "Service Worker minified: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
+        success "Service Worker validated: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
 
         # Update cache busting versions AFTER minification
         # CRITICAL: Must run AFTER npm run build to update sw.min.js (not sw.js)
@@ -1441,10 +1413,6 @@ main() {
         # No nginx update needed - backend reads sw.min.js directly from /app/
         # Backend automatically serves fresh file after deployment
         info "Service Worker will be served by FastAPI backend (auto-updates)"
-    elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
-        warning "Service Worker minified files missing - nginx will fallback to backend proxy"
-        warning "IMPORTANT: sw.js contains PLACEHOLDER and should NOT be served to users"
-        warning "Run 'npm run minify:js' to generate sw.min.js with proper cache version"
     fi
     echo ""
 
