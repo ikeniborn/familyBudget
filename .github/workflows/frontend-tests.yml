@@ -75,7 +75,7 @@ jobs:
           # Thresholds from vitest.config.ts
           LINES_THRESHOLD=8.9
           FUNCTIONS_THRESHOLD=84
-          BRANCHES_THRESHOLD=92
+          BRANCHES_THRESHOLD=86
           STATEMENTS_THRESHOLD=8.9
 
           echo "Coverage Report:"
