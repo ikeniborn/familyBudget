@@ -373,7 +373,7 @@ html.offline-mode .save-btn:hover {
 /* Mobile: reduced top padding for more content visibility */
 @media (max-width: 1023px) {
     #main-content {
-        padding-top: 1rem; /* Reduced from 2rem */
+        padding-top: 1.5rem; /* Balanced: saves 8px while keeping comfortable spacing */
         padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom) + 64px);
     }
 }
