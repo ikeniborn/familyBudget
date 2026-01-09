@@ -1,7 +1,7 @@
 # Build System Architecture
 
-**Last Updated:** 2026-01-07
-**Version:** 7.0.0
+**Last Updated:** 2026-01-09
+**Version:** 7.0.1
 
 ## Overview
 
@@ -10,12 +10,64 @@ Family Budget uses **Vite** as the modern build system with integrated TypeScrip
 **Migration Timeline:**
 - **v7.1.0 (2026-01-05)**: TypeScript migration (hybrid TS/JS approach)
 - **v7.0.0 (2026-01-07)**: Vite migration (replaced Rollup + bash scripts)
+- **v7.0.1 (2026-01-09)**: Lists bundle migration (5 modules → 1 bundle)
 
 **Total Build Impact:**
 - Build time: **13-17 seconds** (75% faster than v5.7.0)
 - Raw file size reduction: 10-15%
 - Delivery size reduction: 60-70% (via gzip)
 - Expected Lighthouse performance score: >90
+
+---
+
+## Recent Changes
+
+### 2026-01-09: Lists Bundle Migration (v7.0.1)
+
+**Change:** Migrated 5 lists modules to unified bundle via build-all.js
+
+**Problem:**
+- listsManager, csvImporter, googleSheetsImporter, importManager, hierarchyView were missing from build-all.js
+- Minified files were 1-7 days stale
+- Production running outdated code
+- 404 errors on /lists page
+
+**Solution:**
+- Created `lists-bundle.ts` barrel export
+- Added `lists` entry to build-all.js (32 bundles total)
+- Updated lists.html to load single lists.min.js
+- Removed 5 separate script tags from HTML
+
+**Impact:**
+- ✅ Single HTTP request (was 5)
+- ✅ Automatic TypeScript compilation via Vite
+- ✅ Bundle size: 140 KB minified (29.7 KB gzipped)
+- ✅ Fixed 404 errors for all lists modules
+- ✅ 41% smaller than initial attempt (removed 3 unnecessary modules)
+
+**Modules Included:**
+- listsManager (TypeScript) - Core CRUD logic
+- csvImporter (TypeScript) - CSV import
+- googleSheetsImporter (JavaScript) - Google Sheets integration
+- importManager (JavaScript) - Import coordination
+- hierarchyView (JavaScript) - Hierarchy rendering
+
+**Files Modified:**
+- build-all.js (added lists entry)
+- frontend/web/static/js/lists-bundle.ts (NEW)
+- frontend/web/templates/lists.html (replaced 5 scripts with 1)
+- vite.config.ts (documented that it's not used)
+
+**Testing:**
+```bash
+npm run build  # Builds 32 bundles (was 31)
+npm run type-check  # Found 0 errors
+# Test on budget-test server
+# Verify /lists page loads without errors
+```
+
+**Commits:**
+- fix(build): migrate 5 lists modules to lists.min.js bundle
 
 ---
 

@@ -577,22 +577,10 @@
 <!-- Offline Support for Shopping Lists -->
 <script src="/static/js/offline/offlineShoppingManager.min.js?v=PLACEHOLDER"></script>
 
-<!-- CSV Importer -->
-<script src="/static/js/lists/csvImporter.min.js?v=PLACEHOLDER"></script>
-
-<!-- Google Sheets Importer -->
-<script src="/static/js/lists/googleSheetsImporter.min.js?v=PLACEHOLDER"></script>
-
-<!-- Import Manager (coordinates CSV and Google Sheets) -->
-<script src="/static/js/lists/importManager.min.js?v=PLACEHOLDER"></script>
-
-<!-- Hierarchy View Renderer -->
-<script src="/static/js/lists/hierarchyView.min.js?v=PLACEHOLDER"></script>
-
+<!-- Lists Bundle (v7.0 ES modules migration) -->
+<!-- Includes: listsManager, csvImporter, googleSheetsImporter, importManager, hierarchyView -->
 <!-- Note: Real-time updates now provided by global budgetWSClient (from base.html) -->
-
-<!-- Lists Manager (Core CRUD logic) -->
-<script src="/static/js/lists/listsManager.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/lists.min.js?v={{ sw_version }}"></script>
 
 <!-- Hierarchical Product Group Selector -->
 <script src="/shared/static/js/choicesProductGroupTree.min.js?v=PLACEHOLDER"></script>

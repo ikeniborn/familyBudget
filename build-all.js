@@ -205,6 +205,12 @@ const builds = [
     output: 'frontend/web/static/js/dist/components.bundle.js',
     globalName: 'UIComponents'
   },
+  {
+    name: 'lists',
+    input: 'frontend/web/static/js/lists-bundle.ts',
+    output: 'frontend/web/static/js/lists.min.js',
+    globalName: 'ListsApp'
+  },
 
   // === Service Worker ===
   {
