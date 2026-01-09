@@ -779,3 +779,21 @@ html.offline-mode .save-btn:hover {
         transition: none;
     }
 }
+
+/* ============================================== */
+/* Shopping Lists - Desktop-only FAB Buttons    */
+/* ============================================== */
+
+/* Force hide desktop-only FAB buttons on mobile (< 1024px) */
+/* This prevents any JavaScript detection bugs from showing desktop buttons on mobile */
+@media (max-width: 1023px) {
+    /* FAB: Add item button (detail view - desktop only) */
+    #add-item-fab,
+    /* FAB: Create list button (landing view - desktop only) */
+    #create-list-fab,
+    /* FAB: Mass operations speed dial (detail view - desktop only) */
+    #lists-fab-menu {
+        display: none !important;
+        visibility: hidden !important;
+    }
+}
