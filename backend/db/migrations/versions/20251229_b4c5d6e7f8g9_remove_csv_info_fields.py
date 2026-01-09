@@ -34,90 +34,82 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Remove deprecated csv_info fields from JSONB columns."""
+    from sqlalchemy import text
+
+    # Get connection from Alembic context
+    conn = op.get_bind()
 
     # Step 1: Clean up csv_metadata in t_import_staging
     print("[CSV_MIGRATION] Removing 'info1' and 'info2' from t_import_staging.csv_metadata...")
 
-    # Count affected records before cleanup (cast JSON to JSONB for ? operator)
-    op.execute("""
-        DO $$
-        DECLARE
-            affected_count INTEGER;
-        BEGIN
-            SELECT COUNT(*) INTO affected_count
-            FROM t_import_staging
-            WHERE csv_metadata IS NOT NULL
-              AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2');
-
-            RAISE NOTICE '[CSV_MIGRATION] Found % staging records with info1/info2 fields', affected_count;
-        END $$;
-    """)
+    # Count affected records before cleanup
+    result = conn.execute(text("""
+        SELECT COUNT(*) as count
+        FROM t_import_staging
+        WHERE csv_metadata IS NOT NULL
+          AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2')
+    """))
+    affected_count = result.scalar()
+    print(f"[CSV_MIGRATION] Found {affected_count} staging records with info1/info2 fields")
 
     # Remove keys from JSON (cast to JSONB for - operator, then back to JSON)
-    op.execute("""
+    conn.execute(text("""
         UPDATE t_import_staging
         SET csv_metadata = (csv_metadata::jsonb - 'info1' - 'info2')::json
         WHERE csv_metadata IS NOT NULL
           AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2')
-    """)
+    """))
 
     print("[CSV_MIGRATION] Successfully removed info1/info2 from t_import_staging.csv_metadata")
 
     # Step 2: Clean up mapping in t_import_column_mapping
     print("[CSV_MIGRATION] Removing 'csv_info1' and 'csv_info2' from t_import_column_mapping.mapping...")
 
-    # Count affected records before cleanup (cast JSON to JSONB for ? operator)
-    op.execute("""
-        DO $$
-        DECLARE
-            affected_count INTEGER;
-        BEGIN
-            SELECT COUNT(*) INTO affected_count
-            FROM t_import_column_mapping
-            WHERE mapping IS NOT NULL
-              AND (mapping::jsonb ? 'csv_info1' OR mapping::jsonb ? 'csv_info2');
-
-            RAISE NOTICE '[CSV_MIGRATION] Found % column mappings with csv_info1/csv_info2 fields', affected_count;
-        END $$;
-    """)
+    # Count affected records before cleanup
+    result = conn.execute(text("""
+        SELECT COUNT(*) as count
+        FROM t_import_column_mapping
+        WHERE mapping IS NOT NULL
+          AND (mapping::jsonb ? 'csv_info1' OR mapping::jsonb ? 'csv_info2')
+    """))
+    affected_count = result.scalar()
+    print(f"[CSV_MIGRATION] Found {affected_count} column mappings with csv_info1/csv_info2 fields")
 
     # Remove keys from JSON (cast to JSONB for - operator, then back to JSON)
-    op.execute("""
+    conn.execute(text("""
         UPDATE t_import_column_mapping
         SET mapping = (mapping::jsonb - 'csv_info1' - 'csv_info2')::json
         WHERE mapping IS NOT NULL
           AND (mapping::jsonb ? 'csv_info1' OR mapping::jsonb ? 'csv_info2')
-    """)
+    """))
 
     print("[CSV_MIGRATION] Successfully removed csv_info1/csv_info2 from t_import_column_mapping.mapping")
 
     # Step 3: Verify cleanup
     print("[CSV_MIGRATION] Verifying cleanup...")
-    op.execute("""
-        DO $$
-        DECLARE
-            staging_remaining INTEGER;
-            mapping_remaining INTEGER;
-        BEGIN
-            SELECT COUNT(*) INTO staging_remaining
-            FROM t_import_staging
-            WHERE csv_metadata IS NOT NULL
-              AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2');
 
-            SELECT COUNT(*) INTO mapping_remaining
-            FROM t_import_column_mapping
-            WHERE mapping IS NOT NULL
-              AND (mapping::jsonb ? 'csv_info1' OR mapping::jsonb ? 'csv_info2');
+    result = conn.execute(text("""
+        SELECT COUNT(*) as count
+        FROM t_import_staging
+        WHERE csv_metadata IS NOT NULL
+          AND (csv_metadata::jsonb ? 'info1' OR csv_metadata::jsonb ? 'info2')
+    """))
+    staging_remaining = result.scalar()
 
-            IF staging_remaining > 0 OR mapping_remaining > 0 THEN
-                RAISE EXCEPTION '[CSV_MIGRATION] ⚠️ Cleanup incomplete: staging=%, mapping=%',
-                    staging_remaining, mapping_remaining;
-            END IF;
+    result = conn.execute(text("""
+        SELECT COUNT(*) as count
+        FROM t_import_column_mapping
+        WHERE mapping IS NOT NULL
+          AND (mapping::jsonb ? 'csv_info1' OR mapping::jsonb ? 'csv_info2')
+    """))
+    mapping_remaining = result.scalar()
 
-            RAISE NOTICE '[CSV_MIGRATION] ✅ Cleanup verification passed: all deprecated fields removed';
-        END $$;
-    """)
+    if staging_remaining > 0 or mapping_remaining > 0:
+        raise Exception(
+            f"[CSV_MIGRATION] ⚠️ Cleanup incomplete: staging={staging_remaining}, mapping={mapping_remaining}"
+        )
 
+    print("[CSV_MIGRATION] ✅ Cleanup verification passed: all deprecated fields removed")
     print("[CSV_MIGRATION] Migration completed successfully")
 
 
