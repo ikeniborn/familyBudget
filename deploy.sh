@@ -1325,18 +1325,9 @@ main() {
             print_message success "Legacy files minification completed"
             echo ""
 
-            # Minify individual JS files in frontend/shared/static/js (v7.0.1+)
-            # These files are referenced directly in HTML templates and are not bundled by Vite
-            print_message info "Minifying individual JS files in frontend/shared/static/js..."
-            if [[ -f "$DEPLOY_DIR/scripts/minify-individual-files.sh" ]]; then
-                if bash "$DEPLOY_DIR/scripts/minify-individual-files.sh" 2>&1; then
-                    print_message success "✓ Individual JS files minified successfully"
-                else
-                    print_message warning "Individual JS minification failed (non-critical)"
-                fi
-            else
-                print_message warning "scripts/minify-individual-files.sh not found - skipping"
-            fi
+            # NOTE: Individual JS files (debugLog, budgetShared, etc.) are now built
+            # through Vite in build-all.js (v7.1.0+). No separate minification needed.
+
             echo ""
         else
             echo ""
