@@ -2139,53 +2139,36 @@ class ListsManager {
      * Saves preference to localStorage for persistence
      */
     switchView(viewName: string) {
-        this.currentView = viewName;
+        // DEPRECATED: This method delegates to modular switchView()
+        // Old monolithic class method kept for backward compatibility only
+        // Real logic is in listsManager/rendering/listRenderer.ts
 
-        // Save preference to localStorage
-        try {
+        // Import and call modular switchView (with save=true for manual user clicks)
+        import('./listsManager/rendering/listRenderer').then(module => {
+            module.switchView(viewName as 'table' | 'hierarchy', true);
+        }).catch(err => {
+            debugLog('[ListsManager] Failed to load modular switchView, using fallback:', err);
+
+            // Fallback: basic implementation if module load fails
+            this.currentView = viewName;
             localStorage.setItem('lists_view_preference', viewName);
-            debugLog('[ListsManager] Saved view preference:', viewName);
-        } catch (e) {
-            // localStorage may be unavailable in private browsing
-            console.warn('[ListsManager] Failed to save view preference:', e);
-        }
 
-        if (viewName === 'table') {
-            document.getElementById('table-view')?.classList.remove('hidden');
-            document.getElementById('hierarchy-view')?.classList.add('hidden');
-            document.getElementById('table-view-btn')?.classList.remove('btn-outline');
-            document.getElementById('hierarchy-view-btn')?.classList.add('btn-outline');
-
-            // Show table controls, hide hierarchy controls
-            const tableControls = document.getElementById('table-controls');
-            const hierarchyControls = document.getElementById('hierarchy-controls');
-            if (tableControls) tableControls.classList.remove('hidden');
-            if (hierarchyControls) hierarchyControls.classList.add('hidden');
-
-            // Re-render table to sync checkbox states
-            this.renderItemsTable();
-        } else if (viewName === 'hierarchy') {
-            document.getElementById('table-view')?.classList.add('hidden');
-            document.getElementById('hierarchy-view')?.classList.remove('hidden');
-            document.getElementById('table-view-btn')?.classList.add('btn-outline');
-            document.getElementById('hierarchy-view-btn')?.classList.remove('btn-outline');
-
-            // Hide table controls, show hierarchy controls
-            const tableControls = document.getElementById('table-controls');
-            const hierarchyControls = document.getElementById('hierarchy-controls');
-            if (tableControls) tableControls.classList.add('hidden');
-            if (hierarchyControls) hierarchyControls.classList.remove('hidden');
-
-            // Render hierarchy tree
-            if (this.hierarchyView) {
-                this.hierarchyView.render();
-            } else {
-                showToast('Иерархический вид недоступен', 'error');
+            if (viewName === 'table') {
+                document.getElementById('table-view')?.classList.remove('hidden');
+                document.getElementById('hierarchy-view')?.classList.add('hidden');
+                document.getElementById('table-view-btn')?.classList.remove('btn-outline');
+                document.getElementById('hierarchy-view-btn')?.classList.add('btn-outline');
+                this.renderItemsTable();
+            } else if (viewName === 'hierarchy') {
+                document.getElementById('table-view')?.classList.add('hidden');
+                document.getElementById('hierarchy-view')?.classList.remove('hidden');
+                document.getElementById('table-view-btn')?.classList.add('btn-outline');
+                document.getElementById('hierarchy-view-btn')?.classList.remove('btn-outline');
+                if (this.hierarchyView) this.hierarchyView.render();
             }
-        }
 
-        // Ensure FAB remains visible after view switch
-        this.updateFABVisibility();
+            this.updateFABVisibility();
+        });
     }
 
     /**
