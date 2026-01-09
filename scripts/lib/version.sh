@@ -31,11 +31,19 @@ declare -a VERSION_FILES=(
 
 # Files that require Docker image rebuild when changed
 declare -a REBUILD_TRIGGER_FILES=(
+    # Docker build triggers
     "backend/Dockerfile"
     "bot/Dockerfile"
     "backend/requirements.txt"
     "bot/requirements.txt"
     "docker-compose.yml"
+
+    # Frontend build triggers (v7.0+ ES modules architecture)
+    "package.json"                          # npm dependencies
+    "vite.config.ts"                        # Vite build configuration
+    "build-all.js"                          # Build orchestration script
+    "frontend/web/static/js/lists-bundle.ts"  # Lists module entry point
+    "frontend/shared/static/js/budgetShared.ts"  # Shared bundle entry point
 )
 
 # Version bump type (set by command line)
@@ -273,6 +281,60 @@ load_docker_build_checksums() {
     else
         echo ""  # No previous build checksums
     fi
+}
+
+# Check if frontend assets need to be rebuilt (npm run build)
+# Checks TypeScript/JavaScript source files in frontend directories
+# v7.0+ ES modules architecture: checks .ts/.tsx files
+# Args: repo_dir
+# Returns: 0 if rebuild needed, 1 if not needed
+needs_frontend_rebuild() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local frontend_checksum_file="${DEPLOY_DIR}/.frontend_build_checksums"
+
+    # Always rebuild if no previous checksums
+    if [[ ! -f "$frontend_checksum_file" ]]; then
+        info "No previous frontend build checksums - rebuild required"
+        return 0
+    fi
+
+    # Calculate checksums for frontend source files
+    # Include: .ts, .tsx files in frontend/ and build configuration files
+    local current_checksums
+    current_checksums=$(
+        find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
+    )
+
+    local previous_checksums
+    previous_checksums=$(cat "$frontend_checksum_file")
+
+    if [[ "$current_checksums" != "$previous_checksums" ]]; then
+        # Find changed files (simplified - just show count)
+        local changed_count
+        changed_count=$(diff <(echo "$previous_checksums") <(echo "$current_checksums") 2>/dev/null | grep -c "^[<>]" || echo "unknown")
+        info "Frontend source files changed: ~$changed_count files"
+        info "npm build required"
+        return 0
+    fi
+
+    info "No frontend source files changed since last build"
+    return 1
+}
+
+# Save frontend build checksums after successful npm build
+save_frontend_build_checksums() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local frontend_checksum_file="${DEPLOY_DIR}/.frontend_build_checksums"
+
+    local checksums
+    checksums=$(
+        find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
+    )
+
+    echo "$checksums" > "$frontend_checksum_file"
+    info "Saved frontend build checksums"
 }
 
 # Check if Docker images need to be rebuilt
