@@ -231,6 +231,44 @@ git commit -m "feat: new feature"
 
 **See:** `/docs/architecture/es-modules-migration.md` for complete migration guide
 
+#### Lists Bundle (v7.0.1+)
+
+Shopping lists functionality consolidated into single bundle via build-all.js:
+
+**Entry Point:** `frontend/web/static/js/lists-bundle.ts`
+**Output:** `frontend/web/static/js/lists.min.js` (238 KB minified, 47 KB gzipped)
+**Includes:**
+- listsManager (TypeScript, modular structure)
+- csvImporter (TypeScript)
+- googleSheetsImporter (JavaScript)
+- importManager (JavaScript)
+- hierarchyView (JavaScript)
+- transfer (JavaScript)
+- htmxWidgets (JavaScript)
+- admin-facts-common (JavaScript)
+
+**Usage in HTML:**
+```html
+<script src="/static/js/lists.min.js?v={{ sw_version }}"></script>
+```
+
+**Build Configuration:**
+```javascript
+// build-all.js entry (added v7.0.1)
+{
+  name: 'lists',
+  input: 'frontend/web/static/js/lists-bundle.ts',
+  output: 'frontend/web/static/js/lists.min.js',
+  globalName: 'ListsApp'
+}
+```
+
+**Migration Notes:**
+- Replaces 5 separate .min.js files in lists.html (deprecated as of v7.0.1)
+- Built via build-all.js → vite.config.single.ts (same as other bundles)
+- Fixed 404 errors from missing minified files (7-23 days stale)
+- Total bundles: 32 (was 31)
+
 ### Database Patterns
 
 **SCD Type 1 + History Tables (v5.1.0+):**
