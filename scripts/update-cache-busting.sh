@@ -45,7 +45,7 @@ echo -e "${YELLOW}[INFO]${NC} New version: ${BLUE}${NEW_VERSION}${NC}"
 echo ""
 
 # Function: Validate Service Worker version (v6.8.0+)
-# NOTE: sw.min.js version is injected by minify.sh during npm run build
+# NOTE: sw.min.js version is injected by vite-plugin-sw-version during npm run build
 # This function only VALIDATES, does NOT modify sw.min.js
 validate_service_worker() {
     echo -e "${YELLOW}[STEP 1/2]${NC} Validating Service Worker version..."
@@ -211,11 +211,11 @@ validate_no_placeholders() {
 # Main execution
 main() {
     # Step 1: Validate Service Worker (v6.8.0+)
-    # NOTE: sw.min.js is already updated by minify.sh during npm run build
+    # NOTE: sw.min.js is already updated by vite-plugin-sw-version during npm run build
     # We only validate that the version is correct
     if ! validate_service_worker; then
         echo -e "${RED}[CRITICAL]${NC} Service Worker validation failed"
-        echo -e "${YELLOW}[INFO]${NC} This is likely caused by minify.sh not running correctly"
+        echo -e "${YELLOW}[INFO]${NC} This is likely caused by Vite build (npm run build) not running correctly"
         exit 1
     fi
 
