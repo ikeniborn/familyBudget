@@ -154,6 +154,18 @@
                 display: none !important;
             }
         }
+
+        /* Compact navbar on mobile for better space usage */
+        @media (max-width: 1023px) {
+            .navbar {
+                min-height: 3.5rem !important; /* Reduced from 4rem default */
+            }
+
+            .navbar > * {
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+        }
     </style>
 
     <!-- PWA Splash Screen Styles (inline for immediate render) -->
@@ -739,9 +751,11 @@
 
     <!-- DaisyUI Navbar -->
     <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner"
-            style="padding-top: var(--safe-area-inset-top);
+            style="padding-top: calc(0.25rem + var(--safe-area-inset-top));
+                   padding-bottom: 0.25rem;
                    padding-left: var(--safe-area-inset-left);
-                   padding-right: var(--safe-area-inset-right);">
+                   padding-right: var(--safe-area-inset-right);
+                   min-height: calc(4rem + var(--safe-area-inset-top));">
         <div class="navbar-start">
             <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4" aria-label="Семейный бюджет home">
                 💰 <span class="sm:hidden">СБ</span><span class="hidden sm:inline">Семейный бюджет</span>
