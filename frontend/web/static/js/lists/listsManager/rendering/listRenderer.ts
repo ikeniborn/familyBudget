@@ -60,7 +60,7 @@ function isDesktop(): boolean {
  */
 function showFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -73,7 +73,7 @@ function showFAB(): void {
  */
 function hideFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -86,7 +86,7 @@ function hideFAB(): void {
  */
 function showAddItemFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -99,7 +99,7 @@ function showAddItemFAB(): void {
  */
 function hideAddItemFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -112,7 +112,7 @@ function hideAddItemFAB(): void {
  */
 function showCreateListFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -125,7 +125,7 @@ function showCreateListFAB(): void {
  */
 function hideCreateListFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -145,7 +145,7 @@ export function updateFABVisibility(): void {
   const inDetailView = state.currentListId !== null;
   const isDesktopResult = isDesktop();
 
-  console.log('[FAB] updateFABVisibility', {
+  debugLog('[FAB] updateFABVisibility', {
     inDetailView,
     isDesktop: isDesktopResult,
     currentListId: state.currentListId,
@@ -187,7 +187,7 @@ function updateHideCompletedButton(): void {
 /**
  * Switch between table and hierarchy views
  */
-function switchView(viewName: 'table' | 'hierarchy'): void {
+export function switchView(viewName: 'table' | 'hierarchy'): void {
   // Save preference to localStorage
   try {
     localStorage.setItem('lists_view_preference', viewName);
@@ -225,6 +225,27 @@ function switchView(viewName: 'table' | 'hierarchy'): void {
 
   // Render current view
   renderCurrentView();
+}
+
+/**
+ * Initialize view based on screen width
+ * Mobile (< 640px) defaults to hierarchy view for better UX
+ */
+export function initializeResponsiveView(): void {
+  const isMobile = window.innerWidth < 640;
+  const savedPreference = localStorage.getItem('lists_view_preference');
+
+  // If mobile and no saved preference, use hierarchy view
+  if (isMobile && !savedPreference) {
+    debugLog('[ListsManager] Mobile detected, switching to hierarchy view');
+    switchView('hierarchy');
+  } else if (savedPreference) {
+    // Restore saved preference
+    switchView(savedPreference as 'table' | 'hierarchy');
+  } else {
+    // Desktop defaults to table view
+    switchView('table');
+  }
 }
 
 // ============================================================================
@@ -373,7 +394,7 @@ export async function renderDetailView(listId: number): Promise<void> {
         container.classList.remove('hidden');
         button.classList.remove('btn-outline');
         button.classList.add('btn-primary');
-        console.log('[SEARCH] Restored search field visibility:', { visible: true });
+        debugLog('[SEARCH] Restored search field visibility:', { visible: true });
       }
     }
   } catch (e) {
@@ -413,24 +434,9 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // Restore saved view preference from localStorage
-  let savedView: 'table' | 'hierarchy' = 'table'; // default
-  try {
-    const stored = localStorage.getItem('lists_view_preference');
-    if (stored === 'table' || stored === 'hierarchy') {
-      savedView = stored;
-      debugLog('[ListsManager] Restored view preference:', savedView);
-    }
-  } catch (e) {
-    // localStorage may be unavailable
-  }
-
-  // Apply saved view (this also renders the content)
-  if (savedView === 'hierarchy' && state.hierarchyView) {
-    switchView('hierarchy');
-  } else {
-    switchView('table');
-  }
+  // Initialize responsive view (mobile < 640px defaults to hierarchy)
+  // This also restores saved preference and renders content
+  initializeResponsiveView();
 
   // Update FAB visibility AFTER switchView to ensure it's visible in all views
   updateFABVisibility();

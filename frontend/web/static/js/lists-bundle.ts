@@ -13,10 +13,14 @@ import './lists/importManager';
 // UI modules
 import './lists/hierarchyView';
 
-// Shared utilities
-import './transfer';
-import './htmxWidgets';
-import './admin-facts-common';
+// Export functions to window for HTML onclick handlers
+// Import from modular structure
+import { switchView } from './lists/listsManager/index';
+
+// Expose to window (prevent tree-shaking)
+if (typeof window !== 'undefined') {
+  (window as any).switchView = switchView;
+}
 
 // Logging using project standards (logAPI loaded from base.html)
 if (typeof window !== 'undefined' && (window as any).logAPI) {
