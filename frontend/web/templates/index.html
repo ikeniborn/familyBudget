@@ -2233,39 +2233,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
     // Elements controlled by base.html: analytics-group, recent-transactions-card, mobile-menu-dropdown, etc.
 
-    // Welcome Toast Notification (shown once on first visit)
-    (function() {
-        try {
-            const hasSeenWelcome = localStorage.getItem('welcomeNotificationShown') === 'true';
-
-            if (!hasSeenWelcome) {
-                console.log('[WELCOME_TOAST] First visit detected - showing welcome notification');
-
-                // Show welcome toast with extended duration (5 seconds)
-                const userName = '{{ user.first_name or user.username }}';
-                const welcomeMessage = `👋 Добро пожаловать, ${userName}! Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.`;
-
-                showToast(welcomeMessage, 'success', 5000);
-
-                // Mark as shown to prevent future displays
-                localStorage.setItem('welcomeNotificationShown', 'true');
-                console.log('[WELCOME_TOAST] Notification shown and marked in localStorage');
-            } else {
-                console.log('[WELCOME_TOAST] Welcome notification already shown previously - skipping');
-            }
-        } catch (e) {
-            console.error('[WELCOME_TOAST] Error showing welcome notification:', e);
-            // If localStorage unavailable, still try to show toast (graceful fallback)
-            try {
-                const userName = '{{ user.first_name or user.username }}';
-                const welcomeMessage = `👋 Добро пожаловать, ${userName}!`;
-                showToast(welcomeMessage, 'success', 5000);
-                console.log('[WELCOME_TOAST] Shown without localStorage (fallback mode)');
-            } catch (fallbackError) {
-                console.error('[WELCOME_TOAST] Fallback also failed:', fallbackError);
-            }
-        }
-    })();
 
     // Preload categories for offline use (both expense and income)
     // This ensures categories are cached before user goes offline

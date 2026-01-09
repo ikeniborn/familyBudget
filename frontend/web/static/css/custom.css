@@ -373,7 +373,7 @@ html.offline-mode .save-btn:hover {
 /* Mobile: reduced top padding for more content visibility */
 @media (max-width: 1023px) {
     #main-content {
-        padding-top: 1rem; /* Reduced from 2rem */
+        padding-top: 1.5rem; /* Balanced: saves 8px while keeping comfortable spacing */
         padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom) + 64px);
     }
 }
@@ -475,7 +475,7 @@ html.offline-mode .save-btn:hover {
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 0.25rem; /* Reduced from 0.5rem for better space usage */
+    padding: 0.125rem 0.25rem; /* Reduced vertical padding for iOS space optimization */
     max-width: 600px;
     margin: 0 auto;
 }
@@ -486,18 +486,33 @@ html.offline-mode .save-btn:hover {
     flex-direction: column;
     align-items: center;
     gap: 0.125rem; /* Reduced from 0.25rem for tighter layout */
-    padding: 0.375rem 0.5rem; /* Reduced from 0.5rem 0.75rem for better space usage */
+    padding: 0.25rem 0.5rem; /* Reduced vertical padding for iOS space optimization */
     border-radius: 0.75rem;
     transition: all 0.2s ease;
     cursor: pointer;
     color: oklch(var(--bc) / 0.6);
     background: transparent;
     border: none;
+
+    /* iOS tap highlight and outline removal */
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+    outline: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .icon-btn:hover {
     background: oklch(var(--b2));
     color: oklch(var(--p));
+}
+
+.icon-btn:focus,
+.icon-btn:active {
+    outline: none !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
 .icon-btn.active {
@@ -539,6 +554,26 @@ html.offline-mode .save-btn:hover {
 /* Dropdown menu above toolbar (mobile) */
 .mobile-nav-wrapper .dropdown-content {
     z-index: 60;
+}
+
+/* Remove iOS tap highlights and outlines from dropdown items */
+.dropdown-content a,
+.dropdown-content button {
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+    outline: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.dropdown-content a:focus,
+.dropdown-content a:active,
+.dropdown-content button:focus,
+.dropdown-content button:active {
+    outline: none !important;
+    outline: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
 /* Center dropdowns above buttons to prevent overflow on narrow screens (mobile) */
