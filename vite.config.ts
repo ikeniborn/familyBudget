@@ -18,7 +18,8 @@ function postBuildCopy() {
         { src: 'dist/bundle.js', dest: 'frontend/web/static/js/dist/bundle.js' },
         { src: 'dist/webapp.js', dest: 'frontend/webapp/static/js/dist/webapp.bundle.js' },
         { src: 'dist/components.js', dest: 'frontend/web/static/js/dist/components.bundle.js' },
-        { src: 'dist/sw.js', dest: 'sw.min.js' }
+        { src: 'dist/sw.js', dest: 'sw.min.js' },
+        { src: 'dist/lists.js', dest: 'frontend/web/static/js/lists.min.js' }
       ];
 
       files.forEach(({ src, dest }) => {
@@ -43,7 +44,7 @@ export default defineConfig({
     target: 'es2020',
 
     rollupOptions: {
-      // 5 entry points
+      // 5 entry points (NOTE: Not used in build process - build-all.js uses vite.config.single.ts)
       input: {
         budgetShared: resolve(__dirname, 'frontend/shared/static/js/budgetShared.ts'),
         bundle: resolve(__dirname, 'frontend/web/static/js/index.ts'),
@@ -75,6 +76,7 @@ export default defineConfig({
     swCacheVersionPlugin(),
 
     // Post-build file copying (dist/ → final locations)
+    // NOTE: Not used - build-all.js uses vite.config.single.ts instead
     postBuildCopy(),
 
     // Gzip compression
