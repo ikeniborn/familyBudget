@@ -59,6 +59,120 @@ const builds = [
     globalName: 'Reminders'
   },
 
+  // === Legacy Web modules (offline, utils, budget, workers) ===
+  // Offline
+  {
+    name: 'idb',
+    input: 'frontend/web/static/js/offline/idb.js',
+    output: 'frontend/web/static/js/offline/idb.min.js',
+    globalName: 'IDB'
+  },
+  {
+    name: 'networkDetector',
+    input: 'frontend/web/static/js/offline/networkDetector.js',
+    output: 'frontend/web/static/js/offline/networkDetector.min.js',
+    globalName: 'NetworkDetector'
+  },
+  {
+    name: 'offlineManager',
+    input: 'frontend/web/static/js/offline/offlineManager.js',
+    output: 'frontend/web/static/js/offline/offlineManager.min.js',
+    globalName: 'OfflineManager'
+  },
+  {
+    name: 'conflictResolver',
+    input: 'frontend/web/static/js/offline/conflictResolver.js',
+    output: 'frontend/web/static/js/offline/conflictResolver.min.js',
+    globalName: 'ConflictResolver'
+  },
+  {
+    name: 'offlineShoppingManager',
+    input: 'frontend/web/static/js/offline/offlineShoppingManager.js',
+    output: 'frontend/web/static/js/offline/offlineShoppingManager.min.js',
+    globalName: 'OfflineShoppingManager'
+  },
+  {
+    name: 'pushManager',
+    input: 'frontend/web/static/js/offline/pushManager.js',
+    output: 'frontend/web/static/js/offline/pushManager.min.js',
+    globalName: 'PushManager'
+  },
+  // Utils
+  {
+    name: 'logger',
+    input: 'frontend/web/static/js/utils/logger.js',
+    output: 'frontend/web/static/js/utils/logger.min.js',
+    globalName: 'Logger'
+  },
+  {
+    name: 'modalKeyboardAdapter',
+    input: 'frontend/web/static/js/utils/modalKeyboardAdapter.js',
+    output: 'frontend/web/static/js/utils/modalKeyboardAdapter.min.js',
+    globalName: 'ModalKeyboardAdapter'
+  },
+  {
+    name: 'cacheMetricsCollector',
+    input: 'frontend/web/static/js/utils/cacheMetricsCollector.js',
+    output: 'frontend/web/static/js/utils/cacheMetricsCollector.min.js',
+    globalName: 'CacheMetricsCollector'
+  },
+  {
+    name: 'logsCollector',
+    input: 'frontend/web/static/js/utils/logsCollector.js',
+    output: 'frontend/web/static/js/utils/logsCollector.min.js',
+    globalName: 'LogsCollector'
+  },
+  {
+    name: 'performanceMonitor',
+    input: 'frontend/web/static/js/utils/performanceMonitor.js',
+    output: 'frontend/web/static/js/utils/performanceMonitor.min.js',
+    globalName: 'PerformanceMonitor'
+  },
+  // Budget
+  {
+    name: 'budgetWSClient',
+    input: 'frontend/web/static/js/budget/budgetWSClient.js',
+    output: 'frontend/web/static/js/budget/budgetWSClient.min.js',
+    globalName: 'BudgetWSClient'
+  },
+  {
+    name: 'incrementalUpdates',
+    input: 'frontend/web/static/js/budget/incrementalUpdates.js',
+    output: 'frontend/web/static/js/budget/incrementalUpdates.min.js',
+    globalName: 'IncrementalUpdates'
+  },
+  // Workers
+  {
+    name: 'csvWorker',
+    input: 'frontend/web/static/js/workers/csvWorker.js',
+    output: 'frontend/web/static/js/workers/csvWorker.min.js',
+    globalName: 'CSVWorker'
+  },
+  {
+    name: 'hierarchyWorker',
+    input: 'frontend/web/static/js/workers/hierarchyWorker.js',
+    output: 'frontend/web/static/js/workers/hierarchyWorker.min.js',
+    globalName: 'HierarchyWorker'
+  },
+  {
+    name: 'pendingRecordsWorker',
+    input: 'frontend/web/static/js/workers/pendingRecordsWorker.js',
+    output: 'frontend/web/static/js/workers/pendingRecordsWorker.min.js',
+    globalName: 'PendingRecordsWorker'
+  },
+  {
+    name: 'syncWorker',
+    input: 'frontend/web/static/js/workers/syncWorker.js',
+    output: 'frontend/web/static/js/workers/syncWorker.min.js',
+    globalName: 'SyncWorker'
+  },
+  {
+    name: 'workerWrapper',
+    input: 'frontend/web/static/js/workers/core/workerWrapper.js',
+    output: 'frontend/web/static/js/workers/core/workerWrapper.min.js',
+    globalName: 'WorkerWrapper'
+  },
+
   // === Application bundles ===
   {
     name: 'bundle',
