@@ -355,7 +355,19 @@ templates.env.globals["config"] = get_settings()
 # Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates
 @app.api_route("/sw.min.js", methods=["GET", "HEAD"], include_in_schema=False)
 async def service_worker():
-    """Serve minified Service Worker for PWA"""
+    """
+    Serve minified Service Worker for PWA (v6.8.0+)
+
+    CRITICAL: Service Worker must NEVER be cached by browser
+    - Cache-Control: no-cache forces revalidation on every request
+    - ETag: enables browser to detect file changes (304 Not Modified)
+    - Service Worker update detection depends on file content changes
+
+    Architecture: nginx proxies /sw.min.js to this backend endpoint
+    - No static file serving in nginx (avoids Docker bind mount inode issues)
+    - Backend reads directly from /app/sw.min.js volume mount
+    - Auto-updates after deployment without container restart
+    """
     from fastapi.responses import FileResponse
     from pathlib import Path
 
@@ -367,9 +379,13 @@ async def service_worker():
         str(sw_path),
         media_type="application/javascript; charset=utf-8",
         headers={
-            "Cache-Control": "public, max-age=0, must-revalidate",
-            "Service-Worker-Allowed": "/"
+            # CRITICAL: Never cache Service Worker
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",  # HTTP/1.0 compatibility
+            "Service-Worker-Allowed": "/",
+            "Access-Control-Allow-Origin": "*"
         }
+        # ETag automatically added by FileResponse based on file mtime
     )
 
 @app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)

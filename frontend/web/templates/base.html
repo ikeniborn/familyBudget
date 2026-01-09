@@ -298,6 +298,35 @@
             }
         }
 
+        /* Navbar Sync Badge Styling */
+        #navbar-sync-badge-wrapper {
+            transition: opacity 0.3s, visibility 0s 0.3s;
+        }
+
+        #navbar-sync-badge-wrapper.hidden {
+            opacity: 0;
+            visibility: hidden;        /* Required for iOS Safari */
+            pointer-events: none;
+        }
+
+        /* Number inside cloud - responsive sizing */
+        #navbar-sync-count {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 700;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        /* Pulsing animation for pending items */
+        @keyframes navbar-sync-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        #navbar-sync-badge-wrapper:not(.hidden) svg {
+            animation: navbar-sync-pulse 2s ease-in-out infinite;
+        }
+
         /* Navigation Transition Overlay - скрывает DOM cleanup при переходе */
         .navigation-overlay {
             position: fixed;
@@ -429,6 +458,41 @@
         @supports (-webkit-overflow-scrolling: touch) {
             * {
                 -webkit-overflow-scrolling: touch;
+            }
+        }
+
+        /* ========================================
+           Pending Sync Badge Animations
+           ======================================== */
+
+        /* Spinning animation when sync in progress */
+        @keyframes spin-sync {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .syncing #navbar-sync-icon {
+            animation: spin-sync 1.5s linear infinite;
+        }
+
+        /* Pulse animation when new items added */
+        @keyframes pulse-pending {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.8; }
+        }
+
+        #navbar-sync-badge-wrapper.pulse-pending #navbar-sync-count {
+            animation: pulse-pending 0.5s ease-in-out;
+        }
+
+        /* Badge responsive sizing (DaisyUI badge-xs / badge-sm handles size) */
+        #navbar-sync-count {
+            min-width: 1.25rem; /* 20px on mobile */
+        }
+
+        @media (min-width: 640px) {
+            #navbar-sync-count {
+                min-width: 1.5rem; /* 24px on desktop */
             }
         }
 
@@ -675,7 +739,7 @@
 
     <!-- DaisyUI Navbar -->
     <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner"
-            style="padding-top: calc(0.5rem + var(--safe-area-inset-top));
+            style="padding-top: var(--safe-area-inset-top);
                    padding-left: var(--safe-area-inset-left);
                    padding-right: var(--safe-area-inset-right);">
         <div class="navbar-start">
@@ -739,6 +803,35 @@
                 </div>
             </div>
 
+            <!-- Pending Sync Badge (shown when offline items exist) -->
+            <div id="navbar-sync-badge-wrapper" class="tooltip tooltip-bottom hidden" data-tip="Ожидают синхронизации">
+                <button id="navbar-sync-btn"
+                        class="btn btn-ghost btn-circle btn-sm sm:btn-md relative"
+                        disabled
+                        aria-label="Ожидают синхронизации">
+                    <!-- Cloud with upload arrow icon -->
+                    <svg id="navbar-sync-icon"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="2">
+                        <!-- Cloud shape -->
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        <!-- Upload arrow (inside cloud) -->
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M12 17v-6m0 0l-2 2m2-2l2 2" />
+                    </svg>
+                    <!-- Badge count (top-right corner) -->
+                    <span id="navbar-sync-count"
+                          class="absolute -top-1 -right-1 badge badge-warning badge-xs sm:badge-sm px-1 min-w-[1.25rem]">
+                        0
+                    </span>
+                </button>
+            </div>
+
             <!-- Push Bell Button (visual indicator with navigation to settings) -->
             <div id="push-bell-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center">
                 <button id="push-bell-btn"
@@ -799,6 +892,41 @@
                     <span class="text-warning font-semibold text-sm sm:text-base">new</span>
                 </button>
             </div>
+
+            <!-- Service Worker Update Confirmation Modal -->
+            <dialog id="sw-update-modal" class="modal">
+                <div class="modal-box max-w-md">
+                    <h3 class="font-bold text-lg mb-4">🔄 Доступно обновление</h3>
+                    <p class="mb-2">Доступна новая версия приложения.</p>
+                    <div id="sw-version-info" class="mb-3 p-3 bg-base-200 rounded-lg">
+                        <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                            <span class="opacity-70 whitespace-nowrap">Версия:</span>
+                            <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono break-all">(неизвестно)</span>
+                            <span class="opacity-70">→</span>
+                            <span id="sw-new-version" class="badge badge-warning badge-sm font-mono break-all">(неизвестно)</span>
+                        </div>
+                    </div>
+                    <p class="mb-6 text-sm opacity-70">
+                        Для применения обновления необходимо перезагрузить страницу.
+                        Несохранённые данные будут потеряны.
+                    </p>
+                    <div class="modal-action">
+                        <button type="button"
+                                id="sw-update-later-btn"
+                                class="btn btn-ghost">
+                            Позже
+                        </button>
+                        <button type="button"
+                                id="sw-update-now-btn"
+                                class="btn btn-primary">
+                            Обновить сейчас
+                        </button>
+                    </div>
+                </div>
+                <form method="dialog" class="modal-backdrop">
+                    <button id="sw-update-backdrop-btn">close</button>
+                </form>
+            </dialog>
 
             <!-- Theme Toggle -->
             <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
@@ -1001,19 +1129,6 @@
         <div class="loading-indicator">
             <span class="loading loading-spinner loading-lg text-primary"></span>
             <span class="text-base-content/70">Загрузка...</span>
-        </div>
-    </div>
-
-    <!-- Pending Sync Badge -->
-    <div id="pending-sync-badge" class="fixed z-50 hidden"
-         style="top: calc(4rem + var(--safe-area-inset-top));
-                left: calc(1rem + var(--safe-area-inset-left));">
-        <div class="badge badge-error gap-2 p-3 shadow-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span id="pending-count">0</span> ожидает синхронизации
         </div>
     </div>
 
@@ -1628,31 +1743,172 @@
 
             /**
              * Handle user clicking the update indicator
-             * Saves new version and reloads the page to apply update
+             * Shows confirmation modal instead of immediate reload
              */
             function handleUpdateClick() {
-                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update');
+                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator');
 
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] Updating to version:', newVersion);
+                console.log('[SW_UPDATE] Available version:', newVersion || '(unknown)');
 
-                if (!newVersion) {
-                    console.error('[SW_UPDATE] ERROR: No new version stored, reloading anyway');
+                // Show confirmation modal
+                const modal = document.getElementById('sw-update-modal');
+                if (!modal) {
+                    console.error('[SW_UPDATE] ERROR: Update modal not found in DOM');
+                    console.log('[SW_UPDATE] Falling back to immediate reload');
+                    handleUpdateNow(); // Fallback
+                    return;
                 }
 
-                // Update saved version before reload
-                if (newVersion) {
-                    localStorage.setItem(SW_VERSION_KEY, newVersion);
-                    console.log('[SW_UPDATE] ✓ Saved new version to localStorage:', newVersion);
+                // Populate version information before showing modal
+                const currentVersion = localStorage.getItem(SW_VERSION_KEY);
+                populateVersionInfo(currentVersion, newVersion);
+
+                console.log('[SW_UPDATE] Opening confirmation modal');
+                modal.showModal();
+            }
+
+            /**
+             * Handle "Reload now" action
+             * Unregisters Service Worker, clears all caches, then reloads
+             */
+            async function handleUpdateNow() {
+                console.log('[SW_UPDATE] 🔄 User confirmed update - starting cleanup process');
+
+                const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+                console.log('[SW_UPDATE] Updating to version:', newVersion || '(unknown)');
+
+                try {
+                    // Step 1: Unregister Service Worker
+                    console.log('[SW_UPDATE] Step 1/3: Unregistering Service Worker...');
+                    const registration = await navigator.serviceWorker.getRegistration();
+
+                    if (registration) {
+                        const unregistered = await registration.unregister();
+                        if (unregistered) {
+                            console.log('[SW_UPDATE] ✅ Service Worker unregistered successfully');
+                        } else {
+                            console.warn('[SW_UPDATE] ⚠️ Service Worker unregister returned false');
+                        }
+                    } else {
+                        console.warn('[SW_UPDATE] ⚠️ No Service Worker registration found');
+                    }
+
+                    // Step 2: Clear all caches
+                    console.log('[SW_UPDATE] Step 2/3: Clearing all caches...');
+                    const cacheNames = await caches.keys();
+                    console.log('[SW_UPDATE] Found caches:', cacheNames);
+
+                    if (cacheNames.length > 0) {
+                        const deleteResults = await Promise.all(
+                            cacheNames.map(async (cacheName) => {
+                                const deleted = await caches.delete(cacheName);
+                                console.log(`[SW_UPDATE] Cache "${cacheName}": ${deleted ? '✅ deleted' : '⚠️ failed'}`);
+                                return deleted;
+                            })
+                        );
+
+                        const deletedCount = deleteResults.filter(Boolean).length;
+                        console.log(`[SW_UPDATE] ✅ Cleared ${deletedCount}/${cacheNames.length} caches`);
+                    } else {
+                        console.log('[SW_UPDATE] No caches to clear');
+                    }
+
+                    // Step 3: Update localStorage and reload
+                    console.log('[SW_UPDATE] Step 3/3: Updating version and reloading...');
+
+                    if (newVersion) {
+                        localStorage.setItem(SW_VERSION_KEY, newVersion);
+                        console.log('[SW_UPDATE] ✅ Saved new version to localStorage:', newVersion);
+                    } else {
+                        console.warn('[SW_UPDATE] ⚠️ No new version available, clearing old version');
+                    }
+
+                    // Clean up update flags
+                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                    localStorage.removeItem(SW_NEW_VERSION_KEY);
+                    console.log('[SW_UPDATE] ✅ Cleaned up update flags from localStorage');
+
+                    // Close modal before reload
+                    const modal = document.getElementById('sw-update-modal');
+                    if (modal) {
+                        modal.close();
+                        console.log('[SW_UPDATE] ✅ Modal closed');
+                    }
+
+                    console.log('[SW_UPDATE] ⟳ Initiating page reload...');
+                    window.location.reload(true); // Hard reload (bypass cache)
+
+                } catch (error) {
+                    console.error('[SW_UPDATE] ❌ ERROR during update process:', error);
+                    console.error('[SW_UPDATE] Error details:', {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    });
+
+                    // Attempt reload anyway (best effort)
+                    console.log('[SW_UPDATE] Attempting reload despite error...');
+                    window.location.reload(true);
+                }
+            }
+
+            /**
+             * Handle "Later" action
+             * Closes modal and keeps update indicator visible
+             */
+            function handleUpdateLater() {
+                console.log('[SW_UPDATE] ⏸️ User chose "Later" - closing modal');
+
+                const modal = document.getElementById('sw-update-modal');
+                if (modal) {
+                    modal.close();
+                    console.log('[SW_UPDATE] ✅ Modal closed');
                 }
 
-                // Clean up update flags
-                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
-                localStorage.removeItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] ✓ Cleaned up update flags from localStorage');
+                console.log('[SW_UPDATE] Update indicator remains visible for future action');
+                console.log('[SW_UPDATE] User can click "new" indicator again to retry');
+            }
 
-                console.log('[SW_UPDATE] ⟳ Initiating page reload to apply new version...');
-                window.location.reload();
+            /**
+             * Populate version information in the update modal
+             * Displays current and new Service Worker versions with fallback handling
+             * @param {string|null} currentVersion - Current installed version from localStorage
+             * @param {string|null} newVersion - New available version from localStorage
+             */
+            function populateVersionInfo(currentVersion, newVersion) {
+                console.log('[SW_UPDATE] Populating version info in modal...');
+
+                const currentElem = document.getElementById('sw-current-version');
+                const newElem = document.getElementById('sw-new-version');
+
+                // Defensive check: Ensure DOM elements exist
+                if (!currentElem || !newElem) {
+                    console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
+                    console.warn('[SW_UPDATE] Modal will show without version information');
+                    return;
+                }
+
+                // Display current version with fallback
+                const currentText = currentVersion || '(неизвестно)';
+                currentElem.textContent = currentText;
+                console.log('[SW_UPDATE] Modal - Current version displayed:', currentText);
+
+                // Display new version with fallback
+                const newText = newVersion || '(неизвестно)';
+                newElem.textContent = newText;
+                console.log('[SW_UPDATE] Modal - New version displayed:', newText);
+
+                // Log version transition for debugging
+                if (currentVersion && newVersion) {
+                    console.log(`[SW_UPDATE] ✅ Version transition ready: ${currentVersion} → ${newVersion}`);
+                } else if (!currentVersion && newVersion) {
+                    console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
+                } else if (currentVersion && !newVersion) {
+                    console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
+                } else {
+                    console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
+                }
             }
 
             /**
@@ -1667,6 +1923,54 @@
                     showUpdateIcon();
                 }
             }
+
+            // Expose functions to global scope for onclick handlers
+            window.handleUpdateClick = handleUpdateClick;
+            window.handleUpdateNow = handleUpdateNow;
+            window.handleUpdateLater = handleUpdateLater;
+
+            // Initialize modal button listeners on DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('[SW_UPDATE] Initializing modal button listeners');
+
+                const updateNowBtn = document.getElementById('sw-update-now-btn');
+                const updateLaterBtn = document.getElementById('sw-update-later-btn');
+                const backdropBtn = document.getElementById('sw-update-backdrop-btn');
+
+                if (updateNowBtn) {
+                    updateNowBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ "Обновить сейчас" button clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateNow();
+                    });
+                    console.log('[SW_UPDATE] ✅ "Обновить сейчас" listener attached');
+                } else {
+                    console.error('[SW_UPDATE] ❌ "Обновить сейчас" button not found in DOM!');
+                }
+
+                if (updateLaterBtn) {
+                    updateLaterBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ "Позже" button clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateLater();
+                    });
+                    console.log('[SW_UPDATE] ✅ "Позже" listener attached');
+                } else {
+                    console.error('[SW_UPDATE] ❌ "Позже" button not found in DOM!');
+                }
+
+                if (backdropBtn) {
+                    backdropBtn.addEventListener('click', (e) => {
+                        console.log('[SW_UPDATE] 🖱️ Modal backdrop clicked');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleUpdateLater();
+                    });
+                    console.log('[SW_UPDATE] ✅ Backdrop listener attached');
+                }
+            });
 
             /**
              * Получить CACHE_VERSION из Service Worker через MessageChannel
@@ -1850,6 +2154,56 @@
             }
         }
 
+        // ============================================================================
+        // Navbar Sync Badge Management
+        // ============================================================================
+
+        /**
+         * Update navbar sync badge count
+         * Called from loadPendingRecords() and periodic updates
+         * @param {number} count - Number of pending items
+         */
+        function updateNavbarSyncBadge(count) {
+            const wrapper = document.getElementById('navbar-sync-badge-wrapper');
+            const countEl = document.getElementById('navbar-sync-count');
+
+            if (!wrapper || !countEl) {
+                console.warn('[SYNC] Navbar sync badge elements not found');
+                return;
+            }
+
+            console.log('[SYNC] Updating navbar badge:', count);
+
+            if (count > 0) {
+                wrapper.classList.remove('hidden');
+                countEl.textContent = count;
+                wrapper.setAttribute('data-tip', `${count} ${count === 1 ? 'запись ожидает' : 'записей ожидают'} синхронизации`);
+                console.log('[SYNC] Navbar badge shown:', count);
+            } else {
+                wrapper.classList.add('hidden');
+                countEl.textContent = '0';
+                console.log('[SYNC] Navbar badge hidden');
+            }
+        }
+
+        /**
+         * Periodic sync badge update (every 5 seconds)
+         * Keeps navbar badge in sync with pending records
+         */
+        async function periodicSyncBadgeUpdate() {
+            if (!window.offlineManager) return;
+
+            try {
+                const { items } = await window.offlineManager.getAllUnsyncedItems();
+                updateNavbarSyncBadge(items.length);
+            } catch (error) {
+                // Ignore transient errors during navigation
+                if (error.name !== 'InvalidStateError' && window.DEBUG_MODE) {
+                    console.warn('[SYNC] Periodic update error:', error);
+                }
+            }
+        }
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {
             // Helper to log to budgetWSClient history (visible in diagnostic tap)
@@ -1898,6 +2252,11 @@
 
                 // Update UI
                 updateOfflineUI();
+
+                // Start periodic navbar sync badge updates
+                setTimeout(periodicSyncBadgeUpdate, 1000);  // Initial update after 1s
+                setInterval(periodicSyncBadgeUpdate, 5000); // Update every 5s
+                console.log('[SYNC] Periodic navbar badge updates started');
 
                 // Precache offline pages для работы в offline режиме
                 // Страницы из OFFLINE_PAGES в sw.js, кроме / (уже в STATIC_CACHE)
@@ -1959,11 +2318,13 @@
 
         // Listen for SmartNetworkDetector status changes (backend availability)
         // This catches cases where navigator.onLine is true but backend is unreachable
-        window.addEventListener('offline-status-change', (event) => {
+        window.addEventListener('offline-status-change', async (event) => {
             const { online, status } = event.detail || {};
             debugLog('[Offline] SmartNetworkDetector status change:', status, 'online:', online);
             // Update UI based on actual backend availability
             updateOfflineUI();
+            // Update navbar sync badge
+            await periodicSyncBadgeUpdate();
         });
 
         // Also listen for network-status-change (from SmartNetworkDetector directly)
@@ -1985,27 +2346,9 @@
 
             // Update UI based on actual backend availability
             updateOfflineUI();
+            // Update navbar sync badge
+            await periodicSyncBadgeUpdate();
         });
-
-        // Update pending count
-        async function updatePendingCount() {
-            if (!window.offlineManager) return;
-
-            try {
-                const count = await window.offlineManager.getPendingCount();
-                const badge = document.getElementById('pending-sync-badge');
-                const countEl = document.getElementById('pending-count');
-
-                if (count > 0) {
-                    if (badge) badge.classList.remove('hidden');
-                    if (countEl) countEl.textContent = count;
-                } else {
-                    if (badge) badge.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error('[Offline] Error updating pending count:', error);
-            }
-        }
 
         // Update offline UI
         // Considers both navigator.onLine AND SmartNetworkDetector status
@@ -2044,24 +2387,16 @@
             allOfflineHiddenItems.forEach(item => {
                 item.style.display = isOnline ? '' : 'none';
             });
-
-            // Update pending count
-            updatePendingCount();
         }
-
-        // Poll pending count every 5 seconds
-        setInterval(updatePendingCount, 5000);
 
         // Listen for sync events from Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.addEventListener('message', (event) => {
                 if (event.data && event.data.type === 'sync-completed') {
                     debugLog('[Offline] Sync completed:', event.data);
-                    updatePendingCount();
                     showToast(`Синхронизировано записей: ${event.data.count}`, 'success');
                 } else if (event.data && event.data.type === 'sync-failed') {
                     debugLog('[Offline] Sync failed:', event.data);
-                    updatePendingCount();
                     showToast(`Ошибка синхронизации: ${event.data.count} записей`, 'error');
                 }
             });
@@ -2444,6 +2779,55 @@
 
             logPushBanner.info('✅ Push banner initialization complete');
         })();
+
+        /**
+         * Update pending sync badge in navbar
+         * Called by offlineManager and loadPendingRecords
+         *
+         * @param {number} count - Number of pending items
+         * @param {boolean} isSyncing - Whether sync is in progress
+         */
+        function updatePendingSyncBadge(count, isSyncing = false) {
+            const wrapper = document.getElementById('navbar-sync-badge-wrapper');
+            const badge = document.getElementById('navbar-sync-count');
+            const btn = document.getElementById('navbar-sync-btn');
+
+            if (!wrapper || !badge || !btn) {
+                console.warn('[NAV_SYNC] Badge elements not found');
+                return;
+            }
+
+            console.log(`[NAV_SYNC] Updating badge: count=${count}, syncing=${isSyncing}`);
+
+            // Update count
+            badge.textContent = count;
+
+            // Show/hide wrapper
+            if (count > 0) {
+                wrapper.classList.remove('hidden');
+
+                // Pulse animation on count change (if not syncing)
+                if (!isSyncing) {
+                    wrapper.classList.add('pulse-pending');
+                    setTimeout(() => wrapper.classList.remove('pulse-pending'), 500);
+                }
+            } else {
+                wrapper.classList.add('hidden');
+            }
+
+            // Syncing animation
+            if (isSyncing) {
+                btn.classList.add('syncing');
+            } else {
+                btn.classList.remove('syncing');
+            }
+
+            // Update tooltip
+            const tooltip = count === 1
+                ? 'Ожидает синхронизации (1 запись)'
+                : `Ожидают синхронизации (${count} записей)`;
+            wrapper.setAttribute('data-tip', tooltip);
+        }
     </script>
     {% endif %}
 

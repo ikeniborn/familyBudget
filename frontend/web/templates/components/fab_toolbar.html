@@ -1,6 +1,9 @@
-<!-- Fixed Bottom Navigation (Compact Icons) -->
-<nav id="fab-toolbar" class="bottom-nav">
-    <div class="nav-container">
+<!-- Adaptive FAB Navigation: Mobile = Bottom nav | Desktop = Floating button -->
+<nav id="fab-toolbar" class="fab-container">
+
+    <!-- Mobile/Tablet Navigation (< 1024px) -->
+    <div class="mobile-nav-wrapper">
+        <div class="nav-container">
 
         <!-- Button 1: Главная -->
         <a href="/"
@@ -118,7 +121,88 @@
             <span class="icon-label">Списки</span>
         </a>
 
-    </div>
+        </div> <!-- .nav-container -->
+    </div> <!-- .mobile-nav-wrapper -->
+
+    <!-- Desktop FAB (≥ 1024px) -->
+    <div class="desktop-fab-wrapper closed">
+        <div class="flex flex-col-reverse items-end gap-3">
+            <!-- Main FAB button -->
+            <button onclick="window.toggleDesktopFAB()"
+                    class="fab-button"
+                    id="desktop-fab-btn"
+                    aria-label="Быстрое добавление. Открыть меню для создания транзакций и планов"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    title="Добавить запись">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                </svg>
+            </button>
+
+            <!-- Speed Dial menu items (appear above button) -->
+
+            <!-- 4. Перевод (план) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Перевод (план)</span>
+                <button onclick="openPlanTransferModal();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Перевод (план)"
+                        aria-label="Перевод (план)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 3. Расход/Доход (план) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Расход/Доход (план)</span>
+                <button onclick="openAddPlanModal();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Расход/Доход (план)"
+                        aria-label="Расход/Доход (план)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 2. Перевод (факт) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Перевод (факт)</span>
+                <button onclick="openFactTransferModal();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Перевод (факт)"
+                        aria-label="Перевод (факт)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 1. Расход/Доход (факт) -->
+            <div class="fab-menu-item flex items-center gap-2">
+                <span class="badge badge-neutral shadow">Расход/Доход (факт)</span>
+                <button onclick="openAddTransactionModal();"
+                        class="btn btn-primary btn-circle shadow-lg"
+                        title="Расход/Доход (факт)"
+                        aria-label="Расход/Доход (факт)">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </button>
+            </div>
+
+        </div>
+    </div> <!-- .desktop-fab-wrapper -->
+
+    <!-- Desktop FAB backdrop -->
+    <div id="desktop-fab-backdrop"
+         class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden"
+         style="z-index: 999;"
+         onclick="window.toggleDesktopFAB()"></div>
+
 </nav>
 
 <script>
@@ -129,23 +213,269 @@
         return;
     }
 
+    // Detect display mode (mobile vs desktop)
+    const isDesktop = window.innerWidth >= 1024;
+    const mode = isDesktop ? 'desktop-fab' : 'mobile-nav';
+
+    // Desktop FAB: show only on specific pages
+    const allowedPages = ['/', '/facts', '/plan'];
+    const currentPage = window.location.pathname;
+    const isPageAllowed = allowedPages.includes(currentPage);
+
+    if (isDesktop && !isPageAllowed) {
+        // Hide desktop FAB on pages not in the allowed list
+        const desktopWrapper = fabToolbar.querySelector('.desktop-fab-wrapper');
+        const desktopBackdrop = document.getElementById('desktop-fab-backdrop');
+
+        if (desktopWrapper) desktopWrapper.style.display = 'none';
+        if (desktopBackdrop) desktopBackdrop.style.display = 'none';
+
+        console.log('[FAB_TOOLBAR] Desktop FAB hidden:', {
+            page: currentPage,
+            reason: 'Page not in allowed list',
+            allowedPages: allowedPages
+        });
+    }
+
     console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
         page: window.location.pathname,
-        buttonsCount: fabToolbar.querySelectorAll('.icon-btn, .dropdown').length,
+        mode: mode,
+        deviceType: isDesktop ? 'desktop' : (window.innerWidth >= 768 ? 'tablet' : 'mobile'),
+        buttonsCount: isDesktop
+            ? 1  // Desktop: only FAB button
+            : fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown').length,
+        fabSize: isDesktop
+            ? (window.innerWidth >= 1280 ? '64px' : '56px')
+            : 'N/A',
         offlineMode: document.documentElement.classList.contains('offline-mode'),
-        style: 'dropdown-enhanced',
-        position: 'fixed bottom',
+        style: isDesktop ? 'speed-dial-fab' : 'dropdown-enhanced',
+        position: isDesktop ? 'fixed bottom-right' : 'fixed bottom',
         safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
         zIndex: getComputedStyle(fabToolbar).zIndex,
-        userAuthenticated: true
+        userAuthenticated: true,
+        desktopFabVisible: isDesktop ? isPageAllowed : 'N/A'
     });
 
-    // Offline mode: hide buttons with data-online-only
+    // Resize listener: Automatically switch between mobile nav and desktop FAB
+    let resizeTimeout;
+    const BREAKPOINT = 1024;
+    let currentMode = mode;  // Track current mode
+
+    window.addEventListener('resize', function() {
+        // Debounce: wait 200ms after last resize event
+        clearTimeout(resizeTimeout);
+
+        resizeTimeout = setTimeout(function() {
+            const newIsDesktop = window.innerWidth >= BREAKPOINT;
+            const newMode = newIsDesktop ? 'desktop-fab' : 'mobile-nav';
+
+            // Only update if mode actually changed (crossing breakpoint)
+            if (newMode !== currentMode) {
+                console.log('[FAB_TOOLBAR] Breakpoint crossed:', {
+                    from: currentMode,
+                    to: newMode,
+                    windowWidth: window.innerWidth,
+                    breakpoint: BREAKPOINT
+                });
+
+                currentMode = newMode;
+
+                // Force CSS re-evaluation by toggling visibility
+                const mobileWrapper = fabToolbar.querySelector('.mobile-nav-wrapper');
+                const desktopWrapper = fabToolbar.querySelector('.desktop-fab-wrapper');
+                const desktopBackdrop = document.getElementById('desktop-fab-backdrop');
+
+                if (newIsDesktop) {
+                    // Switch to desktop mode
+                    const currentPage = window.location.pathname;
+                    const isPageAllowed = allowedPages.includes(currentPage);
+
+                    // Hide mobile nav
+                    if (mobileWrapper) {
+                        mobileWrapper.style.display = 'none';
+                        mobileWrapper.style.visibility = 'hidden';
+                    }
+
+                    // Show desktop FAB (only on allowed pages)
+                    if (desktopWrapper && isPageAllowed) {
+                        desktopWrapper.style.display = 'block';
+                        desktopWrapper.style.visibility = 'visible';
+                        desktopWrapper.classList.remove('open');
+                        desktopWrapper.classList.add('closed');
+                    } else if (desktopWrapper) {
+                        desktopWrapper.style.display = 'none';
+                        desktopWrapper.style.visibility = 'hidden';
+                    }
+
+                    // Hide backdrop
+                    if (desktopBackdrop) {
+                        desktopBackdrop.classList.add('hidden');
+                        desktopBackdrop.classList.remove('opacity-100');
+                        desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                    }
+
+                    console.log('[FAB_TOOLBAR] Switched to desktop mode:', {
+                        desktopFabVisible: isPageAllowed,
+                        page: currentPage
+                    });
+                } else {
+                    // Switch to mobile mode
+
+                    // Show mobile nav
+                    if (mobileWrapper) {
+                        mobileWrapper.style.display = 'block';
+                        mobileWrapper.style.visibility = 'visible';
+                    }
+
+                    // Hide desktop FAB
+                    if (desktopWrapper) {
+                        desktopWrapper.style.display = 'none';
+                        desktopWrapper.style.visibility = 'hidden';
+                        desktopWrapper.classList.remove('open');
+                        desktopWrapper.classList.add('closed');
+                    }
+
+                    // Hide backdrop
+                    if (desktopBackdrop) {
+                        desktopBackdrop.classList.add('hidden');
+                        desktopBackdrop.classList.remove('opacity-100');
+                        desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
+                    }
+
+                    console.log('[FAB_TOOLBAR] Switched to mobile mode');
+                }
+            }
+        }, 200);  // 200ms debounce delay
+    });
+
+    // Log computed CSS values for debugging
+    const fabToolbarStyles = window.getComputedStyle(fabToolbar);
+    const mainContentStyles = window.getComputedStyle(document.getElementById('main-content'));
+
+    console.log('[FAB_TOOLBAR] CSS Diagnostics:', {
+        fabContainer: {
+            position: fabToolbarStyles.position,
+            bottom: fabToolbarStyles.bottom,
+            left: fabToolbarStyles.left,
+            right: fabToolbarStyles.right,
+            paddingBottom: fabToolbarStyles.paddingBottom,
+            display: fabToolbarStyles.display,
+            zIndex: fabToolbarStyles.zIndex,
+        },
+        mobileNav: {
+            display: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).display,
+            visibility: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).visibility,
+        },
+        desktopFab: {
+            display: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).display,
+            visibility: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).visibility,
+        },
+        mainContent: {
+            paddingBottom: mainContentStyles.paddingBottom,
+        },
+        safeArea: {
+            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top'),
+            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right'),
+            bottom: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
+            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left'),
+        }
+    });
+
+    // Desktop FAB: Speed Dial toggle function
+    window.toggleDesktopFAB = function() {
+        const wrapper = document.querySelector('.desktop-fab-wrapper');
+        const backdrop = document.getElementById('desktop-fab-backdrop');
+        const fabBtn = document.getElementById('desktop-fab-btn');
+
+        if (!wrapper || !backdrop) {
+            console.error('[FAB_TOOLBAR] Desktop FAB elements not found');
+            return;
+        }
+
+        const isOpen = wrapper.classList.contains('open');
+
+        if (isOpen) {
+            // Close FAB
+            wrapper.classList.remove('open');
+            wrapper.classList.add('closed');
+            backdrop.classList.add('hidden');
+            backdrop.classList.remove('opacity-100');
+            backdrop.classList.add('opacity-0', 'pointer-events-none');
+            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
+
+            console.log('[FAB_TOOLBAR] Desktop FAB closed:', {
+                timestamp: new Date().toISOString(),
+                action: 'close-menu'
+            });
+        } else {
+            // Open FAB
+            wrapper.classList.remove('closed');
+            wrapper.classList.add('open');
+            backdrop.classList.remove('hidden');
+            backdrop.classList.remove('opacity-0', 'pointer-events-none');
+            backdrop.classList.add('opacity-100');
+            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
+
+            console.log('[FAB_TOOLBAR] Desktop FAB opened:', {
+                timestamp: new Date().toISOString(),
+                action: 'open-menu',
+                menuItemsCount: wrapper.querySelectorAll('.fab-menu-item').length
+            });
+        }
+    };
+
+    // Desktop FAB: Log menu item clicks
+    const desktopFabWrapper = document.querySelector('.desktop-fab-wrapper');
+    if (desktopFabWrapper) {
+        document.querySelectorAll('.desktop-fab-wrapper .fab-menu-item button').forEach((menuItem, index) => {
+            menuItem.addEventListener('click', (e) => {
+                const actionText = e.currentTarget.getAttribute('aria-label') ||
+                                   e.currentTarget.previousElementSibling?.textContent;
+
+                console.log('[FAB_TOOLBAR] Desktop FAB menu item clicked:', {
+                    index,
+                    action: actionText,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Auto-close FAB after clicking menu item (with slight delay to allow modal to open)
+                setTimeout(() => {
+                    if (desktopFabWrapper.classList.contains('open')) {
+                        window.toggleDesktopFAB();
+                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed after menu item click');
+                    }
+                }, 100);
+            });
+        });
+
+        // Auto-close FAB when any modal opens
+        const modalObserver = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                    const modal = mutation.target;
+                    if (modal.hasAttribute('open') && desktopFabWrapper.classList.contains('open')) {
+                        window.toggleDesktopFAB();
+                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed due to modal opening');
+                    }
+                }
+            });
+        });
+
+        // Observe all modals
+        document.querySelectorAll('dialog.modal').forEach(modal => {
+            modalObserver.observe(modal, { attributes: true });
+        });
+    }
+
+    // Offline mode: hide buttons with data-online-only (mobile only)
     function updateOfflineVisibility() {
         const isOffline = document.documentElement.classList.contains('offline-mode');
-        const onlineOnlyElements = fabToolbar.querySelectorAll('[data-online-only]');
 
-        onlineOnlyElements.forEach(el => {
+        // Only for mobile wrapper
+        const mobileWrapper = fabToolbar.querySelector('.mobile-nav-wrapper');
+        const onlineOnlyElements = mobileWrapper?.querySelectorAll('[data-online-only]');
+
+        onlineOnlyElements?.forEach(el => {
             if (isOffline) {
                 el.style.display = 'none';
                 console.log('[FAB_TOOLBAR] Hidden in offline:', el.getAttribute('aria-label') || el.querySelector('.icon-label')?.textContent);
@@ -156,7 +486,9 @@
 
         console.log('[FAB_TOOLBAR] Offline visibility updated:', {
             isOffline,
-            hiddenCount: isOffline ? onlineOnlyElements.length : 0
+            mode: mode,
+            hiddenCount: isOffline ? (onlineOnlyElements?.length || 0) : 0,
+            affectedMode: 'mobile-only'
         });
     }
 
@@ -226,12 +558,14 @@
             const dropdownMenu = centerFabDropdown.querySelector('.dropdown-content');
             if (dropdownMenu) dropdownMenu.remove();
 
-            console.log('[FAB_TOOLBAR] /lists page: Center FAB adapted for context-aware behavior');
+            console.log('[FAB_TOOLBAR] /lists page: Mobile center FAB adapted for context-aware behavior');
         }
+
+        // Note: Desktop FAB is hidden on /lists page (handled by allowedPages check above)
     }
 
-    // Log button clicks
-    fabToolbar.querySelectorAll('.icon-btn, .dropdown button').forEach((btn, index) => {
+    // Log button clicks (mobile nav only)
+    fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown button').forEach((btn, index) => {
         btn.addEventListener('click', (e) => {
             const buttonLabel = btn.getAttribute('aria-label') || btn.querySelector('.icon-label')?.textContent;
             console.log(`[FAB_TOOLBAR] Button clicked:`, {
@@ -242,9 +576,9 @@
         });
     });
 
-    // Active state management (highlight current page)
+    // Active state management (highlight current page - mobile nav only)
     const currentPath = window.location.pathname;
-    fabToolbar.querySelectorAll('a.icon-btn').forEach(btn => {
+    fabToolbar.querySelectorAll('.mobile-nav-wrapper a.icon-btn').forEach(btn => {
         const href = btn.getAttribute('href');
         if (href && (currentPath === href || (href !== '/' && currentPath.startsWith(href)))) {
             btn.classList.add('active');

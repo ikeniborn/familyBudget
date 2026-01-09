@@ -633,6 +633,14 @@ class ChoicesCategoryTree {
         // 4th parameter FALSE prevents Choices.js from auto-selecting
         this.choices.setChoices(choices, 'value', 'label', false);
 
+        // ✅ CRITICAL FIX: Force empty selection after initial setChoices()
+        // Choices.js may auto-select first non-disabled item despite 'false' parameter
+        console.log('[ChoicesCategoryTree] Forcing empty selection after initial setChoices()');
+        this.choices.removeActiveItems();
+        if (this.element) {
+            this.element.value = '';
+        }
+
         console.log('[ChoicesCategoryTree] Choices.js initialized:', {
             choicesCount: choices.length,
             currentValue: this.element.value,
@@ -1111,6 +1119,15 @@ class ChoicesCategoryTree {
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
 
+                // ✅ CRITICAL FIX: Force clear selection immediately after setChoices()
+                // Choices.js may ignore the 'false' parameter and auto-select first non-disabled item
+                // This ensures NO selection when filtering categories by financial center
+                console.log('[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)');
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
+
                 // Check if we should preserve selection
                 // Only preserve if:
                 // 1. This is NOT initial filtering (FC is changing from one value to another, not from null to value)
@@ -1124,22 +1141,31 @@ class ChoicesCategoryTree {
                     categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
                     categoryStillAvailable,
                     isInitialFiltering,
-                    willPreserve: categoryStillAvailable,  // Always preserve if available (isInitialFiltering check removed)
+                    willPreserve: !isInitialFiltering && categoryStillAvailable,
+                    note: isInitialFiltering ? 'Initial filtering - will NOT preserve' : 'FC changing - will preserve if available',
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                // ✅ FIX 2: Preserve selection in BOTH create and edit modes
-                // Only clear if category not available for new FC
-                const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+                // ✅ FIX: Preserve selection based on mode
+                // - mode='edit': ALWAYS preserve if category available (even on initial FC filter)
+                // - mode='create': Only preserve if NOT initial filtering (prevent phantom auto-select)
+                const shouldPreserve = this.options.mode === 'edit'
+                    ? categoryStillAvailable  // Edit: restore saved state
+                    : (!isInitialFiltering && categoryStillAvailable);  // Create: only if FC changing
 
                 console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
                     mode: this.options.mode,
+                    isInitialFiltering,
                     categoryStillAvailable,
                     shouldPreserve,
                     previousSelectionId,
-                    reasoning: shouldPreserve
-                        ? 'Category available for new FC - preserving'
-                        : 'Category NOT available for new FC - clearing'
+                    reasoning: this.options.mode === 'edit'
+                        ? (shouldPreserve ? 'Edit mode - preserving (category available)' : 'Edit mode - clearing (category NOT available)')
+                        : (isInitialFiltering
+                            ? 'Create mode - Initial FC selection - NOT preserving (prevent phantom auto-select)'
+                            : (shouldPreserve
+                                ? 'Create mode - FC changed - preserving (category available)'
+                                : 'Create mode - FC changed - clearing (category NOT available)'))
                 });
 
                 if (shouldPreserve) {

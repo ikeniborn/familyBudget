@@ -2416,3 +2416,49 @@ async def batch_delete_facts(
     await session.commit()
 
     return {"message": f"Deleted {result.rowcount} facts", "deleted_count": result.rowcount}
+
+
+@router.get("/redis-stats")
+async def get_redis_detailed_stats(
+    current_admin: CurrentAdmin,
+):
+    """
+    Get detailed Redis cache statistics (admin only).
+
+    Returns comprehensive Redis metrics including:
+    - Memory usage and peak
+    - Total keys count
+    - Keyspace hits/misses (absolute numbers)
+    - Hit ratio percentage
+    - Cache breakdown by category
+    - Connected clients
+    - Uptime
+
+    Args:
+        current_admin: Current admin user (from dependency)
+
+    Returns:
+        dict: Detailed Redis statistics
+    """
+    from backend.app.services.redis_service import (
+        get_redis_stats,
+        get_cache_breakdown,
+        is_redis_available,
+    )
+
+    if not is_redis_available():
+        raise HTTPException(
+            status_code=503,
+            detail="Redis is not available"
+        )
+
+    # Get basic stats
+    stats = await get_redis_stats()
+
+    # Get cache breakdown
+    breakdown = await get_cache_breakdown()
+
+    return {
+        **stats,
+        "cache_breakdown": breakdown,
+    }

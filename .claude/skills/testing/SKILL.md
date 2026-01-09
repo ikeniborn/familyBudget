@@ -592,8 +592,50 @@ black --check backend/
 # Type checking (mypy)
 mypy backend/
 
+# TypeScript type-check (frontend)
+npm run type-check         # Validates .ts files (0 errors required)
+npm run type-check:watch   # Watch mode
+
 # All quality checks at once
-ruff check backend/ && black --check backend/ && mypy backend/
+ruff check backend/ && black --check backend/ && mypy backend/ && npm run type-check
+```
+
+### TypeScript Error Debugging
+
+**Common TypeScript Errors:**
+
+1. **Type mismatch errors:**
+```typescript
+// Error: Argument of type 'string' is not assignable to parameter of type 'number'
+// Fix: Use correct type or add type conversion
+const id: number = parseInt(stringValue);
+```
+
+2. **Missing properties:**
+```typescript
+// Error: Property 'description' is missing in type
+// Fix: Add optional property or provide value
+interface Article {
+    name: string;
+    description?: string;  // Optional
+}
+```
+
+3. **Implicit 'any' type:**
+```typescript
+// Error: Parameter 'item' implicitly has an 'any' type
+// Fix: Add explicit type annotation
+function processItem(item: BudgetFact) { ... }
+```
+
+**Pre-commit Hook Failures:**
+```bash
+# If commit blocked by type-check errors:
+npm run type-check          # See all errors
+npm run type-check:watch    # Fix in watch mode
+
+# After fixing errors, retry commit
+git commit -m "fix: resolve TypeScript errors"
 ```
 
 ## Проверочный чеклист
@@ -608,9 +650,10 @@ ruff check backend/ && black --check backend/ && mypy backend/
 - [ ] Integration тесты покрывают complete workflows
 - [ ] Coverage >= 80%
 - [ ] Все тесты проходят (green)
-- [ ] Нет linting errors
+- [ ] Нет linting errors (ruff)
 - [ ] Code отформатирован (black)
-- [ ] Type hints проверены (mypy)
+- [ ] Type hints проверены (mypy - backend)
+- [ ] TypeScript type-check passes (npm run type-check - frontend)
 
 ## Связанные скилы
 

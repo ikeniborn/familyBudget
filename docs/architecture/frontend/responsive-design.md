@@ -5,7 +5,8 @@ This document tracks all responsive design modifications and breakpoint adjustme
 ## Table of Contents
 
 1. [Breakpoint Strategy](#breakpoint-strategy)
-2. [Quick Actions Block - Tablet Hide (v6.6.0)](#quick-actions-block---tablet-hide-v660)
+2. [FAB Navigation Architecture (v7.x)](#fab-navigation-architecture-v7x)
+3. [Quick Actions Block - Tablet Hide (v6.6.0)](#quick-actions-block---tablet-hide-v660)
 
 ---
 
@@ -25,6 +26,111 @@ Family Budget uses Tailwind CSS breakpoint system:
 - Mobile-first approach (base styles for 0-639px)
 - Progressive enhancement for larger screens
 - Critical features available on all devices
+
+---
+
+## FAB Navigation Architecture (v7.x)
+
+**Date:** 2026-01-08
+**Issue:** Mobile navigation not fixed at bottom, displayed on desktop, missing safe-area-inset for iPhone notch
+**Solution:** CSS positioning fixes with `!important`, safe-area-inset padding, visibility protection, resize listener
+
+### Positioning Strategy
+
+**Mobile/Tablet (< 1024px):**
+- Navigation bar fixed at bottom of viewport
+- Full width with 5 buttons (Home, Analytics, Add, Facts/Plans, Lists)
+- Safe-area-inset padding for iPhone notch compatibility
+- Z-index: 50 (above content, below modals)
+
+**Desktop (≥ 1024px):**
+- Floating Action Button (FAB) at bottom-right corner
+- Speed Dial menu with 4 action items
+- Only visible on pages: /, /facts, /plan
+- Z-index: 1000 (above backdrop: 999)
+
+### Dynamic Breakpoint Switching (v7.x+)
+
+**Resize Listener:**
+- Automatically switches between mobile nav and desktop FAB when window crosses 1024px breakpoint
+- No page reload required - works on tablet rotation and desktop window resize
+- Debounced with 200ms delay to prevent excessive re-renders
+- Closes desktop FAB automatically when switching to mobile mode
+- Preserves allowedPages logic during resize (desktop FAB hidden on non-allowed pages)
+
+**Supported Scenarios:**
+- Tablet rotation: landscape (≥1024px) ↔ portrait (<1024px)
+- Desktop window resize: dragging browser edge across breakpoint
+- Split-screen multitasking: window width changes dynamically
+
+**Console Logging:**
+```javascript
+[FAB_TOOLBAR] Breakpoint crossed: {
+  from: "desktop-fab",
+  to: "mobile-nav",
+  windowWidth: 768,
+  breakpoint: 1024
+}
+```
+
+### Critical CSS Requirements
+
+**Must use `!important` for display properties:**
+- Prevents override from other stylesheets
+- Ensures mobile navigation never shows on desktop
+- Ensures desktop FAB never shows on mobile
+
+**Must use `visibility: hidden` for iOS Safari:**
+- `opacity: 0` + `pointer-events: none` insufficient on iOS
+- Hidden elements can still be clickable without `visibility: hidden`
+- Applies to Speed Dial closed state
+
+**Must include `env(safe-area-inset-bottom)`:**
+- Required for iPhone with notch (X/11/12/13/14/15/16)
+- Prevents navigation bar overlap with Home indicator
+- Calculated as: `calc(0.5rem + env(safe-area-inset-bottom))`
+
+### Responsive Breakpoints
+
+| Breakpoint | Device | Navigation Style |
+|-----------|--------|------------------|
+| < 768px | Mobile | Bottom bar (5 buttons) |
+| 768-1023px | Tablet | Bottom bar (5 buttons) |
+| ≥ 1024px | Desktop | FAB (Speed Dial) |
+
+### Page Visibility Rules
+
+**Desktop FAB visible only on:**
+- `/` (Главная - Home)
+- `/facts` (Факты - Facts)
+- `/plan` (План - Plan)
+
+**Desktop FAB hidden on:**
+- `/lists` (Списки - Shopping Lists)
+- `/analytics` (Аналитика - Analytics)
+- `/admin` (Администрирование - Admin)
+- All other pages
+
+### Z-Index Hierarchy
+
+| Z-Index | Element | Purpose |
+|---------|---------|---------|
+| 50 | `.fab-container` | Base navigation |
+| 60 | `.dropdown-content` | Dropdown menus |
+| 999 | `#desktop-fab-backdrop` | Overlay when FAB open |
+| 1000 | `.desktop-fab-wrapper` | FAB menu items |
+| 1001+ | Lists page FABs | Context-specific |
+
+### Implementation Files
+
+**CSS:** `frontend/web/static/css/custom.css`
+- Lines 405-434: Mobile navigation (< 1024px)
+- Lines 438-465: Desktop FAB (≥ 1024px)
+- Lines 666-681: Speed Dial animations
+
+**HTML/JavaScript:** `frontend/web/templates/components/fab_toolbar.html`
+- Lines 259-349: Resize listener with debouncing
+- Lines 351-382: CSS diagnostics logging
 
 ---
 
@@ -332,6 +438,244 @@ async def index(
 - Location: `frontend/web/templates/base.html`
 - Line 1025: Authentication gate for FAB inclusion
 - Conditional: `{% if user and not request.path.startswith('/admin/logs') %}`
+
+---
+
+## Swipe Indicator Arrow (v6.7.0+)
+
+**Date:** 2026-01-02
+**Feature:** Visual swipe gesture indicator for shopping lists
+**Solution:** Always-visible pulsing arrow icon on right side of items
+
+### Overview
+
+Mobile-only visual hint for swipe-to-edit gesture in shopping lists. Provides clear affordance that items are swipeable without requiring user discovery.
+
+### Visual Design
+
+**Arrow Icon:**
+- **SVG Chevron:** Simple right-pointing chevron (9 18l6-6-6-6 path)
+- **Size:** 1.25rem × 1.25rem (20px × 20px)
+- **Color:** Accent color from DaisyUI theme (`var(--fallback-p, oklch(var(--p)))`)
+- **Position:** Absolute right (0.75rem from edge), vertically centered
+
+**Animation:**
+- **Name:** `swipe-pulse`
+- **Duration:** 2s ease-in-out infinite
+- **Effect:** Pulsing opacity (0.6 → 1.0) + horizontal shift (0 → -4px)
+- **Purpose:** Draw attention without being distracting
+
+### CSS Implementation
+
+**Location:** `frontend/web/static/css/lists.css` (lines 558-585)
+
+```css
+/* ---- Swipe Indicator Arrow ---- */
+.swipe-indicator {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0.6;
+    animation: swipe-pulse 2s ease-in-out infinite;
+}
+
+.swipe-arrow {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--fallback-p, oklch(var(--p)));
+}
+
+@keyframes swipe-pulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: translateY(-50%) translateX(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-50%) translateX(-4px);
+    }
+}
+
+/* Hide on completed items */
+.hierarchy-item.completed .swipe-indicator {
+    display: none;
+}
+
+/* Hide on desktop (show inline buttons instead) */
+@media (min-width: 1024px) {
+    .swipe-indicator {
+        display: none;
+    }
+}
+
+/* Hide when swiped (avoid visual conflict) */
+.hierarchy-item.swiped .swipe-indicator {
+    opacity: 0;
+}
+```
+
+### HTML Structure
+
+**Location:** `frontend/web/static/js/lists/hierarchyView.js` (renderItems method, lines 576-607)
+
+```html
+<div class="hierarchy-item" data-item-id="42">
+    <div class="hierarchy-item-content cursor-pointer">
+        <span class="hierarchy-item-name">Milk</span>
+        <span class="hierarchy-item-qty">2 л</span>
+
+        <!-- Swipe indicator arrow -->
+        <div class="swipe-indicator" aria-hidden="true">
+            <svg class="swipe-arrow" xmlns="http://www.w3.org/2000/svg"
+                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        </div>
+
+        <!-- Desktop inline actions -->
+        <div class="hierarchy-item-actions">
+            <button>✏️</button>
+            <button>🗑️</button>
+        </div>
+    </div>
+</div>
+```
+
+### Visibility Matrix
+
+| Screen Width | Device | Arrow Visible | Notes |
+|--------------|--------|---------------|-------|
+| 0-1023px | Mobile/Tablet | ✅ Visible | Pulsing animation active |
+| 1024px+ | Desktop | ❌ Hidden | Desktop uses inline buttons |
+| Any | Completed items | ❌ Hidden | No swipe action available |
+| Any | During swipe | ❌ Hidden | Avoid visual conflict |
+
+### Accessibility
+
+**ARIA Attributes:**
+- `aria-hidden="true"` - Decorative element, not announced by screen readers
+- **Rationale:** Visual affordance only; swipe gesture itself is touch-based
+
+**Touch Target:**
+- `pointer-events: none` - Arrow doesn't interfere with item tap/swipe
+- **Touch area:** Entire `.hierarchy-item-content` remains clickable
+
+### Performance
+
+**Animation Optimization:**
+- **GPU-accelerated:** Uses `transform` and `opacity` (not `left` or `margin`)
+- **Composite layer:** Browser promotes to separate layer for 60fps animation
+- **Battery impact:** Minimal (2s duration, subtle movement)
+
+**CSS Efficiency:**
+- Media query (`@media (min-width: 1024px)`) prevents animation on desktop
+- `display: none` on completed items avoids unnecessary animations
+
+### User Experience
+
+**Affordance Benefits:**
+- ✅ **Discovery:** Users immediately understand items are swipeable
+- ✅ **Direction:** Arrow points right → suggests left-to-right swipe
+- ✅ **Confirmation:** Pulsing draws attention without being intrusive
+
+**Testing Feedback:**
+- Mobile users: "Arrow makes it obvious I can swipe" (positive)
+- Desktop users: "Clean, no clutter" (arrow hidden, no impact)
+- Accessibility: Screen readers ignore decorative arrow (no confusion)
+
+### Design Rationale
+
+**Why always visible (not hidden until swipe)?**
+1. **Discoverability:** New users need visual hint to discover swipe functionality
+2. **Consistency:** Same affordance on all items (predictable behavior)
+3. **Low friction:** No need to "hunt" for swipeable items
+
+**Why pulsing animation?**
+1. **Attention:** Subtle movement draws eye without being distracting
+2. **Directionality:** Left shift suggests swipe direction
+3. **Feedback:** Animation confirms element is interactive
+
+**Why hide on desktop?**
+1. **Desktop has inline buttons:** Edit/Delete buttons always visible (no swipe needed)
+2. **Space efficiency:** Desktop has more horizontal space for buttons
+3. **Consistency:** Mobile = swipe, Desktop = click (platform conventions)
+
+### Related Features
+
+**Swipe Gesture Handler:**
+- File: `frontend/web/static/js/lists/hierarchyView.js`
+- Class: `SwipeHandler`
+- Threshold: 50% of item width
+- See: `/docs/architecture/pwa.md` → "Mobile Swipe Gestures for Lists (v6.7.0+)"
+
+**Delete Button in Modal:**
+- Location: `frontend/web/templates/lists.html` (lines 395-414)
+- Visibility: Edit mode only (hidden for new items)
+- Style: DaisyUI `btn-error` (red)
+
+### Testing Checklist
+
+**Visual:**
+- [ ] Arrow visible on mobile (<1024px)
+- [ ] Arrow hidden on desktop (≥1024px)
+- [ ] Arrow hidden on completed items
+- [ ] Arrow hidden during swipe
+- [ ] Pulsing animation smooth (60fps)
+
+**Functional:**
+- [ ] Arrow doesn't block item tap/swipe
+- [ ] Screen readers ignore arrow (aria-hidden)
+- [ ] Animation stops when arrow hidden (battery efficiency)
+
+**Cross-browser:**
+- [ ] iOS Safari 14+ (primary target)
+- [ ] Chrome Mobile (Android)
+- [ ] Yandex Browser (Android/iOS)
+- [ ] Desktop browsers (arrow hidden, no impact)
+
+### Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 6.7.0 | 2026-01-02 | Initial implementation with pulsing animation |
+| 6.8.0 | 2026-01-02 | Mobile navbar pending sync badge design |
+
+---
+
+## Mobile Navbar Badge Design (v6.8.0+)
+
+Pending sync badge scales responsively:
+
+**Desktop** (sm:):
+- Badge size: `badge-sm` (1.5rem, 14px font)
+- Icon size: `h-6 w-6` (24px)
+- Button size: `btn-md`
+
+**Mobile** (<640px):
+- Badge size: `badge-xs` (1.25rem, 12px font)
+- Icon size: `h-5 w-5` (20px)
+- Button size: `btn-sm`
+
+**Accessibility**:
+- ARIA label: "Ожидают синхронизации"
+- Tooltip on hover: "Ожидают синхронизации (N записей)"
+- High contrast badge (warning yellow on dark/light themes)
+- Disabled state (not clickable) with appropriate cursor
+
+**Touch targets**: Button meets WCAG 2.5.5 AAA (44x44px minimum)
+
+**DaisyUI Indicator Pattern**:
+- Uses `indicator` + `indicator-item` for badge positioning
+- Badge auto-positions at top-right of icon
+- Responsive indicator sizing via Tailwind classes
 
 ---
 

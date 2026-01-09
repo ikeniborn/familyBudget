@@ -494,6 +494,7 @@ function initTransferModal() {
             type: 'debit',
             showLeafOnly: true,
             searchEnabled: true,
+            mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
             onCategoryChange: (category) => {
                 // Reload FROM hints when category changes
                 if (transferRecordType === 'plan') {
@@ -503,6 +504,12 @@ function initTransferModal() {
                 }
             }
         });
+
+        console.log('[TRANSFER_INIT] FROM category tree initialized:', {
+            mode: fromCategoryTree?.options.mode,
+            type: 'debit',
+            selector: '#from_article'
+        });
     }
 
     // 3. Initialize ChoicesCategoryTree for TO (credit)
@@ -511,6 +518,7 @@ function initTransferModal() {
             type: 'credit',
             showLeafOnly: true,
             searchEnabled: true,
+            mode: 'create',  // ✅ Create mode - prevents phantom auto-select on initial FC filter
             onCategoryChange: (category) => {
                 // Reload TO hints when category changes
                 if (transferRecordType === 'plan') {
@@ -519,6 +527,12 @@ function initTransferModal() {
                     loadTransferFactHints('to');
                 }
             }
+        });
+
+        console.log('[TRANSFER_INIT] TO category tree initialized:', {
+            mode: toCategoryTree?.options.mode,
+            type: 'credit',
+            selector: '#to_article'
         });
     }
 

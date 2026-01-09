@@ -51,29 +51,62 @@ class ListsManager {
      * Initialize the manager
      */
     async init() {
+        console.log('[ListsManager] === INITIALIZATION START ===');
+        console.log('[ListsManager] Browser:', navigator.userAgent.substring(0, 100));
+        console.log('[ListsManager] Online:', navigator.onLine);
+        console.log('[ListsManager] Timestamp:', new Date().toISOString());
+
         debugLog('[ListsManager] Initializing...');
 
         try {
-            // Initialize IndexedDB for offline support
-            if (typeof IndexedDBManager !== 'undefined') {
-                this.db = new IndexedDBManager();
-                await this.db.init();
-                debugLog('[ListsManager] IndexedDB initialized for offline support');
-            } else {
-                console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
+            // Step 1: IndexedDB (non-critical - продолжить без него)
+            console.log('[ListsManager] Step 1/8: Initializing IndexedDB');
+            console.time('[ListsManager] IndexedDB init');
+
+            try {
+                if (typeof IndexedDBManager !== 'undefined') {
+                    this.db = new IndexedDBManager();
+                    await this.db.init();
+                    console.timeEnd('[ListsManager] IndexedDB init');
+                    console.log('[ListsManager] ✅ IndexedDB initialized');
+                    debugLog('[ListsManager] IndexedDB initialized for offline support');
+                } else {
+                    console.warn('[ListsManager] ⚠️ IndexedDBManager not available');
+                    console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
+                }
+            } catch (dbError) {
+                console.timeEnd('[ListsManager] IndexedDB init');
+                console.error('[ListsManager] ❌ IndexedDB initialization failed:', dbError);
+                console.warn('[ListsManager] Continuing WITHOUT offline support');
+                // НЕ бросать ошибку - продолжить
             }
 
-            // Initialize OfflineShoppingManager for offline CRUD operations
-            if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
-                this.offlineShopping = new OfflineShoppingManager(window.offlineManager);
-                debugLog('[ListsManager] OfflineShoppingManager initialized');
+            // Step 2: OfflineShoppingManager (non-critical)
+            console.log('[ListsManager] Step 2/8: Initializing OfflineShoppingManager');
+
+            try {
+                if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
+                    this.offlineShopping = new OfflineShoppingManager(window.offlineManager);
+                    console.log('[ListsManager] ✅ OfflineShoppingManager initialized');
+                    debugLog('[ListsManager] OfflineShoppingManager initialized');
+                } else {
+                    console.warn('[ListsManager] ⚠️ OfflineShoppingManager not available');
+                    console.warn('[ListsManager]   - window.offlineManager:', !!window.offlineManager);
+                    console.warn('[ListsManager]   - OfflineShoppingManager class:', typeof OfflineShoppingManager !== 'undefined');
+                }
+            } catch (offlineError) {
+                console.error('[ListsManager] ❌ OfflineShoppingManager failed:', offlineError);
             }
 
             // Note: Real-time updates now handled by global budgetWSClient (consolidation)
             // budgetWSClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
 
-            // Listen for network status changes (sync when back online)
-            window.addEventListener('offline-status-change', async (event) => {
+            // Step 3: Event listeners (non-critical)
+            console.log('[ListsManager] Step 3/8: Setting up event listeners');
+
+            try {
+                // Listen for network status changes (sync when back online)
+                window.addEventListener('offline-status-change', async (event) => {
                 const { online } = event.detail || {};
                 this.updateOfflineUI(!online);
 
@@ -101,39 +134,105 @@ class ListsManager {
                     }
                 }
                 // Note: WebSocket disconnect handled by global budgetWSClient
-            });
-
-            // Load reference data
-            await Promise.all([
-                this.loadStores(),
-                this.loadProductGroups()
-            ]);
-
-            // Initialize HierarchyView
-            if (typeof HierarchyView !== 'undefined') {
-                this.hierarchyView = new HierarchyView(this);
-            } else {
-                console.warn('[ListsManager] HierarchyView not loaded');
+                });
+                console.log('[ListsManager] ✅ Event listeners set up');
+            } catch (listenerError) {
+                console.error('[ListsManager] ❌ Event listener setup failed:', listenerError);
             }
 
-            // Initialize Import Manager
-            if (typeof ImportManager !== 'undefined') {
-                window.importManager = new ImportManager(this);
-                debugLog('[ListsManager] ImportManager initialized');
-            } else {
-                console.warn('[ListsManager] ImportManager not loaded');
+            // Step 4: Reference data (CRITICAL - но с graceful degradation)
+            console.log('[ListsManager] Step 4/8: Loading reference data (stores + product groups)');
+            console.time('[ListsManager] Reference data loading');
+
+            try {
+                // ИСПРАВЛЕНО: Promise.allSettled вместо Promise.all
+                const results = await Promise.allSettled([
+                    this.loadStores(),
+                    this.loadProductGroups()
+                ]);
+
+                console.timeEnd('[ListsManager] Reference data loading');
+
+                // Проверить результаты
+                const names = ['loadStores', 'loadProductGroups'];
+                let successCount = 0;
+
+                results.forEach((result, index) => {
+                    if (result.status === 'fulfilled') {
+                        console.log(`[ListsManager] ✅ ${names[index]}() succeeded`);
+                        successCount++;
+                    } else {
+                        console.error(`[ListsManager] ❌ ${names[index]}() failed:`, result.reason);
+                    }
+                });
+
+                console.log(`[ListsManager] Reference data: ${successCount}/2 succeeded`);
+
+                // Продолжить даже если загрузка не удалась (stores и groups опциональны)
+            } catch (refDataError) {
+                console.timeEnd('[ListsManager] Reference data loading');
+                console.error('[ListsManager] ❌ Reference data loading failed:', refDataError);
+                console.warn('[ListsManager] Continuing without reference data');
             }
 
-            // Show landing view by default
-            await this.showLandingView();
+            // Step 5: HierarchyView (optional)
+            console.log('[ListsManager] Step 5/8: Initializing HierarchyView');
 
-            // Setup product autocomplete (mobile-compatible)
-            this._setupProductAutocomplete();
+            try {
+                if (typeof HierarchyView !== 'undefined') {
+                    this.hierarchyView = new HierarchyView(this);
+                    console.log('[ListsManager] ✅ HierarchyView initialized');
+                } else {
+                    console.warn('[ListsManager] ⚠️ HierarchyView not loaded');
+                    console.warn('[ListsManager] HierarchyView not loaded');
+                }
+            } catch (hierarchyError) {
+                console.error('[ListsManager] ❌ HierarchyView initialization failed:', hierarchyError);
+            }
 
+            // Step 6: ImportManager (optional)
+            console.log('[ListsManager] Step 6/8: Initializing ImportManager');
+
+            try {
+                if (typeof ImportManager !== 'undefined') {
+                    window.importManager = new ImportManager(this);
+                    console.log('[ListsManager] ✅ ImportManager initialized');
+                    debugLog('[ListsManager] ImportManager initialized');
+                } else {
+                    console.warn('[ListsManager] ⚠️ ImportManager not loaded');
+                    console.warn('[ListsManager] ImportManager not loaded');
+                }
+            } catch (importError) {
+                console.error('[ListsManager] ❌ ImportManager initialization failed:', importError);
+            }
+
+            // Step 7: Show landing view (CRITICAL!)
+            console.log('[ListsManager] Step 7/8: Showing landing view');
+            console.time('[ListsManager] showLandingView');
+
+            await this.showLandingView(); // Если упадёт - перейдёт в catch блок
+
+            console.timeEnd('[ListsManager] showLandingView');
+            console.log('[ListsManager] ✅ Landing view shown');
+
+            // Step 8: Product autocomplete (optional)
+            console.log('[ListsManager] Step 8/8: Setting up product autocomplete');
+
+            try {
+                this._setupProductAutocomplete();
+                console.log('[ListsManager] ✅ Product autocomplete set up');
+            } catch (autocompleteError) {
+                console.error('[ListsManager] ❌ Autocomplete setup failed:', autocompleteError);
+            }
+
+            console.log('[ListsManager] === INITIALIZATION COMPLETE ===');
             debugLog('[ListsManager] Initialized successfully');
+
         } catch (error) {
-            console.error('[ListsManager] Initialization error:', error);
-            throw error;
+            console.error('[ListsManager] === INITIALIZATION FAILED ===');
+            console.error('[ListsManager] Error:', error);
+            console.error('[ListsManager] Error stack:', error.stack);
+            throw error; // Пробросить выше для обработки в DOMContentLoaded
         }
     }
 
@@ -385,19 +484,24 @@ class ListsManager {
      * Show Landing View (grid of shopping list cards)
      */
     async showLandingView() {
+        console.log('[ListsManager] === showLandingView() START ===');
+
         debugLog('[ListsManager] Showing landing view');
 
         // Note: WebSocket stays connected globally via budgetWSClient (no per-list disconnect needed)
 
         // Reset state
+        console.log('[ListsManager] Resetting state');
         this.currentListId = null;
         this.currentItems = [];
         this.selectedItemIds.clear();
 
         // CRITICAL: Close import wizard when returning to landing view
+        console.log('[ListsManager] Closing import wizard');
         closeImportWizard();
 
         // Desktop FAB visibility: Landing View
+        console.log('[ListsManager] Updating FAB visibility');
         // Hide detail view FABs (mass operations + add item)
         this.hideFAB();
         this.hideAddItemFAB();
@@ -405,12 +509,32 @@ class ListsManager {
         this.showCreateListFAB();
 
         // Show landing view, hide detail view
-        document.getElementById('landing-view').classList.remove('hidden');
-        document.getElementById('detail-view').classList.add('hidden');
+        console.log('[ListsManager] Toggling view visibility');
+        const landingView = document.getElementById('landing-view');
+        const detailView = document.getElementById('detail-view');
+
+        console.log('[ListsManager] DOM elements:', {
+            landingView: !!landingView,
+            detailView: !!detailView
+        });
+
+        landingView?.classList.remove('hidden');
+        detailView?.classList.add('hidden');
 
         // Load shopping lists
+        console.log('[ListsManager] Loading shopping lists');
+        console.time('[ListsManager] loadShoppingLists');
+
         await this.loadShoppingLists();
+
+        console.timeEnd('[ListsManager] loadShoppingLists');
+        console.log('[ListsManager] Rendering shopping list cards');
+        console.time('[ListsManager] renderShoppingListCards');
+
         this.renderShoppingListCards();
+
+        console.timeEnd('[ListsManager] renderShoppingListCards');
+        console.log('[ListsManager] === showLandingView() COMPLETE ===');
     }
 
     /**
@@ -534,11 +658,25 @@ class ListsManager {
         const CACHE_KEY = 'shopping_lists';
         const CACHE_TTL = 86400; // 24 hours
 
+        console.log('[ListsManager] === loadShoppingLists() START ===');
+        console.log('[ListsManager] isOnline:', navigator.onLine);
+        console.log('[ListsManager] db available:', !!this.db);
+
         try {
             if (this.isOnline) {
                 // Online: fetch from API and cache
+                console.log('[ListsManager] Fetching from API: /api/v1/shopping-lists');
+                console.time('[ListsManager] API fetch shopping-lists');
+
                 const response = await fetch('/api/v1/shopping-lists', {
                     credentials: 'same-origin'
+                });
+
+                console.timeEnd('[ListsManager] API fetch shopping-lists');
+                console.log('[ListsManager] API response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
                 });
 
                 if (!response.ok) {
@@ -548,8 +686,16 @@ class ListsManager {
                 const data = await response.json();
                 this.shoppingLists = data.shopping_lists || [];
 
+                console.log('[ListsManager] ✅ Loaded shopping lists from API:', this.shoppingLists.length);
+                console.log('[ListsManager] Lists preview:', this.shoppingLists.slice(0, 3).map(l => ({
+                    id: l.id,
+                    name: l.name,
+                    totalItems: l.total_items
+                })));
+
                 // Cache for offline use
                 if (this.db && this.shoppingLists.length > 0) {
+                    console.log('[ListsManager] Caching shopping lists for offline use');
                     await this.db.setCache(CACHE_KEY, this.shoppingLists, CACHE_TTL);
                     debugLog('[ListsManager] Cached shopping lists for offline use');
                 }
@@ -557,34 +703,50 @@ class ListsManager {
                 debugLog('[ListsManager] Loaded shopping lists from API:', this.shoppingLists.length);
             } else {
                 // Offline: load from cache
+                console.log('[ListsManager] Offline mode - loading from cache');
+
                 if (this.db) {
                     const cached = await this.db.getCache(CACHE_KEY);
                     this.shoppingLists = cached || [];
+
+                    console.log('[ListsManager] ✅ Loaded shopping lists from cache:', this.shoppingLists.length);
                     debugLog('[ListsManager] Loaded shopping lists from cache:', this.shoppingLists.length);
 
                     if (this.shoppingLists.length === 0) {
+                        console.warn('[ListsManager] ⚠️ No cached lists available');
                         showToast('Списки недоступны в offline режиме. Посетите страницу online.', 'warning');
                     }
                 } else {
+                    console.warn('[ListsManager] ❌ Offline and no db available');
                     this.shoppingLists = [];
                     console.warn('[ListsManager] Offline and no cache available');
                 }
             }
+
+            console.log('[ListsManager] === loadShoppingLists() COMPLETE ===');
         } catch (error) {
-            console.error('[ListsManager] Error loading shopping lists:', error);
+            console.error('[ListsManager] === loadShoppingLists() FAILED ===');
+            console.error('[ListsManager] Error:', error);
+            console.error('[ListsManager] Error name:', error.name);
+            console.error('[ListsManager] Error message:', error.message);
+            console.error('[ListsManager] Error stack:', error.stack);
 
             // Fallback to cache on error
             if (this.db) {
                 try {
+                    console.log('[ListsManager] Trying fallback to cache');
                     const cached = await this.db.getCache(CACHE_KEY);
                     this.shoppingLists = cached || [];
+                    console.log('[ListsManager] ✅ Loaded from cache (fallback):', this.shoppingLists.length);
                     debugLog('[ListsManager] Loaded shopping lists from cache (fallback):', this.shoppingLists.length);
                 } catch (cacheError) {
+                    console.error('[ListsManager] ❌ Cache fallback also failed:', cacheError);
                     console.error('[ListsManager] Error loading shopping lists from cache:', cacheError);
                     showToast('Ошибка загрузки списков', 'error');
                     this.shoppingLists = [];
                 }
             } else {
+                console.error('[ListsManager] ❌ No db available for fallback');
                 showToast('Ошибка загрузки списков', 'error');
                 this.shoppingLists = [];
             }
@@ -774,17 +936,48 @@ class ListsManager {
      * Render shopping list cards in grid
      */
     renderShoppingListCards() {
+        console.log('[ListsManager] === renderShoppingListCards() START ===');
+
         const grid = document.getElementById('lists-grid');
         const emptyState = document.getElementById('empty-state');
 
+        console.log('[ListsManager] Shopping lists count:', this.shoppingLists.length);
+        console.log('[ListsManager] DOM elements:', {
+            grid: !!grid,
+            emptyState: !!emptyState
+        });
+
         if (this.shoppingLists.length === 0) {
-            grid.classList.add('hidden');
-            emptyState.classList.remove('hidden');
+            console.log('[ListsManager] No lists - showing empty state');
+            if (grid) {
+                grid.classList.add('hidden');
+                console.log('[ListsManager] Grid hidden');
+            }
+            if (emptyState) {
+                emptyState.classList.remove('hidden');
+                console.log('[ListsManager] Empty state shown');
+            }
+            console.log('[ListsManager] === renderShoppingListCards() COMPLETE (empty) ===');
             return;
         }
 
-        grid.classList.remove('hidden');
-        emptyState.classList.add('hidden');
+        console.log('[ListsManager] Showing lists grid');
+        if (grid) {
+            grid.classList.remove('hidden');
+            console.log('[ListsManager] Grid visible');
+        }
+        if (emptyState) {
+            emptyState.classList.add('hidden');
+            console.log('[ListsManager] Empty state hidden');
+        }
+
+        if (!grid) {
+            console.error('[ListsManager] ❌ CRITICAL: Grid element not found (#lists-grid)!');
+            return;
+        }
+
+        console.log('[ListsManager] Rendering', this.shoppingLists.length, 'cards');
+        console.time('[ListsManager] Card HTML generation');
 
         grid.innerHTML = this.shoppingLists.map(list => {
             const totalItems = list.total_items || 0;
@@ -820,6 +1013,11 @@ class ListsManager {
                 </div>
             `;
         }).join('');
+
+        console.timeEnd('[ListsManager] Card HTML generation');
+        console.log('[ListsManager] ✅ Cards rendered successfully');
+        console.log('[ListsManager] Grid innerHTML length:', grid.innerHTML.length, 'chars');
+        console.log('[ListsManager] === renderShoppingListCards() COMPLETE ===');
     }
 
     /**
@@ -1392,6 +1590,97 @@ class ListsManager {
                 containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
             }
         });
+
+        // ============================================
+        // FIX: Add z-index class toggle for modal dropdown
+        // ============================================
+        const modal = document.getElementById('item-modal');
+        console.warn('[LISTS_MODAL] Modal element:', modal);
+
+        if (modal) {
+            // Get Choices container directly from Choices.js instance API
+            // containerOuter.element is the main .choices DOM element
+            const choicesContainer = this.choicesInstances.store.containerOuter.element;
+            console.warn('[LISTS_MODAL] Choices container element:', choicesContainer);
+            console.warn('[LISTS_MODAL] Container classes:', choicesContainer ? choicesContainer.className : 'N/A');
+
+            if (choicesContainer) {
+                // Create MutationObserver to watch for .is-open class changes
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        console.warn('[LISTS_MODAL] Mutation detected:', mutation.type, mutation.attributeName);
+                        console.warn('[LISTS_MODAL] Current classes:', choicesContainer.className);
+                        console.warn('[LISTS_MODAL] Has is-open:', choicesContainer.classList.contains('is-open'));
+
+                        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                            if (choicesContainer.classList.contains('is-open')) {
+                                // Dropdown opened - add diagnostic logging
+                                modal.classList.add('store-dropdown-open');
+                                console.warn('[LISTS_MODAL] ✅ Store dropdown OPENED - z-index fix applied');
+                                console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
+
+                                // DIAGNOSTIC: Check ALL dropdowns (Choices.js creates multiple)
+                                setTimeout(() => {
+                                    const allDropdowns = document.querySelectorAll('.choices__list--dropdown');
+                                    console.warn('[LISTS_MODAL] 🔍 Total dropdowns in DOM:', allDropdowns.length);
+
+                                    allDropdowns.forEach((dropdown, index) => {
+                                        const style = window.getComputedStyle(dropdown);
+                                        const rect = dropdown.getBoundingClientRect();
+                                        const isVisible = style.display !== 'none' && rect.height > 0;
+
+                                        console.warn(`[LISTS_MODAL] 🔍 Dropdown #${index}:`, {
+                                            display: style.display,
+                                            visibility: style.visibility,
+                                            height: rect.height,
+                                            zIndex: style.zIndex,
+                                            isVisible: isVisible,
+                                            parent: dropdown.parentElement?.className,
+                                            itemsCount: dropdown.children.length
+                                        });
+
+                                        if (isVisible) {
+                                            console.warn(`[LISTS_MODAL] ✅ VISIBLE dropdown #${index} found!`);
+                                            console.warn('[LISTS_MODAL] 🔍 Rect:', rect);
+                                            console.warn('[LISTS_MODAL] 🔍 Inside modal?', modal.contains(dropdown));
+
+                                            // Parent chain for visible dropdown
+                                            let parent = dropdown.parentElement;
+                                            let depth = 0;
+                                            console.warn('[LISTS_MODAL] 🔍 Parent chain:');
+                                            while (parent && depth < 10) {
+                                                console.warn(`[LISTS_MODAL]    ${depth}: ${parent.tagName}#${parent.id || 'NO-ID'}.${parent.className}`);
+                                                parent = parent.parentElement;
+                                                depth++;
+                                            }
+                                        }
+                                    });
+                                }, 100); // Delay to let Choices.js finish rendering
+                            } else {
+                                // Dropdown closed
+                                modal.classList.remove('store-dropdown-open');
+                                console.warn('[LISTS_MODAL] ❌ Store dropdown CLOSED - z-index fix removed');
+                                console.warn('[LISTS_MODAL] Modal classes after:', modal.className);
+                            }
+                        }
+                    });
+                });
+
+                // Start observing class attribute changes
+                observer.observe(choicesContainer, {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+
+                console.warn('[LISTS_MODAL] 🎯 Store dropdown z-index fix initialized (MutationObserver)');
+                console.warn('[LISTS_MODAL] Observing element:', choicesContainer);
+            } else {
+                console.error('[LISTS_MODAL] ⚠️ Choices container not found in instance API');
+                console.warn('[LISTS_MODAL] Store instance:', this.choicesInstances.store);
+            }
+        } else {
+            console.error('[LISTS_MODAL] ⚠️ Modal element #item-modal not found');
+        }
     }
 
     /**
@@ -2912,6 +3201,13 @@ function openAddItemModal() {
     // Hide duplicate warning on modal open
     window.listsManager?.hideDuplicateWarning();
 
+    // Hide delete button (not applicable for new items)
+    const deleteBtn = document.getElementById('item-modal-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.classList.add('hidden');
+        console.log('[MODAL_ADD] Delete button hidden (new item mode)');
+    }
+
     modal.showModal();
 
     // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
@@ -2942,6 +3238,13 @@ function openEditItemModal(itemId) {
     document.getElementById('item-unit').value = item.unit || '';
     document.getElementById('item-comment').value = item.comment || '';
     document.getElementById('item-modal-title').textContent = '✏️ Редактировать товар';
+
+    // Show delete button (only for existing items, not new items)
+    const deleteBtn = document.getElementById('item-modal-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.classList.remove('hidden');
+        console.log('[MODAL_EDIT] Delete button shown', { itemId });
+    }
 
     // Update quantity input step based on unit
     const quantityInput = document.getElementById('item-quantity');
@@ -2974,6 +3277,35 @@ function openEditItemModal(itemId) {
 function closeItemModal() {
     const modal = document.getElementById('item-modal');
     modal.close();
+}
+
+/**
+ * Handle delete from modal
+ * Called when user clicks Delete button in edit modal
+ */
+async function handleDeleteFromModal() {
+    const itemIdInput = document.getElementById('item-id');
+    const itemId = parseInt(itemIdInput.value);
+
+    if (!itemId) {
+        console.error('[DELETE_MODAL] No item ID found');
+        return;
+    }
+
+    console.log('[DELETE_MODAL] Delete initiated', {
+        itemId,
+        timestamp: Date.now(),
+        source: 'modal_button'
+    });
+
+    // Close modal first (better UX - user sees item disappear from list)
+    closeItemModal();
+
+    // Delete item using existing deleteItem method
+    // (already handles confirmation, offline support, cache update)
+    await window.listsManager.deleteItem(itemId);
+
+    console.log('[DELETE_MODAL] Delete completed', { itemId });
 }
 
 /**

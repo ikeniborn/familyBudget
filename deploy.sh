@@ -73,7 +73,7 @@ fi
 # =============================================================================
 # LOAD LIBRARY MODULES
 # =============================================================================
-# Phase 1: Simple modules (config, utils, validation, status)
+# Phase 1: Simple modules (config, utils, timeout, validation, status)
 # Phase 2: Service modules (postgres, services, migrations, firewall, backup_integration)
 # Phase 3: Complex modules (sync, docker) - NEW
 # See scripts/lib/README.md for documentation
@@ -81,6 +81,7 @@ fi
 # Phase 1 modules
 source "$SCRIPT_DIR/scripts/lib/config.sh"      # Must be first (no dependencies)
 source "$SCRIPT_DIR/scripts/lib/utils.sh"       # Depends on config.sh
+source "$SCRIPT_DIR/scripts/lib/timeout.sh"     # Depends on config.sh, utils.sh (v6.5.5+ resilience)
 source "$SCRIPT_DIR/scripts/lib/nginx.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/validation.sh"  # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
@@ -660,14 +661,14 @@ repair_npm_environment() {
         }
         cp -f /opt/budget/package-lock.json . 2>/dev/null || true
 
-        print_message info "Installing npm packages (this may take 2-3 minutes)..."
+        print_message info "Installing npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
         if [[ -f "package-lock.json" ]]; then
-            npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            npm_with_retry ci --prefer-offline --no-audit || {
                 print_message error "npm ci failed - trying npm install..."
-                npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+                npm_with_retry install --prefer-offline --no-audit || return 1
             }
         else
-            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+            npm_with_retry install --prefer-offline --no-audit || return 1
         fi
 
         cd /opt/budget || return 1
@@ -705,18 +706,18 @@ repair_npm_environment() {
     fi
 
     # Reinstall
-    print_message info "Installing fresh npm packages (this may take 2-3 minutes)..."
+    print_message info "Installing fresh npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
     if [[ -f "package-lock.json" ]]; then
-        npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+        npm_with_retry ci --prefer-offline --no-audit || {
             print_message error "npm ci failed - trying npm install..."
-            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            npm_with_retry install --prefer-offline --no-audit || {
                 print_message error "npm install failed - cannot auto-repair"
                 cd /opt/budget || return 1
                 return 1
             }
         }
     else
-        npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+        npm_with_retry install --prefer-offline --no-audit || {
             print_message error "npm install failed - cannot auto-repair"
             cd /opt/budget || return 1
             return 1
@@ -740,6 +741,135 @@ repair_npm_environment() {
         print_message error ""
         return 1
     fi
+}
+
+# =============================================================================
+# CHECK GIT REPOSITORY SYNC STATUS
+# =============================================================================
+# Validates that the repository is synchronized with remote origin
+# to prevent deploying outdated code.
+#
+# Checks:
+# - Repository has no uncommitted changes
+# - Local HEAD matches remote branch HEAD
+#
+# Aborts deployment if repository is out of sync.
+#
+# Usage: check_git_sync
+# =============================================================================
+check_git_sync() {
+    # Skip check if not a git repository
+    if [[ ! -d "$SCRIPT_DIR/.git" ]]; then
+        print_message warning "Not a git repository - skipping sync check"
+        return 0
+    fi
+
+    local current_dir
+    current_dir=$(pwd)
+
+    cd "$SCRIPT_DIR" || {
+        print_message error "Failed to access repository directory: $SCRIPT_DIR"
+        exit 1
+    }
+
+    # Get current branch name
+    local current_branch
+    current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+
+    if [[ -z "$current_branch" ]]; then
+        print_message error "Failed to determine current git branch"
+        cd "$current_dir" || true
+        exit 1
+    fi
+
+    print_message info "Checking git repository sync status..."
+    print_message info "Repository: $SCRIPT_DIR"
+    print_message info "Branch: $current_branch"
+
+    # Check for uncommitted changes
+    if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+        print_message warning "Repository has uncommitted changes:"
+        git status --short
+        print_message warning ""
+        print_message warning "This may indicate local modifications that were not pushed."
+        print_message warning "Consider committing and pushing changes before deployment."
+        print_message warning ""
+    fi
+
+    # Fetch latest from remote (quietly)
+    print_message info "Fetching latest changes from origin/$current_branch..."
+    if ! git fetch origin "$current_branch" --quiet 2>/dev/null; then
+        print_message warning "Failed to fetch from origin - network issue or remote not configured"
+        print_message warning "Continuing deployment with local repository state"
+        cd "$current_dir" || true
+        return 0
+    fi
+
+    # Compare local and remote commits
+    local local_commit
+    local remote_commit
+
+    local_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
+    remote_commit=$(git rev-parse "origin/$current_branch" 2>/dev/null || echo "")
+
+    if [[ -z "$local_commit" ]] || [[ -z "$remote_commit" ]]; then
+        print_message error "Failed to retrieve git commit hashes"
+        cd "$current_dir" || true
+        exit 1
+    fi
+
+    # Check sync status
+    if [[ "$local_commit" == "$remote_commit" ]]; then
+        print_message success "✓ Repository is synchronized with origin/$current_branch"
+        print_message info "  Commit: ${local_commit:0:8}"
+        cd "$current_dir" || true
+        return 0
+    fi
+
+    # Repository is out of sync - determine direction
+    local ahead_count
+    local behind_count
+
+    ahead_count=$(git rev-list --count origin/$current_branch..HEAD 2>/dev/null || echo "0")
+    behind_count=$(git rev-list --count HEAD..origin/$current_branch 2>/dev/null || echo "0")
+
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error "❌ REPOSITORY OUT OF SYNC WITH REMOTE"
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error ""
+    print_message error "Repository: $SCRIPT_DIR"
+    print_message error "Branch:     $current_branch"
+    print_message error ""
+    print_message error "Local commit:  ${local_commit:0:8} ($(git log -1 --format='%s' HEAD 2>/dev/null || echo 'unknown'))"
+    print_message error "Remote commit: ${remote_commit:0:8} ($(git log -1 --format='%s' origin/$current_branch 2>/dev/null || echo 'unknown'))"
+    print_message error ""
+
+    if [[ $behind_count -gt 0 ]]; then
+        print_message error "⚠️  Local repository is BEHIND remote by $behind_count commit(s)"
+        print_message error ""
+        print_message error "REQUIRED ACTION:"
+        print_message error "  cd $SCRIPT_DIR"
+        print_message error "  git pull origin $current_branch"
+        print_message error ""
+        print_message error "Then re-run deployment."
+    elif [[ $ahead_count -gt 0 ]]; then
+        print_message error "⚠️  Local repository is AHEAD of remote by $ahead_count commit(s)"
+        print_message error ""
+        print_message error "RECOMMENDED ACTION:"
+        print_message error "  cd $SCRIPT_DIR"
+        print_message error "  git push origin $current_branch"
+        print_message error ""
+        print_message error "Or if you want to deploy anyway (not recommended):"
+        print_message error "  Manually confirm that unpushed changes are intentional"
+    fi
+
+    print_message error "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_message error ""
+    print_message error "Deployment ABORTED to prevent deploying outdated or unintended code."
+    print_message error ""
+
+    cd "$current_dir" || true
+    exit 1
 }
 
 main() {
@@ -828,8 +958,38 @@ main() {
     fi
     echo ""
 
+    # CHECK: Ensure repository is synchronized with remote
+    # Prevents deploying outdated code from un-updated repository
+    step "Git Repository Sync Check"
+    check_git_sync
+    echo ""
+
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # CRITICAL: Sync package.json to .npm-isolated if changed
+    # - After sync_code_to_deploy: package.json is up-to-date in /opt/budget
+    # - Before npm build: .npm-isolated/package.json must match root package.json
+    # - Install new dependencies if package.json changed
+    if [[ -f "$DEPLOY_DIR/.npm-isolated/package.json" && -f "$DEPLOY_DIR/package.json" ]]; then
+        if ! diff -q "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json" >/dev/null 2>&1; then
+            print_message info "package.json changed - syncing to .npm-isolated"
+            cp "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json"
+
+            # Install new dependencies in isolated environment
+            print_message info "Installing new npm dependencies..."
+            cd "$DEPLOY_DIR/.npm-isolated" || error "Failed to enter .npm-isolated directory"
+            if npm install --no-save 2>&1; then
+                print_message success "npm dependencies updated successfully"
+            else
+                print_message warning "npm install failed - build may fail"
+            fi
+            cd "$DEPLOY_DIR" || error "Failed to return to deploy directory"
+        else
+            print_message info "package.json unchanged - skipping .npm-isolated sync"
+        fi
+    fi
     echo ""
 
     # Analyze sync changes for smart restart decisions
@@ -938,6 +1098,49 @@ main() {
     local node_modules_dir="$npm_isolated_dir/node_modules"
     local build_allowed=true
 
+    # Generate cache version ONCE for entire deployment (v6.8.0+)
+    # CRITICAL: Export BEFORE build_allowed check so it's available for:
+    # 1. npm run build → minify.sh (normal flow)
+    # 2. Fallback subshell minification (if build_allowed=false)
+    # 3. update-cache-busting.sh validation
+    export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+    print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
+
+    # CRITICAL FIX: Write to file for minify.sh to read
+    # npm run build may not propagate env vars correctly across script chain
+    # minify.sh will read from this file if CACHE_VERSION env var is empty
+    # IMPORTANT: Fix ownership when running with sudo to prevent permission issues
+    if echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"; then
+        # Fix ownership if running as root (sudo deploy.sh)
+        if [[ $EUID -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
+            chown "$SUDO_USER:$SUDO_USER" "$DEPLOY_DIR/.cache-version" || {
+                print_message warning "Could not fix .cache-version ownership (non-critical)"
+            }
+        fi
+
+        # Verify file was written correctly
+        if [[ -f "$DEPLOY_DIR/.cache-version" ]]; then
+            local written_version=$(cat "$DEPLOY_DIR/.cache-version")
+            if [[ "$written_version" == "$CACHE_VERSION" ]]; then
+                print_message info "Written CACHE_VERSION to .cache-version: $CACHE_VERSION"
+                print_message info "File ownership: $(stat -c '%U:%G' "$DEPLOY_DIR/.cache-version" 2>/dev/null || stat -f '%Su:%Sg' "$DEPLOY_DIR/.cache-version")"
+            else
+                print_message error "CRITICAL: .cache-version content mismatch!"
+                print_message error "  Expected: $CACHE_VERSION"
+                print_message error "  Actual:   $written_version"
+                exit 1
+            fi
+        else
+            print_message error "CRITICAL: Failed to create .cache-version file"
+            exit 1
+        fi
+    else
+        print_message error "CRITICAL: Cannot write to .cache-version file"
+        print_message error "Check permissions: ls -la $DEPLOY_DIR/.cache-version"
+        exit 1
+    fi
+    echo ""
+
     if [[ ! -d "$npm_isolated_dir" ]]; then
         print_message error "Production npm environment not found: $npm_isolated_dir"
         print_message error "This directory must exist in production (not copied from repository)"
@@ -1004,18 +1207,20 @@ main() {
             exit 1
         fi
 
-        # ARCHITECTURE FIX (2025-11-21):
-        # - Use NODE_PATH instead of symlinks for module resolution
+        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-07):
+        # - Use NODE_PATH for CommonJS require() module resolution
+        # - Use temporary symlink for ES modules (vite.config.single.ts) import resolution
         # - Problem: Symlinked node_modules breaks nested require() in bundled modules
         #   (browserslist → node-releases/data/processed/envs.json fails)
-        # - Solution: Set NODE_PATH to tell Node.js where to find modules directly
+        # - Solution 1: Set NODE_PATH to tell Node.js where to find CommonJS modules
+        # - Solution 2: Create temporary symlink for Vite ES imports (removed after build)
 
-        # CRITICAL: Remove /opt/budget/node_modules (symlink OR directory)
-        # - Only .npm-isolated/node_modules should exist
-        # - If /opt/budget/node_modules exists, npm will use IT instead of NODE_PATH
-        # - This causes "Cannot find module" errors for incomplete installations
+        # CRITICAL: Remove /opt/budget/node_modules before build (if exists)
+        # - Only .npm-isolated/node_modules should exist (accessed via NODE_PATH or symlink)
+        # - If /opt/budget/node_modules exists BEFORE build, npm may use wrong version
+        # - Temporary symlink will be created DURING build for Vite (line ~1240)
         if [[ -e "$PWD/node_modules" ]]; then
-            print_message info "Removing $PWD/node_modules (will use .npm-isolated/node_modules)"
+            print_message info "Removing $PWD/node_modules (will recreate temporarily for Vite)"
             rm -rf "$PWD/node_modules"
             print_message success "Removed - using .npm-isolated/node_modules exclusively"
         fi
@@ -1028,16 +1233,110 @@ main() {
 
         print_message info "npm build environment configured (PATH + NODE_PATH)"
 
+        # CRITICAL FIX (2026-01-07): ES modules (vite.config.single.ts) don't use NODE_PATH
+        # - Vite config uses ES import which ignores NODE_PATH
+        # - Create temporary symlink for ES module resolution
+        # - Will be removed after build (line ~1285)
+        if [[ ! -e "$PWD/node_modules" ]]; then
+            ln -sf "$node_modules_dir" "$PWD/node_modules"
+            print_message info "Created temporary node_modules symlink for Vite ES imports"
+        fi
+
         echo ""
-        if npm run build 2>&1; then
+        # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
+        # build-all.js reads these variables for production minification
+        # Use env to ensure variable propagation across npm script chain
+        print_message info "Passing CACHE_VERSION=$CACHE_VERSION and NODE_ENV=production to Vite build"
+        if env NODE_ENV=production CACHE_VERSION="$CACHE_VERSION" npm run build:prod 2>&1; then
             echo ""
             print_message success "Static assets built and minified successfully"
+            echo ""
+
+            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
+            if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+                # Check if CACHE_VERSION itself contains PLACEHOLDER (NOT validation check variable)
+                if grep -q 'CACHE_VERSION.*=.*"PLACEHOLDER"' "$DEPLOY_DIR/sw.min.js" || \
+                   grep -q "CACHE_VERSION.*=.*'PLACEHOLDER'" "$DEPLOY_DIR/sw.min.js"; then
+                    print_message error "CRITICAL: CACHE_VERSION not replaced in sw.min.js!"
+                    print_message error "Service Worker version was not updated during Vite build"
+                    print_message error ""
+                    print_message error "This will cause PWA cache issues for users"
+                    print_message error ""
+                    print_message error "Debug info:"
+                    print_message error "  CACHE_VERSION set to: ${CACHE_VERSION:-<not set>}"
+                    print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
+                    grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
+                    print_message error ""
+                    print_message error "DEPLOYMENT BLOCKED - please check vite-plugin-sw-version.ts"
+                    exit 1
+                else
+                    SW_VERSION=$(grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
+                    print_message success "✓ Service Worker version verified: $SW_VERSION"
+                fi
+            else
+                print_message warning "sw.min.js not found - Service Worker may not be available"
+            fi
+
+            # Minify legacy files (hierarchyView.js, lists.css) - NOT included in Vite build
+            print_message info "Minifying legacy files (hierarchyView.js, lists.css)..."
+            echo ""
+
+            # Minify hierarchyView.js
+            if [[ -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" ]]; then
+                if npx terser "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" \
+                    -c -m \
+                    -o "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
+                    print_message success "✓ hierarchyView.js minified successfully"
+
+                    # Gzip precompression
+                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
+                        print_message success "✓ hierarchyView.min.js.gz created"
+                    else
+                        print_message warning "Failed to create hierarchyView.min.js.gz (non-critical)"
+                    fi
+                else
+                    print_message error "Failed to minify hierarchyView.js"
+                    print_message error "Deployment will continue with unminified file"
+                fi
+            else
+                print_message warning "hierarchyView.js not found - skipping minification"
+            fi
+
+            # Minify lists.css
+            if [[ -f "$DEPLOY_DIR/frontend/web/static/css/lists.css" ]]; then
+                if npx postcss "$DEPLOY_DIR/frontend/web/static/css/lists.css" \
+                    -o "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" \
+                    --no-map --use cssnano 2>&1; then
+                    print_message success "✓ lists.css minified successfully"
+
+                    # Gzip precompression
+                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" 2>&1; then
+                        print_message success "✓ lists.min.css.gz created"
+                    else
+                        print_message warning "Failed to create lists.min.css.gz (non-critical)"
+                    fi
+                else
+                    print_message error "Failed to minify lists.css"
+                    print_message error "Deployment will continue with unminified file"
+                fi
+            else
+                print_message warning "lists.css not found - skipping minification"
+            fi
+
+            echo ""
+            print_message success "Legacy files minification completed"
             echo ""
         else
             echo ""
             print_message warning "Build failed - check npm logs above"
             print_message warning "Continuing with existing/unminified assets"
             echo ""
+        fi
+
+        # Remove temporary symlink (created for Rollup ES imports)
+        if [[ -L "$PWD/node_modules" ]]; then
+            rm -f "$PWD/node_modules"
+            print_message info "Removed temporary node_modules symlink"
         fi
 
         # Restore PATH and NODE_PATH (remove isolated paths)
@@ -1065,17 +1364,48 @@ main() {
         rm -rf "$sw_min" "$sw_min_gz"
     fi
 
-    # Check 2: Create if files are missing (first deployment or deleted)
+    # Check 2: Recreate sw.min.js if npm run build was skipped (build_allowed=false)
+    # OR if files are missing (first deployment)
+    # OR if sw.js is newer than sw.min.js (sw.js updated)
+    # CRITICAL: Always regenerate if npm run build didn't run (CACHE_VERSION mismatch)
+    local need_regenerate=false
+
     if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
         warning "Service Worker minified files missing - creating..."
+        need_regenerate=true
+    elif [[ "$build_allowed" == false ]]; then
+        warning "npm run build was skipped (build_allowed=false) - regenerating Service Worker..."
+        need_regenerate=true
+    elif [[ -f "$DEPLOY_DIR/sw.js" ]] && [[ "$DEPLOY_DIR/sw.js" -nt "$sw_min" ]]; then
+        warning "sw.js is newer than sw.min.js - regenerating Service Worker..."
+        need_regenerate=true
+    fi
 
+    if [[ "$need_regenerate" == true ]]; then
         # Re-run minification for Service Worker only
         if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
             (
                 cd "$DEPLOY_DIR"
+                # BUGFIX: Configure PATH for terser access in subshell
+                # Parent shell's PATH was restored after npm run build (line 1045)
+                # Subshell needs PATH reconfigured to access terser binary
+                local node_modules_dir="$DEPLOY_DIR/.npm-isolated/node_modules"
+                if [[ -d "$node_modules_dir/.bin" ]]; then
+                    export PATH="$node_modules_dir/.bin:$PATH"
+                fi
+                # BUGFIX: Export CACHE_VERSION for minify_service_worker
+                # Subshells don't inherit non-exported variables from parent
+                export CACHE_VERSION="${CACHE_VERSION}"
                 source scripts/lib/minify.sh
                 minify_service_worker
-            )
+            ) 2>&1 | tee -a "$LOG_FILE"
+
+            # CRITICAL: Check subshell exit status
+            # set -e will exit immediately if subshell fails, but we want to log the error first
+            local subshell_exit_code=${PIPESTATUS[0]}
+            if [[ $subshell_exit_code -ne 0 ]]; then
+                error_return "Service Worker regeneration subshell failed with exit code: $subshell_exit_code"
+            fi
         else
             error_return "Cannot create Service Worker minified files: sw.js not found"
         fi
@@ -1107,22 +1437,21 @@ main() {
             exit 1
         fi
 
-        # BUGFIX: Restart nginx to remount updated sw.min.js files
-        # Docker volumes are mounted at container start. If sw.min.js changes on host,
-        # nginx continues serving old version until restarted.
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
-            info "Service Worker updated - restarting nginx to apply changes..."
-            docker compose restart nginx >/dev/null 2>&1 || warning "Failed to restart nginx"
-            # Wait for nginx to become healthy (using proper retry logic)
-            wait_for_service "nginx" 30
-        fi
+        # Service Worker served by backend (v6.8.0+)
+        # No nginx update needed - backend reads sw.min.js directly from /app/
+        # Backend automatically serves fresh file after deployment
+        info "Service Worker will be served by FastAPI backend (auto-updates)"
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
+        warning "IMPORTANT: sw.js contains PLACEHOLDER and should NOT be served to users"
+        warning "Run 'npm run minify:js' to generate sw.min.js with proper cache version"
     fi
     echo ""
 
     # Update cache versions AFTER synchronization and minification (in /opt/budget)
-    run_cache_busting "auto" "/opt/budget"
+    # DISABLED: update-cache-busting.sh already updated all versions (line 1106)
+    # Double execution causes version mismatch (different timestamps)
+    # run_cache_busting "auto" "/opt/budget"
     echo ""
 
     # CRITICAL SAFEGUARD: Abort deployment if Service Worker cache version broken
@@ -1142,8 +1471,8 @@ main() {
             print_message error "Possible causes:"
             print_message error "  1. npm run build failed silently"
             print_message error "  2. terser minification timeout"
-            print_message error "  3. update-sw-version.sh not running"
-            print_message error "  4. File permissions preventing sw.js update"
+            print_message error "  3. update-cache-busting.sh failed to replace PLACEHOLDER"
+            print_message error "  4. File permissions preventing sw.min.js update"
             print_message error ""
             print_message error "DEPLOYMENT ABORTED - Fix Service Worker first"
             print_message error "═══════════════════════════════════════════════════════════"
@@ -1517,7 +1846,9 @@ main() {
                     if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
                         warning "✗ Service Worker contains PLACEHOLDER"
                         smoke_test_failed=true
-                    elif echo "$sw_content" | grep -qE "CACHE_VERSION.*=.*['\"]v[0-9]{8}_[0-9]{4}"; then
+                    elif echo "$sw_content" | grep -qE "['\"]v[0-9]{8}_[0-9]{4}['\"]"; then
+                        # NOTE: After Vite minification, CACHE_VERSION variable name is mangled (e.g. -> f)
+                        # So we search for version string directly instead of variable name
                         sw_ver=$(echo "$sw_content" | grep -oE "v[0-9]{8}_[0-9]{4}" | head -1)
                         success "✓ Service Worker has version: $sw_ver"
                     else

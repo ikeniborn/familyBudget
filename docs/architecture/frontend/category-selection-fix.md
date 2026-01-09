@@ -595,6 +595,32 @@ All browser console logs use standardized prefixes for easy filtering:
 - Validation decision logging for debugging
 - Skip reason logging when hints are not loaded
 
+### v6.7.1 - 2025-12-31
+
+**Fixed:**
+- Transfer Modal category auto-selection (transfer.js:496, 513) - **CRITICAL user-reported bug**
+- Transaction Modal mode consistency (facts.html:779, 1626)
+- Telegram Web App forms mode consistency (add.html:417, addplan.html:580, edit.html:535)
+- Admin import page mode consistency (admin_import.html:4420, 4482)
+- Analytics page filter mode consistency (analytics.html:2197)
+
+**Files Modified:**
+- `frontend/web/static/js/transfer.js` - Added `mode: 'create'` to FROM/TO category trees (lines 496, 513)
+- `frontend/web/templates/facts.html` - Added `mode: 'create'` to create modal, `mode: 'edit'` to edit modal (lines 779, 1626)
+- `frontend/webapp/add.html` - Added `mode: 'create'` to Add Fact form (line 417)
+- `frontend/webapp/addplan.html` - Added `mode: 'create'` to Add Plan form (line 580)
+- `frontend/webapp/edit.html` - Added `mode: 'edit'` to Edit form (line 535)
+- `frontend/web/templates/admin_import.html` - Added `mode: 'edit'` to inline picker, `mode: 'create'` to bulk filter (lines 4420, 4482)
+- `frontend/web/templates/analytics.html` - Added `mode: 'create'` to category filter (line 2197)
+
+**Enhanced:**
+- Added console logging to Transfer Modal initialization (`[TRANSFER_INIT]` prefix)
+- Complete mode parameter coverage across all ChoicesCategoryTree instances
+
+**Total Changes:** 10 mode parameter additions across 7 files
+
+**Note:** This update extends the v6.7.0 fix pattern to all remaining modal windows and forms, ensuring consistent behavior across the entire application.
+
 ---
 
 ## Support

@@ -142,11 +142,14 @@ update_system() {
         error "apt-get update failed after retries. Check network connection and $LOG_FILE"
     fi
 
-    if ! apt_with_retry upgrade -y; then
-        error "apt-get upgrade failed after retries. Check $LOG_FILE for details."
-    fi
+    # SKIP apt-get upgrade by default (can hang on interactive prompts)
+    # User can run manually after installation: sudo apt-get upgrade -y
+    warning "Skipping apt-get upgrade (prevents hanging on interactive prompts)"
+    info "To upgrade system packages manually after installation:"
+    info "  sudo apt-get upgrade -y"
+    echo ""
 
-    success "System packages updated"
+    success "System package list updated (upgrade skipped)"
 }
 
 # Install basic utilities
@@ -171,6 +174,7 @@ install_utilities() {
         "net-tools"
         "ufw"  # Firewall
         "certbot"  # Let's Encrypt SSL certificates
+        "cron"  # Cron daemon for automated backups (CRITICAL for backup automation)
         "python3-pip"  # Python package manager for boto3 (S3 backups)
         "imagemagick"  # Image processing for PWA icons generation
         "librsvg2-bin"  # SVG to PNG conversion (rsvg-convert) for PWA icons

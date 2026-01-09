@@ -73,8 +73,12 @@ class Settings(BaseSettings):
     # Redis Configuration
     REDIS_URL: str | None = None  # e.g., redis://redis:6379/0
     REDIS_CACHE_TTL_DEFAULT: int = 60  # Default cache TTL in seconds
-    REDIS_CACHE_TTL_REFERENCE: int = 300  # TTL for reference data (articles, FC, CC)
-    REDIS_CACHE_TTL_DASHBOARD: int = 30  # TTL for dashboard data
+
+    # Cache TTL by category (all in seconds)
+    REDIS_CACHE_TTL_REFERENCE: int = 300  # Reference data: Articles, Financial Centers, Cost Centers (5 min)
+    REDIS_CACHE_TTL_DASHBOARD: int = 30  # Dashboard data: Quick stats, account balances (30 sec)
+    REDIS_CACHE_TTL_DYNAMIC: int = 60  # Dynamic data: Facts list, recent transactions (1 min)
+    REDIS_CACHE_TTL_SHORT: int = 10  # Short-lived data: Recent HTML fragments (10 sec)
 
     # Write-Behind Configuration
     WRITE_BEHIND_ENABLED: bool = True  # Enable async writes to PostgreSQL (Redis required)

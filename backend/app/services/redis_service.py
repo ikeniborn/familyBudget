@@ -240,3 +240,51 @@ async def get_redis_stats() -> dict:
     except Exception as e:
         logger.error(f"Failed to get Redis stats: {e}")
         return {"error": str(e)}
+
+
+async def get_cache_breakdown() -> dict:
+    """
+    Get cache breakdown by category.
+
+    Analyzes cache keys and groups them by prefix/category.
+
+    Returns:
+        dict: Cache breakdown with counts and categories
+    """
+    if not is_redis_available():
+        return {}
+
+    try:
+        async with get_redis() as client:
+            # Get all cache keys matching pattern
+            keys = await client.keys("cache:*")
+
+            # Breakdown by category
+            breakdown = {
+                "articles": 0,
+                "financial_centers": 0,
+                "cost_centers": 0,
+                "recurring_plans": 0,
+                "dashboard": 0,
+                "recent": 0,
+                "other": 0,
+            }
+
+            for key in keys:
+                key_str = key.decode() if isinstance(key, bytes) else key
+                # Extract category from key pattern: cache:{category}:...
+                parts = key_str.split(":")
+                if len(parts) >= 2:
+                    category = parts[1]
+                    if category in breakdown:
+                        breakdown[category] += 1
+                    else:
+                        breakdown["other"] += 1
+
+            return {
+                "total_cache_keys": len(keys),
+                "by_category": breakdown,
+            }
+    except Exception as e:
+        logger.error(f"Failed to get cache breakdown: {e}")
+        return {"error": str(e)}

@@ -642,7 +642,7 @@ visualMap: {
 
 ---
 
-##### Backend Integration TODO (для полной функциональности фильтров)
+##### Backend Integration - Planned Enhancement (для полной функциональности фильтров)
 
 **API Endpoints требуют обновления:**
 

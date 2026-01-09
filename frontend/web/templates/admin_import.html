@@ -4417,6 +4417,7 @@ function initCellCategoryPicker(recordId) {
         {
             type: type,
             showLeafOnly: true,
+            mode: 'edit',  // ✅ Edit mode - inline editing of import record
             onCategoryChange: async (category) => {
                 if (category) {
                     // Save selection to backend
@@ -4478,6 +4479,7 @@ function initBulkFilteredCategoryTree() {
         {
             type: type,
             showLeafOnly: true,
+            mode: 'create',  // ✅ Create mode - filter selection (not editing record)
             onCategoryChange: (category) => {
                 // Category selected - ready for bulk apply
             }

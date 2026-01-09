@@ -1,26 +1,41 @@
 /**
  * Service Worker для Family Budget PWA
+ *
  * Стратегия кеширования:
  * - Статика с cache busting (CSS/JS): Cache First с ignoreSearch
  * - API endpoints: Network First
  * - HTML страницы: Network First
  *
- * ВАЖНО: CACHE_VERSION должна обновляться при каждом деплое!
- * Используйте git hash или timestamp для автоматической инвалидации кеша.
+ * Версионирование (v6.8.0+):
+ * - CACHE_VERSION: Автоматически обновляется при каждом деплое
+ * - Использует ЕДИНУЮ версию со всеми JS/CSS файлами (v{YYYYMMDD_HHMM})
+ * - PLACEHOLDER заменяется в minify.sh через generate_cache_version()
+ * - Изменение версии → браузер автоматически обнаруживает обновление SW
+ * - Deployment: npm run minify:js → версия инжектится автоматически
  */
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// ВАЖНО: Автоматически обновляется при деплое через scripts/update-sw-version.sh
-// НЕ изменяйте CACHE_VERSION_PLACEHOLDER вручную!
-const CACHE_VERSION = 'v20251229_2003';
+// Cache version - автоматически заменяется при минификации
+// Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
+// IMPORTANT: minify.sh replaces PLACEHOLDER with actual version BEFORE terser minification
+const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
+
+// Validation: warn if PLACEHOLDER wasn't replaced (build script error)
+// Use runtime string construction to prevent terser constant folding
+const PLACEHOLDER_CHECK = 'PLACE' + 'HOLDER'; // Split to prevent replacement
+if (CACHE_VERSION.includes(PLACEHOLDER_CHECK)) {
+  console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
+  console.error('[SW] Service Worker will NOT work correctly');
+  console.error('[SW] Please check minify.sh execution');
+}
 
 // Критическая статика БЕЗ версий (для precaching в install event)
 // ТОЛЬКО файлы которые НЕ используют cache busting
-// ВАЖНО: /facts и /plan НЕ включены - это защищённые страницы,
-// они кэшируются при первом посещении (после авторизации)
+// ВАЖНО: /facts, /plan и /lists НЕ включены - это защищённые страницы,
+// они кэшируются при первом посещении (после авторизации с credentials)
 const STATIC_CACHE = [
   '/',
   '/manifest.json',
@@ -120,20 +135,41 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - удаляем старые кеши и уведомляем клиентов
+// Activate event - мигрируем критичные страницы и удаляем старые кеши
 self.addEventListener('activate', (event) => {
   console.log('[SW] 🚀 Activating Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
     (async () => {
-      // Удаляем старые кеши
       const cacheNames = await caches.keys();
-      const cacheDeletes = cacheNames
-        .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
-        .map((name) => {
-          console.log('[SW] 🗑️ Deleting old cache:', name);
-          return caches.delete(name);
-        });
+      const oldCaches = cacheNames.filter((name) => name.startsWith('budget-') && name !== CACHE_NAME);
+
+      // CRITICAL: Migrate offline pages from old cache to new cache BEFORE deleting
+      // This ensures offline pages remain available even during SW updates
+      if (oldCaches.length > 0) {
+        console.log('[SW] 📦 Migrating offline pages from old cache...');
+        const newCache = await caches.open(CACHE_NAME);
+
+        for (const oldCacheName of oldCaches) {
+          const oldCache = await caches.open(oldCacheName);
+
+          // Copy each OFFLINE_PAGE from old cache to new cache
+          for (const pathname of OFFLINE_PAGES) {
+            const cachedResponse = await oldCache.match(pathname, { ignoreVary: true });
+            if (cachedResponse) {
+              console.log('[SW] ♻️ Migrating:', pathname, 'from', oldCacheName);
+              await newCache.put(pathname, cachedResponse);
+            }
+          }
+        }
+        console.log('[SW] ✓ Migration complete');
+      }
+
+      // Now safe to delete old caches
+      const cacheDeletes = oldCaches.map((name) => {
+        console.log('[SW] 🗑️ Deleting old cache:', name);
+        return caches.delete(name);
+      });
 
       await Promise.all(cacheDeletes);
       console.log(`[SW] ✓ Deleted ${cacheDeletes.length} old cache(s)`);
@@ -231,10 +267,13 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           // Кешируем только OFFLINE_PAGES для offline доступа
-          if (OFFLINE_PAGES.includes(url.pathname)) {
+          if (OFFLINE_PAGES.includes(url.pathname) && response.ok) {
+            if (DEBUG) console.log('[SW] Caching HTML page for offline:', url.pathname);
             const clonedResponse = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clonedResponse);
+              // Cache by URL pathname (not full request) to match HTMX requests
+              cache.put(url.pathname, clonedResponse);
+              if (DEBUG) console.log('[SW] ✓ Cached:', url.pathname);
             });
           }
           return response;
@@ -255,7 +294,8 @@ self.addEventListener('fetch', (event) => {
             );
           }
 
-          return caches.match(request)
+          // Match by URL pathname, ignore headers (HTMX adds HX-Request header)
+          return caches.match(url.pathname, { ignoreVary: true })
             .then(cachedResponse => {
               if (cachedResponse) {
                 if (DEBUG) console.log('[SW] Serving HTML from cache (offline):', url.pathname);

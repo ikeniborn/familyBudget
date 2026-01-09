@@ -18,8 +18,18 @@ NC='\033[0m' # No Color
 SW_FILE="sw.min.js"  # Process MINIFIED version (after npm run build)
 SW_FILE_GZ="sw.min.js.gz"  # Gzip version to update
 TEMPLATES_DIR="frontend/web/templates"
-TIMESTAMP=$(date +"%Y%m%d_%H%M")
-NEW_VERSION="v${TIMESTAMP}"
+
+# Use CACHE_VERSION from environment (set by deploy.sh)
+# Fallback: generate new version if not set (for manual runs)
+if [[ -n "${CACHE_VERSION:-}" ]]; then
+    NEW_VERSION="$CACHE_VERSION"
+    echo -e "${YELLOW}[INFO]${NC} Using CACHE_VERSION from environment: ${BLUE}${NEW_VERSION}${NC}"
+else
+    TIMESTAMP=$(date +"%Y%m%d_%H%M")
+    NEW_VERSION="v${TIMESTAMP}"
+    echo -e "${YELLOW}[WARNING]${NC} CACHE_VERSION not set, generating new version: ${BLUE}${NEW_VERSION}${NC}"
+    echo -e "${YELLOW}[WARNING]${NC} This may cause version mismatch with sw.min.js!"
+fi
 
 # Counters
 total_files=0
@@ -34,30 +44,45 @@ echo ""
 echo -e "${YELLOW}[INFO]${NC} New version: ${BLUE}${NEW_VERSION}${NC}"
 echo ""
 
-# Function: Update Service Worker
-update_service_worker() {
-    echo -e "${YELLOW}[STEP 1/2]${NC} Updating Service Worker (sw.js)..."
+# Function: Validate Service Worker version (v6.8.0+)
+# NOTE: sw.min.js version is injected by minify.sh during npm run build
+# This function only VALIDATES, does NOT modify sw.min.js
+validate_service_worker() {
+    echo -e "${YELLOW}[STEP 1/2]${NC} Validating Service Worker version..."
 
     if [ ! -f "$SW_FILE" ]; then
         echo -e "${RED}[ERROR]${NC} $SW_FILE not found!"
         return 1
     fi
 
-    # Backup
-    cp "$SW_FILE" "${SW_FILE}.bak"
-
-    # Replace CACHE_VERSION_PLACEHOLDER or previous version with new version
-    sed -i.tmp "s/const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
-    rm -f "${SW_FILE}.tmp"
-
-    # Verify replacement
-    if grep -q "const CACHE_VERSION = '${NEW_VERSION}';" "$SW_FILE"; then
-        echo -e "  ${GREEN}✓${NC} Service Worker updated: ${BLUE}${NEW_VERSION}${NC}"
-        rm -f "${SW_FILE}.bak"
+    # Check if version matches expected NEW_VERSION
+    # NOTE: After Vite minification, variable names are mangled (e.g. CACHE_VERSION -> f)
+    # So we search for the version string directly instead of variable name
+    if grep -qF "\"${NEW_VERSION}\"" "$SW_FILE" || grep -qF "'${NEW_VERSION}'" "$SW_FILE"; then
+        echo -e "  ${GREEN}✓${NC} Service Worker version correct: ${BLUE}${NEW_VERSION}${NC}"
         return 0
     else
-        echo -e "  ${RED}✗${NC} Failed to update Service Worker, restoring backup..."
-        mv "${SW_FILE}.bak" "$SW_FILE"
+        # Show what version is actually present (search for version pattern vYYYYMMDD_HHMM or vYYYYMMDD_suffix)
+        local actual_version
+        actual_version=$(grep -oE '"v[0-9]{8}_[a-zA-Z0-9]+"' "$SW_FILE" | head -1 | tr -d '"' || echo "")
+
+        # Try single quotes if double quotes not found
+        if [ -z "$actual_version" ]; then
+            actual_version=$(grep -oE "'v[0-9]{8}_[a-zA-Z0-9]+'" "$SW_FILE" | head -1 | tr -d "'" || echo "")
+        fi
+
+        if [ -z "$actual_version" ]; then
+            actual_version="NOT FOUND"
+        fi
+
+        echo -e "  ${RED}✗${NC} Service Worker version mismatch!"
+        echo -e "  ${YELLOW}Expected:${NC} ${BLUE}${NEW_VERSION}${NC}"
+        echo -e "  ${YELLOW}Actual:${NC}   ${RED}${actual_version}${NC}"
+        echo -e ""
+        echo -e "  ${YELLOW}[INFO]${NC} This usually means:"
+        echo -e "    - npm run build failed or was skipped"
+        echo -e "    - vite-plugin-sw-version.ts did not inject CACHE_VERSION"
+        echo -e "    - CACHE_VERSION env variable not passed to build"
         return 1
     fi
 }
@@ -99,10 +124,13 @@ update_html_templates() {
 
         # Replace all PLACEHOLDER tokens with new version
         # Supports patterns:
-        # - ?v=PLACEHOLDER
-        # - ?version=PLACEHOLDER
-        # - &v=PLACEHOLDER
-        sed -i.tmp "s/\([?&]v\?e\?r\?s\?i\?o\?n\?=\)PLACEHOLDER/\1${NEW_VERSION}/g" "$file"
+        # - ?v=PLACEHOLDER or &v=PLACEHOLDER
+        # - ?version=PLACEHOLDER or &version=PLACEHOLDER
+        # Using two separate patterns for clarity and reliability
+        sed -i.tmp \
+          -e "s/\([?&]\)v=PLACEHOLDER/\1v=${NEW_VERSION}/g" \
+          -e "s/\([?&]\)version=PLACEHOLDER/\1version=${NEW_VERSION}/g" \
+          "$file"
         rm -f "${file}.tmp"
 
         # Verify replacement (no PLACEHOLDER should remain)
@@ -136,10 +164,15 @@ validate_no_placeholders() {
 
     local placeholder_count=0
 
-    # Check Service Worker (minified version uses double quotes)
+    # Check Service Worker for unreplaced PLACEHOLDER in CACHE_VERSION assignment
+    # CRITICAL: Check for actual PLACEHOLDER token, not CACHE_VERSION_PLACEHOLDER
+    # sw.js uses: const CACHE_VERSION = 'PLACEHOLDER'
     if [ -f "$SW_FILE" ]; then
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$SW_FILE" 2>/dev/null; then
-            echo -e "  ${RED}✗${NC} Service Worker still contains CACHE_VERSION_PLACEHOLDER"
+        if grep -q "CACHE_VERSION.*['\"]PLACEHOLDER['\"]" "$SW_FILE" 2>/dev/null; then
+            echo -e "  ${RED}✗${NC} Service Worker still contains PLACEHOLDER in CACHE_VERSION"
+            # Show actual line for debugging
+            local placeholder_line=$(grep -o "CACHE_VERSION.*['\"]PLACEHOLDER['\"]" "$SW_FILE" | head -1)
+            echo -e "  ${YELLOW}Found:${NC} ${placeholder_line}"
             ((placeholder_count++))
         fi
     fi
@@ -177,9 +210,12 @@ validate_no_placeholders() {
 
 # Main execution
 main() {
-    # Step 1: Update Service Worker
-    if ! update_service_worker; then
-        echo -e "${RED}[CRITICAL]${NC} Service Worker update failed"
+    # Step 1: Validate Service Worker (v6.8.0+)
+    # NOTE: sw.min.js is already updated by minify.sh during npm run build
+    # We only validate that the version is correct
+    if ! validate_service_worker; then
+        echo -e "${RED}[CRITICAL]${NC} Service Worker validation failed"
+        echo -e "${YELLOW}[INFO]${NC} This is likely caused by minify.sh not running correctly"
         exit 1
     fi
 

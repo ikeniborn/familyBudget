@@ -271,6 +271,131 @@ console.log('[MODAL_CREATE] Fact transfer: TO category reset and cleared');
 - `[ChoicesCategoryTree] Selection preservation decision` при выборе счета
 - Правильное решение (`shouldPreserve: false` для create, `shouldPreserve: true` для edit)
 
+## Критическое исправление (2025-12-30): isInitialFiltering
+
+**Версия:** 6.7.0+
+**Дата:** 2025-12-30
+**Commit:** 11fcc666
+
+### Проблема после первого исправления
+
+После внедрения решения с `mode: 'create' | 'edit'` и `clearSelection()` пользователь сообщил что проблема **сохраняется** - при выборе счёта категория всё ещё автоматически заполняется.
+
+### Анализ корневой причины
+
+Проверка кода показала что в `choicesCategoryTree.js:1133` логика `shouldPreserve` была **упрощена** и проверка `mode` была **убрана**:
+
+```javascript
+// ❌ НЕПРАВИЛЬНО (строка 1133)
+const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+```
+
+Это означало что категория **ВСЕГДА** восстанавливалась при любом изменении `financialCenterId`, включая **первый выбор счёта** после `clearSelection()`.
+
+### Почему mode: 'edit' не решила проблему?
+
+Опция `mode` не использовалась в логике `shouldPreserve`. Даже при default `mode: 'edit'` категория восстанавливалась потому что:
+
+1. `clearSelection()` вызывался при открытии модала (✅ работает)
+2. Пользователь выбирает счёт → вызывается `updateFinancialCenter()`
+3. `element.value` был пустой (после clearSelection) → `previousSelectionId = null`
+4. НО если в предыдущей сессии была выбрана категория 70, она могла остаться в кеше Choices.js
+5. При фильтрации по счёту категория 70 оказывалась доступной → `categoryStillAvailable = true`
+6. `shouldPreserve = categoryStillAvailable` → категория восстанавливалась
+
+### Правильное решение: isInitialFiltering
+
+Вместо `mode` используется флаг `isInitialFiltering`, который вычисляется в `updateFinancialCenter()`:
+
+```javascript
+// Detect if this is initial filtering (from no filter to a filter)
+const previousFcId = this.options.financialCenterId;
+const isInitialFiltering = previousFcId === null && financialCenterId !== null;
+```
+
+**Логика:**
+- `previousFcId === null` → счёт НЕ был выбран ранее
+- `financialCenterId !== null` → счёт выбирается СЕЙЧАС
+- `isInitialFiltering === true` → это ПЕРВЫЙ выбор счёта (не смена)
+
+### Окончательное исправление (choicesCategoryTree.js:1134)
+
+**Было:**
+```javascript
+const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+```
+
+**Стало:**
+```javascript
+const shouldPreserve = !isInitialFiltering && categoryStillAvailable;
+```
+
+**Обновлённое логирование:**
+```javascript
+console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
+    mode: this.options.mode,
+    isInitialFiltering,           // NEW
+    categoryStillAvailable,
+    shouldPreserve,
+    previousSelectionId,
+    reasoning: isInitialFiltering  // NEW
+        ? 'Initial FC selection - NOT preserving (prevent phantom auto-select)'
+        : (shouldPreserve
+            ? 'FC changed - preserving (category available)'
+            : 'FC changed - clearing (category NOT available)')
+});
+```
+
+### Поведение после исправления
+
+| Сценарий | previousFcId | newFcId | isInitialFiltering | shouldPreserve | Результат |
+|----------|-------------|---------|-------------------|----------------|-----------|
+| Открыли модал, выбрали счёт 1 | `null` | `1` | `true` | `false` | ❌ Категория НЕ восстанавливается |
+| Сменили счёт 1 → 2 | `1` | `2` | `false` | `true` (если доступна) | ✅ Категория сохраняется |
+| Сменили счёт 1 → 2 (категория недоступна) | `1` | `2` | `false` | `false` | ❌ Категория очищается |
+
+### Почему это правильное решение
+
+1. **Не требует опции mode** - работает автоматически на основе состояния
+2. **Работает для всех экземпляров** - не нужно менять инициализацию
+3. **Обратно совместимо** - не ломает существующий код
+4. **Точно определяет intent** - отличает первый выбор от смены счёта
+
+### Файлы изменены
+
+- `frontend/shared/static/js/choicesCategoryTree.js` (lines 1122-1147)
+- `frontend/shared/static/js/choicesCategoryTree.min.js` (автоматически)
+- `docs/architecture/modal-hints-fix.md` (добавлен раздел 5)
+- `docs/architecture/category-selection-fix.md` (этот раздел)
+
+### Тестирование
+
+**Сценарий:** Открыть modal_add_plan, выбрать счёт
+
+**Ожидаемые логи:**
+```
+[ChoicesCategoryTree] Filter change type: {
+    previousFcId: null,
+    newFcId: 1,
+    isInitialFiltering: true,
+    note: 'Initial filter - do NOT preserve selection'
+}
+
+[ChoicesCategoryTree] Checking if category still available: {
+    isInitialFiltering: true,
+    willPreserve: false,
+    note: 'Initial filtering - will NOT preserve'
+}
+
+[ChoicesCategoryTree] Selection preservation decision: {
+    isInitialFiltering: true,
+    shouldPreserve: false,
+    reasoning: 'Initial FC selection - NOT preserving (prevent phantom auto-select)'
+}
+```
+
+**Результат:** Категория остаётся ПУСТОЙ ✅
+
 ## Breaking Changes
 
 **НЕТ BREAKING CHANGES.**
@@ -340,7 +465,9 @@ this.dispatchEvent('modeChanged', {oldMode: 'edit', newMode: 'create'});
 
 - `/home/ikeniborn/Documents/Project/claude/.nvm-isolated/.claude-isolated/plans/expressive-wiggling-papert.md`
 
-## Commit Message
+## Commit Messages
+
+### Первое исправление (v6.6.1)
 
 ```
 fix(frontend): prevent phantom category auto-selection in create modals
@@ -368,9 +495,159 @@ Comprehensive logging добавлен для debugging.
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 ```
 
+### Критическое исправление (v6.7.0+) - Commit 11fcc666
+
+```
+fix(frontend): fix isInitialFiltering logic in ChoicesCategoryTree
+
+Проблема:
+После первого исправления категория всё ещё автоматически выбиралась
+при выборе счёта. Анализ показал что проверка isInitialFiltering была
+УБРАНА из логики shouldPreserve в updateFinancialCenter().
+
+Корневая причина:
+Строка choicesCategoryTree.js:1133 содержала:
+const shouldPreserve = categoryStillAvailable;  // Remove mode check!
+
+Это означало что категория ВСЕГДА восстанавливалась при изменении счёта,
+включая ПЕРВЫЙ выбор счёта (isInitialFiltering=true).
+
+Решение:
+- Добавлена проверка !isInitialFiltering в shouldPreserve (line 1134)
+- Обновлено логирование с добавлением isInitialFiltering и note (lines 1122-1147)
+- Обновлена документация (category-selection-fix.md, modal-hints-fix.md)
+
+Поведение после исправления:
+- Первый выбор счёта (isInitialFiltering=true): категория НЕ восстанавливается
+- Смена счёта (isInitialFiltering=false): категория восстанавливается если доступна
+- Смена счёта + категория недоступна: категория очищается
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
 ## References
 
 - **Issue:** Phantom category auto-selection in create modals
-- **Root cause:** `element.value` caching + unconditional selection preservation in `updateFinancialCenter()`
-- **Architecture pattern:** Mode-based behavior + explicit API (clearSelection)
-- **Similar implementations:** None (первая реализация mode-based selection control в ChoicesCategoryTree)
+- **Root causes:**
+  1. v6.6.1: `element.value` caching + unconditional selection preservation in `updateFinancialCenter()`
+  2. v6.7.0+: Missing `isInitialFiltering` check in `shouldPreserve` logic
+- **Architecture patterns:**
+  - Mode-based behavior + explicit API (clearSelection) - v6.6.1
+  - State-based filtering detection (isInitialFiltering) - v6.7.0+
+- **Related documentation:**
+  - `/docs/architecture/modal-hints-fix.md` - Plan modal hints implementation
+  - `/docs/architecture/frontend-loading-patterns.md` - Modal button state management
+- **Similar implementations:** None (первая реализация isInitialFiltering-based selection control в ChoicesCategoryTree)
+
+## Critical Fix v6.7.1: Force Empty Selection After setChoices()
+
+**Date:** 2026-01-02
+**Version:** 6.7.1
+
+### Problem After Previous Fixes
+
+Despite fixes in v6.6.1 and v6.7.0+, category auto-selection still occurred in transfer modal when selecting financial center for the first time.
+
+### Root Cause
+
+Choices.js library ignores the 4th parameter `false` in `setChoices()` under certain conditions and automatically selects the first **non-disabled** element from the list.
+
+Since the placeholder is marked as `disabled: true`, Choices.js skips it and selects the first real category (which has `disabled: false`).
+
+### Solution
+
+**Explicitly clear selection** AFTER `setChoices()` call in both:
+1. `initChoices()` - initial load (line ~637)
+2. `updateFinancialCenter()` - when financial center filter changes (line ~1115)
+
+**Code:**
+```javascript
+this.choices.setChoices(choices, 'value', 'label', false);
+
+// ✅ CRITICAL FIX: Force clear selection (prevent Choices.js auto-select)
+console.log('[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)');
+this.choices.removeActiveItems();
+if (this.element) {
+    this.element.value = '';
+}
+```
+
+This guarantees empty selection regardless of Choices.js internal logic.
+
+### Files Modified
+
+- `frontend/shared/static/js/choicesCategoryTree.js` (lines ~637, ~1118)
+- `frontend/shared/static/js/choicesCategoryTree.min.js` (automatic)
+- `docs/architecture/category-selection-fix.md` (this section)
+
+### Testing
+
+**Scenario:** Transfer modal
+1. Open transfer modal → Categories FROM and TO should be EMPTY
+2. Select FROM account → FROM category should REMAIN EMPTY
+3. Select TO account → TO category should REMAIN EMPTY
+4. Manually select FROM category → should work
+5. Change FROM account → category preserved if available, cleared if not
+
+**Expected Logs:**
+```
+[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)
+[ChoicesCategoryTree] Selection preservation decision: {isInitialFiltering: true, shouldPreserve: false}
+```
+
+### Why This Fix Was Necessary
+
+Previous fixes focused on **logic** (mode, isInitialFiltering), but didn't address the **Choices.js behavior** itself. The library has internal logic that may auto-select first non-disabled item, bypassing the `false` parameter.
+
+### Impact
+
+- **Minimal performance impact**: 2 additional calls per dropdown interaction
+- **100% backward compatible**: No API changes
+- **Defensive programming**: Explicitly enforces expected behavior
+
+### Commit Message
+
+```
+fix(frontend): force empty selection after Choices.js setChoices() in transfer modal
+
+Проблема:
+При первом выборе счета в transfer modal категория автоматически заполнялась
+первым элементом списка, несмотря на предыдущие исправления (v6.6.1, v6.7.0+).
+
+Корневая причина:
+Choices.js игнорирует 4-й параметр 'false' в setChoices() и автоматически
+выбирает первый НЕ disabled элемент. Placeholder disabled, поэтому
+Choices.js выбирает первую реальную категорию.
+
+Решение:
+Явно очищаем выбор ПОСЛЕ setChoices() в двух местах:
+1. initChoices() - при инициализации компонента (line ~637)
+2. updateFinancialCenter() - при фильтрации по счету (line ~1118)
+
+Код изменений:
+```javascript
+this.choices.setChoices(choices, 'value', 'label', false);
+
+// Force clear selection (Choices.js may auto-select despite 'false')
+this.choices.removeActiveItems();
+if (this.element) {
+    this.element.value = '';
+}
+```
+
+Файлы:
+- frontend/shared/static/js/choicesCategoryTree.js (~6 строк добавлено)
+- frontend/shared/static/js/choicesCategoryTree.min.js (автоматически)
+- docs/architecture/category-selection-fix.md (добавлен раздел v6.7.1)
+
+Тестирование:
+- Открыть transfer modal → категории пустые
+- Выбрать счет → категории остаются пустыми
+- Переоткрыть модал → категории снова пустые
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```

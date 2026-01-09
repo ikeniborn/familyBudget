@@ -7,6 +7,22 @@
 
 <!-- Lists CSS -->
 <link rel="stylesheet" href="/static/css/lists.min.css?v=PLACEHOLDER">
+
+<!-- CRITICAL FIX: Override base.html inline mobile modal overflow -->
+<!-- Inline styles have highest CSS cascade priority -->
+<style>
+@media (max-width: 640px) {
+    /* Override base.html overflow-y: auto for Store dropdown z-index fix */
+    #item-modal.store-dropdown-open .modal-box {
+        overflow-y: visible !important;
+        overflow-x: visible !important;
+    }
+
+    #item-modal.store-dropdown-open .form-control {
+        overflow: visible !important;
+    }
+}
+</style>
 {% endblock %}
 
 {% block mobile_menu %}
@@ -15,7 +31,11 @@
     <!-- Home Button -->
     <button
         type="button"
-        onclick="window.location.href='/'"
+        hx-get="/"
+        hx-target="body"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        onclick="navigateHomeOfflineFriendly()"
         class="text-primary"
         aria-label="Главная">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,7 +347,7 @@
                     <label class="label py-1">
                         <span class="label-text font-medium text-xs sm:text-sm">📊 Кол-во</span>
                     </label>
-                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="0.1" placeholder="1">
+                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="1" min="0" placeholder="1">
                 </div>
 
                 <!-- Unit -->
@@ -377,8 +397,24 @@
             </div>
 
             <div class="modal-action mt-3 sm:mt-4 gap-2">
+                <!-- NEW: Delete button (left position, only in edit mode) -->
+                <button type="button"
+                        class="btn btn-error btn-sm sm:btn-md hidden"
+                        id="item-modal-delete-btn"
+                        onclick="handleDeleteFromModal()"
+                        title="Удалить товар"
+                        aria-label="Удалить товар">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span class="hidden sm:inline ml-1">Удалить</span>
+                </button>
+
+                <!-- Spacer -->
+                <div class="flex-1"></div>
+
                 <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeItemModal()">Отмена</button>
-                <button type="submit" class="btn btn-primary btn-sm sm:btn-md flex-1 sm:flex-initial">Сохранить</button>
+                <button type="submit" class="btn btn-primary btn-sm sm:btn-md">Сохранить</button>
             </div>
         </form>
     </div>
@@ -564,9 +600,28 @@
 <script>
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // НОВОЕ: Диагностика устройства
+    console.log('[LISTS_INIT] === DOMContentLoaded fired ===');
+    console.log('[LISTS_INIT] User-Agent:', navigator.userAgent);
+    console.log('[LISTS_INIT] Screen size:', window.innerWidth, 'x', window.innerHeight);
+    console.log('[LISTS_INIT] Online status:', navigator.onLine);
+    console.log('[LISTS_INIT] Viewport:', {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio
+    });
+
     try {
+        console.log('[LISTS_INIT] Starting listsManager.init()');
+        performance.mark('lists-init-start'); // Performance tracking
+
         // Initialize Lists Manager
         await window.listsManager.init();
+
+        performance.mark('lists-init-end');
+        performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
+        const measure = performance.getEntriesByName('lists-initialization')[0];
+        console.log(`[LISTS_INIT] ✅ Initialization completed in ${measure.duration.toFixed(2)}ms`);
 
         // Make hierarchyView globally accessible for onclick handlers
         if (window.listsManager.hierarchyView) {
@@ -584,9 +639,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         debugLog('[Lists] Page initialized');
     } catch (error) {
-        console.error('[Lists] Initialization error:', error);
-        showToast('Ошибка инициализации страницы', 'error');
+        // УЛУЧШЕНО: Детальное логирование ошибки
+        console.error('[LISTS_INIT] === CRITICAL ERROR ===');
+        console.error('[LISTS_INIT] Error:', error);
+        console.error('[LISTS_INIT] Error name:', error.name);
+        console.error('[LISTS_INIT] Error message:', error.message);
+        console.error('[LISTS_INIT] Error stack:', error.stack);
+
+        showToast('Ошибка инициализации страницы: ' + error.message, 'error');
     }
 });
+
+/**
+ * Navigate to home page with offline support
+ * HTMX handles Service Worker cache automatically via hx-get="/"
+ * Service Worker intercepts fetch() → serves cached page
+ */
+function navigateHomeOfflineFriendly() {
+    console.log('[LISTS_NAV] Navigating to home page (offline-friendly)');
+
+    // HTMX will handle navigation via hx-get="/"
+    // Service Worker intercepts fetch() → serves cached page
+    if (typeof htmx === 'undefined') {
+        console.warn('[LISTS_NAV] HTMX not available, using fallback');
+        window.location.href = '/';
+    }
+}
 </script>
 {% endblock %}

@@ -209,6 +209,14 @@ async def create_shopping_list_item(
     await session.commit()
     await session.refresh(item)
 
+    # Warn if non-integer quantity detected (legacy data or bypassed frontend validation)
+    if item.quantity is not None and item.quantity % 1 != 0:
+        logger.warning(
+            f"[SHOPPING_ITEM] Non-integer quantity detected: "
+            f"item_id={item.id}, quantity={item.quantity}, "
+            f"message='Integer quantities preferred (legacy data)'"
+        )
+
     # Log after successful creation
     logger.info(
         f"[ITEM_CREATE] Item created successfully: item_id={item.id}, "

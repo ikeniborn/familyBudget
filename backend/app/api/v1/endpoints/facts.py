@@ -701,7 +701,7 @@ async def get_recent_facts_html(
             </div>
             """
             # Cache empty state (TTL 10s)
-            await cache_service.set(cache_key, empty_html, CacheTTL.SHORT)
+            await cache_service.set(cache_key, empty_html, CacheTTL.SHORT())
             return empty_html
 
         # Load articles for fact details
@@ -898,7 +898,7 @@ async def get_recent_facts_html(
 
         # Cache the generated HTML (TTL 10s)
         result_html = table_html + mobile_html
-        await cache_service.set(cache_key, result_html, CacheTTL.SHORT)
+        await cache_service.set(cache_key, result_html, CacheTTL.SHORT())
 
         return result_html
 
@@ -1576,18 +1576,21 @@ async def batch_delete_facts(
     await session.commit()
 
     deleted_count = len(facts_to_delete)
-    logger.info(f"Batch deleted {deleted_count} facts by user {current_user.id}")
+    logger.info(f"[BULK_DELETE] Batch deleted {deleted_count} facts by user {current_user.id}")
 
-    # 5. WebSocket broadcast for each deleted fact (non-blocking)
+    # 5. WebSocket broadcast: SINGLE summary event (NEW PATTERN)
+    # Replaces individual fact_deleted/plan_deleted events to eliminate toast spam
     try:
         ws = _get_budget_ws_broadcast()
-        for fact in facts_to_delete:
-            if fact.record_type == "plan":
-                await ws.broadcast_plan_deleted(fact.id)
-            else:
-                await ws.broadcast_fact_deleted(fact.id)
+
+        fact_ids_list = [fact.id for fact in facts_to_delete]
+        record_types = set(f.record_type for f in facts_to_delete)
+        record_type = record_types.pop() if len(record_types) == 1 else None
+
+        await ws.broadcast_facts_batch_deleted(fact_ids_list, deleted_count, record_type)
+        logger.info(f"[BULK_DELETE] Broadcasted summary event: type={record_type}, count={deleted_count}")
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
+        logger.warning(f"[BULK_DELETE] WebSocket broadcast failed: {e}")
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests

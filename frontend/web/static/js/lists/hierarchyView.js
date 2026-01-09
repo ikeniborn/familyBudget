@@ -15,6 +15,7 @@ class SwipeHandler {
     constructor(hierarchyView) {
         this.hierarchyView = hierarchyView;
         this.activeSwipedItemId = null;
+        this.modalOpenedBySwipe = null; // NEW: Track modal opened by swipe
         this.startX = null;
         this.currentX = null;
         this.isDragging = false;
@@ -28,13 +29,14 @@ class SwipeHandler {
             });
         };
 
-        console.log('[SWIPE] SwipeHandler initialized', {
+        console.log('[SWIPE_INIT] SwipeHandler initialized with modal tracking', {
             threshold: `${this.SWIPE_THRESHOLD * 100}%`
         });
 
         this._log('INITIALIZED', {
             threshold: `${this.SWIPE_THRESHOLD * 100}%`,
-            minDistance: '50px (default swipe threshold)'
+            minDistance: '50px (default swipe threshold)',
+            modalTracking: true
         });
     }
 
@@ -42,8 +44,18 @@ class SwipeHandler {
      * Handle touch start event
      */
     handleTouchStart(e, itemId, itemElement) {
+        // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
+        if (itemElement.classList.contains('completed')) {
+            console.log('[SWIPE] Skipped - item is completed', { itemId });
+            return;
+        }
+
         this.startX = e.touches[0].clientX;
+        this.startY = e.touches[0].clientY;
+        this.currentX = this.startX; // CRITICAL: Initialize to prevent undefined in handleTouchEnd
+        this.currentY = this.startY;
         this.isDragging = true;
+        this.hasMoved = false; // Track if finger actually moved
 
         // Close other swiped items
         if (this.activeSwipedItemId && this.activeSwipedItemId !== itemId) {
@@ -59,6 +71,7 @@ class SwipeHandler {
         console.log('[SWIPE] Touch start', {
             itemId,
             startX: this.startX,
+            startY: this.startY,
             timestamp: Date.now()
         });
     }
@@ -70,7 +83,15 @@ class SwipeHandler {
         if (!this.isDragging) return;
 
         this.currentX = e.touches[0].clientX;
+        this.currentY = e.touches[0].clientY;
         const deltaX = this.currentX - this.startX;
+        const deltaY = this.currentY - this.startY;
+
+        // CRITICAL: Mark as moved if finger moved more than 5px (prevents accidental taps)
+        const movementDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (movementDistance > 5) {
+            this.hasMoved = true;
+        }
 
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (!contentElement) return;
@@ -83,7 +104,8 @@ class SwipeHandler {
                 const targetTransform = -(itemElement.offsetWidth * this.SWIPE_THRESHOLD - swipeDistance);
                 contentElement.style.transform = `translateX(${targetTransform}px)`;
             } else {
-                contentElement.style.transform = 'translateX(0)';
+                // CRITICAL: Remove transform completely to avoid creating containing block
+                contentElement.style.removeProperty('transform');
             }
             return;
         }
@@ -121,73 +143,152 @@ class SwipeHandler {
         // Remove swiping class (re-enable transition)
         contentElement.classList.remove('swiping');
 
+        // CRITICAL: Ignore tap without movement (prevents accidental modal opens)
+        if (!this.hasMoved) {
+            this.resetSwipe(itemId, itemElement);
+            console.log('[SWIPE] Touch end - TAP IGNORED (no movement)', {
+                itemId,
+                deltaX,
+                hasMoved: false,
+                action: 'tap_ignored'
+            });
+            return;
+        }
+
         // Determine action based on threshold
         if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
-            // Open swipe (left swipe)
-            this.openSwipe(itemId, itemElement);
+            // Left swipe - OPEN MODAL DIRECTLY
+            this.openEditModal(itemId, itemElement);
             console.log('[SWIPE] Touch end', {
                 itemId,
                 finalDeltaX: deltaX,
                 threshold,
-                action: 'opened'
+                action: 'opened_modal',
+                timestamp: Date.now()
+            });
+        } else if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
+            // Right swipe - CLOSE MODAL IF OPEN
+            this.closeModalIfOpen(itemId);
+            console.log('[SWIPE] Touch end', {
+                itemId,
+                finalDeltaX: deltaX,
+                threshold,
+                action: 'attempted_close_modal',
+                timestamp: Date.now()
             });
         } else {
-            // Close swipe (snap back)
-            this.closeSwipe(itemId, itemElement);
+            // Snap back (gesture incomplete)
+            this.resetSwipe(itemId, itemElement);
             console.log('[SWIPE] Touch end', {
                 itemId,
                 finalDeltaX: deltaX,
                 threshold,
-                action: 'closed'
+                action: 'snap_back'
             });
         }
     }
 
     /**
-     * Open swipe (reveal actions)
+     * Open edit modal (called after successful left swipe)
      */
-    openSwipe(itemId, itemElement) {
-        const itemWidth = itemElement.offsetWidth;
-        const swipeDistance = itemWidth * this.SWIPE_THRESHOLD;
-
+    openEditModal(itemId, itemElement) {
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
-        if (!contentElement) return;
+        const beforeTransform = contentElement ? contentElement.style.transform : 'none';
 
-        // Transform ONLY content, not buttons - buttons stay fixed on right
-        contentElement.style.transform = `translateX(-${swipeDistance}px)`;
-        itemElement.classList.add('swiped');
-        this.activeSwipedItemId = itemId;
-
-        console.log('[SWIPE] Swipe opened', { itemId });
-
-        // NEW: Enhanced logging with diagnostic info
-        const actionsContainer = itemElement.querySelector('.hierarchy-item-swipe-actions');
-        this._log('SWIPE_OPENED', {
+        console.log('[SWIPE_OPEN] Resetting swipe state before modal open', {
             itemId,
-            swipeDistance: `${swipeDistance}px`,
-            transform: contentElement.style.transform,
-            containerWidth: itemElement.offsetWidth,
-            buttonsVisible: true,
-            pointerEvents: actionsContainer ?
-                window.getComputedStyle(actionsContainer).pointerEvents : 'N/A'
+            beforeTransform,
+            timestamp: Date.now()
         });
+
+        // Reset visual state immediately
+        this.resetSwipe(itemId, itemElement);
+
+        const afterTransform = contentElement ? contentElement.style.transform : 'none';
+        const isCleared = afterTransform === 'translateX(0px)' || afterTransform === '' || afterTransform === 'none';
+
+        console.log('[SWIPE_OPEN] Swipe state reset completed', {
+            itemId,
+            beforeTransform,
+            afterTransform,
+            cleared: isCleared,
+            warning: !isCleared ? 'Transform not properly cleared!' : null
+        });
+
+        // Track that this swipe opened the modal
+        this.modalOpenedBySwipe = itemId;
+
+        // Call global modal function (defined in listsManager.js)
+        if (typeof openEditItemModal === 'function') {
+            openEditItemModal(itemId);
+
+            console.log('[SWIPE] Modal opened', {
+                itemId,
+                timestamp: Date.now(),
+                source: 'swipe_gesture',
+                modalOpenedBySwipe: this.modalOpenedBySwipe
+            });
+        } else {
+            console.error('[SWIPE] openEditItemModal function not found');
+        }
     }
 
     /**
-     * Close swipe (hide actions)
+     * Close modal if currently open (for right swipe)
      */
-    closeSwipe(itemId, itemElement) {
+    closeModalIfOpen(itemId) {
+        const modal = document.getElementById('item-modal');
+
+        // Only close if modal is open AND was opened by swipe for THIS item
+        if (modal && modal.open && this.modalOpenedBySwipe === itemId) {
+            if (typeof closeItemModal === 'function') {
+                closeItemModal();
+
+                console.log('[SWIPE] Modal closed by right swipe', {
+                    itemId,
+                    timestamp: Date.now()
+                });
+
+                this.modalOpenedBySwipe = null;
+            }
+        }
+    }
+
+    /**
+     * Reset swipe visual state (snap back to original position)
+     *
+     * CRITICAL: Must remove inline transform completely, not just set to 'translateX(0)'.
+     * Reason: Any transform value creates a new containing block, causing
+     * absolutely positioned .swipe-indicator to position relative to content
+     * instead of .hierarchy-item (breaks right: 0.75rem positioning).
+     */
+    resetSwipe(itemId, itemElement) {
         const contentElement = itemElement.querySelector('.hierarchy-item-content');
         if (contentElement) {
-            contentElement.style.transform = 'translateX(0)';
-        }
-        itemElement.classList.remove('swiped');
+            // Step 1: Remove swiping class to re-enable transitions
+            contentElement.classList.remove('swiping');
 
+            // Step 2: Force reflow to apply transition re-enablement
+            void contentElement.offsetHeight;
+
+            // Step 3: Remove inline transform (triggers animated transition back)
+            // CRITICAL: Must remove completely, not set to 'translateX(0)'.
+            // Any transform value creates a containing block, breaking .swipe-indicator positioning.
+            contentElement.style.removeProperty('transform');
+
+            console.log('[SWIPE_RESET] Transform removed and classes reset', {
+                itemId,
+                hasSwiping: contentElement.classList.contains('swiping'),
+                hasInlineTransform: contentElement.style.transform !== '',
+                computedTransform: window.getComputedStyle(contentElement).transform
+            });
+        }
+
+        // Clear any swiped state
+        itemElement.classList.remove('swiped');
         if (this.activeSwipedItemId === itemId) {
             this.activeSwipedItemId = null;
         }
-
-        console.log('[SWIPE] Swipe closed', { itemId });
     }
 
     /**
@@ -199,7 +300,7 @@ class SwipeHandler {
         if (this.activeSwipedItemId) {
             const swipedElement = document.querySelector(`.hierarchy-item[data-item-id="${this.activeSwipedItemId}"]`);
             if (swipedElement) {
-                this.closeSwipe(this.activeSwipedItemId, swipedElement);
+                this.resetSwipe(this.activeSwipedItemId, swipedElement);
             }
         }
 
@@ -215,6 +316,7 @@ class SwipeHandler {
         items.forEach(itemElement => {
             const itemId = parseInt(itemElement.dataset.itemId);
             const contentElement = itemElement.querySelector('.hierarchy-item-content');
+            const swipeIndicator = itemElement.querySelector('.swipe-indicator');
 
             // Remove old listeners (if any)
             itemElement.removeEventListener('touchstart', itemElement._touchStartHandler);
@@ -223,24 +325,107 @@ class SwipeHandler {
             if (contentElement) {
                 contentElement.removeEventListener('click', contentElement._clickHandler);
             }
+            if (swipeIndicator) {
+                swipeIndicator.removeEventListener('touchstart', swipeIndicator._blockTouchStart);
+                swipeIndicator.removeEventListener('touchend', swipeIndicator._blockTouchEnd);
+                swipeIndicator.removeEventListener('click', swipeIndicator._blockClick);
+            }
 
             // Create bound handlers
             itemElement._touchStartHandler = (e) => this.handleTouchStart(e, itemId, itemElement);
             itemElement._touchMoveHandler = (e) => this.handleTouchMove(e, itemId, itemElement);
             itemElement._touchEndHandler = (e) => this.handleTouchEnd(e, itemId, itemElement);
 
-            // Click handler for content: close swipe if swiped
+            // Click handler for content: toggle completion or close swipe
             if (contentElement) {
                 contentElement._clickHandler = (e) => {
-                    // Only close if this item is currently swiped
+                    // CRITICAL: Block clicks in right zone (where swipe indicator is)
+                    // Indicator has pointer-events: none, so clicks pass through to content
+                    // Need to check click coordinates, not just e.target
+                    const rect = contentElement.getBoundingClientRect();
+                    const clickX = e.clientX - rect.left;
+                    const clickFromRight = rect.width - clickX;
+
+                    // Block clicks in right 120px zone (indicator zone)
+                    // Indicator width: ~90px (icon + 3 chevrons + gaps + padding)
+                    if (clickFromRight < 120) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        console.log('[CONTENT_CLICK] Blocked - click in indicator zone', {
+                            itemId,
+                            clickFromRight: Math.round(clickFromRight),
+                            target: e.target.tagName,
+                            contentWidth: Math.round(rect.width)
+                        });
+                        return;
+                    }
+
+                    // CRITICAL: Block clicks on swipe indicator (iOS Safari PWA fix)
+                    if (e.target.closest('.swipe-indicator')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        console.log('[CONTENT_CLICK] Blocked - click on indicator', {
+                            itemId,
+                            target: e.target.tagName,
+                            closest: e.target.closest('.swipe-indicator')?.className
+                        });
+                        return;
+                    }
+
+                    // Close swipe if currently swiped
                     if (itemElement.classList.contains('swiped')) {
                         e.preventDefault();
                         e.stopPropagation();
                         this.closeSwipe(itemId, itemElement);
                         console.log('[SWIPE] Content clicked - closing swipe', { itemId });
+                        return;
+                    }
+
+                    // Toggle item completion
+                    const isCompleted = itemElement.dataset.itemCompleted === 'true';
+                    console.log('[CONTENT_CLICK] Toggle completion', {
+                        itemId,
+                        currentState: isCompleted,
+                        newState: !isCompleted
+                    });
+
+                    if (window.listsManager && typeof window.listsManager.toggleItemCompleted === 'function') {
+                        window.listsManager.toggleItemCompleted(itemId, !isCompleted);
+                    } else {
+                        console.error('[CONTENT_CLICK] listsManager.toggleItemCompleted not found');
                     }
                 };
                 contentElement.addEventListener('click', contentElement._clickHandler);
+            }
+
+            // CRITICAL: Block ALL events on swipe indicator (iOS Safari fix)
+            // Prevents indicator from triggering parent onclick handlers
+            if (swipeIndicator) {
+                swipeIndicator._blockTouchStart = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Touch start blocked', { itemId });
+                };
+                swipeIndicator._blockTouchEnd = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Touch end blocked', { itemId });
+                };
+                swipeIndicator._blockClick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+                    console.log('[SWIPE_INDICATOR] Click blocked', { itemId });
+                };
+
+                // Add event listeners with capture phase for maximum blocking
+                swipeIndicator.addEventListener('touchstart', swipeIndicator._blockTouchStart, { passive: false, capture: true });
+                swipeIndicator.addEventListener('touchend', swipeIndicator._blockTouchEnd, { passive: false, capture: true });
+                swipeIndicator.addEventListener('click', swipeIndicator._blockClick, { capture: true });
             }
 
             // Add listeners with passive: false for preventDefault() support
@@ -324,6 +509,23 @@ class HierarchyView {
 
         // Setup swipe handlers for all items
         this.swipeHandler.setupSwipeHandlers();
+
+        // DIAGNOSTIC: Verify swipe indicators rendered correctly (v7.x+)
+        const indicators = this.container.querySelectorAll('.swipe-indicator');
+        const editIcons = this.container.querySelectorAll('.swipe-edit-icon');
+        const chevrons = this.container.querySelectorAll('.swipe-chevron');
+        console.log('[LISTS_SWIPE] Indicator diagnostic:', {
+            totalIndicators: indicators.length,
+            editIconsRendered: editIcons.length,
+            chevronsRendered: chevrons.length,
+            expectedChevrons: indicators.length * 3,
+            chevronMatches: chevrons.length === indicators.length * 3,
+            sampleAnimation: chevrons.length > 0 ? {
+                chevron1: window.getComputedStyle(chevrons[0]).animationName,
+                chevron2: chevrons.length > 1 ? window.getComputedStyle(chevrons[1]).animationName : 'N/A',
+                chevron3: chevrons.length > 2 ? window.getComputedStyle(chevrons[2]).animationName : 'N/A'
+            } : 'No chevrons found'
+        });
 
         // Update smart toggle button state
         this.listsManager.updateHierarchyToggleButton();
@@ -547,38 +749,63 @@ class HierarchyView {
             const isCompleted = item.is_completed;
 
             html += `
-                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <div class="hierarchy-item-content cursor-pointer" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
-                        <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
-                            ${this.escapeHtml(item.product_name)}
-                        </span>
-                        ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}" data-item-completed="${isCompleted}">
+                    <div class="hierarchy-item-content cursor-pointer">
+                        <!-- Text group: name + quantity together -->
+                        <div class="hierarchy-item-text">
+                            <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
+                                ${this.escapeHtml(item.product_name)}
+                            </span>
+                            ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                        </div>
+
+                        <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
+                        <!-- Click blocking: programmatic handler in setupSwipeHandlers() -->
+                        <div class="swipe-indicator" aria-hidden="true">
+                            <!-- Edit icon (pencil) -->
+                            <svg class="swipe-edit-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+
+                            <!-- Chevron 1 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+
+                            <!-- Chevron 2 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+
+                            <!-- Chevron 3 (left arrow) -->
+                            <svg class="swipe-chevron swipe-chevron-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 18l-6-6 6-6"/>
+                            </svg>
+                        </div>
+
+                        <!-- Desktop inline actions - buttons with text + icons (v7.x+) -->
                         <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
-                            <button class="btn btn-xs btn-ghost btn-square"
+                            <button class="btn btn-xs btn-primary"
                                     onclick="openEditItemModal(${item.id})"
-                                    title="Редактировать">
-                                ✏️
+                                    title="Редактировать товар">
+                                <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                                <span>Изменить</span>
                             </button>
-                            <button class="btn btn-xs btn-ghost btn-square text-error"
+                            <button class="btn btn-xs btn-error"
                                     onclick="window.listsManager.deleteItem(${item.id})"
-                                    title="Удалить">
-                                🗑️
+                                    title="Удалить товар">
+                                <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 6h18"/>
+                                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                                </svg>
+                                <span>Удалить</span>
                             </button>
                         </div>
-                    </div>
-                    <div class="hierarchy-item-swipe-actions">
-                        <button class="btn btn-xs btn-square btn-ghost"
-                                onclick="console.log('[SWIPE_CLICK] Edit button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); openEditItemModal(${item.id});"
-                                aria-label="Редактировать"
-                                title="Редактировать">
-                            ✏️
-                        </button>
-                        <button class="btn btn-xs btn-square btn-error"
-                                onclick="console.log('[SWIPE_CLICK] Delete button', {itemId:${item.id}, time:Date.now()}); event.stopPropagation(); window.listsManager.deleteItem(${item.id});"
-                                aria-label="Удалить"
-                                title="Удалить">
-                            🗑️
-                        </button>
                     </div>
                 </div>
             `;

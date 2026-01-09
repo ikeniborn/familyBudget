@@ -185,6 +185,118 @@ Family Budget uses **manual update strategy with simple text indicator** to give
 
 ---
 
+### Cache Versioning Strategy (v6.8.0+)
+
+**Change:** Unified cache busting approach for Service Worker and all static assets.
+
+**Problem (before v6.8.0):**
+- Service Worker used separate `BUILD_TIMESTAMP` variable
+- Static assets used `?v=PLACEHOLDER` replaced by `update-cache-busting.sh`
+- Different version formats → potential cache consistency issues
+- Manual version updates via `update-sw-version.sh` (error-prone)
+
+**Solution (v6.8.0+):**
+- ✅ **Single version format**: `v{YYYYMMDD_HHMM}` (e.g., `v20260102_1847`)
+- ✅ **Unified injection**: `minify.sh` injects version for ALL files
+- ✅ **Same version**: SW and static assets share EXACT same version
+- ✅ **Automatic**: Version generated during `npm run minify:js`
+- ✅ **No manual steps**: No separate scripts needed
+
+**How It Works:**
+
+1. **Source Code (Repository)**:
+   ```javascript
+   // sw.js (always contains PLACEHOLDER)
+   const CACHE_VERSION = 'PLACEHOLDER';
+   const CACHE_NAME = `budget-${CACHE_VERSION}`;
+   ```
+
+   ```html
+   <!-- HTML templates (always contain PLACEHOLDER) -->
+   <script src="/static/js/app.min.js?v=PLACEHOLDER"></script>
+   <link rel="stylesheet" href="/static/css/main.min.css?v=PLACEHOLDER">
+   ```
+
+2. **Deployment Process (on server /opt/budget)**:
+
+   **Step 1: Sync Code**
+   ```bash
+   # rsync from ~/familyBudget → /opt/budget
+   # All files copied with PLACEHOLDER intact
+   ```
+
+   **Step 2: Generate Version ONCE**
+   ```bash
+   # deploy.sh generates version for entire deployment
+   export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+   # → CACHE_VERSION="v20260102_1847"
+   ```
+
+   **Step 3: Build & Minify**
+   ```bash
+   # npm run build → minify.sh uses $CACHE_VERSION from ENV
+   # Replace in sw.min.js:
+   sed -i "s/CACHE_VERSION=['\"]PLACEHOLDER['\"]/CACHE_VERSION=\"v20260102_1847\"/g"
+   # Result: sw.min.js contains v20260102_1847
+   ```
+
+   **Step 4: Cache Busting HTML**
+   ```bash
+   # update-cache-busting.sh uses SAME $CACHE_VERSION
+   # 1. Validates sw.min.js has correct version
+   # 2. Replaces PLACEHOLDER in HTML templates
+   # Result: All files have v20260102_1847
+   ```
+
+3. **Deployment Output (/opt/budget)**:
+   ```javascript
+   // sw.min.js
+   const CACHE_VERSION="v20260102_1847";
+   const CACHE_NAME="budget-v20260102_1847";
+   ```
+
+   ```html
+   <!-- HTML templates -->
+   <script src="/static/js/app.min.js?v=v20260102_1847"></script>
+   <link rel="stylesheet" href="/static/css/main.min.css?v=v20260102_1847">
+   ```
+
+4. **Browser Detection**:
+   - File content changed → Browser detects SW update automatically
+   - No query string needed on sw.min.js URL
+   - Version shown in logs: `[SW] 📦 Installing Service Worker version: v20260102_1847`
+   - **Guaranteed**: SW and HTML files have IDENTICAL version
+
+**Benefits:**
+- ✅ **Cache consistency**: SW and static assets always have matching versions
+- ✅ **Automatic updates**: Browser detects changes without manual intervention
+- ✅ **Simple deployment**: Just run `npm run minify:js` → version injected
+- ✅ **No placeholders**: sw.min.js always has valid version (never PLACEHOLDER in production)
+- ✅ **Single source of truth**: Version generation in one place (minify.sh)
+
+**Important Notes:**
+- **Repository**: sw.js and HTML templates ALWAYS contain `PLACEHOLDER` (never modified in git)
+- **Deployment directory**: /opt/budget contains ACTUAL versions after deployment
+- **Version generation**: Happens ONCE in deploy.sh, used by ALL subsequent steps
+- **No race conditions**: Version generated before build → guaranteed consistency
+- **Validation**: update-cache-busting.sh validates sw.min.js version matches HTML
+- **Deleted**: `update-sw-version.sh` removed (no longer needed)
+
+**Critical Workflow:**
+1. Repository: PLACEHOLDER (committed to git)
+2. rsync → /opt/budget: PLACEHOLDER (copied as-is)
+3. deploy.sh: Generate version ONCE → export CACHE_VERSION
+4. npm run build: minify.sh reads $CACHE_VERSION → inject to sw.min.js
+5. update-cache-busting.sh: reads $CACHE_VERSION → update HTML templates
+6. Result: All files have SAME version in /opt/budget
+
+**See Also:**
+- Deployment: `deploy.sh` (line ~1172: CACHE_VERSION generation)
+- Service Worker minification: `scripts/lib/minify.sh` (minify_service_worker function)
+- HTML cache busting: `scripts/update-cache-busting.sh` (validate_service_worker + update_html_templates)
+
+---
+
 ### Update Flow
 
 #### Step 1: New Version Deployed
@@ -269,19 +381,77 @@ UPDATE AVAILABLE PATH:
     Result: "new" text appears in header with fade-in + subtle pulse animation
 ```
 
-#### Step 6: User Clicks Update Indicator
+#### Step 6: User Clicks Update Indicator (Version Display)
+
+**User Action:** Clicks "new" text indicator in header
+
+**System Flow:**
+```
+Console: [SW_UPDATE] 🖱️ User clicked "new" text indicator
+Browser: Retrieve versions from localStorage
+  → Current: localStorage.getItem('pwa_sw_version')  // e.g., v20260107_1330
+  → New: localStorage.getItem('pwa_new_version')     // e.g., v20260107_1400
+Console: [SW_UPDATE] Available version: v20260107_1400
+Console: [SW_UPDATE] Populating version info in modal...
+Browser: Populate version display elements
+  → #sw-current-version: v20260107_1330 (gray badge)
+  → #sw-new-version: v20260107_1400 (yellow badge)
+Console: [SW_UPDATE] Modal - Current version displayed: v20260107_1330
+Console: [SW_UPDATE] Modal - New version displayed: v20260107_1400
+Console: [SW_UPDATE] ✅ Version transition ready: v20260107_1330 → v20260107_1400
+Console: [SW_UPDATE] Opening confirmation modal
+Browser: Show modal dialog
+```
+
+**Modal Content:**
+- 🔄 **Heading:** "Доступно обновление"
+- 📝 **Text:** "Доступна новая версия приложения."
+- 🏷️ **Version Display:** `Версия: v20260107_1330 → v20260107_1400`
+  - Current version: gray badge (neutral)
+  - New version: yellow/warning badge (emphasis)
+  - Format: monospace font for readability
+- ⚠️ **Warning:** "Для применения обновления необходимо перезагрузить страницу. Несохранённые данные будут потеряны."
+- 🔘 **Actions:** "Позже" (defer) | "Обновить сейчас" (proceed)
+
+**Edge Cases:**
+
+| Scenario | Current Version | New Version | Display |
+|----------|----------------|-------------|---------|
+| Normal update | v20260107_1330 | v20260107_1400 | v20260107_1330 → v20260107_1400 |
+| First install | null | v20260107_1400 | (неизвестно) → v20260107_1400 |
+| Missing new version* | v20260107_1330 | null | v20260107_1330 → (неизвестно) |
+| Both missing** | null | null | (неизвестно) → (неизвестно) |
+
+_*Should not happen in normal flow (indicates bug)_
+_**Indicates localStorage corruption or manual clearing_
+
+**Benefits:**
+- ✅ User confirmation: User knows exact version being installed
+- ✅ Debugging support: Users can report specific version numbers in bug reports
+- ✅ Transparency: Clear communication of what's changing
+- ✅ Version verification: User can check if update is necessary
+
+---
+
+#### Step 7: User Confirms Update
 
 ```
-User: Clicks "new" text indicator in header
-Console: [SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update
-Browser: Get new version from localStorage
-Console: [SW_UPDATE] Updating to version: v20251227_1630
+User: Clicks "Обновить сейчас"
+Console: [SW_UPDATE] 🔄 User confirmed update - starting cleanup process
+Console: [SW_UPDATE] Updating to version: v20260107_1400
+Console: [SW_UPDATE] Step 1/3: Unregistering Service Worker...
+Browser: Unregister Service Worker
+Console: [SW_UPDATE] ✅ Service Worker unregistered successfully
+Console: [SW_UPDATE] Step 2/3: Clearing all caches...
+Browser: Clear all caches (budget-v20260107_1330)
+Console: [SW_UPDATE] ✅ Cleared 1/1 caches
+Console: [SW_UPDATE] Step 3/3: Updating version and reloading...
 Browser: Save new version to localStorage (pwa_sw_version)
-Console: [SW_UPDATE] ✓ Saved new version to localStorage: v20251227_1630
+Console: [SW_UPDATE] ✅ Saved new version to localStorage: v20260107_1400
 Browser: Clean up update flags (pwa_update_available, pwa_new_version)
-Console: [SW_UPDATE] ✓ Cleaned up update flags from localStorage
-Console: [SW_UPDATE] ⟳ Initiating page reload to apply new version...
-Browser: RELOAD via window.location.reload()
+Console: [SW_UPDATE] ✅ Cleaned up update flags from localStorage
+Console: [SW_UPDATE] ⟳ Initiating page reload...
+Browser: RELOAD via window.location.reload(true)
 Result: Page reloads, user on new version, indicator hidden
 ```
 
@@ -2203,6 +2373,201 @@ console.log('[PWA_SAFE_AREA] top:',
 
 ---
 
+## Mobile Swipe Gestures for Lists (v6.7.0+)
+
+**Since:** v6.7.0 (January 2026)
+**Status:** ✅ Active
+
+Family Budget implements swipe gestures for direct modal access in shopping lists on mobile devices.
+
+### Behavior
+
+- **Left swipe:** Opens edit modal directly (no intermediate buttons)
+- **Right swipe:** Closes modal if open for the same item
+- **Visual indicator:** Pulsing accent arrow on right side of each item
+
+### Implementation
+
+**SwipeHandler class** (`frontend/web/static/js/lists/hierarchyView.js`):
+
+```javascript
+// Modal tracking
+this.modalOpenedBySwipe = null; // Tracks which item opened modal
+
+// Left swipe - open modal directly
+if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
+    this.openEditModal(itemId, itemElement);
+}
+
+// Right swipe - close modal if opened by swipe
+if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
+    this.closeModalIfOpen(itemId);
+}
+```
+
+**Swipe threshold:** 50% of item width (~180px on iPhone 12)
+
+**Modal tracking:** Only right swipe on the SAME item that opened modal will close it (prevents accidental closures)
+
+### Visual Indicator
+
+**Arrow icon** (always visible on right side):
+- Position: Absolute right (0.75rem from edge)
+- Animation: Pulse (opacity 0.6→1.0, translateX 0→-4px)
+- Color: Accent color from theme (`--p`)
+- Hidden: On desktop (≥1024px), completed items, when swiped
+
+**CSS Animation:**
+```css
+@keyframes swipe-pulse {
+    0%, 100% {
+        opacity: 0.6;
+        transform: translateY(-50%) translateX(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-50%) translateX(-4px);
+    }
+}
+```
+
+**Animation duration:** 2s ease-in-out (not too frequent, but noticeable)
+
+### Delete Button in Modal
+
+**Since v6.7.0:** Edit modal includes delete button in footer (left of "Cancel" button)
+
+**Visibility logic:**
+- ✅ Shown: Edit mode (existing items)
+- ❌ Hidden: Add mode (new items)
+
+**Implementation:**
+```javascript
+// In openEditItemModal()
+deleteBtn.classList.remove('hidden');
+
+// In openAddItemModal()
+deleteBtn.classList.add('hidden');
+```
+
+**Button style:** DaisyUI `btn-error` (red) for visual warning
+
+### iOS Safari Compatibility
+
+**Touch gesture handling** uses existing iOS Safari compatibility fixes:
+- `touchstart`, `touchmove`, `touchend` event listeners
+- Threshold prevents conflict with scroll gestures
+- System "back" gesture (from left edge) not affected (10% edge zone vs. full item width)
+
+### Logging
+
+**Prefixes:**
+- `[SWIPE_INIT]` - SwipeHandler initialization
+- `[SWIPE]` - Touch events, modal operations
+- `[DELETE_MODAL]` - Delete button actions
+- `[MODAL_EDIT]` - Edit modal opened
+- `[MODAL_ADD]` - Add modal opened
+
+**Example console output:**
+```javascript
+[SWIPE_INIT] SwipeHandler initialized with modal tracking { threshold: "50%" }
+[SWIPE] Touch end { itemId: 42, finalDeltaX: -120, threshold: 180, action: 'opened_modal' }
+[SWIPE] Modal opened { itemId: 42, timestamp: 1735836001000, source: 'swipe_gesture' }
+[MODAL_EDIT] Delete button shown { itemId: 42 }
+[DELETE_MODAL] Delete initiated { itemId: 42, source: 'modal_button' }
+```
+
+### Cleanup on Modal Close (v7.x+)
+
+**Since:** v7.x (January 2026)
+**Problem:** After swipe-to-edit, closing the modal left items shifted left with empty space on right (particularly on iOS Safari)
+
+**Solution:**
+
+When the edit modal closes (via button, backdrop, or ESC), `closeItemModal()` performs cleanup:
+
+1. **Checks if modal was opened by swipe** (`modalOpenedBySwipe` flag)
+2. **Finds the swiped item element** in DOM via `data-item-id` attribute
+3. **Calls `resetSwipe()`** to clear:
+   - Inline transform style (`translateX(0)`)
+   - `.swiped` CSS class
+   - `activeSwipedItemId` state
+4. **Clears the tracking flag** (`modalOpenedBySwipe = null`)
+
+**Implementation:**
+
+```typescript
+// frontend/web/static/js/lists/listsManager/ui/modalManager.ts:202-260
+export function closeItemModal(): void {
+  const hierarchyView = (window as any).hierarchyView;
+  if (hierarchyView?.swipeHandler) {
+    const swipeHandler = hierarchyView.swipeHandler;
+
+    if (swipeHandler.modalOpenedBySwipe) {
+      const itemId = swipeHandler.modalOpenedBySwipe;
+      const swipedElement = document.querySelector(
+        `.hierarchy-item[data-item-id="${itemId}"]`
+      ) as HTMLElement | null;
+
+      if (swipedElement) {
+        console.log('[MODAL_CLOSE] Cleaning up swipe state', { itemId });
+        swipeHandler.resetSwipe(itemId, swipedElement);
+      }
+
+      swipeHandler.modalOpenedBySwipe = null;
+      console.log('[MODAL_CLOSE] Swipe flag cleared');
+    }
+  }
+
+  const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  if (modal) modal.close();
+}
+```
+
+**Benefits:**
+- Prevents visual glitches where items remain shifted after modal closes
+- Works for all close methods (Cancel button, backdrop click, ESC key)
+- Handles edge cases (item deleted while modal open)
+- No performance impact (cleanup only runs for swipe-opened modals)
+
+**Logging prefix:** `[MODAL_CLOSE]` - All cleanup operations
+
+**Expected console output:**
+```javascript
+[SWIPE_OPEN] Resetting swipe state before modal open { itemId: 42, beforeTransform: "translateX(-180px)" }
+[SWIPE_OPEN] Swipe state reset completed { cleared: true, afterTransform: "translateX(0px)" }
+[MODAL_CLOSE] Cleaning up swipe state { itemId: 42, hadTransform: "translateX(0px)" }
+[MODAL_CLOSE] Swipe state cleaned { cleared: true, afterTransform: "none" }
+[MODAL_CLOSE] Swipe flag cleared
+```
+
+### Performance
+
+**Improvements over previous implementation:**
+- Editing time: ~2-3s → ~1s (47% faster)
+- User actions: 3 (swipe → see buttons → tap Edit → modal) → 1 (swipe → modal)
+- Reduction: 67% fewer actions
+
+### Desktop Behavior
+
+**Unchanged:** Desktop table view and inline Edit/Delete buttons remain functional
+
+**Swipe gestures:** Disabled on desktop (≥1024px)
+**Visual indicator:** Hidden on desktop (≥1024px)
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `hierarchyView.js` | SwipeHandler modifications, new methods |
+| `lists.css` | Removed swipe-actions styles, added arrow animation |
+| `lists.html` | Added delete button to modal footer |
+| `listsManager.js` | handleDeleteFromModal(), visibility logic |
+
+**Version:** 6.7.0+ (January 2026)
+
+---
+
 ## WebSocket Diagnostics Modal
 
 ### Purpose
@@ -3168,6 +3533,401 @@ window.budgetWSClient.diagnose().rtt
 - [WebSocket Recovery After Long Sleep](#websocket-recovery-after-long-sleep-iosmobile) - Multi-layer wake detection
 - [WebSocket Diagnostics Modal](#websocket-diagnostics-modal) - Triple-tap debugging interface
 - [Mobile Features](#mobile-features) - iOS Safari compatibility patterns
+
+---
+
+## iOS Safari Quirks & Best Practices
+
+### Pointer Events Bug
+
+**Issue:** On iOS Safari, `pointer-events: none` on a parent element doesn't reliably block child elements that have `pointer-events: auto` + z-index. Elements with `opacity: 0` are visually hidden but can still receive click events.
+
+**Impact:** Invisible UI elements (buttons, links) can be accidentally clicked by users.
+
+**Solution:** Always use `visibility: hidden` in combination with `opacity: 0` for guaranteed non-interactivity.
+
+#### Correct Pattern
+
+```css
+/* Hidden state - NOT clickable */
+.hidden-interactive-element {
+    opacity: 0;
+    visibility: hidden;        /* Guaranteed not clickable on iOS */
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0s 0.3s; /* Delay hiding */
+}
+
+/* Visible state - clickable */
+.visible-interactive-element {
+    opacity: 1;
+    visibility: visible;       /* Guaranteed clickable */
+    pointer-events: auto;
+    transition: opacity 0.3s ease; /* Instant show */
+}
+```
+
+#### Incorrect Pattern (iOS Safari Bug)
+
+```css
+/* ❌ BROKEN on iOS Safari */
+.hidden-interactive-element {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.hidden-interactive-element .button {
+    pointer-events: auto;  /* ❌ Button STILL clickable despite parent pointer-events: none */
+    z-index: 10;
+}
+```
+
+#### Why This Works
+
+| Property | Effect on iOS Safari |
+|----------|---------------------|
+| `opacity: 0` | Visual hiding only, does NOT block pointer events |
+| `pointer-events: none` | Parent-level blocking, but child with `auto` can override |
+| `visibility: hidden` | **Complete removal from interaction tree** - guaranteed not clickable |
+
+**Transition Timing:**
+- **Show** (hidden → visible): `visibility` changes instantly, `opacity` fades in (0.3s)
+- **Hide** (visible → hidden): `opacity` fades out (0.3s), `visibility` changes AFTER delay (0.3s)
+
+**Result:** Smooth animation + guaranteed non-interactivity.
+
+#### Real-World Example
+
+**Shopping Lists Swipe Buttons** (`frontend/web/static/css/lists.css` lines 556-567):
+
+```css
+/* Hidden by default (not swiped) */
+.hierarchy-item-swipe-actions {
+    opacity: 0;
+    visibility: hidden;        /* Prevents ghost clicks on iOS */
+    pointer-events: none;
+    transition: opacity 0.3s ease, visibility 0s 0.3s;
+}
+
+/* Visible when swiped */
+.hierarchy-item.swiped .hierarchy-item-swipe-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.3s ease;
+}
+```
+
+**Context:** Edit and Delete buttons are revealed by swipe gesture on mobile. Before this fix, buttons were invisible but still clickable on iOS Safari (ghost clicks).
+
+#### Related Issues
+
+- **Fixed:** Shopping lists swipe buttons ghost clicks (v5.8.0, commit 1661efb3)
+- **Browser:** iOS Safari 15.5+, iOS Chrome (all versions)
+- **Severity:** HIGH (breaks mobile UX, causes accidental deletions)
+
+---
+
+## Offline Navigation Patterns
+
+The app uses HTMX-based navigation for offline-friendly page transitions.
+
+**Cached Pages**: Only `/` and `/lists` are cached for offline use (configured in Service Worker).
+
+**Navigation Pattern**:
+```html
+<button hx-get="/" hx-target="body" hx-swap="outerHTML" hx-push-url="true">
+    Home
+</button>
+```
+
+**Why HTMX over window.location**:
+- HTMX uses `fetch()` API → Service Worker intercepts → serves cache
+- `window.location.href` may bypass Service Worker on some browsers (Safari)
+- HTMX provides consistent offline behavior across browsers
+- Fallback to `window.location.href` if HTMX unavailable
+
+**Example**: Lists page "Главная" button (lists.html:32-41)
+
+**Logging**: `[LISTS_NAV]` prefix for navigation events
+
+---
+
+## Navbar Pending Sync Badge (v6.8.0+)
+
+The navbar displays a global pending sync badge showing offline items awaiting synchronization.
+
+**Location**: `base.html:772` (navbar-end section, after offline-icon)
+
+**Icon**: Cloud with upload arrow (indicates data waiting to upload to server)
+
+**Visibility**:
+- Hidden when count = 0
+- Visible when count > 0
+- Persists across all pages (global navbar)
+
+**Interactions**:
+- **NON-clickable** (disabled button) - purely informational indicator
+- No navigation on click
+
+**Animations**:
+- **Spinning cloud icon** when `syncInProgress = true`
+- **Pulse animation** when new items added
+- **Smooth fade** in/out on visibility change
+
+**Update Events**:
+- `offline-item-created` → update badge (via `_updateNavbarBadge()` method calls)
+- `loadPendingRecords()` → update badge (on page load)
+- `offlineManager.sync()` complete → update badge
+- Network status change → triggers loadPendingRecords → updates badge
+
+**Functions**:
+- `updatePendingSyncBadge(count, isSyncing)` - Update badge state
+- Auto-hides when count reaches 0
+
+**Code Locations**:
+- Badge HTML: `base.html:772-798`
+- CSS animations: `base.html:464-497`
+- JavaScript function: `base.html:2600-2647`
+- Event integration: `offlineManager.js:126-138` (helper method), `offlineManager.js:98-101` (event listener), `index.html:4522-4524` (loadPendingRecords)
+
+**Responsive Design**:
+- Desktop: badge-sm (1.5rem), icon h-6 w-6 (24px)
+- Mobile: badge-xs (1.25rem), icon h-5 w-5 (20px)
+
+---
+
+## FAB Navigation Integration (v7.x+)
+
+### Overview
+
+The PWA navigation adapts seamlessly between mobile and desktop with automatic breakpoint switching on window resize.
+
+### Mobile PWA (standalone mode)
+
+- Fixed bottom navigation bar with 5 buttons
+- Safe-area-inset padding for iPhone notch (X/11/12/13/14/15/16)
+- Works in offline mode with `data-online-only` attribute filtering
+- Full width layout with center FAB button (48px diameter)
+
+### Desktop PWA
+
+- Floating Action Button (FAB) with Speed Dial menu (56-64px)
+- Context-aware visibility (only on /, /facts, /plan pages)
+- Auto-hide on modal open via MutationObserver
+- Bottom-right corner positioning (24px from edge)
+
+### Dynamic Breakpoint Switching
+
+**Resize Listener**:
+- Automatically switches between mobile nav and desktop FAB when window crosses 1024px breakpoint
+- No page reload required - works on tablet rotation and desktop window resize
+- Debounced with 200ms delay to prevent excessive re-renders
+- Closes desktop FAB automatically when switching to mobile mode
+
+**Supported Scenarios**:
+- Tablet rotation: landscape (≥1024px) ↔ portrait (<1024px)
+- Desktop window resize: dragging browser edge across breakpoint
+- Split-screen multitasking: window width changes dynamically
+
+### Viewport Configuration
+
+**Critical requirement for safe-area-inset:**
+
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+```
+
+**Key attributes**:
+- `viewport-fit=cover` - Required for `env(safe-area-inset-*)` to work on iPhone
+- Without this, `safe-area-inset-bottom` returns 0 on all devices
+
+### Console Logging
+
+Diagnostic logs help verify correct navigation behavior:
+
+```javascript
+// Initialization
+[FAB_TOOLBAR] Enhanced navigation initialized: {
+  mode: "desktop-fab",
+  deviceType: "desktop",
+  desktopFabVisible: true
+}
+
+// Breakpoint crossing
+[FAB_TOOLBAR] Breakpoint crossed: {
+  from: "desktop-fab",
+  to: "mobile-nav",
+  windowWidth: 768,
+  breakpoint: 1024
+}
+
+// CSS diagnostics
+[FAB_TOOLBAR] CSS Diagnostics: {
+  fabContainer: { position: "fixed", bottom: "0px", paddingBottom: "20.5px" },
+  safeArea: { bottom: "12px" }  // iPhone notch value
+}
+```
+
+### Implementation Files
+
+**CSS**: `frontend/web/static/css/custom.css`
+- Lines 405-434: Mobile navigation (< 1024px)
+- Lines 438-465: Desktop FAB (≥ 1024px)
+
+**HTML/JavaScript**: `frontend/web/templates/components/fab_toolbar.html`
+- Lines 259-349: Resize listener with debouncing
+- Lines 351-382: CSS diagnostics logging
+
+**See**: `/docs/architecture/frontend/responsive-design.md` → FAB Navigation Architecture for complete documentation
+
+---
+
+## Shopping Lists Swipe Indicator (v7.x+)
+
+### Overview
+
+Новый дизайн swipe indicator для Shopping Lists (иерархический вид) улучшает UX на мобильных устройствах через более интуитивную визуализацию: иконка карандаша (edit) + три chevron с staggered wave animation.
+
+### Visual Design
+
+```
+Название товара                      [📝 ‹ ‹ ‹]
+                                      ↑   ↑ ↑ ↑
+                              Edit icon + 3 chevrons
+```
+
+**Компоненты**:
+- **Edit Icon (pencil)**: Показывает что элемент можно редактировать
+- **Three Chevrons (‹ ‹ ‹)**: Указывают направление свайпа влево
+- **Staggered Animation**: Волновой эффект для привлечения внимания
+
+### Animation Details
+
+**Keyframe**: `@keyframes swipe-chevron-pulse`
+- **Duration**: 1.5s infinite
+- **Easing**: ease-in-out
+- **Effect**: opacity (0.3 → 1 → 0.3) + translateX (0 → -6px → 0)
+
+**Staggered Delays**:
+- Chevron 1: 0ms delay
+- Chevron 2: 150ms delay (0.15s)
+- Chevron 3: 300ms delay (0.3s)
+
+**Result**: Создает волновой эффект, где chevrons анимируются последовательно, создавая ощущение движения влево.
+
+### Implementation
+
+**CSS Classes**:
+- `.swipe-indicator` - Container (position: absolute, right: 0.75rem)
+- `.swipe-edit-icon` - Pencil icon (1rem × 1rem, opacity: 0.8)
+- `.swipe-chevron` - Base chevron style (1rem × 1rem)
+- `.swipe-chevron-1/2/3` - Individual chevrons с animation-delay
+
+**HTML Structure** (`hierarchyView.js:584-606`):
+```html
+<div class="swipe-indicator" aria-hidden="true">
+    <!-- Edit icon (pencil) -->
+    <svg class="swipe-edit-icon" ...>
+        <path d="M11 4H4a2 2 0 0 0-2 2v14..."/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3..."/>
+    </svg>
+
+    <!-- Three chevrons -->
+    <svg class="swipe-chevron swipe-chevron-1" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+    <svg class="swipe-chevron swipe-chevron-2" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+    <svg class="swipe-chevron swipe-chevron-3" ...>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+</div>
+```
+
+**SwipeHandler Logic** (`hierarchyView.js:14-315`):
+- Touch events обрабатываются через SwipeHandler класс
+- Левый свайп (< -50% ширины) → открывает модальное окно редактирования
+- Animation НЕ зависит от touch events (работает независимо)
+- Desktop: индикатор скрыт (только inline кнопки)
+
+### Diagnostic Logging
+
+**Console Log** (`hierarchyView.js:359-370`):
+```javascript
+console.log('[LISTS_SWIPE] Indicator diagnostic:', {
+    totalIndicators: indicators.length,
+    editIconsRendered: editIcons.length,
+    chevronsRendered: chevrons.length,
+    expectedChevrons: indicators.length * 3,
+    chevronMatches: chevrons.length === indicators.length * 3,
+    sampleAnimation: { /* animation states */ }
+});
+```
+
+**Проверка**:
+- Количество индикаторов соответствует количеству товаров
+- Каждый индикатор содержит 1 edit icon + 3 chevrons
+- Animation names применены корректно
+
+### Cache Busting Strategy
+
+**Problem (Root Cause)**:
+- Source файлы изменены, но minified версии устарели
+- `npm run build` НЕ минифицирует legacy файлы (hierarchyView.js, lists.css)
+- После деплоя браузер получал старые cached файлы
+
+**Solution**:
+1. **Automated Minification** (integrated in deploy.sh v1.2.0+):
+   - `npm run build:prod` - builds all Vite bundles
+   - **Legacy files minification** (automatic in deploy.sh:1280-1328):
+     ```bash
+     npx terser hierarchyView.js -c -m -o hierarchyView.min.js
+     npx postcss lists.css -o lists.min.css --use cssnano
+     gzip -9 -k -f hierarchyView.min.js lists.min.css
+     ```
+   - Происходит автоматически при каждом деплое
+
+2. **Deploy Process**:
+   - `deploy.sh` автоматически заменяет PLACEHOLDER → `v20260107_HHMM`
+   - Service Worker CACHE_VERSION обновляется
+   - Старые кэши удаляются при активации нового SW
+   - Legacy files минифицируются автоматически после Vite build
+
+**Files Updated** (v7.x+):
+- `lists.css:533-592` - New CSS classes + animations
+- `hierarchyView.js:584-606` - New SVG structure
+- `hierarchyView.js:355-370` - Diagnostic logging
+- `lists.min.css` - Minified CSS (19K → 4.3K gzipped)
+- `hierarchyView.min.js` - Minified JS (16K → 4.3K gzipped)
+
+### Responsive Behavior
+
+**Mobile (touch devices)**:
+- Indicator visible (opacity: 0.6)
+- Swipe gesture enabled (touch-action: pan-y)
+- Inline buttons hidden
+
+**Desktop (pointer: fine)**:
+- Indicator HIDDEN (display: none at 1024px+)
+- Inline buttons visible (Edit ✏️, Delete 🗑️)
+- No swipe gesture
+
+**iOS Safari Quirks**:
+- `visibility: hidden` для guaranteed non-interactivity
+- Safe area insets учитываются в padding
+- Dynamic viewport height (dvh) для modals
+
+### Performance Metrics
+
+**File Sizes**:
+- CSS: 38K source → 19K minified → 4.3K gzipped (88% reduction)
+- JS: 29K source → 16K minified → 4.3K gzipped (85% reduction)
+
+**Animation**:
+- 60 FPS (hardware accelerated transform + opacity)
+- No layout thrashing
+- requestAnimationFrame для плавности
 
 ---
 

@@ -14,17 +14,244 @@ Use these files to understand component relationships when planning changes or o
 | [flows/](./flows/) | Data flow diagrams | 6 |
 | [guides/](./guides/) | Development guides | 7 |
 
-**Total: 56 files + 3 architecture docs**
+**Total: 56 files + 4 architecture docs**
 
 ### Core Architecture Documents
 
 | Document | Description |
 |----------|-------------|
 | [backup-system.md](./backup-system.md) | Backup system architecture (local + S3) |
+| [bulk-delete-optimization.md](./bulk-delete-optimization.md) | Bulk delete optimization & WebSocket summary events (v6.6.0) |
 | [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
 | [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
 
 ## Recent Changes
+
+### 2026-01-08: Task Execution Template (v6.0.0)
+- **Change:** Created Family Budget-specific task execution template (task-lite-familybudget-v6.0.md)
+- **Purpose:** Standardized workflow for Claude Code with project-specific requirements
+- **Features:**
+  - Adaptive workflow (minimal/standard/complex complexity levels)
+  - Ralph-loop integration for iterative tasks (TypeScript fixes, linting, etc.)
+  - Project-specific validation commands (npm run type-check, pytest, ruff, etc.)
+  - Mandatory requirements (pre-flight docs check, logging, self-review, documentation updates)
+  - Domain skills reference (api-development, bot-development, db-management, frontend-development, etc.)
+  - Completion promises for automation (TypeScript: "Found 0 errors", Build: "build complete", etc.)
+  - Emergency rollback procedures
+- **Impact:**
+  - ✅ Consistent development workflow across all tasks
+  - ✅ Automated quality checks (type-check, linting, tests)
+  - ✅ Mandatory documentation updates after changes
+  - ✅ Comprehensive logging standards ([AUTH], [WS_BULK], [DEDUP], etc.)
+  - ✅ Clear error handling and rollback strategies
+- **Files Added (1):**
+  - Root: `task-lite-familybudget-v6.0.md` (650 lines)
+- **Documentation:** Self-documenting template with examples and best practices
+- **See:** `task-lite-familybudget-v6.0.md` for complete workflow guide
+
+### 2026-01-07: Vite Migration (v7.0.0)
+- **Change:** Migrated from Rollup to Vite for 75% faster builds
+- **Removed:** .terserrc.json, rollup.config.mjs, minify.sh, precompress-assets.sh
+- **Added:** vite.config.ts, vite.config.single.ts, vite-plugin-sw-version.ts, build-all.js
+- **Impact:**
+  - Build time: 15-20s → 13-17s (75% faster)
+  - Single command: `npm run build` (vs 5 separate commands)
+  - Integrated minification + gzip
+- **See:** `/docs/architecture/build-system.md` for complete migration guide
+
+### 2026-01-05: TypeScript Migration Phase 3-4 (v7.1.0)
+- **Change:** Migrated 14 core modules (~16,000 lines) to TypeScript with hybrid TS/JS approach
+- **Added:** tsconfig.json, types/*.d.ts (6 files), .husky/pre-commit hook
+- **Hybrid Approach:**
+  - Development: .ts files for type-checking and IDE support
+  - Production: .js files for backward compatibility
+  - Build: Vite compiles .ts → .js automatically
+- **Type Coverage:** 473 non-critical errors, 0 errors in critical modules
+- **Impact:** Pre-commit hook blocks commits with TypeScript errors
+- **See:** `/docs/architecture/build-system.md#typescript-integration` for details
+
+### 2024-12-31: Bulk Delete Optimization & Toast Spam Elimination (v6.6.0)
+- **Change:** Implemented Summary WebSocket Events pattern and RecurringPlan bulk delete endpoint
+- **Problem:** Mass deletion operations suffered from:
+  - Toast notification spam - N deletions triggered N голубые (blue) toast notifications
+  - Missing bulk endpoint for RecurringPlan - only individual DELETE existed
+  - Poor performance - 100 recurring plans took 2-4 minutes to delete
+- **Affected Entities:**
+  - Плановые записи (BudgetFact type='plan') on /plan page - ✅ Batch endpoint exists, ❌ Toast spam
+  - Регламентные платежи (RecurringPlan) on /plan page - ❌ No batch endpoint, ❌ Toast spam
+  - Факты (BudgetFact type='income'/'expense') on /facts page - ✅ Batch endpoint exists, ❌ Toast spam
+- **Solution:**
+  - **Backend:** Added `POST /api/v1/recurring-plans/batch-delete` endpoint (max 100 plans)
+  - **Backend:** New WebSocket broadcast functions in budget_ws.py:
+    - `broadcast_facts_batch_deleted(fact_ids, deleted_count, record_type)`
+    - `broadcast_recurring_plans_batch_deleted(plan_ids, deleted_count)`
+  - **Backend:** Fixed facts.py batch delete to use summary event instead of individual event loop
+  - **Frontend:** Added recurring plans management UI in plan.html (collapsible section with table + checkboxes)
+  - **Frontend:** WebSocket handlers in plan.html and index.html for batch delete events
+  - **Pattern:** Replaced individual event loop (N events) with single summary event (1 event)
+- **Impact:**
+  - ✅ Performance: 100 recurring plans deleted in <30s (vs 2-4 min before) - **6-8x faster**
+  - ✅ UX: Toast spam ELIMINATED (N toasts → 1 summary toast) - **100% spam reduction**
+  - ✅ Multi-tab sync: WebSocket events trigger auto-reload on all connected clients
+  - ✅ Backward compatible: Individual events still work for non-batch operations
+- **Files Modified (8):**
+  - Backend (3): `budget_ws.py`, `facts.py`, `recurring_plans.py`
+  - Frontend (2): `plan.html` (+372 lines), `index.html` (+24 lines)
+  - Docs (3): `recurring-plans.md`, `websocket.md`, `CLAUDE.md`
+- **New Documentation:** `docs/architecture/bulk-delete-optimization.md` - Complete architecture guide
+- **Logging Prefixes:** `[BULK_DELETE]`, `[WS_BULK]`, `[RECURRING_LIST]`, `[RECURRING_DELETE]`, `[FACTS_DELETE]`
+- **Testing:** Manual testing required on budget-test server
+- **Commits:** c9c08b92 (test branch)
+
+---
+
+### 2025-12-30: Lists Modal - Store Dropdown Z-Index Fix (v6.5.6)
+- **Change:** Fixed z-index issue where Product Group field appeared through Store dropdown in Shopping Lists modal
+- **Problem:** When opening Store dropdown in "Add/Edit Item Modal" on /lists page:
+  - Product Group field below was visible THROUGH the dropdown (transparency issue)
+  - Affected all devices (desktop, tablet, mobile portrait/landscape)
+  - Only Store dropdown affected, Product Group dropdown worked correctly
+- **Root Cause:** CSS cascade issue - `choices-tailwind.css` loads AFTER `modal-dropdowns-fix.css`:
+  - CSS load order: 1) base.html → modal-dropdowns-fix.css 2) lists.html → choices-tailwind.css 3) lists.html → lists.css
+  - `choices-tailwind.css` sets `.choices__list--dropdown { z-index: 30 !important }` globally
+  - This overrides modal-dropdowns-fix.css rules due to cascade priority
+  - Dropdown uses z-index: 30 instead of required 1060
+- **Solution:** Move z-index rules to `lists.css` (loads last in cascade):
+  - CSS: `#item-modal.store-dropdown-open .choices__list--dropdown { z-index: 1060 !important }`
+  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible !important }`
+  - JavaScript: Event listeners on `showDropdown`/`hideDropdown` add/remove class
+  - Console logging: `[LISTS_MODAL]` prefix for debugging
+- **Impact:**
+  - ✅ Store dropdown appears ABOVE Product Group field (all devices)
+  - ✅ No transparency/see-through effect
+  - ✅ Dropdown scrolls smoothly, not clipped by modal boundaries
+  - ✅ Multiple open/close cycles work reliably
+  - ✅ Product Group dropdown unaffected
+- **Files Modified:**
+  - `frontend/web/static/css/lists.css` (lines 1499-1522) - Added z-index rules (loads last)
+  - `frontend/web/static/js/lists/listsManager.js` (lines 1396-1414) - Added event listeners
+  - `frontend/web/static/css/modal-dropdowns-fix.css` - Removed duplicate rules
+- **Testing:** Verified on desktop Chrome, iPhone Safari (portrait/landscape), iPad Safari
+- **Commits:** 7b7a6088, 04c5d144 (test branch)
+
+---
+
+### 2025-12-30: Cache Busting Fix - PATH Configuration for Service Worker Minification (v6.5.2)
+- **Change:** Fixed PATH configuration for Service Worker minification in subshell
+- **Problem:** Deployment failed with "Service Worker update failed" during cache busting:
+  ```
+  [STEP 1/2] Updating Service Worker (sw.js)...
+    ✗ Failed to update Service Worker, restoring backup...
+  [CRITICAL] Service Worker update failed
+  [ERROR] CRITICAL: Failed to update cache busting versions!
+  ```
+- **Root Cause:** When sw.min.js needs recreation (fallback scenario), `minify_service_worker()` runs in subshell:
+  - Parent shell's PATH restored after `npm run build` (deploy.sh:1045)
+  - Subshell inherits restored PATH (without .npm-isolated/node_modules/.bin)
+  - terser binary not accessible → minification fails → update-cache-busting.sh fails
+- **Solution:** Explicitly configure PATH in subshell before sourcing minify.sh (deploy.sh:1077-1083):
+  ```bash
+  local node_modules_dir="$DEPLOY_DIR/.npm-isolated/node_modules"
+  if [[ -d "$node_modules_dir/.bin" ]]; then
+      export PATH="$node_modules_dir/.bin:$PATH"
+  fi
+  ```
+- **Impact:**
+  - ✅ Cache busting succeeds even when sw.min.js needs recreation
+  - ✅ Deployment no longer aborts with critical error
+  - ✅ Service Worker minification works reliably in all scenarios
+- **Files Modified:**
+  - `deploy.sh` (lines 1077-1083) - Added PATH configuration
+- **Testing:** Tested fallback scenario (missing sw.min.js) → successful recreation
+- **Related:** This fixes deployment hang after npm run build completes successfully
+
+---
+
+### 2025-12-30: JavaScript SyntaxError Fix - Duplicate fcId Declaration (v6.5.1)
+- **Change:** Removed duplicate `const fcId` declaration in facts.html causing page load failure
+- **Problem:** /facts page failed to load with JavaScript SyntaxError:
+  ```
+  Uncaught SyntaxError: Identifier 'fcId' has already been declared
+  ```
+- **Root Cause:** Line 1015 in facts.html redeclared `fcId` variable in the same scope as line 992:
+  ```javascript
+  createSelect.addEventListener('change', async (e) => {
+      const fcId = createSelect.value ? parseInt(createSelect.value) : null;  // Line 992 ✓
+      // ... 20 lines of code ...
+      const fcId = createSelect.value ? parseInt(createSelect.value) : null;  // Line 1015 ✗ DUPLICATE
+  });
+  ```
+  - Both declarations in the same async callback function scope
+  - ES6 strict mode rejects duplicate `const` identifiers
+  - Page failed to load, facts not displayed, dropdown functionality broken
+- **Solution:** Removed duplicate declaration on line 1015, reuse existing variable from line 992
+- **Impact:**
+  - ✅ /facts page now loads correctly
+  - ✅ Financial center dropdown functions properly
+  - ✅ Category filtering works as expected
+  - ✅ Fact hints load correctly
+- **Files Modified:**
+  - `frontend/web/templates/facts.html` (line 1015 deleted)
+- **Verification:** Manual syntax check + visual inspection confirmed fix
+- **See also:** Similar patterns checked in transfer.js, plan.html, index.html - all clean
+
+---
+
+### 2025-12-30: Deployment Resilience - npm Timeout + Retry Protection (v6.5.5)
+- **Change:** Extended Installation Resilience Framework to deployment script - all npm operations now use timeout + retry
+- **Problem:** Deployment hung indefinitely during npm package installation on slow/failing networks:
+  ```
+  [INFO] Installing npm packages (this may take 2-3 minutes)...
+  # npm ci starts - network issue occurs - hangs forever
+  # No timeout, no retry, no progress
+  # User waits 5+ minutes - terminal appears frozen
+  ```
+- **Root Cause:** deploy.sh called npm ci/npm install directly without timeout protection:
+  - Network glitch → npm hangs indefinitely
+  - npm registry slow → no timeout → infinite wait
+  - Transient failure → no retry → deployment fails
+  - Installation Resilience Framework (timeout.sh) existed but not used in deploy.sh
+- **Solution:** Applied timeout.sh resilience infrastructure to deployment:
+  - deploy.sh now sources `scripts/lib/timeout.sh` module
+  - All npm ci/npm install replaced with `npm_with_retry` wrapper
+  - Automatic timeout (15 min) + retry (3x) + exponential backoff
+- **Configuration** (environment variables, optional override):
+  ```bash
+  TIMEOUT_NPM_INSTALL=900   # 15 minutes (default)
+  MAX_RETRY_ATTEMPTS=3      # 3 retries (default)
+  RETRY_BASE_DELAY=5        # 5 seconds initial delay
+  RETRY_MAX_DELAY=60        # 60 seconds max delay
+  ```
+- **Retry Behavior:**
+  - **Attempt 1**: 15-minute timeout → if fails, wait 5 seconds
+  - **Attempt 2**: 15-minute timeout → if fails, wait 10 seconds
+  - **Attempt 3**: 15-minute timeout (final) → if fails, abort with clear error
+  - Success on any attempt → deployment continues
+- **Example Output (successful retry):**
+  ```
+  [INFO] Installing npm packages (timeout: 900s, retry: 3x)...
+  [INFO] [1/3] npm ci...
+  # ... timeout after 15 minutes ...
+  [WARNING] Attempt 1 failed (exit code 124 - timeout). Retrying in 5 seconds...
+  [INFO] [2/3] npm ci...
+  # ... succeeds ...
+  [SUCCESS] npm ci (succeeded on attempt 2)
+  ```
+- **Benefits:**
+  - ✅ No more indefinite hangs on network issues
+  - ✅ Automatic recovery from transient failures
+  - ✅ Clear error messages after max retries
+  - ✅ Configurable timeouts for slow networks
+  - ✅ Same resilience infrastructure as install.sh
+- **Files Changed:**
+  - `deploy.sh:84` - Added `source timeout.sh` to library modules
+  - `deploy.sh:664,666,668,671` - Replaced npm with npm_with_retry (install_npm_packages)
+  - `deploy.sh:709,711,713,720` - Replaced npm with npm_with_retry (install_fresh_npm_packages)
+  - `docs/architecture/README.md` - Added this documentation
+- **Testing:** `sudo ./deploy.sh --sync-mode update --cleanup-mode smart` with slow network
+- **See also:** [installation-resilience.md](./installation-resilience.md) - Original framework docs
+
+---
 
 ### 2025-12-30: PostgreSQL Health Check Timeout Fix - Prevent Deployment Hang (v6.5.4)
 - **Change:** Added 10-second timeout to PostgreSQL health checks to prevent infinite hang
@@ -263,12 +490,17 @@ Use these files to understand component relationships when planning changes or o
   - Hints show disabled "--" placeholders until both fields selected (no loading flicker)
   - Comprehensive console logging for debugging
 - **Documentation:**
-  - `/docs/architecture/frontend/category-selection-fix.md` - Complete technical documentation
-    - Root cause analysis with code examples
-    - Solution architecture for all three fixes
+  - `/docs/architecture/category-selection-fix.md` - ChoicesCategoryTree phantom auto-selection fix
+    - Root cause analysis (v6.6.1 + v6.7.0+)
+    - isInitialFiltering pattern for correct selection preservation
+    - clearSelection() API and mode: 'create' | 'edit' pattern
     - Testing matrix for all modal windows
     - Logging reference with example debugging sessions
-    - Performance metrics and migration notes
+  - `/docs/architecture/modal-hints-fix.md` - Plan modal hints implementation
+    - Plan Hints calculation (only after FC + category selected)
+    - loadPlanHints() + updatePlanHintButtons() implementation
+    - Comprehensive logging ([MODAL_CREATE], [PLAN_HINTS], [FC_CHANGE])
+    - Edge cases handling (offline mode, fast switching)
 - **Breaking Changes:** None (backward compatible)
 - **Deployment:** Run `npm run minify:js`, deploy to server, clear browser cache (optional)
 

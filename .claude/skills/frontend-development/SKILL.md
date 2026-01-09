@@ -39,6 +39,97 @@ architecture_refs:
 - **WebSocket real-time updates** - Live data sync
 - **Offline-first** - IndexedDB for offline support
 
+## TypeScript Development Patterns
+
+**Hybrid Approach (v7.1.0+):**
+- **Development**: .ts files for type-checking and IDE support
+- **Production**: .js files for minification (backward compatible)
+- **Build**: Vite compiles .ts → .js automatically
+
+**Type Checking Commands:**
+```bash
+# Validate TypeScript (0 errors required)
+npm run type-check
+
+# Watch mode (auto-check on file changes)
+npm run type-check:watch
+```
+
+**Pre-commit Hook:**
+- Automatic type-check before every commit
+- Blocks commit if TypeScript errors found
+- Fix errors → retry commit
+
+**Type Definition Files (types/):**
+- `api.d.ts` - API responses, network types (170 lines)
+- `models.d.ts` - Domain models (User, BudgetFact, Article) (219 lines)
+- `global.d.ts` - Window namespace extensions (144 lines)
+- `indexeddb.d.ts` - IndexedDB schema (167 lines)
+- `navigator.d.ts` - Browser APIs (Network Information) (165 lines)
+- `telegram.d.ts` - Telegram WebApp types (246 lines)
+
+**Common TypeScript Patterns:**
+```typescript
+// Type-safe API response
+interface ApiResponse<T> {
+    success: boolean;
+    data: T;
+    error?: string;
+}
+
+// Type-only imports
+import type { BudgetFact, Article } from '@shared/types';
+
+// Generic function with constraints
+function createItem<T extends { id: number }>(item: T): T {
+    return item;
+}
+```
+
+**Migration Status (v7.1.0):**
+- 14 modules migrated (~16,000 lines)
+- 473 non-critical errors (acceptable for gradual migration)
+- 0 errors in critical modules (offlineManager.ts)
+
+## Build Commands
+
+**Production Build (v7.0.0+):**
+```bash
+# Full build (CSS + JS + minify + gzip)
+npm run build              # Vite build with TypeScript compilation
+
+# Development mode with HMR
+npm run dev                # Vite dev server (instant updates)
+
+# Watch mode (auto-rebuild)
+npm run watch              # CSS + JS watch
+```
+
+**Type Checking:**
+```bash
+npm run type-check         # Validate TypeScript (0 errors required)
+npm run type-check:watch   # Watch mode
+```
+
+**Bundle Analysis:**
+```bash
+npm run analyze            # Opens bundle-stats.html
+```
+
+**Deprecated Commands (v7.0.0+):**
+```bash
+# ❌ REMOVED - Do not use!
+npm run bundle             # Use: npm run build
+npm run bundle:dev         # Use: npm run dev
+npm run minify:js          # Use: npm run build (automatic)
+npm run minify:css         # Use: npm run build (automatic)
+```
+
+**Build System:**
+- **Vite** (v7.0.0+) - Modern bundler with TypeScript support
+- **Previous**: Rollup + bash scripts (removed in v7.0.0)
+- **Performance**: 75% faster builds (15-20s → 13-17s)
+
 ## Commands
 
 ### Command: create-modal
@@ -103,16 +194,27 @@ architecture_refs:
 - [ ] WebSocket integration added if needed
 - [ ] Responsive design (mobile-first)
 - [ ] Accessibility (ARIA labels, keyboard nav)
-- [ ] Minified JS built (`npm run minify:js`)
-- [ ] Built CSS (`npm run build:css`)
+- [ ] TypeScript type-check passes (`npm run type-check`)
+- [ ] Production build succeeds (`npm run build`)
+- [ ] No TypeScript errors in critical modules
 - [ ] HTMX trigger registered in htmx-triggers.yaml
 
 ## Common Mistakes
 
-**Forgot to minify JS:**
-- **Symptom**: Production bundle huge, unoptimized
-- **Fix**: `npm run minify:js`
-- **Reference**: [$ref](../../docs/architecture/guides/change-checklist.yaml#/checklists/ui_change)
+**Pre-commit hook fails with TypeScript errors:**
+- **Symptom**: Commit blocked with "npm run type-check failed"
+- **Fix**: Run `npm run type-check` locally, fix errors, retry commit
+- **Reference**: [$ref](../../docs/architecture/typescript-integration.md)
+
+**Editing .js files instead of .ts:**
+- **Symptom**: Changes lost after build, type-check doesn't catch errors
+- **Fix**: Edit .ts files (source), not .js files (generated output)
+- **Note**: Vite compiles .ts → .js automatically
+
+**Using old build commands:**
+- **Symptom**: "npm run bundle: command not found"
+- **Fix**: Use `npm run build` (v7.0.0+)
+- **Reference**: [$ref](../../docs/architecture/build-system.md#migration-notes)
 
 **HTMX trigger without target:**
 - **Symptom**: Full page reload instead of partial update
