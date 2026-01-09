@@ -366,14 +366,15 @@ html.offline-mode .save-btn:hover {
 #main-content {
     padding-left: calc(1rem + var(--safe-area-inset-left));
     padding-right: calc(1rem + var(--safe-area-inset-right));
-    padding-top: 2rem;
+    padding-top: 2rem; /* Desktop */
     padding-bottom: 2rem; /* Desktop: no FAB offset */
 }
 
-/* Mobile: add FAB offset to bottom padding */
+/* Mobile: reduced top padding for more content visibility */
 @media (max-width: 1023px) {
     #main-content {
-        padding-bottom: calc(2rem + var(--safe-area-inset-bottom) + 64px);
+        padding-top: 1rem; /* Reduced from 2rem */
+        padding-bottom: calc(0.5rem + var(--safe-area-inset-bottom) + 64px);
     }
 }
 
