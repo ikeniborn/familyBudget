@@ -13,14 +13,53 @@ const { resolve } = require('path');
 const production = process.env.NODE_ENV === 'production';
 const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '_')}`;
 
-// 5 entry points для сборки
+// All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
+  // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',
     input: 'frontend/shared/static/js/budgetShared.ts',
-    output: 'frontend/shared/static/js/budgetShared.bundle.js',
+    output: 'frontend/shared/static/js/budgetShared.min.js',
     globalName: 'BudgetShared'
   },
+  {
+    name: 'debugLog',
+    input: 'frontend/shared/static/js/debugLog.ts',
+    output: 'frontend/shared/static/js/debugLog.min.js',
+    globalName: 'DebugLog'
+  },
+  {
+    name: 'dateFormatter',
+    input: 'frontend/shared/static/js/dateFormatter.ts',
+    output: 'frontend/shared/static/js/dateFormatter.min.js',
+    globalName: 'DateFormatter'
+  },
+  {
+    name: 'calendar-widget',
+    input: 'frontend/shared/static/js/calendar-widget.js',
+    output: 'frontend/shared/static/js/calendar-widget.min.js',
+    globalName: 'CalendarWidget'
+  },
+  {
+    name: 'choicesCategoryTree',
+    input: 'frontend/shared/static/js/choicesCategoryTree.js',
+    output: 'frontend/shared/static/js/choicesCategoryTree.min.js',
+    globalName: 'ChoicesCategoryTree'
+  },
+  {
+    name: 'choicesProductGroupTree',
+    input: 'frontend/shared/static/js/choicesProductGroupTree.js',
+    output: 'frontend/shared/static/js/choicesProductGroupTree.min.js',
+    globalName: 'ChoicesProductGroupTree'
+  },
+  {
+    name: 'reminders',
+    input: 'frontend/shared/static/js/reminders.js',
+    output: 'frontend/shared/static/js/reminders.min.js',
+    globalName: 'Reminders'
+  },
+
+  // === Application bundles ===
   {
     name: 'bundle',
     input: 'frontend/web/static/js/index.ts',
@@ -39,6 +78,8 @@ const builds = [
     output: 'frontend/web/static/js/dist/components.bundle.js',
     globalName: 'UIComponents'
   },
+
+  // === Service Worker ===
   {
     name: 'sw',
     input: 'sw.js',
