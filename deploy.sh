@@ -1451,8 +1451,8 @@ main() {
             warning "Cache busting did not update sw.min.js"
             echo ""
         else
-            # Extract actual version (format: CACHE_VERSION="v20251220_1203" with double quotes)
-            sw_version=$(grep -oE 'CACHE_VERSION="v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/CACHE_VERSION="//' | sed 's/"$//' | head -1)
+            # Extract actual version (format: CACHE_VERSION="v20251220_1203" or const l="v20260109_0855" after minification)
+            sw_version=$(grep -oE '"v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/"//g' | head -1)
             if [[ -n "$sw_version" ]]; then
                 success "Service Worker cache version: $sw_version"
             else

@@ -172,6 +172,19 @@ const builds = [
     output: 'frontend/web/static/js/workers/core/workerWrapper.min.js',
     globalName: 'WorkerWrapper'
   },
+  // Root-level modules
+  {
+    name: 'navigationProgress',
+    input: 'frontend/web/static/js/navigationProgress.js',
+    output: 'frontend/web/static/js/navigationProgress.min.js',
+    globalName: 'NavigationProgress'
+  },
+  {
+    name: 'webauthn-onboarding',
+    input: 'frontend/web/static/js/webauthn-onboarding.js',
+    output: 'frontend/web/static/js/webauthn-onboarding.min.js',
+    globalName: 'WebAuthnOnboarding'
+  },
 
   // === Application bundles ===
   {
