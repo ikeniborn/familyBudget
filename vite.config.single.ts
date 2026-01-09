@@ -26,8 +26,10 @@ function postBuildCopy() {
       try {
         const src = `.vite-build/${entryName}.js`;
         const srcMap = `.vite-build/${entryName}.js.map`;
+        const srcGz = `.vite-build/${entryName}.js.gz`;
         const dest = entryOutput;
         const destMap = `${dest}.map`;
+        const destGz = `${dest}.gz`;
 
         // Создать родительскую директорию если не существует
         mkdirSync(dirname(dest), { recursive: true });
@@ -49,6 +51,11 @@ function postBuildCopy() {
         // Копировать sourcemap если существует
         if (existsSync(srcMap)) {
           copyFileSync(srcMap, destMap);
+        }
+
+        // Копировать gzip файл если существует (создается compression plugin)
+        if (existsSync(srcGz)) {
+          copyFileSync(srcGz, destGz);
         }
 
         // Silent copy - только ошибки логируются
