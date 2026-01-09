@@ -671,9 +671,12 @@ When "Skip Duplicates" is checked → "Aggregate Duplicates" checkbox is automat
 - No network latency
 - Smooth user experience
 
-**Files Changed:**
+**Files Changed (pre-v7.0.1):**
 - `frontend/web/static/js/lists/csvImporter.js` (3 changes: method update, handler add, new method)
-- `frontend/web/static/js/lists/csvImporter.min.js` (auto-generated)
+
+**Files Changed (v7.0.1+):**
+- `frontend/web/static/js/lists/csvImporter.ts` (TypeScript module)
+- Bundled into `frontend/web/static/js/lists.min.js` (unified bundle)
 
 **Testing Checklist:**
 
