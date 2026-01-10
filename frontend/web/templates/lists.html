@@ -623,30 +623,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-        console.log('[LISTS_INIT] Starting listsManager.init()');
+        console.log('[LISTS_INIT] Starting initializeListsManager()');
         performance.mark('lists-init-start'); // Performance tracking
 
-        // Initialize Lists Manager
-        await window.listsManager.init();
+        // Initialize Lists Manager (modular structure v7.0+)
+        await window.initializeListsManager();
 
         performance.mark('lists-init-end');
         performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
         const measure = performance.getEntriesByName('lists-initialization')[0];
         console.log(`[LISTS_INIT] ✅ Initialization completed in ${measure.duration.toFixed(2)}ms`);
-
-        // Make hierarchyView globally accessible for onclick handlers
-        if (window.listsManager.hierarchyView) {
-            window.hierarchyView = window.listsManager.hierarchyView;
-        }
-
-        // Close autocomplete dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('product-suggestions-dropdown');
-            const input = document.getElementById('item-product-name');
-            if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
-                window.listsManager?.hideProductSuggestions();
-            }
-        });
 
         debugLog('[Lists] Page initialized');
     } catch (error) {

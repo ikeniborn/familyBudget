@@ -14,6 +14,9 @@ import './lists/hierarchyView';
 
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
+  // Initialization
+  initializeListsManager,
+
   // View switching
   switchView,
   initializeResponsiveView,
@@ -46,6 +49,9 @@ import {
 
 // === ЭКСПОРТ В WINDOW (для onclick handlers) ===
 const windowExports = {
+  // Initialization
+  initializeListsManager,
+
   // Navigation
   showLandingView: renderLandingView,  // Alias
 
