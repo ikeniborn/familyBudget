@@ -14,18 +14,22 @@ dependencies: [db-management]
 ## Когда использовать этот скил
 
 Используй этот скил когда нужно:
-- Задеплоить приложение на production/staging
+- Задеплоить приложение на production/staging/test
+- Автоматизировать деплой на тестовый сервер budget-test
 - Управлять Docker сервисами (start, stop, restart)
 - Просмотреть логи сервисов
 - Проверить health статус сервисов
 - Сделать backup базы данных
 - Применить миграции на production
+- Анализировать логи после деплоя
 
 Скил автоматически вызывается при запросах типа:
 - "Задеплой приложение на production"
+- "Задеплой на тестовый сервер" или "Обновить код на budget-test"
 - "Перезапусти backend сервис"
 - "Покажи логи postgres за последний час"
 - "Проверь health всех сервисов"
+- "Проанализируй логи деплоя"
 
 ## Контекст проекта
 
@@ -64,6 +68,58 @@ git pull
 # Синхронизация и deploy
 ./deploy.sh --sync-mode mirror
 ```
+
+### Автоматизированный деплой на тестовый сервер (NEW!)
+
+**Команда:** `deploy-test`
+
+Автоматизирует весь процесс деплоя на тестовый сервер `budget-test` с автоматическим анализом логов и проверкой состояния.
+
+```bash
+# Базовый деплой
+bash .claude/skills/deployment/templates/deploy-test.sh
+
+# С автоматическим исправлением проблем
+bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix
+
+# Детальный режим (verbose)
+bash .claude/skills/deployment/templates/deploy-test.sh --verbose
+
+# Проверка без выполнения (dry-run)
+bash .claude/skills/deployment/templates/deploy-test.sh --dry-run
+
+# Создать алиас для быстрого доступа
+echo "alias deploy-test='cd ~/familyBudget && bash .claude/skills/deployment/templates/deploy-test.sh'" >> ~/.bashrc
+```
+
+**Что делает команда:**
+1. ✅ Проверяет SSH подключение к `budget-test`
+2. ✅ Выполняет `git pull` в ветке `test` в `~/familyBudget`
+3. ✅ Запускает `sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch`
+4. ✅ Анализирует логи деплоя (`/opt/budget/logs/deploy.log`)
+5. ✅ Анализирует логи контейнеров (backend, postgres, redis)
+6. ✅ Проверяет статус контейнеров (healthy/unhealthy)
+7. ✅ Проверяет незавершенные процессы на сервере
+8. ✅ Автоматически исправляет проблемы (с флагом `--auto-fix`)
+
+**Создаваемые логи:**
+```
+logs/
+├── deploy-test_YYYYMMDD_HHMMSS.log          # Основной лог
+├── deploy_output_YYYYMMDD_HHMMSS.log        # Вывод deploy.sh
+├── server_deploy_YYYYMMDD_HHMMSS.log        # Логи /opt/budget/logs/deploy.log
+├── container_backend_YYYYMMDD_HHMMSS.log    # Логи backend
+├── container_postgres_YYYYMMDD_HHMMSS.log   # Логи postgres
+├── container_redis_YYYYMMDD_HHMMSS.log      # Логи redis
+└── container_status_YYYYMMDD_HHMMSS.json    # Статус контейнеров
+```
+
+**Примеры использования:** См. [examples/deploy-test-workflow.md](examples/deploy-test-workflow.md)
+
+**Автоматическое исправление проблем (`--auto-fix`):**
+- Перезапуск unhealthy контейнеров
+- Повторная попытка деплоя при ошибках
+- Завершение зависших процессов (>5 минут)
 
 ### Режимы синхронизации кода
 
@@ -401,7 +457,25 @@ docker compose exec backend ping postgres
 
 ## Примеры использования
 
-### Пример 1: Production deploy
+### Пример 1: Автоматизированный деплой на тестовый сервер (NEW!)
+
+```
+Задеплой на тестовый сервер:
+1. Запусти команду deploy-test
+2. Автоматически выполнится:
+   - SSH подключение к budget-test
+   - Git pull в ветке test
+   - Запуск deploy.sh с оптимальными параметрами
+   - Анализ логов деплоя и контейнеров
+   - Проверка статуса контейнеров
+   - Проверка незавершенных процессов
+3. Получи детальный отчет в ./logs/
+
+Команда:
+bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix
+```
+
+### Пример 2: Production deploy
 
 ```
 Задеплой приложение на production:
@@ -411,7 +485,7 @@ docker compose exec backend ping postgres
 4. Проверь health checks
 ```
 
-### Пример 2: Hotfix deploy
+### Пример 3: Hotfix deploy
 
 ```
 Сделай hotfix deploy:
@@ -420,7 +494,7 @@ docker compose exec backend ping postgres
 3. Zero downtime (rolling update)
 ```
 
-### Пример 3: Rollback
+### Пример 4: Rollback
 
 ```
 Откати последний deploy:
