@@ -12,7 +12,7 @@
                 <!-- Header с индикатором (кликабельный только на мобильных) -->
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleQuickStats()" id="quick-stats-header">
-                    <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📊 Быстрая статистика</h2>
                     <span class="expand-indicator badge badge-outline badge-sm opacity-60 hover:opacity-100 cursor-pointer transition-opacity md:hidden">
                         <span class="indicator-text">+2</span>
                     </span>
@@ -33,7 +33,7 @@
                 <!-- Header с индикатором (кликабельный только на мобильных) -->
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleAccountBalances()" id="account-balances-header">
-                    <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">💳 Баланс по счетам</h2>
                     <span class="expand-indicator badge badge-outline badge-sm opacity-60 hover:opacity-100 cursor-pointer transition-opacity md:hidden">
                         <span class="indicator-text">+...</span>
                     </span>
@@ -53,7 +53,7 @@
             <!-- Recent Records (hidden when offline) -->
             <div id="recent-transactions-card" class="card bg-base-100 shadow-xl" data-offline-hidden="true">
                 <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">📈 Последние записи</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📈 Последние записи</h2>
                     <div id="recent-transactions"
                          hx-get="/api/v1/facts/recent-html?limit=10"
                          hx-trigger="load"
@@ -69,7 +69,7 @@
             <!-- Pending Records (shown when offline or items waiting to sync) -->
             <div id="pending-records-card" class="card bg-base-100 shadow-xl hidden">
                 <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">
                         ⏳ Ожидают синхронизации
                         <span id="pending-count-badge" class="badge badge-warning badge-sm">0</span>
                     </h2>
@@ -133,7 +133,7 @@
         <div class="hero min-h-[60vh] bg-gradient-to-r from-primary/20 to-secondary/20 rounded-box">
             <div class="hero-content text-center">
                 <div class="max-w-md">
-                    <h1 class="text-5xl font-bold mb-6">💰 Семейный бюджет</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">💰 Семейный бюджет</h1>
                     <p class="text-xl mb-8">
                         Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом с легкостью.
                     </p>
@@ -153,7 +153,7 @@
             <div class="card bg-base-100 shadow-xl">
                 <div class="card-body items-center text-center">
                     <div class="text-5xl mb-4">📊</div>
-                    <h2 class="card-title">Аналитика</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Аналитика</h2>
                     <p class="opacity-70">Красивые интерактивные графики на базе ECharts</p>
                 </div>
             </div>
@@ -161,7 +161,7 @@
             <div class="card bg-base-100 shadow-xl">
                 <div class="card-body items-center text-center">
                     <div class="text-5xl mb-4">🤖</div>
-                    <h2 class="card-title">Telegram Bot</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Telegram Bot</h2>
                     <p class="opacity-70">Управляйте бюджетом прямо из Telegram</p>
                 </div>
             </div>
@@ -169,7 +169,7 @@
             <div class="card bg-base-100 shadow-xl">
                 <div class="card-body items-center text-center">
                     <div class="text-5xl mb-4">🔒</div>
-                    <h2 class="card-title">Конфиденциальность</h2>
+                    <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Конфиденциальность</h2>
                     <p class="opacity-70">Ваши данные защищены и изолированы</p>
                 </div>
             </div>
@@ -190,7 +190,7 @@
     <!-- Modal: Recurring Delete Confirmation -->
     <dialog id="recurring-delete-modal" class="modal">
         <div class="modal-box max-w-lg">
-            <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+            <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔄 Удаление регламентной записи</h2>
             <p class="mb-6">
                 Эта запись является частью регламентного платежа.<br>
                 Что вы хотите удалить?

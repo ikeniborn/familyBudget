@@ -314,7 +314,7 @@ body.resizing-columns * {
 <div class="hidden md:block space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">📥 Импорт фактов</h1>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📥 Импорт фактов</h1>
         <p class="text-base-content/70">Загрузите CSV файл из вашего банка, настройте маппинг колонок, обогатите факты и импортируйте в бюджет</p>
     </div>
 
@@ -329,7 +329,7 @@ body.resizing-columns * {
     <!-- Step 1: Bank Selection -->
     <div class="card bg-base-100 shadow-lg" id="step-1-bank-selection">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">🏦 Шаг 1: Выбор банка</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">🏦 Шаг 1: Выбор банка</h2>
             <div class="form-control">
                 <label class="label">
                     <span class="label-text">Выберите банк</span>
@@ -384,7 +384,7 @@ body.resizing-columns * {
     <!-- Step 2: File Upload -->
     <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка данных</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📤 Шаг 2: Загрузка данных</h2>
 
             <!-- Radio buttons для выбора источника данных -->
             <div id="upload-source-selector" class="form-control mb-4">
@@ -497,7 +497,7 @@ body.resizing-columns * {
     <div class="card bg-base-100 shadow-lg" id="step-3-mapping" style="display: none;">
         <div class="card-body">
             <div class="mb-4">
-                <h2 class="card-title text-2xl">🔗 Шаг 3: Маппинг колонок</h2>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">🔗 Шаг 3: Маппинг колонок</h2>
                 <p class="text-base-content/70">Настройте разделитель, укажите соответствие колонок и формат данных</p>
             </div>
 
@@ -551,7 +551,7 @@ body.resizing-columns * {
 
             <!-- CSV Preview Table -->
             <div class="mb-4">
-                <h3 class="text-lg font-semibold mb-2">📋 Предпросмотр CSV (первые 5 строк)</h3>
+                <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📋 Предпросмотр CSV (первые 5 строк)</h3>
                 <div class="overflow-x-auto bg-base-200 rounded-lg p-2">
                     <table class="table table-xs w-full" id="csv-preview-table">
                         <thead id="csv-preview-thead">
@@ -566,7 +566,7 @@ body.resizing-columns * {
 
             <!-- Mapping Table -->
             <div class="overflow-x-auto">
-                <h3 class="text-lg font-semibold mb-2">🔗 Маппинг колонок</h3>
+                <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔗 Маппинг колонок</h3>
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
@@ -602,7 +602,7 @@ body.resizing-columns * {
         <div class="card-body">
             <!-- Header with stats -->
             <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение данных</h2>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Шаг 4: Обогащение данных</h2>
                 <div id="staging-stats" class="stats shadow">
                     <div class="stat py-2 px-4">
                         <div class="stat-title text-xs">Всего</div>
@@ -629,7 +629,7 @@ body.resizing-columns * {
                 <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
                     <!-- Collapsible Header -->
                     <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
-                        <h3 class="font-semibold text-lg filter-title">🔍 Фильтры</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔍 Фильтры</h3>
                         <span class="filter-toggle-icon text-lg">◀</span>
                     </div>
 
@@ -907,7 +907,7 @@ body.resizing-columns * {
 <!-- Create Bank Modal -->
 <dialog id="create-bank-modal" class="modal">
     <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Добавить новый банк</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Добавить новый банк</h3>
         <form id="create-bank-form" onsubmit="createBank(event)">
             <div class="form-control mb-4">
                 <label class="label">
@@ -941,7 +941,7 @@ body.resizing-columns * {
 <!-- Delete Bank Modal -->
 <dialog id="delete-bank-modal" class="modal">
     <div class="modal-box">
-        <h3 class="font-bold text-lg text-error mb-4">⚠️ Удаление банка</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 text-error">⚠️ Удаление банка</h3>
         <p class="py-2">
             Вы уверены, что хотите удалить банк <strong id="delete-bank-name" class="text-error"></strong>?
         </p>
@@ -971,7 +971,7 @@ body.resizing-columns * {
 <!-- Custom Confirm Dialog Modal -->
 <dialog id="confirm-dialog" class="modal">
     <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4" id="confirm-dialog-title">Подтверждение</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="confirm-dialog-title">Подтверждение</h3>
         <p class="py-4" id="confirm-dialog-message"></p>
         <div class="modal-action">
             <button class="btn btn-error" id="confirm-dialog-yes">Да</button>

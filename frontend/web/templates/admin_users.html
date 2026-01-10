@@ -10,8 +10,8 @@
 <div class="hidden md:block space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">👥 Управление пользователями</h1>
-        <p class="text-base-content/70">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">👥 Управление пользователями</h1>
+        <p class="text-sm sm:text-base text-base-content/70">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
     </div>
 
     <!-- Stats Summary -->
@@ -25,7 +25,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">👤 Зарегистрированные пользователи</h2>
+                <h2 class="text-lg sm:text-xl font-bold">👤 Зарегистрированные пользователи</h2>
                 <div class="flex flex-wrap gap-2">
                     <button class="btn btn-sm btn-primary" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
                     <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏳ Неактивные</button>
@@ -52,7 +52,7 @@
 <!-- Create User Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Добавить нового пользователя</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">✨ Добавить нового пользователя</h3>
         <form id="create-form" onsubmit="createUser(event)" class="space-y-4">
             <!-- Auth method hint -->
             <div class="alert alert-info text-sm">
@@ -178,7 +178,7 @@
 <!-- Edit User Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать пользователя</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">✏️ Редактировать пользователя</h3>
         <form id="edit-form" onsubmit="updateUser(event)" class="space-y-4">
             <input type="hidden" id="edit-id" name="id">
 
@@ -287,7 +287,7 @@
 <!-- Merge Users Modal -->
 <dialog id="merge-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6">
-        <h3 class="font-bold text-lg mb-4">🔗 Объединение аккаунтов</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔗 Объединение аккаунтов</h3>
 
         <div class="alert alert-warning mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">

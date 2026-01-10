@@ -13,7 +13,7 @@
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold mb-2">🔔 История уведомлений</h1>
+                <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🔔 История уведомлений</h1>
                 <p class="text-base-content/70">Просмотр бюджетных уведомлений и оповещений о превышении лимитов</p>
             </div>
         </div>
@@ -22,7 +22,7 @@
     <!-- Notification Settings Section -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">⚙️ Настройки уведомлений</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">⚙️ Настройки уведомлений</h2>
 
             <!-- Loading Indicator -->
             <div id="settings-loading" class="flex justify-center py-4">
@@ -176,7 +176,7 @@
     <div class="hidden md:block card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">📜 Список уведомлений</h2>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📜 Список уведомлений</h2>
                 <div class="text-sm text-base-content/70">
                     Показано: <span id="current-count">0</span> из <span id="total-count">0</span>
                 </div>
@@ -211,7 +211,7 @@
             <!-- Empty State -->
             <div id="empty-state" class="text-center py-12" style="display: none;">
                 <div class="text-6xl mb-4">📭</div>
-                <h3 class="text-xl font-semibold mb-2">Уведомлений не найдено</h3>
+                <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Уведомлений не найдено</h3>
                 <p class="text-base-content/70">Нет уведомлений для отображения с выбранными фильтрами</p>
             </div>
 
@@ -630,7 +630,7 @@ function showError(message) {
     const emptyState = document.getElementById('empty-state');
     emptyState.innerHTML = `
         <div class="text-6xl mb-4">⚠️</div>
-        <h3 class="text-xl font-semibold mb-2">Ошибка</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Ошибка</h3>
         <p class="text-base-content/70">${message}</p>
     `;
     emptyState.style.display = 'block';

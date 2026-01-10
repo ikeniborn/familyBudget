@@ -111,7 +111,7 @@
         <div class="mb-2">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
                 <div class="flex-1 min-w-0">
-                    <h1 class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
+                    <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
                     <p class="text-sm sm:text-base text-base-content/70">Управляйте списками покупок</p>
                 </div>
             </div>
@@ -125,7 +125,7 @@
         <!-- Empty State -->
         <div id="empty-state" class="hidden text-center py-12">
             <div class="text-6xl mb-4">🛒</div>
-            <h3 class="text-2xl font-bold mb-2">Нет списков покупок</h3>
+            <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Нет списков покупок</h3>
             <p class="text-base-content/70 mb-4">Создайте первый список, чтобы начать</p>
             <button class="btn btn-primary" onclick="openCreateListModal()">
                 ➕ Создать список
@@ -247,7 +247,7 @@
             <!-- Empty State for Table -->
             <div id="table-empty-state" class="hidden text-center py-12 bg-base-100 shadow-lg rounded-lg">
                 <div class="text-6xl mb-4">📝</div>
-                <h3 class="text-2xl font-bold mb-2">Список пуст</h3>
+                <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Список пуст</h3>
                 <p class="text-base-content/70 mb-4">Добавьте первый товар или импортируйте из CSV</p>
                 <button class="btn btn-primary" onclick="openAddItemModal()">
                     ➕ Добавить товар
@@ -273,7 +273,7 @@
 <!-- Create Shopping List Modal - compact on mobile -->
 <dialog id="create-list-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 sm:p-6">
-        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4">📝 Создать список</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📝 Создать список</h3>
         <form id="create-list-form" onsubmit="handleCreateList(event)">
             <div class="form-control mb-3 sm:mb-4">
                 <label class="label py-1">
@@ -303,7 +303,7 @@
 <!-- Add/Edit Item Modal - compact on mobile -->
 <dialog id="item-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box max-w-2xl p-4 sm:p-6">
-        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4" id="item-modal-title">📝 Добавить товар</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="item-modal-title">📝 Добавить товар</h3>
         <form id="item-form" onsubmit="handleSaveItem(event)">
             <input type="hidden" name="item_id" id="item-id">
 
@@ -437,7 +437,7 @@
 <!-- Delete Confirmation Modal - compact on mobile -->
 <dialog id="delete-confirm-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 sm:p-6">
-        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4">⚠️ Удалить товары?</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">⚠️ Удалить товары?</h3>
         <p class="text-sm sm:text-base mb-3 sm:mb-4" id="delete-confirm-message">Удалить выбранные товары?</p>
         <div class="modal-action mt-3 sm:mt-4 gap-2">
             <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeDeleteConfirmModal()">Отмена</button>
@@ -452,7 +452,7 @@
 <!-- Delete List Confirmation Modal - compact on mobile -->
 <dialog id="delete-list-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box p-4 sm:p-6">
-        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4">⚠️ Удалить список?</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">⚠️ Удалить список?</h3>
         <div class="alert alert-warning py-2 px-3 sm:py-3 sm:px-4 mb-3 sm:mb-4 text-sm">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -478,7 +478,7 @@
 <!-- Confirm Modal для FAB действий -->
 <dialog id="confirm-modal" class="modal modal-bottom sm:modal-middle">
     <div class="modal-box max-w-lg p-4 sm:p-6">
-        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4" id="confirm-title">Подтверждение</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="confirm-title">Подтверждение</h3>
         <p class="whitespace-pre-line text-sm sm:text-base mb-4 sm:mb-6" id="confirm-message"></p>
         <div class="modal-action mt-3 sm:mt-4 gap-2">
             <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="confirmModalResolve(false)">Отмена</button>

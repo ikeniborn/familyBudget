@@ -17,7 +17,7 @@
 {% macro confirm_modal(modal_id='confirm-modal') %}
 <dialog id="{{ modal_id }}" class="modal">
     <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="confirm-title">Подтверждение</h2>
         <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
         <div class="modal-action">
             <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>

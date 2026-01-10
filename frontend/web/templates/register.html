@@ -3,15 +3,15 @@
 {% block title %}Регистрация{% endblock %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-container">
-        <div class="login-header">
-            <h1>Регистрация в Семейный бюджет</h1>
-            <p class="subtitle">Создайте аккаунт для управления семейным бюджетом.</p>
+<div class="min-h-[80vh] flex items-center justify-center px-4 py-8">
+    <div class="max-w-md w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 text-base-content">Регистрация в Семейный бюджет</h1>
+            <p class="text-sm sm:text-base opacity-70">Создайте аккаунт для управления семейным бюджетом.</p>
         </div>
 
-        <div class="login-card">
-            <div class="login-icon">
+        <div class="bg-base-100 rounded-xl p-6 sm:p-8 shadow-lg text-center mb-8">
+            <div class="mb-6 flex justify-center">
                 <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H6C4.93913 15 3.92172 15.4214 3.17157 16.1716C2.42143 16.9217 2 17.9391 2 19V21" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="9" cy="7" r="4" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -19,8 +19,8 @@
                 </svg>
             </div>
 
-            <h2>Создать аккаунт</h2>
-            <p class="login-description">
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Создать аккаунт</h2>
+            <p class="opacity-70 mb-6 text-sm sm:text-base">
                 Введите ваши данные для регистрации. После регистрации потребуется активация администратором.
             </p>
 
@@ -111,146 +111,37 @@
                 </a>
             </div>
 
-            <div class="login-help">
-                <p class="text-xs opacity-70 mt-4">
+            <div class="text-xs opacity-70 mt-4">
+                <p>
                     Регистрируясь, вы соглашаетесь с
-                    <a href="/privacy-policy" class="link" target="_blank">политикой конфиденциальности</a>.
+                    <a href="/privacy-policy" class="link text-primary" target="_blank">политикой конфиденциальности</a>.
                 </p>
             </div>
         </div>
 
-        <div class="login-security">
-            <h3>Безопасность регистрации</h3>
-            <div class="security-grid">
-                <div class="security-item">
-                    <strong>🔐 Argon2 хеширование</strong>
-                    <p>Ваш пароль надежно зашифрован</p>
+        <div class="bg-base-200 rounded-xl p-6">
+            <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 text-center">Безопасность регистрации</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">🔐 Argon2 хеширование</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Ваш пароль надежно зашифрован</p>
                 </div>
-                <div class="security-item">
-                    <strong>🛡️ Обязательная 2FA</strong>
-                    <p>Двухфакторная аутентификация для входа по email</p>
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">🛡️ Обязательная 2FA</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Двухфакторная аутентификация для входа по email</p>
                 </div>
-                <div class="security-item">
-                    <strong>👤 Модерация</strong>
-                    <p>Аккаунты активируются администратором</p>
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">👤 Модерация</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Аккаунты активируются администратором</p>
                 </div>
-                <div class="security-item">
-                    <strong>🔒 Защита данных</strong>
-                    <p>Все данные передаются по HTTPS</p>
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">🔒 Защита данных</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Все данные передаются по HTTPS</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-.login-page {
-    min-height: 80vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1rem;
-}
-
-.login-container {
-    max-width: 500px;
-    width: 100%;
-}
-
-.login-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.login-header h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-    color: var(--fallback-bc,oklch(var(--bc)/1));
-}
-
-.login-header .subtitle {
-    font-size: 1rem;
-    opacity: 0.7;
-}
-
-.login-card {
-    background: var(--fallback-b1,oklch(var(--b1)/1));
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.login-icon {
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: center;
-}
-
-.login-card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.login-description {
-    opacity: 0.7;
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
-}
-
-.login-help a {
-    color: var(--fallback-p,oklch(var(--p)/1));
-}
-
-.login-security {
-    background: var(--fallback-b2,oklch(var(--b2)/1));
-    border-radius: 12px;
-    padding: 1.5rem;
-}
-
-.login-security h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-.security-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-}
-
-.security-item {
-    text-align: center;
-}
-
-.security-item strong {
-    display: block;
-    font-size: 0.95rem;
-    margin-bottom: 0.25rem;
-}
-
-.security-item p {
-    font-size: 0.8rem;
-    opacity: 0.6;
-    margin: 0;
-}
-
-@media (max-width: 640px) {
-    .login-header h1 {
-        font-size: 1.75rem;
-    }
-
-    .login-card {
-        padding: 1.5rem;
-    }
-
-    .security-grid {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
 
 <script>
 async function handleRegister(e) {

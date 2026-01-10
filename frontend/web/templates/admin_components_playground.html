@@ -4,8 +4,8 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">🎨 UI Components Playground</h1>
-        <p class="text-base-content/70">Interactive showcase of the Family Budget Component Library v1.3.0</p>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🎨 UI Components Playground</h1>
+        <p class="text-sm sm:text-base text-base-content/70">Interactive showcase of the Family Budget Component Library v1.3.0</p>
         <div class="stats shadow mt-4">
             <div class="stat">
                 <div class="stat-title">Total Components</div>
@@ -34,13 +34,13 @@
     <div role="tablist" class="tabs tabs-bordered">
         <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Core" checked />
         <div role="tabpanel" class="tab-content p-6">
-            <h2 class="text-2xl font-bold mb-4">Core Components (7)</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Core Components (7)</h2>
             <p class="mb-6 text-base-content/70">Base primitive components for building forms</p>
 
             <!-- FormField Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">FormField - Universal Form Wrapper</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">FormField - Universal Form Wrapper</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Live Example:</h4>
@@ -72,7 +72,7 @@ document.body.appendChild(field.render());</code></pre>
             <!-- AmountInput Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">AmountInput - Validated Number Input</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">AmountInput - Validated Number Input</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Live Example:</h4>
@@ -103,7 +103,7 @@ if (!validation.valid) {
             <!-- DateInput Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">DateInput - Calendar Widget Integration</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">DateInput - Calendar Widget Integration</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Live Example:</h4>
@@ -125,13 +125,13 @@ if (!validation.valid) {
 
         <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Composite" />
         <div role="tabpanel" class="tab-content p-6">
-            <h2 class="text-2xl font-bold mb-4">Composite Components (5)</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Composite Components (5)</h2>
             <p class="mb-6 text-base-content/70">Business-specific components with API integration</p>
 
             <!-- FinancialCenterSelect Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">FinancialCenterSelect - Account Picker</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">FinancialCenterSelect - Account Picker</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Live Example:</h4>
@@ -157,7 +157,7 @@ container.appendChild(fcSelect.render());</code></pre>
             <!-- RecurringPlanSettings Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">RecurringPlanSettings - Complex Recurring Config</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">RecurringPlanSettings - Complex Recurring Config</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Features:</h4>
@@ -190,13 +190,13 @@ container.appendChild(fcSelect.render());</code></pre>
 
         <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Forms" />
         <div role="tabpanel" class="tab-content p-6">
-            <h2 class="text-2xl font-bold mb-4">Form Components (4)</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Form Components (4)</h2>
             <p class="mb-6 text-base-content/70">Complete forms with validation and submission</p>
 
             <!-- TransactionForm Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">TransactionForm - Full Transaction Form</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">TransactionForm - Full Transaction Form</h3>
                     <div class="alert alert-info mb-4">
                         <span>Used in 8+ places across the application - saves ~400 lines of duplication!</span>
                     </div>
@@ -239,7 +239,7 @@ await form.initialize();</code></pre>
             <!-- AdminCrudForm Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">AdminCrudForm&lt;T&gt; - Generic CRUD Form</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">AdminCrudForm&lt;T&gt; - Generic CRUD Form</h3>
                     <div class="alert alert-success mb-4">
                         <span>⭐ Highest ROI: Saves ~1,200 lines across admin panels!</span>
                     </div>
@@ -277,13 +277,13 @@ await form.render(container);</code></pre>
 
         <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Modals" />
         <div role="tabpanel" class="tab-content p-6">
-            <h2 class="text-2xl font-bold mb-4">Modal Components (3)</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Modal Components (3)</h2>
             <p class="mb-6 text-base-content/70">Modal management with DaisyUI dialog integration</p>
 
             <!-- BaseModal Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">BaseModal - DaisyUI Dialog Wrapper</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">BaseModal - DaisyUI Dialog Wrapper</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Features:</h4>
@@ -316,7 +316,7 @@ modal.open();</code></pre>
             <!-- CrudModal Example -->
             <div class="card bg-base-200 shadow-xl mb-6">
                 <div class="card-body">
-                    <h3 class="card-title">CrudModal&lt;T&gt; - CRUD Operations Modal</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">CrudModal&lt;T&gt; - CRUD Operations Modal</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <h4 class="font-semibold mb-2">Features:</h4>
@@ -355,13 +355,13 @@ modal.openForEdit(existingArticle);</code></pre>
 
         <input type="radio" name="component_tabs" role="tab" class="tab" aria-label="Architecture" />
         <div role="tabpanel" class="tab-content p-6">
-            <h2 class="text-2xl font-bold mb-4">Architecture & Design Decisions</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Architecture & Design Decisions</h2>
 
             <div class="space-y-6">
                 <!-- Hybrid Approach -->
                 <div class="card bg-base-200 shadow-xl">
                     <div class="card-body">
-                        <h3 class="card-title">Hybrid Architecture (9/10 Score)</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Hybrid Architecture (9/10 Score)</h3>
                         <p class="mb-4">Jinja2 server-side templates + TypeScript client-side components</p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -391,7 +391,7 @@ Modal Components (modal management)</code></pre>
                 <!-- Wrapper Pattern -->
                 <div class="card bg-base-200 shadow-xl">
                     <div class="card-body">
-                        <h3 class="card-title">Wrapper Pattern - ZERO Refactoring</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Wrapper Pattern - ZERO Refactoring</h3>
                         <p class="mb-4">Existing widgets remain unchanged, new components wrap them</p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -421,7 +421,7 @@ Modal Components (modal management)</code></pre>
                 <!-- Build System -->
                 <div class="card bg-base-200 shadow-xl">
                     <div class="card-body">
-                        <h3 class="card-title">Build System & Bundle Management</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Build System & Bundle Management</h3>
                         <div class="overflow-x-auto">
                             <table class="table">
                                 <thead>
@@ -474,7 +474,7 @@ Modal Components (modal management)</code></pre>
     <!-- Architecture Diagram -->
     <div class="card bg-base-100 shadow-xl mt-6">
         <div class="card-body">
-            <h2 class="card-title">Component Library Structure</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Component Library Structure</h2>
             <div class="mockup-code">
                 <pre><code>UI Components Library (v1.3.0)
 ├── Core (7) - Base primitives (~1,000 lines, ~15KB)
@@ -511,7 +511,7 @@ Modal Components (modal management)</code></pre>
 <!-- Demo Modal (for BaseModal example) -->
 <dialog id="demo-modal" class="modal">
     <div class="modal-box">
-        <h3 class="font-bold text-lg">Demo Modal</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Demo Modal</h3>
         <p class="py-4">This is a demonstration of BaseModal component!</p>
         <div class="modal-action">
             <button class="btn" onclick="closeDemoModal()">Close</button>

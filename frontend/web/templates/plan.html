@@ -20,7 +20,7 @@
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold mb-2">📅 Управление планом</h1>
+                <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📅 Управление планом</h1>
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -183,8 +183,10 @@
     <!-- Recurring Plans Management Section -->
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="recurring-plans-toggle" class="peer" />
-        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer">
-            <h2 class="card-title text-2xl mb-0">🔄 Управление регламентными платежами</h2>
+        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                🔄 Управление регламентными платежами
+            </h2>
         </label>
         <div class="collapse-content">
             <div class="flex justify-between items-center mb-4">
@@ -247,8 +249,10 @@
     <!-- Plan Analytics Section -->
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="analytics-toggle" class="peer" />
-        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer">
-            <h2 class="card-title text-2xl mb-0">📊 Аналитика планирования</h2>
+        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                📊 Аналитика планирования
+            </h2>
         </label>
         <div class="collapse-content">
 
@@ -325,13 +329,13 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-charts-grid">
                 <!-- Comparison Chart: Types on X-axis, months as columns -->
                 <div class="bg-base-200 rounded-box p-4">
-                    <h3 class="font-semibold mb-2">📊 По типам операций</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📊 По типам операций</h3>
                     <div id="chart-plan-comparison" style="height: 300px;"></div>
                 </div>
 
                 <!-- Categories Bar Chart -->
                 <div class="bg-base-200 rounded-box p-4">
-                    <h3 class="font-semibold mb-2">📁 По категориям</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📁 По категориям</h3>
                     <div id="chart-plan-categories" style="height: 300px;"></div>
                 </div>
             </div>
@@ -355,7 +359,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">📋 Плановые записи</h2>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Плановые записи</h2>
                 <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
                     🗑️ Удалить выбранные
                 </button>
@@ -392,7 +396,7 @@
 <!-- Recurring Delete Dialog -->
 <dialog id="recurring-delete-modal" class="modal">
     <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+        <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔄 Удаление регламентной записи</h2>
         <p class="mb-6">
             Эта запись является частью регламентного платежа.<br>
             Что вы хотите удалить?
@@ -5286,7 +5290,7 @@ async function showConfirmDialogWithCheckbox(message, title, options = {}) {
         const modalHTML = `
             <div class="modal modal-open" id="${modalId}">
                 <div class="modal-box">
-                    <h3 class="font-bold text-lg">${title}</h3>
+                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">${title}</h2>
                     <p class="py-4">${message}</p>
                     ${options.checkboxLabel ? `
                         <div class="form-control">

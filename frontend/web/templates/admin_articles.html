@@ -11,8 +11,8 @@
 <div class="hidden md:block space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">📁 Управление категориями бюджета</h1>
-        <p class="text-base-content/70">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📁 Управление категориями бюджета</h1>
+        <p class="text-sm sm:text-base text-base-content/70">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
     </div>
 
     <!-- Articles Table -->
@@ -21,7 +21,7 @@
             <div class="mb-4">
                 <div class="flex flex-col gap-3 mb-3">
                     <div class="flex justify-between items-center">
-                        <h2 class="card-title text-2xl">📊 Категории</h2>
+                        <h2 class="text-lg sm:text-xl font-bold">📊 Категории</h2>
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -61,7 +61,7 @@
 <!-- Create Article Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новую категорию</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">✨ Создать новую категорию</h3>
         <form id="create-form" onsubmit="createArticle(event)" class="space-y-2 sm:space-y-4">
             <div class="form-control">
                 <label class="label">
@@ -114,7 +114,7 @@
 <!-- Edit Article Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать категорию</h3>
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">✏️ Редактировать категорию</h3>
         <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
