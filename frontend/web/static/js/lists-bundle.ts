@@ -1,9 +1,11 @@
 // Lists Bundle - Aggregates all shopping lists modules
-// Generated: 2026-01-09
+// Generated: 2026-01-10
 // Part of v7.0 ES modules migration
 
 // Core lists functionality (TypeScript modules)
-import './lists/listsManager';
+// REMOVED: import './lists/listsManager'; - Ambiguous module resolution
+// ✅ FIX: Import only what's needed from modular structure below
+
 import './lists/csvImporter';
 
 // Import/export functionality (JavaScript modules)
