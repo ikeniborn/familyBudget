@@ -995,8 +995,14 @@ main() {
     # Analyze sync changes for smart restart decisions
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
-    # - Sets NEEDS_BACKEND_RECREATE, NEEDS_BOT_RECREATE, NEEDS_NGINX_RECREATE flags
-    # - Flags used by start_application_services() to selectively recreate containers
+    # - Sets recreation flags for ALL services:
+    #   NEEDS_POSTGRES_RECREATE  (migrations changed)
+    #   NEEDS_REDIS_RECREATE     (redis code/config changed)
+    #   NEEDS_BACKEND_RECREATE   (templates/static/Python changed)
+    #   NEEDS_BOT_RECREATE       (bot code changed)
+    #   NEEDS_NGINX_RECREATE     (nginx config changed)
+    #   NEEDS_FULL_RESTART       (docker-compose.yml global changes)
+    # - Flags used by start_postgres_only(), start_redis_only(), start_application_services()
     analyze_sync_changes
     echo ""
 

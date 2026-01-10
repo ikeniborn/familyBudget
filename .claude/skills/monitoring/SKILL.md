@@ -1,11 +1,11 @@
 ---
-name: Monitoring & Troubleshooting
+name: monitoring-troubleshooting
 description: Мониторинг и диагностика проблем
 version: 2.0.0
 author: Family Budget Team
 tags: [monitoring, logs, metrics, troubleshooting, diagnostics, health-checks]
 dependencies: [deployment]
-user-invocable: false
+user-invocable: true
 ---
 
 # Monitoring & Troubleshooting Skill

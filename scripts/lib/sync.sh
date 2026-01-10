@@ -686,16 +686,22 @@ sync_clean() {
 # Analyze which services need recreation based on sync changes
 # Uses SYNC_CHANGED_FILES environment variable set by sync_update()
 # Sets environment variables:
-#   - NEEDS_BACKEND_RECREATE=true  if frontend/web/templates, static, or backend/app changed
-#   - NEEDS_BOT_RECREATE=true      if bot/ changed
-#   - NEEDS_NGINX_RECREATE=true    if nginx/ changed
+#   - NEEDS_POSTGRES_RECREATE=true  if migrations changed
+#   - NEEDS_REDIS_RECREATE=true     if redis code/config changed
+#   - NEEDS_BACKEND_RECREATE=true   if frontend/web/templates, static, or backend/app changed
+#   - NEEDS_BOT_RECREATE=true       if bot/ changed
+#   - NEEDS_NGINX_RECREATE=true     if nginx/ changed
+#   - NEEDS_FULL_RESTART=true       if docker-compose.yml global changes (volumes/networks)
 analyze_sync_changes() {
     info "Analyzing sync changes for smart restart decisions..."
 
     # Initialize flags (default: no recreation needed)
+    export NEEDS_POSTGRES_RECREATE=false
+    export NEEDS_REDIS_RECREATE=false
     export NEEDS_BACKEND_RECREATE=false
     export NEEDS_BOT_RECREATE=false
     export NEEDS_NGINX_RECREATE=false
+    export NEEDS_FULL_RESTART=false
 
     # Check if SYNC_CHANGED_FILES is set (from sync_update)
     if [[ -z "${SYNC_CHANGED_FILES:-}" ]]; then
@@ -710,66 +716,43 @@ analyze_sync_changes() {
     info "Analyzing $total_changes changed file(s)..."
 
     # Analyze which directories have changes
+    local postgres_changes=false
+    local redis_changes=false
     local backend_related_changes=false
     local bot_changes=false
     local nginx_changes=false
+    local config_changes=false
 
     while IFS= read -r file; do
         # Skip empty lines
         [[ -z "$file" ]] && continue
 
-        # Backend needs recreation if:
-        # - Jinja2 templates changed (frontend/web/templates/**)
-        #   → Templates cached in memory by Jinja2, need container restart
-        # - Static files changed (frontend/web/static/**)
-        #   → May be cached by FastAPI static file handler
-        # - Python code changed (backend/app/**)
-        #   → Python .pyc cache needs invalidation
-        # - Frontend Python code changed (frontend/web/*.py)
-        #   → FastAPI route handlers need reload
-        if [[ "$file" == frontend/web/templates/* ]] || \
-           [[ "$file" == frontend/web/static/* ]] || \
-           [[ "$file" == backend/app/* ]] || \
-           [[ "$file" == frontend/web/*.py ]]; then
-            backend_related_changes=true
+        # PRIORITY 1: Configuration files (highest priority)
+        # Must be checked BEFORE service file matching
+        if [[ "$file" == "docker-compose.yml" ]]; then
+            detect_compose_changes "$file"
+            config_changes=true
+            continue
         fi
 
-        # Bot needs recreation if bot/ directory changed
-        # - Python .pyc cache needs invalidation
-        # - Bot handlers and commands need reload
-        if [[ "$file" == bot/* ]]; then
-            bot_changes=true
+        if [[ "$file" == ".env" ]]; then
+            detect_env_changes "$file"
+            config_changes=true
+            continue
         fi
 
-        # Nginx needs recreation if nginx/ directory changed
-        # - Config files need reload
-        # - Reverse proxy rules may have changed
-        if [[ "$file" == nginx/* ]]; then
-            nginx_changes=true
+        # PRIORITY 2: Documentation and non-code files (skip)
+        if [[ "$file" =~ \.(md|txt|rst)$ ]] || \
+           [[ "$file" =~ ^docs/ ]] || \
+           [[ "$file" =~ \.git ]]; then
+            info "  → Skipping documentation: $file"
+            continue
         fi
+
+        # PRIORITY 3: Service-specific file matching
+        match_file_to_services "$file"
+
     done <<< "$SYNC_CHANGED_FILES"
-
-    # Set flags and report decisions
-    if [[ "$backend_related_changes" == "true" ]]; then
-        export NEEDS_BACKEND_RECREATE=true
-        success "✓ Backend recreation REQUIRED (templates/static/Python code changes)"
-    else
-        info "  Backend recreation NOT needed (no relevant changes)"
-    fi
-
-    if [[ "$bot_changes" == "true" ]]; then
-        export NEEDS_BOT_RECREATE=true
-        success "✓ Bot recreation REQUIRED (bot code changes)"
-    else
-        info "  Bot recreation NOT needed (no bot changes)"
-    fi
-
-    if [[ "$nginx_changes" == "true" ]]; then
-        export NEEDS_NGINX_RECREATE=true
-        success "✓ Nginx recreation REQUIRED (nginx config changes)"
-    else
-        info "  Nginx recreation NOT needed (no nginx changes)"
-    fi
 
     # If no specific services identified BUT files changed, recreate backend as safety
     # This covers edge cases like:
@@ -779,13 +762,319 @@ analyze_sync_changes() {
     if [[ "$backend_related_changes" == "false" ]] && \
        [[ "$bot_changes" == "false" ]] && \
        [[ "$nginx_changes" == "false" ]] && \
+       [[ "$postgres_changes" == "false" ]] && \
+       [[ "$redis_changes" == "false" ]] && \
+       [[ "$config_changes" == "false" ]] && \
        [[ -n "$SYNC_CHANGED_FILES" ]]; then
         export NEEDS_BACKEND_RECREATE=true
         warning "File changes detected but not categorized - recreating backend as safety measure"
         warning "Changed files: $(echo "$SYNC_CHANGED_FILES" | head -5 | tr '\n' ', ')"
     fi
 
+    # Report final decisions with formatted table
+    report_service_decisions
+
     return 0
+}
+
+# Match single file against all service patterns
+# Sets NEEDS_*_RECREATE flags and tracking variables
+# Args: file_path
+# Returns: 0 always (non-blocking)
+match_file_to_services() {
+    local file="$1"
+
+    # Backend patterns (existing logic + expanded)
+    # Templates, static files, Python code, frontend Python
+    if [[ "$file" == frontend/web/templates/* ]] || \
+       [[ "$file" == frontend/web/static/* ]] || \
+       [[ "$file" == backend/app/*.py ]] || \
+       [[ "$file" == frontend/web/*.py ]]; then
+        export NEEDS_BACKEND_RECREATE=true
+        backend_related_changes=true
+        info "  → Backend affected: $file"
+    fi
+
+    # Bot patterns (existing logic)
+    if [[ "$file" =~ ^bot/.*\.py$ ]] || \
+       [[ "$file" == "bot/Dockerfile" ]] || \
+       [[ "$file" == "bot/requirements.txt" ]]; then
+        export NEEDS_BOT_RECREATE=true
+        bot_changes=true
+        info "  → Bot affected: $file"
+    fi
+
+    # Nginx patterns (existing logic)
+    if [[ "$file" =~ ^nginx/(nginx\.conf|conf\.d/) ]]; then
+        export NEEDS_NGINX_RECREATE=true
+        nginx_changes=true
+        info "  → Nginx affected: $file"
+    fi
+
+    # PostgreSQL patterns (NEW)
+    # ONLY migration files trigger recreation
+    # Reason: Postgres container doesn't contain code, only data
+    # Migrations applied via alembic in backend container
+    if [[ "$file" =~ ^backend/db/migrations/versions/.*\.py$ ]]; then
+        export NEEDS_POSTGRES_RECREATE=true
+        postgres_changes=true
+        info "  → PostgreSQL affected: migration $file"
+    fi
+
+    # Redis patterns (NEW)
+    # Redis service code changes require backend recreation too
+    # Reason: redis_*.py imported by backend application
+    if [[ "$file" =~ ^backend/app/services/redis_.*\.py$ ]]; then
+        export NEEDS_REDIS_RECREATE=true
+        export NEEDS_BACKEND_RECREATE=true  # Backend imports redis services
+        redis_changes=true
+        backend_related_changes=true
+        info "  → Redis affected: $file"
+        info "  → Backend affected: imports Redis service"
+    fi
+
+    return 0
+}
+
+# Detect which services affected by docker-compose.yml changes
+# Uses git diff to analyze ONLY changed sections
+# Args: file_path (docker-compose.yml)
+# Sets: NEEDS_*_RECREATE or NEEDS_FULL_RESTART flags
+detect_compose_changes() {
+    local file="$1"
+
+    info "Analyzing docker-compose.yml changes..."
+
+    # Get diff from git (repository → deployment comparison)
+    local diff_output
+    if [[ -f "$DEPLOY_DIR/docker-compose.yml" ]]; then
+        diff_output=$(cd "$SCRIPT_DIR" && \
+                      git diff --no-index "$DEPLOY_DIR/docker-compose.yml" "docker-compose.yml" 2>/dev/null || \
+                      echo "")
+    else
+        # First deployment - no diff needed
+        info "docker-compose.yml is new (first deployment)"
+        return 0
+    fi
+
+    if [[ -z "$diff_output" ]]; then
+        # Full restart if cannot determine diff
+        export NEEDS_FULL_RESTART=true
+        warning "Cannot analyze docker-compose.yml changes - forcing full restart"
+        return 0
+    fi
+
+    # Check for global changes (volumes, networks)
+    # These require FULL restart of all services
+    if echo "$diff_output" | grep -qE "^[\+\-](volumes|networks):"; then
+        export NEEDS_FULL_RESTART=true
+        warning "Global docker-compose.yml changes detected (volumes/networks) - forcing full restart"
+        return 0
+    fi
+
+    # Parse service-specific changes
+    # Pattern: lines starting with "  servicename:" (2 spaces + service + colon)
+    # Format: "+  postgres:" or "-  backend:"
+    local changed_services
+    changed_services=$(echo "$diff_output" | \
+                       grep -E "^[\+\-]\s{2}(postgres|redis|backend|bot|nginx):" | \
+                       sed -E 's/^[\+\-]\s{2}([^:]+):.*/\1/' | \
+                       sort -u)
+
+    # Set flags for each changed service
+    if echo "$changed_services" | grep -q "postgres"; then
+        export NEEDS_POSTGRES_RECREATE=true
+        postgres_changes=true
+        info "  → PostgreSQL service definition changed in docker-compose.yml"
+    fi
+
+    if echo "$changed_services" | grep -q "redis"; then
+        export NEEDS_REDIS_RECREATE=true
+        redis_changes=true
+        info "  → Redis service definition changed in docker-compose.yml"
+    fi
+
+    if echo "$changed_services" | grep -q "backend"; then
+        export NEEDS_BACKEND_RECREATE=true
+        backend_related_changes=true
+        info "  → Backend service definition changed in docker-compose.yml"
+    fi
+
+    if echo "$changed_services" | grep -q "bot"; then
+        export NEEDS_BOT_RECREATE=true
+        bot_changes=true
+        info "  → Bot service definition changed in docker-compose.yml"
+    fi
+
+    if echo "$changed_services" | grep -q "nginx"; then
+        export NEEDS_NGINX_RECREATE=true
+        nginx_changes=true
+        info "  → Nginx service definition changed in docker-compose.yml"
+    fi
+
+    return 0
+}
+
+# Detect which services affected by .env changes
+# Uses diff to identify changed variables, maps to services
+# Args: file_path (.env)
+# Sets: NEEDS_*_RECREATE flags
+detect_env_changes() {
+    local file="$1"
+
+    info "Analyzing .env changes..."
+
+    # Check if .env exists in deploy dir (first deployment skip)
+    if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
+        info ".env is new (first deployment) - all services will use new config"
+        info "No recreation needed - docker compose will create containers with new .env"
+        return 0
+    fi
+
+    # Get diff (old vs new)
+    local diff_output
+    diff_output=$(diff "$DEPLOY_DIR/.env" "$SCRIPT_DIR/.env" 2>/dev/null || echo "")
+
+    if [[ -z "$diff_output" ]]; then
+        info ".env unchanged - no service recreation needed"
+        return 0
+    fi
+
+    # Extract changed variable names
+    # Format: "< VAR_NAME=value" or "> VAR_NAME=value"
+    local changed_vars
+    changed_vars=$(echo "$diff_output" | \
+                   grep -E "^[<>]" | \
+                   sed -E 's/^[<>] ([A-Z_]+)=.*/\1/' | \
+                   sort -u)
+
+    if [[ -z "$changed_vars" ]]; then
+        info ".env diff detected but no variable changes found"
+        return 0
+    fi
+
+    info "Changed .env variables: $(echo "$changed_vars" | tr '\n' ', ' | sed 's/, $//')"
+
+    # Map variables to services
+
+    # PostgreSQL variables
+    if echo "$changed_vars" | grep -qE "POSTGRES_|DATABASE_URL|DB_"; then
+        export NEEDS_POSTGRES_RECREATE=true
+        export NEEDS_BACKEND_RECREATE=true  # Backend uses DATABASE_URL
+        postgres_changes=true
+        backend_related_changes=true
+        local pg_vars=$(echo "$changed_vars" | grep -E "POSTGRES_|DATABASE_URL|DB_" | tr '\n' ', ')
+        info "  → PostgreSQL + Backend affected: $pg_vars"
+    fi
+
+    # Redis variables
+    if echo "$changed_vars" | grep -qE "^REDIS_"; then
+        export NEEDS_REDIS_RECREATE=true
+        export NEEDS_BACKEND_RECREATE=true  # Backend connects to Redis
+        redis_changes=true
+        backend_related_changes=true
+        local redis_vars=$(echo "$changed_vars" | grep "^REDIS_" | tr '\n' ', ')
+        info "  → Redis + Backend affected: $redis_vars"
+    fi
+
+    # Backend-only variables
+    if echo "$changed_vars" | grep -qE "JWT_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|APP_ENV|DEBUG"; then
+        export NEEDS_BACKEND_RECREATE=true
+        backend_related_changes=true
+        local backend_vars=$(echo "$changed_vars" | grep -E "JWT_|ADMIN_|CORS_" | head -3 | tr '\n' ', ')
+        info "  → Backend affected: $backend_vars"
+    fi
+
+    # Telegram variables (shared by backend + bot)
+    if echo "$changed_vars" | grep -qE "^TELEGRAM_"; then
+        export NEEDS_BACKEND_RECREATE=true
+        export NEEDS_BOT_RECREATE=true
+        backend_related_changes=true
+        bot_changes=true
+        local tg_vars=$(echo "$changed_vars" | grep "^TELEGRAM_" | tr '\n' ', ')
+        info "  → Backend + Bot affected: $tg_vars"
+    fi
+
+    # Bot-specific variables
+    if echo "$changed_vars" | grep -qE "BACKEND_API"; then
+        export NEEDS_BOT_RECREATE=true
+        bot_changes=true
+        info "  → Bot affected: BACKEND_API variables"
+    fi
+
+    # Nginx variables
+    if echo "$changed_vars" | grep -qE "DOMAIN|HTTP_PORT|HTTPS_PORT"; then
+        export NEEDS_NGINX_RECREATE=true
+        nginx_changes=true
+        local nginx_vars=$(echo "$changed_vars" | grep -E "DOMAIN|PORT" | tr '\n' ', ')
+        info "  → Nginx affected: $nginx_vars"
+    fi
+
+    # Handle unknown variables (conservative fallback)
+    # Any variable not matched above → assume backend affected
+    local unmapped_vars
+    unmapped_vars=$(echo "$changed_vars" | grep -vE "POSTGRES_|DATABASE_URL|DB_|REDIS_|JWT_|TELEGRAM_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|BACKEND_API|DOMAIN|HTTP_PORT|HTTPS_PORT|APP_ENV|DEBUG" || echo "")
+
+    if [[ -n "$unmapped_vars" ]]; then
+        export NEEDS_BACKEND_RECREATE=true
+        backend_related_changes=true
+        warning "  → Backend affected (unmapped variables): $(echo "$unmapped_vars" | tr '\n' ', ')"
+    fi
+
+    return 0
+}
+
+# Report final recreation decisions with visual formatting
+# Reads: NEEDS_*_RECREATE flags
+# Output: Formatted table of decisions
+report_service_decisions() {
+    echo ""
+    info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    info "                    Service Restart Strategy"
+    info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Check for full restart first
+    if [[ "${NEEDS_FULL_RESTART:-false}" == "true" ]]; then
+        warning "⚠  FULL RESTART required (docker-compose.yml global changes)"
+        info "   All services will be recreated"
+        echo ""
+        info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        return 0
+    fi
+
+    # Individual service decisions
+    print_service_decision "PostgreSQL" "${NEEDS_POSTGRES_RECREATE:-false}" "migrations/config"
+    print_service_decision "Redis" "${NEEDS_REDIS_RECREATE:-false}" "config/code"
+    print_service_decision "Backend" "${NEEDS_BACKEND_RECREATE:-false}" "code/templates/config"
+
+    # Bot and Nginx only in full profile
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        print_service_decision "Bot" "${NEEDS_BOT_RECREATE:-false}" "code/config"
+        print_service_decision "Nginx" "${NEEDS_NGINX_RECREATE:-false}" "config"
+    fi
+
+    echo ""
+    info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+}
+
+# Helper: Print single service decision with colored status
+# Args: service_name, needs_recreate (true/false), change_type
+print_service_decision() {
+    local service="$1"
+    local needs_recreate="$2"
+    local reason="$3"
+
+    # Pad service name to 12 characters for alignment
+    local padded_service=$(printf "%-12s" "$service")
+
+    if [[ "$needs_recreate" == "true" ]]; then
+        success "  ✓ $padded_service RECREATE ($reason changed)"
+    else
+        info "  • $padded_service Keep running (no changes)"
+    fi
 }
 
 # Main code synchronization function
