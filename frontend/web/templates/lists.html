@@ -623,6 +623,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
+        console.log('[LISTS_INIT] Waiting for lists bundle to load...');
+
+        // Wait for bundle to load and export functions
+        let attempts = 0;
+        while (typeof window.loadShoppingLists !== 'function' && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+
+        if (typeof window.loadShoppingLists !== 'function') {
+            throw new Error('Lists bundle failed to load after 5 seconds');
+        }
+
+        console.log(`[LISTS_INIT] Bundle ready after ${attempts * 100}ms`);
         console.log('[LISTS_INIT] Starting initializeListsManager()');
         performance.mark('lists-init-start'); // Performance tracking
 
