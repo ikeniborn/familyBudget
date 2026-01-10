@@ -5,7 +5,6 @@
 // Core lists functionality (TypeScript modules)
 // REMOVED: import './lists/listsManager'; - Ambiguous module resolution
 // ✅ FIX: Import only what's needed from modular structure below
-
 import './lists/csvImporter';
 
 // Import/export functionality (JavaScript modules)
@@ -37,11 +36,13 @@ try {
       enumerable: true
     });
 
-    console.log('[LISTS_BUNDLE] ✅ Exports locked:', {
-      switchView: typeof (window as any).switchView,
-      initializeResponsiveView: typeof (window as any).initializeResponsiveView,
-      timestamp: new Date().toISOString()
-    });
+    if ((window as any).logAPI) {
+      (window as any).logAPI.info('[LISTS_BUNDLE] ✅ Exports locked', {
+        switchView: typeof (window as any).switchView,
+        initializeResponsiveView: typeof (window as any).initializeResponsiveView,
+        timestamp: new Date().toISOString()
+      });
+    }
   }
 } catch (error) {
   console.error('[LISTS_BUNDLE] ❌ CRITICAL ERROR:', error);
@@ -55,7 +56,6 @@ try {
     alert('ОШИБКА: Не удалось загрузить модуль списков. Обратитесь к администратору.');
   }
 }
-
 // Logging using project standards (logAPI loaded from base.html)
 if (typeof window !== 'undefined' && (window as any).logAPI) {
   (window as any).logAPI.info('[LISTS_BUNDLE] All modules loaded successfully');
