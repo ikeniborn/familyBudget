@@ -15,6 +15,8 @@ declare global {
     importManager: any;
 
     // Lists bundle exports (from listsManager modular structure)
+    initializeListsManager(): Promise<void>;
+    loadShoppingLists(): Promise<void>;
     showLandingView(): void;
     openAddItemModal(): void;
     openCreateListModal(): void;

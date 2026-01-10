@@ -629,6 +629,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Lists Manager (modular structure v7.0+)
         await window.initializeListsManager();
 
+        // Load shopping lists data from API
+        await window.loadShoppingLists();
+
+        // Render landing view with lists
+        window.showLandingView();
+
         performance.mark('lists-init-end');
         performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
         const measure = performance.getEntriesByName('lists-initialization')[0];

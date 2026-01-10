@@ -16,6 +16,7 @@ import './lists/hierarchyView';
 import {
   // Initialization
   initializeListsManager,
+  loadShoppingLists,
 
   // View switching
   switchView,
@@ -51,6 +52,7 @@ import {
 const windowExports = {
   // Initialization
   initializeListsManager,
+  loadShoppingLists,
 
   // Navigation
   showLandingView: renderLandingView,  // Alias
