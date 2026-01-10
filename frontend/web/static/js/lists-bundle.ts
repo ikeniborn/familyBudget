@@ -1,5 +1,5 @@
 // Lists Bundle - Aggregates all shopping lists modules
-// Generated: 2026-01-10
+// Generated: 2026-01-10 (updated 21:07 - force rebuild)
 // Part of v7.0 ES modules migration
 
 // Core lists functionality (TypeScript modules)
