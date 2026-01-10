@@ -582,6 +582,29 @@
 <!-- Note: Real-time updates now provided by global budgetWSClient (from base.html) -->
 <script src="/static/js/lists.min.js?v={{ sw_version }}"></script>
 
+<!-- Diagnostic check: Verify window exports loaded -->
+<script>
+(function() {
+  console.log('[LISTS_HTML] Post-load check:', {
+    switchView: typeof window.switchView,
+    initializeResponsiveView: typeof window.initializeResponsiveView,
+    listsManager: typeof window.listsManager
+  });
+
+  if (typeof window.switchView !== 'function') {
+    console.error('[LISTS_HTML] ❌ window.switchView NOT DEFINED!');
+  } else {
+    console.log('[LISTS_HTML] ✅ window.switchView ready');
+  }
+
+  if (typeof window.initializeResponsiveView !== 'function') {
+    console.error('[LISTS_HTML] ❌ window.initializeResponsiveView NOT DEFINED!');
+  } else {
+    console.log('[LISTS_HTML] ✅ window.initializeResponsiveView ready');
+  }
+})();
+</script>
+
 <!-- Hierarchical Product Group Selector -->
 <script src="/shared/static/js/choicesProductGroupTree.min.js?v=PLACEHOLDER"></script>
 

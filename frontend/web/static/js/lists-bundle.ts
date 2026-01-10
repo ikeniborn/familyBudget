@@ -18,9 +18,40 @@ import './lists/hierarchyView';
 import { switchView, initializeResponsiveView } from './lists/listsManager/index';
 
 // Expose to window (prevent tree-shaking)
-if (typeof window !== 'undefined') {
-  (window as any).switchView = switchView;
-  (window as any).initializeResponsiveView = initializeResponsiveView;
+try {
+  if (typeof window !== 'undefined') {
+    // Use Object.defineProperty to prevent overwriting
+    Object.defineProperty(window, 'switchView', {
+      value: switchView,
+      writable: false,      // Prevent accidental overwriting
+      configurable: false,  // Prevent redefinition
+      enumerable: true      // Make visible in console
+    });
+
+    Object.defineProperty(window, 'initializeResponsiveView', {
+      value: initializeResponsiveView,
+      writable: false,
+      configurable: false,
+      enumerable: true
+    });
+
+    console.log('[LISTS_BUNDLE] ✅ Exports locked:', {
+      switchView: typeof (window as any).switchView,
+      initializeResponsiveView: typeof (window as any).initializeResponsiveView,
+      timestamp: new Date().toISOString()
+    });
+  }
+} catch (error) {
+  console.error('[LISTS_BUNDLE] ❌ CRITICAL ERROR:', error);
+  console.error('Details:', {
+    name: (error as Error).name,
+    message: (error as Error).message,
+    stack: (error as Error).stack
+  });
+  // Alert user of critical failure
+  if (typeof alert !== 'undefined') {
+    alert('ОШИБКА: Не удалось загрузить модуль списков. Обратитесь к администратору.');
+  }
 }
 
 // Logging using project standards (logAPI loaded from base.html)
