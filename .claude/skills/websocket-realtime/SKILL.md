@@ -9,6 +9,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/functionality/realtime.yaml
   - $ref: ../../docs/architecture/endpoints/websocket.yaml
   - $ref: ../../docs/architecture/flows/ws-broadcast.yaml
+user-invocable: false
 ---
 
 # WebSocket & Real-time Skill

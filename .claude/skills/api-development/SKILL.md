@@ -12,6 +12,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/endpoints/facts.yaml
   - $ref: ../../docs/architecture/functionality/budget-management.yaml
   - $ref: ../../docs/architecture/guides/change-checklist.yaml#/checklists/add_endpoint
+user-invocable: false
 ---
 
 # API Development Skill

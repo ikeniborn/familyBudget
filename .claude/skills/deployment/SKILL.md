@@ -5,6 +5,7 @@ version: 2.0.0
 author: Family Budget Team
 tags: [deployment, docker, docker-compose, devops, nginx, ssl]
 dependencies: [db-management]
+user-invocable: false
 ---
 
 # Deployment & DevOps Skill

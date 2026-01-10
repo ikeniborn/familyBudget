@@ -10,6 +10,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/web/htmx-triggers.yaml
   - $ref: ../../docs/architecture/web/js-modules.yaml
   - $ref: ../../docs/architecture/frontend/modal-performance.yaml
+user-invocable: false
 ---
 
 # Frontend Development Skill

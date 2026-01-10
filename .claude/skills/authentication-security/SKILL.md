@@ -9,6 +9,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/functionality/authentication.yaml
   - $ref: ../../docs/architecture/endpoints/auth.yaml
   - $ref: ../../docs/architecture/flows/telegram-oauth.yaml
+user-invocable: false
 ---
 
 # Authentication & Security Skill
