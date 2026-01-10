@@ -3,7 +3,9 @@
 // Part of v7.0 ES modules migration
 
 // Core lists functionality (TypeScript modules)
-// REMOVED: import './lists/listsManager'; - Ambiguous module resolution
+// Legacy listsManager for backward compatibility (explicit .js extension)
+import './lists/listsManager.js';
+
 // ✅ FIX: Import only what's needed from modular structure below
 import './lists/csvImporter';
 
