@@ -35,6 +35,7 @@ declare global {
     unmarkAllCompletedWithConfirm(): Promise<void>;
     deleteCompletedWithConfirm(): Promise<void>;
     toggleAllNodes(): void;
+    closeImportWizard(): void;
     toggleImportWizard(): void;
   }
 }

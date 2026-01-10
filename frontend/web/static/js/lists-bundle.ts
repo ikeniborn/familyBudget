@@ -3,7 +3,7 @@
 // Part of v7.0 ES modules migration
 
 // Core lists functionality (TypeScript modules)
-import './lists/csvImporter';
+import './lists/csvImporter.ts';
 
 // Import/export functionality (JavaScript modules)
 import './lists/googleSheetsImporter';
@@ -107,7 +107,29 @@ const windowExports = {
     }
   },
 
-  // Import wizard (делегируется на importManager.js)
+  // Import wizard helpers
+  closeImportWizard: () => {
+    const container = document.getElementById('import-wizard-container');
+    if (!container) return;
+
+    const icon = document.getElementById('import-toggle-icon');
+    const hint = document.getElementById('import-toggle-hint');
+    const isOpen = !container.classList.contains('hidden');
+
+    if (isOpen) {
+      container.classList.add('hidden');
+      if (icon) icon.textContent = '▶';
+      if (hint) hint.classList.remove('hidden');
+
+      const wizardContainer = document.getElementById('import-wizard');
+      if (wizardContainer) wizardContainer.innerHTML = '';
+      if (window.importManager) {
+        window.importManager.container = null;
+        window.importManager.currentMethod = null;
+      }
+    }
+  },
+
   toggleImportWizard: () => {
     const container = document.getElementById('import-wizard-container');
     if (!container) return;
