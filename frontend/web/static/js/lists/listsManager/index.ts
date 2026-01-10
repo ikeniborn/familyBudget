@@ -82,6 +82,7 @@ export {
   handleSearch,
   clearSearch,
   toggleHideCompleted,
+  toggleSearchField,
   updateFABButtons
 } from './features/searchFilter';
 
@@ -96,6 +97,12 @@ export {
   setupProductAutocomplete,
   hideProductSuggestions
 } from './features/autocomplete';
+
+export {
+  markAllCompleted,
+  unmarkAllCompleted,
+  deleteCompleted
+} from './features/bulkActions';
 
 // ============================================================================
 // UI (Phase 3.4: Complete)
@@ -113,6 +120,8 @@ export {
   closeDeleteListModal,
   confirmDeleteList
 } from './ui/modalManager';
+
+export { toggleListsFAB } from './ui/fabManager';
 
 // ============================================================================
 // Integration (Phase 3.5: Complete)

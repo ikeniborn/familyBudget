@@ -1,0 +1,40 @@
+// Global declarations for external dependencies
+declare global {
+  interface Window {
+    // From base.html
+    showToast(message: string, type?: 'success' | 'error' | 'warning' | 'info'): void;
+    showConfirmDialog(message: string, title?: string): Promise<boolean>;
+    logAPI: any;
+    htmx: any;
+
+    // From hierarchyView.js
+    hierarchyView: any;
+    HierarchyView: any;
+
+    // From importManager.js
+    importManager: any;
+
+    // Lists bundle exports (from listsManager modular structure)
+    showLandingView(): void;
+    openAddItemModal(): void;
+    openCreateListModal(): void;
+    closeCreateListModal(): void;
+    closeItemModal(): void;
+    openDeleteListModal(listId: number, listName: string): void;
+    closeDeleteListModal(): void;
+    clearItemsSearch(): void;
+    toggleHideCompleted(): void;
+    toggleSearchField(): void;
+    handleItemsSearch(query: string): void;
+    switchView(viewName: 'table' | 'hierarchy'): void;
+    initializeResponsiveView(): void;
+    toggleListsFAB(): void;
+    markAllCompletedWithConfirm(): Promise<void>;
+    unmarkAllCompletedWithConfirm(): Promise<void>;
+    deleteCompletedWithConfirm(): Promise<void>;
+    toggleAllNodes(): void;
+    toggleImportWizard(): void;
+  }
+}
+
+export {};

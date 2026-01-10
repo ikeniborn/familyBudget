@@ -59,6 +59,29 @@ export function clearSearch(): void {
   handleSearch('');
 }
 
+/**
+ * Toggle search field visibility
+ */
+export function toggleSearchField(): void {
+  const searchContainer = document.getElementById('search-container');
+  const searchInput = document.getElementById('lists-search-input') as HTMLInputElement;
+
+  if (!searchContainer) return;
+
+  const isHidden = searchContainer.classList.contains('hidden');
+
+  if (isHidden) {
+    // Show search field
+    searchContainer.classList.remove('hidden');
+    searchInput?.focus();
+  } else {
+    // Hide search field and clear search
+    searchContainer.classList.add('hidden');
+    if (searchInput) searchInput.value = '';
+    clearSearch();
+  }
+}
+
 // ============================================================================
 // Hide Completed Filter
 // ============================================================================
