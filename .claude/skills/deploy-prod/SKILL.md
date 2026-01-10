@@ -1,31 +1,31 @@
 ---
-name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test
+name: deploy-prod
+description: Автоматизированный деплой на production сервер budget-prod
 version: 1.0.0
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test]
+tags: [deployment, automation, production, ssh, budget-prod]
 dependencies: [monitoring]
 ---
 
-# Deploy Test Automation Skill
+# Deploy Production Automation Skill
 
-Автоматизирует весь процесс деплоя на тестовый сервер budget-test с полным анализом логов и проверкой состояния.
+Автоматизирует весь процесс деплоя на production сервер budget-prod с полным анализом логов и проверкой состояния.
 
 ## Когда использовать этот скил
 
 Используй этот скил когда нужно:
-- Задеплоить изменения на тестовый сервер budget-test
-- Обновить код на тестовом сервере
-- Проверить работу изменений в тестовой среде
+- Задеплоить изменения на production сервер budget-prod
+- Обновить код на production сервере
+- Проверить работу изменений в production среде
 - Автоматически проанализировать логи после деплоя
 - Проверить состояние контейнеров после деплоя
 
 Скил автоматически вызывается при запросах типа:
-- "Задеплой на тестовый сервер"
-- "Обновить код на budget-test"
-- "Запусти deploy-test"
-- "Сделай деплой на test"
-- "Проверь изменения на тестовом сервере"
+- "Задеплой на production сервер"
+- "Обновить код на budget-prod"
+- "Запусти deploy-prod"
+- "Сделай деплой на prod"
+- "Проверь изменения на production сервере"
 
 ## Алгоритм работы
 
@@ -33,7 +33,7 @@ dependencies: [monitoring]
 
 ### Шаг 1: Проверка SSH подключения
 ```bash
-ssh budget-test "echo 'Connection OK'"
+ssh budget-prod "echo 'Connection OK'"
 ```
 
 **Что проверяется:**
@@ -45,13 +45,13 @@ ssh budget-test "echo 'Connection OK'"
 - Предложить пользователю проверить SSH ключи
 - Показать команду для ручного подключения
 
-### Шаг 2: Git pull в ветке test
+### Шаг 2: Git pull в ветке prod
 ```bash
-ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && git pull origin test"
+ssh budget-prod "cd ~/familyBudget && git fetch --all && git checkout prod && git pull origin prod"
 ```
 
 **Что проверяется:**
-- Ветка test существует
+- Ветка prod существует
 - Нет незакоммиченных изменений
 - Pull прошел успешно
 
@@ -62,7 +62,7 @@ ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && gi
 
 ### Шаг 3: Запуск deploy.sh
 ```bash
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
 ```
 
 **Параметры:**
@@ -78,7 +78,7 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
 
 ### Шаг 4: Анализ логов деплоя
 ```bash
-ssh budget-test "tail -100 /opt/budget/logs/deploy.log"
+ssh budget-prod "tail -100 /opt/budget/logs/deploy.log"
 ```
 
 **Что анализируется:**
@@ -96,13 +96,13 @@ ssh budget-test "tail -100 /opt/budget/logs/deploy.log"
 ### Шаг 5: Анализ логов контейнеров
 ```bash
 # Backend
-ssh budget-test "cd /opt/budget && docker compose logs backend --tail=50"
+ssh budget-prod "cd /opt/budget && docker compose logs backend --tail=50"
 
 # PostgreSQL
-ssh budget-test "cd /opt/budget && docker compose logs postgres --tail=50"
+ssh budget-prod "cd /opt/budget && docker compose logs postgres --tail=50"
 
 # Redis
-ssh budget-test "cd /opt/budget && docker compose logs redis --tail=50"
+ssh budget-prod "cd /opt/budget && docker compose logs redis --tail=50"
 ```
 
 **Что анализируется:**
@@ -119,7 +119,7 @@ ssh budget-test "cd /opt/budget && docker compose logs redis --tail=50"
 
 ### Шаг 6: Проверка статуса контейнеров
 ```bash
-ssh budget-test "cd /opt/budget && docker compose ps --format json"
+ssh budget-prod "cd /opt/budget && docker compose ps --format json"
 ```
 
 **Что проверяется:**
@@ -134,7 +134,7 @@ ssh budget-test "cd /opt/budget && docker compose ps --format json"
 
 ### Шаг 7: Проверка запущенных процессов
 ```bash
-ssh budget-test "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
+ssh budget-prod "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
 ```
 
 **Что проверяется:**
@@ -154,7 +154,7 @@ ssh budget-test "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
 1. Показать пользователю ошибку
 2. Предложить проверить:
    - `ssh-add -l` - список ключей
-   - `ssh budget-test` - ручное подключение
+   - `ssh budget-prod` - ручное подключение
 3. Дать инструкцию по настройке SSH
 
 ### Ошибка: Git pull завершился с конфликтами
@@ -162,7 +162,7 @@ ssh budget-test "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
 1. Показать конфликтующие файлы
 2. Предложить варианты:
    - Stash изменений на сервере
-   - Hard reset на сервере (если тестовая среда)
+   - Hard reset на сервере (ОСТОРОЖНО на production!)
    - Разрешить конфликты вручную
 3. Дать команды для исправления
 
@@ -181,7 +181,7 @@ ssh budget-test "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
 **Автоисправление:**
 ```bash
 # Перезапуск unhealthy контейнеров
-ssh budget-test "cd /opt/budget && docker compose restart <service>"
+ssh budget-prod "cd /opt/budget && docker compose restart <service>"
 ```
 
 **Если не помогло:**
@@ -194,7 +194,7 @@ ssh budget-test "cd /opt/budget && docker compose restart <service>"
 **Автоисправление:**
 ```bash
 # Завершить зависшие процессы (только если >5 минут)
-ssh budget-test "pkill -9 -f '<process_name>'"
+ssh budget-prod "pkill -9 -f '<process_name>'"
 ```
 
 **Осторожно:**
@@ -209,7 +209,7 @@ ssh budget-test "pkill -9 -f '<process_name>'"
 ### ✅ Успешный деплой
 ```
 ========================================
-✅ Деплой на budget-test завершен успешно
+✅ Деплой на budget-prod завершен успешно
 ========================================
 
 📊 Статус выполнения:
@@ -234,7 +234,7 @@ ssh budget-test "pkill -9 -f '<process_name>'"
 ### ⚠️ Деплой с предупреждениями
 ```
 ========================================
-⚠️ Деплой на budget-test завершен с предупреждениями
+⚠️ Деплой на budget-prod завершен с предупреждениями
 ========================================
 
 📊 Статус выполнения:
@@ -262,7 +262,7 @@ ssh budget-test "pkill -9 -f '<process_name>'"
 ### ❌ Деплой с ошибками
 ```
 ========================================
-❌ Деплой на budget-test завершился с ошибками
+❌ Деплой на budget-prod завершился с ошибками
 ========================================
 
 📊 Статус выполнения:
@@ -282,13 +282,13 @@ ssh budget-test "pkill -9 -f '<process_name>'"
 
 🔧 Действия для исправления:
 1. Проверить PostgreSQL:
-   ssh budget-test "cd /opt/budget && docker compose logs postgres"
+   ssh budget-prod "cd /opt/budget && docker compose logs postgres"
 
 2. Проверить сетевое подключение:
-   ssh budget-test "cd /opt/budget && docker compose exec backend ping postgres"
+   ssh budget-prod "cd /opt/budget && docker compose exec backend ping postgres"
 
 3. Перезапустить PostgreSQL:
-   ssh budget-test "cd /opt/budget && docker compose restart postgres"
+   ssh budget-prod "cd /opt/budget && docker compose restart postgres"
 
 4. Повторить деплой после исправления
 
@@ -300,7 +300,7 @@ ssh budget-test "pkill -9 -f '<process_name>'"
 Все логи автоматически сохраняются локально для анализа:
 
 ```
-logs/deploy-test/
+logs/deploy-prod/
 ├── YYYYMMDD_HHMMSS/
 │   ├── 01_ssh_check.log           # SSH проверка
 │   ├── 02_git_pull.log            # Git pull вывод
@@ -320,14 +320,14 @@ logs/deploy-test/
 - **monitoring** - анализ логов и метрик
 
 ### Вызывается автоматически:
-- При фразах "задеплой на тестовый сервер"
-- Из других скилов при тестировании изменений
+- При фразах "задеплой на production сервер"
+- Из других скилов при деплое на production
 
 ## Примеры использования
 
 ### Пример 1: Простой деплой
 ```
-Пользователь: "Задеплой на тестовый сервер"
+Пользователь: "Задеплой на production сервер"
 
 Claude:
 1. Проверяю SSH подключение... ✅
@@ -342,7 +342,7 @@ Claude:
 
 ### Пример 2: Деплой с ошибкой и исправлением
 ```
-Пользователь: "Обновить код на budget-test"
+Пользователь: "Обновить код на budget-prod"
 
 Claude:
 1. Проверяю SSH подключение... ✅
@@ -364,7 +364,7 @@ Claude:
 
 ### Пример 3: Множественные проблемы
 ```
-Пользователь: "Сделай деплой на test"
+Пользователь: "Сделай деплой на prod"
 
 Claude:
 1. Проверяю SSH подключение... ✅
@@ -374,7 +374,7 @@ Claude:
 
 Предлагаю решения:
 1. Stash изменения на сервере (рекомендую)
-2. Hard reset (удалит локальные изменения)
+2. Hard reset (удалит локальные изменения - ОСТОРОЖНО на production!)
 3. Разрешить вручную
 
 Выбери вариант или я использую вариант 1?
@@ -394,7 +394,7 @@ Claude:
 
 ### 3. Безопасное исправление
 - Не убивай процессы без подтверждения
-- Не делай hard reset без предупреждения
+- Не делай hard reset без предупреждения (особенно на production!)
 - Предлагай варианты вместо автоматических действий
 
 ### 4. Информативная обратная связь
@@ -405,7 +405,7 @@ Claude:
 
 ## Troubleshooting
 
-Специфичные для deploy-test проблемы:
+Специфичные для deploy-prod проблемы:
 
 ### SSH timeout
 **Причина:** Сервер недоступен или долго отвечает
@@ -423,4 +423,4 @@ Claude:
 
 - **monitoring** - мониторинг сервисов
 - **testing** - тестирование перед деплоем
-- **deploy-prod** - деплой на production сервер
+- **deploy-test** - деплой на тестовый сервер
