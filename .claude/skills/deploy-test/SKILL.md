@@ -1,11 +1,10 @@
 ---
-name: Deploy Test Automation
+name: deploy-test
 description: Автоматизированный деплой на тестовый сервер budget-test
 version: 1.0.0
 author: Family Budget Team
 tags: [deployment, automation, testing, ssh, budget-test]
 dependencies: [deployment, monitoring]
-user-invocable: false
 ---
 
 # Deploy Test Automation Skill
