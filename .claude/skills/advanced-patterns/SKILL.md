@@ -9,6 +9,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/database/history.yaml
   - $ref: ../../docs/architecture/database/hierarchy.yaml
   - $ref: ../../docs/architecture/guides/change-checklist.yaml#/checklists/add_history_tracking
+user-invocable: false
 ---
 
 # Advanced Patterns Skill

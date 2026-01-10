@@ -68,13 +68,10 @@ const OFFLINE_PAGE_ASSETS = [
   '/static/css/lists.min.css',
   // JS - offline support
   '/static/js/offline/offlineShoppingManager.min.js',
-  // JS - lists functionality
-  '/static/js/lists/csvImporter.min.js',
-  '/static/js/lists/googleSheetsImporter.min.js',
-  '/static/js/lists/importManager.min.js',
-  '/static/js/lists/hierarchyView.min.js',
+  // JS - lists functionality (единый бандл с v7.0.1+)
+  '/static/js/lists.min.js',
+  // JS - WebSocket client
   '/static/js/budget/budgetWSClient.min.js',
-  '/static/js/lists/listsManager.min.js',
   // JS - shared (used by lists)
   '/shared/static/js/choicesProductGroupTree.min.js'
 ];

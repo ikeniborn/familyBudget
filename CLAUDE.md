@@ -39,22 +39,56 @@ npm run watch:css    # Watch mode
 
 ### Testing Environment Workflow
 
-**CRITICAL:** Test changes ONLY on budget-test server via standard procedure:
+**CRITICAL RULES:**
+
+1. **NEVER make direct changes on server** - All changes MUST be committed locally first
+2. **NEVER run git commands on server manually** - deploy.sh handles git operations automatically
+3. **NEVER build/sync manually** - deploy.sh orchestrates the entire deployment pipeline
+
+**Correct Workflow:**
 
 ```bash
-# 1. Connect and pull latest code
-ssh budget-test
-cd ~/familyBudget && git pull origin test
+# === LOCAL (developer machine) ===
+# 1. Make changes
+vim frontend/web/static/js/app.js
 
-# 2. Deploy with patch mode
+# 2. Test locally
+npm run build
+npm run type-check
+
+# 3. Commit and push
+git add .
+git commit -m "fix: description"
+git push origin test
+
+# === SERVER (budget-test) ===
+# 4. User runs deployment (deploy.sh does git pull automatically)
+ssh budget-test
+cd ~/familyBudget
 sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch
 
-# 3. Verify deployment
+# 5. Verify
 docker compose ps
 curl -s http://localhost:8000/health | jq
+docker compose logs backend --tail=50
+```
 
-# 4. Check logs for errors
-docker compose logs -f backend
+**What deploy.sh does automatically:**
+- Git pull in /opt/budget (NOT ~/familyBudget)
+- npm run build (if needed)
+- Docker image rebuild (if --build flag)
+- Container restart
+- Health checks
+
+**WRONG approaches:**
+```bash
+# ❌ NEVER do this
+ssh budget-test "cd ~/familyBudget && git pull"
+ssh budget-test "npm run build"
+ssh budget-test "sudo rsync ..."
+
+# ❌ NEVER make changes directly on server
+ssh budget-test "vim /opt/budget/frontend/web/static/js/app.js"
 ```
 
 **See:** `/docs/architecture/guides/deployment-troubleshooting.md` for complete guide

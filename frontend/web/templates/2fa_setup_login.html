@@ -8,11 +8,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="login-page">
-    <div class="login-container">
-        <div class="login-header">
-            <h1>Настройка двухфакторной аутентификации</h1>
-            <p class="subtitle">Для завершения входа настройте 2FA</p>
+<div class="min-h-[80vh] flex items-center justify-center px-4 py-8">
+    <div class="max-w-md w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2 text-base-content">Настройка двухфакторной аутентификации</h1>
+            <p class="text-sm sm:text-base opacity-70">Для завершения входа настройте 2FA</p>
         </div>
 
         <!-- Timer -->
@@ -26,10 +26,10 @@
             <progress id="timer-progress" class="progress progress-primary w-full mt-2" value="100" max="100"></progress>
         </div>
 
-        <div class="login-card">
+        <div class="bg-base-100 rounded-xl p-6 sm:p-8 shadow-lg text-center mb-8">
             <!-- Step 1: QR Code -->
             <div id="step-qr">
-                <div class="login-icon">
+                <div class="mb-6 flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect x="3" y="11" width="18" height="11" rx="2" stroke="#4CAF50" stroke-width="2"/>
                         <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -37,8 +37,8 @@
                     </svg>
                 </div>
 
-                <h2>Отсканируйте QR-код</h2>
-                <p class="login-description">
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Отсканируйте QR-код</h2>
+                <p class="opacity-70 mb-6 text-sm sm:text-base">
                     Откройте приложение-аутентификатор (Google Authenticator, Authy) и отсканируйте код.
                 </p>
 
@@ -121,14 +121,14 @@
 
             <!-- Step 2: Backup Codes (shown after successful verification) -->
             <div id="step-backup" class="hidden">
-                <div class="login-icon">
+                <div class="mb-6 flex justify-center">
                     <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
 
-                <h2>2FA успешно настроена!</h2>
-                <p class="login-description">
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">2FA успешно настроена!</h2>
+                <p class="opacity-70 mb-6 text-sm sm:text-base">
                     Сохраните backup коды на случай потери доступа к приложению-аутентификатору.
                 </p>
 
@@ -176,14 +176,14 @@
 
         <!-- Step 3: WebAuthn Onboarding (показывается после backup codes) -->
         <div id="step-webauthn-onboarding" class="hidden">
-            <div class="login-icon">
+            <div class="mb-6 flex justify-center">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" stroke="#4CAF50" stroke-width="2"/>
                 </svg>
             </div>
 
-            <h2>Добавить быстрый вход?</h2>
-            <p class="login-description">
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Добавить быстрый вход?</h2>
+            <p class="opacity-70 mb-6 text-sm sm:text-base">
                 Используйте отпечаток пальца или Face ID для входа без пароля.
             </p>
 
@@ -225,126 +225,22 @@
         </div>
         </div>
 
-        <div class="login-security">
-            <h3>Зачем нужна 2FA?</h3>
-            <div class="security-grid">
-                <div class="security-item">
-                    <strong>Дополнительная защита</strong>
-                    <p>Даже при утечке пароля аккаунт защищен</p>
+        <div class="bg-base-200 rounded-xl p-6">
+            <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 text-center">Зачем нужна 2FA?</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">Дополнительная защита</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Даже при утечке пароля аккаунт защищен</p>
                 </div>
-                <div class="security-item">
-                    <strong>TOTP стандарт</strong>
-                    <p>Совместим с Google Authenticator, Authy</p>
+                <div class="text-center">
+                    <strong class="block text-sm sm:text-base font-semibold mb-1">TOTP стандарт</strong>
+                    <p class="text-xs sm:text-sm opacity-60 m-0">Совместим с Google Authenticator, Authy</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-.login-page {
-    min-height: 80vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1rem;
-}
-
-.login-container {
-    max-width: 450px;
-    width: 100%;
-}
-
-.login-header {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.login-header h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-    color: var(--fallback-bc,oklch(var(--bc)/1));
-}
-
-.login-header .subtitle {
-    font-size: 1rem;
-    opacity: 0.7;
-}
-
-.login-card {
-    background: var(--fallback-b1,oklch(var(--b1)/1));
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.login-icon {
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: center;
-}
-
-.login-card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.login-description {
-    opacity: 0.7;
-    margin-bottom: 1.5rem;
-    font-size: 0.95rem;
-}
-
-.login-security {
-    background: var(--fallback-b2,oklch(var(--b2)/1));
-    border-radius: 12px;
-    padding: 1.5rem;
-}
-
-.login-security h3 {
-    font-size: 1.2rem;
-    margin-bottom: 1rem;
-    text-align: center;
-}
-
-.security-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-}
-
-.security-item {
-    text-align: center;
-}
-
-.security-item strong {
-    display: block;
-    font-size: 0.95rem;
-    margin-bottom: 0.25rem;
-}
-
-.security-item p {
-    font-size: 0.8rem;
-    opacity: 0.6;
-    margin: 0;
-}
-
-@media (max-width: 640px) {
-    .login-header h1 {
-        font-size: 1.5rem;
-    }
-
-    .login-card {
-        padding: 1.5rem;
-    }
-
-    .security-grid {
-        grid-template-columns: 1fr;
-    }
-}
-</style>
 
 <script>
 // Timer variables

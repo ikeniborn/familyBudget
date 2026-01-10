@@ -1,10 +1,11 @@
 ---
-name: Testing & Quality Assurance
+name: testing-quality-assurance
 description: Автоматизация тестирования и проверки качества кода
 version: 2.0.0
 author: Family Budget Team
 tags: [testing, pytest, quality, coverage, linting, shared-budget]
 dependencies: [api-development]
+user-invocable: true
 ---
 
 # Testing & Quality Assurance Skill

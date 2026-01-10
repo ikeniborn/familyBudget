@@ -60,7 +60,7 @@ function isDesktop(): boolean {
  */
 function showFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -73,7 +73,7 @@ function showFAB(): void {
  */
 function hideFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -86,7 +86,7 @@ function hideFAB(): void {
  */
 function showAddItemFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -99,7 +99,7 @@ function showAddItemFAB(): void {
  */
 function hideAddItemFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -112,7 +112,7 @@ function hideAddItemFAB(): void {
  */
 function showCreateListFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -125,7 +125,7 @@ function showCreateListFAB(): void {
  */
 function hideCreateListFAB(): void {
   const isDesktopResult = isDesktop();
-  console.log('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
+  debugLog('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
 
   if (!isDesktopResult) return;
 
@@ -145,7 +145,7 @@ export function updateFABVisibility(): void {
   const inDetailView = state.currentListId !== null;
   const isDesktopResult = isDesktop();
 
-  console.log('[FAB] updateFABVisibility', {
+  debugLog('[FAB] updateFABVisibility', {
     inDetailView,
     isDesktop: isDesktopResult,
     currentListId: state.currentListId,
@@ -186,24 +186,39 @@ function updateHideCompletedButton(): void {
 
 /**
  * Switch between table and hierarchy views
+ * @param viewName - The view to switch to ('table' or 'hierarchy')
+ * @param savePreference - Whether to save preference to localStorage (default: true)
  */
-function switchView(viewName: 'table' | 'hierarchy'): void {
-  // Save preference to localStorage
-  try {
-    localStorage.setItem('lists_view_preference', viewName);
-    debugLog('[ListsManager] Saved view preference:', viewName);
-  } catch (e) {
-    // localStorage may be unavailable in private browsing
+export function switchView(viewName: 'table' | 'hierarchy', savePreference: boolean = true): void {
+  // Save preference to localStorage (only if savePreference=true)
+  if (savePreference) {
+    try {
+      localStorage.setItem('lists_view_preference', viewName);
+      debugLog('[ListsManager] Saved view preference:', viewName);
+    } catch (e) {
+      // localStorage may be unavailable in private browsing
+    }
+  } else {
+    debugLog('[ListsManager] Switched to', viewName, 'view (not saving preference)');
   }
 
   // Update state
   updateState({ currentView: viewName });
 
-  // Update view toggle buttons
-  const tableBtn = document.getElementById('view-table-btn');
-  const hierarchyBtn = document.getElementById('view-hierarchy-btn');
+  // Get DOM elements
+  const tableViewContainer = document.getElementById('table-view');
+  const hierarchyViewContainer = document.getElementById('hierarchy-view');
+  const tableBtn = document.getElementById('table-view-btn');
+  const hierarchyBtn = document.getElementById('hierarchy-view-btn');
+  const tableControls = document.getElementById('table-controls');
+  const hierarchyControls = document.getElementById('hierarchy-controls');
 
   if (viewName === 'hierarchy') {
+    // Show hierarchy, hide table
+    if (tableViewContainer) tableViewContainer.classList.add('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.remove('hidden');
+
+    // Update button styles
     if (tableBtn) {
       tableBtn.classList.remove('btn-primary');
       tableBtn.classList.add('btn-outline');
@@ -212,7 +227,16 @@ function switchView(viewName: 'table' | 'hierarchy'): void {
       hierarchyBtn.classList.remove('btn-outline');
       hierarchyBtn.classList.add('btn-primary');
     }
+
+    // Show hierarchy controls, hide table controls
+    if (tableControls) tableControls.classList.add('hidden');
+    if (hierarchyControls) hierarchyControls.classList.remove('hidden');
   } else {
+    // Show table, hide hierarchy
+    if (tableViewContainer) tableViewContainer.classList.remove('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
+
+    // Update button styles
     if (tableBtn) {
       tableBtn.classList.remove('btn-outline');
       tableBtn.classList.add('btn-primary');
@@ -221,10 +245,44 @@ function switchView(viewName: 'table' | 'hierarchy'): void {
       hierarchyBtn.classList.remove('btn-primary');
       hierarchyBtn.classList.add('btn-outline');
     }
+
+    // Show table controls, hide hierarchy controls
+    if (tableControls) tableControls.classList.remove('hidden');
+    if (hierarchyControls) hierarchyControls.classList.add('hidden');
   }
 
-  // Render current view
+  // Render current view content
   renderCurrentView();
+
+  // Ensure FAB remains visible after view switch
+  updateFABVisibility();
+}
+
+/**
+ * Initialize view based on screen width
+ * Mobile (< 640px) ALWAYS uses hierarchy view (ignores & preserves savedPreference)
+ * Desktop (≥ 640px) uses savedPreference or defaults to table
+ */
+export function initializeResponsiveView(): void {
+  const isMobile = window.innerWidth < 640;
+
+  // CRITICAL: Mobile ALWAYS uses hierarchy (don't save to preserve desktop preference)
+  if (isMobile) {
+    debugLog('[ListsManager] Mobile detected (<640px), forcing hierarchy view (not saving)');
+    switchView('hierarchy', false); // Don't save to preserve desktop preference
+    return;
+  }
+
+  // Desktop: use savedPreference or default to table
+  const savedPreference = localStorage.getItem('lists_view_preference');
+  if (savedPreference === 'hierarchy') {
+    debugLog('[ListsManager] Desktop: restoring hierarchy view from preference');
+    switchView('hierarchy', false); // Don't re-save existing preference
+  } else {
+    // Default to table for desktop (even if savedPreference is null or 'table')
+    debugLog('[ListsManager] Desktop: using table view');
+    switchView('table', false); // Don't re-save on initialization
+  }
 }
 
 // ============================================================================
@@ -373,7 +431,7 @@ export async function renderDetailView(listId: number): Promise<void> {
         container.classList.remove('hidden');
         button.classList.remove('btn-outline');
         button.classList.add('btn-primary');
-        console.log('[SEARCH] Restored search field visibility:', { visible: true });
+        debugLog('[SEARCH] Restored search field visibility:', { visible: true });
       }
     }
   } catch (e) {
@@ -413,24 +471,9 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // Restore saved view preference from localStorage
-  let savedView: 'table' | 'hierarchy' = 'table'; // default
-  try {
-    const stored = localStorage.getItem('lists_view_preference');
-    if (stored === 'table' || stored === 'hierarchy') {
-      savedView = stored;
-      debugLog('[ListsManager] Restored view preference:', savedView);
-    }
-  } catch (e) {
-    // localStorage may be unavailable
-  }
-
-  // Apply saved view (this also renders the content)
-  if (savedView === 'hierarchy' && state.hierarchyView) {
-    switchView('hierarchy');
-  } else {
-    switchView('table');
-  }
+  // Initialize responsive view (mobile < 640px defaults to hierarchy)
+  // This also restores saved preference and renders content
+  initializeResponsiveView();
 
   // Update FAB visibility AFTER switchView to ensure it's visible in all views
   updateFABVisibility();

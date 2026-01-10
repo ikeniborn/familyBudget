@@ -5,6 +5,7 @@ version: 2.0.0
 author: Family Budget Team
 tags: [database, postgresql, alembic, migrations, scd-type-2, closure-table, shared-budget]
 dependencies: []
+user-invocable: false
 ---
 
 # Database Management Skill

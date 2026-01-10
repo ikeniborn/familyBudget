@@ -5,6 +5,7 @@ version: 2.0.0
 author: Family Budget Team
 tags: [telegram, bot, python-telegram-bot, conversationhandler, webapp]
 dependencies: [api-development]
+user-invocable: false
 ---
 
 # Telegram Bot Development Skill

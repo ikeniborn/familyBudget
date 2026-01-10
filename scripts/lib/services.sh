@@ -444,11 +444,32 @@ install_systemd_service() {
 start_postgres_only() {
     step "Starting PostgreSQL (Phase 1/2)"
 
+    # Smart restart: determine recreate strategy based on changes
+    local recreate_flag=""
+    local recreate_reason=""
+
+    if [[ "${NEEDS_POSTGRES_RECREATE:-false}" == "true" ]]; then
+        recreate_flag="--force-recreate"
+        recreate_reason="migrations/config changed"
+    elif [[ "${NEEDS_FULL_RESTART:-false}" == "true" ]]; then
+        recreate_flag="--force-recreate"
+        recreate_reason="docker-compose.yml global changes"
+    else
+        recreate_flag="--no-recreate"
+        recreate_reason="no changes detected"
+    fi
+
+    if [[ "$recreate_flag" == "--force-recreate" ]]; then
+        info "PostgreSQL will be recreated ($recreate_reason)"
+    else
+        info "PostgreSQL will be kept running ($recreate_reason)"
+    fi
+
     info "Starting postgres container..."
     local start_result=0
 
-    # Always use --build to ensure latest image
-    compose_cmd up --build -d postgres >> "$LOG_FILE" 2>&1
+    # Always use --build to ensure latest image + determined recreate strategy
+    compose_cmd up --build -d $recreate_flag postgres >> "$LOG_FILE" 2>&1
     start_result=$?
 
     if [[ $start_result -eq 0 ]]; then
@@ -474,11 +495,32 @@ start_postgres_only() {
 start_redis_only() {
     step "Starting Redis (Phase 1.2/3)"
 
+    # Smart restart: determine recreate strategy based on changes
+    local recreate_flag=""
+    local recreate_reason=""
+
+    if [[ "${NEEDS_REDIS_RECREATE:-false}" == "true" ]]; then
+        recreate_flag="--force-recreate"
+        recreate_reason="config/code changed"
+    elif [[ "${NEEDS_FULL_RESTART:-false}" == "true" ]]; then
+        recreate_flag="--force-recreate"
+        recreate_reason="docker-compose.yml global changes"
+    else
+        recreate_flag="--no-recreate"
+        recreate_reason="no changes detected"
+    fi
+
+    if [[ "$recreate_flag" == "--force-recreate" ]]; then
+        info "Redis will be recreated ($recreate_reason)"
+    else
+        info "Redis will be kept running ($recreate_reason)"
+    fi
+
     info "Starting redis container..."
     local start_result=0
 
-    # Always use --build to ensure latest image
-    compose_cmd up --build -d redis >> "$LOG_FILE" 2>&1
+    # Always use --build to ensure latest image + determined recreate strategy
+    compose_cmd up --build -d $recreate_flag redis >> "$LOG_FILE" 2>&1
     start_result=$?
 
     if [[ $start_result -eq 0 ]]; then
@@ -624,11 +666,33 @@ start_application_services() {
     # This prevents "container name already in use" errors
     cleanup_stuck_containers
 
+    # =========================================================================
+    # FULL RESTART MODE: Override selective restart if global changes detected
+    # =========================================================================
+    if [[ "${NEEDS_FULL_RESTART:-false}" == "true" ]]; then
+        warning "Full restart mode enabled - all services will be recreated"
+        warning "Reason: docker-compose.yml global changes (volumes/networks)"
+        echo ""
+
+        # Force recreate all services
+        export NEEDS_BACKEND_RECREATE=true
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            export NEEDS_BOT_RECREATE=true
+            export NEEDS_NGINX_RECREATE=true
+        fi
+
+        info "All application services will be recreated"
+        echo ""
+    fi
+
     # Smart restart: selectively recreate containers based on changed files
     # Uses flags set by analyze_sync_changes() in sync.sh:
+    # - NEEDS_POSTGRES_RECREATE: Migrations changed
+    # - NEEDS_REDIS_RECREATE: Redis code/config changed
     # - NEEDS_BACKEND_RECREATE: Jinja2 templates, static files, Python code changed
     # - NEEDS_BOT_RECREATE: Bot Python code changed
     # - NEEDS_NGINX_RECREATE: Nginx config changed
+    # - NEEDS_FULL_RESTART: docker-compose.yml global changes
 
     info "Smart restart mode enabled:"
     info "  Backend recreate: ${NEEDS_BACKEND_RECREATE:-false}"

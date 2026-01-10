@@ -995,8 +995,14 @@ main() {
     # Analyze sync changes for smart restart decisions
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
-    # - Sets NEEDS_BACKEND_RECREATE, NEEDS_BOT_RECREATE, NEEDS_NGINX_RECREATE flags
-    # - Flags used by start_application_services() to selectively recreate containers
+    # - Sets recreation flags for ALL services:
+    #   NEEDS_POSTGRES_RECREATE  (migrations changed)
+    #   NEEDS_REDIS_RECREATE     (redis code/config changed)
+    #   NEEDS_BACKEND_RECREATE   (templates/static/Python changed)
+    #   NEEDS_BOT_RECREATE       (bot code changed)
+    #   NEEDS_NGINX_RECREATE     (nginx config changed)
+    #   NEEDS_FULL_RESTART       (docker-compose.yml global changes)
+    # - Flags used by start_postgres_only(), start_redis_only(), start_application_services()
     analyze_sync_changes
     echo ""
 
@@ -1191,6 +1197,20 @@ main() {
         fi
     fi
 
+    # Check if frontend rebuild needed (v7.0+ TypeScript architecture)
+    # CRITICAL: Check BEFORE build to avoid unnecessary npm builds
+    # Checks: .ts/.tsx files in frontend/, package.json, vite.config.ts, build-all.js
+    if [[ "$build_allowed" == true ]]; then
+        if ! needs_frontend_rebuild "$SCRIPT_DIR"; then
+            print_message info "No frontend source files changed since last build"
+            print_message info "Skipping npm build (assets are up-to-date)"
+            build_allowed=false
+        else
+            print_message info "Frontend source files changed - npm build required"
+        fi
+        echo ""
+    fi
+
     # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
     if [[ "$build_allowed" == true ]]; then
         # Validate npm environment comprehensively (with auto-repair)
@@ -1274,6 +1294,12 @@ main() {
             else
                 print_message warning "sw.min.js not found - Service Worker may not be available"
             fi
+
+            # Save frontend build checksums (v7.0+ TypeScript architecture)
+            # CRITICAL: Save AFTER successful build to track what was built
+            # Next deploy will compare against these checksums to determine if rebuild needed
+            save_frontend_build_checksums "$SCRIPT_DIR"
+            echo ""
 
             # Minify legacy files (hierarchyView.js, lists.css) - NOT included in Vite build
             print_message info "Minifying legacy files (hierarchyView.js, lists.css)..."

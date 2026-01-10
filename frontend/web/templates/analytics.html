@@ -27,7 +27,7 @@
 <div class="space-y-6 pt-4">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 class="text-3xl font-bold">📊 Панель аналитики</h1>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📊 Панель аналитики</h1>
     </div>
 
     {% if not user %}
@@ -83,7 +83,7 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
                 <div class="card-body p-3">
                     <div class="flex justify-between items-center mb-1">
-                        <h2 id="chart-title-waterfall" class="card-title text-base mb-0">💧 Каскадная диаграмма</h2>
+                        <h2 id="chart-title-waterfall" class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">💧 Каскадная диаграмма</h2>
                         <button id="waterfall-reset" class="btn btn-xs btn-outline" onclick="resetWaterfallDrilldown()" style="display: none;" aria-label="Сбросить фильтр категории">
                             ← Сбросить фильтр
                         </button>
@@ -96,7 +96,7 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-trends">
                 <div class="card-body p-3">
                     <div class="flex justify-between items-start mb-1">
-                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Динамика расходов и доходов</h2>
+                        <h2 id="chart-title-trends" class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📈 Динамика расходов и доходов</h2>
                         <div class="flex gap-1">
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Экспорт динамики в CSV">📄</button>
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
@@ -149,7 +149,7 @@
             <!-- Plan vs Fact Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План&Факт</h2>
+                    <h2 id="chart-title-planfact" class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📊 План&Факт</h2>
 
                     <!-- Chart Mode Filter (moved from global filters) -->
                     <div class="flex flex-wrap items-center gap-2 mb-2">
@@ -167,7 +167,7 @@
             <!-- Category Breakdown Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
+                    <h2 id="chart-title-pie" class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">🥧 Разбивка по категориям</h2>
                     <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки фактических расходов по категориям"></div>
                 </div>
             </div>
@@ -175,7 +175,7 @@
             <!-- Heatmap Chart (Full Width) -->
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
-                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта</h2>
+                    <h2 id="chart-title-heatmap" class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">🔥 Тепловая карта</h2>
                     <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов фактов"></div>
                 </div>
             </div>
@@ -1561,7 +1561,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
             <div class="modal-content max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
                 <div class="modal-header">
-                    <h3>Детализация: ${periodLabel}</h3>
+                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Детализация: ${periodLabel}</h2>
                     <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
                 </div>
                 <div class="modal-body">

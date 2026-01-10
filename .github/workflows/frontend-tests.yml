@@ -86,22 +86,22 @@ jobs:
 
           FAIL=0
 
-          if (( $(echo "$LINES < $LINES_THRESHOLD" | awk '{print ($1 < $2)}') )); then
+          if awk -v a="$LINES" -v b="$LINES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
             echo "❌ Lines coverage $LINES% is below $LINES_THRESHOLD% threshold"
             FAIL=1
           fi
 
-          if (( $(echo "$FUNCTIONS < $FUNCTIONS_THRESHOLD" | awk '{print ($1 < $2)}') )); then
+          if awk -v a="$FUNCTIONS" -v b="$FUNCTIONS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
             echo "❌ Functions coverage $FUNCTIONS% is below $FUNCTIONS_THRESHOLD% threshold"
             FAIL=1
           fi
 
-          if (( $(echo "$BRANCHES < $BRANCHES_THRESHOLD" | awk '{print ($1 < $2)}') )); then
+          if awk -v a="$BRANCHES" -v b="$BRANCHES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
             echo "❌ Branches coverage $BRANCHES% is below $BRANCHES_THRESHOLD% threshold"
             FAIL=1
           fi
 
-          if (( $(echo "$STATEMENTS < $STATEMENTS_THRESHOLD" | awk '{print ($1 < $2)}') )); then
+          if awk -v a="$STATEMENTS" -v b="$STATEMENTS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
             echo "❌ Statements coverage $STATEMENTS% is below $STATEMENTS_THRESHOLD% threshold"
             FAIL=1
           fi

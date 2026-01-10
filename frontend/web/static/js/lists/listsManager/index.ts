@@ -69,7 +69,9 @@ export {
   renderLandingView,
   renderDetailView,
   renderShoppingListCards,
-  updateFABVisibility
+  updateFABVisibility,
+  switchView,
+  initializeResponsiveView
 } from './rendering/listRenderer';
 
 // ============================================================================

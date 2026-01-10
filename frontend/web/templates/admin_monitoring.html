@@ -4,15 +4,15 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">📊 Мониторинг системы</h1>
-        <p class="text-base-content/70">Информация о состоянии и производительности системы в реальном времени</p>
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📊 Мониторинг системы</h1>
+        <p class="text-sm sm:text-base text-base-content/70">Информация о состоянии и производительности системы в реальном времени</p>
     </div>
 
     <!-- System Timezone -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">🌍 Системный часовой пояс</h2>
+                <h2 class="text-lg sm:text-xl font-bold">🌍 Системный часовой пояс</h2>
             </div>
 
             <div id="timezone-container">
@@ -27,7 +27,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">🔍 Общий статус</h2>
+                <h2 class="text-lg sm:text-xl font-bold">🔍 Общий статус</h2>
                 <div class="flex items-center gap-2" id="overall-status">
                     <span class="loading loading-spinner loading-sm"></span>
                     <span class="text-sm">Загрузка...</span>
@@ -49,7 +49,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">💊 Состояние компонентов</h2>
+                <h2 class="text-lg sm:text-xl font-bold">💊 Состояние компонентов</h2>
                 <button class="btn btn-sm btn-primary" onclick="refreshMonitoring()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -70,7 +70,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">💻 Системные ресурсы</h2>
+                <h2 class="text-lg sm:text-xl font-bold">💻 Системные ресурсы</h2>
                 <span class="text-sm text-base-content/60" id="last-updated">Последнее обновление: --</span>
             </div>
 
@@ -85,7 +85,7 @@
     <!-- Database Statistics -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📈 Статистика базы данных</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📈 Статистика базы данных</h2>
 
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="db-stats-container">
                 <div class="stat">
@@ -101,7 +101,7 @@
     <!-- Redis Statistics -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">🔴 Статистика Redis</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">🔴 Статистика Redis</h2>
 
             <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="redis-stats-container">
                 <div class="stat">
@@ -147,7 +147,7 @@
                 <!-- Cache Breakdown by Category -->
                 <div class="card bg-base-200">
                     <div class="card-body">
-                        <h3 class="card-title text-lg">📊 Breakdown по категориям</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📊 Breakdown по категориям</h3>
                         <div class="overflow-x-auto">
                             <table class="table table-zebra">
                                 <thead>
@@ -175,7 +175,7 @@
     <!-- Client Cache Metrics -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">💾 Кеш клиентов</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">💾 Кеш клиентов</h2>
 
             <div id="cache-metrics-container">
                 <div class="flex items-center justify-center py-8">
@@ -188,7 +188,7 @@
     <!-- Backup Status -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">💾 Статус бэкапирования</h2>
+            <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">💾 Статус бэкапирования</h2>
 
             <div id="backup-container">
                 <div class="flex items-center justify-center py-8">
@@ -445,7 +445,7 @@ function renderComponents(components) {
             <div class="alert ${alertClass}">
                 <div class="flex-1">
                     <div class="flex items-center justify-between mb-2">
-                        <h3 class="font-bold text-lg">${displayName}</h3>
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">${displayName}</h3>
                         ${statusBadge}
                     </div>
                     <div class="text-sm opacity-80">
@@ -690,7 +690,7 @@ function renderBackupStatus(backupComponent) {
         <div class="alert ${alertClass}">
             <div class="flex-1">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-bold text-lg">Последний бэкап</h3>
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Последний бэкап</h3>
                     <span class="badge ${statusBadge} gap-1">${statusIcon} ${backupComponent.status.toUpperCase()}</span>
                 </div>
 
