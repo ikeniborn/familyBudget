@@ -10,7 +10,7 @@
 
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists } from '../core/stateManager';
-import { deleteItem } from '../core/listOperations';
+import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
 
@@ -132,7 +132,7 @@ export function openAddItemModal(): void {
   const deleteBtn = document.getElementById('item-modal-delete-btn');
   if (deleteBtn) {
     deleteBtn.classList.add('hidden');
-    console.log('[MODAL_ADD] Delete button hidden (new item mode)');
+    debugLog('[MODAL_ADD] Delete button hidden (new item mode)');
   }
 
   if (modal) (modal as any).showModal();
@@ -168,11 +168,11 @@ export function openEditItemModal(itemId: number): void {
   const deleteBtn = document.getElementById('item-modal-delete-btn');
   if (deleteBtn) {
     deleteBtn.classList.remove('hidden');
-    console.log('[MODAL_EDIT] Delete button shown', { itemId });
+    debugLog('[MODAL_EDIT] Delete button shown', { itemId });
   }
 
   // Quantity input is now always integer (step="1" in HTML)
-  console.log('[LISTS_MODAL] Quantity input configured for integers only (step=1)');
+  debugLog('[LISTS_MODAL] Quantity input configured for integers only (step=1)');
 
   // Reinitialize Choices.js with latest data
   initStoreChoices();
@@ -216,7 +216,7 @@ export function closeItemModal(): void {
         const contentElement = swipedElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
         const hadTransform = contentElement?.style.transform || 'none';
 
-        console.log('[MODAL_CLOSE] Cleaning up swipe state', {
+        debugLog('[MODAL_CLOSE] Cleaning up swipe state', {
           itemId,
           hadTransform,
           timestamp: Date.now(),
@@ -227,7 +227,7 @@ export function closeItemModal(): void {
         swipeHandler.resetSwipe(itemId, swipedElement);
 
         const afterTransform = contentElement?.style.transform || 'none';
-        console.log('[MODAL_CLOSE] Swipe state cleaned', {
+        debugLog('[MODAL_CLOSE] Swipe state cleaned', {
           itemId,
           beforeTransform: hadTransform,
           afterTransform,
@@ -240,18 +240,18 @@ export function closeItemModal(): void {
       // Always clear the flag even if element not found
       // This prevents stale state if item was deleted
       swipeHandler.modalOpenedBySwipe = null;
-      console.log('[MODAL_CLOSE] Swipe flag cleared');
+      debugLog('[MODAL_CLOSE] Swipe flag cleared');
     } else {
-      console.log('[MODAL_CLOSE] Modal not opened by swipe, no cleanup needed');
+      debugLog('[MODAL_CLOSE] Modal not opened by swipe, no cleanup needed');
     }
   } else {
-    console.log('[MODAL_CLOSE] SwipeHandler not available (desktop or hierarchy view not initialized)');
+    debugLog('[MODAL_CLOSE] SwipeHandler not available (desktop or hierarchy view not initialized)');
   }
 
   // STEP 2: Close modal
   const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
   if (modal) {
-    console.log('[MODAL_CLOSE] Closing item modal');
+    debugLog('[MODAL_CLOSE] Closing item modal');
     (modal as any).close();
   } else {
     console.error('[MODAL_CLOSE] Modal element not found');
@@ -272,7 +272,7 @@ export async function handleDeleteFromModal(): Promise<void> {
     return;
   }
 
-  console.log('[DELETE_MODAL] Delete initiated', {
+  debugLog('[DELETE_MODAL] Delete initiated', {
     itemId,
     timestamp: Date.now(),
     source: 'modal_button'
@@ -285,7 +285,79 @@ export async function handleDeleteFromModal(): Promise<void> {
   // (already handles confirmation, offline support, cache update)
   await deleteItem(itemId);
 
-  console.log('[DELETE_MODAL] Delete completed', { itemId });
+  debugLog('[DELETE_MODAL] Delete completed', { itemId });
+}
+
+/**
+ * Handle item form submission (create or update)
+ * Called from lists.html line 311: <form onsubmit="handleSaveItem(event)">
+ *
+ * Created: 2026-01-11 (v7.x.x migration fix)
+ */
+export async function handleSaveItem(event: Event): Promise<void> {
+  event.preventDefault();
+
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
+
+  const itemId = formData.get('item_id');
+  const isEdit = itemId !== null && itemId !== '';
+
+  // Extract form data
+  const storeId = formData.get('store_id') as string;
+  const productGroupId = formData.get('product_group_id') as string;
+  const productName = formData.get('product_name') as string;
+  const quantityStr = formData.get('quantity') as string;
+  const unit = formData.get('unit') as string;
+  const comment = formData.get('comment') as string;
+
+  // Validate required fields
+  if (!storeId || !productGroupId || !productName) {
+    console.error('[ITEM_SAVE] Missing required fields', {
+      storeId: !!storeId,
+      productGroupId: !!productGroupId,
+      productName: !!productName
+    });
+    showToast('Заполните обязательные поля', 'error');
+    return;
+  }
+
+  // Build item data object
+  const data: any = {
+    store_id: parseInt(storeId, 10),
+    product_group_id: parseInt(productGroupId, 10),
+    product_name: productName,
+    quantity: quantityStr ? parseFloat(quantityStr) : null,
+    unit: unit || null,
+    comment: comment || null
+  };
+
+  debugLog('[ITEM_SAVE] Starting save', {
+    isEdit,
+    itemId,
+    data
+  });
+
+  try {
+    if (isEdit) {
+      // Update existing item
+      await updateItem(parseInt(itemId as string, 10), data);
+      showToast('Товар обновлён', 'success');
+    } else {
+      // Create new item
+      await createItem(data);
+      showToast('Товар добавлен', 'success');
+    }
+
+    // Close modal on success
+    closeItemModal();
+
+    debugLog('[ITEM_SAVE] Save successful', { isEdit, itemId });
+
+  } catch (error) {
+    console.error('[ITEM_SAVE] Error:', error);
+    showToast('Ошибка сохранения товара', 'error');
+  }
 }
 
 // ============================================================================
@@ -534,12 +606,12 @@ function initializeDuplicateDetection(): void {
   if (state.debouncedSearch) {
     productInput.removeEventListener('input', state.debouncedSearch);
     storeSelect.removeEventListener('change', state.debouncedSearch);
-    console.log('[LISTS] Removed old duplicate detection listeners');
+    debugLog('[LISTS] Removed old duplicate detection listeners');
   }
 
   if (state.quantityChangeHandler && quantityInput) {
     quantityInput.removeEventListener('input', state.quantityChangeHandler);
-    console.log('[LISTS] Removed old quantity listener');
+    debugLog('[LISTS] Removed old quantity listener');
   }
 
   // Create new debounced search handler
@@ -570,11 +642,11 @@ function initializeDuplicateDetection(): void {
   // Listen for quantity changes to update future quantity
   if (quantityInput) {
     const quantityChangeHandler = () => {
-      console.log('[FUTURE_QTY] Quantity input changed, updating future quantity display');
+      debugLog('[FUTURE_QTY] Quantity input changed, updating future quantity display');
       updateFutureQuantity();
     };
     quantityInput.addEventListener('input', quantityChangeHandler);
-    console.log('[LISTS] Future quantity listener initialized');
+    debugLog('[LISTS] Future quantity listener initialized');
 
     updateState({ quantityChangeHandler });
   } else {
@@ -582,7 +654,7 @@ function initializeDuplicateDetection(): void {
   }
 
   updateState({ debouncedSearch });
-  console.log('[LISTS] Duplicate detection initialized');
+  debugLog('[LISTS] Duplicate detection initialized');
 }
 
 /**
@@ -596,7 +668,7 @@ async function searchDuplicate(productName: string, storeId: number): Promise<an
   }
 
   try {
-    console.log('[DUPLICATE_SEARCH] Searching for duplicate', {
+    debugLog('[DUPLICATE_SEARCH] Searching for duplicate', {
       productName,
       storeId,
       listId: state.currentListId
@@ -628,7 +700,7 @@ async function searchDuplicate(productName: string, storeId: number): Promise<an
       return data;
     }
 
-    console.log('[DUPLICATE_SEARCH] No duplicate found');
+    debugLog('[DUPLICATE_SEARCH] No duplicate found');
     return null;
 
   } catch (error) {
@@ -671,7 +743,7 @@ function showDuplicateWarning(duplicateItem: any): void {
   // Calculate and show future quantity if quantity already entered
   updateFutureQuantity();
 
-  console.log('[DUPLICATE_SEARCH] Warning displayed', { itemId: duplicateItem.id });
+  debugLog('[DUPLICATE_SEARCH] Warning displayed', { itemId: duplicateItem.id });
 }
 
 /**
@@ -710,7 +782,7 @@ function updateFutureQuantity(): void {
 
   futureQtyElement.textContent = ` → ${futureQuantity} ${unit}`;
 
-  console.log('[FUTURE_QTY] Updated', {
+  debugLog('[FUTURE_QTY] Updated', {
     existing: existingQuantity,
     new: newQuantity,
     future: futureQuantity

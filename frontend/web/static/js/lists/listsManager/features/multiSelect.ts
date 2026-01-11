@@ -16,6 +16,7 @@ import { renderCurrentView } from '../rendering/tableBuilder';
 // ============================================================================
 
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+declare const debugLog: (...args: any[]) => void;
 
 // ============================================================================
 // Selection Management
@@ -175,5 +176,122 @@ export function updateSelectionUI(): void {
       if (selectAllIconSpan) selectAllIconSpan.textContent = '☑️';
       if (selectAllTextSpan) selectAllTextSpan.textContent = 'Выделить все';
     }
+  }
+}
+
+// ============================================================================
+// Bulk Delete Confirmation Modal (v7.x.x migration fix)
+// ============================================================================
+
+/**
+ * Pending delete IDs for bulk delete confirmation
+ * Populated when user initiates bulk delete, cleared after confirmation or cancellation
+ */
+let pendingDeleteIds: number[] = [];
+
+/**
+ * Confirm bulk delete operation
+ * Called from lists.html line 448: onclick="confirmDelete()"
+ *
+ * Created: 2026-01-11 (v7.x.x migration fix)
+ */
+export async function confirmDelete(): Promise<void> {
+  if (pendingDeleteIds.length === 0) {
+    console.warn('[BULK_DELETE] No pending delete IDs');
+    return;
+  }
+
+  debugLog('[BULK_DELETE] Confirming deletion of', pendingDeleteIds.length, 'items');
+
+  try {
+    const response = await fetch('/api/v1/shopping-list-items/batch-delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ item_ids: pendingDeleteIds })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    // Remove from local state
+    const state = getState();
+    const deletedIds = new Set(pendingDeleteIds);
+    const newItems = state.currentItems.filter(item => !deletedIds.has(item.id));
+
+    updateState({
+      currentItems: newItems,
+      selectedItemIds: new Set()
+    });
+
+    // Re-render based on current view
+    if (state.currentView === 'hierarchy' && state.hierarchyView) {
+      state.hierarchyView.render();
+    } else {
+      renderCurrentView();
+    }
+
+    showToast(`Удалено товаров: ${pendingDeleteIds.length}`, 'success');
+
+  } catch (error) {
+    console.error('[BULK_DELETE] Error:', error);
+    showToast('Ошибка удаления товаров', 'error');
+  } finally {
+    // Close modal and clear pending IDs
+    closeDeleteConfirmModal();
+  }
+}
+
+/**
+ * Close bulk delete confirmation modal
+ * Called from lists.html line 447: onclick="closeDeleteConfirmModal()"
+ *
+ * Created: 2026-01-11 (v7.x.x migration fix)
+ */
+export function closeDeleteConfirmModal(): void {
+  const modal = document.getElementById('delete-confirm-modal') as HTMLDialogElement | null;
+  if (modal) {
+    modal.close();
+  }
+
+  // Clear pending delete IDs
+  pendingDeleteIds = [];
+
+  debugLog('[BULK_DELETE] Modal closed, pending IDs cleared');
+}
+
+/**
+ * Open bulk delete confirmation modal
+ * Modified version of deleteSelected() that uses modal instead of native confirm
+ *
+ * Note: This can be used as replacement for deleteSelected() if modal UI is preferred
+ */
+export function deleteSelectedWithModal(): void {
+  const state = getState();
+
+  if (state.selectedItemIds.size === 0) {
+    return;
+  }
+
+  // Store IDs for later confirmation
+  pendingDeleteIds = Array.from(state.selectedItemIds);
+
+  // Update modal content (if modal has dynamic text element)
+  const countElement = document.getElementById('delete-confirm-count');
+  if (countElement) {
+    countElement.textContent = pendingDeleteIds.length.toString();
+  }
+
+  // Open modal
+  const modal = document.getElementById('delete-confirm-modal') as HTMLDialogElement | null;
+  if (modal) {
+    modal.showModal();
+  } else {
+    console.warn('[BULK_DELETE] Modal not found, falling back to native confirm');
+    // Fallback to existing deleteSelected()
+    deleteSelected();
   }
 }

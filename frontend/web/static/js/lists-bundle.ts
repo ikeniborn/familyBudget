@@ -49,6 +49,19 @@ import {
 
   // Item operations (v7.0.1 - for onclick handlers)
   toggleItemCompleted,
+  handleSaveItem,
+
+  // Modal handlers (v7.x.x - CRITICAL fixes)
+  handleDeleteFromModal,
+  confirmDeleteList,
+
+  // Bulk delete operations (v7.x.x - CRITICAL fixes)
+  confirmDelete,
+  closeDeleteConfirmModal,
+
+  // Global helpers (v7.x.x - Navigation & modals)
+  openModal,
+  navigateHomeOfflineFriendly,
 
   // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
   handleItemCreated,
@@ -95,6 +108,22 @@ const windowExports = {
 
   // FAB
   toggleListsFAB,
+
+  // Item operations (onclick handlers) - v7.x.x CRITICAL fixes
+  handleSaveItem,           // lists.html:311 - Form submit
+  handleDeleteFromModal,    // lists.html:408 - Delete from modal
+
+  // List operations - v7.x.x CRITICAL fixes
+  confirmDeleteList,        // lists.html:474 - Confirm list deletion
+
+  // Bulk delete operations - v7.x.x CRITICAL fixes
+  confirmDelete,            // lists.html:448 - Confirm bulk delete
+  closeDeleteConfirmModal,  // lists.html:447 - Close bulk delete modal
+
+  // Global helpers - v7.x.x CRITICAL fixes
+  openModal,                // lists.html:56,62,68 - Open budget modals (stub)
+  navigateHomeOfflineFriendly,  // lists.html:38 - Home navigation
+
   markAllCompletedWithConfirm,
   unmarkAllCompletedWithConfirm,
   deleteCompletedWithConfirm,

@@ -95,7 +95,9 @@ export {
   toggleSelectAll,
   selectCompleted,
   deleteSelected,
-  updateSelectionUI
+  updateSelectionUI,
+  confirmDelete,
+  closeDeleteConfirmModal
 } from './features/multiSelect';
 
 export {
@@ -118,6 +120,7 @@ export {
   openEditItemModal,
   closeItemModal,
   handleDeleteFromModal,
+  handleSaveItem,
   openCreateListModal,
   closeCreateListModal,
   handleCreateList,
@@ -140,3 +143,12 @@ export {
 } from './integration/wsEventHandlers';
 
 export { initializeImportManager } from './integration/importIntegration';
+
+// ============================================================================
+// Global Helpers (Phase 7.x: Navigation & Modals) - v7.x.x migration fix
+// ============================================================================
+
+export {
+  openModal,
+  navigateHomeOfflineFriendly
+} from './ui/globalHelpers';
