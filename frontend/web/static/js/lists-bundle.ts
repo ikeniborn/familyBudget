@@ -22,7 +22,7 @@ import {
   switchView,
   initializeResponsiveView,
   renderLandingView,
-  switchToList,
+  renderDetailView,
 
   // Modals
   openAddItemModal,
@@ -57,7 +57,7 @@ const windowExports = {
 
   // Navigation
   showLandingView: renderLandingView,  // Alias
-  showDetailView: switchToList,  // Alias for backward compatibility
+  showDetailView: renderDetailView,  // Alias for backward compatibility
 
   // Modals (уже в модулях)
   openAddItemModal,
@@ -181,7 +181,7 @@ try {
     // (used in onclick handlers: window.listsManager.showDetailView)
     Object.defineProperty(window, 'listsManager', {
       value: {
-        showDetailView: switchToList
+        showDetailView: renderDetailView
       },
       writable: false,
       configurable: false,
