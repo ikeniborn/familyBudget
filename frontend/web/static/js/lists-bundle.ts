@@ -28,6 +28,7 @@ import {
   openAddItemModal,
   openCreateListModal,
   closeCreateListModal,
+  handleCreateList,
   closeItemModal,
   openDeleteListModal,
   closeDeleteListModal,
@@ -92,6 +93,7 @@ const windowExports = {
   openAddItemModal,
   openCreateListModal,
   closeCreateListModal,
+  handleCreateList,         // lists.html:281 - Form submit for list creation
   closeItemModal,
   openDeleteListModal,
   closeDeleteListModal,
