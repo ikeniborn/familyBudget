@@ -313,7 +313,7 @@ export async function handleSaveItem(event: Event): Promise<void> {
 
   // Validate required fields
   if (!storeId || !productGroupId || !productName) {
-    console.error('[ITEM_SAVE] Missing required fields', {
+    debugLog('[ITEM_SAVE] Missing required fields', {
       storeId: !!storeId,
       productGroupId: !!productGroupId,
       productName: !!productName

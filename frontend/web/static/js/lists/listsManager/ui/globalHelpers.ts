@@ -5,6 +5,9 @@
  * Purpose: Provide missing onclick handlers that were removed during TypeScript migration
  */
 
+// Type declaration for global debugLog
+declare const debugLog: (...args: any[]) => void;
+
 /**
  * Open modal by ID (for Financial Centers, Cost Centers, Articles)
  *
@@ -19,8 +22,8 @@
  * @param modalId - Modal ID (e.g., 'modal_add_financial_center')
  */
 export function openModal(modalId: string): void {
-  console.warn(`[LISTS_GLOBAL] openModal('${modalId}') called - feature not fully implemented`);
-  console.warn('[LISTS_GLOBAL] These modals are available on the main budget page, not lists page');
+  debugLog(`[LISTS_GLOBAL] openModal('${modalId}') called - feature not fully implemented`);
+  debugLog('[LISTS_GLOBAL] These modals are available on the main budget page, not lists page');
 
   // (Logging removed - not critical for stub implementation)
 
@@ -43,7 +46,7 @@ export function navigateHomeOfflineFriendly(): void {
   const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   if (!isOnline) {
-    console.warn('[LISTS_GLOBAL] Offline - using direct navigation fallback');
+    debugLog('[LISTS_GLOBAL] Offline - using direct navigation fallback');
 
     // Use direct navigation when offline
     if (typeof window !== 'undefined') {

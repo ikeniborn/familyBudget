@@ -197,7 +197,7 @@ let pendingDeleteIds: number[] = [];
  */
 export async function confirmDelete(): Promise<void> {
   if (pendingDeleteIds.length === 0) {
-    console.warn('[BULK_DELETE] No pending delete IDs');
+    debugLog('[BULK_DELETE] No pending delete IDs');
     return;
   }
 
@@ -237,7 +237,7 @@ export async function confirmDelete(): Promise<void> {
     showToast(`Удалено товаров: ${pendingDeleteIds.length}`, 'success');
 
   } catch (error) {
-    console.error('[BULK_DELETE] Error:', error);
+    debugLog('[BULK_DELETE] Error:', error);
     showToast('Ошибка удаления товаров', 'error');
   } finally {
     // Close modal and clear pending IDs
