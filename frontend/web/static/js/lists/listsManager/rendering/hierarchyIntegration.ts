@@ -129,5 +129,8 @@ export function initializeHierarchyView(): void {
   // Store in state
   updateState({ hierarchyView });
 
+  // Export to window for onclick handlers (hierarchyView.js uses window.hierarchyView.toggleNode)
+  window.hierarchyView = hierarchyView;
+
   debugLog('[HIERARCHY] ✅ HierarchyView initialized with listsManager proxy');
 }
