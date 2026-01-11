@@ -27,7 +27,7 @@
                 Нажмите кнопку ниже для входа через ваш Telegram аккаунт.
             </p>
 
-            <div class="telegram-widget-container" id="telegram-widget-container"
+            <div class="telegram-widget-container flex justify-center" id="telegram-widget-container"
                  data-bot-username="{{ bot_username }}"
                  data-callback-url="{{ callback_url }}">
                 <!-- State: LOADING - Loader (shows while widget is loading) -->
@@ -151,6 +151,8 @@
     var LOAD_TIMEOUT_MS = 15000;  // 15 seconds
     var RETRY_COOLDOWN_MS = 2000; // 2 seconds between retries
     var MAX_RETRIES = 3;
+    var IFRAME_POLL_INTERVAL_MS = 250;  // Poll every 250ms
+    var IFRAME_RENDER_DELAY_MS = 500;   // Extra delay for button rendering
 
     // State
     var state = 'loading'; // 'loading' | 'success' | 'error'
@@ -204,41 +206,64 @@
     }
 
     /**
-     * Wait for iframe to fully load before hiding placeholder
+     * Wait for iframe to fully load and button to render before hiding placeholder
+     * Uses polling to ensure robust detection across different network conditions
+     * Polling continues until iframe is visible OR 15s timeout fires (handled by existing code)
      */
     function waitForIframeLoad(iframe) {
-        // If iframe is already loaded (cached), transition immediately
-        // Check if iframe has content by trying to access its dimensions
-        if (iframe.contentWindow) {
+        var pollInterval = null;
+        var pollAttempts = 0;
+
+        console.log('[TelegramWidget] Waiting for iframe to load...');
+
+        function pollIframeReady() {
+            pollAttempts++;
+
+            // Stop polling if state changed (e.g., timeout fired and transitioned to 'error')
+            if (state !== 'loading') {
+                console.log('[TelegramWidget] State changed to', state, '- stopping polling');
+                clearInterval(pollInterval);
+                return;
+            }
+
             try {
-                // iframe загружен, если его размеры > 0
                 var rect = iframe.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                    // Iframe already has dimensions, checking load state
+                var isVisible = rect.width > 0 && rect.height > 0;
+
+                console.log('[TelegramWidget] Poll attempt', pollAttempts,
+                           '- Visible:', isVisible, '- Dimensions:', rect.width, 'x', rect.height);
+
+                if (isVisible) {
+                    // Iframe has dimensions - wait additional time for button rendering
+                    console.log('[TelegramWidget] Iframe visible, waiting', IFRAME_RENDER_DELAY_MS, 'ms for button render');
+                    clearInterval(pollInterval);
+
+                    setTimeout(function() {
+                        // Double-check state hasn't changed during delay
+                        if (state === 'loading') {
+                            console.log('[TelegramWidget] Transition to success');
+                            transitionTo('success');
+                            cleanup();
+                        } else {
+                            console.log('[TelegramWidget] State changed during delay, aborting transition');
+                        }
+                    }, IFRAME_RENDER_DELAY_MS);
+                    return;
                 }
             } catch (e) {
-                // Cross-origin, можем только ждать load event
+                console.error('[TelegramWidget] Error polling iframe:', e);
+                // On error, continue polling (state check at top will stop if needed)
             }
         }
 
-        // Listen for load event
-        iframe.addEventListener('load', function onLoad() {
-            iframe.removeEventListener('load', onLoad);
-            transitionTo('success');
-            cleanup();
-        });
+        // Start polling
+        pollInterval = setInterval(pollIframeReady, IFRAME_POLL_INTERVAL_MS);
 
-        // Fallback: если load event не сработал за 5 секунд после появления iframe,
-        // но iframe видим - считаем загруженным
-        setTimeout(function() {
-            if (state === 'loading') {
-                var rect = iframe.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0) {
-                    transitionTo('success');
-                    cleanup();
-                }
-            }
-        }, 5000);
+        // Also listen for load event as backup for logging
+        iframe.addEventListener('load', function onLoad() {
+            console.log('[TelegramWidget] Iframe load event fired (polling handles transition)');
+            iframe.removeEventListener('load', onLoad);
+        });
     }
 
     /**
