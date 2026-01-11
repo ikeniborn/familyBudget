@@ -21,12 +21,6 @@ declare const showToast: (message: string, type?: 'success' | 'error' | 'info' |
 declare const closeImportWizard: () => void;
 declare const openDeleteListModal: (listId: number, listName: string) => void;
 
-declare global {
-  interface Window {
-    listsManager?: any;
-  }
-}
-
 // ============================================================================
 // Helper Functions
 // ============================================================================

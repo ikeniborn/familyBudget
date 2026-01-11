@@ -25,7 +25,6 @@ declare const Choices: any; // Choices.js library
 declare global {
   interface Window {
     deleteListId?: number;
-    listsManager?: any;
   }
 }
 

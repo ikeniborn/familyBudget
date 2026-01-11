@@ -18,6 +18,7 @@ declare global {
     initializeListsManager(): Promise<void>;
     loadShoppingLists(): Promise<void>;
     showLandingView(): void;
+    showDetailView(listId: number): Promise<void>;
     openAddItemModal(): void;
     openCreateListModal(): void;
     closeCreateListModal(): void;
@@ -37,6 +38,11 @@ declare global {
     toggleAllNodes(): void;
     closeImportWizard(): void;
     toggleImportWizard(): void;
+
+    // Backward compatibility object (created by lists-bundle.ts)
+    listsManager?: {
+      showDetailView(listId: number): Promise<void>;
+    };
   }
 }
 

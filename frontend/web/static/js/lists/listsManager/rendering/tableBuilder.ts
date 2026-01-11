@@ -18,12 +18,6 @@ declare const openAddItemModal: () => void;
 declare const openEditItemModal: (itemId: number) => void;
 declare const toggleHideCompleted: () => void;
 
-declare global {
-  interface Window {
-    listsManager?: any;
-  }
-}
-
 // ============================================================================
 // Helper Functions
 // ============================================================================

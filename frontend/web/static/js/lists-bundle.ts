@@ -22,6 +22,7 @@ import {
   switchView,
   initializeResponsiveView,
   renderLandingView,
+  switchToList,
 
   // Modals
   openAddItemModal,
@@ -56,6 +57,7 @@ const windowExports = {
 
   // Navigation
   showLandingView: renderLandingView,  // Alias
+  showDetailView: switchToList,  // Alias for backward compatibility
 
   // Modals (уже в модулях)
   openAddItemModal,
@@ -173,6 +175,17 @@ try {
         configurable: false,
         enumerable: true
       });
+    });
+
+    // Create window.listsManager object for backward compatibility
+    // (used in onclick handlers: window.listsManager.showDetailView)
+    Object.defineProperty(window, 'listsManager', {
+      value: {
+        showDetailView: switchToList
+      },
+      writable: false,
+      configurable: false,
+      enumerable: true
     });
 
     if ((window as any).logAPI) {
