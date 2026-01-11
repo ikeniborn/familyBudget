@@ -677,20 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-/**
- * Navigate to home page with offline support
- * HTMX handles Service Worker cache automatically via hx-get="/"
- * Service Worker intercepts fetch() → serves cached page
- */
-function navigateHomeOfflineFriendly() {
-    console.log('[LISTS_NAV] Navigating to home page (offline-friendly)');
-
-    // HTMX will handle navigation via hx-get="/"
-    // Service Worker intercepts fetch() → serves cached page
-    if (typeof htmx === 'undefined') {
-        console.warn('[LISTS_NAV] HTMX not available, using fallback');
-        window.location.href = '/';
-    }
-}
+// Note: navigateHomeOfflineFriendly() is now exported from lists-bundle.ts
+// (defined in listsManager/ui/globalHelpers.ts)
 </script>
 {% endblock %}
