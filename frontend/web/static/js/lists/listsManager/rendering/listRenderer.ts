@@ -512,18 +512,25 @@ export async function renderDetailView(listId: number): Promise<void> {
   const isMobile = window.innerWidth < 640;
   if (isMobile) {
     updateState({ currentView: 'hierarchy' });
-    debugLog('[ListsManager] Pre-set hierarchy view for mobile (prevents flicker)');
+    debugLog('[RENDER_DETAIL] Pre-set hierarchy view for mobile (prevents flicker)');
   } else {
     const savedPreference = localStorage.getItem('lists_view_preference');
     updateState({ currentView: savedPreference === 'hierarchy' ? 'hierarchy' : 'table' });
-    debugLog('[ListsManager] Pre-set desktop view from preference:', savedPreference || 'table');
+    debugLog('[RENDER_DETAIL] Pre-set desktop view from preference:', savedPreference || 'table');
   }
 
+  // CRITICAL: Sync view UI BEFORE showing detail-view (prevents table flash during FOUC)
+  // This hides table-view and shows hierarchy-view containers BEFORE they become visible
+  syncViewUI();
+  debugLog('[RENDER_DETAIL] syncViewUI() completed - table-view hidden before detail-view shown');
+
   // Show detail view, hide landing view
+  // Table-view already hidden via syncViewUI() above, no FOUC during 600ms load delay
   const landingView = document.getElementById('landing-view');
   const detailView = document.getElementById('detail-view');
   if (landingView) landingView.classList.add('hidden');
   if (detailView) detailView.classList.remove('hidden');
+  debugLog('[RENDER_DETAIL] detail-view shown (table-view already hidden)');
 
   // Desktop FAB visibility: Detail View
   // Hide create list FAB (only visible in landing view)
@@ -535,13 +542,10 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // CRITICAL: Sync view UI WITHOUT rendering (prevents table render on mobile)
-  // State already pre-set above, just need to sync DOM classes and buttons
-  syncViewUI();
-
   // Render ONLY the current view (hierarchy on mobile, table/hierarchy on desktop)
   // This prevents rendering table on mobile entirely
   renderCurrentView();
+  debugLog('[RENDER_DETAIL] renderCurrentView() completed');
 
   // Update FAB visibility after rendering
   updateFABVisibility();
