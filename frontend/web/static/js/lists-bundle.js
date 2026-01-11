@@ -1,0 +1,213 @@
+// Lists Bundle - Aggregates all shopping lists modules
+// Generated: 2026-01-10 (updated 21:07 - force rebuild)
+// Part of v7.0 ES modules migration
+// Core lists functionality (TypeScript modules)
+import './lists/csvImporter.ts';
+// Import/export functionality (JavaScript modules)
+import './lists/googleSheetsImporter';
+import './lists/importManager';
+// UI modules
+import './lists/hierarchyView';
+// === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
+import { 
+// Initialization
+initializeListsManager, loadShoppingLists, 
+// View switching
+switchView, initializeResponsiveView, renderLandingView, renderDetailView, 
+// Modals
+openAddItemModal, openCreateListModal, closeCreateListModal, closeItemModal, openDeleteListModal, closeDeleteListModal, 
+// Search/Filter
+clearSearch, toggleHideCompleted, toggleSearchField, handleSearch, 
+// FAB
+toggleListsFAB, 
+// Hierarchy integration (v7.0.1)
+initializeHierarchyView, 
+// Import integration (v7.0.1)
+initializeImportManager, 
+// Item operations (v7.0.1 - for onclick handlers)
+toggleItemCompleted, handleSaveItem, 
+// Modal handlers (v7.x.x - CRITICAL fixes)
+handleDeleteFromModal, confirmDeleteList, 
+// Bulk delete operations (v7.x.x - CRITICAL fixes)
+confirmDelete, closeDeleteConfirmModal, 
+// Global helpers (v7.x.x - Navigation & modals)
+openModal, navigateHomeOfflineFriendly, 
+// WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
+handleItemCreated, handleItemUpdated, handleItemDeleted } from './lists/listsManager/index';
+// Адаптеры с confirm dialogs
+import { markAllCompletedWithConfirm, unmarkAllCompletedWithConfirm, deleteCompletedWithConfirm } from './lists/listsManager/adapters/windowExports';
+// === ЭКСПОРТ В WINDOW (для onclick handlers) ===
+const windowExports = {
+    // Initialization
+    initializeListsManager,
+    initializeHierarchyView, // v7.0.1 - HierarchyView integration
+    initializeImportManager, // v7.0.1 - ImportManager integration
+    loadShoppingLists,
+    // Navigation
+    showLandingView: renderLandingView, // Alias
+    showDetailView: renderDetailView, // Alias for backward compatibility
+    // Modals (уже в модулях)
+    openAddItemModal,
+    openCreateListModal,
+    closeCreateListModal,
+    closeItemModal,
+    openDeleteListModal,
+    closeDeleteListModal,
+    // Search/Filter
+    clearItemsSearch: clearSearch, // Alias
+    toggleHideCompleted,
+    toggleSearchField,
+    handleItemsSearch: handleSearch, // Alias
+    // View switching
+    switchView,
+    initializeResponsiveView,
+    // FAB
+    toggleListsFAB,
+    // Item operations (onclick handlers) - v7.x.x CRITICAL fixes
+    handleSaveItem, // lists.html:311 - Form submit
+    handleDeleteFromModal, // lists.html:408 - Delete from modal
+    // List operations - v7.x.x CRITICAL fixes
+    confirmDeleteList, // lists.html:474 - Confirm list deletion
+    // Bulk delete operations - v7.x.x CRITICAL fixes
+    confirmDelete, // lists.html:448 - Confirm bulk delete
+    closeDeleteConfirmModal, // lists.html:447 - Close bulk delete modal
+    // Global helpers - v7.x.x CRITICAL fixes
+    openModal, // lists.html:56,62,68 - Open budget modals (stub)
+    navigateHomeOfflineFriendly, // lists.html:38 - Home navigation
+    markAllCompletedWithConfirm,
+    unmarkAllCompletedWithConfirm,
+    deleteCompletedWithConfirm,
+    // Hierarchy (делегируется на hierarchyView.js)
+    toggleAllNodes: () => {
+        if (window.hierarchyView) {
+            const btn = document.getElementById('hierarchy-toggle-btn');
+            if (!btn)
+                return;
+            const action = btn.dataset.action || 'expand';
+            if (action === 'expand') {
+                window.hierarchyView.expandAll();
+                btn.dataset.action = 'collapse';
+                const icon = document.getElementById('hierarchy-toggle-icon');
+                const text = document.getElementById('hierarchy-toggle-text');
+                if (icon)
+                    icon.textContent = '⬆️';
+                if (text)
+                    text.textContent = 'Свернуть';
+            }
+            else {
+                window.hierarchyView.collapseAll();
+                btn.dataset.action = 'expand';
+                const icon = document.getElementById('hierarchy-toggle-icon');
+                const text = document.getElementById('hierarchy-toggle-text');
+                if (icon)
+                    icon.textContent = '⬇️';
+                if (text)
+                    text.textContent = 'Развернуть';
+            }
+        }
+    },
+    // Import wizard helpers
+    closeImportWizard: () => {
+        const container = document.getElementById('import-wizard-container');
+        if (!container)
+            return;
+        const icon = document.getElementById('import-toggle-icon');
+        const hint = document.getElementById('import-toggle-hint');
+        const isOpen = !container.classList.contains('hidden');
+        if (isOpen) {
+            container.classList.add('hidden');
+            if (icon)
+                icon.textContent = '▶';
+            if (hint)
+                hint.classList.remove('hidden');
+            const wizardContainer = document.getElementById('import-wizard');
+            if (wizardContainer)
+                wizardContainer.innerHTML = '';
+            if (window.importManager) {
+                window.importManager.container = null;
+                window.importManager.currentMethod = null;
+            }
+        }
+    },
+    toggleImportWizard: () => {
+        const container = document.getElementById('import-wizard-container');
+        if (!container)
+            return;
+        const icon = document.getElementById('import-toggle-icon');
+        const hint = document.getElementById('import-toggle-hint');
+        const isOpen = !container.classList.contains('hidden');
+        if (isOpen) {
+            // Closing
+            container.classList.add('hidden');
+            if (icon)
+                icon.textContent = '▶';
+            if (hint)
+                hint.classList.remove('hidden');
+            const wizardContainer = document.getElementById('import-wizard');
+            if (wizardContainer)
+                wizardContainer.innerHTML = '';
+            if (window.importManager) {
+                window.importManager.container = null;
+                window.importManager.currentMethod = null;
+            }
+        }
+        else {
+            // Opening
+            container.classList.remove('hidden');
+            if (icon)
+                icon.textContent = '▼';
+            if (hint)
+                hint.classList.add('hidden');
+            if (window.importManager && !window.importManager.container) {
+                window.importManager.init();
+            }
+        }
+    }
+};
+// Защищённый экспорт в window (Object.defineProperty)
+try {
+    if (typeof window !== 'undefined') {
+        Object.entries(windowExports).forEach(([name, fn]) => {
+            Object.defineProperty(window, name, {
+                value: fn,
+                writable: false,
+                configurable: false,
+                enumerable: true
+            });
+        });
+        // Create window.listsManager object for backward compatibility
+        // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
+        // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI)
+        Object.defineProperty(window, 'listsManager', {
+            value: {
+                showDetailView: renderDetailView,
+                toggleItemCompleted,
+                // WebSocket compatibility aliases (v7.0.1)
+                addItemToUI: handleItemCreated,
+                updateItemInUI: handleItemUpdated,
+                removeItemFromUI: handleItemDeleted
+            },
+            writable: false,
+            configurable: false,
+            enumerable: true
+        });
+        if (window.logAPI) {
+            window.logAPI.info('[LISTS_BUNDLE] ✅ All exports locked', {
+                count: Object.keys(windowExports).length,
+                functions: Object.keys(windowExports).sort(),
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
+}
+catch (error) {
+    console.error('[LISTS_BUNDLE] ❌ CRITICAL ERROR:', error);
+    if (typeof alert !== 'undefined') {
+        alert('ОШИБКА: Не удалось загрузить модуль списков. Обратитесь к администратору.');
+    }
+}
+// Логирование успешной загрузки
+if (typeof window !== 'undefined' && window.logAPI) {
+    window.logAPI.info('[LISTS_BUNDLE] All modules loaded successfully');
+}
+//# sourceMappingURL=lists-bundle.js.map

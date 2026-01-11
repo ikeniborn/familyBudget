@@ -1,328 +1,374 @@
+"use strict";
 /**
- * Conflict Resolver для Family Budget PWA
- * Разрешение конфликтов при синхронизации offline данных
+ * Conflict Resolver - Resolves sync conflicts between offline and server data.
  *
  * Strategies:
- * - LWW (Last-Write-Wins) - для non-critical fields
- * - Manual Confirmation - для critical fields (amount, article_id, etc.)
- * - Field-level Merge - для text fields (description)
+ * - Last-Write-Wins (LWW) by timestamp
+ * - Manual resolution via modal for critical fields
+ * - Field-level merge for text fields
  *
- * @version 1.0.0
+ * ВАЖНО: Если entity не найдена на сервере (404), локальная версия побеждает.
+ *
+ * @version 2.0.0
+ * @date 2026-01-05
  */
-
 class ConflictResolver {
+    /**
+     * Конструктор.
+     * Определяет критические поля (требуют ручного выбора) и текстовые поля (можно объединять).
+     */
     constructor() {
-        this.criticalFields = ['amount', 'article_id', 'financial_center_id', 'plan_month'];
+        // Критические поля - автоматически не разрешаются
+        this.criticalFields = [
+            'amount',
+            'article_id',
+            'financial_center_id',
+            'plan_month'
+        ];
+        // Текстовые поля - могут быть объединены
         this.textFields = ['description'];
     }
-
     /**
-     * Resolve conflict между offline и server данными
-     * @param {Object} offlineData - Offline версия
-     * @param {Object} serverData - Server версия
-     * @param {string} entity - Тип entity ('fact', 'transfer', 'plan')
-     * @param {boolean} autoResolve - Автоматическое разрешение (LWW)
-     * @returns {Promise<Object>} Resolved data
+     * Разрешить конфликт между offline и server данными.
+     *
+     * @param offlineData - Локальная версия (с tempId)
+     * @param serverData - Серверная версия (с server_id)
+     * @param entity - Тип сущности ('fact', 'transfer', 'plan')
+     * @param autoResolve - Автоматически применить LWW (default: false)
+     * @returns Разрешенные данные
      */
     async resolve(offlineData, serverData, entity, autoResolve = false) {
-        // Check if there's actually a conflict
-        if (!this.hasConflict(offlineData, serverData)) {
-            return offlineData.data;
+        if (window.logSync) {
+            window.logSync.warn('Conflict detected:', {
+                offline: offlineData,
+                server: serverData,
+                entity
+            });
         }
-
-        // Auto-resolve with LWW
+        // Edge case: Если serverData = null/undefined, то offline побеждает
+        if (!serverData) {
+            if (window.logSync) {
+                window.logSync.info('Server data missing - offline wins');
+            }
+            return offlineData;
+        }
+        // Автоматическое разрешение через LWW
         if (autoResolve) {
-            return this.resolveLWW(offlineData, serverData);
+            return this._applyLastWriteWins(offlineData, serverData);
         }
-
-        // Manual resolution required
-        const hasCriticalChanges = this.hasCriticalFieldChanges(offlineData, serverData, entity);
-
-        if (hasCriticalChanges) {
-            return await this.showConflictDialog(offlineData, serverData, entity);
-        } else {
-            // Non-critical changes, auto-merge
-            return this.mergeNonCritical(offlineData, serverData);
+        // Проверить наличие критических конфликтов
+        const hasCriticalConflict = this._hasCriticalConflict(offlineData, serverData);
+        if (!hasCriticalConflict) {
+            // Нет критических конфликтов - объединяем текстовые поля
+            return this._mergeNonCriticalFields(offlineData, serverData);
         }
+        // Критический конфликт - показываем UI для ручного выбора
+        return this._showManualResolutionModal(offlineData, serverData, entity);
     }
-
     /**
-     * Check if there's a conflict
-     * @private
+     * Применить стратегию Last-Write-Wins (LWW).
+     * Выбирается запись с более поздним updated_at.
+     *
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @returns Запись с более поздним updated_at
      */
-    hasConflict(offlineData, serverData) {
-        const offlineTime = offlineData.createdAt || offlineData.updatedAt;
-        const serverTime = new Date(serverData.updated_at || serverData.created_at).getTime();
-
-        // No conflict if offline data is newer
-        if (offlineTime > serverTime) {
-            return false;
+    _applyLastWriteWins(offlineData, serverData) {
+        const offlineTime = offlineData.updated_at
+            ? new Date(offlineData.updated_at).getTime()
+            : 0;
+        const serverTime = serverData.updated_at
+            ? new Date(serverData.updated_at).getTime()
+            : 0;
+        if (window.logSync) {
+            window.logSync.info('LWW:', {
+                offlineTime: new Date(offlineTime).toISOString(),
+                serverTime: new Date(serverTime).toISOString()
+            });
         }
-
-        // Check if any fields differ
-        const offlineFields = offlineData.data || offlineData;
-        const serverFields = serverData;
-
-        for (const key of Object.keys(offlineFields)) {
-            if (offlineFields[key] !== serverFields[key]) {
-                return true;
-            }
-        }
-
-        return false;
+        return offlineTime > serverTime ? offlineData : serverData;
     }
-
     /**
-     * Check if critical fields changed
-     * @private
+     * Проверить наличие конфликтов в критических полях.
+     *
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @returns true если есть конфликты в критических полях
      */
-    hasCriticalFieldChanges(offlineData, serverData, entity) {
-        const offlineFields = offlineData.data || offlineData;
-        const serverFields = serverData;
-
+    _hasCriticalConflict(offlineData, serverData) {
         for (const field of this.criticalFields) {
-            if (offlineFields[field] !== serverFields[field]) {
+            if (offlineData[field] !== undefined &&
+                serverData[field] !== undefined &&
+                offlineData[field] !== serverData[field]) {
                 return true;
             }
         }
-
         return false;
     }
-
     /**
-     * LWW (Last-Write-Wins) resolution
-     * @private
+     * Объединить некритические поля (текстовые).
+     * Server данные + offline текстовые поля.
+     *
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @returns Объединенные данные (server + offline text fields)
      */
-    resolveLWW(offlineData, serverData) {
-        const offlineTime = offlineData.createdAt || offlineData.updatedAt;
-        const serverTime = new Date(serverData.updated_at || serverData.created_at).getTime();
-
-        if (offlineTime > serverTime) {
-            return offlineData.data || offlineData;
-        } else {
-            return serverData;
-        }
-    }
-
-    /**
-     * Merge non-critical fields
-     * @private
-     */
-    mergeNonCritical(offlineData, serverData) {
-        const offlineFields = offlineData.data || offlineData;
-        const serverFields = serverData;
-        const merged = { ...serverFields };
-
-        // Merge text fields (concatenate)
+    _mergeNonCriticalFields(offlineData, serverData) {
+        const merged = { ...serverData };
+        // Объединяем текстовые поля через " | "
         for (const field of this.textFields) {
-            if (offlineFields[field] && serverFields[field] &&
-                offlineFields[field] !== serverFields[field]) {
-                merged[field] = `${offlineFields[field]}\n---\n[Server]: ${serverFields[field]}`;
-            } else if (offlineFields[field]) {
-                merged[field] = offlineFields[field];
+            const offlineValue = offlineData[field];
+            const serverValue = serverData[field];
+            if (offlineValue &&
+                serverValue &&
+                offlineValue !== serverValue) {
+                merged[field] = `${serverValue} | ${offlineValue}`;
+            }
+            else if (offlineValue && !serverValue) {
+                merged[field] = offlineValue;
             }
         }
-
+        if (window.logSync) {
+            window.logSync.info('Merged non-critical fields:', merged);
+        }
         return merged;
     }
-
     /**
-     * Show conflict resolution dialog
-     * @private
+     * Показать модальное окно для ручного разрешения конфликта.
+     *
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @param entity - Тип сущности
+     * @returns Promise с выбранными данными
      */
-    async showConflictDialog(offlineData, serverData, entity) {
-        return new Promise((resolve, reject) => {
-            const modal = this.createConflictModal(offlineData, serverData, entity, resolve, reject);
-            document.body.appendChild(modal);
-            modal.showModal();
+    _showManualResolutionModal(offlineData, serverData, entity) {
+        return new Promise((resolve) => {
+            const modalId = 'conflictResolutionModal';
+            // Удалить старое модальное окно если есть
+            const existingModal = document.getElementById(modalId);
+            if (existingModal) {
+                existingModal.remove();
+            }
+            // Собрать список конфликтов
+            const conflicts = this._gatherConflicts(offlineData, serverData);
+            // Создать HTML модального окна
+            const modalHtml = this._buildModalHtml(modalId, conflicts, entity);
+            // Вставить в DOM
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                if (window.logSync) {
+                    window.logSync.error('Modal not found after insertion');
+                }
+                resolve(serverData); // Fallback to server
+                return;
+            }
+            // Показать модальное окно (DaisyUI)
+            const checkbox = modal.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                checkbox.checked = true;
+            }
+            // Обработчик кнопки "Keep Server"
+            const keepServerBtn = modal.querySelector('#keepServerBtn');
+            if (keepServerBtn) {
+                keepServerBtn.addEventListener('click', () => {
+                    if (window.logSync) {
+                        window.logSync.info('User chose: Keep Server');
+                    }
+                    if (checkbox)
+                        checkbox.checked = false;
+                    modal.remove();
+                    resolve(serverData);
+                });
+            }
+            // Обработчик кнопки "Keep Offline"
+            const keepOfflineBtn = modal.querySelector('#keepOfflineBtn');
+            if (keepOfflineBtn) {
+                keepOfflineBtn.addEventListener('click', () => {
+                    if (window.logSync) {
+                        window.logSync.info('User chose: Keep Offline');
+                    }
+                    if (checkbox)
+                        checkbox.checked = false;
+                    modal.remove();
+                    resolve(offlineData);
+                });
+            }
+            // Обработчик кнопки "Merge Fields"
+            const mergeBtn = modal.querySelector('#mergeFieldsBtn');
+            if (mergeBtn) {
+                mergeBtn.addEventListener('click', () => {
+                    const merged = this._performManualMerge(modal, offlineData, serverData, conflicts);
+                    if (window.logSync) {
+                        window.logSync.info('User chose: Manual Merge', merged);
+                    }
+                    if (checkbox)
+                        checkbox.checked = false;
+                    modal.remove();
+                    resolve(merged);
+                });
+            }
         });
     }
-
     /**
-     * Create conflict resolution modal
-     * @private
+     * Собрать список конфликтующих полей.
+     *
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @returns Массив конфликтов
      */
-    createConflictModal(offlineData, serverData, entity, resolve, reject) {
-        const offlineFields = offlineData.data || offlineData;
-        const serverFields = serverData;
+    _gatherConflicts(offlineData, serverData) {
+        const conflicts = [];
+        const allFields = new Set([
+            ...Object.keys(offlineData),
+            ...Object.keys(serverData)
+        ]);
+        for (const field of allFields) {
+            // Пропустить служебные поля
+            if (field === 'tempId' ||
+                field === 'synced' ||
+                field === 'id' ||
+                field === 'created_at' ||
+                field === 'updated_at') {
+                continue;
+            }
+            const offlineValue = offlineData[field];
+            const serverValue = serverData[field];
+            if (offlineValue !== serverValue) {
+                conflicts.push({
+                    field,
+                    offlineValue,
+                    serverValue,
+                    isDifferent: true
+                });
+            }
+        }
+        return conflicts;
+    }
+    /**
+     * Построить HTML модального окна для ручного разрешения.
+     *
+     * @param modalId - ID модального окна
+     * @param conflicts - Список конфликтов
+     * @param entity - Тип сущности
+     * @returns HTML строка
+     */
+    _buildModalHtml(modalId, conflicts, entity) {
+        const entityLabels = {
+            fact: 'Transaction',
+            transfer: 'Transfer',
+            plan: 'Plan'
+        };
+        const conflictRows = conflicts
+            .map((conflict) => `
+                <tr>
+                    <td class="font-medium">${conflict.field}</td>
+                    <td>
+                        <label class="flex items-center gap-2">
+                            <input type="radio" name="${conflict.field}" value="offline"
+                                   class="radio radio-sm" />
+                            <span>${this._formatValue(conflict.offlineValue)}</span>
+                        </label>
+                    </td>
+                    <td>
+                        <label class="flex items-center gap-2">
+                            <input type="radio" name="${conflict.field}" value="server"
+                                   class="radio radio-sm" checked />
+                            <span>${this._formatValue(conflict.serverValue)}</span>
+                        </label>
+                    </td>
+                </tr>
+            `)
+            .join('');
+        return `
+            <input type="checkbox" id="${modalId}" class="modal-toggle" />
+            <div class="modal" role="dialog">
+                <div class="modal-box max-w-4xl">
+                    <h3 class="font-bold text-lg mb-4">
+                        Conflict Detected: ${entityLabels[entity]}
+                    </h3>
 
-        const modal = document.createElement('dialog');
-        modal.id = 'conflict_resolution_modal';
-        modal.className = 'modal';
+                    <p class="mb-4 text-sm opacity-70">
+                        The same ${entity} was modified both offline and on the server.
+                        Choose how to resolve:
+                    </p>
 
-        const entityLabel = entity === 'fact' ? 'Транзакция' :
-                           entity === 'transfer' ? 'Перевод' : 'План';
-
-        modal.innerHTML = `
-            <div class="modal-box max-w-4xl">
-                <h3 class="font-bold text-lg mb-4">
-                    ⚠️ Конфликт синхронизации: ${entityLabel}
-                </h3>
-
-                <div class="alert alert-warning mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <span>Данные изменились на сервере. Выберите какую версию сохранить.</span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <!-- Offline Version -->
-                    <div class="card bg-base-200">
-                        <div class="card-body">
-                            <h4 class="card-title text-sm">📱 Ваша версия (оффлайн)</h4>
-                            <div class="space-y-2 text-sm">
-                                ${this.renderFieldComparison(offlineFields, serverFields, 'offline')}
-                            </div>
-                        </div>
+                    <div class="overflow-x-auto mb-6">
+                        <table class="table table-zebra">
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Offline Version</th>
+                                    <th>Server Version</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${conflictRows}
+                            </tbody>
+                        </table>
                     </div>
 
-                    <!-- Server Version -->
-                    <div class="card bg-base-200">
-                        <div class="card-body">
-                            <h4 class="card-title text-sm">☁️ Серверная версия</h4>
-                            <div class="space-y-2 text-sm">
-                                ${this.renderFieldComparison(offlineFields, serverFields, 'server')}
-                            </div>
-                        </div>
+                    <div class="modal-action">
+                        <button class="btn btn-sm btn-error" id="keepOfflineBtn">
+                            Keep Offline
+                        </button>
+                        <button class="btn btn-sm btn-success" id="keepServerBtn">
+                            Keep Server
+                        </button>
+                        <button class="btn btn-sm btn-primary" id="mergeFieldsBtn">
+                            Merge Selected
+                        </button>
                     </div>
                 </div>
-
-                <div class="form-control mb-4">
-                    <label class="label cursor-pointer">
-                        <span class="label-text">Автоматически разрешать будущие конфликты (Last-Write-Wins)</span>
-                        <input type="checkbox" id="conflict_auto_resolve" class="checkbox checkbox-sm" />
-                    </label>
-                </div>
-
-                <div class="modal-action">
-                    <button type="button" class="btn btn-error" data-action="cancel">
-                        Отменить синхронизацию
-                    </button>
-                    <button type="button" class="btn btn-outline" data-action="server">
-                        Использовать серверную версию
-                    </button>
-                    <button type="button" class="btn btn-primary" data-action="offline">
-                        Использовать мою версию
-                    </button>
-                </div>
+                <label class="modal-backdrop" for="${modalId}">Close</label>
             </div>
         `;
-
-        // Event handlers
-        modal.querySelectorAll('button[data-action]').forEach(button => {
-            button.addEventListener('click', () => {
-                const action = button.dataset.action;
-                const autoResolve = document.getElementById('conflict_auto_resolve').checked;
-
-                // Save auto-resolve preference
-                if (autoResolve) {
-                    localStorage.setItem('conflict_auto_resolve', 'true');
+    }
+    /**
+     * Выполнить ручное объединение на основе выбранных radio buttons.
+     *
+     * @param modal - DOM элемент модального окна
+     * @param offlineData - Локальная версия
+     * @param serverData - Серверная версия
+     * @param conflicts - Список конфликтов
+     * @returns Объединенные данные
+     */
+    _performManualMerge(modal, offlineData, serverData, conflicts) {
+        const merged = { ...serverData };
+        for (const conflict of conflicts) {
+            const radioInputs = modal.querySelectorAll(`input[name="${conflict.field}"]`);
+            for (const radio of radioInputs) {
+                if (radio.checked) {
+                    if (radio.value === 'offline') {
+                        merged[conflict.field] = offlineData[conflict.field];
+                    }
+                    else {
+                        merged[conflict.field] = serverData[conflict.field];
+                    }
+                    break;
                 }
-
-                if (action === 'cancel') {
-                    modal.close();
-                    document.body.removeChild(modal);
-                    reject(new Error('User cancelled conflict resolution'));
-                } else if (action === 'offline') {
-                    modal.close();
-                    document.body.removeChild(modal);
-                    resolve(offlineFields);
-                } else if (action === 'server') {
-                    modal.close();
-                    document.body.removeChild(modal);
-                    resolve(serverFields);
-                }
-            });
-        });
-
-        return modal;
+            }
+        }
+        return merged;
     }
-
     /**
-     * Render field comparison
-     * @private
+     * Форматировать значение для отображения в UI.
+     *
+     * @param value - Значение
+     * @returns Строковое представление
      */
-    renderFieldComparison(offlineFields, serverFields, version) {
-        const fields = version === 'offline' ? offlineFields : serverFields;
-        const otherFields = version === 'offline' ? serverFields : offlineFields;
-
-        const html = [];
-
-        // Amount
-        if (fields.amount !== undefined) {
-            const isDiff = fields.amount !== otherFields.amount;
-            html.push(`
-                <div class="${isDiff ? 'text-warning font-bold' : ''}">
-                    <span class="opacity-60">Сумма:</span>
-                    <span>${fields.amount}</span>
-                    ${isDiff ? '<span class="badge badge-warning badge-xs ml-1">!</span>' : ''}
-                </div>
-            `);
+    _formatValue(value) {
+        if (value === null || value === undefined) {
+            return '<em>empty</em>';
         }
-
-        // Date
-        if (fields.fact_date || fields.transfer_date || fields.plan_month) {
-            const dateField = fields.fact_date || fields.transfer_date || fields.plan_month;
-            const otherDateField = otherFields.fact_date || otherFields.transfer_date || otherFields.plan_month;
-            const isDiff = dateField !== otherDateField;
-            html.push(`
-                <div class="${isDiff ? 'text-warning font-bold' : ''}">
-                    <span class="opacity-60">Дата:</span>
-                    <span>${dateField}</span>
-                    ${isDiff ? '<span class="badge badge-warning badge-xs ml-1">!</span>' : ''}
-                </div>
-            `);
+        if (typeof value === 'object') {
+            return JSON.stringify(value);
         }
-
-        // Article ID (simplified)
-        if (fields.article_id !== undefined) {
-            const isDiff = fields.article_id !== otherFields.article_id;
-            html.push(`
-                <div class="${isDiff ? 'text-warning font-bold' : ''}">
-                    <span class="opacity-60">Категория ID:</span>
-                    <span>${fields.article_id}</span>
-                    ${isDiff ? '<span class="badge badge-warning badge-xs ml-1">!</span>' : ''}
-                </div>
-            `);
-        }
-
-        // Description
-        if (fields.description) {
-            const isDiff = fields.description !== otherFields.description;
-            html.push(`
-                <div class="${isDiff ? 'text-warning font-bold' : ''}">
-                    <span class="opacity-60">Описание:</span>
-                    <span class="break-words">${fields.description || '—'}</span>
-                    ${isDiff ? '<span class="badge badge-warning badge-xs ml-1">!</span>' : ''}
-                </div>
-            `);
-        }
-
-        return html.join('');
-    }
-
-    /**
-     * Check if auto-resolve is enabled
-     * @returns {boolean}
-     */
-    isAutoResolveEnabled() {
-        return localStorage.getItem('conflict_auto_resolve') === 'true';
-    }
-
-    /**
-     * Enable/disable auto-resolve
-     */
-    setAutoResolve(enabled) {
-        if (enabled) {
-            localStorage.setItem('conflict_auto_resolve', 'true');
-        } else {
-            localStorage.removeItem('conflict_auto_resolve');
-        }
+        return String(value);
     }
 }
-
-// Export as global
+// Экспорт в window namespace
 if (typeof window !== 'undefined') {
     window.ConflictResolver = ConflictResolver;
 }
+//# sourceMappingURL=conflictResolver.js.map

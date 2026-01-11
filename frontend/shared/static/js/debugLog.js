@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Conditional Logging Utility for Family Budget v5.0
  *
@@ -21,140 +22,123 @@
  *
  * АВТОР: Claude Code + ikeniborn
  * ДАТА: 2025-11-15
+ * @version 2.0.0
  */
-
-(function(window) {
+(function (window) {
     'use strict';
-
     const DEBUG_CONFIG = {
         enabled: false,
         prefix: '[DEBUG]',
         env: 'unknown'
     };
-
     /**
      * Инициализация: определяем окружение из meta tag
      */
     function initDebugMode() {
         const metaEnv = document.querySelector('meta[name="app-env"]');
         const metaDebug = document.querySelector('meta[name="app-debug"]');
-
         if (metaDebug) {
             // Приоритет: явный флаг debug
             DEBUG_CONFIG.enabled = metaDebug.content === 'true';
             DEBUG_CONFIG.env = metaEnv?.content || 'unknown';
-        } else if (metaEnv) {
+        }
+        else if (metaEnv) {
             // Fallback: определяем по app-env
             DEBUG_CONFIG.env = metaEnv.content;
             DEBUG_CONFIG.enabled = metaEnv.content !== 'production';
-        } else {
+        }
+        else {
             // Default: production mode (безопасно)
             DEBUG_CONFIG.enabled = false;
             DEBUG_CONFIG.env = 'production';
         }
-
         // Информируем о режиме (только если debug включен)
         if (DEBUG_CONFIG.enabled) {
-            console.log(
-                `%c${DEBUG_CONFIG.prefix} Debug mode ENABLED %c(env: ${DEBUG_CONFIG.env})`,
-                'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;',
-                'color: #666; font-style: italic;'
-            );
+            console.log(`%c${DEBUG_CONFIG.prefix} Debug mode ENABLED %c(env: ${DEBUG_CONFIG.env})`, 'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;', 'color: #666; font-style: italic;');
         }
     }
-
     /**
      * Главная функция логирования
-     * @param {...*} args - Аргументы для console.log
+     * @param args - Аргументы для console.log
      */
     function debugLog(...args) {
         if (DEBUG_CONFIG.enabled) {
             console.log(DEBUG_CONFIG.prefix, ...args);
         }
     }
-
     /**
      * Предупреждение (только в dev)
-     * @param {...*} args - Аргументы для console.warn
+     * @param args - Аргументы для console.warn
      */
-    debugLog.warn = function(...args) {
+    debugLog.warn = function (...args) {
         if (DEBUG_CONFIG.enabled) {
             console.warn(DEBUG_CONFIG.prefix, ...args);
         }
     };
-
     /**
      * Ошибка (ВСЕГДА логируется, даже в production)
-     * @param {...*} args - Аргументы для console.error
+     * @param args - Аргументы для console.error
      */
-    debugLog.error = function(...args) {
+    debugLog.error = function (...args) {
         console.error(DEBUG_CONFIG.prefix, ...args);
     };
-
     /**
      * Информационное сообщение (только в dev)
-     * @param {...*} args - Аргументы для console.info
+     * @param args - Аргументы для console.info
      */
-    debugLog.info = function(...args) {
+    debugLog.info = function (...args) {
         if (DEBUG_CONFIG.enabled) {
             console.info(DEBUG_CONFIG.prefix, ...args);
         }
     };
-
     /**
      * Таблица (только в dev)
-     * @param {...*} args - Аргументы для console.table
+     * @param args - Аргументы для console.table
      */
-    debugLog.table = function(...args) {
+    debugLog.table = function (...args) {
         if (DEBUG_CONFIG.enabled) {
             console.table(...args);
         }
     };
-
     /**
      * Группа (только в dev)
-     * @param {string} label - Название группы
+     * @param label - Название группы
      */
-    debugLog.group = function(label) {
+    debugLog.group = function (label) {
         if (DEBUG_CONFIG.enabled) {
             console.group(DEBUG_CONFIG.prefix, label);
         }
     };
-
     /**
      * Закрыть группу (только в dev)
      */
-    debugLog.groupEnd = function() {
+    debugLog.groupEnd = function () {
         if (DEBUG_CONFIG.enabled) {
             console.groupEnd();
         }
     };
-
     /**
      * Проверка: включен ли debug mode
-     * @returns {boolean}
      */
-    debugLog.isEnabled = function() {
+    debugLog.isEnabled = function () {
         return DEBUG_CONFIG.enabled;
     };
-
     /**
      * Получить текущее окружение
-     * @returns {string} - 'production', 'development', или 'unknown'
+     * @returns 'production', 'development', или 'unknown'
      */
-    debugLog.getEnv = function() {
+    debugLog.getEnv = function () {
         return DEBUG_CONFIG.env;
     };
-
     // Инициализация при загрузке DOM
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initDebugMode);
-    } else {
+    }
+    else {
         // DOM уже загружен
         initDebugMode();
     }
-
     // Экспорт в глобальную область видимости
     window.debugLog = debugLog;
-
 })(window);
+//# sourceMappingURL=debugLog.js.map
