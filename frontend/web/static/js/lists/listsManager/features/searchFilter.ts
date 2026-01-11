@@ -111,7 +111,7 @@ export function toggleHideCompleted(): void {
 /**
  * Update hide completed button state
  */
-function updateHideCompletedButton(): void {
+export function updateHideCompletedButton(): void {
   const state = getState();
   const btn = document.getElementById('toggle-hide-completed-btn');
   if (!btn) return;

@@ -11,6 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
+import { updateHideCompletedButton } from '../features/searchFilter';
 
 // ============================================================================
 // Type Definitions
@@ -155,24 +156,6 @@ export function updateFABVisibility(): void {
   }
 }
 
-/**
- * Update hide completed button state
- */
-function updateHideCompletedButton(): void {
-  const state = getState();
-  const btn = document.getElementById('toggle-hide-completed-btn');
-  if (!btn) return;
-
-  if (state.hideCompleted) {
-    btn.classList.remove('btn-outline');
-    btn.classList.add('btn-primary');
-    btn.textContent = '👁️ Показать все';
-  } else {
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-outline');
-    btn.textContent = '👁️ Скрыть выполненные';
-  }
-}
 
 // ============================================================================
 // View Switching
