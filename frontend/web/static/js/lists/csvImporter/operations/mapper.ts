@@ -110,7 +110,7 @@ export function validateMapping(): { isValid: boolean; missingFields: string[] }
 export function updateMappingValidationUI(): boolean {
   const validationDiv = document.getElementById('mapping-validation');
   if (!validationDiv) {
-    console.warn('[CSVImporter] Mapping validation div not found');
+    debugLog('[CSVImporter] Mapping validation div not found');
     return false;
   }
 

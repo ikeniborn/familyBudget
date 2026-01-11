@@ -174,9 +174,10 @@ export async function revalidateWithOptions(): Promise<ValidationResult> {
 
     return result;
 
-  } catch (error: any) {
-    console.error('[CSVImporter] Error revalidating:', error);
-    showToast(`Ошибка пересчёта: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Error revalidating:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(`Ошибка пересчёта: ${message}`, 'error');
     throw error;
   }
 }

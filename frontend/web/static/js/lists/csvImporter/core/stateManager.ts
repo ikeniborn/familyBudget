@@ -9,7 +9,13 @@
  */
 
 import { getState, updateState, resetState } from './ImportState';
-import type { ImportOptions, PreviewPagination, PreviewFilters, DetectionResult, ValidationResult } from './ImportState';
+import type { ImportOptions, PreviewPagination, PreviewFilters, DetectionResult, ValidationResult, ValidationRow } from './ImportState';
+
+// ============================================================================
+// Type Declarations
+// ============================================================================
+
+declare const debugLog: (...args: any[]) => void;
 
 // ============================================================================
 // Initialization
@@ -74,7 +80,7 @@ export function getCurrentStep(): number {
  */
 export function setCurrentStep(step: number): void {
   if (step < 1 || step > getState().totalSteps) {
-    console.warn(`[CSVImporter] Invalid step: ${step}`);
+    debugLog(`[CSVImporter] Invalid step: ${step}`);
     return;
   }
 
@@ -323,14 +329,14 @@ export function clearPreviewFilters(): void {
  *
  * @param rows - All preview rows (for client-side filtering)
  */
-export function setAllPreviewRows(rows: any[]): void {
+export function setAllPreviewRows(rows: ValidationRow[]): void {
   updateState({ allPreviewRows: rows });
 }
 
 /**
  * Get all preview rows
  */
-export function getAllPreviewRows(): any[] {
+export function getAllPreviewRows(): ValidationRow[] {
   return getState().allPreviewRows;
 }
 
@@ -396,14 +402,14 @@ export function getOnBackToStep1(): (() => void) | null {
  *
  * @param wrapper - WorkerWrapper instance
  */
-export function setWorkerWrapper(wrapper: any): void {
+export function setWorkerWrapper(wrapper: { execute(payload: any): Promise<any> } | null): void {
   updateState({ workerWrapper: wrapper });
 }
 
 /**
  * Get worker wrapper instance
  */
-export function getWorkerWrapper(): any {
+export function getWorkerWrapper(): { execute(payload: any): Promise<any> } | null {
   return getState().workerWrapper;
 }
 

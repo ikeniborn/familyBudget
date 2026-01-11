@@ -251,8 +251,9 @@ export async function executeImport(currentListId: number | null, callbacks: Imp
       handleImportError(result);
     }
 
-  } catch (error: any) {
-    console.error('[CSVImporter] Error executing import:', error);
-    showToast(`Ошибка импорта: ${error.message}`, 'error');
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Error executing import:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    showToast(`Ошибка импорта: ${message}`, 'error');
   }
 }

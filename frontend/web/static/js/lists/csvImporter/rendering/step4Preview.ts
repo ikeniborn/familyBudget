@@ -64,9 +64,10 @@ export async function renderStep4(): Promise<void> {
     // Render preview with validation results
     renderPreviewResults();
 
-  } catch (error: any) {
-    console.error('[CSVImporter] Error in preview:', error);
-    renderPreviewError(error.message);
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Error in preview:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    renderPreviewError(message);
   }
 
   debugLog('[CSVImporter] Rendered step 4');

@@ -13,8 +13,16 @@ import { setFileData, getWorkerWrapper, setWorkerWrapper } from '../core/stateMa
 // Type Declarations
 // ============================================================================
 
+interface IWorkerWrapper {
+  execute(payload: any): Promise<any>;
+}
+
+interface IWorkerWrapperConstructor {
+  new (scriptPath: string, options: any): IWorkerWrapper;
+}
+
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
-declare const WorkerWrapper: any;
+declare const WorkerWrapper: IWorkerWrapperConstructor;
 declare const debugLog: (...args: any[]) => void;
 
 // ============================================================================
@@ -48,8 +56,8 @@ export function initializeWorker(): void {
 
     setWorkerWrapper(workerWrapper);
     debugLog('[CSVImporter] Worker initialized successfully');
-  } catch (error: any) {
-    console.warn('[CSVImporter] Failed to initialize worker:', error);
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Failed to initialize worker:', error);
     setWorkerWrapper(null);
   }
 }
@@ -105,8 +113,8 @@ export async function encodeBase64(content: string): Promise<string> {
         }
 
         return result;
-      } catch (error: any) {
-        console.warn('[CSVImporter] Worker Base64 encoding failed, using synchronous:', error);
+      } catch (error: unknown) {
+        debugLog('[CSVImporter] Worker Base64 encoding failed, using synchronous:', error);
         // Fall through to synchronous
       }
     }
@@ -193,8 +201,8 @@ export async function handleFileSelect(
     // Call success callback (analyzeFile + navigate to step 2)
     await onSuccess(file, rawContent);
 
-  } catch (error: any) {
-    console.error('[CSVImporter] Error reading file:', error);
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Error reading file:', error);
     showToast('Ошибка чтения файла', 'error');
     throw error;
   }

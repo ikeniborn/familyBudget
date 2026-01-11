@@ -133,8 +133,8 @@ export async function detectFormat(): Promise<DetectionResult> {
 
     return result;
 
-  } catch (error: any) {
-    console.error('[CSVImporter] Server detection failed, using client-side fallback:', error);
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Server detection failed, using client-side fallback:', error);
 
     // Fallback to client-side detection
     const result = detectFormatClientSide(content);
@@ -155,8 +155,8 @@ export async function detectFormat(): Promise<DetectionResult> {
 export async function analyzeFile(): Promise<DetectionResult> {
   try {
     return await detectFormat();
-  } catch (error: any) {
-    console.error('[CSVImporter] Error analyzing file:', error);
+  } catch (error: unknown) {
+    debugLog('[CSVImporter] Error analyzing file:', error);
     throw error;
   }
 }

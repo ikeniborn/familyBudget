@@ -19,13 +19,14 @@ import {
 } from '../core/stateManager';
 import { escapeHtml, pluralize } from '../utils/formatting';
 import { getFieldLabel, getRowValidationClass, getStatusBadge } from '../utils/statusHelpers';
+import type { ValidationRow } from '../core/ImportState';
 
 // ============================================================================
 // Type Declarations
 // ============================================================================
 
 interface FilteredPaginatedResult {
-  filteredRows: any[];
+  filteredRows: ValidationRow[];
   totalFiltered: number;
   startIndex: number;
   endIndex: number;
@@ -47,7 +48,7 @@ export function getUniqueFilterValues(field: string): string[] {
   const allRows = getAllPreviewRows();
 
   for (const row of allRows) {
-    const value = row.data[field];
+    const value = row.data?.[field];
     if (value && value.trim()) {
       values.add(value.trim());
     }
@@ -70,7 +71,7 @@ export function getFilteredPaginatedRows(): FilteredPaginatedResult {
   let filteredRows = allRows.filter(row => {
     // Store filter (exact match from dropdown)
     if (filters.store) {
-      const storeValue = row.data.store || '';
+      const storeValue = row.data?.store || '';
       if (storeValue !== filters.store) {
         return false;
       }
@@ -78,7 +79,7 @@ export function getFilteredPaginatedRows(): FilteredPaginatedResult {
 
     // Group filter (exact match from dropdown)
     if (filters.group) {
-      const groupValue = row.data.product_group || '';
+      const groupValue = row.data?.product_group || '';
       if (groupValue !== filters.group) {
         return false;
       }
@@ -86,7 +87,7 @@ export function getFilteredPaginatedRows(): FilteredPaginatedResult {
 
     // Product filter (substring search, case-insensitive)
     if (filters.product) {
-      const productValue = (row.data.product_name || '').toLowerCase();
+      const productValue = (row.data?.product_name || '').toLowerCase();
       const searchTerm = filters.product.toLowerCase();
       if (!productValue.includes(searchTerm)) {
         return false;
@@ -222,12 +223,12 @@ export function renderPreviewTableHTML(): string {
 
   // Build table rows
   const tableRows = filteredRows.map(row => {
-    const rowClass = getRowValidationClass(row.validation_status);
-    const statusBadge = getStatusBadge(row.validation_status);
+    const rowClass = getRowValidationClass(row.validation_status ?? "");
+    const statusBadge = getStatusBadge(row.validation_status ?? "");
 
     // Build data cells
     const dataCells = mappedFields.map(({ field }) => {
-      const value = row.data[field] || '';
+      const value = row.data?.[field] || '';
       const hasError = row.errors?.some((e: any) => e.field === field);
       const hasWarning = row.warnings?.some((w: any) => w.field === field);
       const cellClass = hasError ? 'bg-error/20 text-error' : (hasWarning ? 'bg-warning/20 text-warning' : '');
@@ -243,7 +244,7 @@ export function renderPreviewTableHTML(): string {
 
     return `
       <tr class="${rowClass}" ${issueTooltip}>
-        <td class="text-center sticky left-0 bg-base-100 z-10">${row.row_index + 1}</td>
+        <td class="text-center sticky left-0 bg-base-100 z-10">${row.rowIndex + 1}</td>
         <td class="text-center">${statusBadge}</td>
         ${dataCells}
       </tr>
