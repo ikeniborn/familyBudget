@@ -449,6 +449,18 @@ export async function renderDetailView(listId: number): Promise<void> {
   const breadcrumbElement = document.getElementById('breadcrumb-list-name');
   if (breadcrumbElement) breadcrumbElement.textContent = list.name;
 
+  // CRITICAL: Set correct view BEFORE showing containers (prevents flicker)
+  // On mobile (<640px): force hierarchy, on desktop: restore preference
+  const isMobile = window.innerWidth < 640;
+  if (isMobile) {
+    updateState({ currentView: 'hierarchy' });
+    debugLog('[ListsManager] Pre-set hierarchy view for mobile (prevents flicker)');
+  } else {
+    const savedPreference = localStorage.getItem('lists_view_preference');
+    updateState({ currentView: savedPreference === 'hierarchy' ? 'hierarchy' : 'table' });
+    debugLog('[ListsManager] Pre-set desktop view from preference:', savedPreference || 'table');
+  }
+
   // Show detail view, hide landing view
   const landingView = document.getElementById('landing-view');
   const detailView = document.getElementById('detail-view');
@@ -465,8 +477,8 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // Initialize responsive view (mobile < 640px defaults to hierarchy)
-  // This also restores saved preference and renders content
+  // Apply view UI changes (button styles, show/hide containers)
+  // This syncs DOM with pre-set currentView state (no re-render, no flicker)
   initializeResponsiveView();
 
   // Update FAB visibility AFTER switchView to ensure it's visible in all views

@@ -186,6 +186,10 @@ class SwipeHandler {
                 action: 'snap_back'
             });
         }
+
+        // CRITICAL: Reset hasMoved after swipe processing to allow subsequent clicks (v7.0.1)
+        // Without this, hasMoved stays true and blocks all future clicks until next touchstart
+        this.hasMoved = false;
     }
 
     /**
