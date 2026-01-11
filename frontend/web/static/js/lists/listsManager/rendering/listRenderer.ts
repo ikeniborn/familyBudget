@@ -262,6 +262,63 @@ export function initializeResponsiveView(): void {
   }
 }
 
+/**
+ * Sync view UI with current state WITHOUT rendering
+ * Used after items are loaded to avoid double-render
+ */
+function syncViewUI(): void {
+  const state = getState();
+  const viewName = state.currentView;
+
+  // Get DOM elements
+  const tableViewContainer = document.getElementById('table-view');
+  const hierarchyViewContainer = document.getElementById('hierarchy-view');
+  const tableBtn = document.getElementById('table-view-btn');
+  const hierarchyBtn = document.getElementById('hierarchy-view-btn');
+  const tableControls = document.getElementById('table-controls');
+  const hierarchyControls = document.getElementById('hierarchy-controls');
+
+  if (viewName === 'hierarchy') {
+    // Show hierarchy, hide table
+    if (tableViewContainer) tableViewContainer.classList.add('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.remove('hidden');
+
+    // Update button styles
+    if (tableBtn) {
+      tableBtn.classList.remove('btn-primary');
+      tableBtn.classList.add('btn-outline');
+    }
+    if (hierarchyBtn) {
+      hierarchyBtn.classList.remove('btn-outline');
+      hierarchyBtn.classList.add('btn-primary');
+    }
+
+    // Show hierarchy controls, hide table controls
+    if (tableControls) tableControls.classList.add('hidden');
+    if (hierarchyControls) hierarchyControls.classList.remove('hidden');
+  } else {
+    // Show table, hide hierarchy
+    if (tableViewContainer) tableViewContainer.classList.remove('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
+
+    // Update button styles
+    if (tableBtn) {
+      tableBtn.classList.remove('btn-outline');
+      tableBtn.classList.add('btn-primary');
+    }
+    if (hierarchyBtn) {
+      hierarchyBtn.classList.remove('btn-primary');
+      hierarchyBtn.classList.add('btn-outline');
+    }
+
+    // Show table controls, hide hierarchy controls
+    if (tableControls) tableControls.classList.remove('hidden');
+    if (hierarchyControls) hierarchyControls.classList.add('hidden');
+  }
+
+  debugLog('[ListsManager] Synced view UI:', viewName);
+}
+
 // ============================================================================
 // Landing View
 // ============================================================================
@@ -460,11 +517,15 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // Apply view UI changes (button styles, show/hide containers)
-  // This syncs DOM with pre-set currentView state (no re-render, no flicker)
-  initializeResponsiveView();
+  // CRITICAL: Sync view UI WITHOUT rendering (prevents table render on mobile)
+  // State already pre-set above, just need to sync DOM classes and buttons
+  syncViewUI();
 
-  // Update FAB visibility AFTER switchView to ensure it's visible in all views
+  // Render ONLY the current view (hierarchy on mobile, table/hierarchy on desktop)
+  // This prevents rendering table on mobile entirely
+  renderCurrentView();
+
+  // Update FAB visibility after rendering
   updateFABVisibility();
 
   // Initialize Choices.js for store and product group selectors in modal

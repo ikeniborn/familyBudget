@@ -19,14 +19,13 @@
 // Phase 2.2: listsManager (foundation complete)
 import * as listsManager from './lists/listsManager/index';
 
-// Phase 2.3: budgetWSClient (foundation complete)
-import * as budgetWSClient from './budget/budgetWSClient/index';
-
 // Phase 2.4: csvImporter (foundation complete)
 import * as csvImporter from './lists/csvImporter/index';
 
-// Phase 2.4: offlineManager (foundation complete)
-import * as offlineManager from './offline/offlineManager/index';
+// Note: budgetWSClient and offlineManager migrations ABANDONED (v7.x.x)
+// - budgetWSClient: Too complex, keeping monolithic .js (production-stable)
+// - offlineManager: Too complex, keeping monolithic .js (production-stable)
+// These modules are built separately via build-all.js, not part of modular index.ts
 
 // ============================================================================
 // Shared Utilities
@@ -42,6 +41,9 @@ import * as offlineManager from './offline/offlineManager/index';
 // TODO: Import Logger when available
 // import Logger from './utils/logger';
 
+// Temporary: Use global debugLog (loaded via debugLog.min.js)
+declare const debugLog: (...args: any[]) => void;
+
 // ============================================================================
 // Application Initialization
 // ============================================================================
@@ -52,39 +54,23 @@ import * as offlineManager from './offline/offlineManager/index';
  * Called automatically on DOM ready.
  */
 async function initializeApp(): Promise<void> {
-  console.log('[APP] Initializing Family Budget application...');
+  debugLog('[APP] Initializing Family Budget application...');
 
   try {
     // Phase 2.2: Initialize lists manager (foundation)
-    console.log('[APP] listsManager module loaded');
-    console.log('[APP] listsManager state functions available:', {
+    debugLog('[APP] listsManager module loaded');
+    debugLog('[APP] listsManager state functions available:', {
       getState: typeof listsManager.getState,
       updateState: typeof listsManager.updateState,
       resetState: typeof listsManager.resetState
     });
 
-    // Phase 2.3: Initialize budgetWSClient (foundation)
-    console.log('[APP] budgetWSClient module loaded');
-    console.log('[APP] budgetWSClient state functions available:', {
-      getState: typeof budgetWSClient.getState,
-      updateState: typeof budgetWSClient.updateState,
-      resetState: typeof budgetWSClient.resetState
-    });
-
     // Phase 2.4: Initialize csvImporter (foundation)
-    console.log('[APP] csvImporter module loaded');
-    console.log('[APP] csvImporter state functions available:', {
+    debugLog('[APP] csvImporter module loaded');
+    debugLog('[APP] csvImporter state functions available:', {
       getState: typeof csvImporter.getState,
       updateState: typeof csvImporter.updateState,
       resetState: typeof csvImporter.resetState
-    });
-
-    // Phase 2.4: Initialize offlineManager (foundation)
-    console.log('[APP] offlineManager module loaded');
-    console.log('[APP] offlineManager state functions available:', {
-      getState: typeof offlineManager.getState,
-      updateState: typeof offlineManager.updateState,
-      resetState: typeof offlineManager.resetState
     });
 
     // TODO Phase 2.3+: Initialize WebSocket connection
@@ -101,11 +87,12 @@ async function initializeApp(): Promise<void> {
     // TODO Phase 2.6: Remove after full migration (backward compatibility)
     // For now, expose on window for legacy code
     (window as any).listsManager = listsManager;
-    (window as any).budgetWSClient = budgetWSClient;
     (window as any).csvImporter = csvImporter;
-    (window as any).offlineManager = offlineManager;
 
-    console.log('[APP] Application initialized successfully (Phase 2.1-2.4 complete)');
+    // Note: budgetWSClient and offlineManager NOT exposed here
+    // They are monolithic .js files loaded separately via build-all.js
+
+    debugLog('[APP] Application initialized successfully (Phase 2.1-2.4 complete)');
   } catch (error) {
     console.error('[APP] Application initialization failed', error);
     throw error;
@@ -146,7 +133,5 @@ if (document.readyState === 'loading') {
 
 export {
   listsManager,
-  budgetWSClient,
-  csvImporter,
-  offlineManager
+  csvImporter
 };
