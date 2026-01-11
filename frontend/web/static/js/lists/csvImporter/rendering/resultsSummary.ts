@@ -127,12 +127,12 @@ export function renderPreviewResults(): void {
     : `Обнаружены проблемы: ${result.invalidCount} строк с ошибками`;
 
   // Build errors list (collect all errors from invalid rows)
-  const allErrors: Array<{rowIndex: number; message: string}> = [];
+  const allErrors: Array<{rowIndex: number; field: string; message: string}> = [];
   result.invalid.forEach(row => {
     if (row.errors && row.errors.length > 0) {
       // Errors are objects with field and message properties
       row.errors.forEach(err => {
-        allErrors.push({ rowIndex: row.rowIndex, message: err.message });
+        allErrors.push({ rowIndex: row.rowIndex, field: err.field, message: err.message });
       });
     }
   });
@@ -146,7 +146,7 @@ export function renderPreviewResults(): void {
       <div class="collapse-content">
         <ul class="list-disc list-inside text-sm space-y-1">
           ${allErrors.slice(0, 10).map(e => `
-            <li>Строка ${e.rowIndex + 1}: ${escapeHtml(e.message)}</li>
+            <li>Строка ${e.rowIndex + 1}: <strong>${escapeHtml(e.field)}</strong> - ${escapeHtml(e.message)}</li>
           `).join('')}
           ${allErrors.length > 10 ? `<li class="text-base-content/70">... и еще ${allErrors.length - 10} ошибок</li>` : ''}
         </ul>
@@ -155,12 +155,12 @@ export function renderPreviewResults(): void {
   ` : '';
 
   // Build warnings list (collect all warnings from all rows)
-  const allWarnings: Array<{rowIndex: number; message: string}> = [];
+  const allWarnings: Array<{rowIndex: number; field: string; message: string}> = [];
   allRows.forEach(row => {
     if (row.warnings && row.warnings.length > 0) {
       // Warnings are objects with field and message properties
       row.warnings.forEach(warn => {
-        allWarnings.push({ rowIndex: row.rowIndex, message: warn.message });
+        allWarnings.push({ rowIndex: row.rowIndex, field: warn.field, message: warn.message });
       });
     }
   });
@@ -174,7 +174,7 @@ export function renderPreviewResults(): void {
       <div class="collapse-content">
         <ul class="list-disc list-inside text-sm space-y-1">
           ${allWarnings.slice(0, 10).map(w => `
-            <li>Строка ${w.rowIndex + 1}: ${escapeHtml(w.message)}</li>
+            <li>Строка ${w.rowIndex + 1}: <strong>${escapeHtml(w.field)}</strong> - ${escapeHtml(w.message)}</li>
           `).join('')}
           ${allWarnings.length > 10 ? `<li class="text-base-content/70">... и еще ${allWarnings.length - 10} предупреждений</li>` : ''}
         </ul>
