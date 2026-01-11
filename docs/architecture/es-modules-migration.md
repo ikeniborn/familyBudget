@@ -348,24 +348,74 @@ npm install
 npm run bundle:legacy
 ```
 
+## Migration Status (Updated 2026-01-11)
+
+### Completed Migrations
+
+| Module | Status | Format | Notes |
+|--------|--------|--------|-------|
+| **listsManager** | ✅ 100% Complete | Modular TS | Fully modular (Phase 2.1-3.5) |
+| **csvImporter** | ✅ 100% Complete | Modular TS | TypeScript migration successful |
+| **webapp/storage** | ✅ 100% Complete | Modular TS | TelegramStorage module |
+
+### Abandoned Migrations
+
+| Module | Status | Format | Reason |
+|--------|--------|--------|--------|
+| **budgetWSClient** | ❌ Migration Abandoned | Monolithic JS | Too complex (2,693 lines, deep WebSocket state management) |
+| **offlineManager** | ❌ Migration Abandoned | Monolithic JS | Too complex (1,436 lines, intricate sync logic) |
+
+**Decision:** Keep monolithic .js files for budgetWSClient and offlineManager. These modules are:
+- Production-stable
+- Too intertwined for safe modularization
+- High risk / low reward for migration
+
+**Files Removed (v7.x.x):**
+- `budgetWSClient.ts` + modular structure (abandoned migration)
+- `offlineManager.ts` + modular structure (abandoned migration)
+- `csvImporter.js` (superseded by TypeScript version)
+- `listsManager.js`, `listsManager.min.js`, `listsManager.ts.deprecated` (legacy files)
+
 ## References
 
 - **Plan:** `.claude-isolated/plans/magical-twirling-finch.md`
-- **Rollup Config:** `rollup.config.mjs`
+- **Rollup Config:** `rollup.config.mjs` (deprecated, replaced by Vite)
+- **Vite Config:** `vite.config.ts`, `vite.config.single.ts`
+- **Build System:** `build-all.js`
 - **TypeScript Config:** `tsconfig.json`
 - **Package Scripts:** `package.json`
 - **Module Pattern:** All `*/index.ts` files
 
 ## Lessons Learned
 
-1. **Zero Dependencies Rule:** Critical for preventing circular dependencies
-2. **Barrel Exports:** Simplify imports and provide clear public API
+### Successful Migrations
+1. **Zero Dependencies Rule:** Critical for preventing circular dependencies (core/ directories)
+2. **Barrel Exports:** Simplify imports and provide clear public API (index.ts pattern)
 3. **Small Commits:** Phase-by-phase approach reduces risk
 4. **Type Safety:** TypeScript compilation catches issues early
 5. **Bundle Analysis:** Regular size checks prevent bloat
 
+### Abandoned Migrations (New Insights from v7.x.x)
+6. **Know When to Stop:** Not all code benefits from modularization
+   - listsManager: Incremental modular refactor (Phase 2-3, ~5 weeks) ✅ Success
+   - csvImporter: Direct TypeScript port (~1 week) ✅ Success
+   - budgetWSClient: Too complex (WebSocket state management too intertwined) ❌ Abandoned
+   - offlineManager: Too complex (20,000+ lines when expanded, deep dependencies) ❌ Abandoned
+
+7. **Focus on Incremental Wins:** Prioritize modules with clear boundaries
+   - High-value targets: Large, well-structured monoliths (listsManager)
+   - Low-value targets: Deep state management, intricate sync logic (budgetWSClient, offlineManager)
+
+8. **Pre-commit Hooks:** Enforce code quality standards
+   - Prevented console.* violations after initial migration
+   - Caught issues early in Priority 1 hotfix
+
+9. **Comprehensive Review:** Post-migration validation is critical
+   - Priority 1 & 2 review identified 6 console.* violations
+   - Step-by-step verification prevented runtime issues
+
 ---
 
-**Version:** 7.0.0
-**Date:** 2026-01-05
+**Version:** 7.x.x (updated post-Priority 1 & 2 fixes)
+**Date:** 2026-01-11 (original: 2026-01-05)
 **Author:** Claude Sonnet 4.5 (via Claude Code)
