@@ -39,7 +39,10 @@ import {
   handleSearch,
 
   // FAB
-  toggleListsFAB
+  toggleListsFAB,
+
+  // Hierarchy integration (v7.0.1)
+  initializeHierarchyView
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -53,6 +56,7 @@ import {
 const windowExports = {
   // Initialization
   initializeListsManager,
+  initializeHierarchyView,  // v7.0.1 - HierarchyView integration
   loadShoppingLists,
 
   // Navigation

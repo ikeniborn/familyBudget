@@ -643,6 +643,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Initialize Lists Manager (modular structure v7.0+)
         await window.initializeListsManager();
 
+        // Initialize HierarchyView integration (v7.0.1)
+        window.initializeHierarchyView();
+
         // Load shopping lists data from API
         await window.loadShoppingLists();
 

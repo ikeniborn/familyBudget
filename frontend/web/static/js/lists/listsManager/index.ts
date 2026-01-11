@@ -74,6 +74,11 @@ export {
   initializeResponsiveView
 } from './rendering/listRenderer';
 
+export {
+  initializeHierarchyView,
+  updateHierarchyToggleButton
+} from './rendering/hierarchyIntegration';
+
 // ============================================================================
 // Features (Phase 3.3: Complete)
 // ============================================================================
