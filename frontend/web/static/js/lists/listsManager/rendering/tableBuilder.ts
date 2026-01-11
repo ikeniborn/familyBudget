@@ -14,6 +14,7 @@ import { getState } from '../core/ListsState';
 // Type Definitions
 // ============================================================================
 
+declare const debugLog: (...args: any[]) => void;
 declare const openAddItemModal: () => void;
 declare const openEditItemModal: (itemId: number) => void;
 declare const toggleHideCompleted: () => void;
@@ -43,8 +44,6 @@ function formatQuantity(quantity: number | null, unit: string | null): string {
 
   // Always round to nearest integer
   const rounded = Math.round(quantity);
-
-  console.log(`[LISTS_TABLE] Formatting quantity: raw=${quantity}, rounded=${rounded}, unit=${unit}`);
 
   return unit ? `${rounded} ${unit}` : rounded.toString();
 }
@@ -294,10 +293,23 @@ function updateSelectionUI(): void {
  */
 export function renderCurrentView(): void {
   const state = getState();
+  const isMobile = window.innerWidth < 640;
 
-  if (state.currentView === 'hierarchy' && state.hierarchyView) {
+  // CRITICAL: On mobile, NEVER render table (even if hierarchyView not ready yet)
+  // Wait for hierarchyView initialization instead of falling back to table
+  if (isMobile && state.currentView === 'hierarchy') {
+    if (state.hierarchyView) {
+      state.hierarchyView.render();
+    } else {
+      // HierarchyView not ready yet - wait for initializeHierarchyView()
+      debugLog('[ListsManager] Mobile: waiting for hierarchyView initialization (skipping table render)');
+      return;
+    }
+  } else if (state.currentView === 'hierarchy' && state.hierarchyView) {
+    // Desktop hierarchy view
     state.hierarchyView.render();
   } else {
+    // Desktop table view (mobile never reaches here)
     renderItemsTable();
   }
 }

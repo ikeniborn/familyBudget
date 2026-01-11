@@ -133,4 +133,14 @@ export function initializeHierarchyView(): void {
   window.hierarchyView = hierarchyView;
 
   debugLog('[HIERARCHY] ✅ HierarchyView initialized with listsManager proxy');
+
+  // CRITICAL: On mobile, render hierarchy view immediately after initialization
+  // This prevents table view from showing (renderCurrentView was waiting for hierarchyView)
+  const state = getState();
+  const isMobile = window.innerWidth < 640;
+
+  if (isMobile && state.currentView === 'hierarchy' && state.currentListId !== null) {
+    debugLog('[HIERARCHY] Mobile detected - rendering hierarchy view immediately');
+    hierarchyView.render();
+  }
 }

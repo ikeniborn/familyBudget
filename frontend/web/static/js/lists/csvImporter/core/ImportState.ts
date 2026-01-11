@@ -27,8 +27,8 @@ export interface ValidationRow {
   rowIndex: number;
   original: Record<string, any>;
   mapped: Record<string, any>;
-  errors: string[];
-  warnings: string[];
+  errors: Array<{ field: string; message: string; error_type?: string }>;
+  warnings: Array<{ field: string; message: string }>;
   isValid: boolean;
 }
 
