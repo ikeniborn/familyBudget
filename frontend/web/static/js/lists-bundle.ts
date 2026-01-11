@@ -44,6 +44,9 @@ import {
   // Hierarchy integration (v7.0.1)
   initializeHierarchyView,
 
+  // Import integration (v7.0.1)
+  initializeImportManager,
+
   // Item operations (v7.0.1 - for onclick handlers)
   toggleItemCompleted,
 
@@ -65,6 +68,7 @@ const windowExports = {
   // Initialization
   initializeListsManager,
   initializeHierarchyView,  // v7.0.1 - HierarchyView integration
+  initializeImportManager,  // v7.0.1 - ImportManager integration
   loadShoppingLists,
 
   // Navigation

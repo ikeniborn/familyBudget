@@ -138,3 +138,5 @@ export {
   handleItemDeleted,
   handleItemCompletedToggled
 } from './integration/wsEventHandlers';
+
+export { initializeImportManager } from './integration/importIntegration';
