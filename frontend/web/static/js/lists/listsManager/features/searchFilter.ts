@@ -63,8 +63,8 @@ export function clearSearch(): void {
  * Toggle search field visibility
  */
 export function toggleSearchField(): void {
-  const searchContainer = document.getElementById('search-container');
-  const searchInput = document.getElementById('lists-search-input') as HTMLInputElement;
+  const searchContainer = document.getElementById('search-field-container');
+  const searchInput = document.getElementById('items-search') as HTMLInputElement;
 
   if (!searchContainer) return;
 
