@@ -43,6 +43,7 @@ declare global {
     // Backward compatibility object (created by lists-bundle.ts)
     listsManager?: {
       showDetailView(listId: number): Promise<void>;
+      toggleItemCompleted(itemId: number, completed: boolean): Promise<void>;
     };
   }
 }

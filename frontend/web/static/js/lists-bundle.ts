@@ -42,7 +42,10 @@ import {
   toggleListsFAB,
 
   // Hierarchy integration (v7.0.1)
-  initializeHierarchyView
+  initializeHierarchyView,
+
+  // Item operations (v7.0.1 - for onclick handlers)
+  toggleItemCompleted
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -182,10 +185,11 @@ try {
     });
 
     // Create window.listsManager object for backward compatibility
-    // (used in onclick handlers: window.listsManager.showDetailView)
+    // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
     Object.defineProperty(window, 'listsManager', {
       value: {
-        showDetailView: renderDetailView
+        showDetailView: renderDetailView,
+        toggleItemCompleted
       },
       writable: false,
       configurable: false,
