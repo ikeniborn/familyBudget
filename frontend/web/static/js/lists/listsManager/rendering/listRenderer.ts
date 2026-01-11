@@ -167,6 +167,15 @@ export function updateFABVisibility(): void {
  * @param savePreference - Whether to save preference to localStorage (default: true)
  */
 export function switchView(viewName: 'table' | 'hierarchy', savePreference: boolean = true): void {
+  const isMobile = window.innerWidth < 640;
+
+  // CRITICAL: On mobile, ALWAYS use hierarchy (ignore table switch requests)
+  if (isMobile && viewName === 'table') {
+    debugLog('[ListsManager] Mobile detected - ignoring table view switch, forcing hierarchy');
+    viewName = 'hierarchy';
+    savePreference = false; // Don't save this forced switch
+  }
+
   // Save preference to localStorage (only if savePreference=true)
   if (savePreference) {
     try {
@@ -209,7 +218,8 @@ export function switchView(viewName: 'table' | 'hierarchy', savePreference: bool
     if (tableControls) tableControls.classList.add('hidden');
     if (hierarchyControls) hierarchyControls.classList.remove('hidden');
   } else {
-    // Show table, hide hierarchy
+    // Desktop only: show table, hide hierarchy
+    // Mobile devices never reach this branch (forced to hierarchy above)
     if (tableViewContainer) tableViewContainer.classList.remove('hidden');
     if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
 
@@ -269,6 +279,7 @@ export function initializeResponsiveView(): void {
 function syncViewUI(): void {
   const state = getState();
   const viewName = state.currentView;
+  const isMobile = window.innerWidth < 640;
 
   // Get DOM elements
   const tableViewContainer = document.getElementById('table-view');
@@ -278,12 +289,14 @@ function syncViewUI(): void {
   const tableControls = document.getElementById('table-controls');
   const hierarchyControls = document.getElementById('hierarchy-controls');
 
-  if (viewName === 'hierarchy') {
+  // CRITICAL: On mobile OR when hierarchy view is selected - show hierarchy, hide table
+  // Mobile ALWAYS shows hierarchy (table-view kept hidden via CSS + JS)
+  if (viewName === 'hierarchy' || isMobile) {
     // Show hierarchy, hide table
     if (tableViewContainer) tableViewContainer.classList.add('hidden');
     if (hierarchyViewContainer) hierarchyViewContainer.classList.remove('hidden');
 
-    // Update button styles
+    // Update button styles (only visible on desktop)
     if (tableBtn) {
       tableBtn.classList.remove('btn-primary');
       tableBtn.classList.add('btn-outline');
@@ -296,8 +309,13 @@ function syncViewUI(): void {
     // Show hierarchy controls, hide table controls
     if (tableControls) tableControls.classList.add('hidden');
     if (hierarchyControls) hierarchyControls.classList.remove('hidden');
+
+    if (isMobile) {
+      debugLog('[ListsManager] Mobile detected - forcing hierarchy view (table permanently hidden)');
+    }
   } else {
-    // Show table, hide hierarchy
+    // Desktop only: show table, hide hierarchy
+    // Mobile devices NEVER reach this branch (isMobile check above)
     if (tableViewContainer) tableViewContainer.classList.remove('hidden');
     if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
 
@@ -316,7 +334,7 @@ function syncViewUI(): void {
     if (hierarchyControls) hierarchyControls.classList.add('hidden');
   }
 
-  debugLog('[ListsManager] Synced view UI:', viewName);
+  debugLog('[ListsManager] Synced view UI:', { viewName, isMobile });
 }
 
 // ============================================================================
