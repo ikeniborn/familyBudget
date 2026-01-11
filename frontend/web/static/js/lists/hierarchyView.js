@@ -152,6 +152,9 @@ class SwipeHandler {
                 hasMoved: false,
                 action: 'tap_ignored'
             });
+            // CRITICAL: Reset hasMoved for taps too (v7.0.1)
+            // Without this, second tap won't trigger click event
+            this.hasMoved = false;
             return;
         }
 

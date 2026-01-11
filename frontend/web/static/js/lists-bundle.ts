@@ -45,7 +45,12 @@ import {
   initializeHierarchyView,
 
   // Item operations (v7.0.1 - for onclick handlers)
-  toggleItemCompleted
+  toggleItemCompleted,
+
+  // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
+  handleItemCreated,
+  handleItemUpdated,
+  handleItemDeleted
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -186,10 +191,15 @@ try {
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
+    // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI)
     Object.defineProperty(window, 'listsManager', {
       value: {
         showDetailView: renderDetailView,
-        toggleItemCompleted
+        toggleItemCompleted,
+        // WebSocket compatibility aliases (v7.0.1)
+        addItemToUI: handleItemCreated,
+        updateItemInUI: handleItemUpdated,
+        removeItemFromUI: handleItemDeleted
       },
       writable: false,
       configurable: false,

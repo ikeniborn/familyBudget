@@ -44,6 +44,10 @@ declare global {
     listsManager?: {
       showDetailView(listId: number): Promise<void>;
       toggleItemCompleted(itemId: number, completed: boolean): Promise<void>;
+      // WebSocket compatibility aliases (v7.0.1 - for budgetWSClient)
+      addItemToUI(item: any): void;
+      updateItemInUI(item: any): void;
+      removeItemFromUI(itemId: number, shoppingListId: number): void;
     };
   }
 }

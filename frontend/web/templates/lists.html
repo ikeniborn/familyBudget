@@ -223,7 +223,9 @@
         </div>
 
         <!-- Table View -->
-        <div id="table-view" class="view-mode">
+        <!-- CRITICAL: Hidden on mobile by default (max-[639px]:hidden) to prevent flicker -->
+        <!-- JavaScript will show correct view after initialization -->
+        <div id="table-view" class="view-mode max-[639px]:hidden">
             <!-- Table View (responsive with horizontal scroll on mobile) -->
             <div class="overflow-x-auto shadow-lg rounded-lg" id="desktop-table-container">
                 <table class="table table-zebra w-full">
@@ -256,7 +258,9 @@
         </div>
 
         <!-- Hierarchy View -->
-        <div id="hierarchy-view" class="view-mode hidden">
+        <!-- CRITICAL: Visible on mobile by default (min-[640px]:hidden) to prevent flicker -->
+        <!-- Hidden on desktop until user switches view (JavaScript controls) -->
+        <div id="hierarchy-view" class="view-mode min-[640px]:hidden">
             <div class="bg-base-100 shadow-lg rounded-lg p-4">
                 <div id="hierarchy-tree">
                     <!-- Hierarchy tree will be rendered here dynamically by hierarchyView.js -->
