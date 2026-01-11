@@ -789,8 +789,8 @@ npm run precompress     # Gzip pre-compression
 ```bash
 --sync-mode update      # Sync only changed files
 --cleanup-mode smart    # Clean old images (safe)
---patch                 # Fast patch (2-5 min, no rebuild)
---build                 # Force rebuild (10-15 min)
+--patch                 # Fast patch (2-5 min, version bump only)
+--force-build           # Force frontend rebuild (ignore checksums)
 --clean                 # DELETES ALL DATA!
 ```
 

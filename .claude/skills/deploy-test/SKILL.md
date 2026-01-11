@@ -70,11 +70,22 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
 - `--cleanup-mode smart` - умная очистка старых образов
 - `--patch` - быстрый патч-деплой (2-5 минут)
 
+**Опциональные параметры:**
+- `--force-build` - принудительная пересборка frontend (игнорирует checksums)
+  - Используется когда автоматическое определение изменений не сработало
+  - Или для тестирования без изменения файлов
+
 **Что происходит:**
 - Синхронизация кода в /opt/budget
+- Автоматическое определение необходимости пересборки frontend (checksums)
 - Пересборка Docker образов (если нужно)
 - Перезапуск контейнеров
 - Health checks
+
+**Пример с принудительной пересборкой:**
+```bash
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch --force-build"
+```
 
 ### Шаг 4: Анализ логов деплоя
 ```bash

@@ -43,6 +43,10 @@ Version Control:
   --version X.Y.Z                 Set explicit version (e.g., --version 6.0.0)
   --no-version                    Skip version bump (keep current version)
 
+Build Options:
+  --force-build                   Force frontend rebuild regardless of checksums
+                                  (useful when checksums detection fails or for testing)
+
 Docker Optimization:
   --restart-dockerd               Force Docker daemon restart at end of deployment
                                   (clears accumulated state, reduces CPU)
@@ -73,6 +77,7 @@ Examples:
   ./deploy.sh --cleanup-mode smart                      # Interactive sync + smart cleanup
   ./deploy.sh --sync-mode mirror --cleanup-mode smart   # Fully automated (recommended)
   ./deploy.sh --sync-mode update --cleanup-mode smart   # Update only + smart cleanup
+  ./deploy.sh --sync-mode update --cleanup-mode smart --force-build  # Force frontend rebuild
   ./deploy.sh --repo-dir ~/familyBudget                 # Specify repository path
   ./deploy.sh --reapply-migration b2232d851007          # Reapply specific migration
   AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh              # Auto-detect changed migrations (dev/staging only)

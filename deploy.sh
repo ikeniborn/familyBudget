@@ -135,6 +135,9 @@ AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect chang
 FORCE_DOCKERD_RESTART=false  # Force Docker daemon restart at end of deployment
 SKIP_DOCKERD_RESTART=false   # Skip automatic Docker daemon restart optimization
 
+# Frontend build options
+FORCE_FRONTEND_BUILD=false   # Force frontend rebuild regardless of checksums
+
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
 # false = PostgreSQL kept running (selective restart) - skip integrity checks
@@ -389,6 +392,10 @@ parse_args() {
                 ;;
             --no-restart-dockerd)
                 SKIP_DOCKERD_RESTART=true
+                shift
+                ;;
+            --force-build)
+                FORCE_FRONTEND_BUILD=true
                 shift
                 ;;
             *)
@@ -1201,7 +1208,10 @@ main() {
     # CRITICAL: Check BEFORE build to avoid unnecessary npm builds
     # Checks: .ts/.tsx files in frontend/, package.json, vite.config.ts, build-all.js
     if [[ "$build_allowed" == true ]]; then
-        if ! needs_frontend_rebuild "$SCRIPT_DIR"; then
+        if [[ "$FORCE_FRONTEND_BUILD" == true ]]; then
+            print_message info "Force frontend rebuild requested (--force-build flag)"
+            print_message info "Skipping checksum validation"
+        elif ! needs_frontend_rebuild "$SCRIPT_DIR"; then
             print_message info "No frontend source files changed since last build"
             print_message info "Skipping npm build (assets are up-to-date)"
             build_allowed=false
