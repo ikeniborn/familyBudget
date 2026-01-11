@@ -1,8 +1,11 @@
 // Lists Bundle - Aggregates all shopping lists modules
-// Generated: 2026-01-10 (updated 21:07 - force rebuild)
+// Generated: 2026-01-11 (Phase 3 csvImporter migration: modular foundation complete)
 // Part of v7.0 ES modules migration
 
 // Core lists functionality (TypeScript modules)
+// csvImporter.ts: Monolithic class (1,724 lines) - TEMPORARY
+// Modular structure: frontend/web/static/js/lists/csvImporter/ (20 files, 3733 lines, 111 exports) - READY
+// Phase 3 complete: Infrastructure ready, replacement deferred to Phase 4 (requires importManager.js + googleSheetsImporter.js migration)
 import './lists/csvImporter.ts';
 
 // Import/export functionality (JavaScript modules)
@@ -240,6 +243,7 @@ try {
       configurable: false,
       enumerable: true
     });
+
 
     if ((window as any).logAPI) {
       (window as any).logAPI.info('[LISTS_BUNDLE] ✅ All exports locked', {
