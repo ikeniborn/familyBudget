@@ -8,10 +8,9 @@
 <style>
     /* Fix iframe dimensions to prevent reflow and visual jump */
     .telegram-widget-container iframe {
-        /* [FIX] Allow iframe to auto-size for localized text (Russian "Войти как Илья" wider than English) */
-        width: auto !important;           /* Override Telegram's inline width */
-        height: auto !important;          /* Override Telegram's inline height */
-        max-width: 100% !important;       /* Don't overflow container */
+        /* [FIX] JavaScript sets natural size from HTML attributes (width/height attrs) */
+        /* No width/height CSS - JS handles sizing with setProperty(..., 'important') */
+        max-width: 100% !important;       /* Don't overflow container on small screens */
         display: block;
         margin: 0 !important;             /* Remove auto margins, parent flex handles centering */
     }
@@ -297,13 +296,21 @@
                 errorDiv.classList.add('hidden');
                 container.classList.add('ready'); // Show iframe with smooth transition
 
-                // [FIX] Force remove Telegram's inline width/height to allow CSS auto-sizing
+                // [FIX] Force iframe to use its natural size from HTML attributes
                 var iframe = container.querySelector('iframe');
                 if (iframe) {
-                    iframe.style.removeProperty('width');
-                    iframe.style.removeProperty('height');
-                    if (DEBUG) {
-                        console.log('[TelegramWidget] Removed inline width/height, iframe now auto-sized');
+                    // Read natural dimensions from HTML attributes set by Telegram
+                    var naturalWidth = iframe.getAttribute('width');
+                    var naturalHeight = iframe.getAttribute('height');
+
+                    if (naturalWidth && naturalHeight) {
+                        // Force these dimensions with !important to override any CSS
+                        iframe.style.setProperty('width', naturalWidth + 'px', 'important');
+                        iframe.style.setProperty('height', naturalHeight + 'px', 'important');
+
+                        if (DEBUG) {
+                            console.log('[TelegramWidget] Set iframe to natural size:', naturalWidth + 'x' + naturalHeight);
+                        }
                     }
                 }
                 break;
