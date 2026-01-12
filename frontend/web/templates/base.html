@@ -920,10 +920,17 @@
                             <span id="sw-new-version" class="badge badge-warning badge-sm font-mono break-all">(неизвестно)</span>
                         </div>
                     </div>
-                    <p class="mb-6 text-sm opacity-70">
-                        Для применения обновления необходимо перезагрузить страницу.
-                        Несохранённые данные будут потеряны.
-                    </p>
+                    <div class="mb-6 text-sm">
+                        <p class="mb-2 opacity-70">
+                            Для применения обновления необходимо перезагрузить страницу.
+                        </p>
+                        <p class="mb-2">
+                            <strong class="text-warning">Будут удалены: offline данные, настройки и кеш. Потребуется повторная авторизация.</strong>
+                        </p>
+                        <p class="text-xs opacity-60">
+                            <em>Рекомендуется синхронизировать данные перед обновлением.</em>
+                        </p>
+                    </div>
                     <div class="modal-action">
                         <button type="button"
                                 id="sw-update-later-btn"
@@ -1793,8 +1800,8 @@
                 console.log('[SW_UPDATE] Updating to version:', newVersion || '(unknown)');
 
                 try {
-                    // Step 1: Unregister Service Worker
-                    console.log('[SW_UPDATE] Step 1/3: Unregistering Service Worker...');
+                    // Step 1/5: Unregister Service Worker
+                    console.log('[SW_UPDATE] Step 1/5: Unregistering Service Worker...');
                     const registration = await navigator.serviceWorker.getRegistration();
 
                     if (registration) {
@@ -1808,8 +1815,8 @@
                         console.warn('[SW_UPDATE] ⚠️ No Service Worker registration found');
                     }
 
-                    // Step 2: Clear all caches
-                    console.log('[SW_UPDATE] Step 2/3: Clearing all caches...');
+                    // Step 2/5: Clear all caches
+                    console.log('[SW_UPDATE] Step 2/5: Clearing all caches...');
                     const cacheNames = await caches.keys();
                     console.log('[SW_UPDATE] Found caches:', cacheNames);
 
@@ -1828,20 +1835,51 @@
                         console.log('[SW_UPDATE] No caches to clear');
                     }
 
-                    // Step 3: Update localStorage and reload
-                    console.log('[SW_UPDATE] Step 3/3: Updating version and reloading...');
+                    // Step 3/5: Clear IndexedDB
+                    console.log('[SW_UPDATE] Step 3/5: Clearing IndexedDB...');
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const deleteRequest = indexedDB.deleteDatabase('FamilyBudgetDB');
 
-                    if (newVersion) {
-                        localStorage.setItem(SW_VERSION_KEY, newVersion);
-                        console.log('[SW_UPDATE] ✅ Saved new version to localStorage:', newVersion);
-                    } else {
-                        console.warn('[SW_UPDATE] ⚠️ No new version available, clearing old version');
+                            deleteRequest.onsuccess = () => {
+                                console.log('[SW_UPDATE] ✅ IndexedDB "FamilyBudgetDB" deleted successfully');
+                                resolve();
+                            };
+
+                            deleteRequest.onerror = (event) => {
+                                console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion error:', event);
+                                reject(event);
+                            };
+
+                            deleteRequest.onblocked = () => {
+                                console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion blocked (connections still open)');
+                                // Continue anyway - will be cleaned up on reload
+                                resolve();
+                            };
+                        });
+                    } catch (error) {
+                        console.warn('[SW_UPDATE] ⚠️ Failed to delete IndexedDB:', error);
+                        console.warn('[SW_UPDATE] Continuing with update despite IndexedDB error...');
                     }
 
-                    // Clean up update flags
-                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
-                    localStorage.removeItem(SW_NEW_VERSION_KEY);
-                    console.log('[SW_UPDATE] ✅ Cleaned up update flags from localStorage');
+                    // Step 4/5: Clear ALL localStorage
+                    console.log('[SW_UPDATE] Step 4/5: Clearing ALL localStorage...');
+
+                    // Save new version BEFORE clearing (needed after reload)
+                    const versionToSave = newVersion;
+
+                    // Clear ALL localStorage entries
+                    const localStorageKeys = Object.keys(localStorage);
+                    console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear:`, localStorageKeys);
+
+                    localStorage.clear();
+                    console.log('[SW_UPDATE] ✅ localStorage cleared completely');
+
+                    // Restore only new version (needed for next controllerchange event)
+                    if (versionToSave) {
+                        localStorage.setItem(SW_VERSION_KEY, versionToSave);
+                        console.log('[SW_UPDATE] ✅ Saved new version to localStorage:', versionToSave);
+                    }
 
                     // Close modal before reload
                     const modal = document.getElementById('sw-update-modal');
@@ -1850,7 +1888,9 @@
                         console.log('[SW_UPDATE] ✅ Modal closed');
                     }
 
-                    console.log('[SW_UPDATE] ⟳ Initiating page reload...');
+                    // Step 5/5: Reload page
+                    console.log('[SW_UPDATE] Step 5/5: Reloading page...');
+                    console.log('[SW_UPDATE] ⟳ Initiating hard reload...');
                     window.location.reload(true); // Hard reload (bypass cache)
 
                 } catch (error) {
