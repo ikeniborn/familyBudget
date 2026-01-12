@@ -1557,34 +1557,42 @@ main() {
     # Validate ALL build artifacts before saving checksums. This prevents deploying
     # incomplete builds that would cause next deployment to skip rebuild.
     # Timing is critical: AFTER build + minification + cache busting, BEFORE checksum save.
+    # CRITICAL: Only validate if build was actually performed (build_allowed=true)
 
-    step "Validating Build Artifacts"
+    # Only validate and save checksums if frontend build was actually performed
+    if [[ "$build_allowed" == "true" ]]; then
+        step "Validating Build Artifacts"
 
-    # Run comprehensive validation
-    if ! validate_build_artifacts; then
-        error ""
-        error "═══════════════════════════════════════════════════════════"
-        error "      BUILD ARTIFACT VALIDATION FAILED                    "
-        error "═══════════════════════════════════════════════════════════"
-        error ""
-        error "Some critical files are missing or invalid after build."
-        error "Checksums will NOT be saved - next deploy will rebuild."
-        error ""
-        error "Common causes:"
-        error "  1. npm build failed partially (check logs above)"
-        error "  2. Vite bundle creation failed"
-        error "  3. File permissions preventing writes"
-        error "  4. Disk space exhausted during build"
-        error ""
-        error "DEPLOYMENT ABORTED"
-        error "═══════════════════════════════════════════════════════════"
-        exit 1
+        # Run comprehensive validation
+        if ! validate_build_artifacts; then
+            error ""
+            error "═══════════════════════════════════════════════════════════"
+            error "      BUILD ARTIFACT VALIDATION FAILED                    "
+            error "═══════════════════════════════════════════════════════════"
+            error ""
+            error "Some critical files are missing or invalid after build."
+            error "Checksums will NOT be saved - next deploy will rebuild."
+            error ""
+            error "Common causes:"
+            error "  1. npm build failed partially (check logs above)"
+            error "  2. Vite bundle creation failed"
+            error "  3. File permissions preventing writes"
+            error "  4. Disk space exhausted during build"
+            error ""
+            error "DEPLOYMENT ABORTED"
+            error "═══════════════════════════════════════════════════════════"
+            exit 1
+        fi
+
+        # Save checksums ONLY after comprehensive validation
+        save_frontend_build_checksums "$SCRIPT_DIR"
+        success "Build artifacts validated and checksums saved"
+        echo ""
+    else
+        info "Frontend build was skipped (no source files changed)"
+        info "Checksums NOT updated - using existing build artifacts"
+        echo ""
     fi
-
-    # Save checksums ONLY after comprehensive validation
-    save_frontend_build_checksums "$SCRIPT_DIR"
-    success "Build artifacts validated and checksums saved"
-    echo ""
 
     # REMOVED: Duplicate PLACEHOLDER check block (Issue #1 fix)
     # The comprehensive validate_build_artifacts() function (added above) already
