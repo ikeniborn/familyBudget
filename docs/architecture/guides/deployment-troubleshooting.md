@@ -374,6 +374,293 @@ After fixing, verify automation works:
 
 ---
 
+## Build Artifact Validation Failures
+
+**Since:** v6.6.1 - Comprehensive artifact validation prevents stale asset deployment
+
+### Symptoms
+
+- Deployment aborts after frontend build with error:
+  ```
+  ▶ Validating Build Artifacts
+  [INFO] Checking critical build artifacts...
+
+  [ERROR] ❌ Missing: lists.min.js
+  [ERROR] ❌ Bundle too small: budgetShared.min.js (234B, expected >1KB)
+
+  ═══════════════════════════════════════════════════════════
+        BUILD ARTIFACT VALIDATION FAILED
+  ═══════════════════════════════════════════════════════════
+
+  Some critical files are missing or invalid after build.
+  Checksums will NOT be saved - next deploy will rebuild.
+
+  DEPLOYMENT ABORTED
+  ```
+
+- Service Worker PLACEHOLDER not replaced:
+  ```
+  [ERROR] ❌ CACHE_VERSION_PLACEHOLDER still present in sw.min.js
+  [ERROR]    Cache busting failed - PWA will not work correctly
+  ```
+
+- Legacy minification failure (hierarchyView.js or lists.css):
+  ```
+  [ERROR] Failed to minify hierarchyView.js
+  [ERROR] This file is critical - cannot continue
+  ```
+
+### What Changed (v6.6.1)
+
+**Before v6.6.1:**
+- Frontend build checksums saved **immediately after build**
+- If build succeeded but produced incomplete artifacts → checksums still saved
+- Next deployment skipped rebuild → deployed stale/missing assets
+
+**After v6.6.1:**
+- Added comprehensive `validate_build_artifacts()` function
+- Validates ALL critical files before saving checksums:
+  - Service Worker: `sw.min.js` + `sw.min.js.gz`
+  - CSS files: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css`
+  - Bundles: `lists.min.js`, `budgetShared.min.js` (must be > 1KB)
+  - Legacy files: `hierarchyView.min.js`, `lists.min.css`
+  - PLACEHOLDER tokens replaced in Service Worker
+- Checksums saved ONLY after successful validation
+- Legacy minification failures now **abort deployment** (exit 1) instead of warnings
+
+### Root Causes
+
+#### 1. Vite Build Partial Failure
+
+**Symptom:** Some bundles created, others missing or empty
+
+**Causes:**
+- TypeScript compilation errors (silently ignored by Vite)
+- Memory exhaustion during build (OOM killer)
+- Disk space full mid-build
+- File permission issues
+
+**Diagnostic:**
+```bash
+# Check TypeScript errors
+npm run type-check
+
+# Check disk space
+df -h /opt/budget
+
+# Check build logs
+grep -E "ERROR|FAILED|fatal" /opt/budget/logs/deploy.log | tail -50
+
+# Check bundle sizes
+ls -lh /opt/budget/frontend/web/static/js/*.min.js
+ls -lh /opt/budget/frontend/shared/static/js/*.min.js
+```
+
+#### 2. Legacy Minification Failure (Terser)
+
+**Symptom:** `hierarchyView.min.js` or `lists.min.css` minification fails
+
+**Causes:**
+- Invalid JavaScript syntax in `hierarchyView.js`
+- Invalid CSS syntax in `lists.css`
+- Terser/PostCSS version incompatibility
+
+**Diagnostic:**
+```bash
+# Check syntax manually
+node --check frontend/web/static/js/lists/hierarchyView.js
+
+# Try manual minification
+npx terser frontend/web/static/js/lists/hierarchyView.js -o /tmp/test.min.js
+```
+
+#### 3. Cache Busting Failure (PLACEHOLDER not replaced)
+
+**Symptom:** `CACHE_VERSION_PLACEHOLDER` still present in `sw.min.js`
+
+**Causes:**
+- `update-cache-busting.sh` failed
+- `.cache-version` file not created
+- `sed` replacement failed
+
+**Diagnostic:**
+```bash
+# Check cache version file
+cat /opt/budget/.cache-version
+
+# Check Service Worker for PLACEHOLDER
+grep -n "PLACEHOLDER" /opt/budget/sw.min.js
+
+# Check update-cache-busting.sh logs
+grep "update-cache-busting" /opt/budget/logs/deploy.log | tail -20
+```
+
+### Solutions
+
+#### Quick Fix: Force Rebuild
+
+```bash
+# Clear checksums to force rebuild
+sudo rm -f /opt/budget/.frontend_build_checksums
+sudo rm -f /opt/budget/.docker_build_checksums
+
+# Remove incomplete artifacts
+sudo rm -f /opt/budget/sw.min.js
+sudo rm -f /opt/budget/frontend/web/static/js/*.min.js
+sudo rm -f /opt/budget/frontend/shared/static/js/*.min.js
+
+# Deploy with --force-build flag
+cd ~/familyBudget
+sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch --force-build
+```
+
+#### Fix TypeScript Errors
+
+If validation fails due to missing/empty bundles, check TypeScript:
+
+```bash
+cd ~/familyBudget
+
+# Run type-check (same as pre-commit hook)
+npm run type-check
+
+# Fix errors in .ts files
+vim frontend/web/static/js/offline/offlineManager.ts
+
+# Verify fixes
+npm run type-check
+
+# Commit and deploy
+git add .
+git commit -m "fix: TypeScript errors"
+git push origin test
+ssh budget-test "cd ~/familyBudget && git pull && sudo bash deploy.sh"
+```
+
+#### Fix Legacy File Syntax
+
+If `hierarchyView.js` or `lists.css` fails minification:
+
+```bash
+# Find syntax error
+node --check frontend/web/static/js/lists/hierarchyView.js
+# OR
+npx postcss frontend/web/static/css/lists.css --use cssnano -o /tmp/test.min.css
+
+# Fix syntax error
+vim frontend/web/static/js/lists/hierarchyView.js
+
+# Test minification manually
+npx terser frontend/web/static/js/lists/hierarchyView.js -c -m -o /tmp/test.min.js
+
+# Deploy
+git add . && git commit -m "fix: hierarchyView.js syntax"
+git push origin test
+```
+
+#### Fix Cache Busting
+
+If PLACEHOLDER not replaced:
+
+```bash
+# Regenerate cache version
+export CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
+echo "$CACHE_VERSION" > /opt/budget/.cache-version
+
+# Fix ownership (if running with sudo)
+sudo chown ikeniborn:ikeniborn /opt/budget/.cache-version
+
+# Run cache busting manually
+cd /opt/budget
+bash scripts/update-cache-busting.sh
+
+# Verify
+grep "CACHE_VERSION" sw.min.js | head -1
+# Expected: const CACHE_VERSION = "v20260111_0822";
+```
+
+### Prevention
+
+#### 1. Always Run Type-Check Before Deploy
+
+```bash
+# Pre-commit hook runs this automatically (v7.1.0+)
+npm run type-check
+
+# If errors found:
+# - Fix .ts files
+# - Commit fixes
+# - Then deploy
+```
+
+#### 2. Monitor Build Logs
+
+```bash
+# After deployment, check for warnings
+grep -E "WARNING|WARN" /opt/budget/logs/deploy.log | tail -20
+
+# Check bundle sizes
+ls -lh /opt/budget/frontend/web/static/js/*.min.js
+# All bundles should be > 1KB
+```
+
+#### 3. Test Locally Before Deploy
+
+```bash
+# On local machine
+cd ~/familyBudget
+npm run build
+
+# Check artifacts created
+ls -lh frontend/web/static/js/*.min.js
+ls -lh sw.min.js
+
+# Verify no PLACEHOLDER
+grep "PLACEHOLDER" sw.min.js
+# Expected: no output (empty)
+```
+
+### Validation Details
+
+The `validate_build_artifacts()` function checks:
+
+| Category | Files | Validation |
+|----------|-------|------------|
+| **Service Worker** | `sw.min.js`, `sw.min.js.gz` | Exists, non-empty, PLACEHOLDER replaced |
+| **CSS** | `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css` | Exists, non-empty |
+| **Bundles** | `lists.min.js`, `budgetShared.min.js` | Exists, size > 1KB |
+| **Legacy** | `hierarchyView.min.js`, `lists.min.css` | Exists, non-empty |
+
+**Output Example (Success):**
+```
+▶ Validating Build Artifacts
+[INFO] Checking critical build artifacts...
+
+[SUCCESS] ✓ sw.min.js (10889B)
+[SUCCESS] ✓ sw.min.js.gz (3517B)
+[SUCCESS] ✓ tailwind-daisyui.min.css (182059B)
+[SUCCESS] ✓ custom.min.css (44312B)
+[SUCCESS] ✓ choices-tailwind.min.css (43450B)
+[SUCCESS] ✓ modal-dropdowns-fix.min.css (2048B)
+[SUCCESS] ✓ lists.min.js (123914B)
+[SUCCESS] ✓ budgetShared.min.js (42281B)
+[SUCCESS] ✓ hierarchyView.min.js (19827B)
+[SUCCESS] ✓ lists.min.css (19759B)
+[SUCCESS] ✓ Service Worker version: v20260111_0822
+
+[SUCCESS] All build artifacts validated successfully
+[INFO] Saved frontend build checksums
+[SUCCESS] Build artifacts validated and checksums saved
+```
+
+### See Also
+
+- [Architecture README - v6.6.1](../README.md#2026-01-11-deploysh-critical-fixes---checksum-validation--cleanup-transparency-v661) - Complete changelog
+- [Build System](../build-system.md) - Frontend build pipeline
+- [PWA Architecture](../pwa.md) - Service Worker caching
+
+---
+
 ## Related Issues
 
 ### PostgreSQL Health Check Timeout

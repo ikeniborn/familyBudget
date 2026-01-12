@@ -5,7 +5,7 @@ version: 2.0.0
 author: Family Budget Team
 tags: [monitoring, logs, metrics, troubleshooting, diagnostics, health-checks]
 dependencies: []
-user-invocable: true
+user-invocable: false
 ---
 
 # Monitoring & Troubleshooting Skill

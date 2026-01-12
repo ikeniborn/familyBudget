@@ -501,6 +501,20 @@ class HierarchyView {
         const stores = this.listsManager.stores;
         const productGroups = this.listsManager.productGroups;
 
+        // DIAGNOSTIC: Log received data
+        console.log('[HIERARCHY_RENDER] Render started', {
+            filteredItems: items.length,
+            totalStores: stores.length,
+            totalGroups: productGroups.length,
+            searchQuery: this.listsManager.searchQuery || '(none)',
+            hideCompleted: this.listsManager.hideCompleted,
+            sampleItems: items.slice(0, 3).map(i => ({
+                id: i.id,
+                name: i.name,
+                completed: i.is_completed
+            }))
+        });
+
         if (items.length === 0) {
             this.renderEmpty();
             return;
@@ -508,6 +522,31 @@ class HierarchyView {
 
         // Build hierarchy structure
         const hierarchy = this.buildHierarchy(items, stores, productGroups);
+
+        // DIAGNOSTIC: Log hierarchy structure
+        const storeCount = Object.keys(hierarchy).length;
+        let groupCount = 0;
+        let itemCount = 0;
+        Object.values(hierarchy).forEach(store => {
+            if (store.productGroupTree) {
+                const countGroups = (tree) => {
+                    Object.values(tree).forEach(node => {
+                        groupCount++;
+                        if (node.items) itemCount += node.items.length;
+                        if (node.children) countGroups(node.children);
+                    });
+                };
+                countGroups(store.productGroupTree);
+            }
+        });
+
+        console.log('[HIERARCHY_RENDER] Hierarchy built', {
+            stores: storeCount,
+            groups: groupCount,
+            items: itemCount,
+            inputItems: items.length,
+            itemsMismatch: itemCount !== items.length ? '⚠️ MISMATCH! Items lost in grouping' : '✅ Match'
+        });
 
         // Render tree
         this.container.innerHTML = this.renderTree(hierarchy);

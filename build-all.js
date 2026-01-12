@@ -181,7 +181,7 @@ const builds = [
   },
   {
     name: 'webauthn-onboarding',
-    input: 'frontend/web/static/js/webauthn-onboarding.js',
+    input: 'frontend/web/static/js/webauthn/WebAuthnManager/index.ts',  // TypeScript entry point
     output: 'frontend/web/static/js/webauthn-onboarding.min.js',
     globalName: 'WebAuthnOnboarding'
   },

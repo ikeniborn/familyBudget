@@ -679,6 +679,142 @@ Pending sync badge scales responsively:
 
 ---
 
+## Telegram Login Button Responsive Design (v7.x+)
+
+**Date:** 2026-01-12 (Updated)
+**Issue:** Telegram OAuth кнопка имела огромные пустые области (150px высоты вместо 40px), обрезалась на мобильных и неправильно центрировалась
+**Root Cause:** CSS `width: auto !important` вычислялся браузером как размер parent container (300×150px), а не как intrinsic размер iframe содержимого
+**Solution:** JavaScript читает реальные размеры из HTML-атрибутов iframe и принудительно устанавливает их с `!important`
+
+### Архитектурное решение
+
+**Проблема CSS auto:**
+- CSS `width: auto` для iframe не работает как ожидалось
+- Браузер вычисляет auto как размер родительского flex-контейнера, а не размер содержимого iframe
+- Результат: 300×150px вместо реальных 238×40px
+
+**Решение через HTML-атрибуты:**
+- Telegram виджет устанавливает HTML-атрибуты `width="238"` и `height="40"` на iframe
+- JavaScript читает эти атрибуты после загрузки виджета
+- Принудительно применяет размеры через `iframe.style.setProperty(width, value, 'important')`
+
+### Реализация
+
+**CSS (минимальный, только контейнер):**
+```css
+.telegram-widget-container iframe {
+    /* НЕ используем width/height - JS управляет размерами */
+    max-width: 100% !important;       /* Не выходить за контейнер на маленьких экранах */
+    display: block;
+    margin: 0 !important;             /* Flex родитель центрирует через justify-center */
+}
+```
+
+**JavaScript (в transitionTo('success')):**
+```javascript
+var iframe = container.querySelector('iframe');
+if (iframe) {
+    // Читаем реальные размеры из HTML-атрибутов Telegram
+    var naturalWidth = iframe.getAttribute('width');   // "238" для "Войти как Илья"
+    var naturalHeight = iframe.getAttribute('height'); // "40"
+
+    if (naturalWidth && naturalHeight) {
+        // Принудительно устанавливаем с !important
+        iframe.style.setProperty('width', naturalWidth + 'px', 'important');
+        iframe.style.setProperty('height', naturalHeight + 'px', 'important');
+    }
+}
+```
+
+**Контейнер (убраны min-h и items-center):**
+```html
+<div class="telegram-widget-container relative flex justify-center overflow-visible"
+     id="telegram-widget-container"
+     style="min-width: min(100%, 220px);">
+```
+
+### Размеры кнопки (динамические)
+
+Telegram устанавливает размеры в зависимости от режима и языка:
+
+| Режим | Текст | Ширина | Высота |
+|-------|-------|--------|--------|
+| Не залогинен | "Войти через Telegram" | ~233px | 40px |
+| Залогинен (RU) | "Войти как Илья" | ~238px | 40px |
+| Залогинен (EN) | "Log in as John" | ~186px | 34px |
+
+**Важно:** Размеры **не фиксированы в CSS**, а читаются из HTML-атрибутов iframe для каждого конкретного случая.
+
+### Почему предыдущие подходы не сработали
+
+1. **CSS width: 186px !important** ❌
+   - Обрезал русский текст "Войти как Илья" (238px > 186px)
+
+2. **CSS width: auto !important** ❌
+   - Браузер вычислял auto как размер parent container (300px)
+   - Создавал огромные пустые области вокруг кнопки
+
+3. **removeProperty('width')** ❌
+   - После удаления inline стилей браузер снова применял auto из CSS
+   - Возвращал проблему с 300×150px
+
+4. **HTML-атрибуты с setProperty(..., 'important')** ✅
+   - Читает точные размеры от Telegram
+   - Перебивает любые CSS правила
+   - Адаптируется под разные режимы (залогинен/не залогинен)
+
+### Diagnostic Logging
+
+**При DEBUG=true в консоли:**
+```javascript
+[TelegramWidget] Set iframe to natural size: 238x40
+```
+
+**Для диагностики проблем:**
+```javascript
+const iframe = document.querySelector('#telegram-widget-container iframe');
+console.log({
+    htmlWidth: iframe.getAttribute('width'),        // "238"
+    htmlHeight: iframe.getAttribute('height'),      // "40"
+    computedWidth: getComputedStyle(iframe).width,  // "238px"
+    computedHeight: getComputedStyle(iframe).height // "40px"
+});
+```
+
+### Тестирование
+
+**Результаты тестирования (2026-01-12):**
+- ✅ iPhone Safari - Кнопка центрирована, нет обрезки
+- ✅ iPhone PWA - Кнопка центрирована, нет обрезки
+- ✅ Yandex Browser (Desktop) - Кнопка центрирована, нет обрезки
+- ✅ Кнопка "Войти как Илья" видна полностью (238px)
+- ✅ Нет пустых областей (высота ~40px вместо 150px)
+- ✅ Центрирование работает через flex justify-center
+
+### Связанные файлы
+
+- **Template:** `/frontend/web/templates/telegram_login.html` (строки 10-16 CSS, строки 300-316 JS)
+- **Base template:** `/frontend/web/templates/base.html` (viewport meta)
+- **Documentation:** `/docs/architecture/authentication.md` (Telegram OAuth)
+
+### Git History
+
+**Коммиты (в хронологическом порядке):**
+1. `da59b3ff` - Попытка использовать `width: auto` (не сработало)
+2. `31d96e40` - Исправление центрирования (убран margin: auto)
+3. `ec27d3fe` - Попытка удалить inline стили (не сработало)
+4. `8a754839` - **Финальное решение:** использование HTML-атрибутов с setProperty ✅
+
+### Lessons Learned
+
+1. **CSS auto для iframe не надёжен** - браузер вычисляет auto как размер контейнера, а не содержимого
+2. **HTML-атрибуты iframe содержат точные размеры** от внешнего сервиса (Telegram)
+3. **setProperty(..., 'important') перебивает любые CSS** - единственный способ гарантированно установить размер
+4. **Diagnostic logging критически важен** для отладки cross-origin iframe
+5. **Тестировать нужно в реальных условиях** (залогиненным в Telegram), а не только с дефолтной кнопкой
+
+---
+
 ## Future Responsive Improvements
 
 **Potential Areas for Enhancement:**

@@ -29,6 +29,7 @@ import {
 
   // Modals
   openAddItemModal,
+  openEditItemModal,
   openCreateListModal,
   closeCreateListModal,
   handleCreateList,
@@ -94,6 +95,7 @@ const windowExports = {
 
   // Modals (уже в модулях)
   openAddItemModal,
+  openEditItemModal,
   openCreateListModal,
   closeCreateListModal,
   handleCreateList,         // lists.html:281 - Form submit for list creation
