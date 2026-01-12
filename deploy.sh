@@ -1378,10 +1378,14 @@ main() {
         # - Vite caches compiled modules in node_modules/.vite/
         # - Stale cache can cause old code to be bundled even with updated source files
         # - Clear cache when TypeScript sources changed to ensure fresh build
-        if [[ -d "$PWD/node_modules/.vite" ]]; then
+        # - Cache is in .npm-isolated/node_modules/.vite/ (isolated environment)
+        local vite_cache_dir="${node_modules_dir}/.vite"
+        if [[ -d "$vite_cache_dir" ]]; then
             print_message info "Clearing Vite cache (stale modules prevention)..."
-            rm -rf "$PWD/node_modules/.vite"
-            print_message success "Vite cache cleared"
+            rm -rf "$vite_cache_dir"
+            print_message success "Vite cache cleared from $vite_cache_dir"
+        else
+            print_message info "Vite cache not found (first build or already clean)"
         fi
 
         echo ""
