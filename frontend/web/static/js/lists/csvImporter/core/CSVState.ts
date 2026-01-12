@@ -7,6 +7,8 @@
  * Extracted from: frontend/web/static/js/lists/csvImporter.ts
  */
 
+import type { ValidationRow } from './ImportState';
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -89,7 +91,7 @@ export interface CSVImporterState {
     // Preview state
     previewPagination: PreviewPagination;
     previewFilters: PreviewFilters;
-    allPreviewRows: any[];
+    allPreviewRows: ValidationRow[];
 
     // UI references
     container: HTMLElement | null;

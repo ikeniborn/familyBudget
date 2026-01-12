@@ -11,6 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
+import { updateHideCompletedButton } from '../features/searchFilter';
 
 // ============================================================================
 // Type Definitions
@@ -20,12 +21,6 @@ declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 declare const closeImportWizard: () => void;
 declare const openDeleteListModal: (listId: number, listName: string) => void;
-
-declare global {
-  interface Window {
-    listsManager?: any;
-  }
-}
 
 // ============================================================================
 // Helper Functions
@@ -161,24 +156,6 @@ export function updateFABVisibility(): void {
   }
 }
 
-/**
- * Update hide completed button state
- */
-function updateHideCompletedButton(): void {
-  const state = getState();
-  const btn = document.getElementById('toggle-hide-completed-btn');
-  if (!btn) return;
-
-  if (state.hideCompleted) {
-    btn.classList.remove('btn-outline');
-    btn.classList.add('btn-primary');
-    btn.textContent = '👁️ Показать все';
-  } else {
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-outline');
-    btn.textContent = '👁️ Скрыть выполненные';
-  }
-}
 
 // ============================================================================
 // View Switching
@@ -190,6 +167,15 @@ function updateHideCompletedButton(): void {
  * @param savePreference - Whether to save preference to localStorage (default: true)
  */
 export function switchView(viewName: 'table' | 'hierarchy', savePreference: boolean = true): void {
+  const isMobile = window.innerWidth < 640;
+
+  // CRITICAL: On mobile, ALWAYS use hierarchy (ignore table switch requests)
+  if (isMobile && viewName === 'table') {
+    debugLog('[ListsManager] Mobile detected - ignoring table view switch, forcing hierarchy');
+    viewName = 'hierarchy';
+    savePreference = false; // Don't save this forced switch
+  }
+
   // Save preference to localStorage (only if savePreference=true)
   if (savePreference) {
     try {
@@ -232,7 +218,8 @@ export function switchView(viewName: 'table' | 'hierarchy', savePreference: bool
     if (tableControls) tableControls.classList.add('hidden');
     if (hierarchyControls) hierarchyControls.classList.remove('hidden');
   } else {
-    // Show table, hide hierarchy
+    // Desktop only: show table, hide hierarchy
+    // Mobile devices never reach this branch (forced to hierarchy above)
     if (tableViewContainer) tableViewContainer.classList.remove('hidden');
     if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
 
@@ -283,6 +270,71 @@ export function initializeResponsiveView(): void {
     debugLog('[ListsManager] Desktop: using table view');
     switchView('table', false); // Don't re-save on initialization
   }
+}
+
+/**
+ * Sync view UI with current state WITHOUT rendering
+ * Used after items are loaded to avoid double-render
+ */
+function syncViewUI(): void {
+  const state = getState();
+  const viewName = state.currentView;
+  const isMobile = window.innerWidth < 640;
+
+  // Get DOM elements
+  const tableViewContainer = document.getElementById('table-view');
+  const hierarchyViewContainer = document.getElementById('hierarchy-view');
+  const tableBtn = document.getElementById('table-view-btn');
+  const hierarchyBtn = document.getElementById('hierarchy-view-btn');
+  const tableControls = document.getElementById('table-controls');
+  const hierarchyControls = document.getElementById('hierarchy-controls');
+
+  // CRITICAL: On mobile OR when hierarchy view is selected - show hierarchy, hide table
+  // Mobile ALWAYS shows hierarchy (table-view kept hidden via CSS + JS)
+  if (viewName === 'hierarchy' || isMobile) {
+    // Show hierarchy, hide table
+    if (tableViewContainer) tableViewContainer.classList.add('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.remove('hidden');
+
+    // Update button styles (only visible on desktop)
+    if (tableBtn) {
+      tableBtn.classList.remove('btn-primary');
+      tableBtn.classList.add('btn-outline');
+    }
+    if (hierarchyBtn) {
+      hierarchyBtn.classList.remove('btn-outline');
+      hierarchyBtn.classList.add('btn-primary');
+    }
+
+    // Show hierarchy controls, hide table controls
+    if (tableControls) tableControls.classList.add('hidden');
+    if (hierarchyControls) hierarchyControls.classList.remove('hidden');
+
+    if (isMobile) {
+      debugLog('[ListsManager] Mobile detected - forcing hierarchy view (table permanently hidden)');
+    }
+  } else {
+    // Desktop only: show table, hide hierarchy
+    // Mobile devices NEVER reach this branch (isMobile check above)
+    if (tableViewContainer) tableViewContainer.classList.remove('hidden');
+    if (hierarchyViewContainer) hierarchyViewContainer.classList.add('hidden');
+
+    // Update button styles
+    if (tableBtn) {
+      tableBtn.classList.remove('btn-outline');
+      tableBtn.classList.add('btn-primary');
+    }
+    if (hierarchyBtn) {
+      hierarchyBtn.classList.remove('btn-primary');
+      hierarchyBtn.classList.add('btn-outline');
+    }
+
+    // Show table controls, hide hierarchy controls
+    if (tableControls) tableControls.classList.remove('hidden');
+    if (hierarchyControls) hierarchyControls.classList.add('hidden');
+  }
+
+  debugLog('[ListsManager] Synced view UI:', { viewName, isMobile });
 }
 
 // ============================================================================
@@ -455,11 +507,30 @@ export async function renderDetailView(listId: number): Promise<void> {
   const breadcrumbElement = document.getElementById('breadcrumb-list-name');
   if (breadcrumbElement) breadcrumbElement.textContent = list.name;
 
+  // CRITICAL: Set correct view BEFORE showing containers (prevents flicker)
+  // On mobile (<640px): force hierarchy, on desktop: restore preference
+  const isMobile = window.innerWidth < 640;
+  if (isMobile) {
+    updateState({ currentView: 'hierarchy' });
+    debugLog('[RENDER_DETAIL] Pre-set hierarchy view for mobile (prevents flicker)');
+  } else {
+    const savedPreference = localStorage.getItem('lists_view_preference');
+    updateState({ currentView: savedPreference === 'hierarchy' ? 'hierarchy' : 'table' });
+    debugLog('[RENDER_DETAIL] Pre-set desktop view from preference:', savedPreference || 'table');
+  }
+
+  // CRITICAL: Sync view UI BEFORE showing detail-view (prevents table flash during FOUC)
+  // This hides table-view and shows hierarchy-view containers BEFORE they become visible
+  syncViewUI();
+  debugLog('[RENDER_DETAIL] syncViewUI() completed - table-view hidden before detail-view shown');
+
   // Show detail view, hide landing view
+  // Table-view already hidden via syncViewUI() above, no FOUC during 600ms load delay
   const landingView = document.getElementById('landing-view');
   const detailView = document.getElementById('detail-view');
   if (landingView) landingView.classList.add('hidden');
   if (detailView) detailView.classList.remove('hidden');
+  debugLog('[RENDER_DETAIL] detail-view shown (table-view already hidden)');
 
   // Desktop FAB visibility: Detail View
   // Hide create list FAB (only visible in landing view)
@@ -471,11 +542,12 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Load items for this list
   await loadShoppingListItems(listId);
 
-  // Initialize responsive view (mobile < 640px defaults to hierarchy)
-  // This also restores saved preference and renders content
-  initializeResponsiveView();
+  // Render ONLY the current view (hierarchy on mobile, table/hierarchy on desktop)
+  // This prevents rendering table on mobile entirely
+  renderCurrentView();
+  debugLog('[RENDER_DETAIL] renderCurrentView() completed');
 
-  // Update FAB visibility AFTER switchView to ensure it's visible in all views
+  // Update FAB visibility after rendering
   updateFABVisibility();
 
   // Initialize Choices.js for store and product group selectors in modal

@@ -27,6 +27,44 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-11: Deploy.sh Critical Fixes - Checksum Validation & Cleanup Transparency (v6.6.1)
+- **Change:** Fixed critical deployment bugs in deploy.sh (checksum vulnerability + cleanup mode transparency)
+- **Problems Fixed:**
+  - **Issue #1 (MEDIUM):** Frontend build checksums saved BEFORE comprehensive artifact validation
+    - If build succeeded but produced incomplete artifacts → checksums still saved
+    - Next deployment skipped rebuild → deployed stale/missing assets
+  - **Issue #6 (MEDIUM):** Cleanup mode auto-changed from "smart" to "full" BEFORE asking user
+    - User saw "automatic override" message → then got asked for confirmation (confusing UX)
+- **Solutions:**
+  - **Issue #1:** Added `validate_build_artifacts()` function (deploy.sh:882-982)
+    - Validates ALL critical files exist and are non-empty (Service Worker, CSS, bundles, legacy files)
+    - Checks bundle sizes (must be > 1KB)
+    - Verifies PLACEHOLDER tokens replaced in Service Worker
+    - Checksums saved ONLY after successful validation (deploy.sh:1585)
+    - Legacy minification failures now abort deployment (exit 1) instead of warnings
+    - Removed duplicate PLACEHOLDER check block (lines 1552-1591 removed)
+  - **Issue #6:** Refactored cleanup mode override logic (deploy.sh:1629-1709)
+    - Shows clear explanation of WHY upgrade needed BEFORE changing mode
+    - User approves/declines BEFORE mode change (not after)
+    - Provides alternative actions if user declines
+- **Impact:**
+  - ✅ Prevents deploying incomplete builds (eliminates checksum vulnerability)
+  - ✅ Transparent user consent for cleanup mode changes
+  - ✅ Clear error messages for validation failures
+  - ✅ 100% backward compatibility maintained
+- **Testing:**
+  - Tested on budget-test server (2026-01-11)
+  - All smoke tests passed (health, manifest, Service Worker)
+  - All containers healthy after deployment
+- **Files Modified (1):**
+  - Deployment: `deploy.sh` (+213 lines, -83 lines)
+- **Critical Files Validated:**
+  - Service Worker: `sw.min.js` + `sw.min.js.gz`
+  - CSS: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css`
+  - Bundles: `lists.min.js`, `budgetShared.min.js`
+  - Legacy: `hierarchyView.min.js`, `lists.min.css`
+- **See:** `/docs/architecture/guides/deployment-troubleshooting.md` → "Build Artifact Validation" section
+
 ### 2026-01-08: Task Execution Template (v6.0.0)
 - **Change:** Created Family Budget-specific task execution template (task-lite-familybudget-v6.0.md)
 - **Purpose:** Standardized workflow for Claude Code with project-specific requirements

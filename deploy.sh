@@ -135,6 +135,9 @@ AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect chang
 FORCE_DOCKERD_RESTART=false  # Force Docker daemon restart at end of deployment
 SKIP_DOCKERD_RESTART=false   # Skip automatic Docker daemon restart optimization
 
+# Frontend build options
+FORCE_FRONTEND_BUILD=false   # Force frontend rebuild regardless of checksums
+
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
 # false = PostgreSQL kept running (selective restart) - skip integrity checks
@@ -389,6 +392,10 @@ parse_args() {
                 ;;
             --no-restart-dockerd)
                 SKIP_DOCKERD_RESTART=true
+                shift
+                ;;
+            --force-build)
+                FORCE_FRONTEND_BUILD=true
                 shift
                 ;;
             *)
@@ -872,6 +879,110 @@ check_git_sync() {
     exit 1
 }
 
+# =============================================================================
+# VALIDATE BUILD ARTIFACTS
+# =============================================================================
+# Comprehensive validation of all build artifacts before saving checksums
+# This prevents deploying stale or incomplete assets (Issue #1 fix)
+validate_build_artifacts() {
+    local validation_failed=false
+
+    info "Checking critical build artifacts..."
+    echo ""
+
+    # Critical files that MUST exist
+    local -a critical_files=(
+        "$DEPLOY_DIR/sw.min.js"
+        "$DEPLOY_DIR/sw.min.js.gz"
+        "$DEPLOY_DIR/frontend/web/static/css/vendor/tailwind-daisyui.min.css"
+        "$DEPLOY_DIR/frontend/web/static/css/custom.min.css"
+        "$DEPLOY_DIR/frontend/web/static/css/choices-tailwind.min.css"
+        "$DEPLOY_DIR/frontend/web/static/css/modal-dropdowns-fix.min.css"
+    )
+
+    # Bundles (ES modules v7.0+, Vite-generated)
+    local -a bundle_files=(
+        "$DEPLOY_DIR/frontend/web/static/js/lists.min.js"
+        "$DEPLOY_DIR/frontend/shared/static/js/budgetShared.min.js"
+    )
+
+    # Legacy files (Terser/PostCSS-generated, not in Vite)
+    local -a legacy_files=(
+        "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js"
+        "$DEPLOY_DIR/frontend/web/static/css/lists.min.css"
+    )
+
+    # Check critical files (must exist and non-empty)
+    for file in "${critical_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            error "❌ Missing: $(basename "$file")"
+            validation_failed=true
+        elif [[ ! -s "$file" ]]; then
+            error "❌ Empty file: $(basename "$file")"
+            validation_failed=true
+        else
+            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
+            success "✓ $(basename "$file") (${size}B)"
+        fi
+    done
+
+    # Check bundles (must exist and > 1KB)
+    for file in "${bundle_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            error "❌ Missing bundle: $(basename "$file")"
+            validation_failed=true
+        else
+            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
+            if [[ $size -lt 1024 ]]; then
+                error "❌ Bundle too small: $(basename "$file") (${size}B, expected >1KB)"
+                validation_failed=true
+            else
+                success "✓ $(basename "$file") (${size}B)"
+            fi
+        fi
+    done
+
+    # Check legacy files (must exist and non-empty)
+    for file in "${legacy_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            error "❌ Missing legacy file: $(basename "$file")"
+            validation_failed=true
+        elif [[ ! -s "$file" ]]; then
+            error "❌ Empty legacy file: $(basename "$file")"
+            validation_failed=true
+        else
+            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
+            success "✓ $(basename "$file") (${size}B)"
+        fi
+    done
+
+    # Verify PLACEHOLDER replaced in Service Worker
+    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
+            error "❌ CACHE_VERSION_PLACEHOLDER still present in sw.min.js"
+            error "   Cache busting failed - PWA will not work correctly"
+            validation_failed=true
+        else
+            # Extract version
+            local sw_version=$(grep -oE '"v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/"//g' | head -1)
+            if [[ -n "$sw_version" ]]; then
+                success "✓ Service Worker version: $sw_version"
+            else
+                warning "⚠️  Could not extract version from sw.min.js (may be OK if format changed)"
+            fi
+        fi
+    fi
+
+    echo ""
+    if [[ "$validation_failed" == "true" ]]; then
+        error "Validation failed - see errors above"
+        return 1
+    fi
+
+    success "All build artifacts validated successfully"
+    return 0
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -1201,7 +1312,10 @@ main() {
     # CRITICAL: Check BEFORE build to avoid unnecessary npm builds
     # Checks: .ts/.tsx files in frontend/, package.json, vite.config.ts, build-all.js
     if [[ "$build_allowed" == true ]]; then
-        if ! needs_frontend_rebuild "$SCRIPT_DIR"; then
+        if [[ "$FORCE_FRONTEND_BUILD" == true ]]; then
+            print_message info "Force frontend rebuild requested (--force-build flag)"
+            print_message info "Skipping checksum validation"
+        elif ! needs_frontend_rebuild "$SCRIPT_DIR"; then
             print_message info "No frontend source files changed since last build"
             print_message info "Skipping npm build (assets are up-to-date)"
             build_allowed=false
@@ -1260,6 +1374,20 @@ main() {
             print_message info "Created temporary node_modules symlink for Vite ES imports"
         fi
 
+        # CRITICAL FIX (2026-01-12): Clear Vite cache before build
+        # - Vite caches compiled modules in node_modules/.vite/
+        # - Stale cache can cause old code to be bundled even with updated source files
+        # - Clear cache when TypeScript sources changed to ensure fresh build
+        # - Cache is in .npm-isolated/node_modules/.vite/ (isolated environment)
+        local vite_cache_dir="${node_modules_dir}/.vite"
+        if [[ -d "$vite_cache_dir" ]]; then
+            print_message info "Clearing Vite cache (stale modules prevention)..."
+            rm -rf "$vite_cache_dir"
+            print_message success "Vite cache cleared from $vite_cache_dir"
+        else
+            print_message info "Vite cache not found (first build or already clean)"
+        fi
+
         echo ""
         # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
         # build-all.js reads these variables for production minification
@@ -1295,11 +1423,9 @@ main() {
                 print_message warning "sw.min.js not found - Service Worker may not be available"
             fi
 
-            # Save frontend build checksums (v7.0+ TypeScript architecture)
-            # CRITICAL: Save AFTER successful build to track what was built
-            # Next deploy will compare against these checksums to determine if rebuild needed
-            save_frontend_build_checksums "$SCRIPT_DIR"
-            echo ""
+            # REMOVED: save_frontend_build_checksums (Issue #1 fix)
+            # Checksums now saved AFTER comprehensive validation (see line ~1548)
+            # This prevents deploying incomplete builds
 
             # Minify legacy files (hierarchyView.js, lists.css) - NOT included in Vite build
             print_message info "Minifying legacy files (hierarchyView.js, lists.css)..."
@@ -1319,8 +1445,9 @@ main() {
                         print_message warning "Failed to create hierarchyView.min.js.gz (non-critical)"
                     fi
                 else
-                    print_message error "Failed to minify hierarchyView.js"
-                    print_message error "Deployment will continue with unminified file"
+                    error "Failed to minify hierarchyView.js"
+                    error "This file is critical - cannot continue"
+                    exit 1
                 fi
             else
                 print_message warning "hierarchyView.js not found - skipping minification"
@@ -1340,8 +1467,9 @@ main() {
                         print_message warning "Failed to create lists.min.css.gz (non-critical)"
                     fi
                 else
-                    print_message error "Failed to minify lists.css"
-                    print_message error "Deployment will continue with unminified file"
+                    error "Failed to minify lists.css"
+                    error "This file is critical - cannot continue"
+                    exit 1
                 fi
             else
                 print_message warning "lists.css not found - skipping minification"
@@ -1437,59 +1565,54 @@ main() {
     fi
     echo ""
 
-    # CRITICAL SAFEGUARD: Abort deployment if Service Worker cache version broken
-    # This prevents deploying broken PWA that won't cache splash screens
-    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
-            echo ""
-            print_message error "═══════════════════════════════════════════════════════════"
-            print_message error "         CRITICAL ERROR: SERVICE WORKER BROKEN           "
-            print_message error "═══════════════════════════════════════════════════════════"
-            print_message error ""
-            print_message error "sw.min.js still contains CACHE_VERSION_PLACEHOLDER"
-            print_message error "This means PWA caching will COMPLETELY FAIL"
-            print_message error ""
-            print_message error "Splash screens won't show, offline mode won't work"
-            print_message error ""
-            print_message error "Possible causes:"
-            print_message error "  1. npm run build failed silently"
-            print_message error "  2. terser minification timeout"
-            print_message error "  3. update-cache-busting.sh failed to replace PLACEHOLDER"
-            print_message error "  4. File permissions preventing sw.min.js update"
-            print_message error ""
-            print_message error "DEPLOYMENT ABORTED - Fix Service Worker first"
-            print_message error "═══════════════════════════════════════════════════════════"
-            echo ""
+    # =============================================================================
+    # COMPREHENSIVE BUILD ARTIFACT VALIDATION (Issue #1 fix)
+    # =============================================================================
+    # Validate ALL build artifacts before saving checksums. This prevents deploying
+    # incomplete builds that would cause next deployment to skip rebuild.
+    # Timing is critical: AFTER build + minification + cache busting, BEFORE checksum save.
+    # CRITICAL: Only validate if build was actually performed (build_allowed=true)
+
+    # Only validate and save checksums if frontend build was actually performed
+    if [[ "$build_allowed" == "true" ]]; then
+        step "Validating Build Artifacts"
+
+        # Run comprehensive validation
+        if ! validate_build_artifacts; then
+            error ""
+            error "═══════════════════════════════════════════════════════════"
+            error "      BUILD ARTIFACT VALIDATION FAILED                    "
+            error "═══════════════════════════════════════════════════════════"
+            error ""
+            error "Some critical files are missing or invalid after build."
+            error "Checksums will NOT be saved - next deploy will rebuild."
+            error ""
+            error "Common causes:"
+            error "  1. npm build failed partially (check logs above)"
+            error "  2. Vite bundle creation failed"
+            error "  3. File permissions preventing writes"
+            error "  4. Disk space exhausted during build"
+            error ""
+            error "DEPLOYMENT ABORTED"
+            error "═══════════════════════════════════════════════════════════"
             exit 1
         fi
-    fi
 
-    # Cache busting validation is now handled by update-cache-busting.sh
-    # This section removed to avoid duplication
-
-    # Verify Service Worker cache version updated
-    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-        info "Checking Service Worker cache version..."
-
-        # Use grep -q for reliable boolean check (avoids multiline count issues)
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
-            warning "Service Worker still contains CACHE_VERSION_PLACEHOLDER"
-            warning "Cache busting did not update sw.min.js"
-            echo ""
-        else
-            # Extract actual version (format: CACHE_VERSION="v20251220_1203" or const l="v20260109_0855" after minification)
-            sw_version=$(grep -oE '"v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/"//g' | head -1)
-            if [[ -n "$sw_version" ]]; then
-                success "Service Worker cache version: $sw_version"
-            else
-                warning "Could not extract Service Worker version from sw.min.js"
-            fi
-        fi
+        # Save checksums ONLY after comprehensive validation
+        save_frontend_build_checksums "$SCRIPT_DIR"
+        success "Build artifacts validated and checksums saved"
         echo ""
     else
-        warning "Service Worker file not found: $DEPLOY_DIR/sw.min.js"
+        info "Frontend build was skipped (no source files changed)"
+        info "Checksums NOT updated - using existing build artifacts"
         echo ""
     fi
+
+    # REMOVED: Duplicate PLACEHOLDER check block (Issue #1 fix)
+    # The comprehensive validate_build_artifacts() function (added above) already
+    # validates Service Worker PLACEHOLDER replacement. This section was redundant
+    # and happened AFTER checksums were saved (wrong timing).
+    # See validate_build_artifacts() at line ~887 for the new validation logic.
 
     # LATE checks (after code sync): docker-compose.yml, directories
     check_prerequisites_late
@@ -1527,45 +1650,84 @@ main() {
                 echo ""
                 # Continue with normal deployment flow (skip Full cleanup section below)
             else
+                # Issue #6 fix: Ask BEFORE changing mode, not after
                 warning "Atomic repair completed but PostgreSQL still unhealthy"
-                warning "Switching to Full cleanup mode for comprehensive repair"
                 echo ""
-                CLEANUP_MODE="full"
+
+                # ASK FIRST, THEN CHANGE MODE
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo "⚠️  CLEANUP MODE UPGRADE REQUIRED"
+                echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo ""
+                echo "Your selection: Smart cleanup (atomic PostgreSQL repair)"
+                echo "Problem: PostgreSQL remains unhealthy after atomic repair"
+                echo ""
+                echo "Recommended action: Upgrade to Full cleanup mode"
+                echo "  • Stops all containers"
+                echo "  • Removes Docker networks"
+                echo "  • Comprehensive PostgreSQL data directory repair"
+                echo "  • Restarts all services"
+                echo ""
+                echo "⚠️  DATA IS PRESERVED (volumes NOT deleted)."
+                echo ""
+                read -p "Upgrade to Full cleanup mode? [Y/n]: " -r
+                echo ""
+
+                if [[ $REPLY =~ ^[Yy]?$ ]]; then
+                    # CHANGE MODE AFTER USER APPROVES
+                    CLEANUP_MODE="full"
+                    success "Cleanup mode upgraded: smart → full (user approved)"
+                    echo ""
+                else
+                    error "Full cleanup declined by user"
+                    error "Cannot continue - PostgreSQL is unhealthy"
+                    error ""
+                    error "Options:"
+                    error "  1. Re-run deployment and accept Full cleanup"
+                    error "  2. Manually investigate PostgreSQL corruption"
+                    error "  3. Use --cleanup-mode full explicitly"
+                    exit 1
+                fi
             fi
         else
-            warning "Atomic repair failed - switching to Full cleanup mode"
-            echo ""
-            CLEANUP_MODE="full"
-        fi
-
-        # If atomic repair was insufficient, ask confirmation for Full cleanup
-        if [[ "$CLEANUP_MODE" == "full" ]]; then
-            info "Cleanup mode overridden: smart → full (automatic)"
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "⚠️  AUTOMATIC RECOVERY CONFIRMATION (Full Cleanup Required)"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            echo "Atomic repair was insufficient - Full cleanup required:"
-            echo "  1. Stop all containers"
-            echo "  2. Remove networks"
-            echo "  3. Comprehensive PostgreSQL data directory repair"
-            echo "  4. Restart services"
-            echo ""
-            echo "DATA IS PRESERVED (volumes NOT deleted unless you type 'DELETE')."
-            echo ""
-            read -p "Continue with Full cleanup? [Y/n]: " -r
+            # Atomic repair failed completely
+            warning "Atomic repair failed - Full cleanup mode required"
             echo ""
 
-            if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
-                error "Automatic recovery cancelled by user"
-                error "PostgreSQL is corrupted and cannot be repaired with atomic repair"
-                error "Full cleanup required - please run again and accept Full cleanup"
+            # ASK FIRST, THEN CHANGE MODE
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  CLEANUP MODE UPGRADE REQUIRED"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "Your selection: Smart cleanup (atomic PostgreSQL repair)"
+            echo "Problem: Atomic repair could not execute (PostgreSQL severely corrupted)"
+            echo ""
+            echo "Recommended action: Upgrade to Full cleanup mode"
+            echo "  • Stops all containers"
+            echo "  • Removes Docker networks"
+            echo "  • Comprehensive PostgreSQL data directory repair"
+            echo "  • Restarts all services"
+            echo ""
+            echo "⚠️  DATA IS PRESERVED (volumes NOT deleted)."
+            echo ""
+            read -p "Upgrade to Full cleanup mode? [Y/n]: " -r
+            echo ""
+
+            if [[ $REPLY =~ ^[Yy]?$ ]]; then
+                # CHANGE MODE AFTER USER APPROVES
+                CLEANUP_MODE="full"
+                success "Cleanup mode upgraded: smart → full (user approved)"
+                echo ""
+            else
+                error "Full cleanup declined by user"
+                error "Cannot continue - PostgreSQL repair failed"
+                error ""
+                error "Options:"
+                error "  1. Re-run deployment and accept Full cleanup"
+                error "  2. Manually investigate PostgreSQL corruption"
+                error "  3. Use --cleanup-mode full explicitly"
                 exit 1
             fi
-
-            success "Full cleanup confirmed - proceeding with comprehensive repair"
-            echo ""
         fi
     fi
     echo ""

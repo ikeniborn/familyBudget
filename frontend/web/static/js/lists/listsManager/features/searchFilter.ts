@@ -59,6 +59,29 @@ export function clearSearch(): void {
   handleSearch('');
 }
 
+/**
+ * Toggle search field visibility
+ */
+export function toggleSearchField(): void {
+  const searchContainer = document.getElementById('search-field-container');
+  const searchInput = document.getElementById('items-search') as HTMLInputElement;
+
+  if (!searchContainer) return;
+
+  const isHidden = searchContainer.classList.contains('hidden');
+
+  if (isHidden) {
+    // Show search field
+    searchContainer.classList.remove('hidden');
+    searchInput?.focus();
+  } else {
+    // Hide search field and clear search
+    searchContainer.classList.add('hidden');
+    if (searchInput) searchInput.value = '';
+    clearSearch();
+  }
+}
+
 // ============================================================================
 // Hide Completed Filter
 // ============================================================================
@@ -88,7 +111,7 @@ export function toggleHideCompleted(): void {
 /**
  * Update hide completed button state
  */
-function updateHideCompletedButton(): void {
+export function updateHideCompletedButton(): void {
   const state = getState();
   const btn = document.getElementById('toggle-hide-completed-btn');
   if (!btn) return;

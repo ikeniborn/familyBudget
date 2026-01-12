@@ -4,8 +4,8 @@ description: Мониторинг и диагностика проблем
 version: 2.0.0
 author: Family Budget Team
 tags: [monitoring, logs, metrics, troubleshooting, diagnostics, health-checks]
-dependencies: [deployment]
-user-invocable: true
+dependencies: []
+user-invocable: false
 ---
 
 # Monitoring & Troubleshooting Skill
@@ -487,7 +487,8 @@ fi
 
 ## Связанные скилы
 
-- **deployment**: для управления сервисами
+- **deploy-test**: для деплоя на тестовый сервер
+- **deploy-prod**: для деплоя на production сервер
 - **db-management**: для диагностики БД
 - **testing**: для проверки работоспособности
 

@@ -223,7 +223,9 @@
         </div>
 
         <!-- Table View -->
-        <div id="table-view" class="view-mode">
+        <!-- CRITICAL: Hidden on mobile by default (max-[639px]:hidden) to prevent flicker -->
+        <!-- JavaScript will show correct view after initialization -->
+        <div id="table-view" class="view-mode max-[639px]:hidden">
             <!-- Table View (responsive with horizontal scroll on mobile) -->
             <div class="overflow-x-auto shadow-lg rounded-lg" id="desktop-table-container">
                 <table class="table table-zebra w-full">
@@ -256,7 +258,9 @@
         </div>
 
         <!-- Hierarchy View -->
-        <div id="hierarchy-view" class="view-mode hidden">
+        <!-- CRITICAL: Visible on mobile by default (min-[640px]:hidden) to prevent flicker -->
+        <!-- Hidden on desktop until user switches view (JavaScript controls) -->
+        <div id="hierarchy-view" class="view-mode min-[640px]:hidden">
             <div class="bg-base-100 shadow-lg rounded-lg p-4">
                 <div id="hierarchy-tree">
                     <!-- Hierarchy tree will be rendered here dynamically by hierarchyView.js -->
@@ -540,21 +544,21 @@
 
     <!-- Speed Dial items -->
     <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Удалить выполненные</span>
         <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
             🗑️
         </button>
     </div>
 
     <div id="fab-item-mark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Отметить все</span>
         <button onclick="window.markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
             ✅
         </button>
     </div>
 
     <div id="fab-item-unmark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Снять все отметки</span>
         <button onclick="window.unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
             ❌
         </button>
@@ -580,7 +584,7 @@
 <!-- Lists Bundle (v7.0 ES modules migration) -->
 <!-- Includes: listsManager, csvImporter, googleSheetsImporter, importManager, hierarchyView, transfer, htmxWidgets, admin-facts-common -->
 <!-- Note: Real-time updates now provided by global budgetWSClient (from base.html) -->
-<script src="/static/js/lists.min.js?v={{ sw_version }}"></script>
+<script src="/static/js/lists.min.js?v=PLACEHOLDER"></script>
 
 <!-- Diagnostic check: Verify window exports loaded -->
 <script>
@@ -623,30 +627,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-        console.log('[LISTS_INIT] Starting listsManager.init()');
+        console.log('[LISTS_INIT] Waiting for lists bundle to load...');
+
+        // Wait for bundle to load and export functions
+        let attempts = 0;
+        while (typeof window.loadShoppingLists !== 'function' && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+
+        if (typeof window.loadShoppingLists !== 'function') {
+            throw new Error('Lists bundle failed to load after 5 seconds');
+        }
+
+        console.log(`[LISTS_INIT] Bundle ready after ${attempts * 100}ms`);
+        console.log('[LISTS_INIT] Starting initializeListsManager()');
         performance.mark('lists-init-start'); // Performance tracking
 
-        // Initialize Lists Manager
-        await window.listsManager.init();
+        // Initialize Lists Manager (modular structure v7.0+)
+        await window.initializeListsManager();
+
+        // Initialize HierarchyView integration (v7.0.1)
+        window.initializeHierarchyView();
+
+        // Initialize ImportManager integration (v7.0.1)
+        window.initializeImportManager();
+
+        // Load shopping lists data from API
+        await window.loadShoppingLists();
+
+        // Render landing view with lists
+        window.showLandingView();
 
         performance.mark('lists-init-end');
         performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
         const measure = performance.getEntriesByName('lists-initialization')[0];
         console.log(`[LISTS_INIT] ✅ Initialization completed in ${measure.duration.toFixed(2)}ms`);
-
-        // Make hierarchyView globally accessible for onclick handlers
-        if (window.listsManager.hierarchyView) {
-            window.hierarchyView = window.listsManager.hierarchyView;
-        }
-
-        // Close autocomplete dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('product-suggestions-dropdown');
-            const input = document.getElementById('item-product-name');
-            if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
-                window.listsManager?.hideProductSuggestions();
-            }
-        });
 
         debugLog('[Lists] Page initialized');
     } catch (error) {
@@ -661,20 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-/**
- * Navigate to home page with offline support
- * HTMX handles Service Worker cache automatically via hx-get="/"
- * Service Worker intercepts fetch() → serves cached page
- */
-function navigateHomeOfflineFriendly() {
-    console.log('[LISTS_NAV] Navigating to home page (offline-friendly)');
-
-    // HTMX will handle navigation via hx-get="/"
-    // Service Worker intercepts fetch() → serves cached page
-    if (typeof htmx === 'undefined') {
-        console.warn('[LISTS_NAV] HTMX not available, using fallback');
-        window.location.href = '/';
-    }
-}
+// Note: navigateHomeOfflineFriendly() is now exported from lists-bundle.ts
+// (defined in listsManager/ui/globalHelpers.ts)
 </script>
 {% endblock %}

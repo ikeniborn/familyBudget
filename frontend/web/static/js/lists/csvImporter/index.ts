@@ -1,71 +1,203 @@
 /**
- * CSV Importer - Module Structure
+ * CSV Importer - Public API
  *
- * Phase 2.4: Foundation (types extracted)
+ * Barrel export file providing access to all public csvImporter functionality.
  *
- * STATUS: csvImporter.ts (1,724 lines) - complex wizard with 5 steps
- * STRATEGY: Types extracted, class remains for future gradual refactoring
- *
- * Current usage: window.csvImporter (global instance)
+ * Phase 3: ES Modules Migration (Step 8)
  */
 
 // ============================================================================
-// Type Definitions (Phase 2.4: Complete)
+// Core State Management
 // ============================================================================
 
 export {
-    createInitialState,
-    getState,
-    updateState,
-    resetState,
-    initializeState
-} from './core/CSVState';
+  initializeState,
+  getCurrentStep,
+  setCurrentStep,
+  getTotalSteps,
+  setFileData,
+  getFileData,
+  clearFileData,
+  setDetectionResult,
+  getDetectionResult,
+  clearDetectionResult,
+  setColumnMapping,
+  updateColumnMapping,
+  getColumnMapping,
+  clearColumnMapping,
+  setValidationResult,
+  getValidationResult,
+  clearValidationResult,
+  updateImportOptions,
+  getImportOptions,
+  resetImportOptions,
+  updatePreviewPagination,
+  getPreviewPagination,
+  updatePreviewFilters,
+  getPreviewFilters,
+  clearPreviewFilters,
+  setAllPreviewRows,
+  getAllPreviewRows,
+  getContainer,
+  setContainer,
+  getGlobalVarName,
+  setGlobalVarName,
+  setOnBackToStep1,
+  getOnBackToStep1,
+  setWorkerWrapper,
+  getWorkerWrapper,
+  getState,
+  updateState,
+  resetState
+} from './core/stateManager';
 
 export type {
-    ImportOptions,
-    PreviewPagination,
-    PreviewFilters,
-    DetectionResult,
-    ValidationResult,
-    CSVImporterState
-} from './core/CSVState';
+  DetectionResult,
+  ValidationRow,
+  ValidationResult,
+  ImportOptions,
+  PreviewPagination,
+  PreviewFilters,
+  ImportState
+} from './core/ImportState';
 
 // ============================================================================
-// Future Modules (not yet implemented)
+// File Operations
 // ============================================================================
 
-/*
-// File operations
 export {
-    readFileContent,
-    encodeBase64,
-    detectEncoding
-} from './core/fileReader';
+  readFileContent,
+  encodeBase64,
+  initializeWorker,
+  getWorker,
+  handleFileSelect,
+  formatFileSize,
+  validateCSVFile
+} from './operations/fileProcessor';
 
-// CSV detection
+// ============================================================================
+// Detection & Mapping
+// ============================================================================
+
 export {
-    detectDelimiter,
-    detectHeaders,
-    parseSampleRows
-} from './validation/detector';
+  detectDelimiter,
+  parseColumns
+} from './operations/detection';
 
-// Column mapping
 export {
-    autoMapColumns,
-    validateMapping,
-    getRequiredFields
-} from './validation/validator';
+  updateMapping,
+  getMappedColumns,
+  getUnmappedColumns,
+  getMappedFields,
+  resetMapping,
+  validateMapping,
+  updateMappingValidationUI,
+  isFieldMapped,
+  getColumnForField,
+  getMappingStatistics
+} from './operations/mapper';
 
-// Step renderers
-export { renderStep1 } from './steps/step1Upload';
-export { renderStep2 } from './steps/step2Detection';
-export { renderStep3 } from './steps/step3Mapping';
-export { renderStep4 } from './steps/step4Preview';
-export { renderStep5 } from './steps/step5Execute';
-
-// API integration
 export {
-    callPreviewAPI,
-    executeImport
+  hasReferenceErrors,
+  hasDuplicateWarnings,
+  hasErrors,
+  hasWarnings,
+  getValidationSummary,
+  getErrorBreakdown,
+  getErrorsByField,
+  getRowValidationClass as getRowValidationClassFromValidator,
+  getValidationIcon,
+  getValidationStatusText,
+  validateImportOptions,
+  canProceedWithImport
+} from './operations/validator';
+
+// ============================================================================
+// API Integration
+// ============================================================================
+
+export {
+  callDetectionAPI,
+  detectFormatClientSide,
+  detectFormat,
+  analyzeFile
+} from './integration/detectionAPI';
+
+export {
+  callPreviewAPI,
+  revalidateWithOptions,
+  handleSkipDuplicatesChange
+} from './integration/previewAPI';
+
+export type {
+  PreviewAPIOptions
+} from './integration/previewAPI';
+
+export {
+  callImportAPI,
+  handleImportSuccess,
+  handleImportError,
+  executeImport
 } from './integration/importAPI';
-*/
+
+export type {
+  ImportOptions as ImportAPIOptions,
+  ImportResult,
+  ImportCallbacks
+} from './integration/importAPI';
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
+export {
+  renderStep1
+} from './rendering/step1Upload';
+
+export {
+  renderStep2
+} from './rendering/step2Detection';
+
+export {
+  renderStep3
+} from './rendering/step3Mapping';
+
+export {
+  renderStep4
+} from './rendering/step4Preview';
+
+export {
+  getUniqueFilterValues,
+  getFilteredPaginatedRows,
+  handleFilterChange,
+  handleRowsPerPageChange,
+  handlePageChange,
+  clearFilters,
+  updatePreviewTable,
+  renderPreviewTableHTML
+} from './rendering/previewTable';
+
+export {
+  renderPreviewResults,
+  renderPreviewError
+} from './rendering/resultsSummary';
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+export {
+  escapeHtml,
+  pluralize
+} from './utils/formatting';
+
+export {
+  getStep1OnClick,
+  getStepOnClick
+} from './utils/navigationHelpers';
+
+export {
+  getRowValidationClass,
+  getStatusBadge,
+  getFieldLabel
+} from './utils/statusHelpers';

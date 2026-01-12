@@ -7,7 +7,7 @@
 ```bash
 # Запуск автоматизированного деплоя
 cd /home/ikeniborn/Documents/Project/familyBudget
-bash .claude/skills/deployment/templates/deploy-test.sh
+bash .claude/skills/deploy-test/templates/deploy-test.sh
 ```
 
 **Что происходит:**
@@ -45,7 +45,7 @@ bash .claude/skills/deployment/templates/deploy-test.sh
 
 ```bash
 # Запуск с флагом --auto-fix
-bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix
+bash .claude/skills/deploy-test/templates/deploy-test.sh --auto-fix
 ```
 
 **Что происходит дополнительно:**
@@ -66,7 +66,7 @@ backend (unhealthy)
 
 ```bash
 # Запуск с подробными логами
-bash .claude/skills/deployment/templates/deploy-test.sh --verbose
+bash .claude/skills/deploy-test/templates/deploy-test.sh --verbose
 ```
 
 **Вывод:**
@@ -78,7 +78,7 @@ bash .claude/skills/deployment/templates/deploy-test.sh --verbose
 
 ```bash
 # Показать что будет сделано без реального выполнения
-bash .claude/skills/deployment/templates/deploy-test.sh --dry-run
+bash .claude/skills/deploy-test/templates/deploy-test.sh --dry-run
 ```
 
 **Вывод:**
@@ -106,7 +106,7 @@ git commit -m "fix: исправление бага в списках покуп
 git push origin test
 
 # 2. Автоматический деплой на тестовый сервер
-bash .claude/skills/deployment/templates/deploy-test.sh
+bash .claude/skills/deploy-test/templates/deploy-test.sh
 
 # 3. Проверка результата
 # Логи автоматически анализируются и сохраняются в ./logs/
@@ -120,7 +120,7 @@ bash .claude/skills/deployment/templates/deploy-test.sh
 
 ```bash
 # 1. Запуск с автоматическим исправлением
-bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix --verbose
+bash .claude/skills/deploy-test/templates/deploy-test.sh --auto-fix --verbose
 
 # 2. Анализ сохраненных логов
 cat logs/deploy-test_*.log
@@ -134,7 +134,7 @@ vim backend/app/main.py
 git add .
 git commit -m "fix: исправление ошибки деплоя"
 git push origin test
-bash .claude/skills/deployment/templates/deploy-test.sh
+bash .claude/skills/deploy-test/templates/deploy-test.sh
 ```
 
 ### Сценарий 3: Мониторинг после деплоя
@@ -143,7 +143,7 @@ bash .claude/skills/deployment/templates/deploy-test.sh
 
 ```bash
 # 1. Деплой
-bash .claude/skills/deployment/templates/deploy-test.sh
+bash .claude/skills/deploy-test/templates/deploy-test.sh
 
 # 2. Проверка через 5 минут (автоматически выполняется в скрипте)
 # - Анализ логов контейнеров
@@ -164,7 +164,7 @@ cat logs/container_status_*.json
 crontab -e
 
 # Добавить строку:
-0 2 * * * cd /home/ikeniborn/Documents/Project/familyBudget && bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix >> logs/cron-deploy.log 2>&1
+0 2 * * * cd /home/ikeniborn/Documents/Project/familyBudget && bash .claude/skills/deploy-test/templates/deploy-test.sh --auto-fix >> logs/cron-deploy.log 2>&1
 ```
 
 ## Анализ логов
@@ -207,7 +207,7 @@ grep "зависшие процессы" logs/deploy-test_*.log
 Добавьте алиас в `.bashrc` или `.zshrc`:
 
 ```bash
-alias deploy-test="cd /home/ikeniborn/Documents/Project/familyBudget && bash .claude/skills/deployment/templates/deploy-test.sh"
+alias deploy-test="cd /home/ikeniborn/Documents/Project/familyBudget && bash .claude/skills/deploy-test/templates/deploy-test.sh"
 ```
 
 Теперь можно запускать из любой директории:
@@ -227,7 +227,7 @@ deploy-test --verbose
 
 Claude Code автоматически вызовет:
 ```bash
-bash .claude/skills/deployment/templates/deploy-test.sh
+bash .claude/skills/deploy-test/templates/deploy-test.sh
 ```
 
 ## Troubleshooting
@@ -265,7 +265,7 @@ git pull origin test
 **Решение:**
 ```bash
 # Запустить в verbose режиме
-bash .claude/skills/deployment/templates/deploy-test.sh --verbose
+bash .claude/skills/deploy-test/templates/deploy-test.sh --verbose
 
 # Или проверить процессы на сервере
 ssh budget-test "ps aux | grep deploy"
@@ -276,7 +276,7 @@ ssh budget-test "ps aux | grep deploy"
 **Решение:**
 ```bash
 # Автоматическое исправление
-bash .claude/skills/deployment/templates/deploy-test.sh --auto-fix
+bash .claude/skills/deploy-test/templates/deploy-test.sh --auto-fix
 
 # Или вручную
 ssh budget-test "cd /opt/budget && docker compose restart"

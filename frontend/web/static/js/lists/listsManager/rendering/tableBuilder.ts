@@ -14,15 +14,10 @@ import { getState } from '../core/ListsState';
 // Type Definitions
 // ============================================================================
 
+declare const debugLog: (...args: any[]) => void;
 declare const openAddItemModal: () => void;
 declare const openEditItemModal: (itemId: number) => void;
 declare const toggleHideCompleted: () => void;
-
-declare global {
-  interface Window {
-    listsManager?: any;
-  }
-}
 
 // ============================================================================
 // Helper Functions
@@ -49,8 +44,6 @@ function formatQuantity(quantity: number | null, unit: string | null): string {
 
   // Always round to nearest integer
   const rounded = Math.round(quantity);
-
-  console.log(`[LISTS_TABLE] Formatting quantity: raw=${quantity}, rounded=${rounded}, unit=${unit}`);
 
   return unit ? `${rounded} ${unit}` : rounded.toString();
 }
@@ -108,12 +101,27 @@ export function filterItemsBySearch(): any[] {
 
   const query = state.searchQuery.toLowerCase().trim();
 
+  // DIAGNOSTIC: Log search attempt
+  debugLog('[SEARCH_FILTER] Starting search', {
+    query,
+    totalItems: items.length,
+    storeCount: state.stores.length,
+    groupCount: state.productGroups.length,
+    hideCompleted: state.hideCompleted
+  });
+
   // Build lookup maps
   const storeMap: Record<number, string> = {};
   state.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
 
   const groupMap: Record<number, any> = {};
   state.productGroups.forEach(g => { groupMap[g.id] = g; });
+
+  // DIAGNOSTIC: Log map sizes
+  debugLog('[SEARCH_FILTER] Maps built', {
+    storeMapSize: Object.keys(storeMap).length,
+    groupMapSize: Object.keys(groupMap).length
+  });
 
   // Helper to get all ancestor names for a group
   const getGroupAncestorNames = (groupId: number | null) => {
@@ -130,9 +138,9 @@ export function filterItemsBySearch(): any[] {
     return names;
   };
 
-  return items.filter(item => {
+  const results = items.filter(item => {
     // Check product name
-    if ((item.name || '').toLowerCase().includes(query)) {
+    if ((item.product_name || '').toLowerCase().includes(query)) {
       return true;
     }
 
@@ -161,6 +169,21 @@ export function filterItemsBySearch(): any[] {
 
     return false;
   });
+
+  // DIAGNOSTIC: Log results
+  debugLog('[SEARCH_FILTER] Search complete', {
+    query,
+    matchedItems: results.length,
+    totalItems: items.length,
+    matchRate: `${((results.length / items.length) * 100).toFixed(1)}%`,
+    sampleResults: results.slice(0, 3).map(r => ({
+      id: r.id,
+      product_name: r.product_name,
+      store: r.store_id !== null ? (storeMap[r.store_id] || 'N/A') : 'N/A'
+    }))
+  });
+
+  return results;
 }
 
 // ============================================================================
@@ -229,7 +252,7 @@ export function renderItemsTable(): void {
     const store = state.stores.find(s => s.id === item.store_id);
     const groupPath = getProductGroupBreadcrumbs(item.product_group_id);
     const isCompleted = item.is_completed;
-    const productName = item.name || '';
+    const productName = item.product_name || '';
     const comment = item.notes || '';
 
     return `
@@ -300,10 +323,23 @@ function updateSelectionUI(): void {
  */
 export function renderCurrentView(): void {
   const state = getState();
+  const isMobile = window.innerWidth < 640;
 
-  if (state.currentView === 'hierarchy' && state.hierarchyView) {
+  // CRITICAL: On mobile, NEVER render table (even if hierarchyView not ready yet)
+  // Wait for hierarchyView initialization instead of falling back to table
+  if (isMobile && state.currentView === 'hierarchy') {
+    if (state.hierarchyView) {
+      state.hierarchyView.render();
+    } else {
+      // HierarchyView not ready yet - wait for initializeHierarchyView()
+      debugLog('[ListsManager] Mobile: waiting for hierarchyView initialization (skipping table render)');
+      return;
+    }
+  } else if (state.currentView === 'hierarchy' && state.hierarchyView) {
+    // Desktop hierarchy view
     state.hierarchyView.render();
   } else {
+    // Desktop table view (mobile never reaches here)
     renderItemsTable();
   }
 }

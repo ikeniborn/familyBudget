@@ -18,7 +18,7 @@ export interface DetectionResult {
   delimiter: string;
   hasHeader: boolean;
   headers: string[];
-  sampleRows: any[][];
+  sampleRows: string[][];
   rowCount: number;
   encoding?: string;
 }
@@ -27,9 +27,12 @@ export interface ValidationRow {
   rowIndex: number;
   original: Record<string, any>;
   mapped: Record<string, any>;
-  errors: string[];
-  warnings: string[];
+  errors: Array<{ field: string; message: string; error_type?: string }>;
+  warnings: Array<{ field: string; message: string }>;
   isValid: boolean;
+  // Additional fields from API response
+  data?: Record<string, any>;
+  validation_status?: string;
 }
 
 export interface ValidationResult {
@@ -97,7 +100,7 @@ export interface ImportState {
   globalVarName: string;
 
   // Web Worker reference (class-level in original)
-  workerWrapper: any;
+  workerWrapper: { execute(payload: any): Promise<any> } | null;
 }
 
 // ============================================================================

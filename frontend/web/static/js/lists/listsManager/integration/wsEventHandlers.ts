@@ -67,7 +67,7 @@ export function handleItemCreated(item: any): void {
   updateItemsCache();
 
   // Show notification
-  showToast(`Добавлен товар: ${item.name}`, 'info');
+  showToast(`Добавлен товар: ${item.product_name}`, 'info');
 }
 
 /**
@@ -161,7 +161,7 @@ export function handleItemDeleted(itemId: number, shoppingListId: number): void 
   updateItemsCache();
 
   // Show notification
-  showToast(`Удалён товар: ${removedItem.name}`, 'info');
+  showToast(`Удалён товар: ${removedItem.product_name}`, 'info');
 }
 
 /**

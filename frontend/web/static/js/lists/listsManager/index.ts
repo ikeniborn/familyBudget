@@ -74,6 +74,11 @@ export {
   initializeResponsiveView
 } from './rendering/listRenderer';
 
+export {
+  initializeHierarchyView,
+  updateHierarchyToggleButton
+} from './rendering/hierarchyIntegration';
+
 // ============================================================================
 // Features (Phase 3.3: Complete)
 // ============================================================================
@@ -82,6 +87,7 @@ export {
   handleSearch,
   clearSearch,
   toggleHideCompleted,
+  toggleSearchField,
   updateFABButtons
 } from './features/searchFilter';
 
@@ -89,13 +95,21 @@ export {
   toggleSelectAll,
   selectCompleted,
   deleteSelected,
-  updateSelectionUI
+  updateSelectionUI,
+  confirmDelete,
+  closeDeleteConfirmModal
 } from './features/multiSelect';
 
 export {
   setupProductAutocomplete,
   hideProductSuggestions
 } from './features/autocomplete';
+
+export {
+  markAllCompleted,
+  unmarkAllCompleted,
+  deleteCompleted
+} from './features/bulkActions';
 
 // ============================================================================
 // UI (Phase 3.4: Complete)
@@ -106,6 +120,7 @@ export {
   openEditItemModal,
   closeItemModal,
   handleDeleteFromModal,
+  handleSaveItem,
   openCreateListModal,
   closeCreateListModal,
   handleCreateList,
@@ -113,6 +128,8 @@ export {
   closeDeleteListModal,
   confirmDeleteList
 } from './ui/modalManager';
+
+export { toggleListsFAB } from './ui/fabManager';
 
 // ============================================================================
 // Integration (Phase 3.5: Complete)
@@ -124,3 +141,14 @@ export {
   handleItemDeleted,
   handleItemCompletedToggled
 } from './integration/wsEventHandlers';
+
+export { initializeImportManager } from './integration/importIntegration';
+
+// ============================================================================
+// Global Helpers (Phase 7.x: Navigation & Modals) - v7.x.x migration fix
+// ============================================================================
+
+export {
+  openModal,
+  navigateHomeOfflineFriendly
+} from './ui/globalHelpers';
