@@ -8,14 +8,12 @@
 <style>
     /* Fix iframe dimensions to prevent reflow and visual jump */
     .telegram-widget-container iframe {
-        /* [FIX] Allow iframe to expand for localized text (Russian "Войти как Илья" is wider than 186px) */
-        width: auto !important;           /* Auto width to fit content */
+        /* [FIX] Allow iframe to auto-size for localized text (Russian "Войти как Илья" wider than English) */
+        width: auto !important;           /* Override Telegram's inline width */
+        height: auto !important;          /* Override Telegram's inline height */
         max-width: 100% !important;       /* Don't overflow container */
-        min-width: 186px !important;      /* Minimum as standard button */
-        height: 34px !important;
-        /* Prevent any potential shifts */
         display: block;
-        margin: 0 auto;
+        margin: 0 !important;             /* Remove auto margins, parent flex handles centering */
     }
 
     /* Hide Telegram iframe until fully loaded to prevent visual jump */
