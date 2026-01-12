@@ -1374,6 +1374,16 @@ main() {
             print_message info "Created temporary node_modules symlink for Vite ES imports"
         fi
 
+        # CRITICAL FIX (2026-01-12): Clear Vite cache before build
+        # - Vite caches compiled modules in node_modules/.vite/
+        # - Stale cache can cause old code to be bundled even with updated source files
+        # - Clear cache when TypeScript sources changed to ensure fresh build
+        if [[ -d "$PWD/node_modules/.vite" ]]; then
+            print_message info "Clearing Vite cache (stale modules prevention)..."
+            rm -rf "$PWD/node_modules/.vite"
+            print_message success "Vite cache cleared"
+        fi
+
         echo ""
         # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
         # build-all.js reads these variables for production minification
