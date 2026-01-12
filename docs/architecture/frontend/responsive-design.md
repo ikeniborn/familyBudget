@@ -679,6 +679,97 @@ Pending sync badge scales responsively:
 
 ---
 
+## Telegram Login Button Responsive Design (v7.x+)
+
+**Date:** 2026-01-12
+**Issue:** Telegram OAuth button (186px фиксированная ширина) обрезается на маленьких мобильных экранах и PWA
+**Solution:** Многоуровневая responsive стратегия с viewport оптимизацией, CSS масштабированием, fallback sizing
+
+### Размеры кнопки
+
+**Официальные размеры Telegram:**
+- Large: 186px × 34px (по умолчанию)
+- Medium: 148px × 34px (fallback для маленьких экранов)
+- Small: 100px × 26px (не используется)
+
+### Responsive стратегия
+
+| Ширина экрана | Padding контейнера | Доступная ширина | Размер кнопки | Масштаб |
+|---------------|-------------------|------------------|---------------|---------|
+| ≥ 480px | p-6 (48px) | 284px+ | Large (186px) | 1.0 |
+| 375-479px | p-4 (32px) | 311px+ | Large (186px) | 1.0 |
+| 320-374px | p-4 (32px) | 256px+ | Large (186px) | 1.0 |
+| < 320px | p-4 (32px) | <256px | Medium (148px) or scaled | 0.9 |
+
+### Критические CSS требования
+
+**Safe Area Insets (iOS):**
+```css
+.telegram-widget-container {
+    padding-left: max(0px, env(safe-area-inset-left));
+    padding-right: max(0px, env(safe-area-inset-right));
+}
+```
+
+**Transform Scaling (экстремально маленькие экраны):**
+```css
+@media (max-width: 320px) {
+    .telegram-widget-container iframe {
+        transform: scale(0.9);
+        transform-origin: center;
+    }
+}
+```
+
+### Viewport Meta Tag
+
+**Оптимизировано для iOS Safari PWA:**
+```html
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, minimum-scale=0.9, viewport-fit=cover">
+```
+
+**Почему maximum-scale=1.5 (не 1.0)?**
+- iOS Safari имеет rendering баги с `maximum-scale=1.0` в PWA standalone режиме
+- Разрешает минимальный user zoom для исправления rendering glitches
+- Предотвращает нежелательный auto-zoom на form inputs
+
+### Diagnostic Logging
+
+**Пример console output:**
+```javascript
+[TelegramWidget] Viewport diagnostics: {
+  windowWidth: 375,
+  containerWidth: 295,
+  iframeWidth: 186,
+  availableSpace: 109,  // Положительное = помещается
+  isCutOff: false
+}
+```
+
+### Тестирование
+
+**Устройства:**
+- [ ] iPhone SE (375px) - Safari + PWA
+- [ ] iPhone 6/7/8 (375px) - Safari + PWA
+- [ ] Galaxy Fold (280px folded) - Chrome
+- [ ] Generic Android (360px) - Chrome + PWA
+- [ ] iPad Mini (768px) - Safari
+
+**Сценарии:**
+- [ ] Кнопка видна без горизонтального скролла
+- [ ] Кнопка центрирована в контейнере
+- [ ] Нет layout shift при loader → button transition
+- [ ] Safe area insets учитываются на iPhone X+
+- [ ] PWA standalone режим рендерится корректно
+
+### Связанные файлы
+
+- Template: `/frontend/web/templates/telegram_login.html`
+- Base template: `/frontend/web/templates/base.html` (viewport meta)
+- Documentation: `/docs/architecture/authentication.md` (Telegram OAuth)
+
+---
+
 ## Future Responsive Improvements
 
 **Potential Areas for Enhancement:**
