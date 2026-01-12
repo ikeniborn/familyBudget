@@ -27,11 +27,11 @@
                 Нажмите кнопку ниже для входа через ваш Telegram аккаунт.
             </p>
 
-            <div class="telegram-widget-container flex justify-center" id="telegram-widget-container"
+            <div class="telegram-widget-container relative flex justify-center min-h-[50px]" id="telegram-widget-container"
                  data-bot-username="{{ bot_username }}"
                  data-callback-url="{{ callback_url }}">
                 <!-- State: LOADING - Loader (shows while widget is loading) -->
-                <div class="telegram-placeholder flex justify-center items-center w-full" id="telegram-placeholder">
+                <div class="telegram-placeholder absolute inset-0 flex justify-center items-center z-10" id="telegram-placeholder">
                     <div class="telegram-loader flex flex-col items-center gap-2">
                         <span class="loading loading-spinner loading-md text-primary"></span>
                         <span class="telegram-loader-text">Загрузка...</span>
