@@ -1838,25 +1838,33 @@
                     // Step 3/5: Clear IndexedDB
                     console.log('[SW_UPDATE] Step 3/5: Clearing IndexedDB...');
                     try {
-                        await new Promise((resolve, reject) => {
-                            const deleteRequest = indexedDB.deleteDatabase('FamilyBudgetDB');
+                        await Promise.race([
+                            new Promise((resolve, reject) => {
+                                const deleteRequest = indexedDB.deleteDatabase('FamilyBudgetDB');
 
-                            deleteRequest.onsuccess = () => {
-                                console.log('[SW_UPDATE] ✅ IndexedDB "FamilyBudgetDB" deleted successfully');
-                                resolve();
-                            };
+                                deleteRequest.onsuccess = () => {
+                                    console.log('[SW_UPDATE] ✅ IndexedDB "FamilyBudgetDB" deleted successfully');
+                                    resolve();
+                                };
 
-                            deleteRequest.onerror = (event) => {
-                                console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion error:', event);
-                                reject(event);
-                            };
+                                deleteRequest.onerror = (event) => {
+                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion error:', event);
+                                    reject(event);
+                                };
 
-                            deleteRequest.onblocked = () => {
-                                console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion blocked (connections still open)');
-                                // Continue anyway - will be cleaned up on reload
-                                resolve();
-                            };
-                        });
+                                deleteRequest.onblocked = () => {
+                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion blocked (connections still open)');
+                                    // Continue anyway - will be cleaned up on reload
+                                    resolve();
+                                };
+                            }),
+                            new Promise((resolve) => {
+                                setTimeout(() => {
+                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion timeout (5s), continuing...');
+                                    resolve();
+                                }, 5000);
+                            })
+                        ]);
                     } catch (error) {
                         console.warn('[SW_UPDATE] ⚠️ Failed to delete IndexedDB:', error);
                         console.warn('[SW_UPDATE] Continuing with update despite IndexedDB error...');
@@ -1870,7 +1878,11 @@
 
                     // Clear ALL localStorage entries
                     const localStorageKeys = Object.keys(localStorage);
-                    console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear:`, localStorageKeys);
+                    if (localStorageKeys.length > 100) {
+                        console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear (too many to log)`);
+                    } else {
+                        console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear:`, localStorageKeys);
+                    }
 
                     localStorage.clear();
                     console.log('[SW_UPDATE] ✅ localStorage cleared completely');

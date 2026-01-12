@@ -410,7 +410,15 @@ Browser: Show modal dialog
   - Current version: gray badge (neutral)
   - New version: yellow/warning badge (emphasis)
   - Format: monospace font for readability
-- ⚠️ **Warning:** "Для применения обновления необходимо перезагрузить страницу. Несохранённые данные будут потеряны."
+- ⚠️ **Warning (v7.x):**
+  ```
+  Для применения обновления необходимо перезагрузить страницу.
+
+  Будут удалены: offline данные, настройки и кеш.
+  Потребуется повторная авторизация.
+
+  Рекомендуется синхронизировать данные перед обновлением.
+  ```
 - 🔘 **Actions:** "Позже" (defer) | "Обновить сейчас" (proceed)
 
 **Edge Cases:**
@@ -435,25 +443,158 @@ _**Indicates localStorage corruption or manual clearing_
 
 #### Step 7: User Confirms Update
 
+**Since:** v7.x (5-step cleanup with IndexedDB + full localStorage clearing)
+**Previous:** v6.x (3-step cleanup, partial localStorage clearing)
+
 ```
 User: Clicks "Обновить сейчас"
 Console: [SW_UPDATE] 🔄 User confirmed update - starting cleanup process
 Console: [SW_UPDATE] Updating to version: v20260107_1400
-Console: [SW_UPDATE] Step 1/3: Unregistering Service Worker...
+
+Console: [SW_UPDATE] Step 1/5: Unregistering Service Worker...
 Browser: Unregister Service Worker
 Console: [SW_UPDATE] ✅ Service Worker unregistered successfully
-Console: [SW_UPDATE] Step 2/3: Clearing all caches...
+
+Console: [SW_UPDATE] Step 2/5: Clearing all caches...
 Browser: Clear all caches (budget-v20260107_1330)
+Console: [SW_UPDATE] Cache "budget-v20260107_1330": ✅ deleted
 Console: [SW_UPDATE] ✅ Cleared 1/1 caches
-Console: [SW_UPDATE] Step 3/3: Updating version and reloading...
-Browser: Save new version to localStorage (pwa_sw_version)
+
+Console: [SW_UPDATE] Step 3/5: Clearing IndexedDB...
+Browser: indexedDB.deleteDatabase('FamilyBudgetDB') with 5s timeout
+  → onsuccess: IndexedDB deleted successfully
+  → onerror: Log error, continue anyway (best effort)
+  → onblocked: Log warning, continue anyway (will be cleaned on reload)
+  → timeout (5s): Log warning, continue anyway (rare edge case)
+Console: [SW_UPDATE] ✅ IndexedDB "FamilyBudgetDB" deleted successfully
+  OR [SW_UPDATE] ⚠️ IndexedDB deletion timeout (5s), continuing...
+
+Console: [SW_UPDATE] Step 4/5: Clearing ALL localStorage...
+Browser: Save newVersion to variable BEFORE clearing
+Browser: localStorage.clear() - removes ALL keys
+Console: [SW_UPDATE] Found 15 localStorage keys to clear: [...]
+  OR [SW_UPDATE] Found 250 localStorage keys to clear (too many to log)
+Console: [SW_UPDATE] ✅ localStorage cleared completely
+Browser: Restore ONLY pwa_sw_version with new version
 Console: [SW_UPDATE] ✅ Saved new version to localStorage: v20260107_1400
-Browser: Clean up update flags (pwa_update_available, pwa_new_version)
-Console: [SW_UPDATE] ✅ Cleaned up update flags from localStorage
-Console: [SW_UPDATE] ⟳ Initiating page reload...
+
+Console: [SW_UPDATE] ✅ Modal closed
+Console: [SW_UPDATE] Step 5/5: Reloading page...
+Console: [SW_UPDATE] ⟳ Initiating hard reload...
 Browser: RELOAD via window.location.reload(true)
 Result: Page reloads, user on new version, indicator hidden
 ```
+
+**What Gets Cleared:**
+- ✅ **Service Worker registration** - Fully unregistered
+- ✅ **Cache Storage API** - All `budget-v*` caches deleted
+- ✅ **IndexedDB** - `FamilyBudgetDB` database deleted (all 12 object stores)
+  - offline_facts, offline_transfers, offline_plans, offline_recurring_plans
+  - offline_shopping_lists, offline_shopping_list_items
+  - sync_queue, sync_queue_shopping
+  - data_cache, cached_stores, cached_product_groups, sync_metadata
+- ✅ **localStorage** - ALL keys cleared (except `pwa_sw_version` restored with new version)
+  - JWT tokens (requires re-authentication)
+  - User preferences
+  - UI state
+  - All application settings
+
+**User Impact:**
+- ⚠️ **Authentication:** User will be logged out, must re-authenticate
+- ⚠️ **Offline data:** All offline transactions, shopping lists, and unsynced data LOST
+- ⚠️ **Settings:** User preferences reset to defaults
+- ⚠️ **Cache:** All cached reference data (articles, accounts, cost centers) cleared
+
+---
+
+**Update Process Edge Cases:**
+
+1. **User closes tab during update (partial cleanup)**
+
+   **Scenario:** User closes browser tab between Step 3 and Step 5
+
+   **Result:**
+   - ✅ Service Worker unregistered (Step 1 completed)
+   - ✅ Cache Storage cleared (Step 2 completed)
+   - ✅ IndexedDB cleared (Step 3 completed)
+   - ❌ localStorage NOT cleared (Step 4 not reached)
+   - ❌ Page reload NOT triggered (Step 5 not reached)
+
+   **Impact:**
+   - Old JWT tokens remain in localStorage
+   - User preferences remain
+   - SW will be re-registered on next page load
+   - Cache will be rebuilt by new SW
+   - **Potential issue:** Old localStorage data may conflict with new code
+
+   **Mitigation:**
+   - User can close and reopen browser to trigger update again
+   - Next update will complete all 5 steps
+   - Application handles version mismatches gracefully
+
+   **Severity:** 🟡 Low (rare, self-healing on next update)
+
+2. **IndexedDB deletion timeout (5 seconds)**
+
+   **Scenario:** IndexedDB.deleteDatabase() hangs for >5 seconds
+
+   **Result:**
+   - ⚠️ Promise.race timeout fires after 5 seconds
+   - ✅ Update process continues (best effort)
+   - ❌ IndexedDB may remain (cleaned on reload)
+
+   **Impact:**
+   - Old IndexedDB data may be present after reload
+   - New code may encounter old schema version
+   - idb.ts handles schema migrations via onupgradeneeded
+
+   **Mitigation:**
+   - 5-second timeout prevents infinite hang
+   - Best effort approach: reload happens anyway
+   - Browser closes DB connections on page unload → deletion completes
+
+   **Severity:** 🟢 Very Low (extremely rare, self-healing on reload)
+
+3. **Large localStorage (10000+ keys)**
+
+   **Scenario:** localStorage contains 10000+ keys (malicious or corrupted)
+
+   **Result:**
+   - ⚠️ Logging limited to count only (not individual keys)
+   - ✅ localStorage.clear() still works (browser handles large volumes)
+   - ⚠️ Minor performance impact (few milliseconds delay)
+
+   **Impact:**
+   - Update process slightly slower (negligible)
+   - User experience unaffected
+
+   **Mitigation:**
+   - Conditional logging (>100 keys → log count only)
+   - Browser-native clear() is efficient
+
+   **Severity:** 🟢 Very Low (edge case, minimal impact)
+
+4. **Browser QuotaExceededError on localStorage restore**
+
+   **Scenario:** localStorage.setItem() throws QuotaExceededError (quota full)
+
+   **Result:**
+   - ❌ New version NOT saved to localStorage
+   - ✅ Caught by outer try-catch
+   - ✅ Page reload still happens (best effort)
+
+   **Impact:**
+   - Next controllerchange may not detect version change
+   - Update indicator may appear again (false positive)
+
+   **Mitigation:**
+   - localStorage.clear() frees up quota → extremely unlikely
+   - Outer try-catch ensures reload happens
+   - User can clear browser data manually
+
+   **Severity:** 🟢 Very Low (virtually impossible after clear())
+
+---
 
 **Why CACHE_VERSION instead of scriptURL:**
 - `scriptURL` never changes (`/sw.min.js` is always the same URL)
