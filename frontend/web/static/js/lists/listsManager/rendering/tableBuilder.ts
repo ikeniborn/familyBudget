@@ -102,7 +102,7 @@ export function filterItemsBySearch(): any[] {
   const query = state.searchQuery.toLowerCase().trim();
 
   // DIAGNOSTIC: Log search attempt
-  console.log('[SEARCH_FILTER] Starting search', {
+  debugLog('[SEARCH_FILTER] Starting search', {
     query,
     totalItems: items.length,
     storeCount: state.stores.length,
@@ -118,7 +118,7 @@ export function filterItemsBySearch(): any[] {
   state.productGroups.forEach(g => { groupMap[g.id] = g; });
 
   // DIAGNOSTIC: Log map sizes
-  console.log('[SEARCH_FILTER] Maps built', {
+  debugLog('[SEARCH_FILTER] Maps built', {
     storeMapSize: Object.keys(storeMap).length,
     groupMapSize: Object.keys(groupMap).length
   });
@@ -171,7 +171,7 @@ export function filterItemsBySearch(): any[] {
   });
 
   // DIAGNOSTIC: Log results
-  console.log('[SEARCH_FILTER] Search complete', {
+  debugLog('[SEARCH_FILTER] Search complete', {
     query,
     matchedItems: results.length,
     totalItems: items.length,
@@ -179,7 +179,7 @@ export function filterItemsBySearch(): any[] {
     sampleResults: results.slice(0, 3).map(r => ({
       id: r.id,
       name: r.name,
-      store: storeMap[r.store_id] || 'N/A'
+      store: r.store_id !== null ? (storeMap[r.store_id] || 'N/A') : 'N/A'
     }))
   });
 
