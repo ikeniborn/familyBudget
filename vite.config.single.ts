@@ -97,16 +97,17 @@ export default defineConfig({
     // Service Worker plugin только для sw.js
     isServiceWorker && swCacheVersionPlugin(),
 
-    // Post-build file copying (.vite-build/ → final location)
-    postBuildCopy(),
-
-    // Gzip compression
+    // Gzip compression (MUST run BEFORE postBuildCopy to create .gz files)
     production && compression({
       algorithm: 'gzip',
       ext: '.gz',
       threshold: 1024,
       deleteOriginFile: false
     }),
+
+    // Post-build file copying (.vite-build/ → final location)
+    // MUST run AFTER compression to copy .gz files
+    postBuildCopy(),
 
     // Bundle analyzer только для некоторых bundles
     production && (entryName === 'budgetShared' || entryName === 'components') && visualizer({

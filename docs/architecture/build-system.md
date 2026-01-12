@@ -22,6 +22,38 @@ Family Budget uses **Vite** as the modern build system with integrated TypeScrip
 
 ## Recent Changes
 
+### 2026-01-12: Service Worker gzip Plugin Order Fix (v6.6.1)
+
+**Change:** Fixed Vite plugin order in vite.config.single.ts to ensure .gz files are created before copying
+
+**Problem:**
+- Service Worker deployment validation failed with error: `❌ Missing: sw.min.js.gz`
+- Vite built `sw.min.js` successfully, but `.gz` file was missing
+- Root cause: `postBuildCopy()` plugin ran BEFORE `compression()` plugin
+- When `postBuildCopy()` tried to copy `.vite-build/sw.js.gz`, it didn't exist yet
+
+**Solution:**
+- Swapped plugin order in vite.config.single.ts:96-110
+- `compression()` now runs FIRST (creates .gz files)
+- `postBuildCopy()` runs SECOND (copies .gz files to final location)
+
+**Impact:**
+- ✅ Service Worker .gz files correctly created during build
+- ✅ No manual intervention needed after deployment
+- ✅ PWA cache compression works as expected
+
+**Plugin Order (CRITICAL):**
+```typescript
+plugins: [
+  isServiceWorker && swCacheVersionPlugin(),  // 1. Inject CACHE_VERSION
+  production && compression({...}),           // 2. Create .gz files (MUST be before postBuildCopy)
+  postBuildCopy(),                            // 3. Copy .js + .gz files to final location
+  visualizer({...})                           // 4. Bundle analyzer
+]
+```
+
+---
+
 ### 2026-01-09: Lists Bundle Migration (v7.0.1)
 
 **Change:** Migrated 5 lists modules to unified bundle via build-all.js
