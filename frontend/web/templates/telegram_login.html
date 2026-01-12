@@ -30,17 +30,13 @@
     }
 
     /* [PHASE 2] Responsive container constraints (added 2026-01-12) */
+    /* [CODE REVIEW FIX] Объединены базовые правила и safe-area-insets */
     .telegram-widget-container {
         min-width: 200px;
         box-sizing: border-box;
-    }
-
-    /* [PHASE 2] Safe area inset для iOS вырезов (added 2026-01-12) */
-    @media (max-width: 480px) {
-        .telegram-widget-container {
-            padding-left: max(0px, env(safe-area-inset-left));
-            padding-right: max(0px, env(safe-area-inset-right));
-        }
+        /* Safe area insets для iOS (работает на всех экранах) */
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
     }
 
     /* [PHASE 2] Responsive scaling для очень маленьких экранов (added 2026-01-12) */
@@ -51,7 +47,10 @@
         }
 
         .telegram-widget-container iframe {
+            /* [CODE REVIEW FIX] Добавлены vendor prefixes для Safari < 9 */
+            -webkit-transform: scale(0.9);
             transform: scale(0.9);
+            -webkit-transform-origin: center;
             transform-origin: center;
         }
     }
@@ -124,6 +123,19 @@
                     </div>
                 </div>
                 <!-- State: SUCCESS - Telegram Login Widget (dynamically injected) -->
+                <!-- [PHASE 5] Fallback to medium size for extreme small screens (added 2026-01-12) -->
+                <!-- [CODE REVIEW FIX] Moved before <script> tag to prevent race condition -->
+                <script>
+                (function() {
+                    // Pre-determine button size BEFORE Telegram script loads
+                    if (window.innerWidth < 320) {
+                        console.log('[TelegramWidget] Pre-setting medium size for small screen (width: ' + window.innerWidth + 'px)');
+                        window._telegramButtonSize = 'medium';
+                    } else {
+                        window._telegramButtonSize = 'large';
+                    }
+                })();
+                </script>
                 <script async src="https://telegram.org/js/telegram-widget.js?22"
                         data-telegram-login="{{ bot_username }}"
                         data-size="large"
@@ -131,15 +143,16 @@
                         data-request-access="write"
                         id="telegram-widget-script">
                 </script>
-                <!-- [PHASE 5] Fallback to medium size for extreme small screens (added 2026-01-12) -->
                 <script>
+                // Apply size override after script tag is in DOM
                 (function() {
-                    if (window.innerWidth < 320) {
-                        console.log('[TelegramWidget] Switching to medium size for small screen (width: ' + window.innerWidth + 'px)');
+                    if (window._telegramButtonSize) {
                         var script = document.getElementById('telegram-widget-script');
-                        if (script) {
-                            script.setAttribute('data-size', 'medium');  // 148px instead of 186px
+                        if (script && window._telegramButtonSize !== 'large') {
+                            script.setAttribute('data-size', window._telegramButtonSize);
+                            console.log('[TelegramWidget] Applied size override: ' + window._telegramButtonSize);
                         }
+                        delete window._telegramButtonSize;  // Cleanup
                     }
                 })();
                 </script>
@@ -223,6 +236,8 @@
     var MAX_RETRIES = 3;
     var IFRAME_POLL_INTERVAL_MS = 250;  // Poll every 250ms
     var IFRAME_RENDER_DELAY_MS = 500;   // Extra delay for button rendering
+    // [CODE REVIEW FIX] Conditional DEBUG logging for production
+    var DEBUG = {{ 'true' if app_env == 'development' else 'false' }};
 
     // State
     var state = 'loading'; // 'loading' | 'success' | 'error'
@@ -243,20 +258,23 @@
     }
 
     // [PHASE 1] Viewport diagnostics (added 2026-01-12)
-    console.log('[TelegramWidget] Viewport diagnostics:', {
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
-        documentWidth: document.documentElement.clientWidth,
-        bodyWidth: document.body.clientWidth,
-        devicePixelRatio: window.devicePixelRatio,
-        safeAreaInsetLeft: getComputedStyle(document.documentElement)
-            .getPropertyValue('--safe-area-inset-left') || 'N/A',
-        safeAreaInsetRight: getComputedStyle(document.documentElement)
-            .getPropertyValue('--safe-area-inset-right') || 'N/A',
-        isStandalone: window.matchMedia('(display-mode: standalone)').matches,
-        containerWidth: container ? container.offsetWidth : 'N/A',
-        parentWidth: container ? container.parentElement.offsetWidth : 'N/A'
-    });
+    // [CODE REVIEW FIX] Conditional DEBUG logging
+    if (DEBUG) {
+        console.log('[TelegramWidget] Viewport diagnostics:', {
+            windowWidth: window.innerWidth,
+            windowHeight: window.innerHeight,
+            documentWidth: document.documentElement.clientWidth,
+            bodyWidth: document.body.clientWidth,
+            devicePixelRatio: window.devicePixelRatio,
+            safeAreaInsetLeft: getComputedStyle(document.documentElement)
+                .getPropertyValue('--safe-area-inset-left') || 'N/A',
+            safeAreaInsetRight: getComputedStyle(document.documentElement)
+                .getPropertyValue('--safe-area-inset-right') || 'N/A',
+            isStandalone: window.matchMedia('(display-mode: standalone)').matches,
+            containerWidth: container ? container.offsetWidth : 'N/A',
+            parentWidth: container ? container.parentElement.offsetWidth : 'N/A'
+        });
+    }
 
     /**
      * Transition to a new state and update UI
@@ -303,14 +321,14 @@
         var pollInterval = null;
         var pollAttempts = 0;
 
-        console.log('[TelegramWidget] Waiting for iframe to load...');
+        if (DEBUG) console.log('[TelegramWidget] Waiting for iframe to load...');
 
         function pollIframeReady() {
             pollAttempts++;
 
             // Stop polling if state changed (e.g., timeout fired and transitioned to 'error')
             if (state !== 'loading') {
-                console.log('[TelegramWidget] State changed to', state, '- stopping polling');
+                if (DEBUG) console.log('[TelegramWidget] State changed to', state, '- stopping polling');
                 clearInterval(pollInterval);
                 return;
             }
@@ -319,32 +337,36 @@
                 var rect = iframe.getBoundingClientRect();
                 var isVisible = rect.width > 0 && rect.height > 0;
 
-                console.log('[TelegramWidget] Poll attempt', pollAttempts,
-                           '- Visible:', isVisible, '- Dimensions:', rect.width, 'x', rect.height);
+                if (DEBUG) {
+                    console.log('[TelegramWidget] Poll attempt', pollAttempts,
+                               '- Visible:', isVisible, '- Dimensions:', rect.width, 'x', rect.height);
+                }
 
                 if (isVisible) {
                     // [PHASE 1] Iframe dimensions diagnostics (added 2026-01-12)
-                    console.log('[TelegramWidget] Iframe dimensions:', {
-                        iframeWidth: iframe.offsetWidth,
-                        iframeHeight: iframe.offsetHeight,
-                        computedWidth: getComputedStyle(iframe).width,
-                        containerWidth: container.offsetWidth,
-                        availableSpace: container.offsetWidth - iframe.offsetWidth,
-                        isCutOff: (container.offsetWidth - iframe.offsetWidth) < 0
-                    });
+                    // [CODE REVIEW FIX] Conditional DEBUG logging
+                    if (DEBUG) {
+                        console.log('[TelegramWidget] Iframe dimensions:', {
+                            iframeWidth: iframe.offsetWidth,
+                            iframeHeight: iframe.offsetHeight,
+                            computedWidth: getComputedStyle(iframe).width,
+                            containerWidth: container.offsetWidth,
+                            availableSpace: container.offsetWidth - iframe.offsetWidth,
+                            isCutOff: (container.offsetWidth - iframe.offsetWidth) < 0
+                        });
+                        console.log('[TelegramWidget] Iframe visible, waiting', IFRAME_RENDER_DELAY_MS, 'ms for button render');
+                    }
 
-                    // Iframe has dimensions - wait additional time for button rendering
-                    console.log('[TelegramWidget] Iframe visible, waiting', IFRAME_RENDER_DELAY_MS, 'ms for button render');
                     clearInterval(pollInterval);
 
                     setTimeout(function() {
                         // Double-check state hasn't changed during delay
                         if (state === 'loading') {
-                            console.log('[TelegramWidget] Transition to success');
+                            if (DEBUG) console.log('[TelegramWidget] Transition to success');
                             transitionTo('success');
                             cleanup();
                         } else {
-                            console.log('[TelegramWidget] State changed during delay, aborting transition');
+                            if (DEBUG) console.log('[TelegramWidget] State changed during delay, aborting transition');
                         }
                     }, IFRAME_RENDER_DELAY_MS);
                     return;
@@ -360,7 +382,7 @@
 
         // Also listen for load event as backup for logging
         iframe.addEventListener('load', function onLoad() {
-            console.log('[TelegramWidget] Iframe load event fired (polling handles transition)');
+            if (DEBUG) console.log('[TelegramWidget] Iframe load event fired (polling handles transition)');
             iframe.removeEventListener('load', onLoad);
         });
     }
