@@ -5,6 +5,20 @@
 {% block extra_head %}
 <!-- Preload Telegram widget script to avoid race condition with TWidgetLogin -->
 <link rel="preload" href="https://telegram.org/js/telegram-widget.js?22" as="script">
+<style>
+    /* Hide Telegram iframe until fully loaded to prevent visual jump */
+    .telegram-widget-container:not(.ready) iframe {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    /* Smooth fade-in when ready */
+    .telegram-widget-container.ready iframe {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s ease-in-out;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -185,14 +199,17 @@
             case 'loading':
                 placeholder.classList.remove('hidden');
                 errorDiv.classList.add('hidden');
+                container.classList.remove('ready'); // Hide iframe during loading
                 break;
             case 'success':
                 placeholder.classList.add('hidden');
                 errorDiv.classList.add('hidden');
+                container.classList.add('ready'); // Show iframe with smooth transition
                 break;
             case 'error':
                 placeholder.classList.add('hidden');
                 errorDiv.classList.remove('hidden');
+                container.classList.remove('ready'); // Hide iframe on error
                 break;
         }
     }
