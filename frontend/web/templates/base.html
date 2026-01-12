@@ -168,6 +168,34 @@
         }
     </style>
 
+    <!-- Modal Z-Index Configuration (Cookie Consent + WebAuthn) -->
+    <style>
+        /* Ensure cookie consent banner appears above ALL UI elements */
+        #cookie-consent-banner {
+            z-index: 999 !important;  /* Above mobile menu (60), modals, FAB (50) */
+        }
+
+        /* Ensure modal content clickable */
+        #cookie-consent-banner > .bg-base-100 {
+            position: relative;
+            z-index: 1000 !important;  /* Content above backdrop */
+        }
+
+        /* WebAuthn onboarding modal - same priority as cookie consent */
+        #webauthn-onboarding-modal {
+            z-index: 999 !important;  /* Same priority as cookie consent */
+        }
+
+        /* General modal safety net (optional but recommended) */
+        dialog.modal {
+            z-index: 900 !important;  /* Above menu (60) but below priority modals (999) */
+        }
+
+        dialog.modal::backdrop {
+            z-index: 899 !important;  /* Backdrop below modal */
+        }
+    </style>
+
     <!-- PWA Splash Screen Styles (inline for immediate render) -->
     <style>
         .pwa-splash {
@@ -1168,7 +1196,7 @@
 
     <!-- Cookie Consent Banner (GDPR Compliance) -->
     {% if user %}
-    <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 hidden">
+    <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[999] hidden">
         <div class="bg-base-100 w-full sm:max-w-lg sm:rounded-lg shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div class="flex items-start gap-3 mb-4">
                 <span class="text-3xl">🍪</span>
@@ -2921,7 +2949,7 @@
     </dialog>
 
     <!-- WebAuthn Onboarding -->
-    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}"></script>
+    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER"></script>
     <script>
         // Detect login via query parameter (from Telegram OAuth callback)
         (function() {
