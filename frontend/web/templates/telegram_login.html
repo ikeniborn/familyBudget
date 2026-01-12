@@ -6,6 +6,16 @@
 <!-- Preload Telegram widget script to avoid race condition with TWidgetLogin -->
 <link rel="preload" href="https://telegram.org/js/telegram-widget.js?22" as="script">
 <style>
+    /* Fix iframe dimensions to prevent reflow and visual jump */
+    .telegram-widget-container iframe {
+        /* Telegram large button dimensions */
+        width: 186px !important;
+        height: 34px !important;
+        /* Prevent any potential shifts */
+        display: block;
+        margin: 0 auto;
+    }
+
     /* Hide Telegram iframe until fully loaded to prevent visual jump */
     .telegram-widget-container:not(.ready) iframe {
         opacity: 0;
