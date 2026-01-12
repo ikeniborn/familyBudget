@@ -158,7 +158,7 @@ export function openEditItemModal(itemId: number): void {
   const modalTitle = document.getElementById('item-modal-title');
 
   if (itemIdInput) itemIdInput.value = String(item.id);
-  if (productNameInput) productNameInput.value = item.name;
+  if (productNameInput) productNameInput.value = item.product_name;
   if (quantityInput) quantityInput.value = item.quantity !== null ? String(item.quantity) : '';
   if (unitSelect) unitSelect.value = item.unit || '';
   if (commentInput) commentInput.value = item.notes || '';
