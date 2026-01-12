@@ -70,7 +70,7 @@ class LogsCollectorService:
 
     def __init__(self):
         """Initialize LogsCollectorService."""
-        logger.info("[LOGS_COLLECTOR] LogsCollectorService initialized")
+        pass
 
     async def collect_docker_logs(
         self,
@@ -92,8 +92,6 @@ class LogsCollectorService:
         Raises:
             No exceptions raised - errors are logged and empty list returned
         """
-        logger.info(f"[LOGS_COLLECTOR] Collecting Docker logs for service={service}, since={since}, tail={tail}")
-
         try:
             # Convert "1h", "30m" format to seconds for Docker API
             since_seconds = self._parse_since_to_seconds(since)
@@ -157,7 +155,6 @@ class LogsCollectorService:
                         "correlation_id": None
                     })
 
-            logger.info(f"[LOGS_COLLECTOR] Collected {len(logs)} logs from service={service}")
             return logs
 
         except DockerException as e:
@@ -182,8 +179,6 @@ class LogsCollectorService:
         Returns:
             Number of logs stored
         """
-        logger.info(f"[LOGS_COLLECTOR] Receiving {len(logs)} browser logs from user_id={user_id}")
-
         stored_count = 0
         for log in logs:
             # Add user_id to log entry for admin visibility
@@ -196,7 +191,6 @@ class LogsCollectorService:
             self.browser_logs.append(sanitized_log)
             stored_count += 1
 
-        logger.info(f"[LOGS_COLLECTOR] Stored {stored_count} browser logs, total buffer size={len(self.browser_logs)}")
         return stored_count
 
     def filter_logs(
@@ -283,11 +277,6 @@ class LogsCollectorService:
         Returns:
             Dictionary with logs per service, counts, and filters applied
         """
-        logger.info(
-            f"[LOGS_COLLECTOR] get_all_logs called: service={service}, level={level}, "
-            f"since={since}, until={until}, limit={limit}"
-        )
-
         # Refresh Docker logs (collect latest)
         # NOTE: bot/postgres have aggressive limits to prevent timeouts
         if service == "all" or service is None:
@@ -303,7 +292,6 @@ class LogsCollectorService:
             if svc in ["bot", "postgres"]:
                 since_param = "1m"  # Last 1 minute only
                 tail_param = 20     # Only 20 most recent logs
-                logger.info(f"[LOGS_COLLECTOR] Using reduced limits for {svc}: since={since_param}, tail={tail_param}")
             else:
                 since_param = "5m"  # Last 5 minutes
                 tail_param = 100    # 100 logs
@@ -353,11 +341,6 @@ class LogsCollectorService:
             filtered_count += len(filtered)
 
             result[svc_name] = filtered
-
-        logger.info(
-            f"[LOGS_COLLECTOR] Returning {filtered_count} logs (from {total_count} total) "
-            f"across {len([v for v in result.values() if v])} services"
-        )
 
         return {
             "browser": result.get("browser", []),

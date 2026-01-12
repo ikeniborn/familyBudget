@@ -1381,7 +1381,6 @@
           mode: options.mode || "edit"
           // NEW: 'create' | 'edit' - controls selection preservation in updateFinancialCenter()
         };
-        console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`);
         this.choices = null;
         this.categories = [];
         this.categoryMap = /* @__PURE__ */ new Map();
@@ -1504,7 +1503,6 @@
             );
             const duration2 = Math.round(performance.now() - startTime);
             if (window2.DEBUG_MODE) {
-              console.log(`[ChoicesCategoryTree] Worker buildMaps: ${duration2}ms (${this.categories.length} categories)`);
             }
             if (this._initPromise) {
               this._initPromise();
@@ -1528,7 +1526,6 @@
         }
         const duration = Math.round(performance.now() - startTime);
         if (window2.DEBUG_MODE) {
-          console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${duration}ms (${this.categories.length} categories)`);
         }
         if (this._initPromise) {
           this._initPromise();
@@ -1706,7 +1703,6 @@
         }
         if (this.element) {
           this.element.addEventListener("change", (event) => {
-            console.log("[ChoicesCategoryTree] Change event:", {
               elementId: this.element?.id,
               value: event.target?.value,
               timestamp: (/* @__PURE__ */ new Date()).toISOString()
@@ -1716,20 +1712,17 @@
         }
         if (this.choices && this.element) {
           this.element.addEventListener("showDropdown", () => {
-            console.log("[ChoicesCategoryTree] Dropdown opened:", {
               elementId: this.element?.id,
               timestamp: (/* @__PURE__ */ new Date()).toISOString()
             });
           });
           this.element.addEventListener("hideDropdown", () => {
-            console.log("[ChoicesCategoryTree] Dropdown closed:", {
               elementId: this.element?.id,
               timestamp: (/* @__PURE__ */ new Date()).toISOString()
             });
           });
           this.element.addEventListener("choice", (event) => {
             const customEvent = event;
-            console.log("[ChoicesCategoryTree] Item selected:", {
               elementId: this.element?.id,
               choiceId: customEvent.detail?.choice?.value,
               choiceLabel: customEvent.detail?.choice?.label,
@@ -1997,16 +1990,12 @@
        * @param {number|null} financialCenterId - Financial center ID (null = show all)
        */
       async updateFinancialCenter(financialCenterId) {
-        console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
-        console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
-        console.log(`[ChoicesCategoryTree] Current options:`, {
           type: this.options.type,
           showLeafOnly: this.options.showLeafOnly,
           previousFinancialCenterId: this.options.financialCenterId
         });
         const previousFcId = this.options.financialCenterId;
         const isInitialFiltering = previousFcId === null && financialCenterId !== null;
-        console.log(`[ChoicesCategoryTree] Filter change type:`, {
           previousFcId,
           newFcId: financialCenterId,
           isInitialFiltering,
@@ -2016,13 +2005,11 @@
         if (financialCenterId) {
           const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
           _ChoicesCategoryTree._cache.delete(specificCacheKey);
-          console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${specificCacheKey}`);
         }
         const elementValue = this.element ? this.element.value : null;
         const previousSelectionId = elementValue ? parseInt(elementValue) : null;
         const activeItems = this.choices ? this.choices.getValue(true) : null;
         const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
-        console.log(`[ChoicesCategoryTree] Current selection state:`, {
           elementValue,
           previousSelectionId,
           activeItems,
@@ -2031,14 +2018,12 @@
         });
         try {
           await this.loadCategories();
-          console.log(`[ChoicesCategoryTree] Loaded categories:`, {
             totalCount: this.categories.length,
             categoryMapSize: this.categoryMap.size,
             sampleCategories: this.categories.slice(0, 3).map((c) => ({ id: c.id, name: c.name }))
           });
           this.buildHierarchyMaps();
           const displayCategories = this.options.showLeafOnly ? this.getLeafCategories() : this.categories;
-          console.log(`[ChoicesCategoryTree] Display categories after leaf filter:`, {
             displayCount: displayCategories.length,
             showLeafOnly: this.options.showLeafOnly
           });
@@ -2057,13 +2042,11 @@
                 }
               };
             });
-            console.log(`[ChoicesCategoryTree] Prepared choices for Choices.js:`, {
               choicesCount: choices.length,
               sampleChoices: choices.slice(0, 3).map((c) => ({ value: c.value, label: c.label }))
             });
             this.choices.setChoices(choices, "value", "label", false);
             const categoryStillAvailable = previousSelectionId && this.categoryMap.has(previousSelectionId);
-            console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
               previousSelectionId,
               categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : "N/A",
               categoryStillAvailable,
@@ -2073,14 +2056,12 @@
               categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
             });
             const shouldPreserve = this.options.mode === "edit" && categoryStillAvailable;
-            console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
               mode: this.options.mode,
               categoryStillAvailable,
               shouldPreserve,
               previousSelectionId
             });
             if (shouldPreserve) {
-              console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection (edit mode): ${previousSelectionId} (available in FC ${financialCenterId})`);
               await this.setSelectedCategory(previousSelectionId);
               if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
             } else {
@@ -2089,13 +2070,10 @@
                 this.element.value = "";
               }
               if (this.options.mode === "create") {
-                console.log(`[ChoicesCategoryTree] ❌ CLEARING selection (create mode) - previousSelectionId: ${previousSelectionId}`);
                 if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Cleared selection (create mode)`);
               } else if (!categoryStillAvailable && previousSelectionId) {
-                console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
                 if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
               } else {
-                console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                 if (typeof window2.debugLog === "function") window2.debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
               }
             }
@@ -2108,8 +2086,6 @@
               console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${financialCenterId}`);
             }
           }
-          console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END ==========`);
-          console.log(`[ChoicesCategoryTree] Final state:`, {
             financialCenterId: this.options.financialCenterId,
             categoriesCount: this.categories.length,
             finalElementValue: this.element ? this.element.value : null,
@@ -2117,7 +2093,6 @@
           });
         } catch (error) {
           console.error("[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:", error);
-          console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========`);
         }
       }
       /**
@@ -2134,16 +2109,12 @@
        * Used in create modals to reset selection state.
        */
       clearSelection() {
-        console.log("[ChoicesCategoryTree] clearSelection() called");
         if (this.choices) {
           this.choices.removeActiveItems();
-          console.log("[ChoicesCategoryTree] Choices.js active items removed");
         }
         if (this.element) {
           this.element.value = "";
-          console.log("[ChoicesCategoryTree] Element value cleared");
         }
-        console.log("[ChoicesCategoryTree] ✅ Selection cleared successfully");
       }
       /**
        * Get all selected categories (for multiple mode).

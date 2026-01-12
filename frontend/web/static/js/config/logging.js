@@ -77,24 +77,13 @@
 
     // Log configuration (only if logging enabled)
     if (window.LOGGING_CONFIG.enabled) {
-        console.log('%c[LOGGING] Configuration loaded', 'color: #4CAF50; font-weight: bold');
-        console.log('[LOGGING] Environment:', window.LOGGING_CONFIG.environment);
-        console.log('[LOGGING] Enabled levels:', {
-            debug: window.LOGGING_CONFIG.levels.debug,
-            info: window.LOGGING_CONFIG.levels.info,
-            warn: window.LOGGING_CONFIG.levels.warn,
-            error: window.LOGGING_CONFIG.levels.error
-        });
-        console.log('[LOGGING] Enabled modules:', Object.keys(window.LOGGING_CONFIG.modules).filter(
-            k => window.LOGGING_CONFIG.modules[k]
-        ).join(', '));
+        // Logging configured
     }
 
     // Expose helper to change config at runtime (for debugging)
     window.setLoggingLevel = function(module, enabled) {
         if (window.LOGGING_CONFIG && window.LOGGING_CONFIG.modules.hasOwnProperty(module)) {
             window.LOGGING_CONFIG.modules[module] = enabled;
-            console.log(`[LOGGING] Module ${module} logging ${enabled ? 'enabled' : 'disabled'}`);
         } else {
             console.error(`[LOGGING] Unknown module: ${module}`);
         }
@@ -104,7 +93,6 @@
     window.setLoggingEnabled = function(enabled) {
         if (window.LOGGING_CONFIG) {
             window.LOGGING_CONFIG.enabled = enabled;
-            console.log(`[LOGGING] All logging ${enabled ? 'enabled' : 'disabled'}`);
         }
     };
 

@@ -67,7 +67,6 @@ export function showModal(modal: HTMLDialogElement | null): void {
     return;
   }
 
-  console.log('[WEBAUTHN_ONBOARDING] Showing onboarding modal');
   modal.showModal();
 }
 
@@ -82,7 +81,6 @@ export function closeModal(modal: HTMLDialogElement | null): void {
     return;
   }
 
-  console.log('[WEBAUTHN_ONBOARDING] Closing onboarding modal');
   modal.close();
 }
 

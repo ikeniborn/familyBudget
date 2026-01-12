@@ -2,11 +2,9 @@
 // Automatically checks if user should be prompted to enable biometric authentication
 
 async function checkWebAuthnOnboarding() {
-    console.log('[WEBAUTHN_ONBOARDING] Checking if onboarding modal should be shown...');
 
     // Check if WebAuthn is supported
     if (!window.PublicKeyCredential) {
-        console.log('[WEBAUTHN_ONBOARDING] WebAuthn not supported on this device - skipping');
         return;
     }
 
@@ -14,10 +12,8 @@ async function checkWebAuthnOnboarding() {
     try {
         const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
         if (!available) {
-            console.log('[WEBAUTHN_ONBOARDING] No biometric authenticator available on this device - skipping');
             return;
         }
-        console.log('[WEBAUTHN_ONBOARDING] ✓ Biometric authenticator available - continuing check');
     } catch (error) {
         console.error('[WEBAUTHN_ONBOARDING] Error checking authenticator availability:', error);
         return;
@@ -26,7 +22,6 @@ async function checkWebAuthnOnboarding() {
     // Check if user already dismissed onboarding (local storage flag)
     const dismissed = localStorage.getItem('webauthn_onboarding_dismissed');
     if (dismissed === 'true') {
-        console.log('[WEBAUTHN_ONBOARDING] User previously dismissed onboarding - skipping');
         return;
     }
 
@@ -35,21 +30,18 @@ async function checkWebAuthnOnboarding() {
     const shouldCheck = currentPath === '/' || currentPath.includes('/analytics');
 
     if (!shouldCheck) {
-        console.log('[WEBAUTHN_ONBOARDING] Not on dashboard/analytics - skipping check');
         return;
     }
 
     // Check if this is first page load after login (via sessionStorage flag)
     const justLoggedIn = sessionStorage.getItem('just_logged_in');
     if (!justLoggedIn) {
-        console.log('[WEBAUTHN_ONBOARDING] Not first page load after login - skipping');
         return;
     }
 
     // Check if user came from 2FA setup (onboarding already shown there)
     const from2faSetup = sessionStorage.getItem('from_2fa_setup_login');
     if (from2faSetup === 'true') {
-        console.log('[WEBAUTHN_ONBOARDING] ⊘ Came from 2FA setup - onboarding already shown, skipping');
         sessionStorage.removeItem('from_2fa_setup_login');
         sessionStorage.removeItem('just_logged_in');
         return;
@@ -60,18 +52,8 @@ async function checkWebAuthnOnboarding() {
 
     try {
         // Check WebAuthn status
-        console.log('[WEBAUTHN_ONBOARDING] Fetching WebAuthn status from /api/v1/auth/webauthn-status');
-        console.log('[WEBAUTHN_ONBOARDING] Request headers: credentials=include');
-
         const response = await fetch('/api/v1/auth/webauthn-status', {
             credentials: 'include'
-        });
-
-        console.log('[WEBAUTHN_ONBOARDING] Response received:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok,
-            headers: Object.fromEntries(response.headers.entries())
         });
 
         if (!response.ok) {
@@ -96,16 +78,9 @@ async function checkWebAuthnOnboarding() {
         }
 
         const data = await response.json();
-        console.log('[WEBAUTHN_ONBOARDING] Status received:', {
-            has_credentials: data.has_credentials,
-            user_id: data.user_id
-        });
 
         if (!data.has_credentials) {
-            console.log('[WEBAUTHN_ONBOARDING] User has no credentials - showing onboarding modal');
             showWebAuthnOnboardingModal();
-        } else {
-            console.log('[WEBAUTHN_ONBOARDING] User already has credentials (credential_count: N/A) - skipping onboarding');
         }
 
     } catch (error) {
@@ -118,7 +93,6 @@ async function checkWebAuthnOnboarding() {
 }
 
 function showWebAuthnOnboardingModal() {
-    console.log('[WEBAUTHN_ONBOARDING] Showing onboarding modal');
 
     // Create modal if not exists
     let modal = document.getElementById('webauthn-onboarding-modal');
@@ -159,13 +133,11 @@ function showWebAuthnOnboardingModal() {
 }
 
 function dismissWebAuthnOnboarding() {
-    console.log('[WEBAUTHN_ONBOARDING] User dismissed onboarding');
     localStorage.setItem('webauthn_onboarding_dismissed', 'true');
     document.getElementById('webauthn-onboarding-modal').close();
 }
 
 async function enableWebAuthnFromOnboarding() {
-    console.log('[WEBAUTHN_ONBOARDING] User clicked enable - redirecting to security settings');
     document.getElementById('webauthn-onboarding-modal').close();
 
     // Redirect to security settings with WebAuthn onboarding flag

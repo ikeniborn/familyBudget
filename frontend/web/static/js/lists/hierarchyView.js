@@ -21,23 +21,6 @@ class SwipeHandler {
         this.isDragging = false;
         this.SWIPE_THRESHOLD = 0.5; // 50% of item width
 
-        // NEW: Centralized logging helper
-        this._log = (action, data = {}) => {
-            console.log(`[SWIPE_HANDLER] ${action}`, {
-                timestamp: new Date().toISOString(),
-                ...data
-            });
-        };
-
-        console.log('[SWIPE_INIT] SwipeHandler initialized with modal tracking', {
-            threshold: `${this.SWIPE_THRESHOLD * 100}%`
-        });
-
-        this._log('INITIALIZED', {
-            threshold: `${this.SWIPE_THRESHOLD * 100}%`,
-            minDistance: '50px (default swipe threshold)',
-            modalTracking: true
-        });
     }
 
     /**
@@ -46,7 +29,6 @@ class SwipeHandler {
     handleTouchStart(e, itemId, itemElement) {
         // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
         if (itemElement.classList.contains('completed')) {
-            console.log('[SWIPE] Skipped - item is completed', { itemId });
             return;
         }
 
@@ -67,13 +49,6 @@ class SwipeHandler {
         if (contentElement) {
             contentElement.classList.add('swiping');
         }
-
-        console.log('[SWIPE] Touch start', {
-            itemId,
-            startX: this.startX,
-            startY: this.startY,
-            timestamp: Date.now()
-        });
     }
 
     /**
@@ -116,14 +91,6 @@ class SwipeHandler {
         // Limit swipe to threshold
         const swipeDistance = Math.max(deltaX, -maxSwipe);
         contentElement.style.transform = `translateX(${swipeDistance}px)`;
-
-        console.log('[SWIPE] Touch move', {
-            itemId,
-            deltaX,
-            currentX: this.currentX,
-            threshold: maxSwipe,
-            swipeDistance
-        });
     }
 
     /**
@@ -146,12 +113,6 @@ class SwipeHandler {
         // CRITICAL: Ignore tap without movement (prevents accidental modal opens)
         if (!this.hasMoved) {
             this.resetSwipe(itemId, itemElement);
-            console.log('[SWIPE] Touch end - TAP IGNORED (no movement)', {
-                itemId,
-                deltaX,
-                hasMoved: false,
-                action: 'tap_ignored'
-            });
             // CRITICAL: Reset hasMoved for taps too (v7.0.1)
             // Without this, second tap won't trigger click event
             this.hasMoved = false;
@@ -162,32 +123,12 @@ class SwipeHandler {
         if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
             // Left swipe - OPEN MODAL DIRECTLY
             this.openEditModal(itemId, itemElement);
-            console.log('[SWIPE] Touch end', {
-                itemId,
-                finalDeltaX: deltaX,
-                threshold,
-                action: 'opened_modal',
-                timestamp: Date.now()
-            });
         } else if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
             // Right swipe - CLOSE MODAL IF OPEN
             this.closeModalIfOpen(itemId);
-            console.log('[SWIPE] Touch end', {
-                itemId,
-                finalDeltaX: deltaX,
-                threshold,
-                action: 'attempted_close_modal',
-                timestamp: Date.now()
-            });
         } else {
             // Snap back (gesture incomplete)
             this.resetSwipe(itemId, itemElement);
-            console.log('[SWIPE] Touch end', {
-                itemId,
-                finalDeltaX: deltaX,
-                threshold,
-                action: 'snap_back'
-            });
         }
 
         // CRITICAL: Reset hasMoved after swipe processing to allow subsequent clicks (v7.0.1)
@@ -199,28 +140,8 @@ class SwipeHandler {
      * Open edit modal (called after successful left swipe)
      */
     openEditModal(itemId, itemElement) {
-        const contentElement = itemElement.querySelector('.hierarchy-item-content');
-        const beforeTransform = contentElement ? contentElement.style.transform : 'none';
-
-        console.log('[SWIPE_OPEN] Resetting swipe state before modal open', {
-            itemId,
-            beforeTransform,
-            timestamp: Date.now()
-        });
-
         // Reset visual state immediately
         this.resetSwipe(itemId, itemElement);
-
-        const afterTransform = contentElement ? contentElement.style.transform : 'none';
-        const isCleared = afterTransform === 'translateX(0px)' || afterTransform === '' || afterTransform === 'none';
-
-        console.log('[SWIPE_OPEN] Swipe state reset completed', {
-            itemId,
-            beforeTransform,
-            afterTransform,
-            cleared: isCleared,
-            warning: !isCleared ? 'Transform not properly cleared!' : null
-        });
 
         // Track that this swipe opened the modal
         this.modalOpenedBySwipe = itemId;
@@ -228,13 +149,6 @@ class SwipeHandler {
         // Call global modal function (defined in listsManager.js)
         if (typeof openEditItemModal === 'function') {
             openEditItemModal(itemId);
-
-            console.log('[SWIPE] Modal opened', {
-                itemId,
-                timestamp: Date.now(),
-                source: 'swipe_gesture',
-                modalOpenedBySwipe: this.modalOpenedBySwipe
-            });
         } else {
             console.error('[SWIPE] openEditItemModal function not found');
         }
@@ -250,12 +164,6 @@ class SwipeHandler {
         if (modal && modal.open && this.modalOpenedBySwipe === itemId) {
             if (typeof closeItemModal === 'function') {
                 closeItemModal();
-
-                console.log('[SWIPE] Modal closed by right swipe', {
-                    itemId,
-                    timestamp: Date.now()
-                });
-
                 this.modalOpenedBySwipe = null;
             }
         }
@@ -282,13 +190,6 @@ class SwipeHandler {
             // CRITICAL: Must remove completely, not set to 'translateX(0)'.
             // Any transform value creates a containing block, breaking .swipe-indicator positioning.
             contentElement.style.removeProperty('transform');
-
-            console.log('[SWIPE_RESET] Transform removed and classes reset', {
-                itemId,
-                hasSwiping: contentElement.classList.contains('swiping'),
-                hasInlineTransform: contentElement.style.transform !== '',
-                computedTransform: window.getComputedStyle(contentElement).transform
-            });
         }
 
         // Clear any swiped state
@@ -302,16 +203,12 @@ class SwipeHandler {
      * Close all open swipes
      */
     closeAllSwipes() {
-        const previousActiveId = this.activeSwipedItemId;
-
         if (this.activeSwipedItemId) {
             const swipedElement = document.querySelector(`.hierarchy-item[data-item-id="${this.activeSwipedItemId}"]`);
             if (swipedElement) {
                 this.resetSwipe(this.activeSwipedItemId, swipedElement);
             }
         }
-
-        console.log('[SWIPE] Close all swipes', { previousActiveId });
     }
 
     /**
@@ -359,12 +256,6 @@ class SwipeHandler {
                         e.preventDefault();
                         e.stopPropagation();
                         e.stopImmediatePropagation();
-                        console.log('[CONTENT_CLICK] Blocked - click in indicator zone', {
-                            itemId,
-                            clickFromRight: Math.round(clickFromRight),
-                            target: e.target.tagName,
-                            contentWidth: Math.round(rect.width)
-                        });
                         return;
                     }
 
@@ -373,11 +264,6 @@ class SwipeHandler {
                         e.preventDefault();
                         e.stopPropagation();
                         e.stopImmediatePropagation();
-                        console.log('[CONTENT_CLICK] Blocked - click on indicator', {
-                            itemId,
-                            target: e.target.tagName,
-                            closest: e.target.closest('.swipe-indicator')?.className
-                        });
                         return;
                     }
 
@@ -386,17 +272,11 @@ class SwipeHandler {
                         e.preventDefault();
                         e.stopPropagation();
                         this.closeSwipe(itemId, itemElement);
-                        console.log('[SWIPE] Content clicked - closing swipe', { itemId });
                         return;
                     }
 
                     // Toggle item completion
                     const isCompleted = itemElement.dataset.itemCompleted === 'true';
-                    console.log('[CONTENT_CLICK] Toggle completion', {
-                        itemId,
-                        currentState: isCompleted,
-                        newState: !isCompleted
-                    });
 
                     if (window.listsManager && typeof window.listsManager.toggleItemCompleted === 'function') {
                         window.listsManager.toggleItemCompleted(itemId, !isCompleted);
@@ -414,19 +294,16 @@ class SwipeHandler {
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    console.log('[SWIPE_INDICATOR] Touch start blocked', { itemId });
                 };
                 swipeIndicator._blockTouchEnd = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    console.log('[SWIPE_INDICATOR] Touch end blocked', { itemId });
                 };
                 swipeIndicator._blockClick = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    console.log('[SWIPE_INDICATOR] Click blocked', { itemId });
                 };
 
                 // Add event listeners with capture phase for maximum blocking
@@ -440,8 +317,6 @@ class SwipeHandler {
             itemElement.addEventListener('touchmove', itemElement._touchMoveHandler, { passive: false });
             itemElement.addEventListener('touchend', itemElement._touchEndHandler, { passive: false });
         });
-
-        console.log('[SWIPE] Event handlers attached', { itemCount: items.length });
     }
 
     /**
@@ -449,33 +324,7 @@ class SwipeHandler {
      * Usage: window.hierarchyView.swipeHandler.diagnoseSwipe()
      */
     diagnoseSwipe() {
-        const swipedItems = document.querySelectorAll('.hierarchy-item.swiped');
-
-        this._log('DIAGNOSTIC', {
-            swipedCount: swipedItems.length,
-            items: Array.from(swipedItems).map(item => {
-                const actionsContainer = item.querySelector('.hierarchy-item-swipe-actions');
-                const buttons = item.querySelectorAll('.hierarchy-item-swipe-actions button');
-                const firstButton = buttons[0];
-
-                return {
-                    itemId: item.dataset.itemId,
-                    transform: item.style.transform,
-                    hasSwiped: item.classList.contains('swiped'),
-                    containerWidth: actionsContainer ? actionsContainer.offsetWidth : 0,
-                    containerPointerEvents: actionsContainer ?
-                        window.getComputedStyle(actionsContainer).pointerEvents : 'N/A',
-                    buttonCount: buttons.length,
-                    buttonZIndex: firstButton ?
-                        window.getComputedStyle(firstButton).zIndex : 'N/A',
-                    buttonPointerEvents: firstButton ?
-                        window.getComputedStyle(firstButton).pointerEvents : 'N/A',
-                    buttonRect: firstButton ? firstButton.getBoundingClientRect() : null
-                };
-            })
-        });
-
-        return swipedItems;
+        return document.querySelectorAll('.hierarchy-item.swiped');
     }
 }
 
@@ -501,20 +350,6 @@ class HierarchyView {
         const stores = this.listsManager.stores;
         const productGroups = this.listsManager.productGroups;
 
-        // DIAGNOSTIC: Log received data
-        console.log('[HIERARCHY_RENDER] Render started', {
-            filteredItems: items.length,
-            totalStores: stores.length,
-            totalGroups: productGroups.length,
-            searchQuery: this.listsManager.searchQuery || '(none)',
-            hideCompleted: this.listsManager.hideCompleted,
-            sampleItems: items.slice(0, 3).map(i => ({
-                id: i.id,
-                name: i.name,
-                completed: i.is_completed
-            }))
-        });
-
         if (items.length === 0) {
             this.renderEmpty();
             return;
@@ -523,31 +358,6 @@ class HierarchyView {
         // Build hierarchy structure
         const hierarchy = this.buildHierarchy(items, stores, productGroups);
 
-        // DIAGNOSTIC: Log hierarchy structure
-        const storeCount = Object.keys(hierarchy).length;
-        let groupCount = 0;
-        let itemCount = 0;
-        Object.values(hierarchy).forEach(store => {
-            if (store.productGroupTree) {
-                const countGroups = (tree) => {
-                    Object.values(tree).forEach(node => {
-                        groupCount++;
-                        if (node.items) itemCount += node.items.length;
-                        if (node.children) countGroups(node.children);
-                    });
-                };
-                countGroups(store.productGroupTree);
-            }
-        });
-
-        console.log('[HIERARCHY_RENDER] Hierarchy built', {
-            stores: storeCount,
-            groups: groupCount,
-            items: itemCount,
-            inputItems: items.length,
-            itemsMismatch: itemCount !== items.length ? '⚠️ MISMATCH! Items lost in grouping' : '✅ Match'
-        });
-
         // Render tree
         this.container.innerHTML = this.renderTree(hierarchy);
 
@@ -555,23 +365,6 @@ class HierarchyView {
 
         // Setup swipe handlers for all items
         this.swipeHandler.setupSwipeHandlers();
-
-        // DIAGNOSTIC: Verify swipe indicators rendered correctly (v7.x+)
-        const indicators = this.container.querySelectorAll('.swipe-indicator');
-        const editIcons = this.container.querySelectorAll('.swipe-edit-icon');
-        const chevrons = this.container.querySelectorAll('.swipe-chevron');
-        console.log('[LISTS_SWIPE] Indicator diagnostic:', {
-            totalIndicators: indicators.length,
-            editIconsRendered: editIcons.length,
-            chevronsRendered: chevrons.length,
-            expectedChevrons: indicators.length * 3,
-            chevronMatches: chevrons.length === indicators.length * 3,
-            sampleAnimation: chevrons.length > 0 ? {
-                chevron1: window.getComputedStyle(chevrons[0]).animationName,
-                chevron2: chevrons.length > 1 ? window.getComputedStyle(chevrons[1]).animationName : 'N/A',
-                chevron3: chevrons.length > 2 ? window.getComputedStyle(chevrons[2]).animationName : 'N/A'
-            } : 'No chevrons found'
-        });
 
         // Update smart toggle button state
         this.listsManager.updateHierarchyToggleButton();

@@ -839,6 +839,61 @@ logAPI.timeEnd('API call');
 
 **See:** `frontend/web/static/js/config/logging.js` for configuration
 
+### Removed Logging Prefixes (v7.x)
+
+Следующие 26 префиксов info/debug удалены для улучшения производительности:
+
+**WebSocket Diagnostics:**
+- `[WS_RTT]`, `[WS-HEALTH]`, `[WS_DIAG]`, `[NAV_SYNC]` - WebSocket diagnostics
+
+**Data Synchronization:**
+- `[SYNC]` - Data synchronization
+
+**Logs Collection:**
+- `[LOGS_COLLECTOR]` - Logs collection (frontend + backend)
+
+**Service Worker:**
+- `[SW_UPDATE]` - Service Worker updates
+
+**PWA Events:**
+- `[PWA]`, `[PWA_HEADER]`, `[PWA_SAFE_AREA]` - PWA events
+
+**UI Components:**
+- `[ChoicesCategoryTree]` - Category tree operations
+- `[FAB_TOOLBAR]` - FAB navigation toolbar
+- `[NAV]` - Navigation detection
+
+**Page Initialization:**
+- `[index.html]`, `[setupPlanPeriodButtons]`, `[INIT]`, `[INDEX_PAGE]` - Page initialization
+
+**Transfer Module:**
+- `[TRANSFER_INIT]`, `[PUSH_BANNER]` - Transfer module
+
+**Logging System:**
+- `[LOGGER]`, `[LOGGING]` - Logging system internals
+
+**Lists Hierarchy:**
+- `[HIERARCHY_RENDER]`, `[SWIPE]`, `[LISTS_SWIPE]`, `[CONTENT_CLICK]` - Lists hierarchy
+
+**WebAuthn:**
+- `[WEBAUTHN_ONBOARDING]` - WebAuthn onboarding flow
+
+**Statistics:**
+- **Total removed:** 1056 lines across 19 files
+- **Frontend:** 1049 lines (18 files)
+- **Backend:** 7 lines (1 file - logs_collector_service.py)
+- **Preserved:** All `console.warn` and `console.error` calls for critical errors
+
+**Configuration Preserved:**
+- Logger definitions in `logger.ts` (window.logPWA, window.logSync, etc.)
+- `LOGGING_CONFIG.modules` in `logging.js` (for runtime configuration)
+
+**Benefits:**
+- Improved performance (reduced console overhead)
+- Cleaner development console output
+- Reduced noise in production logs
+- Smaller bundle sizes
+
 ## Troubleshooting
 
 ### Common Issues

@@ -209,7 +209,6 @@
 (function() {
     const fabToolbar = document.getElementById('fab-toolbar');
     if (!fabToolbar) {
-        console.log('[FAB_TOOLBAR] Navigation hidden: User not authenticated');
         return;
     }
 
@@ -229,32 +228,7 @@
 
         if (desktopWrapper) desktopWrapper.style.display = 'none';
         if (desktopBackdrop) desktopBackdrop.style.display = 'none';
-
-        console.log('[FAB_TOOLBAR] Desktop FAB hidden:', {
-            page: currentPage,
-            reason: 'Page not in allowed list',
-            allowedPages: allowedPages
-        });
     }
-
-    console.log('[FAB_TOOLBAR] Enhanced navigation initialized:', {
-        page: window.location.pathname,
-        mode: mode,
-        deviceType: isDesktop ? 'desktop' : (window.innerWidth >= 768 ? 'tablet' : 'mobile'),
-        buttonsCount: isDesktop
-            ? 1  // Desktop: only FAB button
-            : fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown').length,
-        fabSize: isDesktop
-            ? (window.innerWidth >= 1280 ? '64px' : '56px')
-            : 'N/A',
-        offlineMode: document.documentElement.classList.contains('offline-mode'),
-        style: isDesktop ? 'speed-dial-fab' : 'dropdown-enhanced',
-        position: isDesktop ? 'fixed bottom-right' : 'fixed bottom',
-        safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
-        zIndex: getComputedStyle(fabToolbar).zIndex,
-        userAuthenticated: true,
-        desktopFabVisible: isDesktop ? isPageAllowed : 'N/A'
-    });
 
     // Resize listener: Automatically switch between mobile nav and desktop FAB
     let resizeTimeout;
@@ -271,13 +245,6 @@
 
             // Only update if mode actually changed (crossing breakpoint)
             if (newMode !== currentMode) {
-                console.log('[FAB_TOOLBAR] Breakpoint crossed:', {
-                    from: currentMode,
-                    to: newMode,
-                    windowWidth: window.innerWidth,
-                    breakpoint: BREAKPOINT
-                });
-
                 currentMode = newMode;
 
                 // Force CSS re-evaluation by toggling visibility
@@ -314,7 +281,6 @@
                         desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     }
 
-                    console.log('[FAB_TOOLBAR] Switched to desktop mode:', {
                         desktopFabVisible: isPageAllowed,
                         page: currentPage
                     });
@@ -342,7 +308,6 @@
                         desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     }
 
-                    console.log('[FAB_TOOLBAR] Switched to mobile mode');
                 }
             }
         }, 200);  // 200ms debounce delay
@@ -352,7 +317,6 @@
     const fabToolbarStyles = window.getComputedStyle(fabToolbar);
     const mainContentStyles = window.getComputedStyle(document.getElementById('main-content'));
 
-    console.log('[FAB_TOOLBAR] CSS Diagnostics:', {
         fabContainer: {
             position: fabToolbarStyles.position,
             bottom: fabToolbarStyles.bottom,
@@ -403,7 +367,6 @@
             backdrop.classList.add('opacity-0', 'pointer-events-none');
             if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
 
-            console.log('[FAB_TOOLBAR] Desktop FAB closed:', {
                 timestamp: new Date().toISOString(),
                 action: 'close-menu'
             });
@@ -416,7 +379,6 @@
             backdrop.classList.add('opacity-100');
             if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
 
-            console.log('[FAB_TOOLBAR] Desktop FAB opened:', {
                 timestamp: new Date().toISOString(),
                 action: 'open-menu',
                 menuItemsCount: wrapper.querySelectorAll('.fab-menu-item').length
@@ -432,7 +394,6 @@
                 const actionText = e.currentTarget.getAttribute('aria-label') ||
                                    e.currentTarget.previousElementSibling?.textContent;
 
-                console.log('[FAB_TOOLBAR] Desktop FAB menu item clicked:', {
                     index,
                     action: actionText,
                     timestamp: new Date().toISOString()
@@ -442,7 +403,6 @@
                 setTimeout(() => {
                     if (desktopFabWrapper.classList.contains('open')) {
                         window.toggleDesktopFAB();
-                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed after menu item click');
                     }
                 }, 100);
             });
@@ -455,7 +415,6 @@
                     const modal = mutation.target;
                     if (modal.hasAttribute('open') && desktopFabWrapper.classList.contains('open')) {
                         window.toggleDesktopFAB();
-                        console.log('[FAB_TOOLBAR] Desktop FAB auto-closed due to modal opening');
                     }
                 }
             });
@@ -478,13 +437,11 @@
         onlineOnlyElements?.forEach(el => {
             if (isOffline) {
                 el.style.display = 'none';
-                console.log('[FAB_TOOLBAR] Hidden in offline:', el.getAttribute('aria-label') || el.querySelector('.icon-label')?.textContent);
             } else {
                 el.style.display = '';
             }
         });
 
-        console.log('[FAB_TOOLBAR] Offline visibility updated:', {
             isOffline,
             mode: mode,
             hiddenCount: isOffline ? (onlineOnlyElements?.length || 0) : 0,
@@ -519,7 +476,6 @@
                 // detail-view is active if it doesn't have 'hidden' class
                 const isDetailView = detailView && !detailView.classList.contains('hidden');
 
-                console.log('[FAB_TOOLBAR] View check:', {
                     detailViewExists: !!detailView,
                     landingViewExists: !!landingView,
                     detailViewHidden: detailView?.classList.contains('hidden'),
@@ -536,7 +492,6 @@
 
                 if (checkListContext()) {
                     // In detail view (list items) → add new item
-                    console.log('[FAB_TOOLBAR] /lists context: Detail view - Adding item to active list');
                     if (typeof openAddItemModal === 'function') {
                         openAddItemModal();
                     } else {
@@ -544,7 +499,6 @@
                     }
                 } else {
                     // In landing view (list selection) → create new list
-                    console.log('[FAB_TOOLBAR] /lists context: Landing view - Creating new list');
                     if (typeof openCreateListModal === 'function') {
                         openCreateListModal();
                     } else {
@@ -558,7 +512,6 @@
             const dropdownMenu = centerFabDropdown.querySelector('.dropdown-content');
             if (dropdownMenu) dropdownMenu.remove();
 
-            console.log('[FAB_TOOLBAR] /lists page: Mobile center FAB adapted for context-aware behavior');
         }
 
         // Note: Desktop FAB is hidden on /lists page (handled by allowedPages check above)
@@ -568,7 +521,6 @@
     fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown button').forEach((btn, index) => {
         btn.addEventListener('click', (e) => {
             const buttonLabel = btn.getAttribute('aria-label') || btn.querySelector('.icon-label')?.textContent;
-            console.log(`[FAB_TOOLBAR] Button clicked:`, {
                 index,
                 label: buttonLabel,
                 timestamp: new Date().toISOString()
@@ -585,6 +537,5 @@
         }
     });
 
-    console.log('[FAB_TOOLBAR] Initialization complete');
 })();
 </script>
