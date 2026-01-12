@@ -8,8 +8,10 @@
 <style>
     /* Fix iframe dimensions to prevent reflow and visual jump */
     .telegram-widget-container iframe {
-        /* Telegram large button dimensions */
-        width: 186px !important;
+        /* [FIX] Allow iframe to expand for localized text (Russian "Войти как Илья" is wider than 186px) */
+        width: auto !important;           /* Auto width to fit content */
+        max-width: 100% !important;       /* Don't overflow container */
+        min-width: 186px !important;      /* Minimum as standard button */
         height: 34px !important;
         /* Prevent any potential shifts */
         display: block;
