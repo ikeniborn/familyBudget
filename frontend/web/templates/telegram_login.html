@@ -81,7 +81,8 @@
             </p>
 
             <!-- [PHASE 4] Added overflow-visible and min-width constraint (2026-01-12) -->
-            <div class="telegram-widget-container relative flex justify-center items-center min-h-[50px] overflow-visible"
+            <!-- [FIX] Removed min-h-[50px] and items-center to prevent iframe stretching -->
+            <div class="telegram-widget-container relative flex justify-center overflow-visible"
                  id="telegram-widget-container"
                  style="min-width: min(100%, 220px);"
                  data-bot-username="{{ bot_username }}"
@@ -295,6 +296,16 @@
                 placeholder.classList.add('hidden');
                 errorDiv.classList.add('hidden');
                 container.classList.add('ready'); // Show iframe with smooth transition
+
+                // [FIX] Force remove Telegram's inline width/height to allow CSS auto-sizing
+                var iframe = container.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.removeProperty('width');
+                    iframe.style.removeProperty('height');
+                    if (DEBUG) {
+                        console.log('[TelegramWidget] Removed inline width/height, iframe now auto-sized');
+                    }
+                }
                 break;
             case 'error':
                 placeholder.classList.add('hidden');
