@@ -140,7 +140,7 @@ export function filterItemsBySearch(): any[] {
 
   const results = items.filter(item => {
     // Check product name
-    if ((item.name || '').toLowerCase().includes(query)) {
+    if ((item.product_name || '').toLowerCase().includes(query)) {
       return true;
     }
 
@@ -178,7 +178,7 @@ export function filterItemsBySearch(): any[] {
     matchRate: `${((results.length / items.length) * 100).toFixed(1)}%`,
     sampleResults: results.slice(0, 3).map(r => ({
       id: r.id,
-      name: r.name,
+      product_name: r.product_name,
       store: r.store_id !== null ? (storeMap[r.store_id] || 'N/A') : 'N/A'
     }))
   });
@@ -252,7 +252,7 @@ export function renderItemsTable(): void {
     const store = state.stores.find(s => s.id === item.store_id);
     const groupPath = getProductGroupBreadcrumbs(item.product_group_id);
     const isCompleted = item.is_completed;
-    const productName = item.name || '';
+    const productName = item.product_name || '';
     const comment = item.notes || '';
 
     return `
