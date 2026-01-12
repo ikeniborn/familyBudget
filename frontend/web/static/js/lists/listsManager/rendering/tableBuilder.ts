@@ -101,12 +101,27 @@ export function filterItemsBySearch(): any[] {
 
   const query = state.searchQuery.toLowerCase().trim();
 
+  // DIAGNOSTIC: Log search attempt
+  console.log('[SEARCH_FILTER] Starting search', {
+    query,
+    totalItems: items.length,
+    storeCount: state.stores.length,
+    groupCount: state.productGroups.length,
+    hideCompleted: state.hideCompleted
+  });
+
   // Build lookup maps
   const storeMap: Record<number, string> = {};
   state.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
 
   const groupMap: Record<number, any> = {};
   state.productGroups.forEach(g => { groupMap[g.id] = g; });
+
+  // DIAGNOSTIC: Log map sizes
+  console.log('[SEARCH_FILTER] Maps built', {
+    storeMapSize: Object.keys(storeMap).length,
+    groupMapSize: Object.keys(groupMap).length
+  });
 
   // Helper to get all ancestor names for a group
   const getGroupAncestorNames = (groupId: number | null) => {
@@ -123,7 +138,7 @@ export function filterItemsBySearch(): any[] {
     return names;
   };
 
-  return items.filter(item => {
+  const results = items.filter(item => {
     // Check product name
     if ((item.name || '').toLowerCase().includes(query)) {
       return true;
@@ -154,6 +169,21 @@ export function filterItemsBySearch(): any[] {
 
     return false;
   });
+
+  // DIAGNOSTIC: Log results
+  console.log('[SEARCH_FILTER] Search complete', {
+    query,
+    matchedItems: results.length,
+    totalItems: items.length,
+    matchRate: `${((results.length / items.length) * 100).toFixed(1)}%`,
+    sampleResults: results.slice(0, 3).map(r => ({
+      id: r.id,
+      name: r.name,
+      store: storeMap[r.store_id] || 'N/A'
+    }))
+  });
+
+  return results;
 }
 
 // ============================================================================
