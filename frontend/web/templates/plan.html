@@ -2608,8 +2608,18 @@ function nextPage() {
 
 // Show edit modal
 async function showEditModal(factId) {
+    console.log('[SHOW_EDIT_MODAL] Called with factId:', factId);
+    console.log('[SHOW_EDIT_MODAL] factsData length:', factsData?.length);
+
     const fact = factsData.find(f => f.id === factId);
-    if (!fact) return;
+
+    if (!fact) {
+        console.error('[SHOW_EDIT_MODAL] Fact not found in factsData! factId:', factId);
+        console.error('[SHOW_EDIT_MODAL] Available fact IDs:', factsData?.map(f => f.id));
+        return;
+    }
+
+    console.log('[SHOW_EDIT_MODAL] Fact found:', fact);
 
     // Fill basic fields
     document.getElementById('edit-id').value = fact.id;
@@ -2682,8 +2692,17 @@ async function showEditModal(factId) {
     }
 
     // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
+    console.log('[SHOW_EDIT_MODAL] Opening modal...');
     const modal = document.getElementById('edit-modal');
+
+    if (!modal) {
+        console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
+        return;
+    }
+
+    console.log('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
     modal.showModal();
+    console.log('[SHOW_EDIT_MODAL] Modal opened successfully');
 
     // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
     if (!modal.dataset.backdropHandlerAdded) {
