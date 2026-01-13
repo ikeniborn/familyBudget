@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { getState, updateState, resetState, createInitialState } from '@web/budget/budgetWSClient/core/WSState';
 import type { BudgetWSState, WSBadgeState } from '@web/budget/budgetWSClient/core/WSState';
 
-// TODO: Enable when budgetWSClient is migrated to modular structure (Phase 2.1-2.5)
-describe.skip('WSState', () => {
+// ✅ ACTIVATED (Phase 1.1): budgetWSClient migrated to modular structure
+describe('WSState', () => {
   beforeEach(() => {
     resetState();
   });
@@ -56,8 +56,8 @@ describe.skip('WSState', () => {
       expect(state.rttMeasurements).toEqual([]);
       expect(state.rttRollingAverage).toBe(0);
       expect(state.pingTimestamp).toBeNull();
-      expect(state.RTT_THRESHOLD).toBe(1000);
-      expect(state.RTT_WINDOW_SIZE).toBe(10);
+      expect(state.RTT_THRESHOLD).toBe(5000); // Updated to match budgetWSClient.js
+      expect(state.RTT_WINDOW_SIZE).toBe(5); // Updated to match budgetWSClient.js
     });
 
     it('should create initial state with correct multi-tab defaults', () => {
@@ -68,7 +68,7 @@ describe.skip('WSState', () => {
       expect(state.leaderHeartbeatInterval).toBeNull();
       expect(state.followerCheckInterval).toBeNull();
       expect(state.lastLeaderHeartbeat).toBe(0);
-      expect(state.HEARTBEAT_INTERVAL).toBe(5000);
+      expect(state.HEARTBEAT_INTERVAL).toBe(3000); // Updated to match budgetWSClient.js
       expect(state.LEADER_TIMEOUT).toBe(10000);
       expect(state.multiTabSupported).toBeNull();
       expect(state.multiTabInitialized).toBe(false);
