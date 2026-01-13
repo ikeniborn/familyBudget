@@ -2724,11 +2724,10 @@ async function showEditModal(factId) {
         }
         if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
         if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
-        return;  // ✅ Exit early - no need to fetch recurring plan
-    }
-
-    // This is a recurring plan fact - prepare UI
-    console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
+        // ✅ Continue to category initialization (don't return early)
+    } else {
+        // This is a recurring plan fact - prepare UI
+        console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
 
     if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
     if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
@@ -2799,6 +2798,7 @@ async function showEditModal(factId) {
             }
         }
     })();
+    } // End of else block (recurring plan loading)
 
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
