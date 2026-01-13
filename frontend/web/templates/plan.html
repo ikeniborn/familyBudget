@@ -2729,75 +2729,75 @@ async function showEditModal(factId) {
         // This is a recurring plan fact - prepare UI
         console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
 
-    if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
-    if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
+        if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
 
-    // Reset scope to 'single' by default
-    const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
-    if (singleRadio) singleRadio.checked = true;
+        // Reset scope to 'single' by default
+        const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
 
-    // ✅ OPTIMIZATION: Show loading state immediately
-    if (recurringInfoDiv) {
-        recurringInfoDiv.innerHTML = `
-            <div class="flex items-center justify-center py-4">
-                <span class="loading loading-spinner loading-md text-primary"></span>
-                <span class="ml-2">Загрузка данных регламентного платежа...</span>
-            </div>
-        `;
-        recurringInfoDiv.classList.remove('hidden');
-    }
+        // ✅ OPTIMIZATION: Show loading state immediately
+        if (recurringInfoDiv) {
+            recurringInfoDiv.innerHTML = `
+                <div class="flex items-center justify-center py-4">
+                    <span class="loading loading-spinner loading-md text-primary"></span>
+                    <span class="ml-2">Загрузка данных регламентного платежа...</span>
+                </div>
+            `;
+            recurringInfoDiv.classList.remove('hidden');
+        }
 
-    // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
-    (async () => {
-        try {
-            console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
+        // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
+        (async () => {
+            try {
+                console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
 
-            const planResponse = await fetch(
-                `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
-                { credentials: 'include' }
-            );
+                const planResponse = await fetch(
+                    `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
+                    { credentials: 'include' }
+                );
 
-            console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
+                console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
 
-            if (!planResponse.ok) {
-                console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
-                if (planResponse.status === 403) {
-                    console.error('[EDIT_MODAL] 403 Forbidden - check user permissions');
-                } else if (planResponse.status === 404) {
-                    console.error('[EDIT_MODAL] 404 Not Found - plan may have been deleted');
+                if (!planResponse.ok) {
+                    console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+                    if (planResponse.status === 403) {
+                        console.error('[EDIT_MODAL] 403 Forbidden - check user permissions');
+                    } else if (planResponse.status === 404) {
+                        console.error('[EDIT_MODAL] 404 Not Found - plan may have been deleted');
+                    }
+                    // Показать error state
+                    if (recurringInfoDiv) {
+                        recurringInfoDiv.innerHTML = `
+                            <div class="alert alert-warning">
+                                <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+                            </div>
+                        `;
+                    }
+                    return;
                 }
-                // Показать error state
+
+                currentRecurringPlan = await planResponse.json();
+                console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+
+                // Clear loading state and populate content
+                if (recurringInfoDiv) {
+                    recurringInfoDiv.innerHTML = ''; // Clear loading spinner
+                }
+                populateRecurringPlanInfo(currentRecurringPlan);
+                console.log('[EDIT_MODAL] Recurring plan info populated');
+
+            } catch (error) {
+                console.error('[EDIT_MODAL] Error loading recurring plan:', error);
                 if (recurringInfoDiv) {
                     recurringInfoDiv.innerHTML = `
-                        <div class="alert alert-warning">
-                            <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+                        <div class="alert alert-error">
+                            <span>❌ Ошибка: ${error.message}</span>
                         </div>
                     `;
                 }
-                return;
             }
-
-            currentRecurringPlan = await planResponse.json();
-            console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
-
-            // Clear loading state and populate content
-            if (recurringInfoDiv) {
-                recurringInfoDiv.innerHTML = ''; // Clear loading spinner
-            }
-            populateRecurringPlanInfo(currentRecurringPlan);
-            console.log('[EDIT_MODAL] Recurring plan info populated');
-
-        } catch (error) {
-            console.error('[EDIT_MODAL] Error loading recurring plan:', error);
-            if (recurringInfoDiv) {
-                recurringInfoDiv.innerHTML = `
-                    <div class="alert alert-error">
-                        <span>❌ Ошибка: ${error.message}</span>
-                    </div>
-                `;
-            }
-        }
-    })();
+        })();
     } // End of else block (recurring plan loading)
 
     // Determine category type from allCategories
