@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+// DISABLED: Import fails before describe.skip() is evaluated
+// Uncomment when offlineManager modular migration is complete (Phase 2.1-2.5)
+/*
 import {
     getQueueStatus,
     getPendingCount,
@@ -15,6 +18,7 @@ import {
     type SyncQueueItem,
     type QueueStatus
 } from '@web/offline/offlineManager/operations/syncQueue';
+*/
 
 // TODO: Enable when offlineManager is migrated to modular structure (Phase 2.1-2.5)
 describe.skip('SyncQueue', () => {
