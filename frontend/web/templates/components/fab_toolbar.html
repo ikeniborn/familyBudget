@@ -206,6 +206,39 @@
 </nav>
 
 <script>
+// Define toggleDesktopFAB globally even if fab-toolbar is not present
+// This prevents "function not found" errors from cached HTML
+window.toggleDesktopFAB = function() {
+    const wrapper = document.querySelector('.desktop-fab-wrapper');
+    const backdrop = document.getElementById('desktop-fab-backdrop');
+    const fabBtn = document.getElementById('desktop-fab-btn');
+
+    if (!wrapper || !backdrop) {
+        console.warn('[FAB_TOOLBAR] Desktop FAB elements not found - function called but elements missing');
+        return;
+    }
+
+    const isOpen = wrapper.classList.contains('open');
+
+    if (isOpen) {
+        // Close FAB
+        wrapper.classList.remove('open');
+        wrapper.classList.add('closed');
+        backdrop.classList.add('hidden');
+        backdrop.classList.remove('opacity-100');
+        backdrop.classList.add('opacity-0', 'pointer-events-none');
+        if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
+    } else {
+        // Open FAB
+        wrapper.classList.remove('closed');
+        wrapper.classList.add('open');
+        backdrop.classList.remove('hidden');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none');
+        backdrop.classList.add('opacity-100');
+        if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
+    }
+};
+
 (function() {
     const fabToolbar = document.getElementById('fab-toolbar');
     if (!fabToolbar) {
@@ -217,6 +250,7 @@
     const mode = isDesktop ? 'desktop-fab' : 'mobile-nav';
 
     // Desktop FAB: show only on specific pages
+    // Note: /lists page has custom mobile-only FAB (see lists.html)
     const allowedPages = ['/', '/facts', '/plan'];
     const currentPage = window.location.pathname;
     const isPageAllowed = allowedPages.includes(currentPage);
@@ -341,47 +375,7 @@
         }
     });
 
-    // Desktop FAB: Speed Dial toggle function
-    window.toggleDesktopFAB = function() {
-        const wrapper = document.querySelector('.desktop-fab-wrapper');
-        const backdrop = document.getElementById('desktop-fab-backdrop');
-        const fabBtn = document.getElementById('desktop-fab-btn');
-
-        if (!wrapper || !backdrop) {
-            console.error('[FAB_TOOLBAR] Desktop FAB elements not found');
-            return;
-        }
-
-        const isOpen = wrapper.classList.contains('open');
-
-        if (isOpen) {
-            // Close FAB
-            wrapper.classList.remove('open');
-            wrapper.classList.add('closed');
-            backdrop.classList.add('hidden');
-            backdrop.classList.remove('opacity-100');
-            backdrop.classList.add('opacity-0', 'pointer-events-none');
-            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'false');
-
-                timestamp: new Date().toISOString(),
-                action: 'close-menu'
-            });
-        } else {
-            // Open FAB
-            wrapper.classList.remove('closed');
-            wrapper.classList.add('open');
-            backdrop.classList.remove('hidden');
-            backdrop.classList.remove('opacity-0', 'pointer-events-none');
-            backdrop.classList.add('opacity-100');
-            if (fabBtn) fabBtn.setAttribute('aria-expanded', 'true');
-
-                timestamp: new Date().toISOString(),
-                action: 'open-menu',
-                menuItemsCount: wrapper.querySelectorAll('.fab-menu-item').length
-            });
-        }
-    };
-
+    // Desktop FAB: Auto-close and event handling (toggleDesktopFAB defined globally above)
     // Desktop FAB: Log menu item clicks
     const desktopFabWrapper = document.querySelector('.desktop-fab-wrapper');
     if (desktopFabWrapper) {
