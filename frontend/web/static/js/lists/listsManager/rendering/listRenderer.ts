@@ -46,6 +46,15 @@ function isDesktop(): boolean {
   return window.innerWidth >= 768;
 }
 
+/**
+ * Update mobile "Add" button UI (icon, tooltip, aria-label)
+ * Extracted to avoid code duplication
+ */
+async function updateMobileUI(): Promise<void> {
+  const { updateMobileAddButton } = await import('../ui/globalHelpers');
+  await updateMobileAddButton();
+}
+
 // ============================================================================
 // FAB Visibility Management
 // ============================================================================
@@ -428,8 +437,7 @@ export async function renderLandingView(): Promise<void> {
   renderShoppingListCards();
 
   // Update mobile "Add" button UI (icon, tooltip, aria-label)
-  const { updateMobileAddButton } = await import('../ui/globalHelpers');
-  await updateMobileAddButton();
+  await updateMobileUI();
 }
 
 // ============================================================================
@@ -564,8 +572,7 @@ export async function renderDetailView(listId: number): Promise<void> {
   }
 
   // Update mobile "Add" button UI (icon, tooltip, aria-label)
-  const { updateMobileAddButton } = await import('../ui/globalHelpers');
-  await updateMobileAddButton();
+  await updateMobileUI();
 
   // Note: Real-time updates provided by global budgetWSClient
   // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.

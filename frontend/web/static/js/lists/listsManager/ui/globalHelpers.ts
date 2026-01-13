@@ -116,6 +116,7 @@ export async function updateMobileAddButton(): Promise<void> {
 
   if (!button || !iconSpan) {
     // Button not found (desktop view or button not rendered yet)
+    debugLog('[MOBILE_MENU] Button elements not found - likely desktop view or not yet rendered');
     return;
   }
 

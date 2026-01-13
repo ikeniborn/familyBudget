@@ -94,9 +94,14 @@
         }
     }
 
-    /* Accessibility: smooth transition for icon changes */
-    .mobile-add-button #mobile-add-icon {
-        will-change: transform;
+    /* Keyboard navigation focus state */
+    .mobile-add-button:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    .mobile-add-button:focus-visible #mobile-add-icon {
+        transform: scale(1.1);
     }
 </style>
 {% endblock %}
