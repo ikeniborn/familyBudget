@@ -273,11 +273,6 @@ class BudgetWSClient {
      * @private
      */
     _startNavigationWindow() {
-        this._log('NAV', 'info', 'Navigation window started', {
-            duration: `${this.NAVIGATION_WINDOW}ms`,
-            page_loaded: Date.now()
-        });
-
         this.isNavigating = true;
 
         // Clear existing timer (if any)
@@ -287,9 +282,6 @@ class BudgetWSClient {
 
         // Set timer to clear navigation flag
         this._navigationTimer = setTimeout(() => {
-            this._log('NAV', 'info', 'Navigation window ended', {
-                elapsed: `${this.NAVIGATION_WINDOW}ms`
-            });
             this.isNavigating = false;
             this._navigationTimer = null;
         }, this.NAVIGATION_WINDOW);
@@ -304,7 +296,6 @@ class BudgetWSClient {
             clearTimeout(this._navigationTimer);
             this._navigationTimer = null;
             this.isNavigating = false;
-            this._log('NAV', 'debug', 'Navigation window stopped manually');
         }
     }
 
@@ -372,17 +363,11 @@ class BudgetWSClient {
      * @private
      */
     _performWakeHealthCheck() {
-        console.group('[WS-WAKE] Wake Health Check');
-        this._log('WAKE', 'info', 'Visibility: visible', {
-            timestamp: new Date().toISOString()
-        });
-
         // Check 1: WebSocket readyState
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
             this._log('WAKE', 'warn', 'WebSocket not OPEN, reconnecting', {
                 wsState: this.ws ? this.ws.readyState : 'null'
             });
-            console.groupEnd();
             this._forceReconnect();
             return;
         }
@@ -392,13 +377,11 @@ class BudgetWSClient {
             this._log('WAKE', 'warn', 'Connection stale, reconnecting', {
                 timeSinceLastPing: Date.now() - this.lastServerPing
             });
-            console.groupEnd();
             this._forceReconnect();
             return;
         }
 
         // Check 3: Send ping to verify bidirectional communication
-        this._log('WAKE', 'info', 'Sending verification ping');
         this._sendMessage({ type: 'ping' });
 
         // Set timeout to check if pong received
@@ -408,11 +391,7 @@ class BudgetWSClient {
                 this._log('WAKE', 'warn', 'No pong response within 3s, reconnecting', {
                     timeSincePong
                 });
-                console.groupEnd();
                 this._forceReconnect();
-            } else {
-                this._log('WAKE', 'info', 'Connection verified ✓');
-                console.groupEnd();
             }
         }, 3000);
     }
@@ -426,38 +405,26 @@ class BudgetWSClient {
     _startHealthCheck() {
         if (this._healthCheckInterval) return;
 
-        this._log('HEALTH', 'info', 'Starting periodic health checks', {
-            interval: `${this.HEALTH_CHECK_INTERVAL}ms`
-        });
-
         this._healthCheckInterval = setInterval(() => {
             // Only check if visible and leader
             if (document.visibilityState !== 'visible' || !this.isLeader) {
                 return;
             }
 
-            console.group('[WS-HEALTH] Periodic Check');
-            this._log('HEALTH', 'debug', 'Periodic health check running');
-
             if (this._isConnectionStale()) {
                 this._log('HEALTH', 'warn', 'Connection stale');
-                console.groupEnd();
                 this._forceReconnect();
                 return;
             }
 
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                this._log('HEALTH', 'debug', 'Connection healthy ✓');
                 // Send ping for verification
                 this._sendMessage({ type: 'ping' });
             } else {
                 this._log('HEALTH', 'warn', 'WebSocket not OPEN');
-                console.groupEnd();
                 this._forceReconnect();
                 return;
             }
-
-            console.groupEnd();
         }, this.HEALTH_CHECK_INTERVAL);
     }
 
@@ -469,7 +436,6 @@ class BudgetWSClient {
         if (this._healthCheckInterval) {
             clearInterval(this._healthCheckInterval);
             this._healthCheckInterval = null;
-            this._log('HEALTH', 'info', 'Stopped periodic health checks');
         }
     }
 
@@ -487,12 +453,10 @@ class BudgetWSClient {
 
         // Set new timeout
         this._pongTimeoutTimer = setTimeout(() => {
-            console.group('[WS-PONG-TIMEOUT]');
             this._log('PONG-TIMEOUT', 'error', 'No pong received, force closing', {
                 timeout: `${this.PONG_TIMEOUT}ms`,
                 lastPong: this.lastPongReceived ? (Date.now() - this.lastPongReceived) : 'never'
             });
-            console.groupEnd();
 
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                 // Force close (will trigger onclose → reconnect)
@@ -1290,18 +1254,7 @@ class BudgetWSClient {
                 // FILTER 2: Skip anomalous first measurement (> 4000ms)
                 const skipAnomalous = this._rttMeasurements.length === 0 && rtt > this.RTT_THRESHOLD * 2;
 
-                if (skipNavigating) {
-                    this._log('RTT_FILTER', 'debug', 'RTT measurement skipped (navigating)', {
-                        rtt: `${rtt}ms`,
-                        navigation_window: `${this.NAVIGATION_WINDOW}ms`,
-                        reason: 'Page load stabilization'
-                    });
-                } else if (skipAnomalous) {
-                    this._log('RTT_FILTER', 'debug', 'RTT measurement skipped (anomalous first)', {
-                        rtt: `${rtt}ms`,
-                        threshold: `${this.RTT_THRESHOLD * 2}ms`
-                    });
-                } else {
+                if (!skipNavigating && !skipAnomalous) {
                     // Store measurement
                     this._rttMeasurements.push(rtt);
 
@@ -1313,14 +1266,6 @@ class BudgetWSClient {
                     // Calculate rolling average
                     this._rttRollingAverage = this._rttMeasurements.reduce((a, b) => a + b, 0)
                         / this._rttMeasurements.length;
-
-                    // Log RTT data
-                    this._log('RTT', 'info', 'RTT measured', {
-                        current: `${rtt}ms`,
-                        rolling_avg: `${Math.round(this._rttRollingAverage)}ms`,
-                        measurements: this._rttMeasurements.length,
-                        threshold: `${this.RTT_THRESHOLD}ms`
-                    });
 
                     // Warn on slow connection (only if not navigating)
                     if (this._rttRollingAverage > this.RTT_THRESHOLD) {
@@ -1427,9 +1372,6 @@ class BudgetWSClient {
                 // Record ping timestamp for RTT measurement
                 this._pingTimestamp = Date.now();
 
-                this._log('PING', 'info', 'Sending client ping', {
-                    timestamp: this._pingTimestamp
-                });
                 this._logHistory('ping_sent');
                 this._sendMessage({ type: 'ping' });
 
@@ -2089,11 +2031,6 @@ class BudgetWSClient {
 
             if (isSlowConnection) {
                 state = 'warning_slow';
-                this._log('RTT_FILTER', 'info', 'Slow connection badge shown', {
-                    avg_rtt: `${Math.round(this._rttRollingAverage)}ms`,
-                    threshold: `${this.RTT_THRESHOLD}ms`,
-                    navigating: this.isNavigating
-                });
             } else if (isManyTabs) {
                 state = 'warning_tabs';
             } else {

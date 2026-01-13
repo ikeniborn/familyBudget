@@ -173,20 +173,10 @@ async function loadTransferPlanHints(direction) {
 
     // ✅ FIX 3: Require BOTH category AND FC for hints
     if (!articleId || !financialCenterId) {
-        console.log(`[TRANSFER_HINTS] ⚠️ SKIPPED ${direction}:`, {
-            articleId,
-            financialCenterId,
-            missing: !articleId ? 'category' : 'FC'
-        });
         planBtn.innerHTML = 'План: --';
         factBtn.innerHTML = 'Факт: --';
         return;
     }
-
-    console.log(`[TRANSFER_HINTS] ✅ Loading hints for ${direction}:`, {
-        articleId,
-        financialCenterId
-    });
 
     window[timeoutRef] = setTimeout(async () => {
         // Skip API call if offline
@@ -353,20 +343,10 @@ async function loadTransferFactHints(direction) {
 
     // ✅ FIX 3: Require BOTH category AND FC for hints
     if (!articleId || !financialCenterId) {
-        console.log(`[TRANSFER_HINTS] ⚠️ SKIPPED ${direction}:`, {
-            articleId,
-            financialCenterId,
-            missing: !articleId ? 'category' : 'FC'
-        });
         planBtn.innerHTML = 'План: --';
         factBtn.innerHTML = 'Факт: --';
         return;
     }
-
-    console.log(`[TRANSFER_HINTS] ✅ Loading hints for ${direction}:`, {
-        articleId,
-        financialCenterId
-    });
 
     window[timeoutRef] = setTimeout(async () => {
         // Skip API call if offline
@@ -504,12 +484,6 @@ function initTransferModal() {
                 }
             }
         });
-
-        console.log('[TRANSFER_INIT] FROM category tree initialized:', {
-            mode: fromCategoryTree?.options.mode,
-            type: 'debit',
-            selector: '#from_article'
-        });
     }
 
     // 3. Initialize ChoicesCategoryTree for TO (credit)
@@ -527,12 +501,6 @@ function initTransferModal() {
                     loadTransferFactHints('to');
                 }
             }
-        });
-
-        console.log('[TRANSFER_INIT] TO category tree initialized:', {
-            mode: toCategoryTree?.options.mode,
-            type: 'credit',
-            selector: '#to_article'
         });
     }
 
@@ -807,27 +775,19 @@ function setupCFOFiltering() {
         fromFCSelect.addEventListener('change', async (e) => {
             populateFinancialCenterDropdowns();
             const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
-            console.log('[FC_CHANGE] FROM Financial center changed in transfer modal:', {
-                fcId: fcId,
-                timestamp: new Date().toISOString()
-            });
 
             // CRITICAL: Stop event propagation to prevent global listeners from interfering
             e.stopPropagation();
             e.stopImmediatePropagation();
-            console.log('[FC_CHANGE] Stopped event propagation');
 
             // Filter FROM categories by selected FC
             if (fromCategoryTree) {
-                console.log('[FC_CHANGE] Updating FROM category tree with new FC');
                 await fromCategoryTree.updateFinancialCenter(fcId);
-                console.log('[FC_CHANGE] FROM category tree updated successfully');
             }
             // Note: from_cost_center removed from UI (not needed for transfers)
 
             // Small delay to allow DOM to settle (mobile browser optimization)
             await new Promise(resolve => setTimeout(resolve, 50));
-            console.log('[FC_CHANGE] DOM settled, FROM category dropdown ready');
 
             // Reload FROM hints when account changes
             if (transferRecordType === 'plan') {
@@ -842,27 +802,19 @@ function setupCFOFiltering() {
         toFCSelect.addEventListener('change', async (e) => {
             populateFinancialCenterDropdowns();
             const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
-            console.log('[FC_CHANGE] TO Financial center changed in transfer modal:', {
-                fcId: fcId,
-                timestamp: new Date().toISOString()
-            });
 
             // CRITICAL: Stop event propagation to prevent global listeners from interfering
             e.stopPropagation();
             e.stopImmediatePropagation();
-            console.log('[FC_CHANGE] Stopped event propagation');
 
             // Filter TO categories by selected FC
             if (toCategoryTree) {
-                console.log('[FC_CHANGE] Updating TO category tree with new FC');
                 await toCategoryTree.updateFinancialCenter(fcId);
-                console.log('[FC_CHANGE] TO category tree updated successfully');
             }
             // Note: to_cost_center removed from UI (not needed for transfers)
 
             // Small delay to allow DOM to settle (mobile browser optimization)
             await new Promise(resolve => setTimeout(resolve, 50));
-            console.log('[FC_CHANGE] DOM settled, TO category dropdown ready');
 
             // Reload TO hints when account changes
             if (transferRecordType === 'plan') {

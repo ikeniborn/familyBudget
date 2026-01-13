@@ -103,6 +103,45 @@ npm run type-check  # Found 0 errors
 
 ---
 
+### 2026-01-13: Logging Optimization (v7.x)
+
+**Change:** Removed info/debug logging for 26 prefixes across frontend and backend
+
+**Removed Prefixes (26 total):**
+- WebSocket diagnostics: `[WS_RTT]`, `[WS-HEALTH]`, `[WS_DIAG]`, `[NAV_SYNC]`
+- Data sync: `[SYNC]`
+- Logs collection: `[LOGS_COLLECTOR]`
+- Service Worker: `[SW_UPDATE]`
+- PWA: `[PWA]`, `[PWA_HEADER]`, `[PWA_SAFE_AREA]`
+- Category tree: `[ChoicesCategoryTree]`
+- Navigation: `[FAB_TOOLBAR]`, `[NAV]`
+- Page init: `[index.html]`, `[setupPlanPeriodButtons]`, `[INIT]`, `[INDEX_PAGE]`
+- Transfers: `[TRANSFER_INIT]`, `[PUSH_BANNER]`
+- Logging system: `[LOGGER]`, `[LOGGING]`
+- Lists hierarchy: `[HIERARCHY_RENDER]`, `[SWIPE]`, `[LISTS_SWIPE]`, `[CONTENT_CLICK]`
+- WebAuthn: `[WEBAUTHN_ONBOARDING]`
+
+**Impact:**
+- ✅ 1056 lines removed across 19 files
+- ✅ Frontend: 1049 lines (18 files)
+- ✅ Backend: 7 lines (logs_collector_service.py)
+- ✅ Preserved all `console.warn` and `console.error` for critical errors
+- ✅ Preserved logger definitions and `LOGGING_CONFIG.modules` for runtime control
+
+**Performance Benefits:**
+- Reduced console overhead in production
+- Cleaner development console output
+- Smaller bundle sizes
+- Less noise in production logs
+
+**Configuration Preserved:**
+- `LOGGING_CONFIG.modules` in `logging.js` - Retained for possible runtime logging control
+- Logger definitions in `logger.ts` (window.logPWA, window.logSync, etc.) - Retained for future use
+
+**Note:** This optimization improves performance without removing critical error tracking. The configuration structure remains intact for potential future enhancements via runtime settings.
+
+---
+
 ## Build Pipeline
 
 ### Full Build Sequence

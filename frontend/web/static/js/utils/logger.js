@@ -177,29 +177,6 @@ if (typeof window !== 'undefined') {
     window.logLists = new Logger('[LISTS]', 'LISTS');
     // Modal Keyboard Adaptation logger
     window.logModalKB = new Logger('[MODAL_KB]', 'MODAL_KB');
-    // Log logger initialization (only if logging enabled)
-    if (window.LOGGING_CONFIG?.enabled) {
-        console.log('[LOGGER] Centralized logging initialized');
-        console.log('[LOGGER] Available loggers:', {
-            PWA: 'window.logPWA',
-            SW: 'window.logSW',
-            DB: 'window.logDB',
-            SYNC: 'window.logSync',
-            API: 'window.logAPI',
-            PERF: 'window.logPerf',
-            FORM: 'window.logForm',
-            WORKER: 'window.logWorker',
-            PLAN: 'window.logPlan',
-            CSV: 'window.logCSV',
-            WS_RTT: 'window.logWSRTT',
-            WS_STATE: 'window.logWSState',
-            NAV: 'window.logNav',
-            RTT_FILTER: 'window.logRTTFilter',
-            DUPLICATE_SEARCH: 'window.logDuplicateSearch',
-            ITEM_SAVE: 'window.logItemSave',
-            LISTS: 'window.logLists',
-            MODAL_KB: 'window.logModalKB'
-        });
-    }
+    // Logger initialization complete (silent)
 }
 //# sourceMappingURL=logger.js.map
