@@ -44,6 +44,120 @@ export {
 } from './core/connectionManager';
 
 // ============================================================================
+// Multi-Tab Support
+// ============================================================================
+export {
+  supportsMultiTab,
+  initMultiTab,
+  tryBecomeLeader,
+  tryBecomeLeaderWithTimeout,
+  startLeaderHeartbeat,
+} from './multiTab/leaderElection';
+
+export {
+  startFollowerMode,
+  stopFollowerMode,
+  updateConnectionStatus,
+} from './multiTab/followerSync';
+
+export {
+  handleChannelMessage,
+  broadcastWSEvent,
+  requestStatus,
+} from './multiTab/tabCoordination';
+
+// ============================================================================
+// Long Polling Fallback
+// ============================================================================
+export {
+  startLongPolling,
+  stopLongPolling,
+} from './fallback/longPolling';
+
+export {
+  calculateRetryDelay,
+  isRetryableError,
+  shouldStopOn503,
+  getRetryConfig,
+} from './fallback/pollRetry';
+
+// ============================================================================
+// Mobile/iOS Support
+// ============================================================================
+export {
+  detectIOSDevice,
+  needsLongerTimeout,
+  detectBrowserType,
+  getBrowserInfo,
+} from './mobile/browserDetection';
+
+export {
+  startNavigationWindow,
+  stopNavigationWindow,
+  isInNavigationWindow,
+  initNavigationDetection,
+} from './mobile/navigationDetection';
+
+export {
+  initWakeRecovery,
+  performWakeHealthCheck,
+  startHealthCheckInterval,
+  stopHealthCheckInterval,
+  startPongTimeout,
+  clearPongTimeout,
+} from './mobile/wakeRecovery';
+
+// ============================================================================
+// Features
+// ============================================================================
+export {
+  recordRTT,
+  resetRTT,
+  getRTTAverage,
+  isSlowConnection,
+  getRTTMeasurements,
+} from './features/rttMeasurement';
+
+export {
+  startClientPing,
+  stopClientPing,
+  sendClientPing,
+  handlePongReceived,
+  isConnectionAlive,
+} from './features/healthCheck';
+
+export {
+  updateStatusIndicator,
+  getCurrentBadgeState,
+} from './features/statusIndicator';
+
+// ============================================================================
+// Event System
+// ============================================================================
+export {
+  handleFactCreated,
+  handleFactUpdated,
+  handleFactDeleted,
+  handlePlanCreated,
+  handlePlanUpdated,
+  handlePlanDeleted,
+  handleTransferCreated,
+  handleTransferDeleted,
+  handleItemCreated,
+  handleItemUpdated,
+  handleItemDeleted,
+  handleItemCompleted,
+  handleEvent,
+  dispatchEvent,
+} from './integration/eventHandlers';
+
+export {
+  notifyHandlers,
+  removeAllHandlers,
+  getHandlers,
+} from './integration/eventRegistration';
+
+// ============================================================================
 // Type Definitions (Dependencies)
 // ============================================================================
 export type {
