@@ -33,6 +33,17 @@ export type {
 } from './core/WSState';
 
 // ============================================================================
+// Connection Manager
+// ============================================================================
+export {
+  connect,
+  disconnect,
+  reconnect,
+  on,
+  off,
+} from './core/connectionManager';
+
+// ============================================================================
 // Type Definitions (Dependencies)
 // ============================================================================
 export type {
@@ -46,3 +57,8 @@ export type {
 // Global Window Type
 // ============================================================================
 export type { BudgetWSClientClass } from './types/globals';
+
+// ============================================================================
+// Window Export (Backward Compatibility)
+// ============================================================================
+export { BudgetWSClient, default } from './adapters/windowExports';
