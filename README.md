@@ -138,6 +138,54 @@ sudo bash deploy.sh --profile full
 
 ---
 
+## 🤖 Claude Code Skill: pr-automation
+
+**Автоматизация создания Pull Request с мониторингом CI/CD и автоматическим исправлением ошибок.**
+
+Скилл находится в проекте [claude](https://github.com/ikeniborn/claude) и автоматически доступен при работе с familyBudget через Claude Code.
+
+### Возможности
+
+- ✅ **Auto-detection** технологического стека из `/docs/architecture`
+- ✅ **Draft PR creation** с auto-generated описанием
+- ✅ **Real-time CI/CD monitoring** через GitHub Actions
+- ✅ **Автоматическое исправление** 4 типов ошибок (TypeScript, ESLint, Vitest, Build)
+- ✅ **Ralph-loop integration** для итеративных фиксов до успеха
+- ✅ **Conventional Commits** для всех автокоммитов
+
+### Предварительные требования
+
+#### gh CLI в изолированном окружении
+
+```bash
+cd /home/ikeniborn/Documents/Project/claude
+./iclaude.sh --install-gh
+gh auth login
+```
+
+### Использование
+
+```
+Создать PR из feature/transaction-filters в test
+```
+
+Скилл автоматически:
+1. Определит стек из `/docs/architecture/index.yaml` (TypeScript + Vite + HTMX + Tailwind)
+2. Проанализирует `.github/workflows/` (frontend-tests, typescript-check, release-drafter)
+3. Создаст Draft PR с описанием
+4. Будет мониторить CI/CD checks
+5. Исправит найденные ошибки (TypeScript, ESLint, tests)
+6. Отметит PR как ready for review
+
+### Документация
+
+**См. полную документацию в проекте claude:**
+- Основное: [claude/.nvm-isolated/.claude-isolated/skills/pr-automation/SKILL.md](https://github.com/ikeniborn/claude/blob/master/.nvm-isolated/.claude-isolated/skills/pr-automation/SKILL.md)
+- Примеры: [examples/](https://github.com/ikeniborn/claude/tree/master/.nvm-isolated/.claude-isolated/skills/pr-automation/examples)
+- Стратегии: [rules/](https://github.com/ikeniborn/claude/tree/master/.nvm-isolated/.claude-isolated/skills/pr-automation/rules)
+
+---
+
 ## 🆘 Поддержка
 
 - 🐛 **Нашли баг?** → [GitHub Issues](https://github.com/ikeniborn/familyBudget/issues)
