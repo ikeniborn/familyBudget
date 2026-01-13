@@ -280,10 +280,6 @@
                         desktopBackdrop.classList.remove('opacity-100');
                         desktopBackdrop.classList.add('opacity-0', 'pointer-events-none');
                     }
-
-                        desktopFabVisible: isPageAllowed,
-                        page: currentPage
-                    });
                 } else {
                     // Switch to mobile mode
 
@@ -394,11 +390,6 @@
                 const actionText = e.currentTarget.getAttribute('aria-label') ||
                                    e.currentTarget.previousElementSibling?.textContent;
 
-                    index,
-                    action: actionText,
-                    timestamp: new Date().toISOString()
-                });
-
                 // Auto-close FAB after clicking menu item (with slight delay to allow modal to open)
                 setTimeout(() => {
                     if (desktopFabWrapper.classList.contains('open')) {
@@ -440,12 +431,6 @@
             } else {
                 el.style.display = '';
             }
-        });
-
-            isOffline,
-            mode: mode,
-            hiddenCount: isOffline ? (onlineOnlyElements?.length || 0) : 0,
-            affectedMode: 'mobile-only'
         });
     }
 
