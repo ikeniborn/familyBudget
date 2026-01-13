@@ -426,6 +426,10 @@ export async function renderLandingView(): Promise<void> {
   // Load shopping lists
   await loadShoppingLists();
   renderShoppingListCards();
+
+  // Update mobile "Add" button UI (icon, tooltip, aria-label)
+  const { updateMobileAddButton } = await import('../ui/globalHelpers');
+  await updateMobileAddButton();
 }
 
 // ============================================================================
@@ -558,6 +562,10 @@ export async function renderDetailView(listId: number): Promise<void> {
   if (typeof (window as any).initProductGroupChoices === 'function') {
     (window as any).initProductGroupChoices();
   }
+
+  // Update mobile "Add" button UI (icon, tooltip, aria-label)
+  const { updateMobileAddButton } = await import('../ui/globalHelpers');
+  await updateMobileAddButton();
 
   // Note: Real-time updates provided by global budgetWSClient
   // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.

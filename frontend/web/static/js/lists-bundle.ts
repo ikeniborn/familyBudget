@@ -67,6 +67,8 @@ import {
   // Global helpers (v7.x.x - Navigation & modals)
   openModal,
   navigateHomeOfflineFriendly,
+  handleMobileAddButton,
+  updateMobileAddButton,
 
   // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
   handleItemCreated,
@@ -130,6 +132,8 @@ const windowExports = {
   // Global helpers - v7.x.x CRITICAL fixes
   openModal,                // lists.html:56,62,68 - Open budget modals (stub)
   navigateHomeOfflineFriendly,  // lists.html:38 - Home navigation
+  handleMobileAddButton,    // lists.html:XX - Mobile "Add" button (NEW)
+  updateMobileAddButton,    // Called by renderLandingView/renderDetailView (NEW)
 
   markAllCompletedWithConfirm,
   unmarkAllCompletedWithConfirm,
