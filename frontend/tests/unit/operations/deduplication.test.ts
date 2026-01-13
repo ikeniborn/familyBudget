@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+// DISABLED: Import fails before describe.skip() is evaluated
+// Uncomment when offlineManager modular migration is complete (Phase 2.1-2.5)
+/*
 import {
     generateOperationKey,
     isOperationInProgress,
@@ -10,6 +13,7 @@ import {
     getDeduplicationStats,
     clearDeduplicationCache
 } from '@web/offline/offlineManager/operations/deduplication';
+*/
 
 // TODO: Enable when offlineManager is migrated to modular structure (Phase 2.1-2.5)
 describe.skip('Deduplication', () => {

@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+// DISABLED: Import fails before describe.skip() is evaluated
+// Uncomment when offlineManager modular migration is complete (Phase 2.1-2.5)
+/*
 import {
     calculateRetryDelay,
     calculateRetrySchedule,
@@ -14,6 +17,7 @@ import {
     type RetryConfig,
     type RetrySchedule
 } from '@web/offline/offlineManager/operations/retryLogic';
+*/
 
 // TODO: Enable when offlineManager is migrated to modular structure (Phase 2.1-2.5)
 describe.skip('RetryLogic', () => {
