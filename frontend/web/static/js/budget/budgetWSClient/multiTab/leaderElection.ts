@@ -6,6 +6,7 @@
  */
 
 import { getState, updateState } from '../core/WSState';
+import type { ConnectionStatusResponse } from '../types/events';
 
 /**
  * Check if browser supports multi-tab features
@@ -282,7 +283,7 @@ function broadcastLeaderChanged(): void {
 /**
  * Broadcast message to all tabs
  */
-function broadcastMessage(message: any): void {
+function broadcastMessage(message: { type: string; timestamp: number; isConnected?: boolean }): void {
   const state = getState();
   if (state.channel) {
     try {
@@ -296,7 +297,7 @@ function broadcastMessage(message: any): void {
 /**
  * Check connection limit from backend
  */
-async function checkConnectionLimit(): Promise<any> {
+async function checkConnectionLimit(): Promise<ConnectionStatusResponse> {
   const response = await fetch('/api/v1/budget/ws/connection-status');
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);

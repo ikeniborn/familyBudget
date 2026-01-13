@@ -7,11 +7,18 @@
 
 import { getState, updateState } from '../core/WSState';
 import { updateConnectionStatus } from './followerSync';
+import type {
+  BroadcastChannelMessage,
+  HeartbeatMessage,
+  WSEventMessage,
+  LeaderChangedMessage,
+  StatusResponseMessage,
+} from '../types/events';
 
 /**
  * Handle BroadcastChannel message
  */
-export function handleChannelMessage(data: any): void {
+export function handleChannelMessage(data: BroadcastChannelMessage): void {
   switch (data.type) {
     case 'heartbeat':
       handleHeartbeat(data);
@@ -34,14 +41,14 @@ export function handleChannelMessage(data: any): void {
       break;
 
     default:
-      console.warn('[BudgetWS] Unknown channel message type:', data.type);
+      console.warn('[BudgetWS] Unknown channel message type:', (data as any).type);
   }
 }
 
 /**
  * Handle heartbeat from leader
  */
-function handleHeartbeat(data: any): void {
+function handleHeartbeat(data: HeartbeatMessage): void {
   updateState({ lastLeaderHeartbeat: data.timestamp });
   updateConnectionStatus(data.isConnected);
 }
@@ -49,7 +56,7 @@ function handleHeartbeat(data: any): void {
 /**
  * Handle WebSocket event broadcast
  */
-function handleWSEvent(data: any): void {
+function handleWSEvent(data: WSEventMessage): void {
   const state = getState();
   if (!state.isLeader) {
     // Dispatch event to local handlers
@@ -66,7 +73,7 @@ function handleWSEvent(data: any): void {
 /**
  * Handle leader changed notification
  */
-function handleLeaderChanged(data: any): void {
+function handleLeaderChanged(data: LeaderChangedMessage): void {
   updateState({ lastLeaderHeartbeat: data.timestamp });
 }
 
@@ -87,14 +94,14 @@ function handleStatusRequest(): void {
 /**
  * Handle status response from leader
  */
-function handleStatusResponse(data: any): void {
+function handleStatusResponse(data: StatusResponseMessage): void {
   updateConnectionStatus(data.isConnected);
 }
 
 /**
  * Broadcast WebSocket event to followers
  */
-export function broadcastWSEvent(eventType: string, eventData: any): void {
+export function broadcastWSEvent(eventType: string, eventData: unknown): void {
   const state = getState();
   if (state.isLeader && state.channel) {
     broadcastMessage({
@@ -115,7 +122,7 @@ export function requestStatus(): void {
 /**
  * Broadcast message to all tabs
  */
-function broadcastMessage(message: any): void {
+function broadcastMessage(message: BroadcastChannelMessage): void {
   const state = getState();
   if (state.channel) {
     try {

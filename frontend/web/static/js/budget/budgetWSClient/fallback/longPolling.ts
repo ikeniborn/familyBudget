@@ -6,6 +6,7 @@
  */
 
 import { getState, updateState } from '../core/WSState';
+import type { PollResponse } from '../types/events';
 
 /**
  * Start long polling
@@ -92,7 +93,7 @@ async function pollLoop(): Promise<void> {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: PollResponse = await response.json();
     updateState({ lastServerPing: Date.now() });
 
     // Process events

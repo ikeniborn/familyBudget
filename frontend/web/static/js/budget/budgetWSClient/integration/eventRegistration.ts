@@ -7,10 +7,13 @@
 
 import { getState, updateState } from '../core/WSState';
 
+/** Event handler function type */
+export type EventHandler = (data: unknown) => void;
+
 /**
  * Register event handler
  */
-export function on(event: string, handler: (data: any) => void): void {
+export function on(event: string, handler: EventHandler): void {
   const state = getState();
   const handlers = { ...state.handlers };
 
@@ -25,7 +28,7 @@ export function on(event: string, handler: (data: any) => void): void {
 /**
  * Remove event handler
  */
-export function off(event: string, handler: (data: any) => void): void {
+export function off(event: string, handler: EventHandler): void {
   const state = getState();
   const handlers = { ...state.handlers };
 
@@ -40,7 +43,7 @@ export function off(event: string, handler: (data: any) => void): void {
 /**
  * Notify handlers for event
  */
-export function notifyHandlers(event: string, data: any): void {
+export function notifyHandlers(event: string, data: unknown): void {
   const state = getState();
   const handlers = state.handlers[event];
 
@@ -75,7 +78,7 @@ export function removeAllHandlers(event?: string): void {
 /**
  * Get handlers for event
  */
-export function getHandlers(event?: string): Record<string, Array<(data: any) => void>> | Array<(data: any) => void> {
+export function getHandlers(event?: string): Record<string, EventHandler[]> | EventHandler[] {
   const state = getState();
   if (event) {
     return state.handlers[event] || [];

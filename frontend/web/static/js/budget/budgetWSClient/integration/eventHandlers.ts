@@ -6,11 +6,25 @@
  */
 
 import { notifyHandlers } from './eventRegistration';
+import type {
+  FactCreatedEvent,
+  FactUpdatedEvent,
+  FactDeletedEvent,
+  PlanCreatedEvent,
+  PlanUpdatedEvent,
+  PlanDeletedEvent,
+  TransferCreatedEvent,
+  TransferDeletedEvent,
+  ItemCreatedEvent,
+  ItemUpdatedEvent,
+  ItemDeletedEvent,
+  ItemCompletedEvent,
+} from '../types/events';
 
 /**
  * Handle fact_created event
  */
-export function handleFactCreated(data: any): void {
+export function handleFactCreated(data: FactCreatedEvent): void {
   notifyHandlers('fact_created', data);
   callOfflineManagerUI('fact_created', data);
 }
@@ -18,7 +32,7 @@ export function handleFactCreated(data: any): void {
 /**
  * Handle fact_updated event
  */
-export function handleFactUpdated(data: any): void {
+export function handleFactUpdated(data: FactUpdatedEvent): void {
   notifyHandlers('fact_updated', data);
   callOfflineManagerUI('fact_updated', data);
 }
@@ -26,7 +40,7 @@ export function handleFactUpdated(data: any): void {
 /**
  * Handle fact_deleted event
  */
-export function handleFactDeleted(data: any): void {
+export function handleFactDeleted(data: FactDeletedEvent): void {
   notifyHandlers('fact_deleted', data);
   callOfflineManagerUI('fact_deleted', data);
 }
@@ -34,7 +48,7 @@ export function handleFactDeleted(data: any): void {
 /**
  * Handle plan_created event
  */
-export function handlePlanCreated(data: any): void {
+export function handlePlanCreated(data: PlanCreatedEvent): void {
   notifyHandlers('plan_created', data);
   callOfflineManagerUI('plan_created', data);
 }
@@ -42,7 +56,7 @@ export function handlePlanCreated(data: any): void {
 /**
  * Handle plan_updated event
  */
-export function handlePlanUpdated(data: any): void {
+export function handlePlanUpdated(data: PlanUpdatedEvent): void {
   notifyHandlers('plan_updated', data);
   callOfflineManagerUI('plan_updated', data);
 }
@@ -50,7 +64,7 @@ export function handlePlanUpdated(data: any): void {
 /**
  * Handle plan_deleted event
  */
-export function handlePlanDeleted(data: any): void {
+export function handlePlanDeleted(data: PlanDeletedEvent): void {
   notifyHandlers('plan_deleted', data);
   callOfflineManagerUI('plan_deleted', data);
 }
@@ -58,7 +72,7 @@ export function handlePlanDeleted(data: any): void {
 /**
  * Handle transfer_created event
  */
-export function handleTransferCreated(data: any): void {
+export function handleTransferCreated(data: TransferCreatedEvent): void {
   notifyHandlers('transfer_created', data);
   callOfflineManagerUI('transfer_created', data);
 }
@@ -66,7 +80,7 @@ export function handleTransferCreated(data: any): void {
 /**
  * Handle transfer_deleted event
  */
-export function handleTransferDeleted(data: any): void {
+export function handleTransferDeleted(data: TransferDeletedEvent): void {
   notifyHandlers('transfer_deleted', data);
   callOfflineManagerUI('transfer_deleted', data);
 }
@@ -74,7 +88,7 @@ export function handleTransferDeleted(data: any): void {
 /**
  * Handle item_created event (shopping lists)
  */
-export function handleItemCreated(data: any): void {
+export function handleItemCreated(data: ItemCreatedEvent): void {
   notifyHandlers('item_created', data);
   callListsManagerUI('addItemToUI', data);
 }
@@ -82,7 +96,7 @@ export function handleItemCreated(data: any): void {
 /**
  * Handle item_updated event (shopping lists)
  */
-export function handleItemUpdated(data: any): void {
+export function handleItemUpdated(data: ItemUpdatedEvent): void {
   notifyHandlers('item_updated', data);
   callListsManagerUI('updateItemInUI', data);
 }
@@ -90,7 +104,7 @@ export function handleItemUpdated(data: any): void {
 /**
  * Handle item_deleted event (shopping lists)
  */
-export function handleItemDeleted(data: any): void {
+export function handleItemDeleted(data: ItemDeletedEvent): void {
   notifyHandlers('item_deleted', data);
   if ((window as any).listsManager) {
     (window as any).listsManager.removeItemFromUI(data.id, data.shopping_list_id);
@@ -100,7 +114,7 @@ export function handleItemDeleted(data: any): void {
 /**
  * Handle item_completed event (shopping lists)
  */
-export function handleItemCompleted(data: any): void {
+export function handleItemCompleted(data: ItemCompletedEvent): void {
   notifyHandlers('item_completed', data);
   if ((window as any).listsManager) {
     (window as any).listsManager.toggleItemCompletedInUI(
@@ -114,50 +128,50 @@ export function handleItemCompleted(data: any): void {
 /**
  * Handle generic event
  */
-export function handleEvent(eventType: string, data: any): void {
+export function handleEvent(eventType: string, data: unknown): void {
   notifyHandlers(eventType, data);
 }
 
 /**
  * Dispatch event to appropriate handler
  */
-export function dispatchEvent(eventType: string, eventData: any): void {
+export function dispatchEvent(eventType: string, eventData: unknown): void {
   switch (eventType) {
     case 'fact_created':
-      handleFactCreated(eventData);
+      handleFactCreated(eventData as FactCreatedEvent);
       break;
     case 'fact_updated':
-      handleFactUpdated(eventData);
+      handleFactUpdated(eventData as FactUpdatedEvent);
       break;
     case 'fact_deleted':
-      handleFactDeleted(eventData);
+      handleFactDeleted(eventData as FactDeletedEvent);
       break;
     case 'plan_created':
-      handlePlanCreated(eventData);
+      handlePlanCreated(eventData as PlanCreatedEvent);
       break;
     case 'plan_updated':
-      handlePlanUpdated(eventData);
+      handlePlanUpdated(eventData as PlanUpdatedEvent);
       break;
     case 'plan_deleted':
-      handlePlanDeleted(eventData);
+      handlePlanDeleted(eventData as PlanDeletedEvent);
       break;
     case 'transfer_created':
-      handleTransferCreated(eventData);
+      handleTransferCreated(eventData as TransferCreatedEvent);
       break;
     case 'transfer_deleted':
-      handleTransferDeleted(eventData);
+      handleTransferDeleted(eventData as TransferDeletedEvent);
       break;
     case 'item_created':
-      handleItemCreated(eventData);
+      handleItemCreated(eventData as ItemCreatedEvent);
       break;
     case 'item_updated':
-      handleItemUpdated(eventData);
+      handleItemUpdated(eventData as ItemUpdatedEvent);
       break;
     case 'item_deleted':
-      handleItemDeleted(eventData);
+      handleItemDeleted(eventData as ItemDeletedEvent);
       break;
     case 'item_completed':
-      handleItemCompleted(eventData);
+      handleItemCompleted(eventData as ItemCompletedEvent);
       break;
     default:
       handleEvent(eventType, eventData);
@@ -167,7 +181,7 @@ export function dispatchEvent(eventType: string, eventData: any): void {
 /**
  * Call offlineManager refreshUICallback
  */
-function callOfflineManagerUI(event: string, data: any): void {
+function callOfflineManagerUI(event: string, data: unknown): void {
   if ((window as any).offlineManager && (window as any).offlineManager.refreshUICallback) {
     (window as any).offlineManager.refreshUICallback(event, data);
   }
@@ -176,7 +190,7 @@ function callOfflineManagerUI(event: string, data: any): void {
 /**
  * Call listsManager UI method
  */
-function callListsManagerUI(method: string, data: any): void {
+function callListsManagerUI(method: string, data: unknown): void {
   if ((window as any).listsManager && typeof (window as any).listsManager[method] === 'function') {
     (window as any).listsManager[method](data);
   }
