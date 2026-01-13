@@ -2586,8 +2586,6 @@
 
         // Push Notification Permission Banner
 (async function initPushBanner() {
-            logPushBanner.info('🚀 Initializing push permission banner');
-
             const banner = document.getElementById('push-permission-banner');
             const enableBtn = document.getElementById('push-permission-enable');
             const laterBtn = document.getElementById('push-permission-later');
@@ -2604,13 +2602,6 @@
                 return;
             }
 
-            logPushBanner.info('✅ Banner elements found', {
-                bannerId: banner.id,
-                enableBtnId: enableBtn.id,
-                laterBtnId: laterBtn.id,
-                closeBtnId: closeBtn.id
-            });
-
             // Check service worker support
             if (!('serviceWorker' in navigator)) {
                 logPushBanner.warn('⚠️ Service Worker not supported - banner disabled');
@@ -2622,8 +2613,6 @@
                 logPushBanner.warn('⚠️ Notification/PushManager API not supported - banner disabled');
                 return;
             }
-
-            logPushBanner.info('✅ Browser supports Service Worker + Notifications');
 
             // Check budgetPushManager availability
             if (!window.budgetPushManager) {
@@ -2644,15 +2633,8 @@
             function shouldShowBanner() {
                 // Check permission state
                 const currentPermission = Notification.permission;
-                logPushBanner.info('📊 Current notification permission', {
-                    permission: currentPermission,
-                    timestamp: new Date().toISOString()
-                });
 
                 if (currentPermission !== 'default') {
-                    logPushBanner.info('⏭️ Permission already decided', {
-                        permission: currentPermission
-                    });
                     return false;
                 }
 
@@ -2663,15 +2645,7 @@
                     const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
 
                     if (hoursSinceDismissed < 24) {
-                        logPushBanner.info('⏭️ Banner dismissed recently', {
-                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1),
-                            willShowAgainIn: (24 - hoursSinceDismissed).toFixed(1) + ' hours'
-                        });
                         return false;
-                    } else {
-                        logPushBanner.info('✅ Dismissal expired - banner will show', {
-                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1)
-                        });
                     }
                 }
 
@@ -2682,51 +2656,25 @@
             function showBanner() {
                 if (shouldShowBanner()) {
                     banner.classList.remove('hidden');
-
-                    const rect = banner.getBoundingClientRect();
-                    logPushBanner.info('🎉 Banner displayed', {
-                        position: {
-                            top: `${rect.top}px`,
-                            left: `${rect.left}px`,
-                            width: `${rect.width}px`,
-                            height: `${rect.height}px`
-                        },
-                        safeArea: {
-                            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0px',
-                            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left') || '0px',
-                            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right') || '0px'
-                        },
-                        zIndex: window.getComputedStyle(banner).zIndex
-                    });
                 }
             }
 
             // Helper function: hide banner
             function hideBanner() {
                 banner.classList.add('hidden');
-                logPushBanner.info('👋 Banner hidden');
             }
 
             // Helper function: dismiss banner for 24 hours
             function dismissBanner() {
-                logPushBanner.info('💾 Dismissing banner for 24 hours');
-
                 banner.classList.add('hidden');
 
                 const dismissTimestamp = Date.now().toString();
                 localStorage.setItem(BANNER_DISMISSED_KEY, dismissTimestamp);
-
-                logPushBanner.info('✅ Banner dismissed', {
-                    key: BANNER_DISMISSED_KEY,
-                    timestamp: dismissTimestamp,
-                    expiresIn: '24 hours'
-                });
             }
 
             // "Включить" button handler
             if (enableBtn) {
                 enableBtn.addEventListener('click', async () => {
-                    logPushBanner.info('🖱️ "Enable" button clicked - requesting permission');
                     logPushBanner.time('permission-request');
 
                     hideBanner();
@@ -2736,13 +2684,7 @@
                         const granted = await window.budgetPushManager.requestPermission();
                         logPushBanner.timeEnd('permission-request');
 
-                        logPushBanner.info('📬 Permission request completed', {
-                            granted: granted,
-                            timestamp: new Date().toISOString()
-                        });
-
                         if (granted) {
-                            logPushBanner.info('✅ Permission GRANTED - budgetPushManager handled subscription');
                             showToast('Уведомления включены', 'success');
                         } else {
                             logPushBanner.warn('🚫 Permission DENIED by user');
@@ -2763,7 +2705,6 @@
             // "Позже" button handler
             if (laterBtn) {
                 laterBtn.addEventListener('click', () => {
-                    logPushBanner.info('🖱️ "Later" button clicked - dismissing for 24 hours');
                     dismissBanner();
                 });
             }
@@ -2771,20 +2712,12 @@
             // Close button (✕) handler
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
-                    logPushBanner.info('🖱️ Close button (✕) clicked - dismissing for 24 hours');
                     dismissBanner();
                 });
             }
 
             // Show banner after delay
-            logPushBanner.info('⏳ Scheduling banner display', {
-                delay: `${BANNER_SHOW_DELAY}ms`,
-                willShow: shouldShowBanner()
-            });
-
             setTimeout(showBanner, BANNER_SHOW_DELAY);
-
-            logPushBanner.info('✅ Push banner initialization complete');
         })();
 
         /**
@@ -2878,7 +2811,6 @@
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('just_logged_in') === 'true') {
-                console.log('[WEBAUTHN] Login detected via query parameter - setting sessionStorage flag');
                 sessionStorage.setItem('just_logged_in', 'true');
                 // Clean URL (remove query parameter)
                 const url = new URL(window.location.href);

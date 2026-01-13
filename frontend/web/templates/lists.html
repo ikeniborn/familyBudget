@@ -615,19 +615,7 @@
 <script>
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-    // НОВОЕ: Диагностика устройства
-    console.log('[LISTS_INIT] === DOMContentLoaded fired ===');
-    console.log('[LISTS_INIT] User-Agent:', navigator.userAgent);
-    console.log('[LISTS_INIT] Screen size:', window.innerWidth, 'x', window.innerHeight);
-    console.log('[LISTS_INIT] Online status:', navigator.onLine);
-    console.log('[LISTS_INIT] Viewport:', {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        devicePixelRatio: window.devicePixelRatio
-    });
-
     try {
-        console.log('[LISTS_INIT] Waiting for lists bundle to load...');
 
         // Wait for bundle to load and export functions
         let attempts = 0;
@@ -640,8 +628,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             throw new Error('Lists bundle failed to load after 5 seconds');
         }
 
-        console.log(`[LISTS_INIT] Bundle ready after ${attempts * 100}ms`);
-        console.log('[LISTS_INIT] Starting initializeListsManager()');
         performance.mark('lists-init-start'); // Performance tracking
 
         // Initialize Lists Manager (modular structure v7.0+)
@@ -661,8 +647,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         performance.mark('lists-init-end');
         performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
-        const measure = performance.getEntriesByName('lists-initialization')[0];
-        console.log(`[LISTS_INIT] ✅ Initialization completed in ${measure.duration.toFixed(2)}ms`);
 
         debugLog('[Lists] Page initialized');
     } catch (error) {
