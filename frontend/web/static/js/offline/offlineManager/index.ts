@@ -69,6 +69,29 @@ export {
 } from './operations/factsOperations';
 
 // ============================================================================
+// Transfers Operations
+// ============================================================================
+export {
+  createTransferOffline,
+  deleteTransferOffline,
+} from './operations/transfersOperations';
+
+// ============================================================================
+// Plans Operations
+// ============================================================================
+export {
+  createPlanOffline,
+  createRecurringPlanOffline,
+} from './operations/plansOperations';
+
+// ============================================================================
+// Sync Engine
+// ============================================================================
+export {
+  syncAll,
+} from './sync/syncEngine';
+
+// ============================================================================
 // Type Definitions (Dependencies)
 // ============================================================================
 export type {
@@ -87,3 +110,8 @@ export type {
 // Global Window Type
 // ============================================================================
 export type { OfflineManagerClass } from './types/globals';
+
+// ============================================================================
+// Window Export (Backward Compatibility)
+// ============================================================================
+export { OfflineManager, default } from './adapters/windowExports';
