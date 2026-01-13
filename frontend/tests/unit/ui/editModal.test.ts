@@ -112,20 +112,24 @@ describe('Edit Modal - Responsive Button Layout', () => {
     let saveButton: HTMLButtonElement;
 
     beforeEach(() => {
-        // Create cancel button
+        // Create cancel button (new structure with span wrapper)
         cancelButton = document.createElement('button');
-        cancelButton.className = 'btn btn-sm sm:btn-md flex-1 sm:flex-initial whitespace-nowrap';
+        cancelButton.className = 'btn btn-sm sm:btn-md flex-1 sm:flex-initial';
         cancelButton.innerHTML = `
-            <svg class="h-4 w-4"><!-- icon --></svg>
-            Отмена
+            <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                <svg class="h-4 w-4"><!-- icon --></svg>
+                <span>Отмена</span>
+            </span>
         `;
 
-        // Create save button
+        // Create save button (new structure with span wrapper)
         saveButton = document.createElement('button');
-        saveButton.className = 'btn btn-sm sm:btn-md btn-primary save-btn flex-1 sm:flex-initial whitespace-nowrap';
+        saveButton.className = 'btn btn-sm sm:btn-md btn-primary save-btn flex-1 sm:flex-initial';
         saveButton.innerHTML = `
-            <svg class="h-4 w-4"><!-- icon --></svg>
-            Сохранить
+            <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                <svg class="h-4 w-4"><!-- icon --></svg>
+                <span>Сохранить</span>
+            </span>
         `;
 
         document.body.appendChild(cancelButton);
@@ -137,21 +141,30 @@ describe('Edit Modal - Responsive Button Layout', () => {
         document.body.removeChild(saveButton);
     });
 
-    it('should have whitespace-nowrap class on cancel button', () => {
-        expect(cancelButton.classList.contains('whitespace-nowrap')).toBe(true);
+    it('should have whitespace-nowrap class on cancel button wrapper', () => {
+        const wrapper = cancelButton.querySelector('.whitespace-nowrap');
+        expect(wrapper).not.toBeNull();
+        expect(wrapper?.classList.contains('inline-flex')).toBe(true);
     });
 
-    it('should have whitespace-nowrap class on save button', () => {
-        expect(saveButton.classList.contains('whitespace-nowrap')).toBe(true);
+    it('should have whitespace-nowrap class on save button wrapper', () => {
+        const wrapper = saveButton.querySelector('.whitespace-nowrap');
+        expect(wrapper).not.toBeNull();
+        expect(wrapper?.classList.contains('inline-flex')).toBe(true);
     });
 
-    it('should prevent text wrapping with whitespace-nowrap', () => {
-        // Get computed style
-        const cancelStyle = window.getComputedStyle(cancelButton);
+    it('should prevent text wrapping with inline-flex and whitespace-nowrap', () => {
+        // Check cancel button wrapper structure
+        const cancelWrapper = cancelButton.querySelector('.inline-flex.whitespace-nowrap');
+        expect(cancelWrapper).not.toBeNull();
+        expect(cancelWrapper?.classList.contains('items-center')).toBe(true);
+        expect(cancelWrapper?.classList.contains('gap-1')).toBe(true);
 
-        // whitespace-nowrap should be applied
-        // Note: Happy-DOM may not fully support computed styles, this is a basic check
-        expect(cancelButton.className).toContain('whitespace-nowrap');
+        // Check save button wrapper structure
+        const saveWrapper = saveButton.querySelector('.inline-flex.whitespace-nowrap');
+        expect(saveWrapper).not.toBeNull();
+        expect(saveWrapper?.classList.contains('items-center')).toBe(true);
+        expect(saveWrapper?.classList.contains('gap-1')).toBe(true);
     });
 });
 
@@ -160,13 +173,15 @@ describe('Edit Modal - Delete Button Icon', () => {
 
     beforeEach(() => {
         deleteButton = document.createElement('button');
-        deleteButton.className = 'btn btn-xs btn-error btn-square md:hidden';
+        deleteButton.className = 'btn btn-sm sm:btn-md btn-error btn-square md:hidden';
         deleteButton.setAttribute('onclick', 'deleteFromEditModal()');
         deleteButton.setAttribute('title', 'Удалить');
 
-        // Use img tag with local SVG instead of inline SVG
+        // Use inline SVG with white stroke
         deleteButton.innerHTML = `
-            <img src="/static/icons/trash.svg" alt="Delete" class="h-5 w-5 invert" />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6m4-6v6"/>
+            </svg>
         `;
 
         document.body.appendChild(deleteButton);
@@ -176,32 +191,33 @@ describe('Edit Modal - Delete Button Icon', () => {
         document.body.removeChild(deleteButton);
     });
 
-    it('should use img tag instead of inline SVG', () => {
-        const img = deleteButton.querySelector('img');
-        expect(img).not.toBeNull();
-        expect(img?.tagName).toBe('IMG');
+    it('should use inline SVG instead of img tag', () => {
+        const svg = deleteButton.querySelector('svg');
+        expect(svg).not.toBeNull();
+        expect(svg?.tagName).toBe('svg');
     });
 
-    it('should have correct icon src path', () => {
-        const img = deleteButton.querySelector('img');
-        expect(img?.getAttribute('src')).toBe('/static/icons/trash.svg');
+    it('should have white stroke for visibility on red background', () => {
+        const svg = deleteButton.querySelector('svg');
+        expect(svg?.getAttribute('stroke')).toBe('white');
     });
 
-    it('should have accessibility alt text', () => {
-        const img = deleteButton.querySelector('img');
-        expect(img?.getAttribute('alt')).toBe('Delete');
+    it('should have correct viewBox', () => {
+        const svg = deleteButton.querySelector('svg');
+        expect(svg?.getAttribute('viewBox')).toBe('0 0 24 24');
     });
 
     it('should have increased icon size (h-5 w-5 instead of h-4 w-4)', () => {
-        const img = deleteButton.querySelector('img');
-        expect(img?.classList.contains('h-5')).toBe(true);
-        expect(img?.classList.contains('w-5')).toBe(true);
-        expect(img?.classList.contains('h-4')).toBe(false);
+        const svg = deleteButton.querySelector('svg');
+        expect(svg?.classList.contains('h-5')).toBe(true);
+        expect(svg?.classList.contains('w-5')).toBe(true);
+        expect(svg?.classList.contains('h-4')).toBe(false);
     });
 
-    it('should have invert filter for white icon on red background', () => {
-        const img = deleteButton.querySelector('img');
-        expect(img?.classList.contains('invert')).toBe(true);
+    it('should have consistent button size (btn-sm sm:btn-md)', () => {
+        expect(deleteButton.classList.contains('btn-sm')).toBe(true);
+        expect(deleteButton.classList.contains('sm:btn-md')).toBe(true);
+        expect(deleteButton.classList.contains('btn-xs')).toBe(false);
     });
 
     it('should be hidden on desktop (md:hidden)', () => {
@@ -210,20 +226,28 @@ describe('Edit Modal - Delete Button Icon', () => {
 });
 
 describe('Edit Modal - Narrow Screen Behavior (< 375px)', () => {
-    it('should not wrap button text with whitespace-nowrap', () => {
+    it('should not wrap button text with inline-flex and whitespace-nowrap wrapper', () => {
         const button = document.createElement('button');
-        button.className = 'btn btn-sm flex-1 whitespace-nowrap';
+        button.className = 'btn btn-sm flex-1';
         button.innerHTML = `
-            <svg class="h-4 w-4"><!-- icon --></svg>
-            Отмена
+            <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                <svg class="h-4 w-4"><!-- icon --></svg>
+                <span>Отмена</span>
+            </span>
         `;
 
         document.body.appendChild(button);
 
+        // Verify wrapper structure prevents text wrapping
+        const wrapper = button.querySelector('.inline-flex.whitespace-nowrap');
+        expect(wrapper).not.toBeNull();
+        expect(wrapper?.classList.contains('items-center')).toBe(true);
+
         // Simulate narrow viewport (375px iPhone SE)
         // Note: Happy-DOM doesn't support window.innerWidth changes,
         // but we can verify CSS class presence
-        expect(button.className).toContain('whitespace-nowrap');
+        expect(wrapper?.className).toContain('whitespace-nowrap');
+        expect(wrapper?.className).toContain('inline-flex');
 
         document.body.removeChild(button);
     });

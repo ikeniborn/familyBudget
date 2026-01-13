@@ -202,24 +202,30 @@
             </div> <!-- End of edit-form-fields -->
 
             <!-- Кнопки -->
-            <div class="modal-action mt-3 flex flex-row gap-2">
+            <div class="modal-action mt-3 flex flex-row gap-2 items-center">
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">
-                    <img src="/static/icons/trash.svg" alt="Delete" class="h-5 w-5 invert" />
+                <button type="button" class="btn btn-sm sm:btn-md btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6m4-6v6"/>
+                    </svg>
                 </button>
                 <!-- Разделитель (пустое пространство) -->
                 <div class="flex-1 md:hidden"></div>
-                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial whitespace-nowrap" onclick="closeEditModal()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Отмена
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">
+                    <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        <span>Отмена</span>
+                    </span>
                 </button>
-                <button type="submit" class="btn btn-sm sm:btn-md btn-primary save-btn flex-1 sm:flex-initial whitespace-nowrap">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Сохранить
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary save-btn flex-1 sm:flex-initial">
+                    <span class="inline-flex items-center gap-1 whitespace-nowrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Сохранить</span>
+                    </span>
                 </button>
             </div>
         </form>
