@@ -246,23 +246,10 @@ try {
       enumerable: true
     });
 
-
-    if ((window as any).logAPI) {
-      (window as any).logAPI.info('[LISTS_BUNDLE] ✅ All exports locked', {
-        count: Object.keys(windowExports).length,
-        functions: Object.keys(windowExports).sort(),
-        timestamp: new Date().toISOString()
-      });
-    }
   }
 } catch (error) {
   console.error('[LISTS_BUNDLE] ❌ CRITICAL ERROR:', error);
   if (typeof alert !== 'undefined') {
     alert('ОШИБКА: Не удалось загрузить модуль списков. Обратитесь к администратору.');
   }
-}
-
-// Логирование успешной загрузки
-if (typeof window !== 'undefined' && (window as any).logAPI) {
-  (window as any).logAPI.info('[LISTS_BUNDLE] All modules loaded successfully');
 }

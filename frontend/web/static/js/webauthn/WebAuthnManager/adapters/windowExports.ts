@@ -29,8 +29,3 @@ window.WebAuthnOnboarding = {
   dismiss: dismissOnboarding,
   enable: enableOnboarding
 };
-
-console.log('[WEBAUTHN_EXPORTS] Global functions registered:', {
-  dismiss: typeof window.WebAuthnOnboarding.dismiss,
-  enable: typeof window.WebAuthnOnboarding.enable
-});
