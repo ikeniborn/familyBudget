@@ -133,9 +133,18 @@ export function resetAllFeatures(): void {
  * Example: "useNewConnection" → "ws_new_connection"
  */
 function featureFlagToStorageKey(feature: keyof WSFeatureFlags): string {
-  // Remove "useNew" prefix and convert to lowercase with underscore
-  const name = feature.replace('useNew', '').toLowerCase();
-  return `ws_new_${name}`;
+  // Mapping from feature flag to localStorage key
+  const keyMap: Record<keyof WSFeatureFlags, string> = {
+    useNewConnection: 'ws_new_connection',
+    useNewEventHandlers: 'ws_new_handlers',
+    useNewHealthCheck: 'ws_new_health',
+    useNewMultiTab: 'ws_new_multitab',
+    useNewMobile: 'ws_new_mobile',
+    useNewFallback: 'ws_new_fallback',
+    useNewStatus: 'ws_new_status',
+  };
+
+  return keyMap[feature];
 }
 
 /**

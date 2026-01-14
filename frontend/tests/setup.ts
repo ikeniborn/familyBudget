@@ -9,6 +9,7 @@ global.TEST_API_URL = 'http://localhost:8000';
 global.DEBUG_MODE = false;
 global.offlineManager = null;
 global.budgetWSClient = null;
+global.debugLog = vi.fn(); // Mock debugLog for budgetWSClient
 
 // Mock browser dialogs (not available in Happy-DOM)
 global.alert = vi.fn();
