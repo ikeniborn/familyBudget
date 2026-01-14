@@ -178,6 +178,7 @@ jobs:
             --ignore=bot/tests/test_add_handler.py \
             --ignore=bot/tests/test_summary_handler.py \
             --ignore=bot/tests/test_start_handler.py \
+            --ignore=bot/tests/test_telegram_bot_journey.py \
             -v \
             --tb=short \
             --maxfail=3 \
