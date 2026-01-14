@@ -45,6 +45,20 @@ export {
 } from './core/stateManager';
 
 // ============================================================================
+// Feature Flags
+// ============================================================================
+export {
+  getFeatureFlags,
+  enableFeature,
+  disableFeature,
+  enableForPercentage,
+  getFeatureFlagsStatus,
+  resetAllFeatures,
+} from './core/featureFlags';
+
+export type { OfflineFeatureFlags } from './core/featureFlags';
+
+// ============================================================================
 // Deduplication
 // ============================================================================
 export {
