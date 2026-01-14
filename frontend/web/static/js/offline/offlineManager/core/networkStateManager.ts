@@ -7,6 +7,7 @@
 
 import { getState, updateState } from './OfflineState';
 import { syncAll } from '../sync/syncEngine';
+import { disconnectWS, reconnectWS } from '../adapters/wsAdapter';
 
 /**
  * Handle network status change from SmartNetworkDetector
@@ -19,8 +20,6 @@ export async function handleNetworkStatusChange(
   newStatus: 'online' | 'offline' | 'degraded',
   oldStatus: 'online' | 'offline' | 'degraded'
 ): Promise<void> {
-  const state = getState();
-
   // Update state
   updateState({ networkStatus: newStatus });
 
@@ -30,9 +29,7 @@ export async function handleNetworkStatusChange(
     // ========================================================================
 
     // Disconnect WebSocket to prevent reconnection attempts
-    if (state.wsClient) {
-      state.wsClient.setEnabled(false);
-    }
+    disconnectWS();
 
     // Show offline toast (debounced)
     showToastDebounced('Работаем оффлайн', 'warning');
@@ -48,9 +45,7 @@ export async function handleNetworkStatusChange(
     // ========================================================================
 
     // Reconnect WebSocket
-    if (state.wsClient) {
-      state.wsClient.setEnabled(true);
-    }
+    reconnectWS();
 
     // Sync pending items
     const syncResults = await syncAll();
