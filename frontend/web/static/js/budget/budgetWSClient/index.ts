@@ -39,6 +39,7 @@ export {
   connect,
   disconnect,
   reconnect,
+  forceReconnect,
   on,
   off,
 } from './core/connectionManager';
