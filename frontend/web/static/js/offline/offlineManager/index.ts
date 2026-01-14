@@ -83,8 +83,15 @@ export {
 // Plans Operations
 // ============================================================================
 export {
+  createPlan,
+  createPlanOnline,
   createPlanOffline,
+  updatePlan,
+  deletePlan,
+  createRecurringPlan,
+  createRecurringPlanOnline,
   createRecurringPlanOffline,
+  getPendingRecurringPlans,
 } from './operations/plansOperations';
 
 // ============================================================================
