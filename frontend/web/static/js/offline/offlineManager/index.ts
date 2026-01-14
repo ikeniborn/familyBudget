@@ -113,7 +113,18 @@ export {
 // ============================================================================
 export {
   syncAll,
+  clearCompletedSyncQueue,
 } from './sync/syncEngine';
+
+export {
+  verifyOnServer,
+  syncCreate,
+  syncUpdate,
+  syncDelete,
+  isNetworkError,
+  cleanDataForSync,
+  calculateBackoffDelay,
+} from './sync/syncDetails';
 
 // ============================================================================
 // Type Definitions (Dependencies)
