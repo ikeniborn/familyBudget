@@ -180,50 +180,6 @@
         </div>
     </div>
 
-    <!-- Recurring Plans Management Section -->
-    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <input type="checkbox" id="recurring-plans-toggle" class="peer" />
-        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
-            <h2 class="text-lg sm:text-xl font-bold mb-0">
-                🔄 Управление регламентными платежами
-            </h2>
-        </label>
-        <div class="collapse-content">
-            <div class="flex justify-between items-center mb-4">
-                <p class="text-sm text-base-content/70">
-                    Список всех активных регламентных платежей. Выберите записи для массового удаления.
-                </p>
-                <button
-                    id="batch-delete-recurring-plans-btn"
-                    class="btn btn-error btn-sm"
-                    onclick="batchDeleteRecurringPlans()"
-                    disabled>
-                    🗑️ Удалить выбранные
-                </button>
-            </div>
-
-            <div id="recurring-plans-table-container" class="overflow-x-auto">
-                <!-- Table populated by loadRecurringPlans() -->
-                <div class="flex items-center justify-center py-8">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="recurring-plans-empty-state" class="hidden text-center py-8 text-base-content/60">
-                <div class="text-4xl mb-2">🔄</div>
-                <p>Нет активных регламентных платежей.</p>
-            </div>
-
-            <!-- Collapse button -->
-            <div class="flex justify-end mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="document.getElementById('recurring-plans-toggle').checked = false">
-                    ⬆️ Свернуть
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Stats Section -->
     <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
@@ -349,6 +305,50 @@
             <!-- Collapse button -->
             <div class="flex justify-end mt-4">
                 <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recurring Plans Management Section -->
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="recurring-plans-toggle" class="peer" />
+        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                🔄 Управление регламентными платежами
+            </h2>
+        </label>
+        <div class="collapse-content">
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-sm text-base-content/70">
+                    Список всех активных регламентных платежей. Выберите записи для массового удаления.
+                </p>
+                <button
+                    id="batch-delete-recurring-plans-btn"
+                    class="btn btn-error btn-sm"
+                    onclick="batchDeleteRecurringPlans()"
+                    disabled>
+                    🗑️ Удалить выбранные
+                </button>
+            </div>
+
+            <div id="recurring-plans-table-container" class="overflow-x-auto">
+                <!-- Table populated by loadRecurringPlans() -->
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="recurring-plans-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">🔄</div>
+                <p>Нет активных регламентных платежей.</p>
+            </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="document.getElementById('recurring-plans-toggle').checked = false">
                     ⬆️ Свернуть
                 </button>
             </div>
@@ -986,7 +986,7 @@ async function syncAnalyticsToFilters(options = {}) {
 
 /**
  * Обновляет badge-индикатор активных фильтров.
- * Индикатор скрыт когда активен только дефолтный период (текущий месяц).
+ * Индикатор показывает "1 активен" для дефолтного периода (квартал).
  */
 function updateFilterIndicator() {
     const indicator = document.getElementById('filter-indicator');
@@ -1004,21 +1004,14 @@ function updateFilterIndicator() {
 
 /**
  * Подсчитывает количество активных фильтров.
- * Период по умолчанию (текущий месяц) НЕ считается активным фильтром.
+ * Период ВСЕГДА считается активным фильтром (включая дефолтный квартальный период).
  */
 function countActiveFilters() {
     let count = 0;
 
-    // Период: НЕ считаем если это дефолтный период (обе даты совпадают с константами)
-    const isDefaultPeriod =
-        filters.date_from === DEFAULT_DATE_FROM &&
-        filters.date_to === DEFAULT_DATE_TO;
-
-    // Считаем период ТОЛЬКО если он отличается от дефолтного
-    if (!isDefaultPeriod) {
-        if (filters.date_from || filters.date_to) {
-            count++;
-        }
+    // Период: ВСЕГДА считается активным (даже если дефолтный)
+    if (filters.date_from || filters.date_to) {
+        count++;
     }
 
     // Остальные фильтры - считаем если установлены (не null/empty)
@@ -1052,7 +1045,7 @@ function initDefaultPeriodFilter() {
     filters.date_from = DEFAULT_DATE_FROM;
     filters.date_to = DEFAULT_DATE_TO;
 
-    // Обновить индикатор - при дефолтном периоде он должен быть СКРЫТ
+    // Обновить индикатор - badge покажет "1 активен" для дефолтного периода
     updateFilterIndicator();
 }
 
