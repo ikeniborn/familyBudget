@@ -164,6 +164,21 @@ export {
 } from './core/navigationTracker';
 
 // ============================================================================
+// Utility Methods
+// ============================================================================
+export {
+  getPendingCount,
+  getInfo,
+  getSyncQueueItem,
+  getPendingSyncItems,
+  getAllUnsyncedItems,
+  updatePendingItemData,
+  removePendingItem,
+  handleSyncComplete,
+  getSyncQueueSummary,
+} from './utils/utilityMethods';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
 export type { OfflineManagerClass } from './types/globals';
