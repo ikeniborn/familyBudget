@@ -27,6 +27,23 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-14: Fix Recurring Plans 422 Error (v7.x.x)
+- **Change:** Added missing reminder fields (`enable_reminder`, `reminder_hour`, `reminder_minute`) to GET `/api/v1/recurring-plans/` response
+- **Problem:** HTTP 422 validation error when loading recurring plans list on budget-test
+  - Pydantic schema `RecurringPlanResponse` required `enable_reminder: bool` (added in v6.4.0)
+  - Service method `list_recurring_plans()` didn't include reminder fields in response dict
+  - Error: "Field 'enable_reminder' required" for each item in response
+- **Solution:** Added 3 fields to response dict in `list_recurring_plans()` (backend/app/services/recurring_plan_service.py:463-465)
+  - Aligns with existing pattern in `get_plan_with_details()` method
+  - Field `reminder_time_display` auto-computed via `@model_validator` in schema
+- **Impact:**
+  - ✅ Fixes stable 422 error on /plan page
+  - ✅ Recurring plans list now displays correctly
+  - ✅ Notification reminder settings visible in list view
+- **Files Modified:**
+  - `backend/app/services/recurring_plan_service.py` - Added 3 reminder fields to list response
+- **See:** Commit `49353a79` in branch `dev/fix_recurring_plans_422_20260114145030`
+
 ### 2026-01-14: Documentation Audit & Update (v7.2.0)
 - **Change:** Полное обновление документации `/docs/architecture` на основе комплексного аудита кодовой базы
 - **Scope:** Аудированы 44 backend сервиса, 219 API endpoints, 37 database моделей, 187 frontend модулей
