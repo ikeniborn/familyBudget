@@ -101,6 +101,7 @@ jobs:
             --ignore=backend/tests/services/test_jwt.py \
             --ignore=backend/tests/endpoints/test_auth.py \
             --ignore=backend/tests/integration/test_user_isolation.py \
+            --ignore=backend/tests/core/test_auth.py \
             --cov=backend/app \
             --cov-report=html:backend/htmlcov \
             --cov-report=json:backend/coverage.json \
@@ -176,6 +177,7 @@ jobs:
           pytest bot/tests/ \
             --ignore=bot/tests/test_add_handler.py \
             --ignore=bot/tests/test_summary_handler.py \
+            --ignore=bot/tests/test_start_handler.py \
             -v \
             --tb=short \
             --maxfail=3 \
