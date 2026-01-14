@@ -14,6 +14,25 @@
 #   - utils.sh (for logging, compose_cmd)
 #
 
+# Clear Python bytecode cache from mounted backend directory
+# CRITICAL: Python caches .pyc files in __pycache__ which persist across container restarts
+# because backend code is mounted as read-only from host (/opt/budget/backend:/app/backend:ro)
+# Without clearing cache, Python may use old bytecode even after .py files are updated
+clear_python_cache() {
+    info "Clearing Python bytecode cache from backend directory..."
+
+    local cache_count
+    cache_count=$(find "$DEPLOY_DIR/backend" -type d -name "__pycache__" 2>/dev/null | wc -l)
+
+    if [[ $cache_count -gt 0 ]]; then
+        info "Found $cache_count __pycache__ directories, removing..."
+        find "$DEPLOY_DIR/backend" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        success "Python bytecode cache cleared"
+    else
+        info "No Python cache found (already clean)"
+    fi
+}
+
 # Stop existing services
 stop_services() {
     info "Checking for running services..."
@@ -43,6 +62,10 @@ start_services() {
 
     info "Starting services in detached mode (background)..."
     local start_result=0
+
+    # CRITICAL: Clear Python bytecode cache before starting containers
+    # This prevents old .pyc files from being used when .py files were updated
+    clear_python_cache
 
     # Determine build strategy based on DOCKER_REBUILD_NEEDED
     # DOCKER_REBUILD_NEEDED is set by version.sh:process_version_bump()
