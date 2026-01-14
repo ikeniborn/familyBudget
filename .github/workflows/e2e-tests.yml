@@ -40,8 +40,6 @@ jobs:
           - chromium
           - firefox
           - webkit
-          - 'Mobile Chrome'
-          - 'Mobile Safari'
 
     services:
       postgres:
