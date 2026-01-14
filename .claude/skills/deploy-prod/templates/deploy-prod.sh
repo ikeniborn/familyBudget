@@ -18,7 +18,7 @@ set -euo pipefail
 SSH_HOST="budget-prod"
 REMOTE_DIR="~/familyBudget"
 GIT_BRANCH="prod"
-DEPLOY_SCRIPT="sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
+DEPLOY_SCRIPT_BASE="sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
 LOG_DIR="$(pwd)/logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 LOG_FILE="${LOG_DIR}/deploy-prod_${TIMESTAMP}.log"
@@ -34,6 +34,7 @@ NC='\033[0m' # No Color
 AUTO_FIX=false
 VERBOSE=false
 DRY_RUN=false
+VERSION_OPTION=""  # Version option to pass to deploy.sh
 
 # Парсинг аргументов
 while [[ $# -gt 0 ]]; do
@@ -50,12 +51,32 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --version)
+            # Validate TYPE (patch|minor|major)
+            if [[ ! "$2" =~ ^(patch|minor|major)$ ]]; then
+                echo -e "${RED}✗${NC} Invalid --version TYPE: $2"
+                echo "Must be 'patch', 'minor', or 'major'"
+                exit 1
+            fi
+            VERSION_OPTION="--version $2"
+            shift 2
+            ;;
         *)
             echo "Unknown option: $1"
+            echo "Usage: $0 [--auto-fix] [--verbose] [--dry-run] [--version TYPE]"
             exit 1
             ;;
     esac
 done
+
+# Build final deploy command
+DEPLOY_SCRIPT="${DEPLOY_SCRIPT_BASE}"
+if [[ -n "$VERSION_OPTION" ]]; then
+    DEPLOY_SCRIPT="${DEPLOY_SCRIPT} ${VERSION_OPTION}"
+    echo -e "${BLUE}ℹ${NC} Version bump: ${VERSION_OPTION}"
+else
+    echo -e "${BLUE}ℹ${NC} Version bump: none (version will not change)"
+fi
 
 # Создать директорию для логов
 mkdir -p "${LOG_DIR}"
