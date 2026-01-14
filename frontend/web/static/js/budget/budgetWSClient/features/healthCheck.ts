@@ -6,6 +6,8 @@
  */
 
 import { getState, updateState } from '../core/WSState';
+import { on, off } from '../integration/eventRegistration';
+import { sendMessage } from '../core/connectionManager';
 
 /**
  * Start client ping interval
@@ -136,4 +138,49 @@ export function isConnectionAlive(): boolean {
   // Check if last ping was recent
   const timeSinceLastPing = Date.now() - state.lastServerPing;
   return timeSinceLastPing < state.PING_TIMEOUT;
+}
+
+/**
+ * Request check_online from server with timeout
+ * Returns true if server responds with online=true within 5 seconds
+ *
+ * Original: budgetWSClient.js:1424-1456
+ */
+export async function checkOnline(): Promise<boolean> {
+  const state = getState();
+
+  // Strategy 1: WebSocket check (if connection is open)
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        off('online_status', handleResponse);
+        resolve(false);
+      }, 5000);
+
+      function handleResponse(data: any) {
+        clearTimeout(timeout);
+        off('online_status', handleResponse);
+        resolve(data.online === true);
+      }
+
+      on('online_status', handleResponse);
+      sendMessage({ type: 'check_online' });
+    });
+  }
+
+  // Strategy 2: HTTP fallback check
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch('/api/v1/budget/ws/status', {
+      credentials: 'include',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (e) {
+    return false;
+  }
 }

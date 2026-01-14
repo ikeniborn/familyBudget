@@ -1,0 +1,265 @@
+/**
+ * Unit tests for Long Polling Fallback Module
+ *
+ * Tests HTTP long polling fallback when WebSocket is unavailable
+ * Phase 6: Long Polling Fallback (Verification)
+ * 
+ * Note: Tests focus on success cases and state management.
+ * Error handling is verified through integration tests.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  startLongPolling,
+  stopLongPolling,
+} from '@web/budget/budgetWSClient/fallback/longPolling';
+import * as WSState from '@web/budget/budgetWSClient/core/WSState';
+
+describe('Long Polling Fallback Module', () => {
+  let mockFetch: any;
+  let mockAbortController: any;
+
+  beforeEach(() => {
+    // Reset state
+    WSState.resetState();
+
+    // Clear offlineManager
+    delete (window as any).offlineManager;
+
+    // Mock fetch
+    mockFetch = vi.fn();
+    global.fetch = mockFetch;
+
+    // Mock AbortController
+    mockAbortController = {
+      signal: {},
+      abort: vi.fn(),
+    };
+    (global.AbortController as any) = vi.fn(() => mockAbortController);
+
+    // Mock navigator.onLine
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      configurable: true,
+      value: true,
+    });
+
+    // Mock window events
+    global.dispatchEvent = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // ============================================================================
+  // startLongPolling()
+  // ============================================================================
+
+  describe('startLongPolling()', () => {
+    it('should start polling and set state', () => {
+      startLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(true);
+      expect(state.isConnected).toBe(true);
+      expect(state.lastEventTimestamp).toBeGreaterThan(0);
+    });
+
+    it('should dispatch status-changed event', () => {
+      startLongPolling();
+
+      expect(global.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'ws:status-changed',
+          detail: { isConnected: true },
+        })
+      );
+    });
+
+    it('should dispatch connected event with mode=polling', () => {
+      startLongPolling();
+
+      expect(global.dispatchEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'ws:connected',
+          detail: { mode: 'polling' },
+        })
+      );
+    });
+
+    it('should skip if already active', () => {
+      WSState.updateState({ pollingActive: true });
+
+      startLongPolling();
+
+      // Should not dispatch events again (state already set)
+      expect(global.dispatchEvent).not.toHaveBeenCalled();
+    });
+
+    it('should skip if offline mode active', () => {
+      // Mock offlineManager
+      (window as any).offlineManager = {
+        networkDetector: {
+          autoOfflineMode: true,
+        },
+      };
+
+      startLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(false);
+    });
+
+    it('should skip if navigator.onLine is false', () => {
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+
+      startLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(false);
+    });
+  });
+
+  // ============================================================================
+  // stopLongPolling()
+  // ============================================================================
+
+  describe('stopLongPolling()', () => {
+    it('should abort controller', () => {
+      WSState.updateState({ pollController: mockAbortController });
+
+      stopLongPolling();
+
+      expect(mockAbortController.abort).toHaveBeenCalled();
+    });
+
+    it('should clear timeout', () => {
+      const mockTimeout = setTimeout(() => {}, 1000) as any;
+      WSState.updateState({ pollTimeout: mockTimeout });
+
+      stopLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollTimeout).toBeNull();
+    });
+
+    it('should set pollingActive to false', () => {
+      WSState.updateState({ pollingActive: true });
+
+      stopLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(false);
+    });
+
+    it('should not throw if no controller or timeout', () => {
+      expect(() => stopLongPolling()).not.toThrow();
+    });
+  });
+
+  // ============================================================================
+  // State Management
+  // ============================================================================
+
+  describe('State Management', () => {
+    it('should set lastEventTimestamp when starting', () => {
+      const beforeStart = Date.now() / 1000;
+
+      startLongPolling();
+
+      const state = WSState.getState();
+      expect(state.lastEventTimestamp).toBeGreaterThanOrEqual(beforeStart);
+    });
+
+    it('should handle rapid start/stop cycles', () => {
+      for (let i = 0; i < 10; i++) {
+        startLongPolling();
+        stopLongPolling();
+      }
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(false);
+    });
+
+    it('should maintain state consistency after stop', () => {
+      startLongPolling();
+      const beforeStop = WSState.getState().lastEventTimestamp;
+
+      stopLongPolling();
+
+      const state = WSState.getState();
+      expect(state.pollingActive).toBe(false);
+      expect(state.lastEventTimestamp).toBe(beforeStop); // Timestamp preserved
+    });
+  });
+
+  // ============================================================================
+  // Edge Cases
+  // ============================================================================
+
+  describe('Edge Cases', () => {
+    it('should handle multiple startLongPolling calls', () => {
+      // Multiple calls should not crash
+      expect(() => {
+        startLongPolling();
+        startLongPolling();
+        startLongPolling();
+      }).not.toThrow();
+
+      // Should only dispatch events once (first call sets state, subsequent calls skip)
+      const statusChangedCalls = (global.dispatchEvent as any).mock.calls.filter(
+        (call: any) => call[0]?.type === 'ws:status-changed'
+      );
+      expect(statusChangedCalls.length).toBe(1);
+    });
+
+    it('should handle offline manager changes', () => {
+      // Set offline manager before starting
+      (window as any).offlineManager = {
+        networkDetector: {
+          autoOfflineMode: true,
+        },
+      };
+
+      // Try to start polling - should skip
+      startLongPolling();
+      expect(WSState.getState().pollingActive).toBe(false);
+
+      // Remove offline manager
+      delete (window as any).offlineManager;
+
+      // Now should start successfully
+      startLongPolling();
+      expect(WSState.getState().pollingActive).toBe(true);
+    });
+
+    it('should handle navigator.onLine changes', () => {
+      // Start with offline
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: false,
+      });
+
+      // Try to start polling - should skip
+      startLongPolling();
+      expect(WSState.getState().pollingActive).toBe(false);
+
+      // Go online
+      Object.defineProperty(navigator, 'onLine', {
+        writable: true,
+        configurable: true,
+        value: true,
+      });
+
+      // Now should start successfully
+      startLongPolling();
+      expect(WSState.getState().pollingActive).toBe(true);
+    });
+  });
+});
