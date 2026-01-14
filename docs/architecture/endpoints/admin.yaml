@@ -215,6 +215,47 @@ routes:
       body:
         restored_count: "integer"
 
+  - path: "/api/v1/admin/facts/batch-delete"
+    method: POST
+    auth: admin
+    description: "Bulk delete facts with WebSocket summary event"
+    request:
+      body:
+        fact_ids: "array of integers"
+    response:
+      status: 200
+      body:
+        deleted_count: "integer"
+    websocket:
+      event: "facts_bulk_delete_summary"
+      payload:
+        deleted_count: "integer"
+    notes: "Sends single summary event instead of per-fact events (v6.6.0+)"
+
+  - path: "/api/v1/articles/batch-delete"
+    method: POST
+    auth: user
+    description: "Bulk delete articles"
+    request:
+      body:
+        article_ids: "array of integers"
+    response:
+      status: 200
+      body:
+        deleted_count: "integer"
+
+  - path: "/api/v1/recurring-plans/batch-delete"
+    method: POST
+    auth: user
+    description: "Bulk delete recurring plans"
+    request:
+      body:
+        plan_ids: "array of integers"
+    response:
+      status: 200
+      body:
+        deleted_count: "integer"
+
   # ===========================================================================
   # IMPORT STAGING (ADMIN)
   # NOTE: User-level staging endpoints are available at /api/v1/staging

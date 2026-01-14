@@ -23,6 +23,40 @@ module:
         - $ref: "../database/dimensions.yaml#/tables/t_d_user"
         - $ref: "../database/history.yaml#/tables/t_d_user_history"
 
+    - name: logs_collector_service
+      path: "backend/app/services/logs_collector_service.py"
+      loc_code: 356
+      loc_total: ~445
+      functions:
+        - collect_logs
+        - get_recent_logs
+        - filter_logs_by_level
+        - export_logs
+      depends_on: []
+      notes: "Log collection and management for admin panel"
+
+    - name: avatar_service
+      path: "backend/app/services/avatar_service.py"
+      loc_code: 171
+      loc_total: ~215
+      functions:
+        - upload_avatar
+        - get_avatar_url
+        - delete_avatar
+        - validate_image
+      depends_on: []
+      notes: "User avatar upload and management"
+
+    - name: id_generator
+      path: "backend/app/services/id_generator.py"
+      loc_code: 58
+      loc_total: ~73
+      functions:
+        - generate_id
+        - generate_uuid
+      depends_on: []
+      notes: "Unique ID generation utility"
+
   # ---------------------------------------------------------------------------
   # ENDPOINT FILES
   # ---------------------------------------------------------------------------

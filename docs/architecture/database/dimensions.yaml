@@ -462,6 +462,82 @@ tables:
       - $ref: "../endpoints/import.yaml#/routes"
 
   # ---------------------------------------------------------------------------
+  # WEBAUTHN CREDENTIAL (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  t_d_webauthn_credential:
+    model: WebAuthnCredential
+    file: "backend/app/models/webauthn_credential.py"
+    pattern: "SCD Type 1 (with soft revoke)"
+    description: "FIDO2 public key credentials for biometric auth"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: credential_id
+        type: TEXT UNIQUE NOT NULL
+        description: "Base64URL-encoded credential ID"
+      - name: public_key
+        type: BYTEA NOT NULL
+        description: "CBOR-encoded COSE key"
+      - name: sign_count
+        type: INTEGER DEFAULT 0
+        description: "Signature counter for clone detection"
+      - name: device_name
+        type: VARCHAR(255)
+        description: "User-friendly device name"
+      - name: aaguid
+        type: UUID
+        description: "Authenticator AAGUID"
+      - name: backup_eligible
+        type: BOOLEAN DEFAULT FALSE
+        description: "Device supports passkey sync (iCloud, Google)"
+      - name: backup_state
+        type: BOOLEAN DEFAULT FALSE
+        description: "Credential backed up to cloud"
+      - name: transports
+        type: TEXT[]
+        description: "Allowed transports: usb, nfc, ble, internal"
+      - name: is_revoked
+        type: BOOLEAN DEFAULT FALSE
+        description: "Soft delete flag"
+      - name: revoked_at
+        type: TIMESTAMP
+      - name: last_used_at
+        type: TIMESTAMP
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_webauthn_credential_user_id
+        columns: [user_id]
+        type: btree
+      - name: idx_webauthn_credential_credential_id
+        columns: [credential_id]
+        type: btree
+        unique: true
+      - name: idx_webauthn_credential_is_revoked
+        columns: [is_revoked]
+        type: btree
+
+    fk_to:
+      - t_d_user
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/8"
+
+    endpoints:
+      - $ref: "../endpoints/webauthn.yaml#/routes"
+
+    notes: |
+      Sign count validation prevents credential cloning.
+      Backup_eligible indicates passkey support (iCloud Keychain, Google Password Manager).
+      Soft revoke preserves audit trail.
+
+  # ---------------------------------------------------------------------------
   # BANK PROVIDER
   # ---------------------------------------------------------------------------
   t_d_bank_provider:

@@ -53,6 +53,18 @@ module:
       depends_on: []
       notes: "Auto-detect CSV format and bank"
 
+    - name: bank_provider_service
+      path: "backend/app/services/bank_provider_service.py"
+      loc_code: 176
+      loc_total: ~220
+      functions:
+        - detect_bank_provider
+        - get_provider_parser
+        - validate_provider_format
+      depends_on:
+        - csv_detector
+      notes: "Bank provider detection for CSV import (Tinkoff, Sber, etc.)"
+
     - name: csv_analyzer
       path: "backend/app/services/csv_analyzer.py"
       functions:

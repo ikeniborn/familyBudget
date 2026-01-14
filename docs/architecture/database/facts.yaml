@@ -198,6 +198,71 @@ tables:
     services:
       - $ref: "../functionality/shopping-lists.yaml#/module/services/4"
 
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN CHALLENGE (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  t_f_webauthn_challenge:
+    model: WebAuthnChallenge
+    file: "backend/app/models/webauthn_challenge.py"
+    pattern: "Ephemeral fact (10-min TTL)"
+    description: "Temporary challenges for WebAuthn registration/authentication"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: challenge
+        type: TEXT UNIQUE NOT NULL
+        description: "Base64URL-encoded challenge (32 bytes)"
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "Nullable for authentication challenges"
+      - name: challenge_type
+        type: VARCHAR(20) NOT NULL
+        description: "'registration' or 'authentication'"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: expires_at
+        type: TIMESTAMP NOT NULL
+        description: "created_at + 10 minutes"
+      - name: consumed_at
+        type: TIMESTAMP
+        description: "Single-use enforcement"
+      - name: ip_address
+        type: INET
+      - name: user_agent
+        type: TEXT
+
+    indexes:
+      - name: idx_webauthn_challenge_challenge
+        columns: [challenge]
+        type: btree
+        unique: true
+      - name: idx_webauthn_challenge_expires_at
+        columns: [expires_at]
+        type: btree
+        description: "For cleanup job"
+      - name: idx_webauthn_challenge_consumed_at
+        columns: [consumed_at]
+        type: btree
+
+    fk_to:
+      - t_d_user (optional)
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/8"
+
+    cleanup:
+      job: "Hourly scheduler task"
+      query: "DELETE FROM t_f_webauthn_challenge WHERE expires_at < NOW()"
+
+    notes: |
+      Challenges expire after 10 minutes.
+      Single-use: consumed_at prevents replay attacks.
+      Registration challenges: user_id NOT NULL.
+      Authentication challenges: user_id NULL (public challenge).
+
 # Star Schema
 star_schema:
   fact_table: t_f_budget_fact

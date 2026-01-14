@@ -100,7 +100,7 @@ routes:
   # ---------------------------------------------------------------------------
   # READ
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}"
+  - path: "/api/v1/articles/{article_id}"
     method: GET
     auth: user
     description: "Get article by ID"
@@ -125,7 +125,7 @@ routes:
   # ---------------------------------------------------------------------------
   # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}"
+  - path: "/api/v1/articles/{article_id}"
     method: PUT
     auth: user
     description: "Update article"
@@ -153,7 +153,7 @@ routes:
   # ---------------------------------------------------------------------------
   # DELETE (ADMIN ONLY)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}"
+  - path: "/api/v1/articles/{article_id}"
     method: DELETE
     auth: admin
     description: "Soft delete article"
@@ -172,7 +172,7 @@ routes:
   # ---------------------------------------------------------------------------
   # ARCHIVE
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}/archive"
+  - path: "/api/v1/articles/{article_id}/archive"
     method: POST
     auth: admin
     description: "Archive article (and optionally children)"
@@ -190,7 +190,7 @@ routes:
   # ---------------------------------------------------------------------------
   # RESTORE
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}/restore"
+  - path: "/api/v1/articles/{article_id}/restore"
     method: POST
     auth: admin
     description: "Restore archived article"
@@ -208,7 +208,7 @@ routes:
   # ---------------------------------------------------------------------------
   # HISTORY
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/articles/{id}/history"
+  - path: "/api/v1/articles/{article_id}/history"
     method: GET
     auth: admin
     description: "Get article change history (SCD Type 2)"

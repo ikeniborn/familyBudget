@@ -82,7 +82,8 @@ module:
     # Added 2026-01-14: WebAuthn biometric authentication (v6.5.0+)
     - name: webauthn_service
       path: "backend/app/services/webauthn_service.py"
-      loc: 602
+      loc_code: 602
+      loc_total: ~750
       functions:
         - create_registration_challenge
         - verify_and_store_credential
@@ -90,6 +91,9 @@ module:
         - verify_authentication_and_issue_tokens
         - get_user_credentials
         - revoke_credential
+        - check_credential_exists
+        - validate_attestation_response
+        - validate_assertion_response
       depends_on:
         - auth_service
         - jwt
@@ -106,8 +110,8 @@ module:
     - $ref: "../database/support.yaml#/tables/t_user_consent"
     # Added 2026-01-14: WebAuthn models (v6.5.0+)
     - $ref: "../database/dimensions.yaml#/tables/t_d_webauthn_credential"
-    - $ref: "../database/support.yaml#/tables/t_f_webauthn_challenge"
-    - $ref: "../database/support.yaml#/tables/t_s_webauthn_audit_log"
+    - $ref: "../database/facts.yaml#/tables/t_f_webauthn_challenge"
+    - $ref: "../database/support.yaml#/tables/t_f_webauthn_audit_log"
 
   # ---------------------------------------------------------------------------
   # ENDPOINTS

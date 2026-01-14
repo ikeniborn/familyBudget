@@ -101,6 +101,62 @@ tables:
     services:
       - $ref: "../functionality/authentication.yaml#/module/services/4"
 
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN AUDIT LOG (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  t_f_webauthn_audit_log:
+    model: WebAuthnAuditLog
+    file: "backend/app/models/webauthn_audit_log.py"
+    pattern: "Immutable audit trail"
+    description: "Security audit log for all WebAuthn events"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: event_type
+        type: VARCHAR(50) NOT NULL
+        description: "registration_success, registration_failure, authentication_success, authentication_failure, credential_revoked, credential_compromised"
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: SET NULL
+        description: "Preserve audit even if user deleted"
+      - name: credential_id
+        type: TEXT
+        description: "Reference to credential (not FK - credential may be deleted)"
+      - name: ip_address
+        type: INET
+      - name: user_agent
+        type: TEXT
+      - name: error_message
+        type: TEXT
+        description: "Failure details for debugging"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_webauthn_audit_user_id
+        columns: [user_id]
+        type: btree
+      - name: idx_webauthn_audit_event_type
+        columns: [event_type]
+        type: btree
+      - name: idx_webauthn_audit_created_at
+        columns: [created_at]
+        type: btree
+
+    fk_to:
+      - t_d_user (optional, SET NULL on delete)
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/8"
+
+    notes: |
+      Immutable log (never updated, never deleted except by retention policy).
+      Preserves audit trail even if user/credential deleted.
+      Used for security monitoring and compliance.
+
   # ===========================================================================
   # NOTIFICATIONS
   # ===========================================================================
@@ -378,3 +434,9 @@ cleanup_jobs:
     table: t_import_file_upload
     condition: "status = 'uploaded' AND created_at < NOW() - INTERVAL '24 hours'"
     schedule: "daily"
+
+  expired_webauthn_challenges:
+    table: t_f_webauthn_challenge
+    condition: "expires_at < NOW()"
+    schedule: "hourly"
+    description: "Cleanup expired WebAuthn challenges (10-min TTL)"

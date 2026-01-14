@@ -6,7 +6,7 @@ description: |
   REST API v1 + HTMX HTML endpoints.
 
 base_path: "/api/v1"
-total_endpoints: 67+
+total_endpoints: 95+
 
 auth_levels:
   public: "No authentication required"
@@ -17,8 +17,16 @@ groups:
   - name: auth
     file: "./auth.yaml"
     prefix: "/api/v1/auth"
-    endpoints_count: 8
+    endpoints_count: 26
     auth_level: "mixed"
+    notes: "Includes email/password, 2FA, Telegram linking (18 new endpoints v6.5+)"
+
+  - name: webauthn
+    file: "./webauthn.yaml"
+    prefix: "/api/v1/webauthn"
+    endpoints_count: 6
+    auth_level: "mixed (public + user)"
+    notes: "FIDO2/WebAuthn biometric authentication (v6.5.0+)"
 
   - name: articles
     file: "./articles.yaml"
@@ -99,8 +107,16 @@ groups:
   - name: admin
     file: "./admin.yaml"
     prefix: "/api/v1/admin"
+    endpoints_count: 13
+    auth_level: "admin"
+    notes: "Includes batch operations (3 new endpoints)"
+
+  - name: admin_analytics
+    file: "./admin-analytics.yaml"
+    prefix: "/api/v1/admin/analytics, /admin/cache-metrics, /admin/redis-stats"
     endpoints_count: 10
     auth_level: "admin"
+    notes: "Analytics dashboards and cache metrics (v6.8.0+)"
 
   - name: websocket
     file: "./websocket.yaml"
