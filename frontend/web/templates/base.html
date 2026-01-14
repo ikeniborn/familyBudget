@@ -16,10 +16,8 @@
             margin: 0;
             background: #ffffff;
         }
-        @media (prefers-color-scheme: dark) {
-            body {
-                background: #1d232a;
-            }
+        [data-theme="dark"] body {
+            background: #1d232a;
         }
 
         /* PWA Splash Screen - inline for instant rendering */
@@ -39,11 +37,9 @@
             transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
         /* Dark mode fallback */
-        @media (prefers-color-scheme: dark) {
-            .pwa-splash {
-                background: #1d232a;
-                background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
-            }
+        [data-theme="dark"] .pwa-splash {
+            background: #1d232a;
+            background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
         }
         .pwa-splash.hidden {
             opacity: 0;
