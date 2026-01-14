@@ -7,6 +7,7 @@
  */
 
 import { getState, updateState, initializeState as initState } from './OfflineState';
+import { initNavigationTracking } from './navigationTracker';
 import type { IIndexedDBManager, INetworkDetector, IWorkerWrapper, IBudgetWSClient } from '../types/dependencies';
 
 /**
@@ -26,6 +27,9 @@ export async function initializeOfflineManager(
 ): Promise<void> {
   // Initialize state with dependencies
   initState(db, networkDetector, workerWrapper, wsClient);
+
+  // Initialize navigation tracking
+  initNavigationTracking();
 
   // Mark as initialized
   updateState({ isInitialized: true });

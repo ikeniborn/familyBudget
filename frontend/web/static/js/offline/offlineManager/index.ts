@@ -140,6 +140,16 @@ export {
 } from './adapters/wsAdapter';
 
 // ============================================================================
+// Navigation Tracker
+// ============================================================================
+export {
+  initNavigationTracking,
+  isNavigating,
+  setNavigating,
+  clearNavigationTimeout,
+} from './core/navigationTracker';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
 export type { OfflineManagerClass } from './types/globals';
