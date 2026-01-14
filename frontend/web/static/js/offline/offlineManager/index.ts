@@ -72,7 +72,10 @@ export {
 // Transfers Operations
 // ============================================================================
 export {
+  createTransfer,
+  createTransferOnline,
   createTransferOffline,
+  deleteTransfer,
   deleteTransferOffline,
 } from './operations/transfersOperations';
 
