@@ -1090,6 +1090,39 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # AUTO-SYNC: VERSION → package.json (if mismatch detected)
+    # Ensures package.json version always matches VERSION file (single source of truth)
+    # This fixes existing mismatches (e.g., VERSION=6.6.0, package.json=5.3.0)
+    if [[ -f "$DEPLOY_DIR/VERSION" && -f "$DEPLOY_DIR/package.json" ]]; then
+        VERSION_FROM_FILE=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
+        VERSION_FROM_PKG=$(grep -oP '"version":\s*"\K[^"]+' "$DEPLOY_DIR/package.json")
+
+        if [[ "$VERSION_FROM_FILE" != "$VERSION_FROM_PKG" ]]; then
+            print_message warning "VERSION mismatch detected: VERSION ($VERSION_FROM_FILE) ≠ package.json ($VERSION_FROM_PKG)"
+            print_message info "Auto-syncing package.json to match VERSION file (single source of truth)..."
+
+            # Update package.json to match VERSION file
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION_FROM_FILE\"/" "$DEPLOY_DIR/package.json"
+
+            if [[ $? -eq 0 ]]; then
+                # Verify sync was successful
+                local synced_version=$(grep -oP '"version":\s*"\K[^"]+' "$DEPLOY_DIR/package.json")
+                if [[ "$synced_version" == "$VERSION_FROM_FILE" ]]; then
+                    print_message success "package.json synchronized: $VERSION_FROM_PKG → $VERSION_FROM_FILE"
+                else
+                    print_message error "Verification failed: expected $VERSION_FROM_FILE, got $synced_version"
+                    exit 1
+                fi
+            else
+                print_message error "Failed to update package.json"
+                exit 1
+            fi
+        else
+            print_message info "VERSION and package.json are synchronized: $VERSION_FROM_FILE"
+        fi
+    fi
+    echo ""
+
     # CRITICAL: Sync package.json to .npm-isolated if changed
     # - After sync_code_to_deploy: package.json is up-to-date in /opt/budget
     # - Before npm build: .npm-isolated/package.json must match root package.json
