@@ -10,17 +10,29 @@
 import {
   initializeOfflineManager,
   isOnline,
+  getState,
   createFact,
   createFactOffline,
   updateFact,
   updateFactOffline,
   deleteFact,
   deleteFactOffline,
+  createTransfer,
   createTransferOffline,
+  deleteTransfer,
   deleteTransferOffline,
+  createPlan,
   createPlanOffline,
+  updatePlan,
+  deletePlan,
+  createRecurringPlan,
   createRecurringPlanOffline,
   syncAll,
+  getAllUnsyncedItems,
+  updatePendingItemData,
+  removePendingItem,
+  getPendingSyncItems,
+  getPendingCount,
 } from '../index';
 import type { IIndexedDBManager, INetworkDetector, IWorkerWrapper, IBudgetWSClient } from '../types/dependencies';
 
@@ -54,6 +66,20 @@ export class OfflineManager {
   }
 
   /**
+   * Get IndexedDB manager instance
+   */
+  get db(): IIndexedDBManager {
+    return getState().db;
+  }
+
+  /**
+   * Get maxRetries configuration
+   */
+  get maxRetries(): number {
+    return getState().maxRetries;
+  }
+
+  /**
    * Initialize (async)
    */
   async init(): Promise<void> {
@@ -74,13 +100,19 @@ export class OfflineManager {
   // ============================================================================
   // Transfers Operations
   // ============================================================================
+  createTransfer = createTransfer;
   createTransferOffline = createTransferOffline;
+  deleteTransfer = deleteTransfer;
   deleteTransferOffline = deleteTransferOffline;
 
   // ============================================================================
   // Plans Operations
   // ============================================================================
+  createPlan = createPlan;
   createPlanOffline = createPlanOffline;
+  updatePlan = updatePlan;
+  deletePlan = deletePlan;
+  createRecurringPlan = createRecurringPlan;
   createRecurringPlanOffline = createRecurringPlanOffline;
 
   // ============================================================================
@@ -88,6 +120,43 @@ export class OfflineManager {
   // ============================================================================
   syncAll = syncAll;
   sync = syncAll; // Alias for backward compatibility
+
+  // ============================================================================
+  // Utility Methods
+  // ============================================================================
+  getAllUnsyncedItems = getAllUnsyncedItems;
+  updatePendingItemData = updatePendingItemData;
+  removePendingItem = removePendingItem;
+  getPendingSyncItems = getPendingSyncItems;
+  getPendingCount = getPendingCount;
+
+  /**
+   * Get current user ID (stub)
+   * TODO: Implement proper user ID retrieval
+   */
+  async getCurrentUserId(): Promise<number> {
+    // Try window.currentUser (set by backend template)
+    if (typeof window !== 'undefined' && (window as any).currentUser?.id) {
+      return (window as any).currentUser.id;
+    }
+
+    // Try fetch /api/v1/users/me
+    try {
+      const response = await fetch('/api/v1/users/me', {
+        credentials: 'include',
+        signal: AbortSignal.timeout(2000),
+      });
+      if (response.ok) {
+        const user = await response.json();
+        if (user && user.id) return user.id;
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+
+    // Fallback: throw error
+    throw new Error('Cannot get user ID for offline operation');
+  }
 }
 
 /**
