@@ -1,0 +1,162 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+      - test
+      - 'feature/**'
+      - 'fix/**'
+  pull_request:
+    branches:
+      - main
+      - test
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run npm audit
+        continue-on-error: true
+        run: |
+          npm audit --json > npm-audit.json || true
+          npm audit || true
+
+          # Extract vulnerability counts
+          HIGH_VULNS=$(jq '.metadata.vulnerabilities.high // 0' npm-audit.json)
+          CRITICAL_VULNS=$(jq '.metadata.vulnerabilities.critical // 0' npm-audit.json)
+
+          echo "## NPM Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Critical: $CRITICAL_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- High: $HIGH_VULNS" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "::error::Critical vulnerabilities found in npm dependencies"
+            exit 1
+          fi
+
+      - name: Run pip safety check
+        continue-on-error: true
+        run: |
+          pip install safety
+
+          cd backend
+          safety check --json > ../pip-safety.json 2>&1 || true
+          safety check || true
+
+          cd ..
+          if [ -f pip-safety.json ]; then
+            VULNS=$(jq '. | length' pip-safety.json 2>/dev/null || echo "0")
+            echo "## Pip Safety Results" >> $GITHUB_STEP_SUMMARY
+            echo "- Vulnerabilities: $VULNS" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$VULNS" -gt 0 ]; then
+              echo "::warning::Vulnerabilities found in Python dependencies"
+            fi
+          fi
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-scan-results
+          path: |
+            npm-audit.json
+            pip-safety.json
+          retention-days: 30
+
+  sast-scan:
+    name: SAST - Static Code Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Bandit
+        run: pip install bandit[toml]
+
+      - name: Run Bandit (Python SAST)
+        continue-on-error: true
+        run: |
+          bandit -r backend/ \
+            -f json \
+            -o bandit-report.json \
+            -ll \
+            --confidence-level high || true
+
+          bandit -r backend/ -ll --confidence-level high || true
+
+          if [ -f bandit-report.json ]; then
+            ISSUES=$(jq '.results | length' bandit-report.json)
+            echo "## Bandit SAST Results" >> $GITHUB_STEP_SUMMARY
+            echo "- High/Medium confidence issues: $ISSUES" >> $GITHUB_STEP_SUMMARY
+
+            if [ "$ISSUES" -gt 0 ]; then
+              echo "::warning::Security issues found by Bandit"
+            fi
+          fi
+
+      - name: Upload Bandit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-sast-results
+          path: bandit-report.json
+          retention-days: 30
+
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog
+        uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified --json
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
