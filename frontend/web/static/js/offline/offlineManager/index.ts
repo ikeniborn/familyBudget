@@ -128,6 +128,18 @@ export type {
 } from './types/dependencies';
 
 // ============================================================================
+// WebSocket Adapter
+// ============================================================================
+export {
+  initWS,
+  disconnectWS,
+  reconnectWS,
+  getWSStatus,
+  isWSConnected,
+  sendWSMessage,
+} from './adapters/wsAdapter';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
 export type { OfflineManagerClass } from './types/globals';
