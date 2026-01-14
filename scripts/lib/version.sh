@@ -217,6 +217,26 @@ update_all_version_files() {
     # Update package.json in DEPLOY_DIR only (NOT in repository!)
     update_package_json "$new_version" "${DEPLOY_DIR}/package.json"
 
+    # Sync updated package.json to .npm-isolated (if exists)
+    # CRITICAL: Must sync AFTER version bump to ensure .npm-isolated has correct version
+    # This fixes the bug where .npm-isolated/package.json had old version after deploy
+    if [[ -f "${DEPLOY_DIR}/.npm-isolated/package.json" ]]; then
+        info "Syncing updated package.json to .npm-isolated (version: $new_version)..."
+        cp "${DEPLOY_DIR}/package.json" "${DEPLOY_DIR}/.npm-isolated/package.json"
+
+        if [[ $? -eq 0 ]]; then
+            # Verify sync was successful
+            local isolated_version=$(grep -oP '"version":\s*"\K[^"]+' "${DEPLOY_DIR}/.npm-isolated/package.json")
+            if [[ "$isolated_version" == "$new_version" ]]; then
+                info "Synced .npm-isolated/package.json: $new_version"
+            else
+                warning "Verification failed: .npm-isolated version is $isolated_version, expected $new_version"
+            fi
+        else
+            warning "Failed to sync .npm-isolated/package.json"
+        fi
+    fi
+
     # Update .env in deployment directory (if exists)
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
         update_env_version "$new_version" "$DEPLOY_DIR/.env"
