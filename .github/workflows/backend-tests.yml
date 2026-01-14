@@ -79,8 +79,7 @@ jobs:
           POSTGRES_HOST: localhost
           DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
         run: |
-          cd backend
-          alembic upgrade head
+          alembic -c backend/db/migrations/alembic.ini upgrade head
 
       - name: Run backend tests with coverage
         env:
