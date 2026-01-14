@@ -114,8 +114,8 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: test_jwt_secret_for_ci_only
           SECRET_KEY: test_secret_key_for_ci_only
+          PYTHONPATH: .
         run: |
-          cd backend
           uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
           sleep 10
 

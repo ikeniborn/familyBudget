@@ -89,13 +89,13 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
           SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
+          PYTHONPATH: .
         run: |
-          cd backend
-          pytest tests/ \
-            --cov=app \
-            --cov-report=html:htmlcov \
-            --cov-report=json:coverage.json \
-            --cov-report=lcov:coverage/lcov.info \
+          pytest backend/tests/ \
+            --cov=backend/app \
+            --cov-report=html:backend/htmlcov \
+            --cov-report=json:backend/coverage.json \
+            --cov-report=lcov:backend/coverage/lcov.info \
             --cov-report=term \
             -v \
             -m "not e2e" \
@@ -162,13 +162,13 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: test_token_for_ci_only
           BACKEND_URL: http://localhost:8000
+          PYTHONPATH: .
         run: |
-          cd bot
-          pytest tests/ \
+          pytest bot/tests/ \
             -v \
             --tb=short \
             --maxfail=3 \
-            --junitxml=pytest-report.xml
+            --junitxml=bot/pytest-report.xml
 
       - name: Upload bot test results
         if: always()
