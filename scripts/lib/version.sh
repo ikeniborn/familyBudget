@@ -410,18 +410,22 @@ process_version_bump() {
 
     # Determine new version
     if [[ -n "$VERSION_SET" ]]; then
-        # Use explicitly set version
+        # Use explicitly set version (--set-version X.Y.Z)
         NEW_VERSION="$VERSION_SET"
         info "Using explicit version: $NEW_VERSION"
-    elif [[ "$VERSION_BUMP_TYPE" == "none" ]]; then
-        # No version bump requested
-        NEW_VERSION="$CURRENT_VERSION"
-        info "Version bump skipped (--no-version)"
+    elif [[ -n "$VERSION_BUMP_TYPE" && "$VERSION_BUMP_TYPE" != "none" ]]; then
+        # Bump version by type (--version TYPE or deprecated --patch/--minor/--major)
+        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$VERSION_BUMP_TYPE")
+        info "Bumping $VERSION_BUMP_TYPE version: $CURRENT_VERSION → $NEW_VERSION"
     else
-        # Auto-increment version
-        local bump_type="${VERSION_BUMP_TYPE:-minor}"
-        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$bump_type")
-        info "Bumping $bump_type version: $CURRENT_VERSION → $NEW_VERSION"
+        # NO CHANGE - default behavior when no version option specified
+        # This is the new default behavior (v7.0+): explicit version control
+        NEW_VERSION="$CURRENT_VERSION"
+        if [[ "$VERSION_BUMP_TYPE" == "none" ]]; then
+            info "Version unchanged: $NEW_VERSION (--no-version specified)"
+        else
+            info "Version unchanged: $NEW_VERSION (no version option specified)"
+        fi
     fi
 
     # Update version files in DEPLOY_DIR only (NOT in repository!)
