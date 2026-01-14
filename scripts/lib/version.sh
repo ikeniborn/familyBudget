@@ -48,7 +48,7 @@ declare -a REBUILD_TRIGGER_FILES=(
 
 # Version bump type (set by command line)
 VERSION_BUMP_TYPE=""  # major|minor|patch|none (empty = minor by default)
-VERSION_EXPLICIT=""   # Explicit version to set (e.g., "5.2.0")
+VERSION_SET=""   # Explicit version to set (e.g., "5.2.0") via --set-version
 
 # =============================================================================
 # VERSION PARSING FUNCTIONS
@@ -409,9 +409,9 @@ process_version_bump() {
     info "Current version: $CURRENT_VERSION"
 
     # Determine new version
-    if [[ -n "$VERSION_EXPLICIT" ]]; then
+    if [[ -n "$VERSION_SET" ]]; then
         # Use explicitly set version
-        NEW_VERSION="$VERSION_EXPLICIT"
+        NEW_VERSION="$VERSION_SET"
         info "Using explicit version: $NEW_VERSION"
     elif [[ "$VERSION_BUMP_TYPE" == "none" ]]; then
         # No version bump requested

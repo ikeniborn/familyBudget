@@ -362,25 +362,36 @@ parse_args() {
                 REAPPLY_MIGRATION_FILE="$2"
                 shift 2
                 ;;
-            --major)
-                VERSION_BUMP_TYPE="major"
+            --major|--minor|--patch)
+                # DEPRECATED: Use --version TYPE instead
+                warning "DEPRECATED: ${1} is deprecated, use --version ${1#--} instead"
+                VERSION_BUMP_TYPE="${1#--}"
                 shift
                 ;;
-            --minor)
-                VERSION_BUMP_TYPE="minor"
-                shift
-                ;;
-            --patch)
-                VERSION_BUMP_TYPE="patch"
-                shift
-                ;;
-            --version)
-                VERSION_EXPLICIT="$2"
+            --set-version)
+                VERSION_SET="$2"
                 # Validate version format
-                if [[ ! "$VERSION_EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                    error "Invalid version format: $VERSION_EXPLICIT. Must be X.Y.Z (e.g., 5.2.0)"
+                if [[ ! "$VERSION_SET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    error "Invalid version format: $VERSION_SET. Must be X.Y.Z (e.g., 5.2.0)"
                 fi
                 shift 2
+                ;;
+            --version)
+                # Support both old and new usage:
+                # OLD (deprecated): --version X.Y.Z → explicit version
+                # NEW: --version TYPE → version bump type (patch|minor|major)
+                if [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    # OLD usage: explicit version number
+                    warning "DEPRECATED: --version X.Y.Z is deprecated, use --set-version X.Y.Z instead"
+                    VERSION_SET="$2"
+                    shift 2
+                elif [[ "$2" =~ ^(patch|minor|major)$ ]]; then
+                    # NEW usage: version bump type
+                    VERSION_BUMP_TYPE="$2"
+                    shift 2
+                else
+                    error "Invalid --version argument: $2. Use --version TYPE (patch|minor|major) or --set-version X.Y.Z"
+                fi
                 ;;
             --no-version)
                 VERSION_BUMP_TYPE="none"
