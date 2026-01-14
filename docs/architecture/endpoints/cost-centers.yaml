@@ -49,7 +49,7 @@ routes:
   # ---------------------------------------------------------------------------
   # READ
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/cost-centers/{id}"
+  - path: "/api/v1/cost-centers/{cost_center_id}"
     method: GET
     auth: user
     description: "Get cost center by ID"
@@ -70,7 +70,7 @@ routes:
   # ---------------------------------------------------------------------------
   # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/cost-centers/{id}"
+  - path: "/api/v1/cost-centers/{cost_center_id}"
     method: PUT
     auth: user
     description: "Update cost center"
@@ -94,7 +94,7 @@ routes:
   # ---------------------------------------------------------------------------
   # DELETE (ADMIN ONLY)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/cost-centers/{id}"
+  - path: "/api/v1/cost-centers/{cost_center_id}"
     method: DELETE
     auth: admin
     description: "Soft delete cost center"

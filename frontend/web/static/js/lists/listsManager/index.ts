@@ -150,5 +150,7 @@ export { initializeImportManager } from './integration/importIntegration';
 
 export {
   openModal,
-  navigateHomeOfflineFriendly
+  navigateHomeOfflineFriendly,
+  handleMobileAddButton,
+  updateMobileAddButton
 } from './ui/globalHelpers';

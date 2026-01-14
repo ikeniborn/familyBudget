@@ -180,50 +180,6 @@
         </div>
     </div>
 
-    <!-- Recurring Plans Management Section -->
-    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <input type="checkbox" id="recurring-plans-toggle" class="peer" />
-        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
-            <h2 class="text-lg sm:text-xl font-bold mb-0">
-                🔄 Управление регламентными платежами
-            </h2>
-        </label>
-        <div class="collapse-content">
-            <div class="flex justify-between items-center mb-4">
-                <p class="text-sm text-base-content/70">
-                    Список всех активных регламентных платежей. Выберите записи для массового удаления.
-                </p>
-                <button
-                    id="batch-delete-recurring-plans-btn"
-                    class="btn btn-error btn-sm"
-                    onclick="batchDeleteRecurringPlans()"
-                    disabled>
-                    🗑️ Удалить выбранные
-                </button>
-            </div>
-
-            <div id="recurring-plans-table-container" class="overflow-x-auto">
-                <!-- Table populated by loadRecurringPlans() -->
-                <div class="flex items-center justify-center py-8">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="recurring-plans-empty-state" class="hidden text-center py-8 text-base-content/60">
-                <div class="text-4xl mb-2">🔄</div>
-                <p>Нет активных регламентных платежей.</p>
-            </div>
-
-            <!-- Collapse button -->
-            <div class="flex justify-end mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="document.getElementById('recurring-plans-toggle').checked = false">
-                    ⬆️ Свернуть
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Stats Section -->
     <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
@@ -349,6 +305,50 @@
             <!-- Collapse button -->
             <div class="flex justify-end mt-4">
                 <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recurring Plans Management Section -->
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="recurring-plans-toggle" class="peer" />
+        <label for="recurring-plans-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                🔄 Управление регламентными платежами
+            </h2>
+        </label>
+        <div class="collapse-content">
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-sm text-base-content/70">
+                    Список всех активных регламентных платежей. Выберите записи для массового удаления.
+                </p>
+                <button
+                    id="batch-delete-recurring-plans-btn"
+                    class="btn btn-error btn-sm"
+                    onclick="batchDeleteRecurringPlans()"
+                    disabled>
+                    🗑️ Удалить выбранные
+                </button>
+            </div>
+
+            <div id="recurring-plans-table-container" class="overflow-x-auto">
+                <!-- Table populated by loadRecurringPlans() -->
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="recurring-plans-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">🔄</div>
+                <p>Нет активных регламентных платежей.</p>
+            </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="document.getElementById('recurring-plans-toggle').checked = false">
                     ⬆️ Свернуть
                 </button>
             </div>
@@ -564,6 +564,42 @@ let createCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
 let editDateCalendar = null; // CalendarWidget instance for edit modal
 // allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
+
+// Modal Listener Manager - encapsulated AbortController for edit modal
+const ModalListenerManager = (function() {
+    let abortController = null;
+
+    return {
+        /**
+         * Register event listener with automatic cleanup of previous listener
+         * @param {HTMLElement} element - DOM element to attach listener
+         * @param {string} eventName - Event name (e.g., 'change')
+         * @param {Function} handler - Event handler function
+         */
+        registerListener(element, eventName, handler) {
+            // Abort previous listener if exists
+            if (abortController) {
+                abortController.abort();
+            }
+
+            // Create new AbortController
+            abortController = new AbortController();
+
+            // Register listener with signal
+            element.addEventListener(eventName, handler, { signal: abortController.signal });
+        },
+
+        /**
+         * Manually abort current listener (optional, for explicit cleanup)
+         */
+        abort() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+        }
+    };
+})();
 
 // Global state
 let currentPage = 0;
@@ -950,7 +986,7 @@ async function syncAnalyticsToFilters(options = {}) {
 
 /**
  * Обновляет badge-индикатор активных фильтров.
- * Индикатор скрыт когда активен только дефолтный период (текущий месяц).
+ * Индикатор показывает "1 активен" для дефолтного периода (квартал).
  */
 function updateFilterIndicator() {
     const indicator = document.getElementById('filter-indicator');
@@ -968,21 +1004,14 @@ function updateFilterIndicator() {
 
 /**
  * Подсчитывает количество активных фильтров.
- * Период по умолчанию (текущий месяц) НЕ считается активным фильтром.
+ * Период ВСЕГДА считается активным фильтром (включая дефолтный квартальный период).
  */
 function countActiveFilters() {
     let count = 0;
 
-    // Период: НЕ считаем если это дефолтный период (обе даты совпадают с константами)
-    const isDefaultPeriod =
-        filters.date_from === DEFAULT_DATE_FROM &&
-        filters.date_to === DEFAULT_DATE_TO;
-
-    // Считаем период ТОЛЬКО если он отличается от дефолтного
-    if (!isDefaultPeriod) {
-        if (filters.date_from || filters.date_to) {
-            count++;
-        }
+    // Период: ВСЕГДА считается активным (даже если дефолтный)
+    if (filters.date_from || filters.date_to) {
+        count++;
     }
 
     // Остальные фильтры - считаем если установлены (не null/empty)
@@ -1016,7 +1045,7 @@ function initDefaultPeriodFilter() {
     filters.date_from = DEFAULT_DATE_FROM;
     filters.date_to = DEFAULT_DATE_TO;
 
-    // Обновить индикатор - при дефолтном периоде он должен быть СКРЫТ
+    // Обновить индикатор - badge покажет "1 активен" для дефолтного периода
     updateFilterIndicator();
 }
 
@@ -2572,8 +2601,18 @@ function nextPage() {
 
 // Show edit modal
 async function showEditModal(factId) {
+    console.log('[SHOW_EDIT_MODAL] Called with factId:', factId);
+    console.log('[SHOW_EDIT_MODAL] factsData length:', factsData?.length);
+
     const fact = factsData.find(f => f.id === factId);
-    if (!fact) return;
+
+    if (!fact) {
+        console.error('[SHOW_EDIT_MODAL] Fact not found in factsData! factId:', factId);
+        console.error('[SHOW_EDIT_MODAL] Available fact IDs:', factsData?.map(f => f.id));
+        return;
+    }
+
+    console.log('[SHOW_EDIT_MODAL] Fact found:', fact);
 
     // Fill basic fields
     document.getElementById('edit-id').value = fact.id;
@@ -2646,8 +2685,17 @@ async function showEditModal(factId) {
     }
 
     // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
+    console.log('[SHOW_EDIT_MODAL] Opening modal...');
     const modal = document.getElementById('edit-modal');
+
+    if (!modal) {
+        console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
+        return;
+    }
+
+    console.log('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
     modal.showModal();
+    console.log('[SHOW_EDIT_MODAL] Modal opened successfully');
 
     // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
     if (!modal.dataset.backdropHandlerAdded) {
@@ -2669,81 +2717,81 @@ async function showEditModal(factId) {
         }
         if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
         if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
-        return;  // ✅ Exit early - no need to fetch recurring plan
-    }
+        // ✅ Continue to category initialization (don't return early)
+    } else {
+        // This is a recurring plan fact - prepare UI
+        console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
 
-    // This is a recurring plan fact - prepare UI
-    console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
+        if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
 
-    if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
-    if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
+        // Reset scope to 'single' by default
+        const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+        if (singleRadio) singleRadio.checked = true;
 
-    // Reset scope to 'single' by default
-    const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
-    if (singleRadio) singleRadio.checked = true;
+        // ✅ OPTIMIZATION: Show loading state immediately
+        if (recurringInfoDiv) {
+            recurringInfoDiv.innerHTML = `
+                <div class="flex items-center justify-center py-4">
+                    <span class="loading loading-spinner loading-md text-primary"></span>
+                    <span class="ml-2">Загрузка данных регламентного платежа...</span>
+                </div>
+            `;
+            recurringInfoDiv.classList.remove('hidden');
+        }
 
-    // ✅ OPTIMIZATION: Show loading state immediately
-    if (recurringInfoDiv) {
-        recurringInfoDiv.innerHTML = `
-            <div class="flex items-center justify-center py-4">
-                <span class="loading loading-spinner loading-md text-primary"></span>
-                <span class="ml-2">Загрузка данных регламентного платежа...</span>
-            </div>
-        `;
-        recurringInfoDiv.classList.remove('hidden');
-    }
+        // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
+        (async () => {
+            try {
+                console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
 
-    // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
-    (async () => {
-        try {
-            console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
+                const planResponse = await fetch(
+                    `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
+                    { credentials: 'include' }
+                );
 
-            const planResponse = await fetch(
-                `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
-                { credentials: 'include' }
-            );
+                console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
 
-            console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
-
-            if (!planResponse.ok) {
-                console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
-                if (planResponse.status === 403) {
-                    console.error('[EDIT_MODAL] 403 Forbidden - check user permissions');
-                } else if (planResponse.status === 404) {
-                    console.error('[EDIT_MODAL] 404 Not Found - plan may have been deleted');
+                if (!planResponse.ok) {
+                    console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+                    if (planResponse.status === 403) {
+                        console.error('[EDIT_MODAL] 403 Forbidden - check user permissions');
+                    } else if (planResponse.status === 404) {
+                        console.error('[EDIT_MODAL] 404 Not Found - plan may have been deleted');
+                    }
+                    // Показать error state
+                    if (recurringInfoDiv) {
+                        recurringInfoDiv.innerHTML = `
+                            <div class="alert alert-warning">
+                                <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+                            </div>
+                        `;
+                    }
+                    return;
                 }
-                // Показать error state
+
+                currentRecurringPlan = await planResponse.json();
+                console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+
+                // Clear loading state and populate content
+                if (recurringInfoDiv) {
+                    recurringInfoDiv.innerHTML = ''; // Clear loading spinner
+                }
+                populateRecurringPlanInfo(currentRecurringPlan);
+                console.log('[EDIT_MODAL] Recurring plan info populated');
+
+            } catch (error) {
+                console.error('[EDIT_MODAL] Error loading recurring plan:', error);
                 if (recurringInfoDiv) {
                     recurringInfoDiv.innerHTML = `
-                        <div class="alert alert-warning">
-                            <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+                        <div class="alert alert-error">
+                            <span>❌ Ошибка: ${error.message}</span>
                         </div>
                     `;
                 }
-                return;
             }
-
-            currentRecurringPlan = await planResponse.json();
-            console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
-
-            // Clear loading state and populate content
-            if (recurringInfoDiv) {
-                recurringInfoDiv.innerHTML = ''; // Clear loading spinner
-            }
-            populateRecurringPlanInfo(currentRecurringPlan);
-            console.log('[EDIT_MODAL] Recurring plan info populated');
-
-        } catch (error) {
-            console.error('[EDIT_MODAL] Error loading recurring plan:', error);
-            if (recurringInfoDiv) {
-                recurringInfoDiv.innerHTML = `
-                    <div class="alert alert-error">
-                        <span>❌ Ошибка: ${error.message}</span>
-                    </div>
-                `;
-            }
-        }
-    })();
+        })();
+    } // End of else block (recurring plan loading)
 
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
@@ -2829,12 +2877,9 @@ async function showEditModal(factId) {
     // Setup financial center change handler for edit modal
     const editFcSelect = document.getElementById('edit-financial-center');
     if (editFcSelect && editCategoryTreeSelect) {
-        // Remove previous listener if exists (prevent duplicates)
-        const newEditFcSelect = editFcSelect.cloneNode(true);
-        editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
-
-        newEditFcSelect.addEventListener('change', async (e) => {
-            const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+        // Register listener with automatic cleanup via ModalListenerManager
+        ModalListenerManager.registerListener(editFcSelect, 'change', async (e) => {
+            const fcId = editFcSelect.value ? parseInt(editFcSelect.value) : null;
             console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
                 newFcId: fcId,
                 currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null

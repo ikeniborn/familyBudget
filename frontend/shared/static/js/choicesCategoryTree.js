@@ -174,7 +174,6 @@ class ChoicesCategoryTree {
             mode: options.mode || 'edit',  // NEW: 'create' | 'edit' - controls selection preservation in updateFinancialCenter()
         };
 
-        console.log(`[ChoicesCategoryTree] Constructor initialized with mode: ${this.options.mode}`);
 
         this.choices = null;
         this.categories = [];
@@ -354,9 +353,6 @@ class ChoicesCategoryTree {
                 );
 
                 const duration = Math.round(performance.now() - startTime);
-                if (window.DEBUG_MODE) {
-                    console.log(`[ChoicesCategoryTree] Worker buildMaps: ${duration}ms (${this.categories.length} categories)`);
-                }
 
                 // Resolve initialization promise
                 if (this._initPromise) {
@@ -387,9 +383,6 @@ class ChoicesCategoryTree {
         }
 
         const duration = Math.round(performance.now() - startTime);
-        if (window.DEBUG_MODE) {
-            console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${duration}ms (${this.categories.length} categories)`);
-        }
 
         // Resolve initialization promise (for waitForReady() method)
         if (this._initPromise) {
@@ -523,11 +516,6 @@ class ChoicesCategoryTree {
      * @param {Array} categories - Categories to display
      */
     initChoices(categories) {
-        console.log('[ChoicesCategoryTree] initChoices() called:', {
-            categoriesCount: categories.length,
-            elementId: this.element.id,
-            mode: this.options.mode
-        });
 
         // Clear placeholder option from select element before Choices.js initialization
         // This prevents placeholder from appearing in dropdown list
@@ -568,11 +556,6 @@ class ChoicesCategoryTree {
             })
         ];
 
-        console.log('[ChoicesCategoryTree] Choices prepared:', {
-            totalChoices: choices.length,
-            placeholderIncluded: choices[0].placeholder === true,
-            firstRealCategory: choices[1]?.label
-        });
 
         // Initialize Choices.js with custom templates
         this.choices = new Choices(this.element, {
@@ -635,51 +618,26 @@ class ChoicesCategoryTree {
 
         // ✅ CRITICAL FIX: Force empty selection after initial setChoices()
         // Choices.js may auto-select first non-disabled item despite 'false' parameter
-        console.log('[ChoicesCategoryTree] Forcing empty selection after initial setChoices()');
         this.choices.removeActiveItems();
         if (this.element) {
             this.element.value = '';
         }
 
-        console.log('[ChoicesCategoryTree] Choices.js initialized:', {
-            choicesCount: choices.length,
-            currentValue: this.element.value,
-            activeItems: this.choices.getValue(true)
-        });
 
         // Listen for change events
         this.element.addEventListener('change', (event) => {
-            console.log('[ChoicesCategoryTree] Change event:', {
-                elementId: this.element.id,
-                value: event.target.value,
-                timestamp: new Date().toISOString()
-            });
             this.handleCategoryChange(event);
         });
 
         // Add event listeners for Choices.js dropdown interaction (debugging iOS Safari)
         if (this.choices) {
             this.element.addEventListener('showDropdown', () => {
-                console.log('[ChoicesCategoryTree] Dropdown opened:', {
-                    elementId: this.element.id,
-                    timestamp: new Date().toISOString()
-                });
             });
 
             this.element.addEventListener('hideDropdown', () => {
-                console.log('[ChoicesCategoryTree] Dropdown closed:', {
-                    elementId: this.element.id,
-                    timestamp: new Date().toISOString()
-                });
             });
 
             this.element.addEventListener('choice', (event) => {
-                console.log('[ChoicesCategoryTree] Item selected:', {
-                    elementId: this.element.id,
-                    choiceId: event.detail.choice.value,
-                    choiceLabel: event.detail.choice.label,
-                    timestamp: new Date().toISOString()
-                });
             });
         }
 
@@ -1014,25 +972,11 @@ class ChoicesCategoryTree {
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
     async updateFinancialCenter(financialCenterId) {
-        console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
-        console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
-        console.log(`[ChoicesCategoryTree] Current options:`, {
-            type: this.options.type,
-            showLeafOnly: this.options.showLeafOnly,
-            previousFinancialCenterId: this.options.financialCenterId
-        });
 
         // Detect if this is initial filtering (from no filter to a filter)
         // vs changing filter (from one FC to another)
         const previousFcId = this.options.financialCenterId;
         const isInitialFiltering = previousFcId === null && financialCenterId !== null;
-
-        console.log(`[ChoicesCategoryTree] Filter change type:`, {
-            previousFcId,
-            newFcId: financialCenterId,
-            isInitialFiltering,
-            note: isInitialFiltering ? 'Initial filter - do NOT preserve selection' : 'FC changed - preserve if valid'
-        });
 
         // Update option
         this.options.financialCenterId = financialCenterId;
@@ -1042,7 +986,6 @@ class ChoicesCategoryTree {
         if (financialCenterId) {
             const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
             ChoicesCategoryTree._cache.delete(specificCacheKey);
-            console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${specificCacheKey}`);
         }
 
         // Save current selection to restore it if still available
@@ -1056,23 +999,9 @@ class ChoicesCategoryTree {
         const activeItems = this.choices ? this.choices.getValue(true) : null;
         const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
 
-        console.log(`[ChoicesCategoryTree] Current selection state:`, {
-            elementValue,
-            previousSelectionId,
-            activeItems,
-            hasActiveSelection,
-            note: elementValue && !hasActiveSelection ? 'Element has value but Choices.js not synced yet' : 'OK'
-        });
-
         try {
             // Load new categories from API (with offline fallback)
             await this.loadCategories();
-
-            console.log(`[ChoicesCategoryTree] Loaded categories:`, {
-                totalCount: this.categories.length,
-                categoryMapSize: this.categoryMap.size,
-                sampleCategories: this.categories.slice(0, 3).map(c => ({id: c.id, name: c.name}))
-            });
 
             // Build hierarchy maps
             this.buildHierarchyMaps();
@@ -1081,11 +1010,6 @@ class ChoicesCategoryTree {
             const displayCategories = this.options.showLeafOnly
                 ? this.getLeafCategories()
                 : this.categories;
-
-            console.log(`[ChoicesCategoryTree] Display categories after leaf filter:`, {
-                displayCount: displayCategories.length,
-                showLeafOnly: this.options.showLeafOnly
-            });
 
             // Update Choices.js without full recreation
             if (this.choices) {
@@ -1110,11 +1034,6 @@ class ChoicesCategoryTree {
                     };
                 });
 
-                console.log(`[ChoicesCategoryTree] Prepared choices for Choices.js:`, {
-                    choicesCount: choices.length,
-                    sampleChoices: choices.slice(0, 3).map(c => ({value: c.value, label: c.label}))
-                });
-
                 // Set new choices WITHOUT auto-selecting first item
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
@@ -1122,7 +1041,6 @@ class ChoicesCategoryTree {
                 // ✅ CRITICAL FIX: Force clear selection immediately after setChoices()
                 // Choices.js may ignore the 'false' parameter and auto-select first non-disabled item
                 // This ensures NO selection when filtering categories by financial center
-                console.log('[ChoicesCategoryTree] Forcing empty selection after setChoices() (prevent Choices.js auto-select)');
                 this.choices.removeActiveItems();
                 if (this.element) {
                     this.element.value = '';
@@ -1136,16 +1054,6 @@ class ChoicesCategoryTree {
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
 
-                console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
-                    previousSelectionId,
-                    categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
-                    categoryStillAvailable,
-                    isInitialFiltering,
-                    willPreserve: !isInitialFiltering && categoryStillAvailable,
-                    note: isInitialFiltering ? 'Initial filtering - will NOT preserve' : 'FC changing - will preserve if available',
-                    categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
-                });
-
                 // ✅ FIX: Preserve selection based on mode
                 // - mode='edit': ALWAYS preserve if category available (even on initial FC filter)
                 // - mode='create': Only preserve if NOT initial filtering (prevent phantom auto-select)
@@ -1153,23 +1061,7 @@ class ChoicesCategoryTree {
                     ? categoryStillAvailable  // Edit: restore saved state
                     : (!isInitialFiltering && categoryStillAvailable);  // Create: only if FC changing
 
-                console.log(`[ChoicesCategoryTree] Selection preservation decision:`, {
-                    mode: this.options.mode,
-                    isInitialFiltering,
-                    categoryStillAvailable,
-                    shouldPreserve,
-                    previousSelectionId,
-                    reasoning: this.options.mode === 'edit'
-                        ? (shouldPreserve ? 'Edit mode - preserving (category available)' : 'Edit mode - clearing (category NOT available)')
-                        : (isInitialFiltering
-                            ? 'Create mode - Initial FC selection - NOT preserving (prevent phantom auto-select)'
-                            : (shouldPreserve
-                                ? 'Create mode - FC changed - preserving (category available)'
-                                : 'Create mode - FC changed - clearing (category NOT available)'))
-                });
-
                 if (shouldPreserve) {
-                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId} (available in FC ${financialCenterId || 'all'})`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
@@ -1180,10 +1072,8 @@ class ChoicesCategoryTree {
                     }
 
                     if (!categoryStillAvailable && previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId || 'none'}`);
                         debugLog(`[ChoicesCategoryTree] Cleared selection (category not available)`);
                     } else {
-                        console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                     }
                 }
@@ -1201,16 +1091,8 @@ class ChoicesCategoryTree {
                 }
             }
 
-            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END ==========`);
-            console.log(`[ChoicesCategoryTree] Final state:`, {
-                financialCenterId: this.options.financialCenterId,
-                categoriesCount: this.categories.length,
-                finalElementValue: this.element ? this.element.value : null,
-                finalActiveItems: this.choices ? this.choices.getValue(true) : null
-            });
         } catch (error) {
             console.error('[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:', error);
-            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========`);
         }
     }
 
@@ -1229,21 +1111,15 @@ class ChoicesCategoryTree {
      * Used in create modals to reset selection state.
      */
     clearSelection() {
-        console.log('[ChoicesCategoryTree] clearSelection() called');
-
         // Clear Choices.js active selection
         if (this.choices) {
             this.choices.removeActiveItems();
-            console.log('[ChoicesCategoryTree] Choices.js active items removed');
         }
 
         // Clear DOM element value
         if (this.element) {
             this.element.value = '';
-            console.log('[ChoicesCategoryTree] Element value cleared');
         }
-
-        console.log('[ChoicesCategoryTree] ✅ Selection cleared successfully');
     }
 
     /**
@@ -1293,7 +1169,6 @@ class ChoicesCategoryTree {
      */
     async setSelectedCategory(categoryId, maxRetries = 3, retryDelay = 100) {
         if (!this.choices) {
-            console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
             return;
         }
 
@@ -1325,8 +1200,6 @@ class ChoicesCategoryTree {
         // 2. Wrong type (expense/income mismatch)
         // 3. Not a leaf node (if showLeafOnly is enabled)
         // 4. Filtered out by financial center
-        console.debug('[ChoicesCategoryTree] Category not found in available choices:', categoryId,
-                      '(may be deleted, wrong type, or filtered out)');
     }
 }
 

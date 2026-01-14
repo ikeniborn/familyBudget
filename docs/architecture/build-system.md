@@ -22,6 +22,38 @@ Family Budget uses **Vite** as the modern build system with integrated TypeScrip
 
 ## Recent Changes
 
+### 2026-01-12: Service Worker gzip Plugin Order Fix (v6.6.1)
+
+**Change:** Fixed Vite plugin order in vite.config.single.ts to ensure .gz files are created before copying
+
+**Problem:**
+- Service Worker deployment validation failed with error: `❌ Missing: sw.min.js.gz`
+- Vite built `sw.min.js` successfully, but `.gz` file was missing
+- Root cause: `postBuildCopy()` plugin ran BEFORE `compression()` plugin
+- When `postBuildCopy()` tried to copy `.vite-build/sw.js.gz`, it didn't exist yet
+
+**Solution:**
+- Swapped plugin order in vite.config.single.ts:96-110
+- `compression()` now runs FIRST (creates .gz files)
+- `postBuildCopy()` runs SECOND (copies .gz files to final location)
+
+**Impact:**
+- ✅ Service Worker .gz files correctly created during build
+- ✅ No manual intervention needed after deployment
+- ✅ PWA cache compression works as expected
+
+**Plugin Order (CRITICAL):**
+```typescript
+plugins: [
+  isServiceWorker && swCacheVersionPlugin(),  // 1. Inject CACHE_VERSION
+  production && compression({...}),           // 2. Create .gz files (MUST be before postBuildCopy)
+  postBuildCopy(),                            // 3. Copy .js + .gz files to final location
+  visualizer({...})                           // 4. Bundle analyzer
+]
+```
+
+---
+
 ### 2026-01-09: Lists Bundle Migration (v7.0.1)
 
 **Change:** Migrated 5 lists modules to unified bundle via build-all.js
@@ -68,6 +100,45 @@ npm run type-check  # Found 0 errors
 
 **Commits:**
 - fix(build): migrate 5 lists modules to lists.min.js bundle
+
+---
+
+### 2026-01-13: Logging Optimization (v7.x)
+
+**Change:** Removed info/debug logging for 26 prefixes across frontend and backend
+
+**Removed Prefixes (26 total):**
+- WebSocket diagnostics: `[WS_RTT]`, `[WS-HEALTH]`, `[WS_DIAG]`, `[NAV_SYNC]`
+- Data sync: `[SYNC]`
+- Logs collection: `[LOGS_COLLECTOR]`
+- Service Worker: `[SW_UPDATE]`
+- PWA: `[PWA]`, `[PWA_HEADER]`, `[PWA_SAFE_AREA]`
+- Category tree: `[ChoicesCategoryTree]`
+- Navigation: `[FAB_TOOLBAR]`, `[NAV]`
+- Page init: `[index.html]`, `[setupPlanPeriodButtons]`, `[INIT]`, `[INDEX_PAGE]`
+- Transfers: `[TRANSFER_INIT]`, `[PUSH_BANNER]`
+- Logging system: `[LOGGER]`, `[LOGGING]`
+- Lists hierarchy: `[HIERARCHY_RENDER]`, `[SWIPE]`, `[LISTS_SWIPE]`, `[CONTENT_CLICK]`
+- WebAuthn: `[WEBAUTHN_ONBOARDING]`
+
+**Impact:**
+- ✅ 1056 lines removed across 19 files
+- ✅ Frontend: 1049 lines (18 files)
+- ✅ Backend: 7 lines (logs_collector_service.py)
+- ✅ Preserved all `console.warn` and `console.error` for critical errors
+- ✅ Preserved logger definitions and `LOGGING_CONFIG.modules` for runtime control
+
+**Performance Benefits:**
+- Reduced console overhead in production
+- Cleaner development console output
+- Smaller bundle sizes
+- Less noise in production logs
+
+**Configuration Preserved:**
+- `LOGGING_CONFIG.modules` in `logging.js` - Retained for possible runtime logging control
+- Logger definitions in `logger.ts` (window.logPWA, window.logSync, etc.) - Retained for future use
+
+**Note:** This optimization improves performance without removing critical error tracking. The configuration structure remains intact for potential future enhancements via runtime settings.
 
 ---
 

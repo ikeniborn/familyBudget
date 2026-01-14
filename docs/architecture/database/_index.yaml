@@ -2,12 +2,12 @@
 # PostgreSQL tables, indexes, constraints
 
 summary:
-  total_tables: 36
-  dimensions: 10
-  facts: 2
+  total_tables: 39
+  dimensions: 12
+  facts: 3
   history: 8
   hierarchy: 2
-  support: 14
+  support: 8
 
 categories:
   dimensions:
@@ -24,6 +24,8 @@ categories:
       - t_d_product_group
       - t_d_import_template
       - t_d_bank_provider
+      - t_d_recurring_plan
+      - t_d_webauthn_credential
 
   facts:
     description: "Fact tables (t_f_*) - Transactional data"
@@ -31,6 +33,7 @@ categories:
     tables:
       - t_f_budget_fact
       - t_f_shopping_list
+      - t_f_webauthn_challenge
 
   history:
     description: "History tables (*_history) - SCD Type 2"
@@ -58,6 +61,7 @@ categories:
     tables:
       - t_refresh_token
       - t_two_factor_session
+      - t_f_webauthn_audit_log
       - t_notification
       - t_import_staging
       - t_import_file_upload

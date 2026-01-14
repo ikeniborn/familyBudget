@@ -14,8 +14,15 @@
  * - Development: localhost or 127.0.0.1 (all logging enabled)
  * - Staging: Other hostnames (info logging enabled, debug disabled)
  *
- * @version 1.0.0
- * @date 2025-12-26
+ * Info Logging Cleanup (2026-01-13):
+ * - Removed .info() calls from code to reduce console noise
+ * - Affected modules: PUSH_BANNER, WS_STATE, API, LISTS_INIT, WEBAUTHN, WEBAUTHN_EXPORTS, ADMIN_LOGS
+ * - Total removed: 46 info-level log calls (31 initial + 15 admin_logs)
+ * - Preserved: All .error(), .warn(), .debug() calls remain for debugging
+ * - Logger infrastructure remains intact - only explicit .info() calls were removed
+ *
+ * @version 1.1.0
+ * @date 2026-01-13
  */
 
 (function() {
@@ -42,12 +49,14 @@
         },
 
         // Module-specific control
+        // NOTE: Info-level logs removed from code for these modules (2026-01-13):
+        // PUSH_BANNER, API, WS_STATE, LISTS_INIT (no longer in code, only error/warn/debug remain)
         modules: {
             PWA: true,                 // Progressive Web App lifecycle
             SW: true,                  // Service Worker events
             DB: isDevelopment,         // IndexedDB operations (verbose in dev only)
             SYNC: true,                // Offline sync queue
-            API: true,                 // API request/response
+            API: true,                 // API request/response (info logs removed from code)
             PERF: isDevelopment,       // Performance monitoring (dev only)
             FORM: true,                // Form submission/validation
             WORKER: isDevelopment,     // Web Workers (dev only)
@@ -55,7 +64,7 @@
             CSV: true,                 // CSV import/export
             WS_DIAG: true,             // WebSocket diagnostics modal
             WS_RTT: true,              // WebSocket RTT measurement logging
-            WS_STATE: true,            // WebSocket badge state transition logging
+            WS_STATE: true,            // WebSocket badge state (info logs removed from code)
             NAV: true,                 // Navigation detection for RTT filtering
             RTT_FILTER: true,          // RTT filtering logic
             CACHE: isDevelopment,      // Cache metrics collection (dev only)
@@ -63,7 +72,8 @@
             ITEM_SAVE: true,           // Shopping list item save operations
             LISTS: true,               // Shopping lists general operations
             MODAL_KB: isDevelopment,   // Modal keyboard adaptation
-            PUSH_BANNER: true          // Push permission banner events
+            PUSH_BANNER: true,         // Push permission banner (info logs removed from code)
+            ADMIN_LOGS: true           // Admin logs page (info logs removed from code)
         },
 
         // Environment info (for debugging)
@@ -77,24 +87,13 @@
 
     // Log configuration (only if logging enabled)
     if (window.LOGGING_CONFIG.enabled) {
-        console.log('%c[LOGGING] Configuration loaded', 'color: #4CAF50; font-weight: bold');
-        console.log('[LOGGING] Environment:', window.LOGGING_CONFIG.environment);
-        console.log('[LOGGING] Enabled levels:', {
-            debug: window.LOGGING_CONFIG.levels.debug,
-            info: window.LOGGING_CONFIG.levels.info,
-            warn: window.LOGGING_CONFIG.levels.warn,
-            error: window.LOGGING_CONFIG.levels.error
-        });
-        console.log('[LOGGING] Enabled modules:', Object.keys(window.LOGGING_CONFIG.modules).filter(
-            k => window.LOGGING_CONFIG.modules[k]
-        ).join(', '));
+        // Logging configured
     }
 
     // Expose helper to change config at runtime (for debugging)
     window.setLoggingLevel = function(module, enabled) {
         if (window.LOGGING_CONFIG && window.LOGGING_CONFIG.modules.hasOwnProperty(module)) {
             window.LOGGING_CONFIG.modules[module] = enabled;
-            console.log(`[LOGGING] Module ${module} logging ${enabled ? 'enabled' : 'disabled'}`);
         } else {
             console.error(`[LOGGING] Unknown module: ${module}`);
         }
@@ -104,7 +103,6 @@
     window.setLoggingEnabled = function(enabled) {
         if (window.LOGGING_CONFIG) {
             window.LOGGING_CONFIG.enabled = enabled;
-            console.log(`[LOGGING] All logging ${enabled ? 'enabled' : 'disabled'}`);
         }
     };
 

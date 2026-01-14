@@ -729,6 +729,129 @@ modules:
       test_cases: "TC1-TC5 (keyboard open/close, scroll, orientation, multiple modals, rapid focus)"
       troubleshooting: "Remote debugging via iOS Safari, Android Chrome DevTools"
 
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN MANAGER (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  webauthnManager:
+    path: "frontend/web/static/js/webauthn/WebAuthnManager/"
+    loc_code: ~550
+    loc_total: ~690
+    description: "WebAuthn credential enrollment and biometric authentication"
+
+    structure:
+      core:
+        - WebAuthnState.ts: "State management for credentials and challenges"
+
+      integration:
+        - apiClient.ts: "API calls to /api/v1/webauthn endpoints"
+
+      features:
+        - onboarding.ts: "Registration flow UI"
+
+      ui:
+        - modalManager.ts: "Modal presentation for enrollment"
+
+    exports:
+      class: "WebAuthnManager"
+      singleton: "window.WebAuthnManager"
+
+    features:
+      - "Browser capability detection"
+      - "Credential registration (PublicKeyCredential.create)"
+      - "Credential authentication (PublicKeyCredential.get)"
+      - "Credential management (list, revoke)"
+      - "Onboarding flow for first-time setup"
+      - "Passkey support detection (backup_eligible)"
+
+    browser_support:
+      chrome: "≥67"
+      firefox: "≥60"
+      safari: "≥13 (iOS 13+)"
+      edge: "≥18"
+
+    initialization: |
+      // Auto-initialized on pages with WebAuthn support
+      import { WebAuthnManager } from './webauthn/WebAuthnManager/index.js';
+
+      const webauthn = new WebAuthnManager();
+      await webauthn.checkBrowserSupport();
+
+      // Registration
+      await webauthn.register({ deviceName: 'My iPhone' });
+
+      // Authentication
+      const result = await webauthn.authenticate();
+
+    endpoints:
+      - $ref: "../endpoints/webauthn.yaml#/routes/0"  # register/options
+      - $ref: "../endpoints/webauthn.yaml#/routes/1"  # register/verify
+      - $ref: "../endpoints/webauthn.yaml#/routes/2"  # authenticate/options
+      - $ref: "../endpoints/webauthn.yaml#/routes/3"  # authenticate/verify
+      - $ref: "../endpoints/webauthn.yaml#/routes/4"  # credentials GET
+      - $ref: "../endpoints/webauthn.yaml#/routes/5"  # credentials DELETE
+
+    notes: |
+      Requires HTTPS in production.
+      Platform authenticators (TouchID, FaceID) preferred over roaming (YubiKey).
+      Sign count validation prevents credential cloning.
+
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN ONBOARDING (Standalone)
+  # ---------------------------------------------------------------------------
+  webauthnOnboarding:
+    path: "frontend/web/static/js/webauthn-onboarding.js"
+    loc_code: 150
+    description: "Standalone onboarding script for authentication page"
+    depends_on:
+      - webauthnManager
+    notes: "Lighter version for login page (no full app bundle)"
+
+  # ---------------------------------------------------------------------------
+  # STATE MANAGEMENT REFACTORING (v7.0)
+  # ---------------------------------------------------------------------------
+  offlineManager_state:
+    path: "frontend/web/static/js/offline/offlineManager/core/OfflineState.ts"
+    loc_code: 215
+    description: "Centralized offline state management"
+    exports:
+      class: "OfflineState"
+    features:
+      - "Reactive state updates"
+      - "Event emitter for state changes"
+      - "Type-safe state access"
+    notes: "Refactored from monolithic offlineManager.js (v7.0)"
+
+  offlineManager_stateManager:
+    path: "frontend/web/static/js/offline/offlineManager/core/stateManager.ts"
+    loc_code: 105
+    description: "State lifecycle management for offline module"
+    notes: "Manages state initialization, updates, persistence"
+
+  listsManager_state:
+    path: "frontend/web/static/js/lists/listsManager/core/ListsState.ts"
+    loc_code: 169
+    description: "Shopping lists state management"
+    exports:
+      class: "ListsState"
+    notes: "Refactored from monolithic listsManager.js (v7.0)"
+
+  listsManager_operations:
+    path: "frontend/web/static/js/lists/listsManager/core/listOperations.ts"
+    loc_code: 355
+    description: "CRUD operations for shopping lists"
+    notes: "Separated from rendering logic (v7.0)"
+
+  listsManager_renderer:
+    path: "frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts"
+    loc_code: 579
+    description: "Rendering logic separated from state"
+    notes: "Pure rendering functions (v7.0)"
+
+  listsManager_stateManager:
+    path: "frontend/web/static/js/lists/listsManager/core/stateManager.ts"
+    loc_code: 307
+    description: "State lifecycle for lists module"
+
 # ---------------------------------------------------------------------------
 # VENDOR LIBRARIES
 # ---------------------------------------------------------------------------
@@ -894,8 +1017,8 @@ plan_page_functions:
       - event: "FormSubmitEvent"
     logging:
       - "[EDIT MODAL] updateFact called: {factId, recordType, recurringPlanId, editScope}"
-      - "[EDIT MODAL] Updating RECURRING PLAN TEMPLATE" (if template scope)
-      - "[EDIT MODAL] Updating SINGLE FACT" (if single scope)
+      - "[EDIT MODAL] Updating RECURRING PLAN TEMPLATE (if template scope)"
+      - "[EDIT MODAL] Updating SINGLE FACT (if single scope)"
     key_logic:
       scope_detection: |
         if (recurringPlanId && editScope === 'template'):

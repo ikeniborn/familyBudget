@@ -31,12 +31,6 @@ class LogsCollector {
 
         // Try to get user ID from page
         this._initUserId();
-
-        console.log('[LOGS_COLLECTOR] LogsCollector initialized', {
-            maxSize: this.maxSize,
-            batchInterval: this.batchInterval,
-            sessionId: this.sessionId
-        });
     }
 
     /**
@@ -57,9 +51,7 @@ class LogsCollector {
             }
         }
 
-        if (this.userId) {
-            console.log('[LOGS_COLLECTOR] User ID initialized:', this.userId);
-        } else {
+        if (!this.userId) {
             console.warn('[LOGS_COLLECTOR] User ID not found - logs will not be sent');
         }
     }
@@ -97,7 +89,6 @@ class LogsCollector {
 
         // Immediate push for errors
         if (level === 'error') {
-            console.log('[LOGS_COLLECTOR] Error detected - immediate push');
             this.sendBatch([logEntry]);
         }
     }
@@ -129,15 +120,8 @@ class LogsCollector {
         const logsToSend = logs || this.buffer.slice();  // Use provided logs or copy buffer
 
         if (logsToSend.length === 0) {
-            console.log('[LOGS_COLLECTOR] No logs to send');
             return;
         }
-
-        console.log('[LOGS_COLLECTOR] Sending batch of logs:', {
-            count: logsToSend.length,
-            userId: this.userId,
-            sessionId: this.sessionId
-        });
 
         try {
             const response = await fetch('/api/v1/admin/logs/browser', {
@@ -163,7 +147,6 @@ class LogsCollector {
             }
 
             const result = await response.json();
-            console.log('[LOGS_COLLECTOR] Batch sent successfully:', result);
 
             // Clear sent logs from buffer (only if we sent the entire buffer)
             if (logs === null) {
@@ -184,7 +167,6 @@ class LogsCollector {
             return;
         }
 
-        console.log('[LOGS_COLLECTOR] Starting periodic batch sending');
         this.isRunning = true;
 
         // Send batch every 30 seconds
@@ -204,14 +186,12 @@ class LogsCollector {
 
                 // sendBeacon is more reliable than fetch during unload
                 navigator.sendBeacon('/api/v1/admin/logs/browser', data);
-                console.log('[LOGS_COLLECTOR] Sent logs via sendBeacon on unload');
             }
         });
 
         // Send batch on visibility change (mobile wake/sleep)
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden' && this.buffer.length > 0) {
-                console.log('[LOGS_COLLECTOR] Page hidden - sending batch');
                 this.sendBatch();
             }
         });
@@ -226,7 +206,6 @@ class LogsCollector {
             return;
         }
 
-        console.log('[LOGS_COLLECTOR] Stopping periodic batch sending');
         this.isRunning = false;
 
         if (this.intervalId) {
@@ -236,7 +215,6 @@ class LogsCollector {
 
         // Final batch send
         if (this.buffer.length > 0) {
-            console.log('[LOGS_COLLECTOR] Sending final batch before stop');
             this.sendBatch();
         }
     }

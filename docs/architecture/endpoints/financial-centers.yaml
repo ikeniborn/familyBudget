@@ -53,7 +53,7 @@ routes:
   # ---------------------------------------------------------------------------
   # READ
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/financial-centers/{id}"
+  - path: "/api/v1/financial-centers/{financial_center_id}"
     method: GET
     auth: user
     description: "Get financial center by ID"
@@ -76,7 +76,7 @@ routes:
   # ---------------------------------------------------------------------------
   # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/financial-centers/{id}"
+  - path: "/api/v1/financial-centers/{financial_center_id}"
     method: PUT
     auth: user
     description: "Update financial center"
@@ -102,7 +102,7 @@ routes:
   # ---------------------------------------------------------------------------
   # DELETE (ADMIN ONLY)
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/financial-centers/{id}"
+  - path: "/api/v1/financial-centers/{financial_center_id}"
     method: DELETE
     auth: admin
     description: "Soft delete financial center"

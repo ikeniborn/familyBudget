@@ -59,14 +59,9 @@ import { checkWebAuthnOnboarding } from './features/onboarding';
  * Defensive pattern: works regardless of when script loads
  */
 function initWebAuthnOnboarding(): void {
-  console.log('[WEBAUTHN_INIT] Initializing WebAuthn onboarding', {
-    readyState: document.readyState,
-    timestamp: new Date().toISOString()
-  });
 
   // Only show modal if page is visible and focused
   if (document.hidden) {
-    console.log('[WEBAUTHN_ONBOARDING] Page hidden, deferring check');
     document.addEventListener('visibilitychange', function onVisible() {
       if (!document.hidden) {
         document.removeEventListener('visibilitychange', onVisible);

@@ -1635,22 +1635,9 @@
             const safeAreaLeft = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left');
             const safeAreaRight = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right');
 
-            console.log('[PWA_SAFE_AREA] Detected insets:', {
-                top: safeAreaTop || '0px',
-                bottom: safeAreaBottom || '0px',
-                left: safeAreaLeft || '0px',
-                right: safeAreaRight || '0px',
-                device: navigator.userAgent.includes('iPhone') ? 'iPhone' :
-                        navigator.userAgent.includes('Android') ? 'Android' : 'Desktop'
-            });
 
             // Detect notch/Dynamic Island
             const hasNotch = safeAreaTop && parseInt(safeAreaTop) > 20;
-            if (hasNotch) {
-                console.log('[PWA_SAFE_AREA] ✅ Notch/Dynamic Island detected, inset applied');
-            } else {
-                console.log('[PWA_SAFE_AREA] ℹ️ No notch detected, standard viewport');
-            }
 
             // Monitor header height changes (useful for debugging safe-area)
             const header = document.querySelector('header.navbar');
@@ -1658,10 +1645,6 @@
                 const observer = new ResizeObserver((entries) => {
                     for (let entry of entries) {
                         const height = entry.contentRect.height;
-                        console.log('[PWA_HEADER] Height:', Math.round(height) + 'px', {
-                            paddingTop: getComputedStyle(header).paddingTop,
-                            safeAreaTop: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top')
-                        });
                     }
                 });
                 observer.observe(header);
@@ -1768,11 +1751,9 @@
              */
             function showUpdateIcon() {
                 if (updateIconShown) {
-                    console.log('[SW_UPDATE] Text indicator already shown this session, skipping');
                     return;
                 }
 
-                console.log('[SW_UPDATE] Showing "new" text indicator with fade-in animation');
                 const wrapper = document.getElementById('update-available-wrapper');
 
                 if (!wrapper) {
@@ -1787,8 +1768,6 @@
                 // Mark as shown to prevent duplicates
                 updateIconShown = true;
 
-                console.log('[SW_UPDATE] ✨ "new" text indicator now visible with pulse animation');
-                console.log('[SW_UPDATE] User can click on "new" to reload and apply update');
             }
 
             /**
@@ -1796,16 +1775,13 @@
              * Shows confirmation modal instead of immediate reload
              */
             function handleUpdateClick() {
-                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator');
 
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] Available version:', newVersion || '(unknown)');
 
                 // Show confirmation modal
                 const modal = document.getElementById('sw-update-modal');
                 if (!modal) {
                     console.error('[SW_UPDATE] ERROR: Update modal not found in DOM');
-                    console.log('[SW_UPDATE] Falling back to immediate reload');
                     handleUpdateNow(); // Fallback
                     return;
                 }
@@ -1814,7 +1790,6 @@
                 const currentVersion = localStorage.getItem(SW_VERSION_KEY);
                 populateVersionInfo(currentVersion, newVersion);
 
-                console.log('[SW_UPDATE] Opening confirmation modal');
                 modal.showModal();
             }
 
@@ -1823,20 +1798,16 @@
              * Unregisters Service Worker, clears all caches, then reloads
              */
             async function handleUpdateNow() {
-                console.log('[SW_UPDATE] 🔄 User confirmed update - starting cleanup process');
 
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                console.log('[SW_UPDATE] Updating to version:', newVersion || '(unknown)');
 
                 try {
                     // Step 1/5: Unregister Service Worker
-                    console.log('[SW_UPDATE] Step 1/5: Unregistering Service Worker...');
                     const registration = await navigator.serviceWorker.getRegistration();
 
                     if (registration) {
                         const unregistered = await registration.unregister();
                         if (unregistered) {
-                            console.log('[SW_UPDATE] ✅ Service Worker unregistered successfully');
                         } else {
                             console.warn('[SW_UPDATE] ⚠️ Service Worker unregister returned false');
                         }
@@ -1845,34 +1816,27 @@
                     }
 
                     // Step 2/5: Clear all caches
-                    console.log('[SW_UPDATE] Step 2/5: Clearing all caches...');
                     const cacheNames = await caches.keys();
-                    console.log('[SW_UPDATE] Found caches:', cacheNames);
 
                     if (cacheNames.length > 0) {
                         const deleteResults = await Promise.all(
                             cacheNames.map(async (cacheName) => {
                                 const deleted = await caches.delete(cacheName);
-                                console.log(`[SW_UPDATE] Cache "${cacheName}": ${deleted ? '✅ deleted' : '⚠️ failed'}`);
                                 return deleted;
                             })
                         );
 
                         const deletedCount = deleteResults.filter(Boolean).length;
-                        console.log(`[SW_UPDATE] ✅ Cleared ${deletedCount}/${cacheNames.length} caches`);
                     } else {
-                        console.log('[SW_UPDATE] No caches to clear');
                     }
 
                     // Step 3/5: Clear IndexedDB
-                    console.log('[SW_UPDATE] Step 3/5: Clearing IndexedDB...');
                     try {
                         await Promise.race([
                             new Promise((resolve, reject) => {
                                 const deleteRequest = indexedDB.deleteDatabase('FamilyBudgetDB');
 
                                 deleteRequest.onsuccess = () => {
-                                    console.log('[SW_UPDATE] ✅ IndexedDB "FamilyBudgetDB" deleted successfully');
                                     resolve();
                                 };
 
@@ -1900,7 +1864,6 @@
                     }
 
                     // Step 4/5: Clear ALL localStorage
-                    console.log('[SW_UPDATE] Step 4/5: Clearing ALL localStorage...');
 
                     // Save new version BEFORE clearing (needed after reload)
                     const versionToSave = newVersion;
@@ -1908,30 +1871,23 @@
                     // Clear ALL localStorage entries
                     const localStorageKeys = Object.keys(localStorage);
                     if (localStorageKeys.length > 100) {
-                        console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear (too many to log)`);
                     } else {
-                        console.log(`[SW_UPDATE] Found ${localStorageKeys.length} localStorage keys to clear:`, localStorageKeys);
                     }
 
                     localStorage.clear();
-                    console.log('[SW_UPDATE] ✅ localStorage cleared completely');
 
                     // Restore only new version (needed for next controllerchange event)
                     if (versionToSave) {
                         localStorage.setItem(SW_VERSION_KEY, versionToSave);
-                        console.log('[SW_UPDATE] ✅ Saved new version to localStorage:', versionToSave);
                     }
 
                     // Close modal before reload
                     const modal = document.getElementById('sw-update-modal');
                     if (modal) {
                         modal.close();
-                        console.log('[SW_UPDATE] ✅ Modal closed');
                     }
 
                     // Step 5/5: Reload page
-                    console.log('[SW_UPDATE] Step 5/5: Reloading page...');
-                    console.log('[SW_UPDATE] ⟳ Initiating hard reload...');
                     window.location.reload(true); // Hard reload (bypass cache)
 
                 } catch (error) {
@@ -1943,7 +1899,6 @@
                     });
 
                     // Attempt reload anyway (best effort)
-                    console.log('[SW_UPDATE] Attempting reload despite error...');
                     window.location.reload(true);
                 }
             }
@@ -1953,16 +1908,12 @@
              * Closes modal and keeps update indicator visible
              */
             function handleUpdateLater() {
-                console.log('[SW_UPDATE] ⏸️ User chose "Later" - closing modal');
 
                 const modal = document.getElementById('sw-update-modal');
                 if (modal) {
                     modal.close();
-                    console.log('[SW_UPDATE] ✅ Modal closed');
                 }
 
-                console.log('[SW_UPDATE] Update indicator remains visible for future action');
-                console.log('[SW_UPDATE] User can click "new" indicator again to retry');
             }
 
             /**
@@ -1972,7 +1923,6 @@
              * @param {string|null} newVersion - New available version from localStorage
              */
             function populateVersionInfo(currentVersion, newVersion) {
-                console.log('[SW_UPDATE] Populating version info in modal...');
 
                 const currentElem = document.getElementById('sw-current-version');
                 const newElem = document.getElementById('sw-new-version');
@@ -1987,16 +1937,13 @@
                 // Display current version with fallback
                 const currentText = currentVersion || '(неизвестно)';
                 currentElem.textContent = currentText;
-                console.log('[SW_UPDATE] Modal - Current version displayed:', currentText);
 
                 // Display new version with fallback
                 const newText = newVersion || '(неизвестно)';
                 newElem.textContent = newText;
-                console.log('[SW_UPDATE] Modal - New version displayed:', newText);
 
                 // Log version transition for debugging
                 if (currentVersion && newVersion) {
-                    console.log(`[SW_UPDATE] ✅ Version transition ready: ${currentVersion} → ${newVersion}`);
                 } else if (!currentVersion && newVersion) {
                     console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
                 } else if (currentVersion && !newVersion) {
@@ -2014,7 +1961,6 @@
                 const updateAvailable = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY);
 
                 if (updateAvailable === 'true') {
-                    console.log('[SW_UPDATE] Pending update detected from previous session/tab');
                     showUpdateIcon();
                 }
             }
@@ -2026,7 +1972,6 @@
 
             // Initialize modal button listeners on DOMContentLoaded
             document.addEventListener('DOMContentLoaded', () => {
-                console.log('[SW_UPDATE] Initializing modal button listeners');
 
                 const updateNowBtn = document.getElementById('sw-update-now-btn');
                 const updateLaterBtn = document.getElementById('sw-update-later-btn');
@@ -2034,36 +1979,30 @@
 
                 if (updateNowBtn) {
                     updateNowBtn.addEventListener('click', (e) => {
-                        console.log('[SW_UPDATE] 🖱️ "Обновить сейчас" button clicked');
                         e.preventDefault();
                         e.stopPropagation();
                         handleUpdateNow();
                     });
-                    console.log('[SW_UPDATE] ✅ "Обновить сейчас" listener attached');
                 } else {
                     console.error('[SW_UPDATE] ❌ "Обновить сейчас" button not found in DOM!');
                 }
 
                 if (updateLaterBtn) {
                     updateLaterBtn.addEventListener('click', (e) => {
-                        console.log('[SW_UPDATE] 🖱️ "Позже" button clicked');
                         e.preventDefault();
                         e.stopPropagation();
                         handleUpdateLater();
                     });
-                    console.log('[SW_UPDATE] ✅ "Позже" listener attached');
                 } else {
                     console.error('[SW_UPDATE] ❌ "Позже" button not found in DOM!');
                 }
 
                 if (backdropBtn) {
                     backdropBtn.addEventListener('click', (e) => {
-                        console.log('[SW_UPDATE] 🖱️ Modal backdrop clicked');
                         e.preventDefault();
                         e.stopPropagation();
                         handleUpdateLater();
                     });
-                    console.log('[SW_UPDATE] ✅ Backdrop listener attached');
                 }
             });
 
@@ -2085,7 +2024,6 @@
                     messageChannel.port1.onmessage = (event) => {
                         clearTimeout(timeout);
                         if (event.data.type === 'VERSION_RESPONSE') {
-                            console.log('[PWA] Received SW version:', event.data.version);
                             resolve(event.data.version);
                         } else {
                             resolve(null);
@@ -2102,7 +2040,6 @@
             // CRITICAL: Listen for controllerchange event (new SW activated)
             // Показываем иконку обновления вместо автоматической перезагрузки
             navigator.serviceWorker.addEventListener('controllerchange', async () => {
-                console.log('[SW_UPDATE] ⚡ controllerchange event fired');
 
                 const controller = navigator.serviceWorker.controller;
                 if (!controller) {
@@ -2111,16 +2048,13 @@
                 }
 
                 const savedVersion = localStorage.getItem(SW_VERSION_KEY);
-                console.log('[SW_UPDATE] Saved version:', savedVersion || '(none - first install)');
 
                 // First install detection: If no saved version, this is first time
                 if (!savedVersion) {
-                    console.log('[SW_UPDATE] 🆕 First install detected - setting initial version, no icon');
 
                     try {
                         const newVersion = await getSWVersion(controller);
                         localStorage.setItem(SW_VERSION_KEY, newVersion);
-                        console.log('[SW_UPDATE] Initial version saved:', newVersion);
                     } catch (error) {
                         console.error('[SW_UPDATE] ERROR getting initial version:', error);
                     }
@@ -2132,7 +2066,6 @@
                 let newVersion;
                 try {
                     newVersion = await getSWVersion(controller);
-                    console.log('[SW_UPDATE] New SW version received:', newVersion);
                 } catch (error) {
                     console.error('[SW_UPDATE] ERROR getting new version:', error);
                     return;
@@ -2140,12 +2073,10 @@
 
                 // Compare versions
                 if (newVersion === savedVersion) {
-                    console.log('[SW_UPDATE] ✓ Version unchanged, no update needed');
                     return;
                 }
 
                 // UPDATE DETECTED!
-                console.log('[SW_UPDATE] 🔔 UPDATE AVAILABLE:', savedVersion, '→', newVersion);
 
                 // Store update state for persistence
                 localStorage.setItem(SW_UPDATE_AVAILABLE_KEY, 'true');
@@ -2158,15 +2089,11 @@
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.min.js')
                     .then(async (registration) => {
-                        console.log('[PWA] Service Worker registered:', registration.scope);
-
                         // Сохраняем текущую версию SW при загрузке
                         if (navigator.serviceWorker.controller) {
-                            console.log('[PWA] Getting current CACHE_VERSION from SW...');
                             const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
                             if (currentVersion) {
                                 localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                                console.log('[PWA] Current CACHE_VERSION saved:', currentVersion);
                             } else {
                                 console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
                             }
@@ -2177,7 +2104,6 @@
 
                         // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
                         setInterval(() => {
-                            console.log('[PWA] Running hourly update check...');
                             registration.update(); // Silent check
                         }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
@@ -2186,20 +2112,14 @@
                             const newWorker = registration.installing;
                             if (!newWorker) return;
 
-                            console.log('[PWA] New service worker found, installing...');
-
                             newWorker.addEventListener('statechange', () => {
-                                console.log('[PWA] Service worker state:', newWorker.state);
-
                                 if (newWorker.state === 'installed') {
                                     if (navigator.serviceWorker.controller) {
                                         // Update available - will auto-activate via skipWaiting()
-                                        console.log('[PWA] Update available, auto-activating...');
                                         // skipWaiting() уже вызван в SW install event
                                         // controllerchange event триггерит reload
                                     } else {
                                         // First install - just log, no toast (silent UX)
-                                        console.log('[PWA] Service worker installed for the first time');
                                         // Note: Version will be saved on controllerchange or next page load
                                         // (cannot get CACHE_VERSION from installing worker via postMessage)
                                     }
@@ -2214,11 +2134,8 @@
 
             // Check for pending updates on page load
             document.addEventListener('DOMContentLoaded', () => {
-                console.log('[SW_UPDATE] DOMContentLoaded - checking for pending updates');
                 checkForPendingUpdate();
             });
-        } else {
-            console.log('[PWA] Service Worker not supported in this browser');
         }
     </script>
 
@@ -2267,17 +2184,13 @@
                 return;
             }
 
-            console.log('[SYNC] Updating navbar badge:', count);
-
             if (count > 0) {
                 wrapper.classList.remove('hidden');
                 countEl.textContent = count;
                 wrapper.setAttribute('data-tip', `${count} ${count === 1 ? 'запись ожидает' : 'записей ожидают'} синхронизации`);
-                console.log('[SYNC] Navbar badge shown:', count);
             } else {
                 wrapper.classList.add('hidden');
                 countEl.textContent = '0';
-                console.log('[SYNC] Navbar badge hidden');
             }
         }
 
@@ -2351,7 +2264,6 @@
                 // Start periodic navbar sync badge updates
                 setTimeout(periodicSyncBadgeUpdate, 1000);  // Initial update after 1s
                 setInterval(periodicSyncBadgeUpdate, 5000); // Update every 5s
-                console.log('[SYNC] Periodic navbar badge updates started');
 
                 // Precache offline pages для работы в offline режиме
                 // Страницы из OFFLINE_PAGES в sw.js, кроме / (уже в STATIC_CACHE)
@@ -2674,8 +2586,6 @@
 
         // Push Notification Permission Banner
 (async function initPushBanner() {
-            logPushBanner.info('🚀 Initializing push permission banner');
-
             const banner = document.getElementById('push-permission-banner');
             const enableBtn = document.getElementById('push-permission-enable');
             const laterBtn = document.getElementById('push-permission-later');
@@ -2692,13 +2602,6 @@
                 return;
             }
 
-            logPushBanner.info('✅ Banner elements found', {
-                bannerId: banner.id,
-                enableBtnId: enableBtn.id,
-                laterBtnId: laterBtn.id,
-                closeBtnId: closeBtn.id
-            });
-
             // Check service worker support
             if (!('serviceWorker' in navigator)) {
                 logPushBanner.warn('⚠️ Service Worker not supported - banner disabled');
@@ -2710,8 +2613,6 @@
                 logPushBanner.warn('⚠️ Notification/PushManager API not supported - banner disabled');
                 return;
             }
-
-            logPushBanner.info('✅ Browser supports Service Worker + Notifications');
 
             // Check budgetPushManager availability
             if (!window.budgetPushManager) {
@@ -2732,15 +2633,8 @@
             function shouldShowBanner() {
                 // Check permission state
                 const currentPermission = Notification.permission;
-                logPushBanner.info('📊 Current notification permission', {
-                    permission: currentPermission,
-                    timestamp: new Date().toISOString()
-                });
 
                 if (currentPermission !== 'default') {
-                    logPushBanner.info('⏭️ Permission already decided', {
-                        permission: currentPermission
-                    });
                     return false;
                 }
 
@@ -2751,15 +2645,7 @@
                     const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
 
                     if (hoursSinceDismissed < 24) {
-                        logPushBanner.info('⏭️ Banner dismissed recently', {
-                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1),
-                            willShowAgainIn: (24 - hoursSinceDismissed).toFixed(1) + ' hours'
-                        });
                         return false;
-                    } else {
-                        logPushBanner.info('✅ Dismissal expired - banner will show', {
-                            hoursSinceDismissed: hoursSinceDismissed.toFixed(1)
-                        });
                     }
                 }
 
@@ -2770,51 +2656,25 @@
             function showBanner() {
                 if (shouldShowBanner()) {
                     banner.classList.remove('hidden');
-
-                    const rect = banner.getBoundingClientRect();
-                    logPushBanner.info('🎉 Banner displayed', {
-                        position: {
-                            top: `${rect.top}px`,
-                            left: `${rect.left}px`,
-                            width: `${rect.width}px`,
-                            height: `${rect.height}px`
-                        },
-                        safeArea: {
-                            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') || '0px',
-                            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left') || '0px',
-                            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right') || '0px'
-                        },
-                        zIndex: window.getComputedStyle(banner).zIndex
-                    });
                 }
             }
 
             // Helper function: hide banner
             function hideBanner() {
                 banner.classList.add('hidden');
-                logPushBanner.info('👋 Banner hidden');
             }
 
             // Helper function: dismiss banner for 24 hours
             function dismissBanner() {
-                logPushBanner.info('💾 Dismissing banner for 24 hours');
-
                 banner.classList.add('hidden');
 
                 const dismissTimestamp = Date.now().toString();
                 localStorage.setItem(BANNER_DISMISSED_KEY, dismissTimestamp);
-
-                logPushBanner.info('✅ Banner dismissed', {
-                    key: BANNER_DISMISSED_KEY,
-                    timestamp: dismissTimestamp,
-                    expiresIn: '24 hours'
-                });
             }
 
             // "Включить" button handler
             if (enableBtn) {
                 enableBtn.addEventListener('click', async () => {
-                    logPushBanner.info('🖱️ "Enable" button clicked - requesting permission');
                     logPushBanner.time('permission-request');
 
                     hideBanner();
@@ -2824,13 +2684,7 @@
                         const granted = await window.budgetPushManager.requestPermission();
                         logPushBanner.timeEnd('permission-request');
 
-                        logPushBanner.info('📬 Permission request completed', {
-                            granted: granted,
-                            timestamp: new Date().toISOString()
-                        });
-
                         if (granted) {
-                            logPushBanner.info('✅ Permission GRANTED - budgetPushManager handled subscription');
                             showToast('Уведомления включены', 'success');
                         } else {
                             logPushBanner.warn('🚫 Permission DENIED by user');
@@ -2851,7 +2705,6 @@
             // "Позже" button handler
             if (laterBtn) {
                 laterBtn.addEventListener('click', () => {
-                    logPushBanner.info('🖱️ "Later" button clicked - dismissing for 24 hours');
                     dismissBanner();
                 });
             }
@@ -2859,20 +2712,12 @@
             // Close button (✕) handler
             if (closeBtn) {
                 closeBtn.addEventListener('click', () => {
-                    logPushBanner.info('🖱️ Close button (✕) clicked - dismissing for 24 hours');
                     dismissBanner();
                 });
             }
 
             // Show banner after delay
-            logPushBanner.info('⏳ Scheduling banner display', {
-                delay: `${BANNER_SHOW_DELAY}ms`,
-                willShow: shouldShowBanner()
-            });
-
             setTimeout(showBanner, BANNER_SHOW_DELAY);
-
-            logPushBanner.info('✅ Push banner initialization complete');
         })();
 
         /**
@@ -2891,8 +2736,6 @@
                 console.warn('[NAV_SYNC] Badge elements not found');
                 return;
             }
-
-            console.log(`[NAV_SYNC] Updating badge: count=${count}, syncing=${isSyncing}`);
 
             // Update count
             badge.textContent = count;
@@ -2968,7 +2811,6 @@
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('just_logged_in') === 'true') {
-                console.log('[WEBAUTHN] Login detected via query parameter - setting sessionStorage flag');
                 sessionStorage.setItem('just_logged_in', 'true');
                 // Clean URL (remove query parameter)
                 const url = new URL(window.location.href);

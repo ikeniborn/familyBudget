@@ -341,6 +341,42 @@ let editCategoryTreeSelect = null;
 let editDateCalendar = null; // CalendarWidget instance for edit modal
 // allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
 
+// Modal Listener Manager - encapsulated AbortController for edit modal
+const ModalListenerManager = (function() {
+    let abortController = null;
+
+    return {
+        /**
+         * Register event listener with automatic cleanup of previous listener
+         * @param {HTMLElement} element - DOM element to attach listener
+         * @param {string} eventName - Event name (e.g., 'change')
+         * @param {Function} handler - Event handler function
+         */
+        registerListener(element, eventName, handler) {
+            // Abort previous listener if exists
+            if (abortController) {
+                abortController.abort();
+            }
+
+            // Create new AbortController
+            abortController = new AbortController();
+
+            // Register listener with signal
+            element.addEventListener(eventName, handler, { signal: abortController.signal });
+        },
+
+        /**
+         * Manually abort current listener (optional, for explicit cleanup)
+         */
+        abort() {
+            if (abortController) {
+                abortController.abort();
+                abortController = null;
+            }
+        }
+    };
+})();
+
 // Global state
 let currentPage = 0;
 let pageSize = 50;
@@ -1553,6 +1589,87 @@ function nextPage() {
     }
 }
 
+// Filter cost centers by financial center ID
+async function filterEditCostCenters(financialCenterId) {
+    const select = document.getElementById('edit-cost-center');
+    if (!select) return;
+
+    const currentValue = select.value;
+
+    // Clear all options except the first one ("-- Не указано --")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) select.value = currentValue;
+        }
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCenters = data.cost_centers || [];
+            filteredCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) {
+                const exists = filteredCenters.some(cc => cc.id == currentValue);
+                if (exists) {
+                    select.value = currentValue;
+                } else {
+                    debugLog(`[CostCenter] Selection reset (CC ${currentValue} not available for FC ${financialCenterId})`);
+                }
+            }
+        } else {
+            // Fallback to showing all from cache
+            if (isCacheValid(dropdownCache.costCenters)) {
+                const centers = dropdownCache.costCenters.data;
+                centers.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    select.appendChild(option);
+                });
+                if (currentValue) select.value = currentValue;
+            }
+        }
+    } catch (error) {
+        console.error('[CostCenter] Error filtering cost centers:', error);
+        // Fallback to showing all from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            if (currentValue) select.value = currentValue;
+        }
+    }
+}
+
 // Show edit modal
 async function showEditModal(factId) {
     const fact = factsData.find(f => f.id === factId);
@@ -1688,12 +1805,9 @@ async function showEditModal(factId) {
     // Setup financial center change handler for edit modal
     const editFcSelect = document.getElementById('edit-financial-center');
     if (editFcSelect && editCategoryTreeSelect) {
-        // Remove previous listener if exists (prevent duplicates)
-        const newEditFcSelect = editFcSelect.cloneNode(true);
-        editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
-
-        newEditFcSelect.addEventListener('change', async (e) => {
-            const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+        // Register listener with automatic cleanup via ModalListenerManager
+        ModalListenerManager.registerListener(editFcSelect, 'change', async (e) => {
+            const fcId = editFcSelect.value ? parseInt(editFcSelect.value) : null;
             console.log(`[facts.html] 🔄 Financial Center changed in edit modal:`, {
                 newFcId: fcId,
                 currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null

@@ -5,14 +5,14 @@ description: |
   Модули бизнес-логики проекта Family Budget.
   Каждый модуль содержит services, models, endpoints и зависимости.
 
-total_modules: 14
+total_modules: 15
 
 modules:
   # Core Budget
   - name: authentication
     file: "./authentication.yaml"
-    description: "JWT tokens, Telegram OAuth, Email/Password, 2FA"
-    services: [jwt, telegram_auth, auth_service, password_service, totp_service, two_factor_session_service, webapp_auth]
+    description: "JWT tokens, Telegram OAuth, Email/Password, 2FA, WebAuthn"
+    services: [jwt, telegram_auth, auth_service, password_service, totp_service, two_factor_session_service, webapp_auth, webauthn_service]
     critical: true
 
   - name: budget_management
@@ -52,7 +52,7 @@ modules:
   - name: csv_import
     file: "./csv-import.yaml"
     description: "Импорт из банков (Tinkoff, generic CSV, Google Sheets)"
-    services: [tinkoff_csv_parser, generic_csv_parser, google_sheets_parser, csv_detector, csv_analyzer, csv_validator, csv_column_matcher, csv_security, import_executor, mapping_service]
+    services: [tinkoff_csv_parser, generic_csv_parser, google_sheets_parser, csv_detector, bank_provider_service, csv_analyzer, csv_validator, csv_column_matcher, csv_security, import_executor, mapping_service]
 
   # Notifications
   - name: notifications
@@ -70,7 +70,14 @@ modules:
   - name: admin
     file: "./admin.yaml"
     description: "Управление пользователями, bulk операции"
-    services: [user_service]
+    services: [user_service, logs_collector_service, avatar_service, id_generator]
+
+  # Caching
+  - name: caching
+    file: "./caching.yaml"
+    description: "Redis кэширование, write-behind, cache metrics"
+    services: [redis_service, cache_service, write_behind_service, cache_metrics_service, redis_pubsub_service, redis_ws_manager]
+    notes: "Optional. System works without Redis (single-worker mode)"
 
   # Real-time
   - name: realtime
@@ -112,6 +119,7 @@ dependency_order:
   - notifications           # Depends on: authentication
   - analytics               # Depends on: budget_management, financial_centers
   - admin                   # Depends on: authentication (admin only)
-  - realtime                # Depends on: budget_management, shopping_lists
+  - caching                 # No dependencies (optional)
+  - realtime                # Depends on: budget_management, shopping_lists, caching (optional)
   - offline                 # Depends on: budget_management, shopping_lists (frontend)
   - backup_restore          # No runtime dependencies (operational tool)

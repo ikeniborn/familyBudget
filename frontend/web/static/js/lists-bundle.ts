@@ -67,6 +67,8 @@ import {
   // Global helpers (v7.x.x - Navigation & modals)
   openModal,
   navigateHomeOfflineFriendly,
+  handleMobileAddButton,
+  updateMobileAddButton,
 
   // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
   handleItemCreated,
@@ -130,6 +132,8 @@ const windowExports = {
   // Global helpers - v7.x.x CRITICAL fixes
   openModal,                // lists.html:56,62,68 - Open budget modals (stub)
   navigateHomeOfflineFriendly,  // lists.html:38 - Home navigation
+  handleMobileAddButton,    // lists.html:XX - Mobile "Add" button (NEW)
+  updateMobileAddButton,    // Called by renderLandingView/renderDetailView (NEW)
 
   markAllCompletedWithConfirm,
   unmarkAllCompletedWithConfirm,
@@ -246,23 +250,10 @@ try {
       enumerable: true
     });
 
-
-    if ((window as any).logAPI) {
-      (window as any).logAPI.info('[LISTS_BUNDLE] ✅ All exports locked', {
-        count: Object.keys(windowExports).length,
-        functions: Object.keys(windowExports).sort(),
-        timestamp: new Date().toISOString()
-      });
-    }
   }
 } catch (error) {
   console.error('[LISTS_BUNDLE] ❌ CRITICAL ERROR:', error);
   if (typeof alert !== 'undefined') {
     alert('ОШИБКА: Не удалось загрузить модуль списков. Обратитесь к администратору.');
   }
-}
-
-// Логирование успешной загрузки
-if (typeof window !== 'undefined' && (window as any).logAPI) {
-  (window as any).logAPI.info('[LISTS_BUNDLE] All modules loaded successfully');
 }

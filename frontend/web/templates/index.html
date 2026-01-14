@@ -1170,10 +1170,6 @@ async function openEditFromDashboard(factId) {
 
             newEditFcSelect.addEventListener('change', async (e) => {
                 const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
-                console.log(`[index.html] 🔄 Financial Center changed in edit modal:`, {
-                    newFcId: fcId,
-                    currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
-                });
 
                 // CRITICAL: Stop event propagation to prevent global listeners from interfering
                 e.stopPropagation();
@@ -1190,9 +1186,6 @@ async function openEditFromDashboard(factId) {
                 // Small delay to allow DOM to settle (mobile browser optimization)
                 await new Promise(resolve => setTimeout(resolve, 50));
                 console.log('[FC_CHANGE] DOM settled, category dropdown ready');
-
-                console.log(`[index.html] ✅ Filtering complete. New category value:`,
-                    editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
             });
         }
 
@@ -2197,7 +2190,6 @@ function openAddTransactionModal() {
 window.openAddTransactionModal = openAddTransactionModal;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('[INIT] DOMContentLoaded fired at', new Date().toISOString());
 
     // ========== VERSION VERIFICATION MARKER ==========
     // This verifies that new code is actually running
@@ -2206,7 +2198,6 @@ document.addEventListener('DOMContentLoaded', function() {
     marker.dataset.version = 'v20251225_1200';
     marker.style.display = 'none';
     document.body.appendChild(marker);
-    console.log('[INIT] ✅ Code version:', marker.dataset.version);
 
     // ========== CACHE CLEAR HELPER ==========
     // For manual debugging if SW cache persists
@@ -2803,15 +2794,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Each page's DOMContentLoaded can register its own handler on the same form element
     // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
     const transferForm = document.getElementById('form_transfer');
-    console.log('[index.html] Transfer form guard check:', {
-        formExists: !!transferForm,
-        alreadyRegistered: transferForm?.dataset?.submitHandlerRegistered,
-        timestamp: new Date().toISOString()
-    });
 
     if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
         transferForm.dataset.submitHandlerRegistered = 'true';
-        console.log('[index.html] ✅ Transfer form submit handler REGISTERED');
 
         // De-duplication guard: prevent simultaneous submissions
         let isSubmitting = false;
@@ -2825,8 +2810,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             isSubmitting = true;
-
-            console.log('[index.html] 🚀 Transfer form submit handler EXECUTING');
 
         const formData = new FormData(e.target);
 
@@ -3734,19 +3717,11 @@ function updatePlanPeriodButtons() {
 
 // Установить обработчики для кнопок периода
 function setupPlanPeriodButtons() {
-    console.log('[setupPlanPeriodButtons] ========== START ==========');
-    console.log('[setupPlanPeriodButtons] Timestamp:', new Date().toISOString());
 
     // Only select period buttons inside modal_add_plan (not transfer_modal)
     const periodButtons = document.querySelectorAll('#form_modal_add_plan .period-btn');
-    console.log('[setupPlanPeriodButtons] Found period buttons:', periodButtons.length);
-    console.log('[setupPlanPeriodButtons] Selector used: #form_modal_add_plan .period-btn');
 
     const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
-    console.log('[setupPlanPeriodButtons] Found hidden input:', !!hiddenInput);
-    if (hiddenInput) {
-        console.log('[setupPlanPeriodButtons] Hidden input name:', hiddenInput.name, 'current value:', hiddenInput.value);
-    }
 
     if (periodButtons.length === 0) {
         console.error('[setupPlanPeriodButtons] ❌ ERROR: No period buttons found!');
@@ -3761,7 +3736,6 @@ function setupPlanPeriodButtons() {
 
     // Инициализировать надписи на кнопках и data-атрибуты (текущий месяц +0, +1, +2)
     const today = new Date();
-    console.log('[setupPlanPeriodButtons] Today:', today.toISOString());
 
     periodButtons.forEach((btn, index) => {
         const offset = parseInt(btn.dataset.offset);
@@ -3771,7 +3745,6 @@ function setupPlanPeriodButtons() {
         btn.textContent = label;
         btn.dataset.year = date.getFullYear();
         btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
-        console.log('[setupPlanPeriodButtons] Button', index, ':', label, '→', btn.dataset.year + '-' + btn.dataset.month);
     });
 
     // Установить значение для первой кнопки (активной по умолчанию)
@@ -3779,12 +3752,9 @@ function setupPlanPeriodButtons() {
     if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
         const defaultValue = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
         hiddenInput.value = defaultValue;
-        console.log('[setupPlanPeriodButtons] ✅ Default plan_month:', defaultValue);
     } else {
         console.error('[setupPlanPeriodButtons] ❌ ERROR: First button missing data attributes!');
     }
-
-    console.log('[setupPlanPeriodButtons] ========== COMPLETE ==========');
 
     // Обработчики кликов (avoid duplicates)
     periodButtons.forEach(button => {
@@ -6150,18 +6120,6 @@ window.addEventListener('resize', () => {
     const width = window.innerWidth;
     const breakpoint = width >= 1024 ? 'desktop' : (width >= 768 ? 'tablet' : 'mobile');
     const quickActionsVisible = width >= 1024; // lg breakpoint (desktop only)
-
-    console.log('[INDEX_PAGE] Page loaded:', {
-        fabVisible: !!document.getElementById('fab-toolbar'),
-        quickActionsVisible: quickActionsVisible,
-        breakpoint: breakpoint,
-        width: width,
-        quickActionsDetails: {
-            shouldShow: width >= 1024,
-            hiddenOnTablet: width >= 768 && width < 1024,
-            hiddenOnMobile: width < 768
-        }
-    });
 });
 </script>
 

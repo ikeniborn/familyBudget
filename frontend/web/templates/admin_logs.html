@@ -359,10 +359,6 @@ function renderLogs(service, logs) {
  * Refresh logs from backend
  */
 async function refreshLogs() {
-    if (logAdmin) {
-        logAdmin.info('Обновление логов...');
-    }
-
     const filters = getFilterValues();
 
     // Build query parameters
@@ -386,9 +382,6 @@ async function refreshLogs() {
         }
 
         const data = await response.json();
-        if (logAdmin) {
-            logAdmin.info(`Логи успешно загружены: ${data.filtered_count} записей`, data.filters_applied);
-        }
 
         // Render logs for each service
         renderLogs('browser', data.browser);
@@ -411,9 +404,6 @@ async function refreshLogs() {
  * Apply filters and refresh logs
  */
 async function applyFilters() {
-    if (logAdmin) {
-        logAdmin.info('Применение фильтров');
-    }
     await refreshLogs();
 }
 
@@ -421,10 +411,6 @@ async function applyFilters() {
  * Reset all filters
  */
 function resetFilters() {
-    if (logAdmin) {
-        logAdmin.info('Сброс фильтров');
-    }
-
     document.getElementById('filter-level').value = 'all';
     document.getElementById('filter-service').value = 'all';
     document.getElementById('date-from').value = '';
@@ -442,27 +428,16 @@ function resetFilters() {
  * Initialize calendar widget for date range selection
  */
 function initializeCalendar() {
-    if (logAdmin) {
-        logAdmin.info('Инициализация календаря');
-    }
-
     logCalendar = new CalendarWidget({
         startInputElement: document.getElementById('date-from'),
         endInputElement: document.getElementById('date-to'),
         mode: 'range',
         triggerContainer: '#admin-logs-date-range-trigger',
         onSelect: (startDate, endDate) => {
-            if (logAdmin) {
-                logAdmin.info(`Выбран диапазон дат: ${startDate} - ${endDate}`);
-            }
             // Auto-apply filters when date range selected
             applyFilters();
         }
     });
-
-    if (logAdmin) {
-        logAdmin.info('Календарь инициализирован');
-    }
 }
 
 /**
@@ -475,10 +450,6 @@ function startAutoRefresh() {
     // Get interval from dropdown (in seconds)
     const intervalSeconds = parseInt(document.getElementById('filter-interval').value, 10);
     const intervalMs = intervalSeconds * 1000;
-
-    if (logAdmin) {
-        logAdmin.info(`Запуск автообновления каждые ${intervalSeconds} секунд`);
-    }
 
     // Set running flag
     isAutoRefreshRunning = true;
@@ -497,9 +468,6 @@ function startAutoRefresh() {
  */
 function stopAutoRefresh() {
     if (autoRefreshInterval) {
-        if (logAdmin) {
-            logAdmin.info('Остановка автообновления');
-        }
         clearInterval(autoRefreshInterval);
         autoRefreshInterval = null;
     }
@@ -527,10 +495,6 @@ function toggleAutoRefresh() {
         buttonText.textContent = 'Запустить';
         playIcon.classList.remove('hidden');
         stopIcon.classList.add('hidden');
-
-        if (logAdmin) {
-            logAdmin.info('Автообновление остановлено пользователем');
-        }
     } else {
         // Currently stopped - start it
         startAutoRefresh();
@@ -541,10 +505,6 @@ function toggleAutoRefresh() {
         buttonText.textContent = 'Остановить';
         playIcon.classList.add('hidden');
         stopIcon.classList.remove('hidden');
-
-        if (logAdmin) {
-            logAdmin.info('Автообновление запущено пользователем');
-        }
     }
 }
 
@@ -552,8 +512,6 @@ function toggleAutoRefresh() {
  * Initialize page
  */
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('[ADMIN_LOGS] DOMContentLoaded event fired');
-
     // Check if Logger class is available
     if (typeof Logger === 'undefined') {
         console.error('[ADMIN_LOGS] Logger class not found!');
@@ -563,7 +521,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize logger FIRST
     logAdmin = new Logger('[ADMIN_LOGS]', 'ADMIN_LOGS');
-    logAdmin.info('Страница системных логов загружена');
 
     // Check if CalendarWidget is available
     if (typeof CalendarWidget === 'undefined') {
@@ -595,7 +552,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-reset').addEventListener('click', resetFilters);
 
     // Load initial logs
-    logAdmin.info('Загрузка начальных логов...');
     refreshLogs();
 
     // Auto-refresh is now controlled by toggle button
@@ -606,7 +562,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.hidden) {
             // Page hidden - stop auto-refresh if running
             if (isAutoRefreshRunning) {
-                logAdmin.info('Страница скрыта - остановка автообновления');
                 stopAutoRefresh();
 
                 // Update UI to show stopped state
@@ -623,7 +578,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             // Page visible - just refresh once (don't auto-start)
-            logAdmin.info('Страница видима - обновление логов');
             refreshLogs();
         }
     });

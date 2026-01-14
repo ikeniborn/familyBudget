@@ -10,8 +10,8 @@ import {
   type SyncResult
 } from '@web/offline/offlineManager/core/OfflineState';
 
-// TODO: Enable when offlineManager is migrated to modular structure (Phase 2.1-2.5)
-describe.skip('OfflineState', () => {
+// ✅ ACTIVATED (Phase 1.1): offlineManager migrated to modular structure
+describe('OfflineState', () => {
   const mockDb = {
     init: vi.fn(),
     addFact: vi.fn(),
@@ -20,6 +20,7 @@ describe.skip('OfflineState', () => {
 
   beforeEach(() => {
     // Reset state before each test
+    resetState(mockDb);
     initializeState(mockDb);
   });
 
@@ -43,7 +44,7 @@ describe.skip('OfflineState', () => {
 
       // Retry configuration
       expect(state.retryDelay).toBe(5000); // 5 seconds
-      expect(state.maxRetries).toBe(3);
+      expect(state.maxRetries).toBe(5); // Updated to match offlineManager.js:48
       expect(state.retryTimeout).toBeNull();
     });
 
@@ -52,7 +53,7 @@ describe.skip('OfflineState', () => {
 
       // Toast debouncing
       expect(state.lastToastTime).toBe(0);
-      expect(state.toastDebounceMs).toBe(5000); // 5 seconds
+      expect(state.toastDebounceMs).toBe(10000); // Updated to match offlineManager.js:51
       expect(state.lastOfflineToastTime).toBe(0);
     });
 
@@ -79,8 +80,8 @@ describe.skip('OfflineState', () => {
       expect(state.networkDetector).toBeNull();
       expect(state.isFirstRequest).toBe(true);
       expect(state.firstRequestTimeout).toBe(8000); // 8 seconds
-      expect(state.normalTimeout).toBe(5000); // 5 seconds
-      expect(state.optimizedTimeout).toBe(3000); // 3 seconds
+      expect(state.normalTimeout).toBe(3000); // Updated to match offlineManager.js:91
+      expect(state.optimizedTimeout).toBe(2000); // Updated to match offlineManager.js:92
     });
   });
 
@@ -267,7 +268,7 @@ describe.skip('OfflineState', () => {
 
       const state = getState();
       expect(state.retryDelay).toBe(5000);
-      expect(state.maxRetries).toBe(3);
+      expect(state.maxRetries).toBe(5); // Updated to match offlineManager.js:48
       expect(state.retryTimeout).toBeNull();
 
       clearTimeout(timeout);
@@ -285,7 +286,7 @@ describe.skip('OfflineState', () => {
       const state = getState();
       expect(state.lastToastTime).toBe(0);
       expect(state.lastOfflineToastTime).toBe(0);
-      expect(state.toastDebounceMs).toBe(5000);
+      expect(state.toastDebounceMs).toBe(10000); // Updated to match offlineManager.js:51
     });
 
     it('should reset navigation detection to defaults', () => {
@@ -337,8 +338,8 @@ describe.skip('OfflineState', () => {
       expect(state.networkDetector).toBeNull();
       expect(state.isFirstRequest).toBe(true);
       expect(state.firstRequestTimeout).toBe(8000);
-      expect(state.normalTimeout).toBe(5000);
-      expect(state.optimizedTimeout).toBe(3000);
+      expect(state.normalTimeout).toBe(3000); // Updated to match offlineManager.js:91
+      expect(state.optimizedTimeout).toBe(2000); // Updated to match offlineManager.js:92
     });
 
     it('should preserve db reference', () => {
@@ -382,6 +383,9 @@ describe.skip('OfflineState', () => {
 
   describe('sync workflow simulation', () => {
     it('should simulate sync operation lifecycle', () => {
+      // Reset to initial state (beforeEach calls initializeState, so reset here)
+      resetState(mockDb);
+
       // Initial state
       let state = getState();
       expect(state.syncInProgress).toBe(false);
@@ -459,7 +463,7 @@ describe.skip('OfflineState', () => {
       expect(timeSinceLastToast).toBeLessThan(state.toastDebounceMs);
 
       // Show toast after debounce period
-      const time3 = time1 + 6000; // 6 seconds later (> 5s debounce)
+      const time3 = time1 + 11000; // 11 seconds later (> 10s debounce)
       updateState({ lastToastTime: time3 });
       state = getState();
       expect(state.lastToastTime).toBe(time3);
@@ -476,12 +480,12 @@ describe.skip('OfflineState', () => {
       updateState({ isFirstRequest: false });
       state = getState();
       expect(state.isFirstRequest).toBe(false);
-      const timeout2 = state.normalTimeout; // 5000ms
-      expect(timeout2).toBe(5000);
+      const timeout2 = state.normalTimeout; // 3000ms
+      expect(timeout2).toBe(3000); // Updated to match offlineManager.js:91
 
       // Optimized mode - use shorter timeout
-      const timeout3 = state.optimizedTimeout; // 3000ms
-      expect(timeout3).toBe(3000);
+      const timeout3 = state.optimizedTimeout; // 2000ms
+      expect(timeout3).toBe(2000); // Updated to match offlineManager.js:92
     });
 
     it('should simulate navigation detection workflow', () => {

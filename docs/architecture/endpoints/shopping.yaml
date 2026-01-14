@@ -40,7 +40,7 @@ routes:
     service:
       $ref: "../functionality/shopping-lists.yaml#/module/services/0"
 
-  - path: "/api/v1/shopping-lists/{id}"
+  - path: "/api/v1/shopping-lists/{shopping_list_id}"
     method: PUT
     auth: user
     description: "Update shopping list"
@@ -52,7 +52,7 @@ routes:
     response:
       status: 200
 
-  - path: "/api/v1/shopping-lists/{id}"
+  - path: "/api/v1/shopping-lists/{shopping_list_id}"
     method: DELETE
     auth: user
     description: "Delete shopping list"
@@ -112,7 +112,7 @@ routes:
     side_effects:
       - "WebSocket broadcast: shopping_list_item_created"
 
-  - path: "/api/v1/shopping-list-items/{id}"
+  - path: "/api/v1/shopping-list-items/{item_id}"
     method: PUT
     auth: user
     description: "Update shopping list item"
@@ -146,7 +146,7 @@ routes:
       Soft-deleted items preserved for autocomplete history and conflict resolution.
       Excluded from all item count queries and list responses.
 
-  - path: "/api/v1/shopping-list-items/{id}/restore"
+  - path: "/api/v1/shopping-list-items/{item_id}/restore"
     method: PUT
     auth: user
     description: "Restore soft-deleted shopping list item"

@@ -141,25 +141,16 @@ self.addEventListener('activate', (event) => {
       const cacheNames = await caches.keys();
       const oldCaches = cacheNames.filter((name) => name.startsWith('budget-') && name !== CACHE_NAME);
 
-      // CRITICAL: Migrate offline pages from old cache to new cache BEFORE deleting
-      // This ensures offline pages remain available even during SW updates
+      // MIGRATION DISABLED (2026-01-13):
+      // Do NOT migrate HTML pages - they use Network First strategy
+      // and should always fetch fresh content from server.
+      // Old caches will be deleted below, forcing SW to re-fetch HTML.
+      //
+      // Background: Migration was copying stale HTML from old cache to new cache,
+      // causing users to see outdated templates even after SW update.
+      // HTML pages have Network First strategy and will be re-cached on next visit.
       if (oldCaches.length > 0) {
-        console.log('[SW] 📦 Migrating offline pages from old cache...');
-        const newCache = await caches.open(CACHE_NAME);
-
-        for (const oldCacheName of oldCaches) {
-          const oldCache = await caches.open(oldCacheName);
-
-          // Copy each OFFLINE_PAGE from old cache to new cache
-          for (const pathname of OFFLINE_PAGES) {
-            const cachedResponse = await oldCache.match(pathname, { ignoreVary: true });
-            if (cachedResponse) {
-              console.log('[SW] ♻️ Migrating:', pathname, 'from', oldCacheName);
-              await newCache.put(pathname, cachedResponse);
-            }
-          }
-        }
-        console.log('[SW] ✓ Migration complete');
+        console.log('[SW] 🗑️ Skipping migration - will delete old caches and re-fetch HTML');
       }
 
       // Now safe to delete old caches

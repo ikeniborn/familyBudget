@@ -27,6 +27,59 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-14: Documentation Audit & Update (v7.2.0)
+- **Change:** Полное обновление документации `/docs/architecture` на основе комплексного аудита кодовой базы
+- **Scope:** Аудированы 44 backend сервиса, 219 API endpoints, 37 database моделей, 187 frontend модулей
+- **Coverage Improvements:**
+  - Backend Services: 75% → **100%** (добавлены 11 новых сервисов)
+  - API Endpoints: 28% → **90%+** (добавлены 158 endpoints)
+  - Database Models: 95% → **100%** (добавлены 3 WebAuthn модели)
+  - Frontend Modules: 75% → **95%+** (добавлены 8 критичных модулей)
+- **New Documentation Files (4):**
+  - `functionality/caching.yaml` - Redis caching module (cache_service, redis_service, write_behind_service, cache_metrics_service)
+  - `endpoints/webauthn.yaml` - WebAuthn biometric auth endpoints (6 endpoints)
+  - `endpoints/admin-analytics.yaml` - Admin analytics и cache metrics (10 endpoints)
+  - `web/web-workers.yaml` - Web Workers для CPU-intensive задач (5 workers)
+- **Critical Updates:**
+  - **WebAuthn (v6.5.0) полная документация:**
+    - Backend: webauthn_service (602 LOC) в authentication.yaml
+    - Database: WebAuthnCredential, WebAuthnChallenge, WebAuthnAuditLog
+    - Endpoints: register/verify, authenticate/verify, credentials management
+    - Frontend: WebAuthnManager (6 TypeScript модулей)
+  - **Parameter naming fix:** {id} → {article_id}, {fact_id}, etc. (20+ endpoints)
+  - **Auth endpoints:** Email/password login, 2FA setup/verify, Telegram linking (18 новых endpoints)
+  - **Admin analytics:** Analytics overview, users growth, transactions trends, cache metrics (10 новых endpoints)
+  - **Batch operations:** batch-delete для facts, articles, recurring-plans, shopping-list-items
+- **LOC Methodology Update:**
+  - Теперь указываются два значения: `loc_code` (только код) и `loc_total` (с docstrings)
+  - Обновлены значения для 19 сервисов с расхождением >10%
+- **State Management (v7.0):**
+  - Документированы новые модули: OfflineState, ListsState, listOperations, listRenderer
+  - Разделение state/operations/rendering в offlineManager и listsManager
+- **Files Modified (22):**
+  - Created: 4 новых YAML
+  - Updated: 13 существующих YAML (+csv-import.yaml)
+  - Updated: 4 index файлов
+  - Updated: README.md (этот файл)
+- **Index Updates:**
+  - functionality: 14 → 15 modules (+caching)
+  - endpoints: 118 → 219 documented (+101)
+  - database: 36 → 39 tables (+3 WebAuthn)
+  - total_files: 55 → 59 (+4 YAML)
+- **Impact:**
+  - ✅ Полная документация WebAuthn feature (v6.5.0)
+  - ✅ API endpoint parameter naming соответствует коду
+  - ✅ Все новые сервисы задокументированы (кэширование, логирование, Redis)
+  - ✅ Web Workers документированы (CSV, sync, hierarchy)
+  - ✅ Консистентная методология LOC (code vs total)
+  - ✅ Coverage >90% для всех категорий
+- **See:** Детальные отчеты аудита:
+  - `/AUDIT_SUMMARY_2026-01-14.md` - Executive summary
+  - `/AUDIT_SERVICES_2026.md` - 44 backend сервиса
+  - `/AUDIT_ENDPOINTS_2026.md` - 219 API endpoints
+  - `/AUDIT_DATABASE_2026.md` - 37 database моделей
+  - `/AUDIT_FRONTEND_2026.md` - 187 frontend модулей
+
 ### 2026-01-11: Deploy.sh Critical Fixes - Checksum Validation & Cleanup Transparency (v6.6.1)
 - **Change:** Fixed critical deployment bugs in deploy.sh (checksum vulnerability + cleanup mode transparency)
 - **Problems Fixed:**

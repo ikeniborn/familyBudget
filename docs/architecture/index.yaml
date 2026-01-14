@@ -2,11 +2,11 @@
 # Main index file with links to all sections
 
 meta:
-  version: "1.0.0"
+  version: "1.0.1"
   project: "Family Budget"
   description: "Граф зависимостей для работы с кодовой базой"
-  generated: "2025-12-18"
-  total_files: 55
+  generated: "2026-01-14"
+  total_files: 59
 
   legend:
     references:
@@ -37,7 +37,7 @@ sections:
   # 1. FUNCTIONALITY (Business Logic)
   # ---------------------------------------------------------------------------
   functionality:
-    description: "Модули бизнес-логики (12 модулей)"
+    description: "Модули бизнес-логики (15 модулей)"
     index: "./functionality/_index.yaml"
     modules:
       - name: authentication
@@ -80,6 +80,10 @@ sections:
         file: "./functionality/admin.yaml"
         description: "Управление пользователями, bulk операции"
 
+      - name: caching
+        file: "./functionality/caching.yaml"
+        description: "Redis кэширование, write-behind, cache metrics"
+
       - name: realtime
         file: "./functionality/realtime.yaml"
         description: "WebSocket события, real-time обновления"
@@ -115,12 +119,16 @@ sections:
   # 3. ENDPOINTS (API)
   # ---------------------------------------------------------------------------
   endpoints:
-    description: "API endpoints (50+)"
+    description: "API endpoints (95+)"
     index: "./endpoints/_index.yaml"
     groups:
       - name: auth
         file: "./endpoints/auth.yaml"
         prefix: "/api/v1/auth"
+
+      - name: webauthn
+        file: "./endpoints/webauthn.yaml"
+        prefix: "/api/v1/webauthn"
 
       - name: articles
         file: "./endpoints/articles.yaml"
@@ -158,6 +166,10 @@ sections:
         file: "./endpoints/admin.yaml"
         prefix: "/api/v1/admin"
 
+      - name: admin_analytics
+        file: "./endpoints/admin-analytics.yaml"
+        prefix: "/api/v1/admin/analytics"
+
       - name: websocket
         file: "./endpoints/websocket.yaml"
         prefix: "/api/v1/budget/ws, /poll"
@@ -170,7 +182,7 @@ sections:
   # 4. DATABASE (Objects)
   # ---------------------------------------------------------------------------
   database:
-    description: "Объекты СУБД (36 таблиц)"
+    description: "Объекты СУБД (39 таблиц)"
     index: "./database/_index.yaml"
     categories:
       - name: dimensions
