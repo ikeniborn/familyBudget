@@ -263,10 +263,43 @@ export async function deleteFactOffline(factId: number): Promise<void> {
 }
 
 /**
- * Get current user ID (stub)
+ * Get current user ID with 3 fallback mechanisms
  * @private
+ *
+ * @returns User ID
+ * @throws Error if unable to get user ID
  */
 async function getCurrentUserId(): Promise<number> {
-  // TODO: Implement proper user ID retrieval
-  return 1;
+  // 1. Try window.currentUser (set by backend template)
+  if (typeof window !== 'undefined' && (window as any).currentUser?.id) {
+    return (window as any).currentUser.id;
+  }
+
+  // 2. Try fetch /api/v1/users/me
+  try {
+    const response = await fetch('/api/v1/users/me', {
+      credentials: 'include',
+      // Short timeout to avoid blocking offline operations
+      signal: AbortSignal.timeout(2000),
+    });
+
+    if (response.ok) {
+      const user = await response.json();
+      if (user && user.id) {
+        return user.id;
+      }
+    }
+  } catch (e) {
+    // Fetch failed (offline, timeout, etc.) - try next fallback
+  }
+
+  // 3. Fallback: Cannot create offline without user ID
+  // This will only happen if:
+  // - window.currentUser is not set (backend issue)
+  // - /api/v1/users/me is unavailable (offline, server down)
+  // User must be online to create facts in this case
+  throw new Error(
+    'Cannot get user ID for offline operation. ' +
+    'Please ensure you are logged in and try again.'
+  );
 }
