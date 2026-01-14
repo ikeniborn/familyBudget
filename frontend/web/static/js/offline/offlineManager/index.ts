@@ -179,6 +179,17 @@ export {
 } from './utils/utilityMethods';
 
 // ============================================================================
+// Worker Integration
+// ============================================================================
+export {
+  initializeWorker,
+  generateSyncHashAsync,
+  terminateWorker,
+  isWorkerAvailable,
+  getWorkerStatus,
+} from './core/workerIntegration';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
 export type { OfflineManagerClass } from './types/globals';
