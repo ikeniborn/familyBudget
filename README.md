@@ -4,6 +4,15 @@
 
 **Family Budget** — это веб-приложение для управления семейными финансами с поддержкой офлайн-режима, автоматическими напоминаниями и интеграцией с Telegram.
 
+## CI/CD Status
+
+[![Frontend Tests](https://github.com/ikeniborn/familyBudget/workflows/Frontend%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/frontend-tests.yml)
+[![Backend Tests](https://github.com/ikeniborn/familyBudget/workflows/Backend%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/backend-tests.yml)
+[![E2E Tests](https://github.com/ikeniborn/familyBudget/workflows/E2E%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/e2e-tests.yml)
+[![API Contract Tests](https://github.com/ikeniborn/familyBudget/workflows/API%20Contract%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/api-contract-tests.yml)
+[![Security Scan](https://github.com/ikeniborn/familyBudget/workflows/Security%20Scan/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/security-scan.yml)
+[![Accessibility Tests](https://github.com/ikeniborn/familyBudget/workflows/Accessibility%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/accessibility-tests.yml)
+
 ---
 
 ## ✨ Что умеет

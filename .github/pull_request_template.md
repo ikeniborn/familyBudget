@@ -25,12 +25,25 @@
 ## Code Quality Checklist
 <!-- Mark completed items with [x] -->
 
+### Frontend
 - [ ] TypeScript type check passes (`npm run type-check`)
 - [ ] No TypeScript errors or warnings
 - [ ] Coverage thresholds met (`npm run test:coverage`)
 - [ ] No `console.log` in production code (use `debugLog()` or `logAPI`)
 - [ ] Build succeeds (`npm run build`)
 - [ ] Pre-commit hook passes
+
+### Backend (if applicable)
+- [ ] Backend tests passed (`pytest tests/ -v -m "not e2e"`)
+- [ ] Backend coverage ≥ 70% (`pytest --cov=app`)
+- [ ] Bot tests passed (if bot changes)
+- [ ] No breaking API changes (OpenAPI validation)
+- [ ] API types consistent with OpenAPI spec
+
+### Security & Quality
+- [ ] No critical security vulnerabilities (npm audit, safety)
+- [ ] No hardcoded secrets detected
+- [ ] No critical accessibility violations (WCAG 2.1 AA)
 
 ## Conventional Commits
 <!-- Ensure PR title follows conventional commits format -->
@@ -68,7 +81,22 @@ Relates to #
 
 <!-- Auto-populated by GitHub Actions -->
 **CI/CD Status:**
+
+Frontend:
 - Type Check: ⏳
 - Unit Tests: ⏳
 - Build: ⏳
 - Coverage: ⏳
+
+Backend:
+- Backend Tests: ⏳
+- Bot Tests: ⏳
+- Backend Coverage (70%): ⏳
+
+E2E & Integration:
+- E2E Tests (chromium): ⏳
+- API Contract Validation: ⏳
+
+Security & Quality:
+- Security Scan: ⏳
+- Accessibility Tests: ⏳
