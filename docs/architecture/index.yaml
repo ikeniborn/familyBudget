@@ -6,7 +6,7 @@ meta:
   project: "Family Budget"
   description: "Граф зависимостей для работы с кодовой базой"
   generated: "2026-01-14"
-  total_files: 60
+  total_files: 59
 
   legend:
     references:

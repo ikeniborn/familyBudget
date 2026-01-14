@@ -65,7 +65,7 @@ Use these files to understand component relationships when planning changes or o
   - functionality: 14 → 15 modules (+caching)
   - endpoints: 118 → 219 documented (+101)
   - database: 36 → 39 tables (+3 WebAuthn)
-  - total_files: 55 → 60 (+4 YAML, +1 web-workers)
+  - total_files: 55 → 59 (+4 YAML)
 - **Impact:**
   - ✅ Полная документация WebAuthn feature (v6.5.0)
   - ✅ API endpoint parameter naming соответствует коду

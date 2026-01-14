@@ -3,11 +3,11 @@
 
 summary:
   total_tables: 39
-  dimensions: 11
-  facts: 4
+  dimensions: 12
+  facts: 3
   history: 8
   hierarchy: 2
-  support: 16
+  support: 8
 
 categories:
   dimensions:
@@ -24,6 +24,7 @@ categories:
       - t_d_product_group
       - t_d_import_template
       - t_d_bank_provider
+      - t_d_recurring_plan
       - t_d_webauthn_credential
 
   facts:
@@ -32,7 +33,6 @@ categories:
     tables:
       - t_f_budget_fact
       - t_f_shopping_list
-      - t_f_shopping_list_item
       - t_f_webauthn_challenge
 
   history:
