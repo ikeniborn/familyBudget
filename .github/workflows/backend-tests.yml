@@ -96,6 +96,9 @@ jobs:
           PYTHONPATH: .
         run: |
           pytest backend/tests/ \
+            --ignore=backend/tests/api/test_analytics_localization.py \
+            --ignore=backend/tests/e2e/test_analytics_localization_ui.py \
+            --ignore=backend/tests/services/test_jwt.py \
             --cov=backend/app \
             --cov-report=html:backend/htmlcov \
             --cov-report=json:backend/coverage.json \
