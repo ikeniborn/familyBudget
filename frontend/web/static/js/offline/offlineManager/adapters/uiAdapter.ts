@@ -160,10 +160,10 @@ async function getPendingCount(): Promise<number> {
 /**
  * Global function declarations
  * These are placeholders for TypeScript - actual implementations exist in window scope
+ * Note: showToast is declared in networkStateManager.ts to avoid duplicate identifier
  */
 declare global {
   interface Window {
-    showToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     showToastWithAction?: (
       message: string,
       type: string,
