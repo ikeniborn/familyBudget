@@ -89,6 +89,7 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
           SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
+          PYTHONPATH: .
         run: |
           cd backend
           pytest tests/ \
