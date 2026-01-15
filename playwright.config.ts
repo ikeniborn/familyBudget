@@ -75,5 +75,17 @@ export default defineConfig({
     url: 'http://localhost:8000/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
+    env: {
+      PYTHONPATH: process.env.PYTHONPATH || process.cwd(),
+      DATABASE_URL: process.env.DATABASE_URL || '',
+      REDIS_URL: process.env.REDIS_URL || '',
+      JWT_SECRET: process.env.JWT_SECRET || '',
+      SECRET_KEY: process.env.SECRET_KEY || '',
+      TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+      ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '',
+      API_INTERNAL_KEY: process.env.API_INTERNAL_KEY || '',
+      CORS_ORIGINS: process.env.CORS_ORIGINS || '',
+      REDIS_ENABLED: process.env.REDIS_ENABLED || 'false',
+    },
   },
 });
