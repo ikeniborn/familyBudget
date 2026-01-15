@@ -554,7 +554,7 @@
 {% block extra_scripts %}
 <script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
-<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
+<script src="/static/js/transfers.min.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <script>
@@ -563,7 +563,7 @@ let allCategories = [];
 let createCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
 let editDateCalendar = null; // CalendarWidget instance for edit modal
-// allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
+// allCostCenters is declared in transfers module - DO NOT redeclare here to avoid conflicts
 
 // Modal Listener Manager - encapsulated AbortController for edit modal
 const ModalListenerManager = (function() {
