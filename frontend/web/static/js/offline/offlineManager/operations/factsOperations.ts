@@ -8,6 +8,7 @@
 import { getState, updateState } from '../core/OfflineState';
 import { isOnline } from '../core/stateManager';
 import { withDeduplication } from '../core/deduplication';
+import { getCurrentUserId } from '../utils/userHelpers';
 
 /**
  * Create Fact (optimistic save)
@@ -260,13 +261,4 @@ export async function deleteFactOffline(factId: number): Promise<void> {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-}
-
-/**
- * Get current user ID (stub)
- * @private
- */
-async function getCurrentUserId(): Promise<number> {
-  // TODO: Implement proper user ID retrieval
-  return 1;
 }
