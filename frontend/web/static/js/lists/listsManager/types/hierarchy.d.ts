@@ -5,6 +5,10 @@
  * Store → ProductGroup (nested) → Items
  */
 
+// Import and re-export base types from ListsState (avoid duplication)
+import type { Store, ProductGroup, ShoppingItem } from '../core/ListsState';
+export type { Store, ProductGroup, ShoppingItem };
+
 /**
  * Hierarchy Item - leaf node in the tree
  */
@@ -28,7 +32,7 @@ export interface HierarchyProductGroup {
   type: 'product_group';
   id: number;
   name: string;
-  storeId: number;
+  store_id: number;
   parent_id: number | null;
   children: Record<number, HierarchyProductGroup>;
   items: HierarchyItem[];
@@ -76,15 +80,15 @@ export interface HTMLElementWithHandlers extends HTMLElement {
  */
 export interface ListsManagerProxy {
   // Dynamic properties (getters)
-  stores: any[];
-  productGroups: any[];
-  currentItems: any[];
+  stores: Store[];
+  productGroups: ProductGroup[];
+  currentItems: ShoppingItem[];
   searchQuery: string;
   hideCompleted: boolean;
   currentListId: number | null;
 
   // Methods
-  filterItemsBySearch(): any[];
+  filterItemsBySearch(): ShoppingItem[];
   updateHierarchyToggleButton(): void;
   loadShoppingListItems(listId: number): Promise<void>;
   loadStores(): Promise<void>;

@@ -12,6 +12,9 @@ import type {
   HierarchyProductGroup,
   HierarchyItem,
   ListsManagerProxy,
+  Store,
+  ProductGroup,
+  ShoppingItem,
 } from '../types/hierarchy';
 import { SwipeHandler } from './SwipeHandler';
 
@@ -30,7 +33,7 @@ export class HierarchyView {
     this.listsManager = listsManager;
     this.expandedNodes = new Set();
     this.container = document.getElementById('hierarchy-tree');
-    this.swipeHandler = new SwipeHandler(this);
+    this.swipeHandler = new SwipeHandler();
   }
 
   /**
@@ -70,8 +73,8 @@ export class HierarchyView {
   /**
    * Build a map of product group ID to product group data
    */
-  buildProductGroupMap(productGroups: any[]): Record<number, any> {
-    const map: Record<number, any> = {};
+  buildProductGroupMap(productGroups: ProductGroup[]): Record<number, ProductGroup> {
+    const map: Record<number, ProductGroup> = {};
     productGroups.forEach((pg) => {
       map[pg.id] = pg;
     });
@@ -82,13 +85,13 @@ export class HierarchyView {
    * Get full ancestor path for a product group (from root to leaf)
    * Returns array: [Root, Parent, ..., Child]
    */
-  getProductGroupPath(groupId: number | null, pgMap: Record<number, any>): any[] {
-    const path: any[] = [];
+  getProductGroupPath(groupId: number | null, pgMap: Record<number, ProductGroup>): ProductGroup[] {
+    const path: ProductGroup[] = [];
     let currentId: number | null = groupId;
 
     while (currentId && pgMap[currentId]) {
       path.unshift(pgMap[currentId]);
-      currentId = pgMap[currentId].parent_id;
+      currentId = pgMap[currentId].parent_id ?? null;
     }
 
     return path;
@@ -98,7 +101,7 @@ export class HierarchyView {
    * Build hierarchy structure: Store → Full ProductGroup Tree → Items
    * Shows complete product group hierarchy for each item
    */
-  buildHierarchy(items: any[], stores: any[], productGroups: any[]): HierarchyTree {
+  buildHierarchy(items: ShoppingItem[], stores: Store[], productGroups: ProductGroup[]): HierarchyTree {
     const hierarchy: HierarchyTree = {};
     const pgMap = this.buildProductGroupMap(productGroups);
 
@@ -130,7 +133,7 @@ export class HierarchyView {
             type: 'product_group',
             id: pg.id,
             name: pg.name,
-            storeId: store.id,
+            store_id: store.id,
             parent_id: pg.parent_id ?? null,
             children: {}, // Nested product groups
             items: [], // Items (only for leaves)
@@ -142,8 +145,6 @@ export class HierarchyView {
           currentLevel[pg.id].items.push({
             type: 'item',
             ...item,
-            storeId: store.id,
-            productGroupId: pg.id,
           });
         }
 

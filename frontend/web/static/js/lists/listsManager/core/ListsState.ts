@@ -29,23 +29,32 @@ export interface ShoppingItem {
   id: number;
   list_id: number;
   product_name: string;
-  quantity: number;
-  unit: string;
+  quantity: number | null;
+  unit: string | null;
   is_completed: boolean;
   completed_at?: string;
   store_id: number | null;
   product_group_id: number | null;
   notes: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Store {
   id: number;
   name: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ProductGroup {
   id: number;
   name: string;
+  parent_id?: number | null;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ListsState {

@@ -4,7 +4,6 @@
  */
 
 import type { HTMLElementWithHandlers } from '../types/hierarchy';
-import type { HierarchyView } from './HierarchyView';
 
 // Global functions from templates (onclick handlers)
 declare const openEditItemModal: (itemId: number) => void;
@@ -22,35 +21,48 @@ export class SwipeHandler {
   private hasMoved: boolean = false;
   private readonly SWIPE_THRESHOLD: number = 0.5; // 50% of item width
 
-  constructor(_hierarchyView: HierarchyView) {
-    // Store reference not needed - SwipeHandler is self-contained
+  constructor() {
+    // SwipeHandler is self-contained and doesn't need external dependencies
   }
 
   /**
    * Handle touch start event
    */
   handleTouchStart(e: TouchEvent, itemId: number, itemElement: HTMLElement): void {
-    // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
-    if (itemElement.classList.contains('completed')) {
-      return;
-    }
+    try {
+      // CRITICAL: Disable swipe for completed items (no indicator, no action needed)
+      if (itemElement.classList.contains('completed')) {
+        return;
+      }
 
-    this.startX = e.touches[0].clientX;
-    this.startY = e.touches[0].clientY;
-    this.currentX = this.startX; // CRITICAL: Initialize to prevent undefined in handleTouchEnd
-    this.currentY = this.startY;
-    this.isDragging = true;
-    this.hasMoved = false; // Track if finger actually moved
+      // Check if touch event has touches array (graceful degradation)
+      if (!e.touches || e.touches.length === 0) {
+        console.warn('[SwipeHandler] No touch points detected');
+        return;
+      }
 
-    // Close other swiped items
-    if (this.activeSwipedItemId && this.activeSwipedItemId !== itemId) {
-      this.closeAllSwipes();
-    }
+      this.startX = e.touches[0].clientX;
+      this.startY = e.touches[0].clientY;
+      this.currentX = this.startX; // CRITICAL: Initialize to prevent undefined in handleTouchEnd
+      this.currentY = this.startY;
+      this.isDragging = true;
+      this.hasMoved = false; // Track if finger actually moved
 
-    // Add swiping class to CONTENT element (disables transition during drag)
-    const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
-    if (contentElement) {
-      contentElement.classList.add('swiping');
+      // Close other swiped items
+      if (this.activeSwipedItemId && this.activeSwipedItemId !== itemId) {
+        this.closeAllSwipes();
+      }
+
+      // Add swiping class to CONTENT element (disables transition during drag)
+      const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
+      if (contentElement) {
+        contentElement.classList.add('swiping');
+      }
+    } catch (error) {
+      console.error('[SwipeHandler] Error in handleTouchStart:', error);
+      // Reset state on error
+      this.isDragging = false;
+      this.hasMoved = false;
     }
   }
 
@@ -58,85 +70,104 @@ export class SwipeHandler {
    * Handle touch move event
    */
   handleTouchMove(e: TouchEvent, _itemId: number, itemElement: HTMLElement): void {
-    if (!this.isDragging) return;
+    try {
+      if (!this.isDragging) return;
 
-    this.currentX = e.touches[0].clientX;
-    this.currentY = e.touches[0].clientY;
-    const deltaX = this.currentX - (this.startX ?? 0);
-    const deltaY = this.currentY - (this.startY ?? 0);
-
-    // CRITICAL: Mark as moved if finger moved more than 5px (prevents accidental taps)
-    const movementDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    if (movementDistance > 5) {
-      this.hasMoved = true;
-    }
-
-    const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
-    if (!contentElement) return;
-
-    // Allow both left swipe (open) and right swipe (close)
-    if (deltaX > 0) {
-      // Right swipe - close if already swiped
-      if (itemElement.classList.contains('swiped')) {
-        const swipeDistance = Math.min(deltaX, itemElement.offsetWidth * this.SWIPE_THRESHOLD);
-        const targetTransform = -(itemElement.offsetWidth * this.SWIPE_THRESHOLD - swipeDistance);
-        contentElement.style.transform = `translateX(${targetTransform}px)`;
-      } else {
-        // CRITICAL: Remove transform completely to avoid creating containing block
-        contentElement.style.removeProperty('transform');
+      // Check if touch event has touches array
+      if (!e.touches || e.touches.length === 0) {
+        this.isDragging = false;
+        return;
       }
-      return;
+
+      this.currentX = e.touches[0].clientX;
+      this.currentY = e.touches[0].clientY;
+      const deltaX = this.currentX - (this.startX ?? 0);
+      const deltaY = this.currentY - (this.startY ?? 0);
+
+      // CRITICAL: Mark as moved if finger moved more than 5px (prevents accidental taps)
+      const movementDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (movementDistance > 5) {
+        this.hasMoved = true;
+      }
+
+      const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
+      if (!contentElement) return;
+
+      // Allow both left swipe (open) and right swipe (close)
+      if (deltaX > 0) {
+        // Right swipe - close if already swiped
+        if (itemElement.classList.contains('swiped')) {
+          const swipeDistance = Math.min(deltaX, itemElement.offsetWidth * this.SWIPE_THRESHOLD);
+          const targetTransform = -(itemElement.offsetWidth * this.SWIPE_THRESHOLD - swipeDistance);
+          contentElement.style.transform = `translateX(${targetTransform}px)`;
+        } else {
+          // CRITICAL: Remove transform completely to avoid creating containing block
+          contentElement.style.removeProperty('transform');
+        }
+        return;
+      }
+
+      const itemWidth = itemElement.offsetWidth;
+      const maxSwipe = itemWidth * this.SWIPE_THRESHOLD;
+
+      // Limit swipe to threshold
+      const swipeDistance = Math.max(deltaX, -maxSwipe);
+      contentElement.style.transform = `translateX(${swipeDistance}px)`;
+    } catch (error) {
+      console.error('[SwipeHandler] Error in handleTouchMove:', error);
+      // Reset dragging state on error
+      this.isDragging = false;
     }
-
-    const itemWidth = itemElement.offsetWidth;
-    const maxSwipe = itemWidth * this.SWIPE_THRESHOLD;
-
-    // Limit swipe to threshold
-    const swipeDistance = Math.max(deltaX, -maxSwipe);
-    contentElement.style.transform = `translateX(${swipeDistance}px)`;
   }
 
   /**
    * Handle touch end event
    */
   handleTouchEnd(_e: TouchEvent, itemId: number, itemElement: HTMLElement): void {
-    if (!this.isDragging) return;
+    try {
+      if (!this.isDragging) return;
 
-    this.isDragging = false;
-    const deltaX = (this.currentX ?? 0) - (this.startX ?? 0);
-    const itemWidth = itemElement.offsetWidth;
-    const threshold = itemWidth * this.SWIPE_THRESHOLD;
+      this.isDragging = false;
+      const deltaX = (this.currentX ?? 0) - (this.startX ?? 0);
+      const itemWidth = itemElement.offsetWidth;
+      const threshold = itemWidth * this.SWIPE_THRESHOLD;
 
-    const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
-    if (!contentElement) return;
+      const contentElement = itemElement.querySelector('.hierarchy-item-content') as HTMLElement | null;
+      if (!contentElement) return;
 
-    // Remove swiping class (re-enable transition)
-    contentElement.classList.remove('swiping');
+      // Remove swiping class (re-enable transition)
+      contentElement.classList.remove('swiping');
 
-    // CRITICAL: Ignore tap without movement (prevents accidental modal opens)
-    if (!this.hasMoved) {
-      this.resetSwipe(itemId, itemElement);
-      // CRITICAL: Reset hasMoved for taps too (v7.0.1)
-      // Without this, second tap won't trigger click event
+      // CRITICAL: Ignore tap without movement (prevents accidental modal opens)
+      if (!this.hasMoved) {
+        this.resetSwipe(itemId, itemElement);
+        // CRITICAL: Reset hasMoved for taps too (v7.0.1)
+        // Without this, second tap won't trigger click event
+        this.hasMoved = false;
+        return;
+      }
+
+      // Determine action based on threshold
+      if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
+        // Left swipe - OPEN MODAL DIRECTLY
+        this.openEditModal(itemId, itemElement);
+      } else if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
+        // Right swipe - CLOSE MODAL IF OPEN
+        this.closeModalIfOpen(itemId);
+      } else {
+        // Snap back (gesture incomplete)
+        this.resetSwipe(itemId, itemElement);
+      }
+
+      // CRITICAL: Reset hasMoved after swipe processing to allow subsequent clicks (v7.0.1)
+      // Without this, hasMoved stays true and blocks all future clicks until next touchstart
       this.hasMoved = false;
-      return;
+    } catch (error) {
+      console.error('[SwipeHandler] Error in handleTouchEnd:', error);
+      // Reset all state on error
+      this.isDragging = false;
+      this.hasMoved = false;
     }
-
-    // Determine action based on threshold
-    if (deltaX < 0 && Math.abs(deltaX) >= threshold) {
-      // Left swipe - OPEN MODAL DIRECTLY
-      this.openEditModal(itemId, itemElement);
-    } else if (deltaX > 0 && Math.abs(deltaX) >= threshold) {
-      // Right swipe - CLOSE MODAL IF OPEN
-      this.closeModalIfOpen(itemId);
-    } else {
-      // Snap back (gesture incomplete)
-      this.resetSwipe(itemId, itemElement);
-    }
-
-    // CRITICAL: Reset hasMoved after swipe processing to allow subsequent clicks (v7.0.1)
-    // Without this, hasMoved stays true and blocks all future clicks until next touchstart
-    this.hasMoved = false;
   }
 
   /**
