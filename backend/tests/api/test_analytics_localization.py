@@ -39,7 +39,7 @@ class TestAnalyticsLocalization:
                 user_id=test_user.id,
                 article_id=test_article_root.id,
                 fact_date=fact_date,
-                amount=-100.0,  # Expense
+                amount=100.0,  # Expense (amount must be positive, type in Article)
                 record_type="fact",
                 description=f"Test fact {i}"
             )
@@ -81,7 +81,7 @@ class TestAnalyticsLocalization:
                 user_id=test_user.id,
                 article_id=test_article_root.id,
                 fact_date=fact_date,
-                amount=-50.0,  # Expense
+                amount=50.0,  # Expense (amount must be positive)
                 record_type="fact",
                 description=f"Heatmap test {i}"
             )
@@ -121,7 +121,7 @@ class TestAnalyticsLocalization:
                 user_id=test_user.id,
                 article_id=test_article_root.id,
                 fact_date=fact_date,
-                amount=-200.0,  # Expense
+                amount=200.0,  # Expense (amount must be positive)
                 record_type="fact",
                 description=f"Month {month} test"
             )
