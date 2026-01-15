@@ -8,7 +8,6 @@ Create Date: 2025-12-30 15:23:57.045425
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
@@ -31,12 +30,11 @@ def upgrade() -> None:
        - Used by get_stats() for pending count
        - 50% smaller than full index (only active plans)
 
-    NOTE: Removed CONCURRENTLY to make compatible with Alembic transactions.
-    CONCURRENTLY requires AUTOCOMMIT which exits Alembic transaction context.
-    For production deployments with zero downtime, use manual migration with CONCURRENTLY.
+    NOTE: Using regular CREATE INDEX (not CONCURRENTLY) to avoid transaction isolation issues.
+    CONCURRENTLY requires AUTOCOMMIT which cannot see tables created in same Alembic transaction.
+    This is acceptable for migrations as they run during deployment downtime.
     """
 
-    # Use standard Alembic op.execute() instead of raw psycopg2
     # Composite index for stats queries (active/paused/monthly sum)
     # INCLUDE (amount) makes this a covering index (Index Only Scan)
     op.execute("""
@@ -60,10 +58,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """
     Remove composite indexes for RecurringPlan.
-
-    NOTE: Removed CONCURRENTLY for Alembic transaction compatibility.
     """
 
-    # Use standard Alembic op.execute()
     op.execute("DROP INDEX IF EXISTS idx_recurring_plan_user_active_next_date;")
     op.execute("DROP INDEX IF EXISTS idx_recurring_plan_user_active_frequency;")

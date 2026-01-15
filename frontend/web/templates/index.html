@@ -4236,7 +4236,7 @@ class PendingRecordsRenderer {
 /**
  * Deduplication lock for loadPendingRecords()
  * Prevents race conditions from multiple simultaneous calls
- * Pattern: Same as OfflineManager.pendingCreates (offlineManager.js:82)
+ * Pattern: Same as OfflineManager.pendingCreates (core/deduplication.ts)
  * @type {Promise|null}
  */
 let _loadPendingLock = null;

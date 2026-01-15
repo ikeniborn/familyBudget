@@ -45,6 +45,20 @@ export {
 } from './core/stateManager';
 
 // ============================================================================
+// Feature Flags
+// ============================================================================
+export {
+  getFeatureFlags,
+  enableFeature,
+  disableFeature,
+  enableForPercentage,
+  getFeatureFlagsStatus,
+  resetAllFeatures,
+} from './core/featureFlags';
+
+export type { OfflineFeatureFlags } from './core/featureFlags';
+
+// ============================================================================
 // Deduplication
 // ============================================================================
 export {
@@ -72,7 +86,10 @@ export {
 // Transfers Operations
 // ============================================================================
 export {
+  createTransfer,
+  createTransferOnline,
   createTransferOffline,
+  deleteTransfer,
   deleteTransferOffline,
 } from './operations/transfersOperations';
 
@@ -80,8 +97,15 @@ export {
 // Plans Operations
 // ============================================================================
 export {
+  createPlan,
+  createPlanOnline,
   createPlanOffline,
+  updatePlan,
+  deletePlan,
+  createRecurringPlan,
+  createRecurringPlanOnline,
   createRecurringPlanOffline,
+  getPendingRecurringPlans,
 } from './operations/plansOperations';
 
 // ============================================================================
@@ -89,7 +113,17 @@ export {
 // ============================================================================
 export {
   syncAll,
+  clearCompletedSyncQueue,
 } from './sync/syncEngine';
+
+export {
+  verifyOnServer,
+  syncCreate,
+  syncUpdate,
+  syncDelete,
+  cleanDataForSync,
+  calculateBackoffDelay,
+} from './sync/syncDetails';
 
 // ============================================================================
 // Type Definitions (Dependencies)
@@ -107,9 +141,81 @@ export type {
 } from './types/dependencies';
 
 // ============================================================================
+// WebSocket Adapter
+// ============================================================================
+export {
+  initWS,
+  disconnectWS,
+  reconnectWS,
+  getWSStatus,
+  isWSConnected,
+  sendWSMessage,
+} from './adapters/wsAdapter';
+
+// ============================================================================
+// Navigation Tracker
+// ============================================================================
+export {
+  initNavigationTracking,
+  isNavigating,
+  setNavigating,
+  clearNavigationTimeout,
+} from './core/navigationTracker';
+
+// ============================================================================
+// Utility Methods
+// ============================================================================
+export {
+  getPendingCount,
+  getInfo,
+  getSyncQueueItem,
+  getPendingSyncItems,
+  getAllUnsyncedItems,
+  updatePendingItemData,
+  removePendingItem,
+  handleSyncComplete,
+  getSyncQueueSummary,
+} from './utils/utilityMethods';
+
+// ============================================================================
+// Worker Integration
+// ============================================================================
+export {
+  initializeWorker,
+  generateSyncHashAsync,
+  terminateWorker,
+  isWorkerAvailable,
+  getWorkerStatus,
+} from './core/workerIntegration';
+
+// ============================================================================
+// User Helpers
+// ============================================================================
+export {
+  getCurrentUserId,
+  isUserAuthenticated,
+} from './utils/userHelpers';
+
+// ============================================================================
+// Error Types
+// ============================================================================
+export {
+  OfflineManagerError,
+  NetworkError,
+  SyncError,
+  ValidationError,
+  StorageError,
+  isNetworkError,
+  isSyncError,
+  isValidationError,
+  isStorageError,
+  isRetryableError,
+} from './types/errors';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
-export type { OfflineManagerClass } from './types/globals';
+export type { OfflineManagerClass, CurrentUser } from './types/globals';
 
 // ============================================================================
 // Window Export (Backward Compatibility)

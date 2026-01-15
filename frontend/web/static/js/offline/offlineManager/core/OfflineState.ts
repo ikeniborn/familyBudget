@@ -56,6 +56,12 @@ export interface OfflineManagerState {
   isInitialized: boolean;
 
   // ============================================================================
+  // Network status tracking
+  // ============================================================================
+  networkStatus: 'online' | 'offline' | 'degraded'; // current network status from SmartNetworkDetector
+  autoOfflineMode: boolean; // manual offline mode enabled by user
+
+  // ============================================================================
   // Retry configuration
   // ============================================================================
   retryDelay: number; // milliseconds between retries (default: 5000)
@@ -110,6 +116,10 @@ export const createInitialState = (db: any): OfflineManagerState => ({
   // Sync status
   syncInProgress: false,
   isInitialized: false,
+
+  // Network status
+  networkStatus: 'online',
+  autoOfflineMode: false,
 
   // Retry configuration
   retryDelay: 5000,
