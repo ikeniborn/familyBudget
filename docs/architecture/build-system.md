@@ -1,6 +1,6 @@
 # Build System Architecture
 
-**Last Updated:** 2026-01-09
+**Last Updated:** 2026-01-15
 **Version:** 7.0.1
 
 ## Overview
@@ -21,6 +21,82 @@ Family Budget uses **Vite** as the modern build system with integrated TypeScrip
 ---
 
 ## Recent Changes
+
+### 2026-01-15: Automatic Service Worker File Copying (v7.0.1)
+
+**Change:** Automated copying of Service Worker files from `.vite-build/` to deployment root
+
+**Problem:**
+- Service Worker deployment validation showed: `❌ Missing: sw.min.js.gz`
+- Vite created `sw.js` and `sw.js.gz` in `.vite-build/` directory
+- deploy.sh expected files as `sw.min.js` in `/opt/budget/` (deployment root)
+- Files were not copied automatically after Vite build
+- Required manual intervention: `cp .vite-build/sw.js frontend/web/static/sw.min.js`
+
+**Root Cause:**
+- Vite outputs to `.vite-build/` directory (vite.config.single.ts:74)
+- Backend serves Service Worker from `/opt/budget/sw.min.js` (v6.8.0+)
+- No automatic file copy step between Vite build output and final location
+- Plugin order fix (2026-01-12) ensured .gz creation but not file placement
+
+**Solution:**
+Added automatic file copying to deploy.sh at two checkpoints:
+
+**1. Primary Copy (after npm run build) - deploy.sh:1445-1456:**
+```bash
+# Copy Service Worker files from .vite-build/ to final location (v7.0.1+ fix)
+if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+    print_message info "Copying Service Worker files from .vite-build/ to deployment root..."
+    cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+    cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+    print_message success "✓ Service Worker files copied: sw.min.js + sw.min.js.gz"
+else
+    print_message warning "Service Worker files not found in .vite-build/ - build may have failed"
+fi
+```
+
+**2. Fallback Copy (during validation) - deploy.sh:1585-1596:**
+```bash
+if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
+    # Try to copy from .vite-build/ as fallback (v7.0.1+ fix)
+    if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+        warning "Service Worker files missing in deployment root - copying from .vite-build/..."
+        cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+        cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+        success "✓ Service Worker files copied from .vite-build/ (fallback)"
+    else
+        warning "Service Worker files missing after build"
+        ...
+    fi
+fi
+```
+
+**Impact:**
+- ✅ No manual file copying needed after deployment
+- ✅ Service Worker files automatically placed in correct location
+- ✅ Fallback mechanism ensures robustness
+- ✅ Both `.js` and `.gz` files copied together
+- ✅ Proper logging for debugging
+- ✅ Works with existing validation logic
+
+**File Flow:**
+```
+npm run build:prod
+  ↓
+Vite builds sw.js
+  ↓
+.vite-build/sw.js + sw.js.gz created
+  ↓
+deploy.sh copies:
+  .vite-build/sw.js → /opt/budget/sw.min.js
+  .vite-build/sw.js.gz → /opt/budget/sw.min.js.gz
+  ↓
+Backend serves /opt/budget/sw.min.js
+```
+
+**Commit:** `48588fb5`
+
+---
 
 ### 2026-01-12: Service Worker gzip Plugin Order Fix (v6.6.1)
 
