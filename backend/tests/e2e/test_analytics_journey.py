@@ -513,7 +513,8 @@ class TestPlanVsFactJourney:
         assert pf_year.status_code == 200
         year_data = pf_year.json()
 
-        assert len(year_data["labels"]) == 12  # 12 months in year
+        # Current calendar year can have 1-12 months depending on current date
+        assert 1 <= len(year_data["labels"]) <= 12
         print(f"✅ Plan vs Fact (year): {len(year_data['labels'])} months")
 
         # ===== STEP 8: Verify Deviation Calculations =====
