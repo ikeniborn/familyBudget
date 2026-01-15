@@ -138,9 +138,7 @@ async def test_user(session: AsyncSession) -> User:
         last_name="User",
         is_admin=False,
         is_active=True,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        # Note: is_current, valid_from, valid_to removed - User model uses SCD Type 1
     )
     session.add(user)
     await session.commit()
@@ -163,9 +161,7 @@ async def test_admin(session: AsyncSession) -> User:
         last_name="Admin",
         is_admin=True,
         is_active=True,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        # Note: is_current, valid_from, valid_to removed - User model uses SCD Type 1
     )
     session.add(admin)
     await session.commit()

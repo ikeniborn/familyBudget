@@ -70,6 +70,7 @@ async def test_get_current_user_user_not_found_in_database(session: AsyncSession
     assert "User not found" in exc_info.value.detail
 
 
+@pytest.mark.skip(reason="Test obsolete: User model migrated from SCD Type 2 to SCD Type 1. Historical versions now stored in t_d_user_history table, not t_d_user. The fields is_current, valid_from, valid_to were removed from User model.")
 @pytest.mark.asyncio
 async def test_get_current_user_only_loads_current_version(session: AsyncSession):
     """Test get_current_user only loads current version (is_current=True)."""
@@ -124,7 +125,7 @@ async def test_get_current_user_loads_all_user_fields(session: AsyncSession, tes
     assert current_user.first_name == test_user.first_name
     assert current_user.last_name == test_user.last_name
     assert current_user.is_admin == test_user.is_admin
-    assert current_user.is_current == test_user.is_current
+    # Note: is_current field removed - User model uses SCD Type 1 (current data only)
 
 
 @pytest.mark.asyncio
