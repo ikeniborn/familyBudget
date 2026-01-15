@@ -11,7 +11,7 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -327,7 +327,7 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_session] = override_get_session
 
     # Create HTTP client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     # Cleanup
@@ -365,7 +365,7 @@ async def auth_client(
     access_token = create_access_token(user_id=test_user.id)
 
     # Create HTTP client with authentication cookie
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         ac.cookies.set("access_token", access_token)
         yield ac
 
@@ -404,7 +404,7 @@ async def admin_client(
     access_token = create_access_token(user_id=test_admin.id)
 
     # Create HTTP client with authentication cookie
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         ac.cookies.set("access_token", access_token)
         yield ac
 
