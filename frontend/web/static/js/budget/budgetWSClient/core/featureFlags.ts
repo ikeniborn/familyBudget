@@ -177,11 +177,21 @@ function getUserId(): string {
 }
 
 /**
- * Generate anonymous user ID
+ * Generate anonymous user ID using cryptographically secure random numbers
  */
 function generateAnonymousId(): string {
   const timestamp = Date.now().toString(36);
-  const randomPart = Math.random().toString(36).substring(2, 15);
+
+  // Use crypto.getRandomValues() for cryptographically secure random generation
+  const randomBytes = new Uint8Array(8);
+  crypto.getRandomValues(randomBytes);
+
+  // Convert to base36 string (similar to Math.random().toString(36))
+  const randomPart = Array.from(randomBytes)
+    .map(byte => byte.toString(36))
+    .join('')
+    .substring(0, 13);
+
   return `anon_${timestamp}_${randomPart}`;
 }
 
