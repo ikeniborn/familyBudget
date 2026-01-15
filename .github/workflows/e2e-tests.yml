@@ -106,8 +106,9 @@ jobs:
         run: |
           alembic -c backend/db/migrations/alembic.ini upgrade head
 
-      - name: Start backend server
+      - name: Run E2E tests
         env:
+          BASE_URL: http://localhost:8000
           POSTGRES_HOST: localhost
           DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
           REDIS_ENABLED: true
@@ -119,24 +120,6 @@ jobs:
           API_INTERNAL_KEY: test_internal_key_for_ci_only
           CORS_ORIGINS: http://localhost:8000
           PYTHONPATH: ${{ github.workspace }}
-        run: |
-          cd backend
-          uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 10
-
-          # Wait for backend to be ready
-          for i in {1..30}; do
-            if curl -s http://localhost:8000/health > /dev/null; then
-              echo "Backend is ready"
-              break
-            fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 1
-          done
-
-      - name: Run E2E tests
-        env:
-          BASE_URL: http://localhost:8000
         run: |
           npx playwright test --project="${{ matrix.browser }}" --reporter=html,list
 

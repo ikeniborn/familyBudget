@@ -199,3 +199,7 @@ class BudgetFact(SQLModel, table=True):
                 f"record_type={d.get('record_type', '?')}"
                 f")"
             )
+
+
+# Backward compatibility alias for old tests
+Fact = BudgetFact
