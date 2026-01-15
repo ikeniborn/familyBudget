@@ -104,30 +104,35 @@ async def cleanup_database():
     )
 
     try:
-        # Use connect() and explicit commit for TRUNCATE visibility
-        # begin() auto-commits, making TRUNCATE immediately visible to other connections
+        # Use DELETE instead of TRUNCATE for partitioned tables compatibility
+        # DELETE is slower but works correctly with t_f_budget_fact partitions
         async with cleanup_engine.begin() as conn:
             # Disable FK checks temporarily for cleanup
             await conn.execute(text("SET session_replication_role = 'replica';"))
 
-            # Truncate all tables (order doesn't matter with FK disabled)
+            # Delete from all tables in dependency order (children first)
+            # Using DELETE instead of TRUNCATE to handle partitioned tables
+            await conn.execute(text("DELETE FROM t_f_refresh_token;"))
+            await conn.execute(text("DELETE FROM t_notification;"))
+            await conn.execute(text("DELETE FROM t_f_budget_fact;"))  # Partitioned table
+            await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
+            await conn.execute(text("DELETE FROM t_f_shopping_list;"))
+            await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
+            await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
+            await conn.execute(text("DELETE FROM t_d_financial_center;"))
+            await conn.execute(text("DELETE FROM t_d_cost_center;"))
+            await conn.execute(text("DELETE FROM t_d_article;"))
+            await conn.execute(text("DELETE FROM t_d_product_group;"))
+            await conn.execute(text("DELETE FROM t_d_store;"))
+            await conn.execute(text("DELETE FROM t_d_import_template;"))
+            await conn.execute(text("DELETE FROM t_d_user;"))
+
+            # Reset sequences for auto-increment IDs
             await conn.execute(text("""
-                TRUNCATE TABLE
-                    t_f_refresh_token,
-                    t_notification,
-                    t_f_budget_fact,
-                    t_f_shopping_list_item,
-                    t_f_shopping_list,
-                    t_d_article_hierarchy,
-                    t_d_product_group_hierarchy,
-                    t_d_financial_center,
-                    t_d_cost_center,
-                    t_d_article,
-                    t_d_product_group,
-                    t_d_store,
-                    t_d_import_template,
-                    t_d_user
-                RESTART IDENTITY CASCADE;
+                ALTER SEQUENCE t_d_user_id_seq RESTART WITH 1;
+                ALTER SEQUENCE t_d_article_id_seq RESTART WITH 1;
+                ALTER SEQUENCE t_d_financial_center_id_seq RESTART WITH 1;
+                ALTER SEQUENCE t_d_cost_center_id_seq RESTART WITH 1;
             """))
 
             # Re-enable FK checks
