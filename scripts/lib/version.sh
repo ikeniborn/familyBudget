@@ -48,7 +48,7 @@ declare -a REBUILD_TRIGGER_FILES=(
 
 # Version bump type (set by command line)
 VERSION_BUMP_TYPE=""  # major|minor|patch|none (empty = minor by default)
-VERSION_EXPLICIT=""   # Explicit version to set (e.g., "5.2.0")
+VERSION_SET=""   # Explicit version to set (e.g., "5.2.0") via --set-version
 
 # =============================================================================
 # VERSION PARSING FUNCTIONS
@@ -138,35 +138,85 @@ increment_version() {
 # VERSION UPDATE FUNCTIONS
 # =============================================================================
 
-# Update VERSION file
-# Args: new_version
+# Update VERSION file with backup/restore and verification
+# Args: new_version, version_file_path
+# Returns: 0 on success, 1 on failure
 update_version_file() {
     local new_version="$1"
     local version_file="${2:-$VERSION_FILE}"
 
-    echo "$new_version" > "$version_file"
-    info "Updated VERSION file: $new_version"
+    # Create backup if file exists
+    if [[ -f "$version_file" ]]; then
+        local backup="${version_file}.backup"
+        if ! cp "$version_file" "$backup"; then
+            error "Failed to create backup: $backup"
+        fi
+    fi
+
+    # Write new version
+    if echo "$new_version" > "$version_file"; then
+        # Verify write was successful
+        local written_version=$(cat "$version_file" | tr -d '[:space:]')
+        if [[ "$written_version" == "$new_version" ]]; then
+            info "Updated VERSION file: $new_version"
+            rm -f "${version_file}.backup"  # Remove backup on success
+            return 0
+        else
+            warning "Version verification failed: expected $new_version, got $written_version"
+            if [[ -f "${version_file}.backup" ]]; then
+                warning "Restoring backup..."
+                mv "${version_file}.backup" "$version_file"
+            fi
+            return 1
+        fi
+    else
+        warning "Failed to write VERSION file"
+        if [[ -f "${version_file}.backup" ]]; then
+            warning "Restoring backup..."
+            mv "${version_file}.backup" "$version_file"
+        fi
+        return 1
+    fi
 }
 
-# Update package.json version
+# Update package.json version with backup/restore and verification
 # Args: new_version, package_json_path
+# Returns: 0 on success, 1 on failure
 update_package_json() {
     local new_version="$1"
     local package_json="${2:-${SCRIPT_DIR}/package.json}"
 
+    # Validate file exists
     if [[ ! -f "$package_json" ]]; then
-        warning "package.json not found: $package_json"
-        return 1
+        error "package.json not found: $package_json"
     fi
 
-    # Use sed to update version (handles any current version format)
+    # Create backup before modification
+    local backup="${package_json}.backup"
+    if ! cp "$package_json" "$backup"; then
+        error "Failed to create backup: $backup"
+    fi
+
+    # Update version using sed
     sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$new_version\"/" "$package_json"
 
     if [[ $? -eq 0 ]]; then
-        info "Updated package.json: $new_version"
-        return 0
+        # Verify update was successful
+        local updated_version=$(grep -oP '"version":\s*"\K[^"]+' "$package_json")
+        if [[ "$updated_version" == "$new_version" ]]; then
+            info "Updated package.json: $new_version"
+            rm -f "$backup"  # Remove backup on success
+            return 0
+        else
+            warning "Version verification failed: expected $new_version, got $updated_version"
+            warning "Restoring backup..."
+            mv "$backup" "$package_json"
+            return 1
+        fi
     else
-        warning "Failed to update package.json"
+        warning "sed command failed to update package.json"
+        warning "Restoring backup..."
+        mv "$backup" "$package_json"
         return 1
     fi
 }
@@ -208,18 +258,50 @@ update_env_version() {
 # Args: new_version
 update_all_version_files() {
     local new_version="$1"
+    local update_failed=false
 
     info "Updating version to $new_version in all files..."
 
     # Update VERSION file in DEPLOY_DIR only (NOT in repository!)
-    update_version_file "$new_version" "${DEPLOY_DIR}/VERSION"
+    if ! update_version_file "$new_version" "${DEPLOY_DIR}/VERSION"; then
+        warning "Failed to update VERSION file"
+        update_failed=true
+    fi
 
     # Update package.json in DEPLOY_DIR only (NOT in repository!)
-    update_package_json "$new_version" "${DEPLOY_DIR}/package.json"
+    if ! update_package_json "$new_version" "${DEPLOY_DIR}/package.json"; then
+        warning "Failed to update package.json"
+        update_failed=true
+    fi
+
+    # Sync updated package.json to .npm-isolated (only if package.json update succeeded)
+    # CRITICAL: Must sync AFTER version bump to ensure .npm-isolated has correct version
+    # This fixes the bug where .npm-isolated/package.json had old version after deploy
+    if [[ "$update_failed" == "false" && -f "${DEPLOY_DIR}/.npm-isolated/package.json" ]]; then
+        info "Syncing updated package.json to .npm-isolated (version: $new_version)..."
+        if cp "${DEPLOY_DIR}/package.json" "${DEPLOY_DIR}/.npm-isolated/package.json"; then
+            # Verify sync was successful
+            local isolated_version=$(grep -oP '"version":\s*"\K[^"]+' "${DEPLOY_DIR}/.npm-isolated/package.json")
+            if [[ "$isolated_version" == "$new_version" ]]; then
+                info "Synced .npm-isolated/package.json: $new_version"
+            else
+                warning "Verification failed: .npm-isolated version is $isolated_version, expected $new_version"
+            fi
+        else
+            warning "Failed to sync .npm-isolated/package.json"
+        fi
+    fi
 
     # Update .env in deployment directory (if exists)
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
-        update_env_version "$new_version" "$DEPLOY_DIR/.env"
+        if ! update_env_version "$new_version" "$DEPLOY_DIR/.env"; then
+            warning "Failed to update .env"
+        fi
+    fi
+
+    # Check if any updates failed
+    if [[ "$update_failed" == "true" ]]; then
+        error "Version update failed - see warnings above"
     fi
 
     success "Version updated to $new_version"
@@ -409,19 +491,23 @@ process_version_bump() {
     info "Current version: $CURRENT_VERSION"
 
     # Determine new version
-    if [[ -n "$VERSION_EXPLICIT" ]]; then
-        # Use explicitly set version
-        NEW_VERSION="$VERSION_EXPLICIT"
+    if [[ -n "$VERSION_SET" ]]; then
+        # Use explicitly set version (--set-version X.Y.Z)
+        NEW_VERSION="$VERSION_SET"
         info "Using explicit version: $NEW_VERSION"
-    elif [[ "$VERSION_BUMP_TYPE" == "none" ]]; then
-        # No version bump requested
-        NEW_VERSION="$CURRENT_VERSION"
-        info "Version bump skipped (--no-version)"
+    elif [[ -n "$VERSION_BUMP_TYPE" && "$VERSION_BUMP_TYPE" != "none" ]]; then
+        # Bump version by type (--version TYPE or deprecated --patch/--minor/--major)
+        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$VERSION_BUMP_TYPE")
+        info "Bumping $VERSION_BUMP_TYPE version: $CURRENT_VERSION → $NEW_VERSION"
     else
-        # Auto-increment version
-        local bump_type="${VERSION_BUMP_TYPE:-minor}"
-        NEW_VERSION=$(increment_version "$CURRENT_VERSION" "$bump_type")
-        info "Bumping $bump_type version: $CURRENT_VERSION → $NEW_VERSION"
+        # NO CHANGE - default behavior when no version option specified
+        # This is the new default behavior (v7.0+): explicit version control
+        NEW_VERSION="$CURRENT_VERSION"
+        if [[ "$VERSION_BUMP_TYPE" == "none" ]]; then
+            info "Version unchanged: $NEW_VERSION (--no-version specified)"
+        else
+            info "Version unchanged: $NEW_VERSION (no version option specified)"
+        fi
     fi
 
     # Update version files in DEPLOY_DIR only (NOT in repository!)

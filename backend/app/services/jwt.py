@@ -377,3 +377,7 @@ def hash_token(token: str) -> str:
 
     # Return hexadecimal string representation
     return hash_object.hexdigest()
+
+
+# Backward compatibility alias for old tests
+TOKEN_EXPIRE_DAYS = ACCESS_TOKEN_EXPIRE_DAYS

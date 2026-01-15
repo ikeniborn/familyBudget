@@ -8,6 +8,14 @@
 import { getState, updateState } from '../core/OfflineState';
 import { isOnline } from '../core/stateManager';
 import type { SyncQueueItem } from '../types/dependencies';
+import {
+  syncCreate,
+  syncUpdate,
+  syncDelete,
+  verifyOnServer,
+  isNetworkError,
+  calculateBackoffDelay,
+} from './syncDetails';
 
 /**
  * Sync all pending items
@@ -86,6 +94,7 @@ async function syncParallel(queue: SyncQueueItem[]): Promise<Array<{ success: bo
 
 /**
  * Sync single item
+ * Advanced version with verification, retry logic, and error detection
  */
 async function syncItem(item: SyncQueueItem): Promise<{ success: boolean }> {
   const state = getState();
@@ -93,63 +102,93 @@ async function syncItem(item: SyncQueueItem): Promise<{ success: boolean }> {
   try {
     await state.db.updateSyncQueueItem(item.id, { status: 'syncing' });
 
-    // Send to server
-    const endpoint = getEndpoint(item.entity_type);
-    const response = await fetch(endpoint, {
-      method: getMethod(item.operation),
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item.data),
-      credentials: 'include',
-    });
+    // Execute sync operation based on operation type
+    let response: any;
 
-    if (!response.ok) {
-      throw new Error(`Sync failed: ${response.status}`);
+    if (item.operation === 'create') {
+      response = await syncCreate(item);
+
+      // Verification after create
+      const verified = await verifyOnServer(item, response);
+      if (!verified) {
+        throw new Error('Verification failed: Entity not found on server after create');
+      }
+    } else if (item.operation === 'update') {
+      response = await syncUpdate(item);
+    } else if (item.operation === 'delete') {
+      await syncDelete(item);
+      response = null; // DELETE doesn't return data
+    } else {
+      throw new Error(`Unknown operation: ${item.operation}`);
     }
 
     // Mark as completed
-    await state.db.updateSyncQueueItem(item.id, { status: 'completed' });
+    await state.db.updateSyncQueueItem(item.id, {
+      status: 'completed',
+      completedAt: Date.now(),
+    });
 
-    // Delete from IndexedDB
+    // Delete from IndexedDB (cleanup local copy)
     if (item.operation === 'create') {
       await deleteLocalCopy(item.entity_type, item.tempId);
     }
 
     return { success: true };
   } catch (error) {
-    // Mark as failed
-    await state.db.updateSyncQueueItem(item.id, {
-      status: 'failed',
-      retries: item.retries + 1,
-      lastError: String(error),
-    });
+    // Determine error type and decide retry strategy
+    const isNetwork = isNetworkError(error);
+    const newRetries = item.retries + 1;
+    const maxRetries = 5;
+
+    if (isNetwork && newRetries < maxRetries) {
+      // Network error - mark as pending for retry with backoff
+      const backoffDelay = calculateBackoffDelay(newRetries);
+
+      await state.db.updateSyncQueueItem(item.id, {
+        status: 'pending',
+        retries: newRetries,
+        lastError: String(error),
+        nextRetryAt: Date.now() + backoffDelay,
+      });
+    } else {
+      // Application error or max retries exceeded - mark as failed
+      await state.db.updateSyncQueueItem(item.id, {
+        status: 'failed',
+        retries: newRetries,
+        lastError: String(error),
+        failedAt: Date.now(),
+      });
+    }
 
     return { success: false };
   }
 }
 
 /**
- * Get API endpoint for entity type
+ * Clear completed sync queue items
+ * Removes items with status 'completed' older than retentionMs
+ *
+ * @param retentionMs - Keep completed items for this duration (default: 24 hours)
+ * @returns Number of deleted items
  */
-function getEndpoint(entityType: string): string {
-  const endpoints: Record<string, string> = {
-    fact: '/api/v1/facts',
-    transfer: '/api/v1/transfers',
-    plan: '/api/v1/plans',
-    recurring_plan: '/api/v1/recurring-plans',
-  };
-  return endpoints[entityType] || '/api/v1/facts';
-}
+export async function clearCompletedSyncQueue(retentionMs: number = 24 * 60 * 60 * 1000): Promise<number> {
+  const state = getState();
+  const completedItems = await state.db.getSyncQueue('completed');
 
-/**
- * Get HTTP method for operation
- */
-function getMethod(operation: string): string {
-  const methods: Record<string, string> = {
-    create: 'POST',
-    update: 'PATCH',
-    delete: 'DELETE',
-  };
-  return methods[operation] || 'POST';
+  const now = Date.now();
+  let deletedCount = 0;
+
+  for (const item of completedItems) {
+    const completedAt = item.completedAt || item.updatedAt;
+    const age = now - completedAt;
+
+    if (age > retentionMs) {
+      await state.db.deleteSyncQueueItem(item.id);
+      deletedCount++;
+    }
+  }
+
+  return deletedCount;
 }
 
 /**

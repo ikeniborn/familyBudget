@@ -75,7 +75,7 @@ const builds = [
   },
   {
     name: 'offlineManager',
-    input: 'frontend/web/static/js/offline/offlineManager.js',
+    input: 'frontend/web/static/js/offline/offlineManager/index.ts',  // TypeScript entry point (v7.0.0 migration)
     output: 'frontend/web/static/js/offline/offlineManager.min.js',
     globalName: 'OfflineManager'
   },
@@ -210,6 +210,12 @@ const builds = [
     input: 'frontend/web/static/js/lists-bundle.ts',
     output: 'frontend/web/static/js/lists.min.js',
     globalName: 'ListsApp'
+  },
+  {
+    name: 'transfers',
+    input: 'frontend/web/static/js/transfers/index.ts',
+    output: 'frontend/web/static/js/transfers.min.js',
+    globalName: 'Transfers'
   },
 
   // === Service Worker ===

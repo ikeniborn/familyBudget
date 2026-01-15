@@ -362,25 +362,36 @@ parse_args() {
                 REAPPLY_MIGRATION_FILE="$2"
                 shift 2
                 ;;
-            --major)
-                VERSION_BUMP_TYPE="major"
+            --major|--minor|--patch)
+                # DEPRECATED: Use --version TYPE instead
+                warning "DEPRECATED: ${1} is deprecated, use --version ${1#--} instead"
+                VERSION_BUMP_TYPE="${1#--}"
                 shift
                 ;;
-            --minor)
-                VERSION_BUMP_TYPE="minor"
-                shift
-                ;;
-            --patch)
-                VERSION_BUMP_TYPE="patch"
-                shift
-                ;;
-            --version)
-                VERSION_EXPLICIT="$2"
+            --set-version)
+                VERSION_SET="$2"
                 # Validate version format
-                if [[ ! "$VERSION_EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                    error "Invalid version format: $VERSION_EXPLICIT. Must be X.Y.Z (e.g., 5.2.0)"
+                if [[ ! "$VERSION_SET" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    error "Invalid version format: $VERSION_SET. Must be X.Y.Z (e.g., 5.2.0)"
                 fi
                 shift 2
+                ;;
+            --version)
+                # Support both old and new usage:
+                # OLD (deprecated): --version X.Y.Z → explicit version
+                # NEW: --version TYPE → version bump type (patch|minor|major)
+                if [[ "$2" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    # OLD usage: explicit version number
+                    warning "DEPRECATED: --version X.Y.Z is deprecated, use --set-version X.Y.Z instead"
+                    VERSION_SET="$2"
+                    shift 2
+                elif [[ "$2" =~ ^(patch|minor|major)$ ]]; then
+                    # NEW usage: version bump type
+                    VERSION_BUMP_TYPE="$2"
+                    shift 2
+                else
+                    error "Invalid --version argument: $2. Use --version TYPE (patch|minor|major) or --set-version X.Y.Z"
+                fi
                 ;;
             --no-version)
                 VERSION_BUMP_TYPE="none"
@@ -1077,6 +1088,39 @@ main() {
 
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # AUTO-SYNC: VERSION → package.json (if mismatch detected)
+    # Ensures package.json version always matches VERSION file (single source of truth)
+    # This fixes existing mismatches (e.g., VERSION=6.6.0, package.json=5.3.0)
+    if [[ -f "$DEPLOY_DIR/VERSION" && -f "$DEPLOY_DIR/package.json" ]]; then
+        VERSION_FROM_FILE=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
+        VERSION_FROM_PKG=$(grep -oP '"version":\s*"\K[^"]+' "$DEPLOY_DIR/package.json")
+
+        if [[ "$VERSION_FROM_FILE" != "$VERSION_FROM_PKG" ]]; then
+            print_message warning "VERSION mismatch detected: VERSION ($VERSION_FROM_FILE) ≠ package.json ($VERSION_FROM_PKG)"
+            print_message info "Auto-syncing package.json to match VERSION file (single source of truth)..."
+
+            # Update package.json to match VERSION file
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION_FROM_FILE\"/" "$DEPLOY_DIR/package.json"
+
+            if [[ $? -eq 0 ]]; then
+                # Verify sync was successful
+                local synced_version=$(grep -oP '"version":\s*"\K[^"]+' "$DEPLOY_DIR/package.json")
+                if [[ "$synced_version" == "$VERSION_FROM_FILE" ]]; then
+                    print_message success "package.json synchronized: $VERSION_FROM_PKG → $VERSION_FROM_FILE"
+                else
+                    print_message error "Verification failed: expected $VERSION_FROM_FILE, got $synced_version"
+                    exit 1
+                fi
+            else
+                print_message error "Failed to update package.json"
+                exit 1
+            fi
+        else
+            print_message info "VERSION and package.json are synchronized: $VERSION_FROM_FILE"
+        fi
+    fi
     echo ""
 
     # CRITICAL: Sync package.json to .npm-isolated if changed

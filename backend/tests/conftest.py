@@ -11,7 +11,7 @@ from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -75,63 +75,42 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Automatically rolls back after each test.
+    Cleanup: DELETEs all table data after test completes.
     """
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
-        await session.rollback()
+
+    # Cleanup after test: DELETE all data to ensure isolation
+    # Using separate connection to avoid conflicts with test session
+    async with engine.begin() as conn:
+        # Disable FK checks temporarily
+        await conn.execute(text("SET session_replication_role = 'replica';"))
+
+        # Delete all data in dependency order
+        await conn.execute(text("DELETE FROM t_f_refresh_token;"))
+        await conn.execute(text("DELETE FROM t_notification;"))
+        await conn.execute(text("DELETE FROM t_f_budget_fact;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list;"))
+        await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_financial_center;"))
+        await conn.execute(text("DELETE FROM t_d_cost_center;"))
+        await conn.execute(text("DELETE FROM t_d_article;"))
+        await conn.execute(text("DELETE FROM t_d_product_group;"))
+        await conn.execute(text("DELETE FROM t_d_store;"))
+        await conn.execute(text("DELETE FROM t_d_import_template;"))
+        await conn.execute(text("DELETE FROM t_d_user;"))
+
+        # Note: Not resetting sequences - tests don't rely on specific ID values
+        # Sequence names may vary after schema migrations (SCD Type 2 → SCD Type 1)
+
+        # Re-enable FK checks
+        await conn.execute(text("SET session_replication_role = 'origin';"))
 
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def cleanup_database():
-    """
-    Automatically clean up database after each test.
-
-    This fixture runs after every test function to ensure test isolation.
-    Truncates all tables in reverse dependency order to avoid FK violations.
-
-    Scope: function - runs after each test
-    Autouse: True - runs automatically without explicit dependency
-    """
-    yield  # Test runs here
-
-    # Cleanup: truncate all tables after test
-    # Create independent engine for cleanup to avoid fixture conflicts
-    cleanup_engine = create_async_engine(
-        TEST_DATABASE_URL,
-        echo=False,
-        poolclass=NullPool,
-    )
-
-    try:
-        async with cleanup_engine.begin() as conn:
-            # Disable FK checks temporarily for cleanup
-            await conn.execute(text("SET session_replication_role = 'replica';"))
-
-            # Truncate all tables (order doesn't matter with FK disabled)
-            await conn.execute(text("""
-                TRUNCATE TABLE
-                    t_f_refresh_token,
-                    t_notification,
-                    t_f_budget_fact,
-                    t_f_shopping_list_item,
-                    t_f_shopping_list,
-                    t_d_article_hierarchy,
-                    t_d_product_group_hierarchy,
-                    t_d_financial_center,
-                    t_d_cost_center,
-                    t_d_article,
-                    t_d_product_group,
-                    t_d_store,
-                    t_d_import_template,
-                    t_d_user
-                RESTART IDENTITY CASCADE;
-            """))
-
-            # Re-enable FK checks
-            await conn.execute(text("SET session_replication_role = 'origin';"))
-    finally:
-        await cleanup_engine.dispose()
+# Cleanup is now handled by session fixture teardown (see above)
+# No separate cleanup_database fixture needed
 
 
 # ============================================================================
@@ -153,9 +132,8 @@ async def test_user(session: AsyncSession) -> User:
         first_name="Test",
         last_name="User",
         is_admin=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        is_active=True,
+        # Note: is_current, valid_from, valid_to removed - User model uses SCD Type 1
     )
     session.add(user)
     await session.commit()
@@ -177,9 +155,8 @@ async def test_admin(session: AsyncSession) -> User:
         first_name="Test",
         last_name="Admin",
         is_admin=True,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        is_active=True,
+        # Note: is_current, valid_from, valid_to removed - User model uses SCD Type 1
     )
     session.add(admin)
     await session.commit()
@@ -327,7 +304,7 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_session] = override_get_session
 
     # Create HTTP client
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     # Cleanup
@@ -362,10 +339,10 @@ async def auth_client(
     app.dependency_overrides[get_session] = override_get_session
 
     # Create JWT token for test_user
-    access_token = create_access_token(user_id=test_user.id)
+    access_token = create_access_token(user_id=test_user.id, telegram_id=test_user.telegram_id)
 
     # Create HTTP client with authentication cookie
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         ac.cookies.set("access_token", access_token)
         yield ac
 
@@ -401,10 +378,10 @@ async def admin_client(
     app.dependency_overrides[get_session] = override_get_session
 
     # Create JWT token for test_admin
-    access_token = create_access_token(user_id=test_admin.id)
+    access_token = create_access_token(user_id=test_admin.id, telegram_id=test_admin.telegram_id)
 
     # Create HTTP client with authentication cookie
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         ac.cookies.set("access_token", access_token)
         yield ac
 

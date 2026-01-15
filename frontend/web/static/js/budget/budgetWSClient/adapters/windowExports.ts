@@ -7,6 +7,7 @@ import {
   connect,
   disconnect,
   reconnect,
+  forceReconnect,
   on,
   off,
   getState,
@@ -120,10 +121,7 @@ export class BudgetWSClient {
   /**
    * Force reconnect
    */
-  forceReconnect(): void {
-    disconnect();
-    setTimeout(() => connect(), 100);
-  }
+  forceReconnect = forceReconnect;
 }
 
 /**

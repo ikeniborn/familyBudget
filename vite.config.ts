@@ -19,7 +19,8 @@ function postBuildCopy() {
         { src: 'dist/webapp.js', dest: 'frontend/webapp/static/js/dist/webapp.bundle.js' },
         { src: 'dist/components.js', dest: 'frontend/web/static/js/dist/components.bundle.js' },
         { src: 'dist/sw.js', dest: 'sw.min.js' },
-        { src: 'dist/lists.js', dest: 'frontend/web/static/js/lists.min.js' }
+        { src: 'dist/lists.js', dest: 'frontend/web/static/js/lists.min.js' },
+        { src: 'dist/transfers.js', dest: 'frontend/web/static/js/transfers.min.js' }
       ];
 
       files.forEach(({ src, dest }) => {
@@ -50,7 +51,8 @@ export default defineConfig({
         bundle: resolve(__dirname, 'frontend/web/static/js/index.ts'),
         webapp: resolve(__dirname, 'frontend/webapp/static/js/index.ts'),
         components: resolve(__dirname, 'frontend/web/static/js/modules/uiComponents/index.ts'),
-        sw: resolve(__dirname, 'sw.js')
+        sw: resolve(__dirname, 'sw.js'),
+        transfers: resolve(__dirname, 'frontend/web/static/js/transfers/index.ts')
       },
 
       output: {

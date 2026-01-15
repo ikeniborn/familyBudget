@@ -40,15 +40,22 @@ class TestAdminUserManagement:
         print("\n👤 Step 1: Viewing all users...")
         users_response = await admin_client.get("/api/v1/admin/users")
         assert users_response.status_code == 200
-        users = users_response.json()  # Direct list, not wrapper
+        response_data = users_response.json()  # Paginated response
 
+        # Verify paginated response structure
+        assert "users" in response_data
+        assert "total" in response_data
+        assert "limit" in response_data
+        assert "offset" in response_data
+
+        users = response_data["users"]
         assert isinstance(users, list)
         assert len(users) >= 2  # At least test_user and admin
-        print(f"✅ Retrieved {len(users)} users")
+        print(f"✅ Retrieved {len(users)} users (total: {response_data['total']})")
 
         # ===== STEP 2: Find Test User in List =====
         print("\n👤 Step 2: Finding test user...")
-        # GET /users returns direct list, search by iterating
+        # Search in paginated users list
         found_user = None
         for user in users:
             if user.get("username") == "testuser":
@@ -241,10 +248,14 @@ class TestAdminSystemMonitoring:
 
         users_response = await admin_client.get("/api/v1/admin/users")
         assert users_response.status_code == 200
-        users = users_response.json()
+        response_data = users_response.json()
 
+        # Verify paginated response structure
+        assert "users" in response_data
+        assert "total" in response_data
+        users = response_data["users"]
         assert isinstance(users, list)
-        print(f"✅ Retrieved {len(users)} users")
+        print(f"✅ Retrieved {len(users)} users (total: {response_data['total']})")
 
         print("\n" + "="*60)
         print("🎉 ADMIN SYSTEM MONITORING TEST PASSED!")

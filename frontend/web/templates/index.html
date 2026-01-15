@@ -233,7 +233,7 @@
 <!-- BudgetShared bundle (includes ChoicesCategoryTree) already included in base.html -->
 
 <!-- Transfer Modal JS -->
-<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
+<script src="/static/js/transfers.min.js?v=PLACEHOLDER"></script>
 <!-- HTMX Widgets Manager (auto-refresh on network recovery) -->
 <script src="/static/js/htmxWidgets.js?v=PLACEHOLDER"></script>
 
@@ -252,7 +252,7 @@ let remindersMap = new Map();  // Cache for reminders (fact_id -> reminder)
 let currentEditingRecordType = null;  // 'fact' or 'plan'
 let currentEditingPendingId = null;  // IndexedDB ID for pending records (null if online record)
 
-// allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
+// allCostCenters is declared in transfers module - DO NOT redeclare here to avoid conflicts
 
 // Cache for dropdown data (5 minutes TTL) - used by edit modal
 const dropdownCache = {
@@ -4236,7 +4236,7 @@ class PendingRecordsRenderer {
 /**
  * Deduplication lock for loadPendingRecords()
  * Prevents race conditions from multiple simultaneous calls
- * Pattern: Same as OfflineManager.pendingCreates (offlineManager.js:82)
+ * Pattern: Same as OfflineManager.pendingCreates (core/deduplication.ts)
  * @type {Promise|null}
  */
 let _loadPendingLock = null;

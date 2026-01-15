@@ -9,6 +9,76 @@
     <meta name="app-env" content="{{ app_env|default('production') }}">
     <title>{% block title %}{{ page_title }}{% endblock %} - Семейный бюджет</title>
 
+    <!-- CRITICAL CSS: Splash Screen - load BEFORE external CSS for instant display -->
+    <style>
+        /* Body background = splash background (eliminates white screen during CSS load) */
+        body {
+            margin: 0;
+            background: #ffffff;
+        }
+        [data-theme="dark"] body {
+            background: #1d232a;
+        }
+
+        /* PWA Splash Screen - inline for instant rendering */
+        .pwa-splash {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            /* Fallback for when DaisyUI CSS not yet loaded */
+            background: #ffffff;
+            /* DaisyUI theme colors (will apply when CSS loads) */
+            background: linear-gradient(135deg, oklch(var(--b1, 100% 0 0)) 0%, oklch(var(--b2, var(--b1, 100% 0 0))) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+        /* Dark mode fallback */
+        [data-theme="dark"] .pwa-splash {
+            background: #1d232a;
+            background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
+        }
+        .pwa-splash.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .splash-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            animation: splash-fade-in 0.5s ease-out;
+        }
+        .splash-icon {
+            width: 96px;
+            height: 96px;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            animation: splash-bounce 1s ease-in-out infinite alternate;
+        }
+        @keyframes splash-fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes splash-bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .splash-icon, .splash-content {
+                animation: none;
+            }
+            .pwa-splash {
+                transition: none;
+            }
+        }
+    </style>
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
 
@@ -197,67 +267,7 @@
         }
     </style>
 
-    <!-- PWA Splash Screen Styles (inline for immediate render) -->
     <style>
-        .pwa-splash {
-            position: fixed;
-            inset: 0;
-            z-index: 99999;
-            /* Fallback for when DaisyUI CSS not yet loaded */
-            background: #ffffff;
-            /* DaisyUI theme colors (will apply when CSS loads) */
-            background: linear-gradient(135deg, oklch(var(--b1, 100% 0 0)) 0%, oklch(var(--b2, var(--b1, 100% 0 0))) 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 1;
-            visibility: visible;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
-        }
-        /* Dark mode fallback */
-        @media (prefers-color-scheme: dark) {
-            .pwa-splash {
-                background: #1d232a;
-                background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
-            }
-        }
-        .pwa-splash.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
-        .splash-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5rem;
-            animation: splash-fade-in 0.5s ease-out;
-        }
-        .splash-icon {
-            width: 96px;
-            height: 96px;
-            border-radius: 1rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            animation: splash-bounce 1s ease-in-out infinite alternate;
-        }
-        @keyframes splash-fade-in {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes splash-bounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-10px); }
-        }
-        /* Reduced motion support */
-        @media (prefers-reduced-motion: reduce) {
-            .splash-icon, .splash-content {
-                animation: none;
-            }
-            .pwa-splash {
-                transition: none;
-            }
-        }
-
         /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) + safe-area */
         .navigation-progress {
             position: fixed;
@@ -723,11 +733,11 @@
 
         console.log('[PWA_SPLASH] Cold start detected, showing splash', {
             startTimestamp: startTimestamp,
-            duration: '3s'
+            duration: '2s'
         });
 
-        // Show splash for 3 seconds on cold start
-        var MIN_DISPLAY_TIME = 3000;
+        // Show splash for 2 seconds on cold start
+        var MIN_DISPLAY_TIME = 2000;
         var pageLoaded = false;
         var timerDone = false;
 
@@ -739,7 +749,7 @@
                 console.log('[PWA_SPLASH] Hiding splash', {
                     timerDone: timerDone,
                     pageLoaded: pageLoaded,
-                    plannedDuration: '3s',
+                    plannedDuration: '2s',
                     actualDuration: actualDuration + 'ms',
                     hideTimestamp: hideTimestamp
                 });

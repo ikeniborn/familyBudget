@@ -27,6 +27,39 @@ dependencies: [monitoring]
 - "Сделай деплой на prod"
 - "Проверь изменения на production сервере"
 
+## Использование версионирования (v7.0+)
+
+**Базовый деплой (БЕЗ изменения версии):**
+```bash
+./deploy-prod.sh
+```
+
+**С версионированием:**
+```bash
+# Bug fixes (patch: 6.6.0 → 6.6.1)
+./deploy-prod.sh --version patch
+
+# New features (minor: 6.6.0 → 6.7.0)
+./deploy-prod.sh --version minor
+
+# Breaking changes (major: 6.6.0 → 7.0.0)
+./deploy-prod.sh --version major
+```
+
+**Дополнительные опции:**
+```bash
+# С автоисправлением и версионированием
+./deploy-prod.sh --auto-fix --version patch
+
+# С подробными логами
+./deploy-prod.sh --verbose --version minor
+
+# Dry-run (показать что будет сделано)
+./deploy-prod.sh --dry-run --version patch
+```
+
+**ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
+
 ## Алгоритм работы
 
 Этот skill выполняет следующие шаги автоматически:
@@ -61,20 +94,56 @@ ssh budget-prod "cd ~/familyBudget && git fetch --all && git checkout prod && gi
 - Дать команды для ручного исправления
 
 ### Шаг 3: Запуск deploy.sh
+
+**Базовая команда (БЕЗ изменения версии - default v7.0+):**
 ```bash
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
+```
+
+**С версионированием (v7.0+ синтаксис):**
+```bash
+# Bug fixes (patch bump: 6.6.0 → 6.6.1)
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
+
+# New features (minor bump: 6.6.0 → 6.7.0)
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version minor"
+
+# Breaking changes (major bump: 6.6.0 → 7.0.0)
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version major"
 ```
 
 **Параметры:**
 - `--sync-mode update` - только обновление/добавление файлов (безопасно)
 - `--cleanup-mode smart` - умная очистка старых образов
-- `--patch` - быстрый патч-деплой (2-5 минут)
+- `--version TYPE` - версионирование (TYPE = patch|minor|major)
+  - **ВАЖНО:** С v7.0+ версия НЕ меняется если опция не указана (explicit control)
+  - Старый `--patch` deprecated (используйте `--version patch`)
+
+**Опциональные параметры:**
+- `--force-build` - принудительная пересборка frontend (игнорирует checksums)
+- `--set-version X.Y.Z` - явное указание версии (например `--set-version 7.0.0`)
 
 **Что происходит:**
 - Синхронизация кода в /opt/budget
+- Автоматическая синхронизация VERSION → package.json (если mismatch)
+- Version bump (если указан --version TYPE)
+- Синхронизация .npm-isolated/package.json после version bump
+- Автоматическое определение необходимости пересборки frontend (checksums)
 - Пересборка Docker образов (если нужно)
 - Перезапуск контейнеров
 - Health checks
+
+**Примеры комбинаций:**
+```bash
+# Деплой без изменения версии + принудительная пересборка
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --force-build"
+
+# Patch bump + принудительная пересборка
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch --force-build"
+
+# Явная версия
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --set-version 7.1.0"
+```
 
 ### Шаг 4: Анализ логов деплоя
 ```bash
