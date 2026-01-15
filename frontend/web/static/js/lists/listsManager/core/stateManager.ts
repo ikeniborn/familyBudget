@@ -246,16 +246,17 @@ export async function loadShoppingListItems(listId: number): Promise<void> {
 /**
  * Load stores and product groups for dropdowns
  */
-async function loadStoresAndGroups(): Promise<void> {
+/**
+ * Load stores from API or cache
+ * Used by CSVImporter after creating new stores
+ */
+export async function loadStores(): Promise<void> {
   const CACHE_KEY_STORES = 'stores';
-  const CACHE_KEY_GROUPS = 'product_groups';
   const CACHE_TTL = 86400; // 24 hours
-
   const state = getState();
 
   try {
     if (isOnline()) {
-      // Load stores
       const storesResponse = await fetch('/api/v1/stores', { credentials: 'same-origin' });
       if (storesResponse.ok) {
         const storesData = await storesResponse.json();
@@ -266,8 +267,29 @@ async function loadStoresAndGroups(): Promise<void> {
           await state.db.setCache(CACHE_KEY_STORES, stores, CACHE_TTL);
         }
       }
+    } else {
+      // Load from cache
+      if (state.db) {
+        const cachedStores = await state.db.getCache(CACHE_KEY_STORES);
+        updateState({ stores: cachedStores || [] });
+      }
+    }
+  } catch (error) {
+    console.error('[ListsManager] Error loading stores:', error);
+  }
+}
 
-      // Load product groups
+/**
+ * Load product groups from API or cache
+ * Used by CSVImporter after creating new product groups
+ */
+export async function loadProductGroups(): Promise<void> {
+  const CACHE_KEY_GROUPS = 'product_groups';
+  const CACHE_TTL = 86400; // 24 hours
+  const state = getState();
+
+  try {
+    if (isOnline()) {
       const groupsResponse = await fetch('/api/v1/product-groups', { credentials: 'same-origin' });
       if (groupsResponse.ok) {
         const groupsData = await groupsResponse.json();
@@ -281,19 +303,23 @@ async function loadStoresAndGroups(): Promise<void> {
     } else {
       // Load from cache
       if (state.db) {
-        const cachedStores = await state.db.getCache(CACHE_KEY_STORES);
         const cachedGroups = await state.db.getCache(CACHE_KEY_GROUPS);
-
-        updateState({
-          stores: cachedStores || [],
-          productGroups: cachedGroups || []
-        });
+        updateState({ productGroups: cachedGroups || [] });
       }
     }
   } catch (error) {
-    console.error('[ListsManager] Error loading stores/groups:', error);
-    // Continue with empty arrays (non-critical)
+    console.error('[ListsManager] Error loading product groups:', error);
   }
+}
+
+/**
+ * Load both stores and product groups (internal helper)
+ */
+async function loadStoresAndGroups(): Promise<void> {
+  await Promise.all([
+    loadStores(),
+    loadProductGroups()
+  ]);
 }
 
 /**
