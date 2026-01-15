@@ -102,11 +102,8 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         await conn.execute(text("DELETE FROM t_d_import_template;"))
         await conn.execute(text("DELETE FROM t_d_user;"))
 
-        # Reset sequences (asyncpg doesn't support multiple commands in prepared statement)
-        await conn.execute(text("ALTER SEQUENCE t_d_user_id_seq RESTART WITH 1;"))
-        await conn.execute(text("ALTER SEQUENCE t_d_article_id_seq RESTART WITH 1;"))
-        await conn.execute(text("ALTER SEQUENCE t_d_financial_center_id_seq RESTART WITH 1;"))
-        await conn.execute(text("ALTER SEQUENCE t_d_cost_center_id_seq RESTART WITH 1;"))
+        # Note: Not resetting sequences - tests don't rely on specific ID values
+        # Sequence names may vary after schema migrations (SCD Type 2 → SCD Type 1)
 
         # Re-enable FK checks
         await conn.execute(text("SET session_replication_role = 'origin';"))
