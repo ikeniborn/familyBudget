@@ -73,9 +73,9 @@ export function updateHierarchyToggleButton(): void {
 }
 
 /**
- * Create listsManager compatibility object for HierarchyView
+ * Create listsManager compatibility object for HierarchyView and ImportManager
  *
- * HierarchyView expects a listsManager object with these properties/methods:
+ * Legacy components expect a listsManager object with these properties/methods:
  * - filterItemsBySearch(): ShoppingItem[]
  * - updateHierarchyToggleButton(): void
  * - stores: Store[]
@@ -83,6 +83,7 @@ export function updateHierarchyToggleButton(): void {
  * - searchQuery: string
  * - hideCompleted: boolean
  * - currentItems: ShoppingItem[]
+ * - currentListId: number | null
  */
 export function createListsManagerProxy(): any {
   return {
@@ -105,6 +106,9 @@ export function createListsManagerProxy(): any {
     },
     get currentItems() {
       return getState().currentItems;
+    },
+    get currentListId() {
+      return getState().currentListId;
     }
   };
 }
