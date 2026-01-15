@@ -8,9 +8,10 @@
  */
 
 import { getState, updateState } from '../core/ListsState';
-import { filterItemsBySearch } from './tableBuilder';
-import { loadShoppingListItems } from '../core/stateManager';
+import { filterItemsBySearch, renderItemsTable } from './tableBuilder';
+import { loadShoppingListItems, loadStores, loadProductGroups } from '../core/stateManager';
 import { deleteItem } from '../core/listOperations';
+import { initStoreChoices, initProductGroupChoices } from '../ui/modalManager';
 
 // Type declarations for global functions
 declare const debugLog: (...args: any[]) => void;
@@ -81,7 +82,12 @@ export function updateHierarchyToggleButton(): void {
  * - filterItemsBySearch(): ShoppingItem[]
  * - updateHierarchyToggleButton(): void
  * - loadShoppingListItems(listId: number): Promise<void>
+ * - loadStores(): Promise<void>
+ * - loadProductGroups(): Promise<void>
  * - deleteItem(itemId: number, skipConfirm?: boolean): Promise<void>
+ * - renderItemsTable(): void
+ * - initStoreChoices(): void
+ * - initProductGroupChoices(): void
  * - stores: Store[]
  * - productGroups: ProductGroup[]
  * - searchQuery: string
@@ -95,7 +101,12 @@ export function createListsManagerProxy(): any {
     filterItemsBySearch,
     updateHierarchyToggleButton,
     loadShoppingListItems,
+    loadStores,
+    loadProductGroups,
     deleteItem,
+    renderItemsTable,
+    initStoreChoices,
+    initProductGroupChoices,
 
     // Property getters (dynamic - always return current state)
     get stores() {

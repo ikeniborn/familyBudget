@@ -458,7 +458,7 @@ export async function confirmDeleteList(): Promise<void> {
 /**
  * Initialize Choices.js for store selector
  */
-function initStoreChoices(): void {
+export function initStoreChoices(): void {
   const state = getState();
   const selectElement = document.getElementById('item-store') as HTMLSelectElement | null;
 
@@ -504,7 +504,7 @@ function initStoreChoices(): void {
 /**
  * Initialize Choices.js for product group selector
  */
-function initProductGroupChoices(): void {
+export function initProductGroupChoices(): void {
   const state = getState();
   const selectElement = document.getElementById('item-product-group') as HTMLSelectElement | null;
 
