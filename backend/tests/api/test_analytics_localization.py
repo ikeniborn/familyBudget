@@ -24,6 +24,7 @@ class TestAnalyticsLocalization:
         self,
         auth_client: AsyncClient,
         test_user,
+        test_article_root,
         session: AsyncSession
     ):
         """Test that Plan-Fact endpoint returns Russian day names for week period."""
@@ -36,6 +37,7 @@ class TestAnalyticsLocalization:
             fact_date = start_of_week + timedelta(days=i)
             fact = Fact(
                 user_id=test_user.id,
+                article_id=test_article_root.id,
                 fact_date=fact_date,
                 amount=-100.0,  # Expense
                 record_type="fact",
@@ -65,6 +67,7 @@ class TestAnalyticsLocalization:
         self,
         auth_client: AsyncClient,
         test_user,
+        test_article_root,
         session: AsyncSession
     ):
         """Test that Heatmap endpoint returns Russian day labels."""
@@ -76,6 +79,7 @@ class TestAnalyticsLocalization:
             fact_date = today - timedelta(days=i)
             fact = Fact(
                 user_id=test_user.id,
+                article_id=test_article_root.id,
                 fact_date=fact_date,
                 amount=-50.0,  # Expense
                 record_type="fact",
@@ -102,6 +106,7 @@ class TestAnalyticsLocalization:
         self,
         auth_client: AsyncClient,
         test_user,
+        test_article_root,
         session: AsyncSession
     ):
         """Test that Waterfall endpoint returns Russian month names for year period."""
@@ -114,6 +119,7 @@ class TestAnalyticsLocalization:
             fact_date = date(year, month, 15)  # Mid-month
             fact = Fact(
                 user_id=test_user.id,
+                article_id=test_article_root.id,
                 fact_date=fact_date,
                 amount=-200.0,  # Expense
                 record_type="fact",
