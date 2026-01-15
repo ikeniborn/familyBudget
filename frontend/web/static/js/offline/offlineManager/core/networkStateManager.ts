@@ -192,13 +192,14 @@ async function getPendingCount(): Promise<number> {
 /**
  * Global function declarations (defined elsewhere)
  * These are placeholders for TypeScript - actual implementations exist in window scope
+ * Note: showToast is declared in transfers/types/globals.d.ts to avoid duplicate identifier
  */
 declare global {
   interface Window {
-    showToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
     updatePendingSyncBadge?: (count: number, syncing: boolean) => void;
   }
 }
 
 // Ensure globals are available
 declare function updatePendingSyncBadge(count: number, syncing: boolean): void;
+declare function showToast(message: string, type?: 'success' | 'error' | 'info' | 'warning'): void;
