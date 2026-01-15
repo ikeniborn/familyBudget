@@ -175,7 +175,8 @@ class TestWaterfallChartJourney:
         quarter_data = waterfall_quarter.json()
 
         assert "labels" in quarter_data
-        assert len(quarter_data["labels"]) == 3  # 3 months in quarter
+        # Current calendar quarter can have 1-3 months depending on current date
+        assert 1 <= len(quarter_data["labels"]) <= 3
         print(f"✅ Waterfall (quarter): {len(quarter_data['labels'])} months")
 
         # ===== STEP 5: Test Waterfall - Year Period =====
@@ -186,7 +187,8 @@ class TestWaterfallChartJourney:
         year_data = waterfall_year.json()
 
         assert "labels" in year_data
-        assert len(year_data["labels"]) == 12  # 12 months in year
+        # Current calendar year can have 1-12 months depending on current date
+        assert 1 <= len(year_data["labels"]) <= 12
         print(f"✅ Waterfall (year): {len(year_data['labels'])} months")
 
         # ===== STEP 6: Verify Cumulative Calculation Logic =====
@@ -293,19 +295,18 @@ class TestHeatmapChartJourney:
         assert heatmap_month.status_code == 200
         heatmap_data = heatmap_month.json()
 
-        # Verify structure
-        assert "weeks" in heatmap_data
-        assert "day_labels" in heatmap_data
-        assert len(heatmap_data["day_labels"]) == 7  # Days of week
+        # Verify new xAxis/yAxis/data structure
+        assert "xAxis" in heatmap_data  # Day names (Пн-Вс)
+        assert "yAxis" in heatmap_data  # Week numbers
+        assert "data" in heatmap_data   # 2D array: weeks × days
+        assert len(heatmap_data["xAxis"]) == 7  # Days of week
 
-        # Verify weeks structure
-        for week in heatmap_data["weeks"]:
-            assert "label" in week
-            assert "days" in week
-            assert len(week["days"]) == 7  # 7 days per week
+        # Verify data structure: each row should have 7 values (for 7 days)
+        for week_data in heatmap_data["data"]:
+            assert len(week_data) == 7  # 7 days per week
 
-        print(f"✅ Heatmap (month): {len(heatmap_data['weeks'])} weeks")
-        print(f"   - Day labels: {heatmap_data['day_labels']}")
+        print(f"✅ Heatmap (month): {len(heatmap_data['data'])} weeks")
+        print(f"   - Day labels (xAxis): {heatmap_data['xAxis']}")
 
         # ===== STEP 4: Test Heatmap - Quarter Period =====
         print("\n🗓️ Step 4: Testing heatmap (quarter period)...")
@@ -314,9 +315,12 @@ class TestHeatmapChartJourney:
         assert heatmap_quarter.status_code == 200
         quarter_data = heatmap_quarter.json()
 
-        assert "weeks" in quarter_data
-        assert len(quarter_data["weeks"]) >= 12  # Approximately 13 weeks in quarter
-        print(f"✅ Heatmap (quarter): {len(quarter_data['weeks'])} weeks")
+        # Quarter aggregates by months (xAxis: weeks, yAxis: months)
+        assert "xAxis" in quarter_data
+        assert "yAxis" in quarter_data
+        assert "data" in quarter_data
+        assert len(quarter_data["data"]) >= 1  # At least current month in quarter
+        print(f"✅ Heatmap (quarter): {len(quarter_data['data'])} months")
 
         # ===== STEP 5: Test Heatmap - Year Period =====
         print("\n🗓️ Step 5: Testing heatmap (year period)...")
@@ -325,36 +329,39 @@ class TestHeatmapChartJourney:
         assert heatmap_year.status_code == 200
         year_data = heatmap_year.json()
 
-        assert "weeks" in year_data
-        assert len(year_data["weeks"]) >= 52  # 52 weeks in year
-        print(f"✅ Heatmap (year): {len(year_data['weeks'])} weeks")
+        # Year aggregates by months (xAxis: weeks, yAxis: months)
+        assert "xAxis" in year_data
+        assert "yAxis" in year_data
+        assert "data" in year_data
+        assert len(year_data["data"]) >= 1  # At least current month in year
+        print(f"✅ Heatmap (year): {len(year_data['data'])} months")
 
         # ===== STEP 6: Verify Grid Structure =====
-        print("\n🗓️ Step 6: Verifying grid structure (day × week)...")
+        print("\n🗓️ Step 6: Verifying grid structure (xAxis × yAxis)...")
 
-        # Check that each week has 7 days
-        for week in heatmap_data["weeks"]:
-            assert len(week["days"]) == 7
-            for day_value in week["days"]:
-                # Each day should have a numeric value (or None for future dates)
-                assert day_value is None or isinstance(day_value, (int, float))
+        # Check that each row in data matches xAxis length
+        for row_data in heatmap_data["data"]:
+            assert len(row_data) == len(heatmap_data["xAxis"])
+            for value in row_data:
+                # Each value should be numeric (or 0 for dates without data)
+                assert isinstance(value, (int, float))
 
-        print(f"✅ Grid structure verified: {len(heatmap_data['weeks'])} weeks × 7 days")
+        print(f"✅ Grid structure verified: {len(heatmap_data['data'])} rows × {len(heatmap_data['xAxis'])} columns")
 
         # ===== STEP 7: Verify Color Scale Calculation =====
         print("\n🗓️ Step 7: Verifying color scale calculation...")
 
-        # Collect all non-null values
+        # Collect all values from data array
         all_values = []
-        for week in heatmap_data["weeks"]:
-            all_values.extend([v for v in week["days"] if v is not None])
+        for row_data in heatmap_data["data"]:
+            all_values.extend([v for v in row_data if v != 0])
 
         if all_values:
             min_value = min(all_values)
             max_value = max(all_values)
             print(f"✅ Color scale range: {min_value:.2f} - {max_value:.2f}")
         else:
-            print(f"⚠️  No data points for color scale")
+            print(f"⚠️  No data points for color scale (all zeros)")
 
         print("\n" + "="*60)
         print("🎉 HEATMAP CHART ANALYTICS TEST PASSED!")
@@ -462,22 +469,11 @@ class TestPlanVsFactJourney:
 
         print(f"✅ Created {len(facts)} fact records")
 
-        # ===== STEP 4: Test Plan-Fact - Week Period =====
-        print("\n📈 Step 4: Testing plan vs fact (week period)...")
+        # Note: period=week is NOT supported by plan-fact endpoint
+        # Supported periods: month, quarter, year
 
-        pf_week = await auth_client.get("/api/v1/analytics/plan-fact?period=week")
-        assert pf_week.status_code == 200
-        week_data = pf_week.json()
-
-        assert "labels" in week_data
-        assert "plan" in week_data
-        assert "fact" in week_data
-        assert len(week_data["labels"]) == 7  # 7 days
-
-        print(f"✅ Plan vs Fact (week): {len(week_data['labels'])} days")
-
-        # ===== STEP 5: Test Plan-Fact - Month Period =====
-        print("\n📈 Step 5: Testing plan vs fact (month period)...")
+        # ===== STEP 4: Test Plan-Fact - Month Period =====
+        print("\n📈 Step 4: Testing plan vs fact (month period)...")
 
         pf_month = await auth_client.get("/api/v1/analytics/plan-fact?period=month")
         assert pf_month.status_code == 200
