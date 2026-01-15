@@ -819,11 +819,14 @@ class TestComprehensiveAnalyticsIntegration:
         assert "month" in stats_data
         print(f"✅ [1/6] Quick Stats")
 
-        # 2. Trends
-        trends = await auth_client.get("/api/v1/analytics/trends?days=30")
+        # 2. Trends (current calendar month)
+        trends = await auth_client.get("/api/v1/analytics/trends?period=month")
         assert trends.status_code == 200
         trends_data = trends.json()
-        assert len(trends_data["dates"]) == 31  # 30 days + today
+        assert "labels" in trends_data
+        assert "income" in trends_data
+        assert "expense" in trends_data
+        assert 1 <= len(trends_data["labels"]) <= 31  # Current calendar month (1-31 days)
         print(f"✅ [2/6] Trends")
 
         # 3. Category Breakdown
@@ -840,11 +843,13 @@ class TestComprehensiveAnalyticsIntegration:
         assert "balance" in waterfall_data
         print(f"✅ [4/6] Waterfall Chart")
 
-        # 5. Heatmap
+        # 5. Heatmap (weeks × weekdays grid for period=month)
         heatmap = await auth_client.get("/api/v1/analytics/heatmap?period=month")
         assert heatmap.status_code == 200
         heatmap_data = heatmap.json()
-        assert "weeks" in heatmap_data
+        assert "xAxis" in heatmap_data  # Day names (Пн-Вс)
+        assert "yAxis" in heatmap_data  # Week numbers
+        assert "data" in heatmap_data   # 2D array: weeks × days
         print(f"✅ [5/6] Heatmap")
 
         # 6. Plan vs Fact
