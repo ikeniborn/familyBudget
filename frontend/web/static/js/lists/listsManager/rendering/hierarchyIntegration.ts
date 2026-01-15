@@ -12,6 +12,7 @@ import { filterItemsBySearch, renderItemsTable } from './tableBuilder';
 import { loadShoppingListItems, loadStores, loadProductGroups } from '../core/stateManager';
 import { deleteItem } from '../core/listOperations';
 import { initStoreChoices, initProductGroupChoices } from '../ui/modalManager';
+import { HierarchyView } from './HierarchyView';
 
 // Type declarations for global functions
 declare const debugLog: (...args: any[]) => void;
@@ -135,17 +136,11 @@ export function createListsManagerProxy(): any {
  * Should be called during listsManager initialization
  */
 export function initializeHierarchyView(): void {
-  // Check if HierarchyView class is available globally
-  if (typeof window.HierarchyView === 'undefined') {
-    debugLog('[HIERARCHY] WARNING: HierarchyView class not available (hierarchyView.js not loaded)');
-    return;
-  }
-
   // Create compatibility proxy
   const listsManagerProxy = createListsManagerProxy();
 
-  // Initialize HierarchyView
-  const hierarchyView = new window.HierarchyView(listsManagerProxy);
+  // Initialize HierarchyView (TypeScript class)
+  const hierarchyView = new HierarchyView(listsManagerProxy);
 
   // Store in state
   updateState({ hierarchyView });

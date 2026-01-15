@@ -12,9 +12,6 @@ import './lists/csvImporter.ts';
 import './lists/googleSheetsImporter';
 import './lists/importManager';
 
-// UI modules
-import './lists/hierarchyView';
-
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
   // Initialization
@@ -83,6 +80,10 @@ import {
   deleteCompletedWithConfirm
 } from './lists/listsManager/adapters/windowExports';
 
+// Hierarchy View export (TypeScript migration v7.x)
+import { exportHierarchyViewToWindow } from './lists/listsManager/adapters/hierarchyExports';
+exportHierarchyViewToWindow();
+
 // === ЭКСПОРТ В WINDOW (для onclick handlers) ===
 const windowExports = {
   // Initialization
@@ -139,7 +140,7 @@ const windowExports = {
   unmarkAllCompletedWithConfirm,
   deleteCompletedWithConfirm,
 
-  // Hierarchy (делегируется на hierarchyView.js)
+  // Hierarchy (TypeScript v7.x+)
   toggleAllNodes: () => {
     if (window.hierarchyView) {
       const btn = document.getElementById('hierarchy-toggle-btn');
