@@ -9,6 +9,8 @@
 
 import { getState, updateState } from '../core/ListsState';
 import { filterItemsBySearch } from './tableBuilder';
+import { loadShoppingListItems } from '../core/stateManager';
+import { deleteItem } from '../core/listOperations';
 
 // Type declarations for global functions
 declare const debugLog: (...args: any[]) => void;
@@ -78,6 +80,8 @@ export function updateHierarchyToggleButton(): void {
  * Legacy components expect a listsManager object with these properties/methods:
  * - filterItemsBySearch(): ShoppingItem[]
  * - updateHierarchyToggleButton(): void
+ * - loadShoppingListItems(listId: number): Promise<void>
+ * - deleteItem(itemId: number, skipConfirm?: boolean): Promise<void>
  * - stores: Store[]
  * - productGroups: ProductGroup[]
  * - searchQuery: string
@@ -90,6 +94,8 @@ export function createListsManagerProxy(): any {
     // Method delegation
     filterItemsBySearch,
     updateHierarchyToggleButton,
+    loadShoppingListItems,
+    deleteItem,
 
     // Property getters (dynamic - always return current state)
     get stores() {
