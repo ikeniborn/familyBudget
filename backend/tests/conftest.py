@@ -75,71 +75,47 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Cleanup handled by cleanup_database fixture (TRUNCATE all tables).
+    Cleanup: DELETEs all table data after test completes.
     """
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
-        # No rollback - cleanup_database handles cleanup via TRUNCATE
+
+    # Cleanup after test: DELETE all data to ensure isolation
+    # Using separate connection to avoid conflicts with test session
+    async with engine.begin() as conn:
+        # Disable FK checks temporarily
+        await conn.execute(text("SET session_replication_role = 'replica';"))
+
+        # Delete all data in dependency order
+        await conn.execute(text("DELETE FROM t_f_refresh_token;"))
+        await conn.execute(text("DELETE FROM t_notification;"))
+        await conn.execute(text("DELETE FROM t_f_budget_fact;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list;"))
+        await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_financial_center;"))
+        await conn.execute(text("DELETE FROM t_d_cost_center;"))
+        await conn.execute(text("DELETE FROM t_d_article;"))
+        await conn.execute(text("DELETE FROM t_d_product_group;"))
+        await conn.execute(text("DELETE FROM t_d_store;"))
+        await conn.execute(text("DELETE FROM t_d_import_template;"))
+        await conn.execute(text("DELETE FROM t_d_user;"))
+
+        # Reset sequences
+        await conn.execute(text("""
+            ALTER SEQUENCE t_d_user_id_seq RESTART WITH 1;
+            ALTER SEQUENCE t_d_article_id_seq RESTART WITH 1;
+            ALTER SEQUENCE t_d_financial_center_id_seq RESTART WITH 1;
+            ALTER SEQUENCE t_d_cost_center_id_seq RESTART WITH 1;
+        """))
+
+        # Re-enable FK checks
+        await conn.execute(text("SET session_replication_role = 'origin';"))
 
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def cleanup_database():
-    """
-    Automatically clean up database after each test.
-
-    This fixture runs after every test function to ensure test isolation.
-    Truncates all tables in reverse dependency order to avoid FK violations.
-
-    Scope: function - runs after each test
-    Autouse: True - runs automatically without explicit dependency
-    """
-    yield  # Test runs here
-
-    # Cleanup: truncate all tables after test
-    # Create independent engine for cleanup to avoid fixture conflicts
-    cleanup_engine = create_async_engine(
-        TEST_DATABASE_URL,
-        echo=False,
-        poolclass=NullPool,
-    )
-
-    try:
-        # Use DELETE instead of TRUNCATE for partitioned tables compatibility
-        # DELETE is slower but works correctly with t_f_budget_fact partitions
-        async with cleanup_engine.begin() as conn:
-            # Disable FK checks temporarily for cleanup
-            await conn.execute(text("SET session_replication_role = 'replica';"))
-
-            # Delete from all tables in dependency order (children first)
-            # Using DELETE instead of TRUNCATE to handle partitioned tables
-            await conn.execute(text("DELETE FROM t_f_refresh_token;"))
-            await conn.execute(text("DELETE FROM t_notification;"))
-            await conn.execute(text("DELETE FROM t_f_budget_fact;"))  # Partitioned table
-            await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
-            await conn.execute(text("DELETE FROM t_f_shopping_list;"))
-            await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
-            await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
-            await conn.execute(text("DELETE FROM t_d_financial_center;"))
-            await conn.execute(text("DELETE FROM t_d_cost_center;"))
-            await conn.execute(text("DELETE FROM t_d_article;"))
-            await conn.execute(text("DELETE FROM t_d_product_group;"))
-            await conn.execute(text("DELETE FROM t_d_store;"))
-            await conn.execute(text("DELETE FROM t_d_import_template;"))
-            await conn.execute(text("DELETE FROM t_d_user;"))
-
-            # Reset sequences for auto-increment IDs
-            await conn.execute(text("""
-                ALTER SEQUENCE t_d_user_id_seq RESTART WITH 1;
-                ALTER SEQUENCE t_d_article_id_seq RESTART WITH 1;
-                ALTER SEQUENCE t_d_financial_center_id_seq RESTART WITH 1;
-                ALTER SEQUENCE t_d_cost_center_id_seq RESTART WITH 1;
-            """))
-
-            # Re-enable FK checks
-            await conn.execute(text("SET session_replication_role = 'origin';"))
-            # begin() context auto-commits on exit
-    finally:
-        await cleanup_engine.dispose()
+# Cleanup is now handled by session fixture teardown (see above)
+# No separate cleanup_database fixture needed
 
 
 # ============================================================================
