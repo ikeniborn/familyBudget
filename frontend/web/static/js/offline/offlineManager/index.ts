@@ -121,7 +121,6 @@ export {
   syncCreate,
   syncUpdate,
   syncDelete,
-  isNetworkError,
   cleanDataForSync,
   calculateBackoffDelay,
 } from './sync/syncDetails';
@@ -190,9 +189,33 @@ export {
 } from './core/workerIntegration';
 
 // ============================================================================
+// User Helpers
+// ============================================================================
+export {
+  getCurrentUserId,
+  isUserAuthenticated,
+} from './utils/userHelpers';
+
+// ============================================================================
+// Error Types
+// ============================================================================
+export {
+  OfflineManagerError,
+  NetworkError,
+  SyncError,
+  ValidationError,
+  StorageError,
+  isNetworkError,
+  isSyncError,
+  isValidationError,
+  isStorageError,
+  isRetryableError,
+} from './types/errors';
+
+// ============================================================================
 // Global Window Type
 // ============================================================================
-export type { OfflineManagerClass } from './types/globals';
+export type { OfflineManagerClass, CurrentUser } from './types/globals';
 
 // ============================================================================
 // Window Export (Backward Compatibility)

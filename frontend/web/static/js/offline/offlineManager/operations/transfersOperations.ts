@@ -5,6 +5,7 @@
 
 import { getState, updateState } from '../core/OfflineState';
 import { isOnline } from '../core/stateManager';
+import { getCurrentUserId } from '../utils/userHelpers';
 
 /**
  * Create Transfer (optimistic save)
@@ -170,42 +171,4 @@ export async function deleteTransferOffline(transferId: number): Promise<void> {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
-}
-
-/**
- * Get current user ID with 3 fallback mechanisms
- * @private
- *
- * @returns User ID
- * @throws Error if unable to get user ID
- */
-async function getCurrentUserId(): Promise<number> {
-  // 1. Try window.currentUser (set by backend template)
-  if (typeof window !== 'undefined' && (window as any).currentUser?.id) {
-    return (window as any).currentUser.id;
-  }
-
-  // 2. Try fetch /api/v1/users/me
-  try {
-    const response = await fetch('/api/v1/users/me', {
-      credentials: 'include',
-      // Short timeout to avoid blocking offline operations
-      signal: AbortSignal.timeout(2000),
-    });
-
-    if (response.ok) {
-      const user = await response.json();
-      if (user && user.id) {
-        return user.id;
-      }
-    }
-  } catch (e) {
-    // Fetch failed (offline, timeout, etc.) - try next fallback
-  }
-
-  // 3. Fallback: Cannot create offline without user ID
-  throw new Error(
-    'Cannot get user ID for offline operation. ' +
-    'Please ensure you are logged in and try again.'
-  );
 }
