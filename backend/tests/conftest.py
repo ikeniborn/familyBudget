@@ -75,11 +75,11 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Automatically rolls back after each test.
+    Cleanup handled by cleanup_database fixture (TRUNCATE all tables).
     """
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
-        await session.rollback()
+        # No rollback - cleanup_database handles cleanup via TRUNCATE
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -104,6 +104,8 @@ async def cleanup_database():
     )
 
     try:
+        # Use connect() and explicit commit for TRUNCATE visibility
+        # begin() auto-commits, making TRUNCATE immediately visible to other connections
         async with cleanup_engine.begin() as conn:
             # Disable FK checks temporarily for cleanup
             await conn.execute(text("SET session_replication_role = 'replica';"))
@@ -130,6 +132,7 @@ async def cleanup_database():
 
             # Re-enable FK checks
             await conn.execute(text("SET session_replication_role = 'origin';"))
+            # begin() context auto-commits on exit
     finally:
         await cleanup_engine.dispose()
 
