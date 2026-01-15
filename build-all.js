@@ -211,6 +211,12 @@ const builds = [
     output: 'frontend/web/static/js/lists.min.js',
     globalName: 'ListsApp'
   },
+  {
+    name: 'transfers',
+    input: 'frontend/web/static/js/transfers/index.ts',
+    output: 'frontend/web/static/js/transfers.min.js',
+    globalName: 'Transfers'
+  },
 
   // === Service Worker ===
   {
