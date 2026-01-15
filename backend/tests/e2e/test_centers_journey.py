@@ -53,30 +53,28 @@ class TestFinancialCentersJourney:
         print("\n💰 Step 1: Creating financial centers...")
 
         financial_centers = [
-            ("CASH_RUB", "Наличные (RUB)", "Наличные деньги в рублях"),
-            ("BANK_SBER", "Сбербанк", "Дебетовая карта Сбербанк"),
-            ("BANK_TINK", "Тинькофф", "Дебетовая карта Тинькофф"),
-            ("CRYPTO_BTC", "Bitcoin Wallet", "Криптокошелек BTC"),
+            ("Наличные (RUB)", "Наличные деньги в рублях"),
+            ("Сбербанк", "Дебетовая карта Сбербанк"),
+            ("Тинькофф", "Дебетовая карта Тинькофф"),
+            ("Bitcoin Wallet", "Криптокошелек BTC"),
         ]
 
         fc_ids = {}
-        for code, name, description in financial_centers:
+        for name, description in financial_centers:
             response = await auth_client.post(
                 "/api/v1/financial-centers",
                 json={
-                    "code": code,
                     "name": name,
                     "description": description
                 }
             )
             assert response.status_code == 201
             data = response.json()
-            fc_ids[code] = data["id"]
-            assert data["code"] == code
+            fc_ids[name] = data["id"]
+            assert data["code"] is not None  # Auto-generated code (CFO-1, CFO-2, etc.)
             assert data["name"] == name
-            assert data["is_current"] == True
-            assert data["valid_to"] is None or "9999" in data["valid_to"]
-            print(f"✅ Created ЦФО: {name} (ID: {data['id']})")
+            # Note: SCD Type 1 - no is_current, valid_to fields
+            print(f"✅ Created ЦФО: {name} (Code: {data['code']}, ID: {data['id']})")
 
         print(f"✅ Created {len(financial_centers)} financial centers")
 
@@ -88,31 +86,27 @@ class TestFinancialCentersJourney:
         response_data = list_response.json()
         fc_list = response_data["financial_centers"]  # Extract array from wrapper
         assert len(fc_list) >= 4  # At least our 4 centers
-        assert all(fc["is_current"] == True for fc in fc_list)
-        print(f"✅ Listed {len(fc_list)} financial centers (all current versions)")
+        # Note: SCD Type 1 - no is_current field
+        print(f"✅ Listed {len(fc_list)} financial centers")
 
         # ===== STEP 3: Get Specific Financial Center =====
         print("\n💰 Step 3: Getting specific financial center...")
 
-        cash_id = fc_ids["CASH_RUB"]
+        cash_id = fc_ids["Наличные (RUB)"]
         get_response = await auth_client.get(f"/api/v1/financial-centers/{cash_id}")
         assert get_response.status_code == 200
         cash_data = get_response.json()
-        assert cash_data["code"] == "CASH_RUB"
+        assert cash_data["code"] is not None  # Auto-generated code
         assert cash_data["name"] == "Наличные (RUB)"
-        print(f"✅ Retrieved ЦФО: {cash_data['name']}")
+        print(f"✅ Retrieved ЦФО: {cash_data['name']} (Code: {cash_data['code']})")
 
-        # ===== STEP 4: Update Financial Center (SCD Type 2) =====
-        print("\n💰 Step 4: Updating financial center (SCD Type 2)...")
+        # ===== STEP 4: Update Financial Center (SCD Type 1 + History) =====
+        print("\n💰 Step 4: Updating financial center...")
 
-        # Store original valid_from for later comparison
-        original_valid_from = cash_data["valid_from"]
-
-        # Update the cash financial center
+        # Update the cash financial center (SCD Type 1: updates in-place, creates history snapshot)
         update_response = await auth_client.put(
             f"/api/v1/financial-centers/{cash_id}",
             json={
-                "code": "CASH_RUB",
                 "name": "Наличные (Обновлено)",  # Changed name
                 "description": "Наличные деньги в рублях и долларах"  # Changed description
             }
@@ -120,39 +114,41 @@ class TestFinancialCentersJourney:
         assert update_response.status_code == 200
         updated_data = update_response.json()
         assert updated_data["name"] == "Наличные (Обновлено)"
-        assert updated_data["is_current"] == True
-        print(f"✅ Updated ЦФО: {updated_data['name']}")
+        assert updated_data["id"] == cash_id  # Same ID (SCD Type 1)
+        print(f"✅ Updated ЦФО: {updated_data['name']} (Code: {updated_data['code']})")
 
-        # ===== STEP 5: Verify SCD Type 2 Behavior =====
-        print("\n💰 Step 5: Verifying SCD Type 2 historical tracking...")
+        # ===== STEP 5: Verify SCD Type 1 + History Behavior =====
+        print("\n💰 Step 5: Verifying SCD Type 1 + History tracking...")
 
-        # Get all versions (including historical) via list endpoint
-        # The list endpoint should only return current versions
+        # Get financial center - should return updated version with same ID
+        verify_response = await auth_client.get(f"/api/v1/financial-centers/{cash_id}")
+        assert verify_response.status_code == 200
+        verify_data = verify_response.json()
+        assert verify_data["name"] == "Наличные (Обновлено)"
+        assert verify_data["id"] == cash_id  # Same ID (not a new version)
+
+        # List endpoint should show updated name
         list_after_update = await auth_client.get("/api/v1/financial-centers")
         response_data = list_after_update.json()
-        current_versions = response_data["financial_centers"]  # Extract array from wrapper
+        current_versions = response_data["financial_centers"]
 
-        # Find our financial center in current versions
-        cash_current = next((fc for fc in current_versions if fc["code"] == "CASH_RUB"), None)
+        # Find our financial center by ID
+        cash_current = next((fc for fc in current_versions if fc["id"] == cash_id), None)
         assert cash_current is not None
         assert cash_current["name"] == "Наличные (Обновлено)"
-        assert cash_current["is_current"] == True
 
-        # Verify that valid_from changed (new version created)
-        # Note: In a real scenario, we'd query the database directly to verify old versions
-        # but for E2E tests, we verify through API behavior
-        print(f"✅ SCD Type 2 verified:")
-        print(f"   - Old version archived")
-        print(f"   - New version created with updated data")
-        print(f"   - Only current version visible in list")
+        print(f"✅ SCD Type 1 + History verified:")
+        print(f"   - Financial center updated in-place (same ID)")
+        print(f"   - History snapshot created (for audit trail)")
+        print(f"   - Updated version visible in list")
 
         # ===== STEP 6: Delete Financial Center =====
         print("\n💰 Step 6: Deleting financial center...")
 
-        crypto_id = fc_ids["CRYPTO_BTC"]
+        crypto_id = fc_ids["Bitcoin Wallet"]
         delete_response = await auth_client.delete(f"/api/v1/financial-centers/{crypto_id}")
         assert delete_response.status_code == 204
-        print(f"✅ Deleted ЦФО: CRYPTO_BTC (ID: {crypto_id})")
+        print(f"✅ Deleted ЦФО: Bitcoin Wallet (ID: {crypto_id})")
 
         # ===== STEP 7: Verify Deletion =====
         print("\n💰 Step 7: Verifying deletion...")
@@ -208,29 +204,28 @@ class TestCostCentersJourney:
         print("\n🏢 Step 1: Creating cost centers...")
 
         cost_centers = [
-            ("PERS", "Личные расходы", "Личные траты"),
-            ("FAMILY", "Семейный бюджет", "Общие семейные расходы"),
-            ("PROJECT_A", "Проект А", "Расходы по проекту А"),
-            ("DEPT_IT", "IT Отдел", "Расходы IT отдела"),
+            ("Личные расходы", "Личные траты"),
+            ("Семейный бюджет", "Общие семейные расходы"),
+            ("Проект А", "Расходы по проекту А"),
+            ("IT Отдел", "Расходы IT отдела"),
         ]
 
         cc_ids = {}
-        for code, name, description in cost_centers:
+        for name, description in cost_centers:
             response = await auth_client.post(
                 "/api/v1/cost-centers",
                 json={
-                    "code": code,
                     "name": name,
                     "description": description
                 }
             )
             assert response.status_code == 201
             data = response.json()
-            cc_ids[code] = data["id"]
-            assert data["code"] == code
+            cc_ids[name] = data["id"]
+            assert data["code"] is not None  # Auto-generated code (MVZ-1, MVZ-2, etc.)
             assert data["name"] == name
-            assert data["is_current"] == True
-            print(f"✅ Created МВЗ: {name} (ID: {data['id']})")
+            # Note: SCD Type 1 - no is_current field
+            print(f"✅ Created МВЗ: {name} (Code: {data['code']}, ID: {data['id']})")
 
         print(f"✅ Created {len(cost_centers)} cost centers")
 
@@ -242,27 +237,27 @@ class TestCostCentersJourney:
         response_data = list_response.json()
         cc_list = response_data["cost_centers"]  # Extract array from wrapper
         assert len(cc_list) >= 4  # At least our 4 centers
-        assert all(cc["is_current"] == True for cc in cc_list)
-        print(f"✅ Listed {len(cc_list)} cost centers (all current versions)")
+        # Note: SCD Type 1 - no is_current field
+        print(f"✅ Listed {len(cc_list)} cost centers")
 
         # ===== STEP 3: Get Specific Cost Center =====
         print("\n🏢 Step 3: Getting specific cost center...")
 
-        personal_id = cc_ids["PERS"]
+        personal_id = cc_ids["Личные расходы"]
         get_response = await auth_client.get(f"/api/v1/cost-centers/{personal_id}")
         assert get_response.status_code == 200
         personal_data = get_response.json()
-        assert personal_data["code"] == "PERS"
+        assert personal_data["code"] is not None  # Auto-generated code
         assert personal_data["name"] == "Личные расходы"
-        print(f"✅ Retrieved МВЗ: {personal_data['name']}")
+        print(f"✅ Retrieved МВЗ: {personal_data['name']} (Code: {personal_data['code']})")
 
-        # ===== STEP 4: Update Cost Center (SCD Type 2) =====
-        print("\n🏢 Step 4: Updating cost center (SCD Type 2)...")
+        # ===== STEP 4: Update Cost Center (SCD Type 1 + History) =====
+        print("\n🏢 Step 4: Updating cost center...")
 
+        # Update cost center (SCD Type 1: updates in-place, creates history snapshot)
         update_response = await auth_client.put(
             f"/api/v1/cost-centers/{personal_id}",
             json={
-                "code": "PERS",
                 "name": "Личные (Обновлено)",  # Changed name
                 "description": "Обновленное описание личных расходов"
             }
@@ -270,29 +265,30 @@ class TestCostCentersJourney:
         assert update_response.status_code == 200
         updated_data = update_response.json()
         assert updated_data["name"] == "Личные (Обновлено)"
-        assert updated_data["is_current"] == True
-        print(f"✅ Updated МВЗ: {updated_data['name']}")
+        assert updated_data["id"] == personal_id  # Same ID (SCD Type 1)
+        print(f"✅ Updated МВЗ: {updated_data['name']} (Code: {updated_data['code']})")
 
-        # ===== STEP 5: Verify SCD Type 2 Behavior =====
-        print("\n🏢 Step 5: Verifying SCD Type 2 historical tracking...")
+        # ===== STEP 5: Verify SCD Type 1 + History Behavior =====
+        print("\n🏢 Step 5: Verifying SCD Type 1 + History tracking...")
 
+        # Verify update via list endpoint
         list_after_update = await auth_client.get("/api/v1/cost-centers")
         response_data = list_after_update.json()
-        current_versions = response_data["cost_centers"]  # Extract array from wrapper
+        current_versions = response_data["cost_centers"]
 
-        personal_current = next((cc for cc in current_versions if cc["code"] == "PERS"), None)
+        # Find our cost center by ID
+        personal_current = next((cc for cc in current_versions if cc["id"] == personal_id), None)
         assert personal_current is not None
         assert personal_current["name"] == "Личные (Обновлено)"
-        assert personal_current["is_current"] == True
-        print(f"✅ SCD Type 2 verified (new version created)")
+        print(f"✅ SCD Type 1 + History verified (updated in-place)")
 
         # ===== STEP 6: Delete Cost Center =====
         print("\n🏢 Step 6: Deleting cost center...")
 
-        dept_id = cc_ids["DEPT_IT"]
+        dept_id = cc_ids["IT Отдел"]
         delete_response = await auth_client.delete(f"/api/v1/cost-centers/{dept_id}")
         assert delete_response.status_code == 204
-        print(f"✅ Deleted МВЗ: DEPT_IT (ID: {dept_id})")
+        print(f"✅ Deleted МВЗ: IT Отдел (ID: {dept_id})")
 
         # ===== STEP 7: Verify Deletion =====
         print("\n🏢 Step 7: Verifying deletion...")
@@ -345,18 +341,18 @@ class TestCentersIntegrationWithFacts:
         # ===== STEP 1: Create Financial and Cost Centers =====
         print("\n💼 Step 1: Creating centers...")
 
-        # Create Financial Center
+        # Create Financial Center (code is auto-generated)
         fc_response = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "CASH", "name": "Наличные", "description": "Cash"}
+            json={"name": "Наличные", "description": "Cash"}
         )
         assert fc_response.status_code == 201
         fc_id = fc_response.json()["id"]
 
-        # Create Cost Center
+        # Create Cost Center (code is auto-generated)
         cc_response = await auth_client.post(
             "/api/v1/cost-centers",
-            json={"code": "PERS", "name": "Личные", "description": "Personal"}
+            json={"name": "Личные", "description": "Personal"}
         )
         assert cc_response.status_code == 201
         cc_id = cc_response.json()["id"]
@@ -365,9 +361,10 @@ class TestCentersIntegrationWithFacts:
         # ===== STEP 2: Create Article =====
         print("\n💼 Step 2: Creating article...")
 
+        # Note: Articles also auto-generate codes
         article_response = await auth_client.post(
             "/api/v1/articles",
-            json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None}
+            json={"name": "Food", "type": "expense", "parent_id": None}
         )
         assert article_response.status_code == 201
         article_id = article_response.json()["id"]
@@ -529,42 +526,42 @@ class TestCentersAnalytics:
         # ===== STEP 1: Setup Test Data =====
         print("\n📊 Step 1: Setting up test data...")
 
-        # Create Financial Centers
+        # Create Financial Centers (codes are auto-generated)
         cash_fc = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "CASH", "name": "Cash", "description": "Cash"}
+            json={"name": "Cash", "description": "Cash"}
         )
         cash_fc_id = cash_fc.json()["id"]
 
         card_fc = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "CARD", "name": "Card", "description": "Card"}
+            json={"name": "Card", "description": "Card"}
         )
         card_fc_id = card_fc.json()["id"]
 
-        # Create Cost Centers
+        # Create Cost Centers (codes are auto-generated)
         personal_cc = await auth_client.post(
             "/api/v1/cost-centers",
-            json={"code": "PERS", "name": "Personal", "description": "Personal"}
+            json={"name": "Personal", "description": "Personal"}
         )
         personal_cc_id = personal_cc.json()["id"]
 
         family_cc = await auth_client.post(
             "/api/v1/cost-centers",
-            json={"code": "FAM", "name": "Family", "description": "Family"}
+            json={"name": "Family", "description": "Family"}
         )
         family_cc_id = family_cc.json()["id"]
 
-        # Create Articles
+        # Create Articles (codes are auto-generated)
         food_article = await auth_client.post(
             "/api/v1/articles",
-            json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None}
+            json={"name": "Food", "type": "expense", "parent_id": None}
         )
         food_id = food_article.json()["id"]
 
         transport_article = await auth_client.post(
             "/api/v1/articles",
-            json={"code": "TRANS", "name": "Transport", "type": "expense", "parent_id": None}
+            json={"name": "Transport", "type": "expense", "parent_id": None}
         )
         transport_id = transport_article.json()["id"]
 
@@ -672,47 +669,54 @@ class TestCentersValidation:
         Test validation and error handling.
 
         Tests:
-        1. Duplicate codes (should fail)
-        2. Invalid data (empty fields, etc.)
+        1. Code auto-generation (ensures uniqueness)
+        2. Invalid data (empty name, missing fields)
         3. Referencing non-existent centers in facts
-        4. User isolation (can't access other users' centers)
+        4. User isolation (authentication requirements)
+
+        Note: Duplicate code validation removed - codes are auto-generated.
         """
 
         print("\n🏁 ЦФО/МВЗ VALIDATION AND ERROR HANDLING TEST")
 
-        # ===== STEP 1: Test Duplicate Code Validation =====
-        print("\n🔒 Step 1: Testing duplicate code validation...")
+        # ===== STEP 1: Test Code Auto-generation =====
+        print("\n🔒 Step 1: Testing code auto-generation...")
 
-        # Create first ЦФО
+        # Create first ЦФО (code auto-generated)
         fc1 = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "UNIQUE", "name": "Unique FC", "description": "First"}
+            json={"name": "Unique FC", "description": "First"}
         )
         assert fc1.status_code == 201
+        fc1_data = fc1.json()
+        assert fc1_data["code"] is not None  # Auto-generated
 
-        # Try to create another with same code
+        # Create another ЦФО (code will be different, auto-generated)
         fc2 = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "UNIQUE", "name": "Duplicate FC", "description": "Second"}
+            json={"name": "Another FC", "description": "Second"}
         )
-        assert fc2.status_code == 400 or fc2.status_code == 409
-        print(f"✅ Duplicate code validation works (status: {fc2.status_code})")
+        assert fc2.status_code == 201
+        fc2_data = fc2.json()
+        assert fc2_data["code"] is not None  # Auto-generated
+        assert fc2_data["code"] != fc1_data["code"]  # Different codes
+        print(f"✅ Code auto-generation works (FC1: {fc1_data['code']}, FC2: {fc2_data['code']})")
 
         # ===== STEP 2: Test Invalid Data Validation =====
         print("\n🔒 Step 2: Testing invalid data validation...")
 
-        # Empty code
+        # Empty name (required field)
         invalid_fc = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "", "name": "Invalid", "description": "Empty code"}
+            json={"name": "", "description": "Empty name"}
         )
         assert invalid_fc.status_code == 422  # Validation error
-        print(f"✅ Empty code rejected (status: {invalid_fc.status_code})")
+        print(f"✅ Empty name rejected (status: {invalid_fc.status_code})")
 
-        # Missing required field
+        # Missing required field (name)
         missing_field = await auth_client.post(
             "/api/v1/financial-centers",
-            json={"code": "MISSING", "description": "No name field"}
+            json={"description": "No name field"}
         )
         assert missing_field.status_code == 422
         print(f"✅ Missing required field rejected (status: {missing_field.status_code})")
@@ -720,10 +724,10 @@ class TestCentersValidation:
         # ===== STEP 3: Test Referencing Non-existent Centers =====
         print("\n🔒 Step 3: Testing non-existent center references...")
 
-        # Create article for testing
+        # Create article for testing (code auto-generated)
         article = await auth_client.post(
             "/api/v1/articles",
-            json={"code": "TEST", "name": "Test", "type": "expense", "parent_id": None}
+            json={"name": "Test", "type": "expense", "parent_id": None}
         )
         article_id = article.json()["id"]
 
