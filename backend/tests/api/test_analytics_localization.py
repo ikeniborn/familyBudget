@@ -22,9 +22,9 @@ class TestAnalyticsLocalization:
     @pytest.mark.asyncio
     async def test_plan_fact_week_russian_days(
         self,
-        client: AsyncClient,
-        authenticated_user,
-        db_session: AsyncSession
+        auth_client: AsyncClient,
+        test_user,
+        session: AsyncSession
     ):
         """Test that Plan-Fact endpoint returns Russian day names for week period."""
         # Arrange: Create some test facts for current week
@@ -35,18 +35,18 @@ class TestAnalyticsLocalization:
         for i in range(7):
             fact_date = start_of_week + timedelta(days=i)
             fact = Fact(
-                user_id=authenticated_user.id,
+                user_id=test_user.id,
                 fact_date=fact_date,
                 amount=-100.0,  # Expense
                 record_type="fact",
                 description=f"Test fact {i}"
             )
-            db_session.add(fact)
+            session.add(fact)
 
-        await db_session.commit()
+        await session.commit()
 
         # Act: Call Plan-Fact API with week period
-        response = await client.get("/api/v1/analytics/plan-fact?period=week")
+        response = await auth_client.get("/api/v1/analytics/plan-fact?period=week")
 
         # Assert
         assert response.status_code == 200
@@ -63,9 +63,9 @@ class TestAnalyticsLocalization:
     @pytest.mark.asyncio
     async def test_heatmap_russian_day_labels(
         self,
-        client: AsyncClient,
-        authenticated_user,
-        db_session: AsyncSession
+        auth_client: AsyncClient,
+        test_user,
+        session: AsyncSession
     ):
         """Test that Heatmap endpoint returns Russian day labels."""
         # Arrange: Create some test facts for past weeks
@@ -75,18 +75,18 @@ class TestAnalyticsLocalization:
         for i in range(14):
             fact_date = today - timedelta(days=i)
             fact = Fact(
-                user_id=authenticated_user.id,
+                user_id=test_user.id,
                 fact_date=fact_date,
                 amount=-50.0,  # Expense
                 record_type="fact",
                 description=f"Heatmap test {i}"
             )
-            db_session.add(fact)
+            session.add(fact)
 
-        await db_session.commit()
+        await session.commit()
 
         # Act: Call Heatmap API
-        response = await client.get("/api/v1/analytics/heatmap?period=month")
+        response = await auth_client.get("/api/v1/analytics/heatmap?period=month")
 
         # Assert
         assert response.status_code == 200
@@ -100,9 +100,9 @@ class TestAnalyticsLocalization:
     @pytest.mark.asyncio
     async def test_waterfall_year_russian_months(
         self,
-        client: AsyncClient,
-        authenticated_user,
-        db_session: AsyncSession
+        auth_client: AsyncClient,
+        test_user,
+        session: AsyncSession
     ):
         """Test that Waterfall endpoint returns Russian month names for year period."""
         # Arrange: Create test facts for different months
@@ -113,18 +113,18 @@ class TestAnalyticsLocalization:
         for month in range(1, 13):
             fact_date = date(year, month, 15)  # Mid-month
             fact = Fact(
-                user_id=authenticated_user.id,
+                user_id=test_user.id,
                 fact_date=fact_date,
                 amount=-200.0,  # Expense
                 record_type="fact",
                 description=f"Month {month} test"
             )
-            db_session.add(fact)
+            session.add(fact)
 
-        await db_session.commit()
+        await session.commit()
 
         # Act: Call Waterfall API with year period
-        response = await client.get("/api/v1/analytics/waterfall?period=year")
+        response = await auth_client.get("/api/v1/analytics/waterfall?period=year")
 
         # Assert
         assert response.status_code == 200
@@ -148,16 +148,16 @@ class TestAnalyticsLocalization:
     @pytest.mark.asyncio
     async def test_plan_fact_month_numeric_labels(
         self,
-        client: AsyncClient,
-        authenticated_user,
-        db_session: AsyncSession
+        auth_client: AsyncClient,
+        test_user,
+        session: AsyncSession
     ):
         """Test that Plan-Fact month period uses numeric day labels (not localized)."""
         # This test ensures month period still uses numbers (1, 2, 3...)
         # as per original implementation (only week period was localized)
 
         # Act: Call Plan-Fact API with month period
-        response = await client.get("/api/v1/analytics/plan-fact?period=month")
+        response = await auth_client.get("/api/v1/analytics/plan-fact?period=month")
 
         # Assert
         assert response.status_code == 200
@@ -171,9 +171,9 @@ class TestAnalyticsLocalization:
     @pytest.mark.asyncio
     async def test_no_english_labels_in_responses(
         self,
-        client: AsyncClient,
-        authenticated_user,
-        db_session: AsyncSession
+        auth_client: AsyncClient,
+        test_user,
+        session: AsyncSession
     ):
         """Integration test: Verify no English day/month names in API responses."""
         # Test all endpoints to ensure no English labels slip through
@@ -186,7 +186,7 @@ class TestAnalyticsLocalization:
         ]
 
         # Test Plan-Fact (week)
-        response = await client.get("/api/v1/analytics/plan-fact?period=week")
+        response = await auth_client.get("/api/v1/analytics/plan-fact?period=week")
         assert response.status_code == 200
         data = response.json()
         for label in data["labels"]:
@@ -195,7 +195,7 @@ class TestAnalyticsLocalization:
                     f"Found English word '{eng_word}' in Plan-Fact labels: {label}"
 
         # Test Heatmap
-        response = await client.get("/api/v1/analytics/heatmap?period=month")
+        response = await auth_client.get("/api/v1/analytics/heatmap?period=month")
         assert response.status_code == 200
         data = response.json()
         for label in data["day_labels"]:
@@ -204,7 +204,7 @@ class TestAnalyticsLocalization:
                     f"Found English word '{eng_word}' in Heatmap day_labels: {label}"
 
         # Test Waterfall (year)
-        response = await client.get("/api/v1/analytics/waterfall?period=year")
+        response = await auth_client.get("/api/v1/analytics/waterfall?period=year")
         assert response.status_code == 200
         data = response.json()
         for label in data["labels"]:
