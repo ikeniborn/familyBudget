@@ -362,7 +362,7 @@ async def auth_client(
     app.dependency_overrides[get_session] = override_get_session
 
     # Create JWT token for test_user
-    access_token = create_access_token(user_id=test_user.id)
+    access_token = create_access_token(user_id=test_user.id, telegram_id=test_user.telegram_id)
 
     # Create HTTP client with authentication cookie
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -401,7 +401,7 @@ async def admin_client(
     app.dependency_overrides[get_session] = override_get_session
 
     # Create JWT token for test_admin
-    access_token = create_access_token(user_id=test_admin.id)
+    access_token = create_access_token(user_id=test_admin.id, telegram_id=test_admin.telegram_id)
 
     # Create HTTP client with authentication cookie
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
