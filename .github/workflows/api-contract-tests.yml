@@ -81,6 +81,7 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
           JWT_SECRET: test_jwt_secret
           SECRET_KEY: test_secret_key
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           cd backend
           uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
