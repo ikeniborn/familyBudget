@@ -1442,6 +1442,19 @@ main() {
             print_message success "Static assets built and minified successfully"
             echo ""
 
+            # Copy Service Worker files from .vite-build/ to final location (v7.0.1+ fix)
+            # Vite creates sw.js and sw.js.gz in .vite-build/, but we need them as sw.min.js in root
+            # Service Worker served by FastAPI backend from /opt/budget/sw.min.js (v6.8.0+)
+            if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+                print_message info "Copying Service Worker files from .vite-build/ to deployment root..."
+                cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+                cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+                print_message success "✓ Service Worker files copied: sw.min.js + sw.min.js.gz"
+            else
+                print_message warning "Service Worker files not found in .vite-build/ - build may have failed"
+            fi
+            echo ""
+
             # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
             if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
                 # Check if CACHE_VERSION itself contains PLACEHOLDER (NOT validation check variable)
@@ -1569,11 +1582,22 @@ main() {
     # Service Worker is built through: npm run build → build-all.js → vite.config.single.ts
     # Vite handles: minification, gzip compression, CACHE_VERSION injection
     if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
-        warning "Service Worker files missing after build"
-        warning "IMPORTANT: sw.min.js must be created by 'npm run build' (Vite handles all processing)"
-        warning "If build was skipped, Service Worker will not be updated"
-        warning "Manual regeneration is no longer supported (minify.sh removed in v7.0.0)"
-    else
+        # Try to copy from .vite-build/ as fallback (v7.0.1+ fix)
+        if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+            warning "Service Worker files missing in deployment root - copying from .vite-build/..."
+            cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+            cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+            success "✓ Service Worker files copied from .vite-build/ (fallback)"
+        else
+            warning "Service Worker files missing after build"
+            warning "IMPORTANT: sw.min.js must be created by 'npm run build' (Vite handles all processing)"
+            warning "If build was skipped, Service Worker will not be updated"
+            warning "Manual regeneration is no longer supported (minify.sh removed in v7.0.0)"
+        fi
+    fi
+
+    # Re-validate after potential fallback copy
+    if [[ -f "$sw_min" ]] && [[ -f "$sw_min_gz" ]]; then
         local sw_min_size=$(stat -c%s "$sw_min" 2>/dev/null || stat -f%z "$sw_min" 2>/dev/null)
         local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
         success "Service Worker validated: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
