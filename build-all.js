@@ -152,7 +152,7 @@ const builds = [
   // Workers
   {
     name: 'csvWorker',
-    input: 'frontend/web/static/js/workers/csvWorker.js',
+    input: 'frontend/web/static/js/lists/workers/csvWorker.ts',  // TypeScript migration (v2.0.0)
     output: 'frontend/web/static/js/workers/csvWorker.min.js',
     globalName: 'CSVWorker'
   },

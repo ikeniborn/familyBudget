@@ -122,7 +122,7 @@ const WORKER_VERSION = 'v20251225_1830';  // Updated by scripts/update-worker-ve
 
 #### 3. csvWorker (CSV Processing)
 
-**Location**: `frontend/web/static/js/workers/csvWorker.js`
+**Location**: `frontend/web/static/js/lists/workers/csvWorker.ts` (TypeScript v2.0.0)
 
 **Purpose**: CSV file processing and Base64 encoding in background thread.
 
@@ -135,23 +135,47 @@ const WORKER_VERSION = 'v20251225_1830';  // Updated by scripts/update-worker-ve
 **Performance**: 10MB file: 2-5s → 100-500ms (80-90% faster)
 
 **Key Features**:
+- **Full TypeScript with typed message protocol** (v2.0.0)
 - Chunked encoding (512KB chunks) for large files
 - Progress reporting every 500ms
 - Warning for files >100MB
 - UTF-8 encoding support (same as `btoa(unescape(encodeURIComponent()))`)
+- Type-safe client wrapper with synchronous fallbacks
 
-**Integration**: `frontend/web/static/js/lists/csvImporter.js`
+**TypeScript Architecture** (v2.0.0):
+```
+frontend/web/static/js/lists/workers/
+├── csvWorker.ts           # Worker implementation (361 LOC)
+├── csvWorker.types.ts     # Message protocol types (230 LOC)
+└── csvWorkerClient.ts     # Type-safe client wrapper (342 LOC)
+```
 
-**Changes Made**:
-1. Added static `_workerWrapper` and `initializeWorker()` method
-2. Added `encodeBase64()` method with worker + fallback
-3. Replaced 3 synchronous `btoa()` calls:
-   - `analyzeFile()` (line 286)
-   - `callPreviewAPI()` (line 680)
-   - `executeImport()` (line 1526)
-4. Worker used for files >1MB, synchronous for small files
+**Typed Message Protocol**:
+```typescript
+// Request (discriminated union)
+type CSVWorkerRequest = EncodeBase64Request | ParseCSVRequest | ValidateRowsRequest | DetectDelimiterRequest;
 
-**Status**: ✅ **Fully Integrated and Working**
+// Response (generic)
+type CSVWorkerResponse<T> = CSVWorkerSuccessResponse<T> | CSVWorkerErrorResponse;
+```
+
+**Integration**: `frontend/web/static/js/lists/csvImporter/operations/fileProcessor.ts`
+
+**Client Usage**:
+```typescript
+import { getCSVWorkerClient, encodeBase64Sync } from '../workers/csvWorkerClient';
+
+const client = getCSVWorkerClient();
+if (client.isAvailable()) {
+  const encoded = await client.encodeBase64(content);
+} else {
+  const encoded = encodeBase64Sync(content);  // Sync fallback
+}
+```
+
+**Build Output**: `frontend/web/static/js/workers/csvWorker.min.js` (3.33 kB)
+
+**Status**: ✅ **Fully Integrated and Working (TypeScript v2.0.0)**
 
 ---
 
@@ -706,6 +730,7 @@ cd ~/familyBudget && ./deploy.sh --patch
 | 1.0.1 | 2025-12-25 | Cache busting fix | dbb7caf4 |
 | 1.0.2 | 2025-12-25 | Template config fix (500 error) | db78a975 |
 | 1.0.3 | 2025-12-25 | Analytics async overhead fix (Phase 5 revert) | 068f6b52 |
+| 2.0.0 | 2026-01-16 | csvWorker TypeScript migration | 717364f2 |
 
 ---
 
@@ -729,12 +754,14 @@ db78a975 - fix(templates): add config global variable to Jinja2 templates
 
 - **workerWrapper.js**: `frontend/web/static/js/workers/core/workerWrapper.js`
 - **hierarchyWorker.js**: `frontend/web/static/js/workers/hierarchyWorker.js`
-- **csvWorker.js**: `frontend/web/static/js/workers/csvWorker.js`
+- **csvWorker.ts** (TypeScript v2.0.0): `frontend/web/static/js/lists/workers/csvWorker.ts`
+- **csvWorker.types.ts**: `frontend/web/static/js/lists/workers/csvWorker.types.ts`
+- **csvWorkerClient.ts**: `frontend/web/static/js/lists/workers/csvWorkerClient.ts`
 - **syncWorker.js**: `frontend/web/static/js/workers/syncWorker.js`
 - **pendingRecordsWorker.js**: `frontend/web/static/js/workers/pendingRecordsWorker.js`
 - **analyticsWorker.js**: `frontend/web/static/js/workers/analyticsWorker.js` (NOT integrated)
 - **choicesCategoryTree.js**: `frontend/shared/static/js/choicesCategoryTree.js`
-- **csvImporter.js**: `frontend/web/static/js/lists/csvImporter.js`
+- **fileProcessor.ts**: `frontend/web/static/js/lists/csvImporter/operations/fileProcessor.ts`
 - **offlineManager.js**: `frontend/web/static/js/offline/offlineManager.js`
 - **index.html**: `frontend/web/templates/index.html` (PendingRecordsRenderer integration)
 - **analytics.html**: `frontend/web/templates/analytics.html` (Phase 5 reverted)
