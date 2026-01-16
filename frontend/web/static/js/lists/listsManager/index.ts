@@ -154,3 +154,18 @@ export {
   handleMobileAddButton,
   updateMobileAddButton
 } from './ui/globalHelpers';
+
+// ============================================================================
+// Hierarchy View Classes (Phase 7.x: TypeScript Migration)
+// ============================================================================
+
+export { HierarchyView } from './rendering/HierarchyView';
+export { SwipeHandler } from './rendering/SwipeHandler';
+
+export type {
+  HierarchyTree,
+  HierarchyStore,
+  HierarchyProductGroup,
+  HierarchyItem,
+  ListsManagerProxy
+} from './types/hierarchy';
