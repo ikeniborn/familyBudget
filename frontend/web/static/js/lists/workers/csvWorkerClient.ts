@@ -4,7 +4,7 @@
  * Provides ergonomic async API for CSV processing via Web Worker.
  * Integrates with existing WorkerWrapper class (workerWrapper.js).
  *
- * @version 1.0.0
+ * @version 1.1.0 (Shared logic refactor + validateRowsSync)
  */
 
 import type {
@@ -12,6 +12,14 @@ import type {
   ValidateRowsResult,
   ValidationSchema,
 } from './csvWorker.types';
+
+import {
+  encodeBase64 as encodeBase64Logic,
+  parseCSV as parseCSVLogic,
+  validateRows as validateRowsLogic,
+  detectDelimiter as detectDelimiterLogic,
+  type ParseCSVOptions,
+} from './csvWorker.logic';
 
 // Re-export types for consumers
 export type { ParseCSVResult, ValidateRowsResult, ValidationSchema };
@@ -273,70 +281,56 @@ export function createCSVWorkerClient(
 }
 
 // ============================================================================
-// Synchronous Fallback Functions
+// Synchronous Fallback Functions (using shared logic)
 // ============================================================================
 
 /**
  * Synchronous Base64 encoding (fallback when worker unavailable)
+ *
+ * Uses memory-optimized chunking for large files (>50MB).
+ *
+ * @param content - UTF-8 string content
+ * @param chunkSize - Optional chunk size override
+ * @returns Base64 encoded string
  */
-export function encodeBase64Sync(content: string): string {
-  return btoa(unescape(encodeURIComponent(content)));
+export function encodeBase64Sync(content: string, chunkSize?: number): string {
+  return encodeBase64Logic(content, chunkSize);
 }
 
 /**
  * Synchronous delimiter detection (fallback when worker unavailable)
+ *
+ * @param headerLine - First line of CSV
+ * @returns Detected delimiter character
  */
 export function detectDelimiterSync(headerLine: string): string {
-  const delimiters = [',', ';', '\t', '|'];
-  const counts = delimiters.map((d) => ({
-    delimiter: d,
-    count: headerLine.split(d).length,
-  }));
-  counts.sort((a, b) => b.count - a.count);
-  return counts[0].count > 1 ? counts[0].delimiter : ',';
+  return detectDelimiterLogic(headerLine);
 }
 
 /**
  * Synchronous CSV parsing (fallback when worker unavailable)
+ *
+ * @param content - CSV file content
+ * @param options - Parse options
+ * @returns Parsed CSV data
  */
 export function parseCSVSync(
   content: string,
-  options?: { delimiter?: string; hasHeader?: boolean; maxRows?: number }
+  options?: ParseCSVOptions
 ): ParseCSVResult {
-  const startTime = performance.now();
-  const lines = content.split(/\r?\n/).filter((l) => l.trim());
+  return parseCSVLogic(content, options);
+}
 
-  if (lines.length === 0) {
-    throw new Error('Empty CSV file');
-  }
-
-  const delimiter = options?.delimiter || detectDelimiterSync(lines[0]);
-  const hasHeader = options?.hasHeader !== false;
-  const header = hasHeader
-    ? lines[0].split(delimiter).map((c) => c.trim())
-    : lines[0].split(delimiter).map((_, i) => `Column${i + 1}`);
-
-  const maxRows = options?.maxRows || lines.length;
-  const startRow = hasHeader ? 1 : 0;
-  const endRow = Math.min(startRow + maxRows, lines.length);
-
-  const rows: Record<string, string>[] = [];
-  for (let i = startRow; i < endRow; i++) {
-    const values = lines[i].split(delimiter).map((v) => v.trim());
-    const row: Record<string, string> = {};
-    header.forEach((h, idx) => {
-      row[h] = values[idx] || '';
-    });
-    rows.push(row);
-  }
-
-  return {
-    delimiter,
-    header,
-    rows,
-    sampleRows: rows.slice(0, 10),
-    totalRows: lines.length - (hasHeader ? 1 : 0),
-    parsedRows: rows.length,
-    duration: Math.round(performance.now() - startTime),
-  };
+/**
+ * Synchronous row validation (fallback when worker unavailable)
+ *
+ * @param rows - Parsed CSV rows
+ * @param schema - Validation schema
+ * @returns Validation result with valid/invalid rows
+ */
+export function validateRowsSync(
+  rows: Record<string, string>[],
+  schema?: ValidationSchema
+): ValidateRowsResult {
+  return validateRowsLogic(rows, schema);
 }
