@@ -5142,7 +5142,7 @@ function renderRecurringPlansTable(plans) {
                         </td>
                         <td>${plan.financial_center_name || 'N/A'}</td>
                         <td class="text-right font-mono ${plan.amount < 0 ? 'text-error' : 'text-success'}">
-                            ${window.formatCurrency ? window.formatCurrency(plan.amount) : plan.amount.toFixed(2)}
+                            ${window.formatCurrency ? window.formatCurrency(plan.amount) : Number(plan.amount).toFixed(2)}
                         </td>
                         <td>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</td>
                         <td>${window.DateFormatter ? window.DateFormatter.formatDate(plan.start_date) : plan.start_date}</td>

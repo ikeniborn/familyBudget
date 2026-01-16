@@ -7,12 +7,15 @@ Recurring plans generate BudgetFact records automatically based on frequency.
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_validator
 
 from backend.app.utils.timezone import now_local
 
+
+# Reusable type for Decimal fields that serialize to float in JSON
+SerializedDecimal = Annotated[Decimal, PlainSerializer(lambda x: float(x), return_type=float)]
 
 FrequencyType = Literal["monthly", "quarterly", "yearly"]
 RecordType = Literal["plan", "fact"]
@@ -341,7 +344,7 @@ class RecurringPlanResponse(BaseModel):
     occurrences_count: Optional[int] = Field(default=None, description="Max occurrences")
     occurrences_generated: int = Field(description="Facts already generated")
 
-    amount: Decimal = Field(description="Transaction amount")
+    amount: SerializedDecimal = Field(description="Transaction amount")
     description: Optional[str] = Field(default=None, description="Description template")
     record_type: RecordType = Field(description="Generated record type")
 
@@ -444,7 +447,7 @@ class RecurringPlanStats(BaseModel):
 
     active_count: int = Field(description="Number of active recurring plans")
     paused_count: int = Field(description="Number of paused plans")
-    total_monthly_amount: Decimal = Field(description="Sum of monthly recurring amounts")
+    total_monthly_amount: SerializedDecimal = Field(description="Sum of monthly recurring amounts")
     next_pending_count: int = Field(description="Plans with pending generation today")
 
     model_config = {
