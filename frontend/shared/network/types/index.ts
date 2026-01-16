@@ -39,7 +39,8 @@ export interface SmartNetworkDetectorOptions {
  */
 export interface DetailedStatus {
   status: NetworkStatus;
-  navigatorOnLine: boolean;
+  isOnline: boolean;            // Changed from navigatorOnLine to match implementation
+  autoOfflineMode: boolean;     // Added to match implementation
   consecutiveFailures: number;
   lastHeartbeat: number;
   lastCheck: number;

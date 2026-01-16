@@ -39,14 +39,22 @@ export const onRequestSuccess = (): void => {
     // Was offline → check real state
     // Dynamic import to avoid circular dependency
     (async () => {
-      const { checkConnectivity } = await import('../core/detectionEngine');
-      await checkConnectivity(true);
+      try {
+        const { checkConnectivity } = await import('../core/detectionEngine');
+        await checkConnectivity(true);
+      } catch (e) {
+        // Ignore errors - this is a background check
+      }
     })();
   } else if (status === 'degraded') {
     // Success on degraded → back to online
     (async () => {
-      const { setStatus } = await import('../core/detectionEngine');
-      setStatus('online');
+      try {
+        const { setStatus } = await import('../core/detectionEngine');
+        setStatus('online');
+      } catch (e) {
+        // Ignore errors - this is a background operation
+      }
     })();
   }
 };
@@ -76,14 +84,22 @@ export const onRequestFailure = (): void => {
   if (newFailures >= maxFailuresBeforeOffline) {
     // Too many failures → offline
     (async () => {
-      const { setStatus } = await import('../core/detectionEngine');
-      setStatus('offline');
+      try {
+        const { setStatus } = await import('../core/detectionEngine');
+        setStatus('offline');
+      } catch (e) {
+        // Ignore errors - this is a background operation
+      }
     })();
   } else if (status === 'online') {
     // First/second failure → degraded
     (async () => {
-      const { setStatus } = await import('../core/detectionEngine');
-      setStatus('degraded');
+      try {
+        const { setStatus } = await import('../core/detectionEngine');
+        setStatus('degraded');
+      } catch (e) {
+        // Ignore errors - this is a background operation
+      }
     })();
   }
 };

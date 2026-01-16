@@ -169,6 +169,9 @@ export const loadOfflineState = (): void => {
     localStorage.removeItem('budget_manual_offline_mode');
   } catch (e) {
     // localStorage might be unavailable (incognito mode, browser restrictions)
+    if ((window as any).DEBUG_MODE) {
+      console.warn('[NetworkState] localStorage unavailable:', e);
+    }
     updateState({ autoOfflineMode: false });
   }
 };
