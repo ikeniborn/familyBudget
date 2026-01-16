@@ -49,6 +49,12 @@ const builds = [
     globalName: 'CalendarWidget'
   },
   {
+    name: 'confirm-dialog',
+    input: 'frontend/web/static/js/confirm-dialog-bundle.ts',
+    output: 'frontend/web/static/js/confirm-dialog.min.js',
+    globalName: 'ConfirmDialogBundle'
+  },
+  {
     name: 'choicesCategoryTree',
     input: 'frontend/shared/static/js/choicesCategoryTree.js',
     output: 'frontend/shared/static/js/choicesCategoryTree.min.js',
