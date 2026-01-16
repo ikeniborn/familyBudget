@@ -101,6 +101,12 @@ export class ConfirmDialog {
  * Call this function to get the modal HTML and insert it into your page
  *
  * @returns HTML string for confirmation dialog
+ *
+ * @example
+ * ```typescript
+ * // Insert dialog into page
+ * document.body.insertAdjacentHTML('beforeend', getConfirmDialogHTML());
+ * ```
  */
 export function getConfirmDialogHTML(): string {
   return `

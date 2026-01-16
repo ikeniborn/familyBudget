@@ -15,12 +15,23 @@
 
 import { ConfirmDialog, getConfirmDialogHTML } from './modules/uiComponents/modals/ConfirmDialog';
 
+// Extend Window interface for type safety (only properties not defined elsewhere)
+declare global {
+  interface Window {
+    confirmModalResolve: typeof ConfirmDialog.resolve;
+    ConfirmDialog: typeof ConfirmDialog;
+    getConfirmDialogHTML: typeof getConfirmDialogHTML;
+  }
+}
+
 // Window adapter for backward compatibility
 if (typeof window !== 'undefined') {
-  (window as any).showConfirmDialog = ConfirmDialog.show.bind(ConfirmDialog);
-  (window as any).confirmModalResolve = ConfirmDialog.resolve.bind(ConfirmDialog);
-  (window as any).ConfirmDialog = ConfirmDialog;
-  (window as any).getConfirmDialogHTML = getConfirmDialogHTML;
+  // showConfirmDialog type is already defined in lists/listsManager/types/globals.d.ts
+  (window as Window & { showConfirmDialog: typeof ConfirmDialog.show }).showConfirmDialog =
+    ConfirmDialog.show.bind(ConfirmDialog);
+  window.confirmModalResolve = ConfirmDialog.resolve.bind(ConfirmDialog);
+  window.ConfirmDialog = ConfirmDialog;
+  window.getConfirmDialogHTML = getConfirmDialogHTML;
 }
 
 export { ConfirmDialog, getConfirmDialogHTML };
