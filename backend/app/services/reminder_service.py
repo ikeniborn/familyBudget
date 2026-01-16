@@ -5,9 +5,10 @@ Handles CRUD operations for reminders and sending notifications
 via Telegram and Web Push when reminders are due.
 """
 
-import json
 from datetime import datetime
 from typing import Optional, List, Tuple
+
+from backend.app.core.json_utils import dumps as json_dumps
 
 import httpx
 from sqlmodel import select
@@ -510,7 +511,7 @@ class ReminderService:
             return False
 
         # Prepare notification payload
-        payload = json.dumps({
+        payload = json_dumps({
             "title": title,
             "body": body,
             "icon": "/static/icons/icon-192.png",

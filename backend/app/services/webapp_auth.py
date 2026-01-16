@@ -17,10 +17,11 @@ Security Requirements:
 
 import hashlib
 import hmac
-import json
 import time
 from typing import Dict, Optional
 from urllib.parse import parse_qs, unquote
+
+from backend.app.core.json_utils import loads as json_loads
 
 from backend.app.core.config import get_settings
 
@@ -115,11 +116,11 @@ def validate_webapp_initdata(init_data: str) -> tuple[bool, Optional[Dict]]:
             return False, None
 
         # URL decode and parse JSON
-        user_data = json.loads(unquote(user_json))
+        user_data = json_loads(unquote(user_json))
 
         return True, user_data
 
-    except (ValueError, KeyError, json.JSONDecodeError):
+    except (ValueError, KeyError):
         return False, None
 
 

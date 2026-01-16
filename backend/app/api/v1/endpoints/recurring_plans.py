@@ -11,8 +11,9 @@ CRUD operations for recurring (scheduled) payments:
 """
 
 import hashlib
-import json
 from typing import Literal, Optional
+
+from backend.app.core.json_utils import dumps_for_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +61,7 @@ def _generate_filter_hash(filters: dict) -> str:
         12-character MD5 hash of filter parameters
     """
     # Sort keys for deterministic hash
-    filter_str = json.dumps(filters, sort_keys=True, default=str)
+    filter_str = dumps_for_cache(filters, default=str)
     return hashlib.md5(filter_str.encode()).hexdigest()[:12]
 
 

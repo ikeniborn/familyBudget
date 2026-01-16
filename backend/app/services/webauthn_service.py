@@ -29,11 +29,12 @@ Usage:
 """
 
 import base64
-import json
 import logging
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
+
+from backend.app.core.json_utils import loads as json_loads
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -157,7 +158,7 @@ async def create_registration_challenge(
     # Convert to JSON-serializable dict
     # Note: options_to_json() returns JSON string, not dict
     options_json_str = options_to_json(registration_options)
-    options_dict = json.loads(options_json_str)
+    options_dict = json_loads(options_json_str)
 
     # Store challenge in options for frontend to send back
     options_dict["challenge"] = challenge_record.challenge
@@ -431,7 +432,7 @@ async def create_authentication_challenge(
     # Convert to JSON-serializable dict
     # Note: options_to_json() returns JSON string, not dict
     options_json_str = options_to_json(authentication_options)
-    options_dict = json.loads(options_json_str)
+    options_dict = json_loads(options_json_str)
 
     # Store challenge in options for frontend to send back
     options_dict["challenge"] = challenge_record.challenge

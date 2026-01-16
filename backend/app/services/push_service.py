@@ -17,10 +17,11 @@ Usage:
     )
 """
 
-import json
 import logging
 from datetime import datetime
 from typing import Optional, Set
+
+from backend.app.core.json_utils import dumps as json_dumps
 
 from pywebpush import webpush, WebPushException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -94,7 +95,7 @@ class PushService:
         try:
             webpush(
                 subscription_info=subscription_info,
-                data=json.dumps(payload),
+                data=json_dumps(payload),
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
                 vapid_claims={"sub": f"mailto:{settings.VAPID_CONTACT_EMAIL}"}
             )
