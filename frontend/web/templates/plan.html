@@ -5145,8 +5145,8 @@ function renderRecurringPlansTable(plans) {
                             ${window.formatCurrency ? window.formatCurrency(plan.amount) : Number(plan.amount).toFixed(2)}
                         </td>
                         <td>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</td>
-                        <td>${window.DateFormatter ? window.DateFormatter.formatDate(plan.start_date) : plan.start_date}</td>
-                        <td>${plan.end_date ? (window.DateFormatter ? window.DateFormatter.formatDate(plan.end_date) : plan.end_date) : '—'}</td>
+                        <td>${window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.start_date) : plan.start_date}</td>
+                        <td>${plan.end_date ? (window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.end_date) : plan.end_date) : '—'}</td>
                         <td class="text-center">${plan.total_occurrences || '∞'}</td>
                         <td class="text-center">
                             ${plan.enable_reminder ? `🔔 ${String(plan.reminder_hour).padStart(2, '0')}:${String(plan.reminder_minute).padStart(2, '0')}` : '—'}
