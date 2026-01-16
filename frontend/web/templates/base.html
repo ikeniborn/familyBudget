@@ -279,8 +279,8 @@
             background: #36d399; /* DaisyUI success green fallback */
             background: oklch(var(--su)); /* DaisyUI success color (green) */
             z-index: 39; /* под navbar (z-40) */
-            transition: width 0.15s ease-out;
-            -webkit-transition: width 0.15s ease-out;
+            transition: width 0.35s ease-out;
+            -webkit-transition: width 0.35s ease-out;
             opacity: 0;
             pointer-events: none;
             box-shadow: 0 0 8px rgba(54, 211, 153, 0.5); /* Fallback */
@@ -302,7 +302,7 @@
 
         .navigation-progress.complete {
             width: 100%;
-            transition: width 0.1s ease-out, opacity 0.6s ease-out 0.2s;
+            transition: width 0.25s ease-out, opacity 0.8s ease-out 0.3s;
             opacity: 0;
         }
 
@@ -393,8 +393,8 @@
             background: oklch(var(--b1)); /* DaisyUI base background (light/dark aware) */
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
-            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            -webkit-transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
             pointer-events: none;
             display: -webkit-flex;
             display: flex;
@@ -436,11 +436,11 @@
 
             /* Smooth fade transition for page content */
             ::view-transition-old(root) {
-                animation: view-fade-out 0.3s ease-out;
+                animation: view-fade-out 0.5s ease-out;
             }
 
             ::view-transition-new(root) {
-                animation: view-fade-in 0.3s ease-in;
+                animation: view-fade-in 0.5s ease-in;
             }
 
             /* Fade out animation */

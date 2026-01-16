@@ -33,8 +33,8 @@
         // Configuration
         config: {
             timeout: 30000,           // 30 seconds max
-            minDisplayTime: 1000,     // Minimum 1 second for better UX
-            fadeOutDelay: 500,        // Longer delay to show 100% completion before smooth fade-out
+            minDisplayTime: 1200,     // Minimum 1.2 seconds for visible progress
+            fadeOutDelay: 600,        // Extended delay to clearly show 100% completion
             animatedFallbackSpeed: 30 // Fake progress increment per 100ms
         },
 
@@ -236,8 +236,8 @@
                 // Complete progress with smooth fade-out
                 this.setProgress(100);
 
-                // Longer delay to show 100% completion (smoother UX)
-                await this.delay(500);
+                // Extended delay to clearly show 100% completion
+                await this.delay(this.config.fadeOutDelay);
 
                 // Start fade-out animation
                 this.fadeOutProgress();
@@ -455,7 +455,7 @@
             setTimeout(() => {
                 this.progressBar.classList.remove('active', 'complete');
                 this.progressBar.style.width = '0%';
-            }, 400);
+            }, 600);  // Sync with CSS opacity transition
         },
 
         /**
