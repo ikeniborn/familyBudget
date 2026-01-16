@@ -16,7 +16,6 @@ Author: Claude Code
 Date: 2025-12-27
 """
 
-import asyncio
 import re
 from collections import deque
 from datetime import datetime, timedelta, timezone

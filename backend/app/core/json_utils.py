@@ -163,6 +163,11 @@ def loads(data: str | bytes) -> Any:
 
     Accepts both str and bytes for flexibility.
 
+    IMPORTANT: This function raises ValueError (not json.JSONDecodeError) for invalid JSON.
+    When migrating from stdlib json, update exception handling:
+        # Before: except json.JSONDecodeError
+        # After:  except ValueError
+
     Args:
         data: JSON string or bytes
 
@@ -170,7 +175,14 @@ def loads(data: str | bytes) -> Any:
         Deserialized Python object
 
     Raises:
-        ValueError: If JSON is invalid (orjson.JSONDecodeError or json.JSONDecodeError)
+        ValueError: If JSON is invalid. This wraps both orjson.JSONDecodeError
+            and json.JSONDecodeError for consistent API across backends.
+
+    Example:
+        >>> try:
+        ...     data = loads('{"key": "value"}')
+        ... except ValueError as e:
+        ...     print(f"Invalid JSON: {e}")
     """
     if _ORJSON_AVAILABLE:
         # orjson.loads accepts both str and bytes
