@@ -31,15 +31,17 @@ Messages (Client -> Server):
 """
 
 import asyncio
-import json
 import logging
 import time
 import uuid
 from collections import deque
 from datetime import datetime, timedelta
+from json import JSONDecodeError
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -313,7 +315,7 @@ class BudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event, default=str)
+        message = json_dumps(event)
 
         async with self._lock:
             connections = list(self.connections)
@@ -353,7 +355,7 @@ class BudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event, default=str)
+        message = json_dumps(event)
 
         # Use lock to prevent race condition with concurrent disconnect/cleanup
         async with self._lock:
@@ -590,7 +592,7 @@ async def budget_websocket_endpoint(
 
                 # Parse and handle client message
                 try:
-                    msg = json.loads(message)
+                    msg = json_loads(message)
                     msg_type = msg.get("type")
 
                     if msg_type == "ping":
@@ -611,7 +613,7 @@ async def budget_websocket_endpoint(
                     else:
                         logger.debug(f"Budget WS unknown message type: {msg_type}")
 
-                except json.JSONDecodeError:
+                except (JSONDecodeError, ValueError):
                     logger.warning(f"Budget WS invalid JSON from user {user_id}")
 
             except asyncio.TimeoutError:
