@@ -14,6 +14,9 @@ alembic==1.14.0
 # Redis (Caching & Pub/Sub)
 redis>=5.0.0
 
+# JSON Performance
+orjson>=3.10.0  # High-performance JSON serialization (3-10x faster)
+
 # Authentication & Security
 python-jose[cryptography]==3.4.0
 python-multipart==0.0.20
