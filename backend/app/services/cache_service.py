@@ -24,13 +24,12 @@ Usage:
 """
 
 import hashlib
-import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Callable, TypeVar
 
-from backend.app.core.config import get_settings
+from backend.app.core.config import Settings, get_settings
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads, dumps_for_cache
 
 from backend.app.services.redis_service import get_redis, is_redis_available
 
@@ -162,7 +161,7 @@ class CacheService:
         self._settings = None
 
     @property
-    def settings(self):
+    def settings(self) -> "Settings":
         """Lazy load settings."""
         if self._settings is None:
             self._settings = get_settings()
@@ -178,7 +177,7 @@ class CacheService:
     def hash_filter(filters: dict[str, Any]) -> str:
         """Create hash from filter parameters for cache key."""
         # Sort keys for consistent hashing
-        sorted_filters = json.dumps(filters, sort_keys=True, default=str)
+        sorted_filters = dumps_for_cache(filters)
         return hashlib.md5(sorted_filters.encode()).hexdigest()[:12]
 
     async def get(self, key: str | CacheKey) -> Any | None:
@@ -201,7 +200,7 @@ class CacheService:
                 value = await redis.get(cache_key)
                 if value:
                     logger.debug(f"Cache HIT: {cache_key}")
-                    return json.loads(value)
+                    return json_loads(value)
                 logger.debug(f"Cache MISS: {cache_key}")
                 return None
         except Exception as e:
@@ -233,7 +232,7 @@ class CacheService:
 
         try:
             # Serialize value
-            serialized = json.dumps(value, default=self._json_serializer)
+            serialized = json_dumps(value)
 
             async with get_redis() as redis:
                 await redis.set(cache_key, serialized, ex=ttl_seconds)
@@ -389,18 +388,6 @@ class CacheService:
     async def invalidate_all(self) -> int:
         """Invalidate all cache keys."""
         return await self.invalidate_pattern("*")
-
-    @staticmethod
-    def _json_serializer(obj: Any) -> Any:
-        """Custom JSON serializer for non-standard types."""
-        if isinstance(obj, datetime):
-            return obj.isoformat()
-        if hasattr(obj, "model_dump"):
-            # Pydantic model
-            return obj.model_dump(mode="json")
-        if hasattr(obj, "__dict__"):
-            return obj.__dict__
-        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 # Singleton instance

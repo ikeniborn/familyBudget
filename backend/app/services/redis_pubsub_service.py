@@ -29,14 +29,14 @@ Usage:
 """
 
 import asyncio
-import json
 import logging
 import time
 from datetime import datetime
 from typing import Any, Callable, Coroutine
 
 import redis.exceptions
-from redis.asyncio import Redis
+
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 
 from backend.app.services.redis_service import get_redis, is_redis_available
 
@@ -79,7 +79,7 @@ async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
         "timestamp": datetime.utcnow().isoformat(),
         "ts": time.time(),  # Unix timestamp for sorting
     }
-    message = json.dumps(event, default=str)
+    message = json_dumps(event)
 
     try:
         async with get_redis() as redis:
@@ -137,7 +137,7 @@ async def get_events_since(since_timestamp: float) -> list[dict]:
             events = []
             for event_json in events_raw:
                 try:
-                    event = json.loads(event_json)
+                    event = json_loads(event_json)
                     # Only include events after the requested timestamp
                     if event.get("ts", 0) > since_timestamp:
                         events.append({
@@ -145,7 +145,7 @@ async def get_events_since(since_timestamp: float) -> list[dict]:
                             "data": event["data"],
                             "timestamp": event["ts"],
                         })
-                except json.JSONDecodeError:
+                except ValueError:
                     continue
 
             return events
@@ -191,7 +191,7 @@ async def _subscriber_loop():
 
                     if message["type"] == "message":
                         try:
-                            event = json.loads(message["data"])
+                            event = json_loads(message["data"])
                             event_type = event.get("type")
                             event_data = event.get("data", {})
 
@@ -203,7 +203,7 @@ async def _subscriber_loop():
                             else:
                                 logger.warning(f"No callback registered, event {event_type} dropped")
 
-                        except json.JSONDecodeError as e:
+                        except ValueError as e:
                             logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
                         except Exception as e:
                             logger.error(f"Error processing Pub/Sub message: {e}", exc_info=True)
@@ -260,7 +260,7 @@ async def start_pubsub_listener(
     return True
 
 
-async def stop_pubsub_listener():
+async def stop_pubsub_listener() -> None:
     """Stop the Redis Pub/Sub subscriber background task."""
     global _subscriber_task, _local_broadcast_callback
 

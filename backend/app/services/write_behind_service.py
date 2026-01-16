@@ -36,7 +36,6 @@ Usage:
 """
 
 import asyncio
-import json
 import logging
 import time
 import uuid
@@ -45,6 +44,7 @@ from enum import Enum
 from typing import Any
 
 from backend.app.core.config import get_settings
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from backend.app.services.redis_service import get_redis, is_redis_available
 from backend.app.models.budget_fact_history import FAR_FUTURE_DATETIME
 
@@ -113,7 +113,7 @@ class WriteQueueItem:
 
     def to_json(self) -> str:
         """Serialize to JSON string for Redis."""
-        return json.dumps({
+        return json_dumps({
             "operation": self.operation.value,
             "entity_type": self.entity_type,
             "data": self.data,
@@ -121,12 +121,12 @@ class WriteQueueItem:
             "request_id": self.request_id,
             "retries": self.retries,
             "created_at": self.created_at,
-        }, default=str)
+        })
 
     @classmethod
     def from_json(cls, json_str: str) -> "WriteQueueItem":
         """Deserialize from JSON string."""
-        data = json.loads(json_str)
+        data = json_loads(json_str)
         return cls(
             operation=WriteOperation(data["operation"]),
             entity_type=data["entity_type"],
@@ -581,12 +581,12 @@ class WriteBehindService:
         try:
             async with get_redis() as redis:
                 dlq_item = {
-                    "item": json.loads(item.to_json()),
+                    "item": json_loads(item.to_json()),
                     "error": error,
                     "failed_at": datetime.utcnow().isoformat(),
                     "worker_id": self._worker_id,
                 }
-                await redis.rpush(DLQ_KEY, json.dumps(dlq_item, default=str))
+                await redis.rpush(DLQ_KEY, json_dumps(dlq_item))
                 logger.error(
                     f"Write-behind DLQ: {item.operation.value} {item.entity_type} "
                     f"request_id={item.request_id} error={error}"
@@ -630,7 +630,7 @@ class WriteBehindService:
                         break
 
                     try:
-                        item_data = json.loads(item_json)
+                        item_data = json_loads(item_json)
                         failed_at = datetime.fromisoformat(item_data.get("failed_at", ""))
                         age_seconds = (now - failed_at).total_seconds()
 
@@ -640,7 +640,7 @@ class WriteBehindService:
                         else:
                             # Items are ordered by time, so stop here
                             break
-                    except (json.JSONDecodeError, ValueError):
+                    except ValueError:
                         # Invalid item, remove it
                         await redis.lpop(DLQ_KEY)
                         removed_count += 1
@@ -744,7 +744,7 @@ class WriteBehindService:
 
         logger.info(f"Write-behind worker stopped: worker_id={self._worker_id}")
 
-    async def start_worker(self):
+    async def start_worker(self) -> None:
         """Start the background worker."""
         if self._worker_task is not None:
             logger.warning("Write-behind worker already running")
@@ -758,7 +758,7 @@ class WriteBehindService:
         self._worker_task = asyncio.create_task(self._worker_loop())
         logger.info("Write-behind worker task created")
 
-    async def stop_worker(self):
+    async def stop_worker(self) -> None:
         """Stop the background worker."""
         if self._worker_task is None:
             return
@@ -802,11 +802,11 @@ class WriteBehindService:
 write_behind_service = WriteBehindService()
 
 
-async def start_write_behind_worker():
+async def start_write_behind_worker() -> None:
     """Start write-behind worker (call from main.py lifespan startup)."""
     await write_behind_service.start_worker()
 
 
-async def stop_write_behind_worker():
+async def stop_write_behind_worker() -> None:
     """Stop write-behind worker (call from main.py lifespan shutdown)."""
     await write_behind_service.stop_worker()

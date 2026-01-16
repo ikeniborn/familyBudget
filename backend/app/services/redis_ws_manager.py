@@ -35,7 +35,6 @@ Usage:
 """
 
 import asyncio
-import json
 import logging
 import time
 import uuid
@@ -44,6 +43,7 @@ from typing import Any
 
 from fastapi import HTTPException, WebSocket, status
 
+from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.services.redis_service import is_redis_available
 from backend.app.services.redis_pubsub_service import (
     publish_event,
@@ -242,7 +242,7 @@ class RedisBudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event, default=str)
+        message = json_dumps(event)
 
         async with self._lock:
             connections = list(self.connections)
@@ -272,7 +272,7 @@ class RedisBudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event, default=str)
+        message = json_dumps(event)
 
         async with self._lock:
             for user_id, websocket, cid, last_activity in self.connections:
