@@ -19,11 +19,11 @@ import type {
 // Constants
 // ============================================================================
 
+/** Module version */
+export const CSV_WORKER_LOGIC_VERSION = '2.0.0';
+
 /** Default chunk size for Base64 encoding (512KB) */
 export const DEFAULT_CHUNK_SIZE = 524288;
-
-/** File size threshold for chunked encoding (512KB) */
-export const CHUNK_THRESHOLD = 524288;
 
 /** Large file warning threshold (100MB) */
 export const LARGE_FILE_THRESHOLD = 100_000_000;
@@ -147,13 +147,14 @@ function encodeBase64LargeFile(
   const startTime = performance.now();
   let lastProgressTime = startTime;
 
-  // Process in larger chunks for better performance with string concat
-  const largeChunkSize = chunkSize * 4; // 2MB chunks
+  // Process in 8MB batches (each batch contains multiple 512KB chunks)
+  // This reduces string concatenation operations while maintaining chunked encoding
+  const batchMultiplier = 16; // 16 * 512KB = 8MB batches
 
   while (offset < utf8Content.length) {
     // Encode a batch of chunks
     let batchResult = '';
-    const batchEnd = Math.min(offset + largeChunkSize * 4, utf8Content.length);
+    const batchEnd = Math.min(offset + chunkSize * batchMultiplier, utf8Content.length);
 
     while (offset < batchEnd) {
       const chunk = utf8Content.substring(offset, offset + chunkSize);

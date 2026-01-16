@@ -18,11 +18,11 @@ import {
   parseCSV as parseCSVLogic,
   validateRows as validateRowsLogic,
   detectDelimiter as detectDelimiterLogic,
-  type ParseCSVOptions,
 } from './csvWorker.logic';
+import type { ParseCSVOptions } from './csvWorker.logic';
 
 // Re-export types for consumers
-export type { ParseCSVResult, ValidateRowsResult, ValidationSchema };
+export type { ParseCSVResult, ValidateRowsResult, ValidationSchema, ParseCSVOptions };
 
 // ============================================================================
 // WorkerWrapper Interface (from workerWrapper.js)
