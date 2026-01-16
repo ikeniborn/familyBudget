@@ -27,6 +27,28 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-16: Fix FAB on /lists Page (v6.6.1)
+- **Change:** Fixed FAB (Floating Action Button) issues on `/lists` page
+- **Problems Fixed:**
+  1. `window.toggleDesktopFAB is not a function` error when clicking center FAB
+  2. FAB buttons (`add-item-fab`, `create-list-fab`) not appearing on desktop
+- **Root Causes:**
+  - Desktop FAB wrapper from `fab_toolbar.html` was overriding lists-specific FAB behavior
+  - Incorrect element IDs in `listRenderer.ts` (`lists-add-item-fab` vs `add-item-fab`)
+  - Incomplete debug object in `checkListContext()` causing syntax error
+- **Solution:**
+  - Removed `/lists` from `allowedPages` for desktop FAB (now uses own FAB from `lists.html`)
+  - Deleted desktop FAB adaptation code for `/lists` (48 lines)
+  - Fixed element IDs in `listRenderer.ts` to match HTML template
+  - Simplified mobile center FAB logic with inline `isDetailView` check
+- **Files Modified:**
+  - `frontend/web/templates/components/fab_toolbar.html` (-59 lines)
+  - `frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts` (4 ID fixes)
+- **Impact:**
+  - ✅ Desktop FAB buttons appear correctly on `/lists`
+  - ✅ Mobile center FAB works for both Landing and Detail views
+  - ✅ No more console errors
+
 ### 2026-01-15: Transfer Module TypeScript Migration (v7.1.0)
 - **Change:** Migrated monolithic `transfer.js` (1233 LOC) to modular TypeScript ES Modules architecture
 - **Architecture:** 15 TypeScript files (~2160 LOC) organized in modular structure
