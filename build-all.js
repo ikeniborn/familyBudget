@@ -15,6 +15,14 @@ const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().s
 
 // All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
+  // === Network Detection Module (ZERO dependencies - must be first!) ===
+  {
+    name: 'network',
+    input: 'frontend/shared/network/index.ts',
+    output: 'frontend/shared/static/js/network.min.js',
+    globalName: 'NetworkModule'
+  },
+
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',
