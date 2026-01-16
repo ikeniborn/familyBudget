@@ -23,29 +23,29 @@ Usage:
 
 from __future__ import annotations
 
+import json as _json_stdlib  # Always available for fallback
 import logging
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Callable
 from uuid import UUID
 
+from starlette.responses import Response
+
 # Type alias for JSON serializer function
 JsonSerializer = Callable[[Any], Any]
 
 logger = logging.getLogger(__name__)
 
-# Try to import orjson, fallback to stdlib json
+# Try to import orjson for high-performance serialization
 _ORJSON_AVAILABLE: bool = False
 _orjson: Any = None
-_json_stdlib: Any = None
 
 try:
     import orjson as _orjson
 
     _ORJSON_AVAILABLE = True
 except ImportError:
-    import json as _json_stdlib
-
     logger.warning(
         "orjson not available, falling back to stdlib json. "
         "Install with: pip install orjson>=3.10.0"
@@ -240,3 +240,51 @@ def dumps_pretty(obj: Any, *, default: JsonSerializer | None = None) -> str:
         Pretty-printed JSON string with 2-space indentation
     """
     return dumps(obj, default=default, sort_keys=False, indent=True)
+
+
+class ORJSONResponse(Response):
+    """
+    FastAPI Response class using orjson for high-performance JSON serialization.
+
+    Benefits:
+        - 3-10x faster than stdlib json
+        - Native datetime, Decimal, UUID support via default_serializer
+        - Graceful fallback to stdlib json if orjson unavailable
+
+    Usage:
+        from backend.app.core.json_utils import ORJSONResponse
+
+        @app.get("/data")
+        async def get_data() -> Response:
+            return ORJSONResponse(content={"key": "value"})
+
+        # Or set as default for entire FastAPI app:
+        app = FastAPI(default_response_class=ORJSONResponse)
+    """
+
+    media_type = "application/json"
+
+    def render(self, content: Any) -> bytes:
+        """
+        Render content to JSON bytes.
+
+        Uses orjson if available, falls back to stdlib json otherwise.
+
+        Args:
+            content: Python object to serialize
+
+        Returns:
+            JSON-encoded bytes
+        """
+        if _ORJSON_AVAILABLE:
+            return _orjson.dumps(
+                content,
+                default=default_serializer,
+                option=_orjson.OPT_SERIALIZE_NUMPY,
+            )
+        # Fallback to stdlib json
+        return _json_stdlib.dumps(
+            content,
+            default=default_serializer,
+            ensure_ascii=False,
+        ).encode("utf-8")

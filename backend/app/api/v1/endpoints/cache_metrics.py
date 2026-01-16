@@ -25,7 +25,6 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
-from fastapi.responses import JSONResponse
 
 from backend.app.core.dependencies import CurrentAdmin
 from backend.app.schemas.cache_metrics import (
