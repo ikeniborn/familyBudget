@@ -2498,6 +2498,45 @@ function openCreateModal() {
 // Ensure function is globally accessible for onclick handlers
 window.openCreateModal = openCreateModal;
 
+// ==================== FAB INTEGRATION ====================
+// Alias for FAB compatibility (openCreateModal → openAddTransactionModal)
+function openAddTransactionModal() {
+    openCreateModal();  // Reuse existing function
+}
+window.openAddTransactionModal = openAddTransactionModal;
+
+// Open fact transfer modal
+function openFactTransferModal() {
+    // Reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+            delete submitBtn.dataset.originalHtml;
+        } else {
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
+        }
+    }
+
+    // Set transfer type to 'fact'
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('fact');
+    }
+
+    // Open modal with today's date
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput) {
+            dateInput.value = BudgetShared.DateFormatter.today();
+        }
+        modal.showModal();
+    }
+}
+window.openFactTransferModal = openFactTransferModal;
+
 // ==================== FACTS PAGE SPECIFIC ====================
 // Update save button title based on offline mode
 // The unified .save-btn button color is controlled via CSS (html.offline-mode)

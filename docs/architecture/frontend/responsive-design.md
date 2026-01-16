@@ -31,23 +31,44 @@ Family Budget uses Tailwind CSS breakpoint system:
 
 ## FAB Navigation Architecture (v7.x)
 
-**Date:** 2026-01-08
-**Issue:** Mobile navigation not fixed at bottom, displayed on desktop, missing safe-area-inset for iPhone notch
-**Solution:** CSS positioning fixes with `!important`, safe-area-inset padding, visibility protection, resize listener
+**Date:** 2026-01-17 (restructured)
+**Issue:** Mobile navigation had dropdown "Добавить" which caused ReferenceError on /analytics, /facts, /plan
+**Solution:** Separated navigation and FAB into distinct components with page-context visibility
 
-### Positioning Strategy
+### Architecture Overview
 
-**Mobile/Tablet (< 1024px):**
-- Navigation bar fixed at bottom of viewport
-- Full width with 5 buttons (Home, Analytics, Add, Facts/Plans, Lists)
-- Safe-area-inset padding for iPhone notch compatibility
-- Z-index: 50 (above content, below modals)
+**Mobile (< 1024px) - Two Components:**
+
+1. **Mobile Navigation Bar** (bottom of screen)
+   - 5 direct links: Главная, Аналитика, Факт, План, Списки
+   - No dropdown menus (removed in v7.x restructure)
+   - Safe-area-inset padding for iPhone notch
+   - Z-index: 50
+
+2. **Mobile FAB "+"** (bottom-right, above nav bar)
+   - Separate floating button with speed dial menu
+   - Page-context visibility (hidden on /analytics)
+   - No backdrop (opens without overlay)
+   - Z-index: 998
 
 **Desktop (≥ 1024px):**
-- Floating Action Button (FAB) at bottom-right corner
+- Single Floating Action Button (FAB) at bottom-right
 - Speed Dial menu with 4 action items
-- Only visible on pages: /, /facts, /plan
-- Z-index: 1000 (above backdrop: 999)
+- Backdrop overlay when open
+- Z-index: 1000 (backdrop: 999)
+
+### Page Context Visibility Matrix
+
+| Page | Mobile FAB | Mobile FAB Actions | Desktop FAB | Desktop FAB Actions |
+|------|------------|-------------------|-------------|---------------------|
+| `/` | Показан | 4 (все) | Показан | 4 (все) |
+| `/facts` | Показан | 2 (факт) | Показан | 2 (факт) |
+| `/plan` | Показан | 2 (план) | Показан | 2 (план) |
+| `/analytics` | Скрыт | - | Скрыт | - |
+| `/lists` | Показан* | Direct action** | Скрыт | - |
+
+\* На /lists кнопка "+" работает без меню (direct action)
+\** В списке списков → создать список; внутри списка → добавить товар
 
 ### Dynamic Breakpoint Switching (v7.x+)
 
@@ -98,18 +119,24 @@ Family Budget uses Tailwind CSS breakpoint system:
 | 768-1023px | Tablet | Bottom bar (5 buttons) |
 | ≥ 1024px | Desktop | FAB (Speed Dial) |
 
-### Page Visibility Rules
+### Page Context Configuration
 
-**Desktop FAB visible only on:**
-- `/` (Главная - Home)
-- `/facts` (Факты - Facts)
-- `/plan` (План - Plan)
+**Configuration constant in `fab_toolbar.html`:**
+```javascript
+const FAB_PAGE_CONTEXT = {
+    '/': ['fact-transaction', 'fact-transfer', 'plan-transaction', 'plan-transfer'],
+    '/facts': ['fact-transaction', 'fact-transfer'],
+    '/plan': ['plan-transaction', 'plan-transfer'],
+    '/lists': 'lists'  // Special mode - direct action
+    // Pages not listed = FAB hidden
+};
+```
 
-**Desktop FAB hidden on:**
-- `/lists` (Списки - Shopping Lists)
-- `/analytics` (Аналитика - Analytics)
-- `/admin` (Администрирование - Admin)
-- All other pages
+**Action items use `data-fab-action` attribute:**
+- `fact-transaction` - Расход/Доход (факт)
+- `fact-transfer` - Перевод (факт)
+- `plan-transaction` - Расход/Доход (план)
+- `plan-transfer` - Перевод (план)
 
 ### Z-Index Hierarchy
 
