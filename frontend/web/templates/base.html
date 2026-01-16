@@ -436,11 +436,11 @@
 
             /* Smooth fade transition for page content */
             ::view-transition-old(root) {
-                animation: view-fade-out 1.1s ease-out;
+                animation: view-fade-out 0.3s ease-out;
             }
 
             ::view-transition-new(root) {
-                animation: view-fade-in 1.1s ease-in;
+                animation: view-fade-in 0.3s ease-in;
             }
 
             /* Fade out animation */
@@ -470,10 +470,44 @@
                     animation: none !important;
                 }
             }
-        }
 
-        /* Disable View Transitions for dialog elements (modals) */
-        @supports (view-transition-name: root) {
+            /* ========================================
+               Progress Bar: Visible above transitions
+               ======================================== */
+            .navigation-progress {
+                view-transition-name: navigation-progress;
+            }
+
+            /* Render progress bar ABOVE root transition layer */
+            ::view-transition-group(navigation-progress) {
+                z-index: 100;
+            }
+
+            /* Progress bar does not animate during view transitions */
+            ::view-transition-old(navigation-progress),
+            ::view-transition-new(navigation-progress) {
+                animation: none;
+            }
+
+            /* ========================================
+               Navigation Overlay: Highest priority
+               ======================================== */
+            .navigation-overlay {
+                view-transition-name: navigation-overlay;
+            }
+
+            ::view-transition-group(navigation-overlay) {
+                z-index: 101;
+            }
+
+            ::view-transition-old(navigation-overlay),
+            ::view-transition-new(navigation-overlay) {
+                animation: none;
+            }
+
+            /* ========================================
+               Disable View Transitions for Dialogs
+               ======================================== */
             dialog, dialog *, dialog::backdrop {
                 view-transition-name: none;
             }
