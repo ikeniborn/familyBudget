@@ -249,9 +249,9 @@ window.toggleDesktopFAB = function() {
     const isDesktop = window.innerWidth >= 1024;
     const mode = isDesktop ? 'desktop-fab' : 'mobile-nav';
 
-    // Desktop FAB: show only on specific pages
-    // /lists: shows Desktop FAB on desktop (>=1024px), mobile menu on mobile (<1024px)
-    const allowedPages = ['/', '/facts', '/plan', '/lists'];
+    // Desktop FAB: show only on /, /facts, /plan
+    // Note: /lists uses its own FAB buttons defined in lists.html
+    const allowedPages = ['/', '/facts', '/plan'];
     const currentPage = window.location.pathname;
     const isPageAllowed = allowedPages.includes(currentPage);
 
@@ -447,29 +447,16 @@ window.toggleDesktopFAB = function() {
         const centerFabDropdown = centerFabBtn?.closest('.dropdown');
 
         if (centerFabDropdown) {
-            // Check if we're in detail view (viewing list items) or landing view (list selection)
-            const checkListContext = () => {
-                const detailView = document.getElementById('detail-view');
-                const landingView = document.getElementById('landing-view');
-
-                // detail-view is active if it doesn't have 'hidden' class
-                const isDetailView = detailView && !detailView.classList.contains('hidden');
-
-                    detailViewExists: !!detailView,
-                    landingViewExists: !!landingView,
-                    detailViewHidden: detailView?.classList.contains('hidden'),
-                    isDetailView: isDetailView
-                });
-
-                return isDetailView;
-            };
-
-            // Replace dropdown with direct action
+            // Replace dropdown with direct action based on current view
             centerFabBtn.onclick = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
 
-                if (checkListContext()) {
+                // Check if detail-view is active (doesn't have 'hidden' class)
+                const detailView = document.getElementById('detail-view');
+                const isDetailView = detailView && !detailView.classList.contains('hidden');
+
+                if (isDetailView) {
                     // In detail view (list items) → add new item
                     if (typeof openAddItemModal === 'function') {
                         openAddItemModal();
@@ -491,48 +478,6 @@ window.toggleDesktopFAB = function() {
             const dropdownMenu = centerFabDropdown.querySelector('.dropdown-content');
             if (dropdownMenu) dropdownMenu.remove();
 
-        }
-
-        // Desktop FAB on /lists: adapt to context (Landing/Detail view)
-        const desktopFabBtn = document.getElementById('desktop-fab-btn');
-        const desktopFabWrapper = document.querySelector('.desktop-fab-wrapper');
-        const desktopFabMenuItems = desktopFabWrapper?.querySelectorAll('.fab-menu-item');
-
-        if (desktopFabBtn && desktopFabWrapper) {
-            // Hide speed dial menu items (budget actions not relevant for lists)
-            desktopFabMenuItems?.forEach(item => {
-                item.style.display = 'none';
-            });
-
-            // Replace toggle behavior with direct action
-            desktopFabBtn.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                const detailView = document.getElementById('detail-view');
-                const isDetailView = detailView && !detailView.classList.contains('hidden');
-
-                if (isDetailView) {
-                    // In detail view → add item to list
-                    if (typeof openAddItemModal === 'function') {
-                        openAddItemModal();
-                    } else {
-                        console.warn('[FAB_TOOLBAR] openAddItemModal not found');
-                    }
-                } else {
-                    // In landing view → create new list
-                    if (typeof openCreateListModal === 'function') {
-                        openCreateListModal();
-                    } else {
-                        console.warn('[FAB_TOOLBAR] openCreateListModal not found');
-                    }
-                }
-            };
-
-            // Update aria attributes
-            desktopFabBtn.setAttribute('aria-label', 'Добавить список или товар');
-            desktopFabBtn.setAttribute('aria-haspopup', 'dialog');
-            desktopFabBtn.removeAttribute('aria-expanded');
         }
     }
 
