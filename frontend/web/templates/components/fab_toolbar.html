@@ -343,38 +343,6 @@ window.toggleDesktopFAB = function() {
         }, 200);  // 200ms debounce delay
     });
 
-    // Log computed CSS values for debugging
-    const fabToolbarStyles = window.getComputedStyle(fabToolbar);
-    const mainContentStyles = window.getComputedStyle(document.getElementById('main-content'));
-
-        fabContainer: {
-            position: fabToolbarStyles.position,
-            bottom: fabToolbarStyles.bottom,
-            left: fabToolbarStyles.left,
-            right: fabToolbarStyles.right,
-            paddingBottom: fabToolbarStyles.paddingBottom,
-            display: fabToolbarStyles.display,
-            zIndex: fabToolbarStyles.zIndex,
-        },
-        mobileNav: {
-            display: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).display,
-            visibility: window.getComputedStyle(fabToolbar.querySelector('.mobile-nav-wrapper')).visibility,
-        },
-        desktopFab: {
-            display: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).display,
-            visibility: window.getComputedStyle(fabToolbar.querySelector('.desktop-fab-wrapper')).visibility,
-        },
-        mainContent: {
-            paddingBottom: mainContentStyles.paddingBottom,
-        },
-        safeArea: {
-            top: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top'),
-            right: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right'),
-            bottom: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom'),
-            left: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left'),
-        }
-    });
-
     // Desktop FAB: Auto-close and event handling (toggleDesktopFAB defined globally above)
     // Desktop FAB: Log menu item clicks
     const desktopFabWrapper = document.querySelector('.desktop-fab-wrapper');
@@ -480,17 +448,6 @@ window.toggleDesktopFAB = function() {
 
         }
     }
-
-    // Log button clicks (mobile nav only)
-    fabToolbar.querySelectorAll('.mobile-nav-wrapper .icon-btn, .mobile-nav-wrapper .dropdown button').forEach((btn, index) => {
-        btn.addEventListener('click', (e) => {
-            const buttonLabel = btn.getAttribute('aria-label') || btn.querySelector('.icon-label')?.textContent;
-                index,
-                label: buttonLabel,
-                timestamp: new Date().toISOString()
-            });
-        });
-    });
 
     // Active state management (highlight current page - mobile nav only)
     const currentPath = window.location.pathname;
