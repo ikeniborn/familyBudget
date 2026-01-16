@@ -274,31 +274,30 @@ Use these files to understand component relationships when planning changes or o
 ### 2025-12-30: Lists Modal - Store Dropdown Z-Index Fix (v6.5.6)
 - **Change:** Fixed z-index issue where Product Group field appeared through Store dropdown in Shopping Lists modal
 - **Problem:** When opening Store dropdown in "Add/Edit Item Modal" on /lists page:
-  - Product Group field below was visible THROUGH the dropdown (transparency issue)
+  - Product Group field below was visible THROUGH the dropdown (overlapping issue)
   - Affected all devices (desktop, tablet, mobile portrait/landscape)
-  - Only Store dropdown affected, Product Group dropdown worked correctly
-- **Root Cause:** CSS cascade issue - `choices-tailwind.css` loads AFTER `modal-dropdowns-fix.css`:
-  - CSS load order: 1) base.html → modal-dropdowns-fix.css 2) lists.html → choices-tailwind.css 3) lists.html → lists.css
+  - Root cause: `.choices` container of Product Group creates stacking context above Store dropdown
+- **Root Cause:** CSS stacking context issue:
   - `choices-tailwind.css` sets `.choices__list--dropdown { z-index: 30 !important }` globally
-  - This overrides modal-dropdowns-fix.css rules due to cascade priority
-  - Dropdown uses z-index: 30 instead of required 1060
-- **Solution:** Move z-index rules to `lists.css` (loads last in cascade):
-  - CSS: `#item-modal.store-dropdown-open .choices__list--dropdown { z-index: 1060 !important }`
-  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible !important }`
-  - JavaScript: Event listeners on `showDropdown`/`hideDropdown` add/remove class
+  - But Product Group `.choices` container (lower in DOM) overlaps Store dropdown
+  - Need to raise z-index of entire `.choices` container, not just dropdown list
+- **Solution:** Pure CSS using native Choices.js `.is-open` class (v6.6.1):
+  - CSS: `#item-modal .choices.is-open { z-index: 1060 !important; position: relative }` - raise entire container
+  - CSS: `#item-modal .choices__list--dropdown { z-index: 1061 !important }` - dropdown above container
+  - CSS: `#item-modal.store-dropdown-open .modal-box { overflow: visible !important }` - prevent clipping
+  - JavaScript (optional): `dropdownZIndexManager` object with `open/close/reset` methods for additional control
   - Console logging: `[LISTS_MODAL]` prefix for debugging
 - **Impact:**
   - ✅ Store dropdown appears ABOVE Product Group field (all devices)
-  - ✅ No transparency/see-through effect
+  - ✅ Product Group dropdown also works correctly (same CSS rules)
   - ✅ Dropdown scrolls smoothly, not clipped by modal boundaries
   - ✅ Multiple open/close cycles work reliably
-  - ✅ Product Group dropdown unaffected
+  - ✅ No JavaScript required for basic functionality (Choices.js adds `.is-open` automatically)
 - **Files Modified:**
-  - `frontend/web/static/css/lists.css` (lines 1499-1522) - Added z-index rules (loads last)
-  - `frontend/web/static/js/lists/listsManager.js` (lines 1396-1414) - Added event listeners
-  - `frontend/web/static/css/modal-dropdowns-fix.css` - Removed duplicate rules
+  - `frontend/web/static/css/lists.css` (lines 1660-1682) - z-index rules using `.is-open` class
+  - `frontend/web/static/js/lists/listsManager/ui/modalManager.ts` - `dropdownZIndexManager` object, `ChoicesInstance` interface
 - **Testing:** Verified on desktop Chrome, iPhone Safari (portrait/landscape), iPad Safari
-- **Commits:** 7b7a6088, 04c5d144 (test branch)
+- **Commits:** aba4c29e, 50f97101 (test branch, v6.6.1)
 
 ---
 

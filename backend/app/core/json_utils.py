@@ -26,8 +26,11 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
+
+# Type alias for JSON serializer function
+JsonSerializer = Callable[[Any], Any]
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +52,7 @@ except ImportError:
     )
 
 
-def _default_serializer(obj: Any) -> Any:
+def default_serializer(obj: Any) -> Any:
     """
     Default serializer for non-standard JSON types.
 
@@ -106,7 +109,7 @@ def _default_serializer(obj: Any) -> Any:
 def dumps(
     obj: Any,
     *,
-    default: Any | None = None,
+    default: JsonSerializer | None = None,
     sort_keys: bool = False,
     indent: bool = False,
 ) -> str:
@@ -128,20 +131,20 @@ def dumps(
     Raises:
         TypeError: If object cannot be serialized
     """
-    serializer = default if default is not None else _default_serializer
+    serializer = default if default is not None else default_serializer
 
     if _ORJSON_AVAILABLE:
         # Build orjson options
-        options = orjson.OPT_SERIALIZE_NUMPY  # Always enable numpy support if available
+        options = _orjson.OPT_SERIALIZE_NUMPY  # Always enable numpy support if available
 
         if sort_keys:
-            options |= orjson.OPT_SORT_KEYS
+            options |= _orjson.OPT_SORT_KEYS
 
         if indent:
-            options |= orjson.OPT_INDENT_2
+            options |= _orjson.OPT_INDENT_2
 
         # orjson.dumps returns bytes, decode to str
-        result_bytes = orjson.dumps(obj, default=serializer, option=options)
+        result_bytes = _orjson.dumps(obj, default=serializer, option=options)
         return result_bytes.decode("utf-8")
     else:
         # Fallback to stdlib json
@@ -172,8 +175,8 @@ def loads(data: str | bytes) -> Any:
     if _ORJSON_AVAILABLE:
         # orjson.loads accepts both str and bytes
         try:
-            return orjson.loads(data)
-        except orjson.JSONDecodeError as e:
+            return _orjson.loads(data)
+        except _orjson.JSONDecodeError as e:
             # Re-raise as ValueError for consistent API
             raise ValueError(f"Invalid JSON: {e}") from e
     else:
@@ -194,7 +197,7 @@ def is_orjson_available() -> bool:
     return _ORJSON_AVAILABLE
 
 
-def dumps_for_cache(obj: Any, *, default: Any | None = None) -> str:
+def dumps_for_cache(obj: Any, *, default: JsonSerializer | None = None) -> str:
     """
     Serialize object to deterministic JSON string for caching.
 
@@ -211,7 +214,7 @@ def dumps_for_cache(obj: Any, *, default: Any | None = None) -> str:
     return dumps(obj, default=default, sort_keys=True, indent=False)
 
 
-def dumps_pretty(obj: Any, *, default: Any | None = None) -> str:
+def dumps_pretty(obj: Any, *, default: JsonSerializer | None = None) -> str:
     """
     Serialize object to pretty-printed JSON string.
 
