@@ -2155,14 +2155,14 @@ async def get_heatmap_data(
 
                 # Генерация данных для недели
                 week_data = []
-                date_mapping[week_idx] = {}
+                date_mapping[str(week_idx)] = {}
 
                 for day_offset in range(7):  # Mon-Sun
                     current_date = week_start + timedelta(days=day_offset)
                     # Only include data if within the actual range
                     if start_date <= current_date <= end_date:
                         amount = data_by_date.get(current_date, 0.0)
-                        date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
+                        date_mapping[str(week_idx)][str(day_offset)] = current_date.strftime("%d.%m.%Y")
                     else:
                         amount = 0.0  # Outside range
                     week_data.append(amount)
