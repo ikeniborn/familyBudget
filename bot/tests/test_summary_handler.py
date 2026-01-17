@@ -4,16 +4,16 @@ E2E tests for /summary command (plan vs fact comparison).
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from bot.handlers.summary import summary_handler
+from bot.handlers.summary import summary_command
 
 
 @pytest.mark.asyncio
-async def test_summary_handler_authenticated(mock_update, mock_context, mock_api_client):
+async def test_summary_command_authenticated(mock_update, mock_context, mock_api_client):
     """Test /summary command for authenticated user."""
     with patch('bot.handlers.summary.get_api_client', return_value=mock_api_client):
         with patch('bot.handlers.summary.SessionManager.is_authenticated', return_value=True):
             with patch('bot.handlers.summary.SessionManager.get_token', return_value="test_token"):
-                await summary_handler(mock_update, mock_context)
+                await summary_command(mock_update, mock_context)
 
                 # Verify summary was fetched
                 mock_api_client.get_facts_summary.assert_called()
@@ -26,10 +26,10 @@ async def test_summary_handler_authenticated(mock_update, mock_context, mock_api
 
 
 @pytest.mark.asyncio
-async def test_summary_handler_unauthenticated(mock_update, mock_context):
+async def test_summary_command_unauthenticated(mock_update, mock_context):
     """Test /summary command when user is not authenticated."""
     with patch('bot.handlers.summary.SessionManager.is_authenticated', return_value=False):
-        await summary_handler(mock_update, mock_context)
+        await summary_command(mock_update, mock_context)
 
         # Verify user was redirected to /start
         mock_update.message.reply_text.assert_called()
@@ -38,7 +38,7 @@ async def test_summary_handler_unauthenticated(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_summary_handler_no_data(mock_update, mock_context, mock_api_client):
+async def test_summary_command_no_data(mock_update, mock_context, mock_api_client):
     """Test /summary command when user has no transactions."""
     # Mock API to return empty summary
     mock_api_client.get_facts_summary = AsyncMock(return_value={
@@ -52,7 +52,7 @@ async def test_summary_handler_no_data(mock_update, mock_context, mock_api_clien
     with patch('bot.handlers.summary.get_api_client', return_value=mock_api_client):
         with patch('bot.handlers.summary.SessionManager.is_authenticated', return_value=True):
             with patch('bot.handlers.summary.SessionManager.get_token', return_value="test_token"):
-                await summary_handler(mock_update, mock_context)
+                await summary_command(mock_update, mock_context)
 
                 # Verify empty state message
                 mock_update.message.reply_text.assert_called()
