@@ -4,17 +4,6 @@
 
 **Family Budget** — это веб-приложение для управления семейными финансами с поддержкой офлайн-режима, автоматическими напоминаниями и интеграцией с Telegram.
 
-## CI/CD Status
-
-[![Frontend Tests](https://github.com/ikeniborn/familyBudget/workflows/Frontend%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/frontend-tests.yml)
-[![Backend Tests](https://github.com/ikeniborn/familyBudget/workflows/Backend%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/backend-tests.yml)
-[![E2E Tests](https://github.com/ikeniborn/familyBudget/workflows/E2E%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/e2e-tests.yml)
-[![API Contract Tests](https://github.com/ikeniborn/familyBudget/workflows/API%20Contract%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/api-contract-tests.yml)
-[![Security Scan](https://github.com/ikeniborn/familyBudget/workflows/Security%20Scan/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/security-scan.yml)
-[![Accessibility Tests](https://github.com/ikeniborn/familyBudget/workflows/Accessibility%20Tests/badge.svg)](https://github.com/ikeniborn/familyBudget/actions/workflows/accessibility-tests.yml)
-
----
-
 ## ✨ Что умеет
 
 ### 📊 Учёт и планирование
@@ -113,7 +102,7 @@ sudo bash install.sh
 sudo bash setup.sh
 
 # 4️⃣ Запустить! 🎉
-sudo bash deploy.sh --profile full
+sudo bash deploy.sh
 ```
 
 **Требования:**
@@ -138,60 +127,10 @@ sudo bash deploy.sh --profile full
 
 ## 📚 Документация
 
-| Документ | Для кого |
+| Документ | Описание |
 |----------|----------|
-| [START.md](START.md) | 🔧 Администраторы — установка и настройка |
-| [CLAUDE.md](CLAUDE.md) | 👨‍💻 Разработчики — архитектура и API |
-| [docs/architecture/](docs/architecture/) | 🏗 Архитекторы — технические детали (85 файлов) |
-| `/docs` (Swagger) | 🔌 Интеграторы — REST API |
-
----
-
-## 🤖 Claude Code Skill: pr-automation
-
-**Автоматизация создания Pull Request с мониторингом CI/CD и автоматическим исправлением ошибок.**
-
-Скилл находится в проекте [claude](https://github.com/ikeniborn/claude) и автоматически доступен при работе с familyBudget через Claude Code.
-
-### Возможности
-
-- ✅ **Auto-detection** технологического стека из `/docs/architecture`
-- ✅ **Draft PR creation** с auto-generated описанием
-- ✅ **Real-time CI/CD monitoring** через GitHub Actions
-- ✅ **Автоматическое исправление** 4 типов ошибок (TypeScript, ESLint, Vitest, Build)
-- ✅ **Ralph-loop integration** для итеративных фиксов до успеха
-- ✅ **Conventional Commits** для всех автокоммитов
-
-### Предварительные требования
-
-#### gh CLI в изолированном окружении
-
-```bash
-cd /home/ikeniborn/Documents/Project/claude
-./iclaude.sh --install-gh
-gh auth login
-```
-
-### Использование
-
-```
-Создать PR из feature/transaction-filters в test
-```
-
-Скилл автоматически:
-1. Определит стек из `/docs/architecture/index.yaml` (TypeScript + Vite + HTMX + Tailwind)
-2. Проанализирует `.github/workflows/` (frontend-tests, typescript-check, release-drafter)
-3. Создаст Draft PR с описанием
-4. Будет мониторить CI/CD checks
-5. Исправит найденные ошибки (TypeScript, ESLint, tests)
-6. Отметит PR как ready for review
-
-### Документация
-
-**См. полную документацию в проекте claude:**
-- Основное: [claude/.nvm-isolated/.claude-isolated/skills/pr-automation/SKILL.md](https://github.com/ikeniborn/claude/blob/master/.nvm-isolated/.claude-isolated/skills/pr-automation/SKILL.md)
-- Примеры: [examples/](https://github.com/ikeniborn/claude/tree/master/.nvm-isolated/.claude-isolated/skills/pr-automation/examples)
-- Стратегии: [rules/](https://github.com/ikeniborn/claude/tree/master/.nvm-isolated/.claude-isolated/skills/pr-automation/rules)
+| [START.md](START.md) | Установка и настройка сервера |
+| `/docs` (Swagger) | Интерактивная документация REST API |
 
 ---
 
