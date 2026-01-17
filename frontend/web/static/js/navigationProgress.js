@@ -5,16 +5,16 @@
  * Flow:
  * 1. Intercept link click/touch
  * 2. Mark clicked element as loading (instant visual feedback)
- * 3. Show progress bar (5-95%) + fade overlay with dots
+ * 3. Show fade overlay with loading dots
  * 4. Pre-fetch page in background (warms HTTP cache)
- * 5. Wait for minimum display time (1 second)
- * 6. Complete progress bar (100%) with fade-out
- * 7. Navigate directly (instant load from HTTP cache)
+ * 5. Wait for minimum display time (1.2 seconds)
+ * 6. Navigate directly (instant load from HTTP cache)
  *
  * Key improvements over v3.2:
  * - Instant visual feedback on clicked nav element
  * - Fade overlay with loading dots for content area
  * - Unified loading state for all nav-item elements
+ * - Removed progress bar (replaced by fade overlay + dots)
  *
  * @version 4.0.0
  */
@@ -27,41 +27,32 @@
 
     const NavigationProgress = {
         // DOM elements
-        progressBar: null,
-        overlay: null,
         fadeOverlay: null,
         currentController: null,
         currentLoadingElement: null,
 
         // Configuration
         config: {
-            timeout: 30000,           // 30 seconds max
-            minDisplayTime: 1200,     // Minimum 1.2 seconds for visible progress
-            fadeOutDelay: 600,        // Extended delay to clearly show 100% completion
-            animatedFallbackSpeed: 30 // Fake progress increment per 100ms
+            fetchTimeout: 15000,      // 15 seconds max for pre-fetch
+            minDisplayTime: 1200      // Minimum 1.2 seconds for visible loading
         },
 
         // State
         isNavigating: false,
-        progress: 0,
         startTime: 0,
-        animationFrameId: null,
 
         /**
          * Initialize the navigation interceptor
          */
         init() {
-            this.progressBar = document.getElementById('navigation-progress');
-            this.overlay = document.getElementById('navigation-overlay');
             this.fadeOverlay = document.getElementById('navigation-fade-overlay');
 
-            if (!this.progressBar) {
-                console.warn('[NavigationProgress] Progress bar element not found');
+            if (!this.fadeOverlay) {
+                console.warn('[NavigationProgress] Fade overlay element not found');
                 return;
             }
 
-            // Hide overlays on incoming navigation (page load)
-            this.hideOverlay();
+            // Hide overlay on incoming navigation (page load)
             this.hideFadeOverlay();
             this.clearElementLoading();
 
@@ -224,40 +215,26 @@
             }
 
             this.isNavigating = true;
-            this.progress = 0;
             this.startTime = Date.now();
             this.currentController = new AbortController();
 
-            // Show progress bar and fade overlay
-            this.showProgress();
+            // Show fade overlay (replaces progress bar in v4.0)
             this.showFadeOverlay();
-            this.setProgress(5); // Initial progress to show activity
 
             try {
-                // Pre-fetch the page (warms HTTP cache + shows real progress)
-                await this.prefetchWithProgress(url);
+                // Pre-fetch the page (warms HTTP cache)
+                await this.prefetchPage(url);
 
-                // Ensure minimum display time (1 second)
+                // Ensure minimum display time for fade overlay
                 const elapsed = Date.now() - this.startTime;
                 const remaining = Math.max(0, this.config.minDisplayTime - elapsed);
 
                 if (remaining > 0) {
-                    // Animate progress smoothly during remaining time
-                    await this.animateToComplete(remaining);
+                    await this.delay(remaining);
                 }
 
-                // Complete progress with smooth fade-out
-                this.setProgress(100);
-
-                // Extended delay to clearly show 100% completion
-                await this.delay(this.config.fadeOutDelay);
-
-                // Start fade-out animation
-                this.fadeOutProgress();
-
                 // Navigate directly - HTTP cache is already warmed by pre-fetch
-                // Browser loads instantly from cache (no overlay needed)
-                // All inline scripts execute properly (normal navigation)
+                // Browser loads instantly from cache
                 this.isNavigating = false;
                 window.location.href = url;
 
@@ -268,7 +245,6 @@
                 }
 
                 console.error('[NavigationProgress] Pre-fetch failed:', error);
-                this.hideProgress();
                 this.hideFadeOverlay();
                 this.clearElementLoading();
                 this.isNavigating = false;
@@ -279,179 +255,43 @@
         },
 
         /**
-         * Pre-fetch URL with real progress tracking
-         * The response warms the HTTP cache for instant subsequent load
+         * Pre-fetch page to warm HTTP cache
+         * v4.0: Simplified - no progress bar tracking, just cache warming
          */
-        async prefetchWithProgress(url) {
-            const response = await fetch(url, {
-                method: 'GET',
-                credentials: 'include',
-                signal: this.currentController.signal,
-                headers: {
-                    'Accept': 'text/html,application/xhtml+xml',
-                    'X-Requested-With': 'NavigationProgress'
+        async prefetchPage(url) {
+            // Setup timeout
+            const timeoutId = setTimeout(() => {
+                if (this.currentController) {
+                    this.currentController.abort();
                 }
-            });
-
-            // Get Content-Length for progress calculation
-            const contentLength = response.headers.get('Content-Length');
-            const total = contentLength ? parseInt(contentLength, 10) : 0;
-
-            // Check if ReadableStream is available (Safari PWA might not support it)
-            const hasReadableStream = response.body && typeof response.body.getReader === 'function';
-
-            // If no Content-Length, no body, or no ReadableStream support, use animated fallback
-            if (!total || !hasReadableStream) {
-                this.startAnimatedProgress();
-                // Still consume the response to warm cache
-                await response.text();
-                return;
-            }
+            }, this.config.fetchTimeout);
 
             try {
-                // Read response with progress tracking
-                const reader = response.body.getReader();
-                let loaded = 0;
-                let useFallback = false;
-
-                while (true) {
-                    const { done, value } = await reader.read();
-
-                    if (done) break;
-
-                    loaded += value.length;
-
-                    // Gzip/Brotli fix: if loaded exceeds total by too much, switch to fallback
-                    if (loaded > total * 1.5) {
-                        if (!useFallback) {
-                            useFallback = true;
-                            this.startAnimatedProgress();
-                        }
-                    } else {
-                        // Calculate and update progress (5-90% range, reserve 90-100% for minimum time)
-                        const percentComplete = 5 + (loaded / total) * 85;
-                        this.setProgress(Math.min(90, percentComplete));
+                const response = await fetch(url, {
+                    method: 'GET',
+                    credentials: 'include',
+                    signal: this.currentController.signal,
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml',
+                        'X-Requested-With': 'NavigationProgress'
                     }
+                });
+
+                clearTimeout(timeoutId);
+
+                // Check response status
+                if (!response.ok) {
+                    log('[NavigationProgress] Pre-fetch returned non-OK status:', response.status);
+                    // Don't throw - just skip cache warming, navigation will still work
+                    return;
                 }
 
-                // Response fully consumed → HTTP cache warmed
-            } catch (streamError) {
-                // ReadableStream error (Safari PWA edge case) - fallback to animated progress
-                log('[NavigationProgress] ReadableStream error, using fallback:', streamError.message);
-                this.startAnimatedProgress();
-                // Note: response already consumed by failed getReader, cache should be warmed
+                // Consume response to warm HTTP cache
+                await response.text();
+            } catch (error) {
+                clearTimeout(timeoutId);
+                throw error;
             }
-        },
-
-        /**
-         * Start animated progress (fallback when Content-Length unknown)
-         */
-        startAnimatedProgress() {
-            if (this.animationFrameId) {
-                cancelAnimationFrame(this.animationFrameId);
-            }
-
-            const animate = () => {
-                if (!this.isNavigating || this.progress >= 85) return;
-
-                // Slow down as we approach 85%
-                const increment = (85 - this.progress) / 20;
-                this.setProgress(this.progress + Math.max(0.3, increment));
-
-                this.animationFrameId = requestAnimationFrame(animate);
-            };
-
-            // Start animation with slight delay
-            setTimeout(() => {
-                if (this.isNavigating) {
-                    this.animationFrameId = requestAnimationFrame(animate);
-                }
-            }, 100);
-        },
-
-        /**
-         * Animate progress from current to 100% over specified duration
-         */
-        async animateToComplete(duration) {
-            const startProgress = this.progress;
-            const targetProgress = 100;
-            const startTime = Date.now();
-
-            return new Promise(resolve => {
-                const animate = () => {
-                    const elapsed = Date.now() - startTime;
-                    const ratio = Math.min(1, elapsed / duration);
-
-                    // Ease-out animation
-                    const easedRatio = 1 - Math.pow(1 - ratio, 2);
-                    const currentProgress = startProgress + (targetProgress - startProgress) * easedRatio;
-
-                    this.setProgress(currentProgress);
-
-                    if (ratio < 1 && this.isNavigating) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        resolve();
-                    }
-                };
-
-                requestAnimationFrame(animate);
-            });
-        },
-
-        /**
-         * Show overlay (before navigation)
-         */
-        showOverlay() {
-            if (!this.overlay) return;
-            this.overlay.classList.add('active');
-        },
-
-        /**
-         * Hide overlay (after page load)
-         */
-        hideOverlay() {
-            if (!this.overlay) return;
-            this.overlay.classList.remove('active');
-        },
-
-        /**
-         * Show progress bar
-         */
-        showProgress() {
-            if (!this.progressBar) return;
-            this.progressBar.style.width = '0%';
-            this.progressBar.classList.add('active');
-            this.progressBar.classList.remove('complete');
-        },
-
-        /**
-         * Set progress percentage
-         */
-        setProgress(percent) {
-            this.progress = Math.min(100, Math.max(0, percent));
-            if (this.progressBar) {
-                this.progressBar.style.width = `${this.progress}%`;
-            }
-        },
-
-        /**
-         * Fade out progress bar (smooth transition before navigation)
-         */
-        fadeOutProgress() {
-            if (!this.progressBar) return;
-
-            // Stop any running animation
-            if (this.animationFrameId) {
-                cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
-            }
-
-            // Add fade-out class for smooth transition
-            this.progressBar.classList.add('complete');
-
-            // Don't reset immediately - let navigation complete
-            // The new page will handle cleanup via pageshow event
         },
 
         /**
@@ -461,8 +301,8 @@
         markElementLoading(element) {
             if (!element) return;
 
-            // Find nav-item (button or link)
-            const navItem = element.closest('[data-nav-item], .nav-item, .icon-btn, a[href]');
+            // Find nav-item (button or link with explicit nav markers)
+            const navItem = element.closest('[data-nav-item], .nav-item, .icon-btn');
             if (navItem) {
                 navItem.classList.add('loading');
                 this.currentLoadingElement = navItem;
@@ -479,7 +319,7 @@
                 this.currentLoadingElement = null;
             }
             // Fallback: clear all loading states
-            document.querySelectorAll('.nav-item.loading, [data-nav-item].loading, .icon-btn.loading, a[href].loading').forEach(el => {
+            document.querySelectorAll('.nav-item.loading, [data-nav-item].loading, .icon-btn.loading').forEach(el => {
                 el.classList.remove('loading');
             });
         },
@@ -501,25 +341,6 @@
         },
 
         /**
-         * Hide progress bar
-         */
-        hideProgress() {
-            if (!this.progressBar) return;
-
-            // Stop any running animation
-            if (this.animationFrameId) {
-                cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
-            }
-
-            this.progressBar.classList.add('complete');
-            setTimeout(() => {
-                this.progressBar.classList.remove('active', 'complete');
-                this.progressBar.style.width = '0%';
-            }, 600);  // Sync with CSS opacity transition
-        },
-
-        /**
          * Cancel current navigation
          */
         cancel() {
@@ -527,12 +348,6 @@
                 this.currentController.abort();
                 this.currentController = null;
             }
-            if (this.animationFrameId) {
-                cancelAnimationFrame(this.animationFrameId);
-                this.animationFrameId = null;
-            }
-            this.hideProgress();
-            this.hideOverlay();
             this.hideFadeOverlay();
             this.clearElementLoading();
             this.isNavigating = false;
@@ -555,11 +370,6 @@
 
     // Handle bfcache (back/forward cache) restoration
     window.addEventListener('pageshow', (event) => {
-        const overlay = document.getElementById('navigation-overlay');
-        if (overlay) {
-            overlay.classList.remove('active');
-        }
-
         const fadeOverlay = document.getElementById('navigation-fade-overlay');
         if (fadeOverlay) {
             fadeOverlay.classList.remove('active');
@@ -568,7 +378,6 @@
         // Reset navigation state
         if (window.NavigationProgress) {
             window.NavigationProgress.isNavigating = false;
-            window.NavigationProgress.hideProgress();
             window.NavigationProgress.hideFadeOverlay();
             window.NavigationProgress.clearElementLoading();
         }
