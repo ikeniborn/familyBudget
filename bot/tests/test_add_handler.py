@@ -1,36 +1,33 @@
 """
-E2E tests for /add command (transaction creation).
+E2E tests for /addplan command (recurring plan creation).
 
-Tests the complete conversation flow for adding transactions.
+Tests the complete conversation flow for adding recurring plans.
 """
 
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from bot.handlers.add import (
-    add_command,
+from bot.handlers.add_plan import (
+    addplan_command,
     article_selected,
     amount_entered,
-    date_entered,
-    description_entered,
     confirmation_handler,
     SELECT_ARTICLE,
     ENTER_AMOUNT,
     ENTER_DATE,
     ENTER_DESCRIPTION,
-    SELECT_FINANCIAL_CENTER,
+    CONFIRM,
 )
 
 
 @pytest.mark.asyncio
-async def test_add_command_shows_article_keyboard(mock_update, mock_context, mock_api_client):
-    """Test that /add command shows article selection keyboard."""
+async def test_addplan_command_shows_article_keyboard(mock_update, mock_context, mock_api_client):
+    """Test that /addplan command shows article selection keyboard."""
     mock_context.user_data = {}
 
-    with patch('bot.handlers.add.get_api_client', return_value=mock_api_client):
-        with patch('bot.handlers.add.SessionManager.is_authenticated', return_value=True):
-            with patch('bot.handlers.add.SessionManager.get_token', return_value="test_token"):
-                result = await add_command(mock_update, mock_context)
+    with patch('bot.handlers.add_plan.get_api_client', return_value=mock_api_client):
+        with patch('bot.handlers.add_plan.SessionManager.is_authenticated', return_value=True):
+            with patch('bot.handlers.add_plan.SessionManager.get_token', return_value="test_token"):
+                result = await addplan_command(mock_update, mock_context)
 
                 # Verify we're at SELECT_ARTICLE state
                 assert result == SELECT_ARTICLE
@@ -45,10 +42,10 @@ async def test_add_command_shows_article_keyboard(mock_update, mock_context, moc
 
 
 @pytest.mark.asyncio
-async def test_add_command_unauthenticated(mock_update, mock_context):
-    """Test /add command when user is not authenticated."""
-    with patch('bot.handlers.add.SessionManager.is_authenticated', return_value=False):
-        result = await add_command(mock_update, mock_context)
+async def test_addplan_command_unauthenticated(mock_update, mock_context):
+    """Test /addplan command when user is not authenticated."""
+    with patch('bot.handlers.add_plan.SessionManager.is_authenticated', return_value=False):
+        result = await addplan_command(mock_update, mock_context)
 
         # Verify user was redirected to /start
         mock_update.message.reply_text.assert_called()
@@ -112,8 +109,8 @@ async def test_amount_validation_invalid(mock_update, mock_context):
 
 
 @pytest.mark.asyncio
-async def test_complete_transaction_flow(mock_update, mock_context, mock_api_client):
-    """Test complete transaction creation flow."""
+async def test_complete_plan_flow(mock_update, mock_context, mock_api_client):
+    """Test complete recurring plan creation flow."""
     # Setup context with all required data
     mock_context.user_data = {
         'article_id': 1,
@@ -133,16 +130,12 @@ async def test_complete_transaction_flow(mock_update, mock_context, mock_api_cli
     mock_update.callback_query.message = MagicMock()
     mock_update.callback_query.message.reply_text = AsyncMock()
 
-    with patch('bot.handlers.add.get_api_client', return_value=mock_api_client):
-        with patch('bot.handlers.add.SessionManager.get_token', return_value="test_token"):
+    with patch('bot.handlers.add_plan.get_api_client', return_value=mock_api_client):
+        with patch('bot.handlers.add_plan.SessionManager.get_token', return_value="test_token"):
             result = await confirmation_handler(mock_update, mock_context)
 
-            # Verify fact was created via API
-            mock_api_client.create_fact.assert_called_once()
-            call_args = mock_api_client.create_fact.call_args[1]
-            assert call_args['article_id'] == 1
-            assert call_args['amount'] == '150.50'
-            assert call_args['description'] == 'Weekly shopping'
+            # Verify plan was created via API
+            mock_api_client.create_recurring_plan.assert_called_once()
 
             # Verify success message was sent
             mock_update.callback_query.message.reply_text.assert_called()

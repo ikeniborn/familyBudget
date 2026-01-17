@@ -52,7 +52,7 @@ async def test_summary_handler_no_data(mock_update, mock_context, mock_api_clien
     with patch('bot.handlers.summary.get_api_client', return_value=mock_api_client):
         with patch('bot.handlers.summary.SessionManager.is_authenticated', return_value=True):
             with patch('bot.handlers.summary.SessionManager.get_token', return_value="test_token"):
-                await summary_handler(mock_update, mock_context):
+                await summary_handler(mock_update, mock_context)
 
                 # Verify empty state message
                 mock_update.message.reply_text.assert_called()
