@@ -354,7 +354,7 @@
             top: calc(4rem + var(--safe-area-inset-top));
             left: 0;
             right: 0;
-            bottom: calc(80px + env(safe-area-inset-bottom));
+            bottom: 0; /* Cover entire viewport including FAB toolbar */
             /* Прозрачность через background, не opacity - чтобы точки были видны */
             background: rgba(255, 255, 255, 0.6);
             background: oklch(var(--b1) / 0.6);
@@ -375,6 +375,8 @@
         .navigation-fade-overlay.active {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto; /* Block interactions when active */
+            touch-action: none;   /* Block touch scroll in PWA */
         }
 
         /* Loading Dots in Center */
@@ -387,6 +389,12 @@
             display: flex;
             gap: 8px;
             z-index: 1; /* Над фоном */
+            /* Fix: prevent clipping during scale animation */
+            min-width: 80px;
+            min-height: 40px;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
         }
 
         .navigation-fade-overlay .loading-dot {

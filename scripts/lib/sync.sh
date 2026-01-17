@@ -274,6 +274,7 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -315,6 +316,7 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -384,6 +386,7 @@ sync_update() {
     local changed_files_raw
     changed_files_raw=$(rsync -avnc --itemize-changes \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -423,6 +426,7 @@ sync_update() {
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -460,6 +464,7 @@ sync_update() {
     (cd "$repo_dir" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -name "VERSION" \
         ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
@@ -494,6 +499,7 @@ sync_update() {
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -name "VERSION" \
         ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
@@ -1222,6 +1228,20 @@ sync_code_to_deploy() {
             exit 1
             ;;
     esac
+
+    # Initialize VERSION from repository only if not exists in DEPLOY_DIR
+    # This ensures version bumps (--version patch) persist across deployments
+    # VERSION is excluded from rsync to prevent overwriting bumped versions
+    if [[ ! -f "$DEPLOY_DIR/VERSION" ]]; then
+        if [[ -f "$repo_dir/VERSION" ]]; then
+            cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
+            info "VERSION initialized from repository: $(cat "$DEPLOY_DIR/VERSION")"
+        else
+            warning "VERSION file not found in repository"
+        fi
+    else
+        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION")"
+    fi
 
     # Log synchronization
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] Code synchronized from $repo_dir (mode: $SYNC_MODE)" >> "$LOG_FILE"

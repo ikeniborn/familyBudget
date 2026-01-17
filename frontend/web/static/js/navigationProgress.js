@@ -330,6 +330,8 @@
         showFadeOverlay() {
             if (!this.fadeOverlay) return;
             this.fadeOverlay.classList.add('active');
+            // Block body scroll in PWA
+            document.body.style.overflow = 'hidden';
         },
 
         /**
@@ -338,6 +340,8 @@
         hideFadeOverlay() {
             if (!this.fadeOverlay) return;
             this.fadeOverlay.classList.remove('active');
+            // Restore body scroll
+            document.body.style.overflow = '';
         },
 
         /**
