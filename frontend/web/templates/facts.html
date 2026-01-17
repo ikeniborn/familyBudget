@@ -410,7 +410,7 @@ let filters = {
 
 /**
  * Обновляет badge-индикатор активных фильтров.
- * Индикатор скрыт когда активен только дефолтный период (текущий месяц).
+ * Период всегда считается активным, поэтому индикатор всегда показан.
  */
 function updateFilterIndicator() {
     const indicator = document.getElementById('filter-indicator');
@@ -428,21 +428,14 @@ function updateFilterIndicator() {
 
 /**
  * Подсчитывает количество активных фильтров.
- * Период по умолчанию (текущий месяц) НЕ считается активным фильтром.
+ * Период ВСЕГДА считается активным фильтром (даже если дефолтный).
  */
 function countActiveFilters() {
     let count = 0;
 
-    // Период: НЕ считаем если это дефолтный период (обе даты совпадают с константами)
-    const isDefaultPeriod =
-        filters.date_from === DEFAULT_DATE_FROM &&
-        filters.date_to === DEFAULT_DATE_TO;
-
-    // Считаем период ТОЛЬКО если он отличается от дефолтного
-    if (!isDefaultPeriod) {
-        if (filters.date_from || filters.date_to) {
-            count++;
-        }
+    // Период: ВСЕГДА считается активным (даже если дефолтный)
+    if (filters.date_from || filters.date_to) {
+        count++;
     }
 
     // Остальные фильтры - считаем если установлены (не null/empty)
@@ -476,7 +469,7 @@ function initDefaultPeriodFilter() {
     filters.date_from = DEFAULT_DATE_FROM;
     filters.date_to = DEFAULT_DATE_TO;
 
-    // Обновить индикатор - при дефолтном периоде он должен быть СКРЫТ
+    // Обновить индикатор - период всегда считается активным фильтром
     updateFilterIndicator();
 }
 
