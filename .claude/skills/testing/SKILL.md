@@ -5,7 +5,7 @@ version: 2.0.0
 author: Family Budget Team
 tags: [testing, pytest, quality, coverage, linting, shared-budget]
 dependencies: [api-development]
-user-invocable: true
+user-invocable: false
 ---
 
 # Testing & Quality Assurance Skill
