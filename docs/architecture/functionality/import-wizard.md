@@ -208,6 +208,48 @@ mapping2 = await MappingService.save_mapping(
 
 ## Known Issues & Fixes
 
+### Upload Permission Denied (Fixed 2026-01-17)
+
+**Problem**: При загрузке CSV файла на шаге 2 ошибка:
+```
+Permission denied: '/app/uploads/temp/import_xxx.csv'
+```
+
+**Root Cause**:
+- Backend контейнер запускается как `appuser` (UID:GID 999:999, см. `backend/Dockerfile`)
+- docker-compose.yml монтирует volume `./uploads:/app/uploads`
+- `sync.sh` создавал директорию без установки правильного владельца
+- Директория принадлежала UID 1000 (пользователь развёртывания) вместо UID 999
+
+**Solution**:
+Добавлена функция `fix_uploads_permissions()` в `scripts/lib/sync.sh`:
+
+```bash
+# Fix uploads directory permissions for backend container
+# Backend runs as appuser (UID:GID 999:999 from backend/Dockerfile)
+# Host-mounted volumes inherit host permissions, so we must chown
+fix_uploads_permissions() {
+    chown -R 999:999 "$DEPLOY_DIR/uploads" 2>/dev/null || true
+}
+```
+
+Функция вызывается в трёх sync функциях:
+- `sync_mirror()` — после создания директорий
+- `sync_update()` — после создания директорий
+- `sync_clean()` — после создания директорий
+
+**Files**: `scripts/lib/sync.sh:27-32,365,557,689`
+
+**Verification**:
+```bash
+ssh budget-test "ls -la /opt/budget/uploads/"
+# Expected: drwxr-xr-x 999 999 uploads/
+```
+
+**See also**: `scripts/lib/utils.sh:385-434` — `prepare_upload_directories()` uses same UID/GID pattern
+
+---
+
 ### Step 2 Form Reset (Fixed 2025-12-23)
 
 **Problem**: When restarting import wizard (Step 1 → Step 2), upload form does not display correctly.

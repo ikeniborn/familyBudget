@@ -2033,6 +2033,7 @@ async def get_heatmap_data(
     """
     try:
         today = date.today()
+        date_mapping = {}  # Initialize early for all aggregation types
 
         # Priority: custom date range > period parameter
         if date_from and date_to:
@@ -2070,7 +2071,7 @@ async def get_heatmap_data(
         # Shared family budget - NO user_id filter
         query = select(
             Fact.fact_date,
-            func.sum(Fact.amount).label("total")
+            func.coalesce(func.sum(Fact.amount), 0).label("total")
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
@@ -2093,9 +2094,10 @@ async def get_heatmap_data(
 
         result = await session.execute(query)
         rows = result.all()
+        logger.debug(f"[HEATMAP] Query returned {len(rows)} rows for {start_date} to {end_date}")
 
-        # Build data by date
-        data_by_date = {row.fact_date: float(row.total) for row in rows}
+        # Build data by date (guard against None values)
+        data_by_date = {row.fact_date: float(row.total) if row.total is not None else 0.0 for row in rows}
 
         # Generate heatmap data based on aggregation type
         if aggregation == "single_week":
@@ -2153,14 +2155,14 @@ async def get_heatmap_data(
 
                 # Генерация данных для недели
                 week_data = []
-                date_mapping[week_idx] = {}
+                date_mapping[str(week_idx)] = {}
 
                 for day_offset in range(7):  # Mon-Sun
                     current_date = week_start + timedelta(days=day_offset)
                     # Only include data if within the actual range
                     if start_date <= current_date <= end_date:
                         amount = data_by_date.get(current_date, 0.0)
-                        date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
+                        date_mapping[str(week_idx)][str(day_offset)] = current_date.strftime("%d.%m.%Y")
                     else:
                         amount = 0.0  # Outside range
                     week_data.append(amount)
@@ -2264,7 +2266,12 @@ async def get_heatmap_data(
         return result
 
     except Exception as e:
-        logger.error(f"Error in /heatmap: {str(e)}", exc_info=True)
+        logger.error(
+            f"[HEATMAP] Error: {str(e)}. "
+            f"Params: period={period}, article_type={article_type}, "
+            f"record_type={record_type}, cfo_id={cfo_id}, article_ids={article_ids}",
+            exc_info=True
+        )
         return {
             "data": [],
             "xAxis": [],

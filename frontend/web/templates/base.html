@@ -309,14 +309,12 @@
 
         /* Loading dot indicator on nav items - position relative */
         .nav-item.loading .icon-label,
-        .icon-btn.loading .icon-label,
         [data-nav-item].loading {
             position: relative;
         }
 
         /* Base loading dot styles (shared) */
         .nav-item.loading .icon-label::after,
-        .icon-btn.loading .icon-label::after,
         [data-nav-item].loading::after {
             content: '';
             position: absolute;
@@ -332,8 +330,7 @@
         }
 
         /* Mobile FAB: dot to the right of icon-label */
-        .nav-item.loading .icon-label::after,
-        .icon-btn.loading .icon-label::after {
+        .nav-item.loading .icon-label::after {
             right: -10px;
         }
 
@@ -387,19 +384,19 @@
             transform: translate(-50%, -50%);
             display: -webkit-flex;
             display: flex;
-            gap: 8px;
+            gap: 10px;
             z-index: 1; /* Над фоном */
             /* Fix: prevent clipping during scale animation */
-            min-width: 80px;
-            min-height: 40px;
+            min-width: 100px;
+            min-height: 60px;
             align-items: center;
             justify-content: center;
             overflow: visible;
         }
 
         .navigation-fade-overlay .loading-dot {
-            width: 10px;
-            height: 10px;
+            width: 14px;
+            height: 14px;
             /* Fallback for Safari < 15.4 */
             background: #6366f1;
             background: oklch(var(--p));
@@ -421,7 +418,6 @@
         /* Reduced Motion for nav loading */
         @media (prefers-reduced-motion: reduce) {
             .nav-item.loading .icon-label::after,
-            .icon-btn.loading .icon-label::after,
             [data-nav-item].loading::after,
             .navigation-fade-overlay .loading-dot {
                 animation: none;

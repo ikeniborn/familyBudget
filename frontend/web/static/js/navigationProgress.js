@@ -302,7 +302,7 @@
             if (!element) return;
 
             // Find nav-item (button or link with explicit nav markers)
-            const navItem = element.closest('[data-nav-item], .nav-item, .icon-btn');
+            const navItem = element.closest('[data-nav-item], .nav-item');
             if (navItem) {
                 navItem.classList.add('loading');
                 this.currentLoadingElement = navItem;
@@ -319,7 +319,7 @@
                 this.currentLoadingElement = null;
             }
             // Fallback: clear all loading states
-            document.querySelectorAll('.nav-item.loading, [data-nav-item].loading, .icon-btn.loading').forEach(el => {
+            document.querySelectorAll('.nav-item.loading, [data-nav-item].loading').forEach(el => {
                 el.classList.remove('loading');
             });
         },
