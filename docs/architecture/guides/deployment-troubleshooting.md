@@ -667,6 +667,126 @@ The `validate_build_artifacts()` function checks:
 
 See: [Architecture README - v6.5.4](../README.md#2025-12-30-postgresql-health-check-timeout-fix---prevent-deployment-hang-v654)
 
+### Service Worker Files Missing After Build
+
+**Since:** v7.0.1 - Automatic file copying from .vite-build/
+
+#### Symptoms
+
+```
+[WARNING] Service Worker files missing after build
+[ERROR] ❌ Missing: sw.min.js.gz
+```
+
+- Build completes successfully
+- Vite creates `sw.js` and `sw.js.gz` in `.vite-build/`
+- Files not found in deployment root `/opt/budget/`
+- Backend cannot serve Service Worker
+- PWA offline mode broken
+
+#### Root Cause
+
+**File Location Mismatch:**
+- **Vite output:** `.vite-build/sw.js` + `.vite-build/sw.js.gz` (vite.config.single.ts:74)
+- **Backend expectation:** `/opt/budget/sw.min.js` + `/opt/budget/sw.min.js.gz` (v6.8.0+)
+- **No automatic copy:** Files stayed in build directory
+
+**Why This Happened:**
+1. Vite v7.0.0 migration changed build output structure
+2. Plugin order fix (2026-01-12) ensured .gz creation but not file placement
+3. No copy step between Vite output and final serving location
+
+#### Quick Fix (Manual)
+
+**Before v7.0.1:**
+```bash
+# Manual copy required after each deployment
+cd /opt/budget
+sudo cp .vite-build/sw.js sw.min.js
+sudo cp .vite-build/sw.js.gz sw.min.js.gz
+
+# Verify
+ls -lh sw.min.js sw.min.js.gz
+```
+
+**After v7.0.1:**
+```bash
+# Automatic copy - no manual intervention needed
+# deploy.sh handles file copying at two checkpoints:
+# 1. After npm run build:prod (primary)
+# 2. During validation (fallback)
+```
+
+#### Automatic Fix (v7.0.1+)
+
+Deploy script now includes automatic file copying:
+
+**Primary Copy (deploy.sh:1445-1456):**
+```bash
+# Copy Service Worker files from .vite-build/ to final location
+if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+    cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+    cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+    print_message success "✓ Service Worker files copied: sw.min.js + sw.min.js.gz"
+fi
+```
+
+**Fallback Copy (deploy.sh:1585-1596):**
+```bash
+# Retry during validation if files still missing
+if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
+    if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+        cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+        cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+        success "✓ Service Worker files copied from .vite-build/ (fallback)"
+    fi
+fi
+```
+
+#### Verification
+
+**Check files exist:**
+```bash
+cd /opt/budget
+ls -lh sw.min.js sw.min.js.gz .vite-build/sw.js*
+
+# Expected output:
+# -rw-r--r-- 1 root root  11K Jan 15 18:48 sw.min.js
+# -rw-r--r-- 1 root root 3.8K Jan 15 18:48 sw.min.js.gz
+# -rw-r--r-- 1 root root  11K Jan 15 18:48 .vite-build/sw.js
+# -rw-r--r-- 1 root root 3.8K Jan 15 18:48 .vite-build/sw.js.gz
+```
+
+**Check deployment logs:**
+```bash
+tail -100 /opt/budget/logs/deploy.log | grep -i "service worker"
+
+# Expected output (v7.0.1+):
+# [INFO] Copying Service Worker files from .vite-build/ to deployment root...
+# [SUCCESS] ✓ Service Worker files copied: sw.min.js + sw.min.js.gz
+# [SUCCESS] Service Worker validated: sw.min.js (10659B) + sw.min.js.gz (3841B)
+```
+
+#### Prevention
+
+**For v7.0.1+:** No action needed - automatic copy is built-in
+
+**For older versions:** Upgrade to v7.0.1+ or manually copy files after each deployment
+
+#### Impact
+
+- ✅ No manual file copying needed
+- ✅ Service Worker automatically available after deployment
+- ✅ Fallback mechanism for robustness
+- ✅ Both .js and .gz files handled together
+- ✅ Proper logging for debugging
+
+**Commit:** `48588fb5`
+
+**See Also:**
+- [Build System - Service Worker File Copying](../build-system.md#2026-01-15-automatic-service-worker-file-copying-v701)
+- [PWA Architecture](../pwa.md) - Service Worker serving
+
 ### Service Worker Cache Busting Failures
 
 **Since:** v6.8.1 - Automatic ownership fix + validation improvements

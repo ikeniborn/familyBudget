@@ -14,6 +14,7 @@ from backend.app.api.v1.router import api_router
 from backend.app.api.web.router import web_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
+from backend.app.core.json_utils import ORJSONResponse, is_orjson_available
 from backend.app.core.logging import setup_logging, get_logger
 from backend.app.db.session import close_db, init_db, get_session
 from backend.app.middleware import JWTAuthMiddleware, limiter
@@ -57,6 +58,12 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info("Application starting up")
+
+    # Log orjson status
+    if is_orjson_available():
+        logger.info("orjson enabled - high-performance JSON serialization active")
+    else:
+        logger.warning("orjson not available - using stdlib json (slower)")
 
     # Initialize database
     await init_db()
@@ -241,6 +248,7 @@ tags_metadata = [
 # Create FastAPI application
 app = FastAPI(
     title="Family Budget API",
+    default_response_class=ORJSONResponse,  # High-performance JSON via orjson
     description="""
     **Production-ready REST API for family budget management.**
 

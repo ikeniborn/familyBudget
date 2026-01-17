@@ -3032,7 +3032,8 @@ Secondary pages (e.g., `/lists`) use custom mobile menus that differ from main a
 **Hierarchy**:
 - Modal backdrop: `z-index: 1000`
 - Modal content: `z-index: 1001`
-- Choices dropdown (in modal): `z-index: 1050`
+- Choices.js container when open (in modal): `z-index: 1060` (via `.choices.is-open`)
+- Choices.js dropdown list (in modal): `z-index: 1061`
 - Mobile menu (normal): `z-index: 50`
 - Mobile menu (modal open): `z-index: 40`
 

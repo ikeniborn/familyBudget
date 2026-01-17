@@ -94,7 +94,7 @@ function showAddItemFAB(): void {
 
   if (!isDesktopResult) return;
 
-  const addItemFab = document.getElementById('lists-add-item-fab');
+  const addItemFab = document.getElementById('add-item-fab');
   if (addItemFab) addItemFab.classList.remove('hidden');
 }
 
@@ -107,7 +107,7 @@ function hideAddItemFAB(): void {
 
   if (!isDesktopResult) return;
 
-  const addItemFab = document.getElementById('lists-add-item-fab');
+  const addItemFab = document.getElementById('add-item-fab');
   if (addItemFab) addItemFab.classList.add('hidden');
 }
 
@@ -120,7 +120,7 @@ function showCreateListFAB(): void {
 
   if (!isDesktopResult) return;
 
-  const createListFab = document.getElementById('lists-create-list-fab');
+  const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.remove('hidden');
 }
 
@@ -133,7 +133,7 @@ function hideCreateListFAB(): void {
 
   if (!isDesktopResult) return;
 
-  const createListFab = document.getElementById('lists-create-list-fab');
+  const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.add('hidden');
 }
 

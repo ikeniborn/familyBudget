@@ -23,12 +23,6 @@
                 <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📅 Управление планом</h1>
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <!-- Export button kept - not duplicated in FAB -->
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
-                    📄 CSV
-                </button>
-            </div>
         </div>
     </div>
 
@@ -360,9 +354,15 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Плановые записи</h2>
-                <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
-                    🗑️ Удалить выбранные
-                </button>
+                <div class="flex flex-wrap gap-2">
+                    <!-- Export button -->
+                    <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
+                        📄 CSV
+                    </button>
+                    <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                        🗑️ Удалить выбранные
+                    </button>
+                </div>
             </div>
 
             <div id="facts-table-container" class="min-h-[200px]">
@@ -552,7 +552,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/transfers.min.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
@@ -5142,11 +5142,11 @@ function renderRecurringPlansTable(plans) {
                         </td>
                         <td>${plan.financial_center_name || 'N/A'}</td>
                         <td class="text-right font-mono ${plan.amount < 0 ? 'text-error' : 'text-success'}">
-                            ${window.formatCurrency ? window.formatCurrency(plan.amount) : plan.amount.toFixed(2)}
+                            ${window.formatCurrency ? window.formatCurrency(plan.amount) : Number(plan.amount).toFixed(2)}
                         </td>
                         <td>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</td>
-                        <td>${window.DateFormatter ? window.DateFormatter.formatDate(plan.start_date) : plan.start_date}</td>
-                        <td>${plan.end_date ? (window.DateFormatter ? window.DateFormatter.formatDate(plan.end_date) : plan.end_date) : '—'}</td>
+                        <td>${window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.start_date) : plan.start_date}</td>
+                        <td>${plan.end_date ? (window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.end_date) : plan.end_date) : '—'}</td>
                         <td class="text-center">${plan.total_occurrences || '∞'}</td>
                         <td class="text-center">
                             ${plan.enable_reminder ? `🔔 ${String(plan.reminder_hour).padStart(2, '0')}:${String(plan.reminder_minute).padStart(2, '0')}` : '—'}

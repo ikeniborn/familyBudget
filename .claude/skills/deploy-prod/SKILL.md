@@ -97,7 +97,7 @@ ssh budget-prod "cd ~/familyBudget && git fetch --all && git checkout prod && gi
 
 **Базовая команда (БЕЗ изменения версии - default v7.0+):**
 ```bash
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version minor"
 ```
 
 **С версионированием (v7.0+ синтаксис):**

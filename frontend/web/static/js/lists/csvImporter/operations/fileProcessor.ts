@@ -4,76 +4,74 @@
  * Handles file reading, encoding, and Web Worker management.
  *
  * Phase 3: ES Modules Migration (Step 2)
- * Extracted from: frontend/web/static/js/lists/csvImporter.ts lines 70-330
+ * v2.0.0: Migrated to CSVWorkerClient (TypeScript worker)
  */
 
-import { setFileData, getWorkerWrapper, setWorkerWrapper } from '../core/stateManager';
+import { setFileData } from '../core/stateManager';
+import {
+  getCSVWorkerClient,
+  encodeBase64Sync,
+  type CSVWorkerClient,
+} from '../../workers/csvWorkerClient';
 
 // ============================================================================
 // Type Declarations
 // ============================================================================
 
-interface IWorkerWrapper {
-  execute(payload: any): Promise<any>;
-}
+declare const showToast: (
+  message: string,
+  type?: 'success' | 'error' | 'info' | 'warning',
+  duration?: number
+) => void;
 
-interface IWorkerWrapperConstructor {
-  new (scriptPath: string, options: any): IWorkerWrapper;
-}
+declare const debugLog: (...args: unknown[]) => void;
 
-declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
-declare const WorkerWrapper: IWorkerWrapperConstructor;
-declare const debugLog: (...args: any[]) => void;
+// ============================================================================
+// Module State
+// ============================================================================
+
+let csvWorkerClient: CSVWorkerClient | null = null;
 
 // ============================================================================
 // Web Worker Management
 // ============================================================================
 
 /**
- * Initialize Web Worker for CSV processing.
- * Worker is used for Base64 encoding of large files (>1MB).
+ * Initialize CSV Worker client.
+ * Client is used for Base64 encoding of large files (>1MB).
  *
- * Called automatically on first use.
+ * Called automatically on first use via getClient().
  */
 export function initializeWorker(): void {
-  // Check if worker already initialized
-  let workerWrapper = getWorkerWrapper();
-  if (workerWrapper) {
-    return;
-  }
-
-  // Check if WorkerWrapper is available
-  if (typeof WorkerWrapper === 'undefined') {
-    debugLog('[CSVImporter] WorkerWrapper not available');
+  if (csvWorkerClient) {
     return;
   }
 
   try {
-    workerWrapper = new WorkerWrapper('/static/js/workers/csvWorker.min.js', {
-      idleTimeout: 60000,  // 60s for CSV (files may be large)
-      debugMode: (window as any).DEBUG_MODE || false
-    });
-
-    setWorkerWrapper(workerWrapper);
-    debugLog('[CSVImporter] Worker initialized successfully');
+    csvWorkerClient = getCSVWorkerClient();
+    debugLog('[CSVImporter] CSVWorkerClient initialized successfully');
   } catch (error: unknown) {
-    debugLog('[CSVImporter] Failed to initialize worker:', error);
-    setWorkerWrapper(null);
+    debugLog('[CSVImporter] Failed to initialize CSVWorkerClient:', error);
+    csvWorkerClient = null;
   }
 }
 
 /**
- * Get worker wrapper instance (lazy initialization)
+ * Get CSV worker client instance (lazy initialization)
  */
-export function getWorker(): any {
-  let workerWrapper = getWorkerWrapper();
-
-  if (!workerWrapper) {
+export function getClient(): CSVWorkerClient | null {
+  if (!csvWorkerClient) {
     initializeWorker();
-    workerWrapper = getWorkerWrapper();
   }
+  return csvWorkerClient;
+}
 
-  return workerWrapper;
+/**
+ * @deprecated Use getClient() instead
+ * Legacy alias for backward compatibility
+ */
+export function getWorker(): CSVWorkerClient | null {
+  return getClient();
 }
 
 // ============================================================================
@@ -93,39 +91,48 @@ export async function encodeBase64(content: string): Promise<string> {
 
   // For large files (>1MB), use worker
   if (content.length > 1_000_000) {
-    const workerWrapper = getWorker();
+    const client = getClient();
 
-    if (workerWrapper) {
+    if (client && client.isAvailable()) {
       try {
         // Show initial progress
         if (typeof showToast !== 'undefined') {
           showToast(`Кодирование файла (${contentSizeKB}KB)...`, 'info', 1000);
         }
 
-        const result = await workerWrapper.execute({
-          action: 'encodeBase64',
-          data: { content }
-        });
+        const result = await client.encodeBase64(content);
 
         const duration = Math.round(performance.now() - startTime);
-        if ((window as any).DEBUG_MODE) {
-          debugLog(`[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+        if (
+          (window as unknown as { DEBUG_MODE?: boolean }).DEBUG_MODE === true
+        ) {
+          debugLog(
+            `[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`
+          );
         }
 
         return result;
       } catch (error: unknown) {
-        debugLog('[CSVImporter] Worker Base64 encoding failed, using synchronous:', error);
+        debugLog(
+          '[CSVImporter] Worker Base64 encoding failed, using synchronous:',
+          error
+        );
         // Fall through to synchronous
       }
     }
   }
 
-  // Synchronous fallback (original implementation)
-  const result = btoa(unescape(encodeURIComponent(content)));
+  // Synchronous fallback
+  const result = encodeBase64Sync(content);
   const duration = Math.round(performance.now() - startTime);
 
-  if ((window as any).DEBUG_MODE && duration > 100) {
-    debugLog(`[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+  if (
+    (window as unknown as { DEBUG_MODE?: boolean }).DEBUG_MODE === true &&
+    duration > 100
+  ) {
+    debugLog(
+      `[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`
+    );
   }
 
   return result;
@@ -141,7 +148,9 @@ export async function encodeBase64(content: string): Promise<string> {
  * @param file - File object to read
  * @returns Promise resolving to file content
  */
-export function readFileContent(file: File): Promise<string | ArrayBuffer | null> {
+export function readFileContent(
+  file: File
+): Promise<string | ArrayBuffer | null> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target?.result || null);
@@ -179,7 +188,11 @@ export async function handleFileSelect(
   }
 
   try {
-    debugLog('[CSVImporter] Reading file:', file.name, `(${Math.round(file.size / 1024)}KB)`);
+    debugLog(
+      '[CSVImporter] Reading file:',
+      file.name,
+      `(${Math.round(file.size / 1024)}KB)`
+    );
 
     // Read file content
     const rawContent = await readFileContent(file);
@@ -200,7 +213,6 @@ export async function handleFileSelect(
 
     // Call success callback (analyzeFile + navigate to step 2)
     await onSuccess(file, rawContent);
-
   } catch (error: unknown) {
     debugLog('[CSVImporter] Error reading file:', error);
     showToast('Ошибка чтения файла', 'error');

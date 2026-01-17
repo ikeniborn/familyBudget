@@ -8,6 +8,7 @@
 import { getState, updateState } from '../core/OfflineState';
 import { isOnline } from '../core/stateManager';
 import type { SyncQueueItem } from '../types/dependencies';
+import { createOfflineSyncCompleteEvent } from '../types/events';
 import {
   syncCreate,
   syncUpdate,
@@ -50,6 +51,16 @@ export async function syncAll(): Promise<{ success: boolean; syncedCount: number
 
     const syncedCount = results.filter(r => r.success).length;
     const failedCount = results.filter(r => !r.success).length;
+
+    // Dispatch event to notify UI about sync completion
+    // This ensures all sync operations (manual and automatic) update the UI
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(createOfflineSyncCompleteEvent({
+        synced: syncedCount,
+        failed: failedCount,
+        timestamp: Date.now(),
+      }));
+    }
 
     return { success: failedCount === 0, syncedCount, failedCount };
   } finally {

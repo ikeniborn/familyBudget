@@ -97,7 +97,7 @@ ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && gi
 
 **Базовая команда (БЕЗ изменения версии - default v7.0+):**
 ```bash
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
 ```
 
 **С версионированием (v7.0+ синтаксис):**

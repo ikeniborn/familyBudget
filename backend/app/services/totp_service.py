@@ -32,11 +32,12 @@ Usage:
     plain_codes, hashed_json = generate_backup_codes()
 """
 
-import json
 import secrets
 from typing import Optional
 
 import pyotp
+
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError, InvalidHash
 
@@ -185,7 +186,7 @@ def generate_backup_codes(count: int = BACKUP_CODE_COUNT) -> tuple[list[str], st
         plain_codes.append(formatted_code)
         hashed_codes.append(_hasher.hash(formatted_code))
 
-    return plain_codes, json.dumps(hashed_codes)
+    return plain_codes, json_dumps(hashed_codes)
 
 
 def verify_backup_code(
@@ -222,8 +223,8 @@ def verify_backup_code(
         formatted_code = code.upper()
 
     try:
-        hashed_codes = json.loads(hashed_codes_json)
-    except (json.JSONDecodeError, TypeError):
+        hashed_codes = json_loads(hashed_codes_json)
+    except (ValueError, TypeError):
         return False, None
 
     if not isinstance(hashed_codes, list):
@@ -235,7 +236,7 @@ def verify_backup_code(
             _hasher.verify(hashed, formatted_code)
             # Found! Remove used code
             del hashed_codes[i]
-            return True, json.dumps(hashed_codes)
+            return True, json_dumps(hashed_codes)
         except (VerifyMismatchError, InvalidHash):
             continue
 
@@ -260,7 +261,7 @@ def get_remaining_backup_codes_count(hashed_codes_json: Optional[str]) -> int:
         return 0
 
     try:
-        hashed_codes = json.loads(hashed_codes_json)
+        hashed_codes = json_loads(hashed_codes_json)
         return len(hashed_codes) if isinstance(hashed_codes, list) else 0
-    except (json.JSONDecodeError, TypeError):
+    except (ValueError, TypeError):
         return 0

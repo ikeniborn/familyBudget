@@ -59,6 +59,7 @@ export { AdminCrudForm } from './forms/AdminCrudForm';
 export { BaseModal } from './modals/BaseModal';
 export { FormModal } from './modals/FormModal';
 export { CrudModal } from './modals/CrudModal';
+export { ConfirmDialog, getConfirmDialogHTML } from './modals/ConfirmDialog';
 
 // ============================================================================
 // Types - Core
@@ -102,6 +103,7 @@ export type { AdminCrudFormProps, FieldDefinition } from './forms/AdminCrudForm'
 // Types - Modal Components
 // ============================================================================
 export type { CrudModalProps } from './modals/CrudModal';
+export type { ConfirmDialogOptions } from './modals/ConfirmDialog';
 
 // ============================================================================
 // Version Info

@@ -1657,9 +1657,17 @@ img[loading="lazy"] {
 
    This file loads AFTER choices-tailwind.css, so these rules have higher cascade priority */
 
-/* Increase z-index when Store dropdown is open in item-modal */
-#item-modal.store-dropdown-open .choices__list--dropdown {
-    z-index: 1060 !important; /* Above all form fields and modal content */
+/* Raise entire Choices.js container z-index when dropdown is open.
+   Choices.js automatically adds .is-open class - no JavaScript needed.
+   This ensures the dropdown appears above other form fields below it. */
+#item-modal .choices.is-open {
+    z-index: 1060 !important;
+    position: relative; /* Create stacking context */
+}
+
+/* Increase z-index for dropdown list itself */
+#item-modal .choices__list--dropdown {
+    z-index: 1061 !important; /* Slightly above .choices container */
 }
 
 /* Ensure modal-box doesn't clip dropdown when open */

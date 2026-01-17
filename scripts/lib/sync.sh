@@ -5,7 +5,8 @@
 # This module provides code synchronization functions for deploy.sh
 #
 # Functions:
-#   - detect_repository_dir()     - Auto-detect repository directory
+#   - fix_uploads_permissions()    - Set UID:GID 999:999 for uploads directory
+#   - detect_repository_dir()      - Auto-detect repository directory
 #   - check_code_changes()         - Check if there are code changes to sync
 #   - sync_mirror()                - Sync using mirror mode (rsync --delete)
 #   - sync_update()                - Sync using update mode (no delete)
@@ -23,6 +24,13 @@
 # =============================================================================
 # CODE SYNCHRONIZATION FUNCTIONS
 # =============================================================================
+
+# Fix uploads directory permissions for backend container
+# Backend runs as appuser (UID:GID 999:999 from backend/Dockerfile)
+# Host-mounted volumes inherit host permissions, so we must chown
+fix_uploads_permissions() {
+    chown -R 999:999 "$DEPLOY_DIR/uploads" 2>/dev/null || true
+}
 
 # Validate repository path for security
 # Prevents path traversal and other malicious paths
@@ -274,6 +282,7 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -315,6 +324,7 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -353,6 +363,7 @@ sync_mirror() {
         info "Creating required directories..."
         mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
         chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
+        fix_uploads_permissions
 
         # Set executable permissions for all shell scripts
         # This ensures backup.sh and other scripts can be executed by cron
@@ -384,6 +395,7 @@ sync_update() {
     local changed_files_raw
     changed_files_raw=$(rsync -avnc --itemize-changes \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -423,6 +435,7 @@ sync_update() {
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -460,6 +473,7 @@ sync_update() {
     (cd "$repo_dir" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -name "VERSION" \
         ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
@@ -494,6 +508,7 @@ sync_update() {
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -name "VERSION" \
         ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
@@ -540,6 +555,7 @@ sync_update() {
     info "Creating required directories..."
     mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
     chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
+    fix_uploads_permissions
 
     # Set executable permissions for all shell scripts
     # This ensures backup.sh and other scripts can be executed by cron
@@ -671,6 +687,7 @@ sync_clean() {
         # Set proper permissions for backups directory
         # 755 allows root to write (backup.sh) and containers to read (health checks)
         chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
+        fix_uploads_permissions
 
         # Mark PostgreSQL as stopped (will be initialized fresh)
         POSTGRES_WAS_STOPPED=true
@@ -1222,6 +1239,20 @@ sync_code_to_deploy() {
             exit 1
             ;;
     esac
+
+    # Initialize VERSION from repository only if not exists in DEPLOY_DIR
+    # This ensures version bumps (--version patch) persist across deployments
+    # VERSION is excluded from rsync to prevent overwriting bumped versions
+    if [[ ! -f "$DEPLOY_DIR/VERSION" ]]; then
+        if [[ -f "$repo_dir/VERSION" ]]; then
+            cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
+            info "VERSION initialized from repository: $(cat "$DEPLOY_DIR/VERSION")"
+        else
+            warning "VERSION file not found in repository"
+        fi
+    else
+        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION")"
+    fi
 
     # Log synchronization
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [INFO] Code synchronized from $repo_dir (mode: $SYNC_MODE)" >> "$LOG_FILE"

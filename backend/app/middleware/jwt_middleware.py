@@ -18,10 +18,12 @@ Security Features:
 from typing import Callable
 
 from fastapi import Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.app.services.jwt import decode_access_token, decode_access_token_full
+from backend.app.core.json_utils import ORJSONResponse
+
+from backend.app.services.jwt import decode_access_token_full
 
 # Login page URL for redirects
 LOGIN_URL = "/api/v1/auth/telegram-login"
@@ -204,7 +206,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         if self._is_api_request(request):
             # API request - return JSON 401
-            return JSONResponse(
+            return ORJSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
                     "detail": "Authentication required - No token provided or token invalid"
@@ -220,7 +222,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
         # Default fallback - JSON 401 (unknown client type)
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
                 "detail": "Authentication required - No token provided or token invalid"

@@ -16,12 +16,12 @@ Author: Claude Code
 Date: 2025-12-27
 """
 
-import asyncio
-import json
 import re
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
+
+from backend.app.core.json_utils import loads as json_loads
 
 import docker
 from docker.errors import DockerException, NotFound
@@ -128,7 +128,7 @@ class LogsCollectorService:
                 # Parse JSON logs from backend/bot
                 if service in ["backend", "bot"]:
                     try:
-                        log_entry = json.loads(line)
+                        log_entry = json_loads(line)
                         logs.append({
                             "timestamp": log_entry.get("timestamp"),
                             "level": self._normalize_level(log_entry.get("level", "INFO")),
@@ -136,7 +136,7 @@ class LogsCollectorService:
                             "module": log_entry.get("module") or log_entry.get("logger_name") or service,
                             "correlation_id": log_entry.get("correlation_id")
                         })
-                    except json.JSONDecodeError:
+                    except ValueError:
                         # Fallback for non-JSON logs
                         logs.append({
                             "timestamp": None,

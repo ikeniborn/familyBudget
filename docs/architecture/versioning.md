@@ -87,6 +87,10 @@ CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
    - Обновляется package.json
    - Синхронизируется .npm-isolated/package.json
    - Обновляется .env
+5. **.env VERSION sync** (ВСЕГДА, даже без --version флага)
+   - Проверяется наличие VERSION в .env
+   - Если VERSION отсутствует, пустой или отличается - синхронизируется
+   - Предотвращает fallback к значению 4.0.0 в docker-compose
 
 ### Проверка синхронизации
 
@@ -123,6 +127,27 @@ grep version .npm-isolated/package.json
 **Причина:** Используется CACHE_VERSION (timestamp), а не VERSION (semantic).
 
 **Норма:** CACHE_VERSION обновляется при каждом деплое независимо от semantic version.
+
+### Версия на странице мониторинга показывает 4.0.0
+
+**Причина:** `.env` файл в `/opt/budget/` не содержит переменную `VERSION` или она пустая. Docker-compose использует fallback значение `${VERSION:-4.0.0}`.
+
+**Решение:**
+1. Обновить deploy.sh до версии с fix-ом `ensure_env_version()` (v7.0.1+)
+2. Или вручную добавить в `/opt/budget/.env`:
+   ```bash
+   VERSION=6.6.0  # актуальная версия из файла VERSION
+   ```
+3. Перезапустить контейнеры:
+   ```bash
+   cd /opt/budget && docker compose down && docker compose up -d
+   ```
+
+**Проверка:**
+```bash
+grep VERSION /opt/budget/.env
+curl -s https://domain/health/detailed | jq .version
+```
 
 ## Validation and Error Handling
 

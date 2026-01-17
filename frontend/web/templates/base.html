@@ -268,87 +268,6 @@
     </style>
 
     <style>
-        /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) + safe-area */
-        .navigation-progress {
-            position: fixed;
-            top: calc(4rem + var(--safe-area-inset-top)); /* 64px + notch offset */
-            left: var(--safe-area-inset-left);
-            width: 0%;
-            height: 3px;
-            /* Fallback for Safari < 15.4 (no oklch support) */
-            background: #36d399; /* DaisyUI success green fallback */
-            background: oklch(var(--su)); /* DaisyUI success color (green) */
-            z-index: 39; /* под navbar (z-40) */
-            transition: width 0.15s ease-out;
-            -webkit-transition: width 0.15s ease-out;
-            opacity: 0;
-            pointer-events: none;
-            box-shadow: 0 0 8px rgba(54, 211, 153, 0.5); /* Fallback */
-            box-shadow: 0 0 8px oklch(var(--su) / 0.5);
-
-            /* GPU acceleration for iOS Safari (prevents flickering) */
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            -webkit-perspective: 1000;
-            perspective: 1000;
-            will-change: width, opacity;
-        }
-
-        .navigation-progress.active {
-            opacity: 1;
-        }
-
-        .navigation-progress.complete {
-            width: 100%;
-            transition: width 0.1s ease-out, opacity 0.6s ease-out 0.2s;
-            opacity: 0;
-        }
-
-        /* Shimmer effect for active loading */
-        .navigation-progress.active::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                90deg,
-                transparent 0%,
-                rgba(255, 255, 255, 0.4) 50%,
-                transparent 100%
-            );
-            animation: progress-shimmer 1.5s infinite;
-
-            /* GPU acceleration for shimmer animation (iOS Safari) */
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-        }
-
-        @keyframes progress-shimmer {
-            0% { transform: translate3d(-100%, 0, 0); }
-            100% { transform: translate3d(100%, 0, 0); }
-        }
-
-        @-webkit-keyframes progress-shimmer {
-            0% { -webkit-transform: translate3d(-100%, 0, 0); }
-            100% { -webkit-transform: translate3d(100%, 0, 0); }
-        }
-
-        /* Reduced motion for progress bar */
-        @media (prefers-reduced-motion: reduce) {
-            .navigation-progress {
-                transition: none;
-            }
-            .navigation-progress::after {
-                animation: none;
-            }
-        }
-
         /* Navbar Sync Badge Styling */
         #navbar-sync-badge-wrapper {
             transition: opacity 0.3s, visibility 0s 0.3s;
@@ -378,49 +297,131 @@
             animation: navbar-sync-pulse 2s ease-in-out infinite;
         }
 
-        /* Navigation Transition Overlay - скрывает DOM cleanup при переходе */
-        .navigation-overlay {
+        /* ========================================
+           Navigation Loading States - Unified v4.0
+           ======================================== */
+
+        /* CSS variables for loading dot */
+        :root {
+            --nav-loading-dot-size: 5px;
+            --nav-loading-dot-color: #6366f1;
+        }
+
+        /* Loading dot indicator on nav items - position relative */
+        .nav-item.loading .icon-label,
+        [data-nav-item].loading {
+            position: relative;
+        }
+
+        /* Base loading dot styles (shared) */
+        .nav-item.loading .icon-label::after,
+        [data-nav-item].loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: var(--nav-loading-dot-size);
+            height: var(--nav-loading-dot-size);
+            /* Fallback for Safari < 15.4 */
+            background: var(--nav-loading-dot-color);
+            background: oklch(var(--p));
+            border-radius: 50%;
+            animation: nav-dots-blink 0.8s infinite;
+        }
+
+        /* Mobile FAB: dot to the right of icon-label */
+        .nav-item.loading .icon-label::after {
+            right: -10px;
+        }
+
+        /* Desktop/drawer: dot inside the element */
+        [data-nav-item].loading::after {
+            right: 4px;
+        }
+
+        @keyframes nav-dots-blink {
+            0%, 20% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+            50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+            80%, 100% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+        }
+
+        /* Content Fade Overlay */
+        .navigation-fade-overlay {
             position: fixed;
-            /* Fallback for Safari < 14.1 (no inset support) */
-            top: 0;
-            right: 0;
-            bottom: 0;
+            top: calc(4rem + var(--safe-area-inset-top));
             left: 0;
-            inset: 0;
-            z-index: 99998; /* под toasts (99999), над всем остальным */
-            /* Fallback for Safari < 15.4 (no oklch support) */
-            background: #ffffff; /* Light mode fallback */
-            background: oklch(var(--b1)); /* DaisyUI base background (light/dark aware) */
+            right: 0;
+            bottom: 0; /* Cover entire viewport including FAB toolbar */
+            /* Прозрачность через background, не opacity - чтобы точки были видны */
+            background: rgba(255, 255, 255, 0.6);
+            background: oklch(var(--b1) / 0.6);
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
             -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            z-index: 38;
             pointer-events: none;
-            display: -webkit-flex;
-            display: flex;
-            -webkit-align-items: center;
-            align-items: center;
-            -webkit-justify-content: center;
-            justify-content: center;
+
+            /* GPU acceleration for iOS Safari */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
-        .navigation-overlay.active {
+        .navigation-fade-overlay.active {
             opacity: 1;
             visibility: visible;
-            pointer-events: all;
+            pointer-events: auto; /* Block interactions when active */
+            touch-action: none;   /* Block touch scroll in PWA */
         }
 
-        .navigation-overlay .loading-indicator {
+        /* Loading Dots in Center */
+        .navigation-fade-overlay .loading-dots {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: -webkit-flex;
             display: flex;
-            flex-direction: column;
+            gap: 10px;
+            z-index: 1; /* Над фоном */
+            /* Fix: prevent clipping during scale animation */
+            min-width: 100px;
+            min-height: 60px;
             align-items: center;
-            gap: 1rem;
+            justify-content: center;
+            overflow: visible;
         }
 
-        /* Reduced motion for overlay */
+        .navigation-fade-overlay .loading-dot {
+            width: 14px;
+            height: 14px;
+            /* Fallback for Safari < 15.4 */
+            background: #6366f1;
+            background: oklch(var(--p));
+            border-radius: 50%;
+            animation: dot-bounce 0.6s infinite ease-in-out;
+            /* Тень для лучшей видимости */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .navigation-fade-overlay .loading-dot:nth-child(1) { animation-delay: 0s; }
+        .navigation-fade-overlay .loading-dot:nth-child(2) { animation-delay: 0.1s; }
+        .navigation-fade-overlay .loading-dot:nth-child(3) { animation-delay: 0.2s; }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.6; }
+            40% { transform: scale(1.3); opacity: 1; }
+        }
+
+        /* Reduced Motion for nav loading */
         @media (prefers-reduced-motion: reduce) {
-            .navigation-overlay {
-                transition: none;
+            .nav-item.loading .icon-label::after,
+            [data-nav-item].loading::after,
+            .navigation-fade-overlay .loading-dot {
+                animation: none;
+                opacity: 1;
             }
         }
 
@@ -436,11 +437,11 @@
 
             /* Smooth fade transition for page content */
             ::view-transition-old(root) {
-                animation: view-fade-out 1.1s ease-out;
+                animation: view-fade-out 0.5s ease-out;
             }
 
             ::view-transition-new(root) {
-                animation: view-fade-in 1.1s ease-in;
+                animation: view-fade-in 0.5s ease-in;
             }
 
             /* Fade out animation */
@@ -470,10 +471,10 @@
                     animation: none !important;
                 }
             }
-        }
 
-        /* Disable View Transitions for dialog elements (modals) */
-        @supports (view-transition-name: root) {
+            /* ========================================
+               Disable View Transitions for Dialogs
+               ======================================== */
             dialog, dialog *, dialog::backdrop {
                 view-transition-name: none;
             }
@@ -645,7 +646,8 @@
 
     <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
     <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/networkDetector.min.js?v=PLACEHOLDER"></script>
+    <!-- Network Detection Module v3.0.0 (modular TypeScript, ZERO dependencies) -->
+    <script src="/static/js/network.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
 
@@ -804,25 +806,25 @@
         <div id="navbar-center-menu" class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
                 {% if user %}
-                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
-                <li data-offline-hidden="true"><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
-                <li data-offline-hidden="true"><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
-                <li data-offline-hidden="true"><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
-                <li><a href="/lists" class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
+                <li><a href="/" data-nav-item class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
+                <li data-offline-hidden="true"><a href="/analytics" data-nav-item class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
+                <li data-offline-hidden="true"><a href="/facts" data-nav-item class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
+                <li data-offline-hidden="true"><a href="/plan" data-nav-item class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
+                <li><a href="/lists" data-nav-item class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
 
                 <!-- Dropdown "Прочее" - доступно всем пользователям -->
                 <li id="analytics-group" data-offline-hidden="true">
                     <details>
                         <summary>📂 Прочее</summary>
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
-                            <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}">🔔 Уведомления</a></li>
-                            <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
+                            <li><a href="/notifications" data-nav-item class="{% if '/notifications' in request.url.path %}active{% endif %}">🔔 Уведомления</a></li>
+                            <li><a href="/import" data-nav-item class="{% if '/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
                             <li class="menu-title"><span>Справочники</span></li>
-                            <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
-                            <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 Места затрат</a></li>
-                            <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 Счета</a></li>
-                            <li><a href="/admin/stores" class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
-                            <li><a href="/admin/product-groups" class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
+                            <li><a href="/admin/articles" data-nav-item class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
+                            <li><a href="/admin/cost-centers" data-nav-item class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 Места затрат</a></li>
+                            <li><a href="/admin/financial-centers" data-nav-item class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 Счета</a></li>
+                            <li><a href="/admin/stores" data-nav-item class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
+                            <li><a href="/admin/product-groups" data-nav-item class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
                         </ul>
                     </details>
                 </li>
@@ -833,9 +835,9 @@
                     <details>
                         <summary>⚙️ Администратор</summary>
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
-                            <li><a href="/admin/users" class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
-                            <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
-                            <li><a href="/admin/logs" class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 Системные логи</a></li>
+                            <li><a href="/admin/users" data-nav-item class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
+                            <li><a href="/admin/monitoring" data-nav-item class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
+                            <li><a href="/admin/logs" data-nav-item class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 Системные логи</a></li>
                         </ul>
                     </details>
                 </li>
@@ -1052,7 +1054,7 @@
                         </li>
                         <div class="divider my-1"></div>
                         <li>
-                            <a href="/security" class="gap-2">
+                            <a href="/security" data-nav-item class="gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                 </svg>
@@ -1076,7 +1078,7 @@
             {% else %}
                 <!-- Auth buttons for guests -->
                 <div class="flex gap-1 sm:gap-2">
-                    <a href="/register" class="btn btn-outline btn-sm px-2 sm:px-3" title="Регистрация">
+                    <a href="/register" data-nav-item class="btn btn-outline btn-sm px-2 sm:px-3" title="Регистрация">
                         <!-- Icon only on mobile -->
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -1142,30 +1144,30 @@
                         <div class="divider my-1"></div>
                     {% endif %}
                     {% if user %}
-                    <li><a href="/">🏠 Главная</a></li>
-                    <li data-offline-hidden="true"><a href="/analytics">📊 Аналитика</a></li>
-                    <li data-offline-hidden="true"><a href="/facts">💸 Факт</a></li>
-                    <li data-offline-hidden="true"><a href="/plan">📋 План</a></li>
-                    <li><a href="/lists">🛒 Списки</a></li>
-                    <li data-offline-hidden="true"><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
+                    <li><a href="/" data-nav-item>🏠 Главная</a></li>
+                    <li data-offline-hidden="true"><a href="/analytics" data-nav-item>📊 Аналитика</a></li>
+                    <li data-offline-hidden="true"><a href="/facts" data-nav-item>💸 Факт</a></li>
+                    <li data-offline-hidden="true"><a href="/plan" data-nav-item>📋 План</a></li>
+                    <li><a href="/lists" data-nav-item>🛒 Списки</a></li>
+                    <li data-offline-hidden="true"><a href="/security" data-nav-item>🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
 
                     <!-- Секция "Прочее" -->
                     <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
-                    <li data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
+                    <li data-offline-hidden="true"><a href="/notifications" data-nav-item>🔔 Уведомления</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/import" data-nav-item>📥 Импорт</a></li>
                     <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers">💼 Места затрат</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers">🏢 Счета</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/stores">🏪 Магазины</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/product-groups">📦 Группы товаров</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles" data-nav-item>📁 Категории</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers" data-nav-item>💼 Места затрат</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers" data-nav-item>🏢 Счета</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/stores" data-nav-item>🏪 Магазины</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/product-groups" data-nav-item>📦 Группы товаров</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}
                         <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
-                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
-                        <li data-offline-hidden="true"><a href="/admin/monitoring">🔍 Мониторинг</a></li>
-                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs">📋 Системные логи</a></li>
+                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users" data-nav-item>👥 Пользователи</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/monitoring" data-nav-item>🔍 Мониторинг</a></li>
+                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs" data-nav-item>📋 Системные логи</a></li>
                     {% endif %}
                     {% if user %}
                         <div class="divider my-1"></div>
@@ -1181,14 +1183,12 @@
         </div>
     </header>
 
-    <!-- Navigation Progress Bar -->
-    <div id="navigation-progress" class="navigation-progress" role="progressbar" aria-hidden="true"></div>
-
-    <!-- Navigation Transition Overlay (скрывает DOM cleanup при переходе) -->
-    <div id="navigation-overlay" class="navigation-overlay" aria-hidden="true">
-        <div class="loading-indicator">
-            <span class="loading loading-spinner loading-lg text-primary"></span>
-            <span class="text-base-content/70">Загрузка...</span>
+    <!-- Navigation Fade Overlay (v4.0 - мягкое затемнение контента при переходе) -->
+    <div id="navigation-fade-overlay" class="navigation-fade-overlay" aria-hidden="true">
+        <div class="loading-dots">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
         </div>
     </div>
 
@@ -1750,6 +1750,7 @@
             const SW_VERSION_KEY = 'pwa_sw_version';
             const SW_UPDATE_AVAILABLE_KEY = 'pwa_update_available';
             const SW_NEW_VERSION_KEY = 'pwa_new_version';
+            const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
 
             // Track if icon already shown this session
             let updateIconShown = false;
@@ -1805,111 +1806,101 @@
 
             /**
              * Handle "Reload now" action
-             * Unregisters Service Worker, clears all caches, then reloads
+             * Logs out, unregisters Service Worker, clears all caches, storage, then reloads
              */
             async function handleUpdateNow() {
-
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
 
+                console.log('[SW_UPDATE] ========================================');
+                console.log('[SW_UPDATE] Starting cleanup process, target:', newVersion);
+
+                showToast('Обновление приложения...', 'info', 15000);
+
                 try {
-                    // Step 1/5: Unregister Service Worker
-                    const registration = await navigator.serviceWorker.getRegistration();
-
-                    if (registration) {
-                        const unregistered = await registration.unregister();
-                        if (unregistered) {
-                        } else {
-                            console.warn('[SW_UPDATE] ⚠️ Service Worker unregister returned false');
-                        }
-                    } else {
-                        console.warn('[SW_UPDATE] ⚠️ No Service Worker registration found');
-                    }
-
-                    // Step 2/5: Clear all caches
-                    const cacheNames = await caches.keys();
-
-                    if (cacheNames.length > 0) {
-                        const deleteResults = await Promise.all(
-                            cacheNames.map(async (cacheName) => {
-                                const deleted = await caches.delete(cacheName);
-                                return deleted;
-                            })
-                        );
-
-                        const deletedCount = deleteResults.filter(Boolean).length;
-                    } else {
-                    }
-
-                    // Step 3/5: Clear IndexedDB
+                    // Step 1/6: API Logout (best effort)
+                    console.log('[SW_UPDATE] Step 1/6: Logout API...');
                     try {
                         await Promise.race([
-                            new Promise((resolve, reject) => {
-                                const deleteRequest = indexedDB.deleteDatabase('FamilyBudgetDB');
-
-                                deleteRequest.onsuccess = () => {
-                                    resolve();
-                                };
-
-                                deleteRequest.onerror = (event) => {
-                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion error:', event);
-                                    reject(event);
-                                };
-
-                                deleteRequest.onblocked = () => {
-                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion blocked (connections still open)');
-                                    // Continue anyway - will be cleaned up on reload
-                                    resolve();
-                                };
-                            }),
-                            new Promise((resolve) => {
-                                setTimeout(() => {
-                                    console.warn('[SW_UPDATE] ⚠️ IndexedDB deletion timeout (5s), continuing...');
-                                    resolve();
-                                }, 5000);
-                            })
+                            fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
                         ]);
-                    } catch (error) {
-                        console.warn('[SW_UPDATE] ⚠️ Failed to delete IndexedDB:', error);
-                        console.warn('[SW_UPDATE] Continuing with update despite IndexedDB error...');
+                        console.log('[SW_UPDATE] ✅ Step 1/6: Logged out');
+                    } catch (e) {
+                        console.warn('[SW_UPDATE] ⚠️ Step 1/6: Logout failed:', e.message);
                     }
 
-                    // Step 4/5: Clear ALL localStorage
-
-                    // Save new version BEFORE clearing (needed after reload)
-                    const versionToSave = newVersion;
-
-                    // Clear ALL localStorage entries
-                    const localStorageKeys = Object.keys(localStorage);
-                    if (localStorageKeys.length > 100) {
+                    // Step 2/6: Unregister Service Worker
+                    console.log('[SW_UPDATE] Step 2/6: Unregister SW...');
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        await registration.unregister();
+                        console.log('[SW_UPDATE] ✅ Step 2/6: SW unregistered');
                     } else {
+                        console.log('[SW_UPDATE] ✅ Step 2/6: No SW to unregister');
                     }
 
+                    // Step 3/6: Clear caches
+                    console.log('[SW_UPDATE] Step 3/6: Clear caches...');
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    console.log('[SW_UPDATE] ✅ Step 3/6: Cleared', cacheNames.length, 'caches');
+
+                    // Step 4/6: Delete IndexedDB
+                    console.log('[SW_UPDATE] Step 4/6: Delete IndexedDB...');
+                    await new Promise((resolve) => {
+                        const req = indexedDB.deleteDatabase('FamilyBudgetDB');
+                        req.onsuccess = () => { console.log('[SW_UPDATE] ✅ Step 4/6: IndexedDB deleted'); resolve(); };
+                        req.onerror = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB error'); resolve(); };
+                        req.onblocked = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB blocked'); resolve(); };
+                        setTimeout(resolve, 5000);
+                    });
+
+                    // Step 5/6: Clear localStorage + set skip flag
+                    console.log('[SW_UPDATE] Step 5/6: Clear localStorage...');
+                    const lsKeys = Object.keys(localStorage).length;
                     localStorage.clear();
+                    if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
+                    // NEW: Skip SW registration on next load to keep cache empty
+                    localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
+                    console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
 
-                    // Restore only new version (needed for next controllerchange event)
-                    if (versionToSave) {
-                        localStorage.setItem(SW_VERSION_KEY, versionToSave);
-                    }
+                    // Step 6/6: Clear sessionStorage
+                    console.log('[SW_UPDATE] Step 6/6: Clear sessionStorage...');
+                    const ssKeys = Object.keys(sessionStorage).length;
+                    sessionStorage.clear();
+                    console.log('[SW_UPDATE] ✅ Step 6/6: Cleared', ssKeys, 'sessionStorage keys');
 
-                    // Close modal before reload
+                    // Close modal
                     const modal = document.getElementById('sw-update-modal');
-                    if (modal) {
-                        modal.close();
-                    }
+                    if (modal) modal.close();
+                    console.log('[SW_UPDATE] Modal closed');
 
-                    // Step 5/5: Reload page
-                    window.location.reload(true); // Hard reload (bypass cache)
+                    // Success feedback
+                    console.log('[SW_UPDATE] ========================================');
+                    console.log('[SW_UPDATE] ✅ All cleanup complete, reloading...');
+                    showToast('Обновление завершено!', 'success', 2000);
+
+                    // Reload with cache bust (fallback for deprecated reload(true))
+                    setTimeout(() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set('_update', Date.now());
+                        console.log('[SW_UPDATE] Navigating to:', url.toString());
+                        window.location.href = url.toString();
+                    }, 300);
 
                 } catch (error) {
-                    console.error('[SW_UPDATE] ❌ ERROR during update process:', error);
+                    console.error('[SW_UPDATE] ❌ ERROR:', error);
                     console.error('[SW_UPDATE] Error details:', {
                         name: error.name,
                         message: error.message,
                         stack: error.stack
                     });
+                    showToast('Ошибка обновления, перезагрузка...', 'error');
 
-                    // Attempt reload anyway (best effort)
-                    window.location.reload(true);
+                    // Force reload on error
+                    setTimeout(() => {
+                        window.location.href = window.location.href;
+                    }, 500);
                 }
             }
 
@@ -2097,6 +2088,27 @@
             });
 
             window.addEventListener('load', () => {
+                // Check if SW registration should be skipped (after update)
+                const skipRegistration = localStorage.getItem(SW_SKIP_REGISTRATION_KEY);
+                if (skipRegistration === 'true') {
+                    console.log('[SW] ⏭️ Skipping SW registration (post-update mode)');
+                    localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
+
+                    // Clear any remaining caches (safety measure)
+                    caches.keys().then(names => {
+                        if (names.length > 0) {
+                            console.log('[SW] 🗑️ Clearing remaining caches:', names);
+                            Promise.all(names.map(name => caches.delete(name)))
+                                .then(() => console.log('[SW] ✅ All remaining caches cleared'))
+                                .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
+                        } else {
+                            console.log('[SW] ✅ Cache Storage is empty');
+                        }
+                    }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
+
+                    return; // Skip SW registration this time
+                }
+
                 navigator.serviceWorker.register('/sw.min.js')
                     .then(async (registration) => {
                         // Сохраняем текущую версию SW при загрузке

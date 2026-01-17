@@ -13,14 +13,15 @@ Features:
 
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from pydantic import ValidationError
+
+from backend.app.core.json_utils import ORJSONResponse
 
 
 async def validation_exception_handler(
     request: Request,
     exc: RequestValidationError | ValidationError,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle Pydantic validation errors and return structured JSON response.
 
@@ -34,7 +35,7 @@ async def validation_exception_handler(
         exc: Pydantic ValidationError or FastAPI RequestValidationError
 
     Returns:
-        JSONResponse with validation error details
+        ORJSONResponse with validation error details
 
     Response Format:
         {
@@ -91,7 +92,7 @@ async def validation_exception_handler(
         })
 
     # Return structured JSON response
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "detail": {
@@ -105,7 +106,7 @@ async def validation_exception_handler(
 async def value_error_handler(
     request: Request,
     exc: ValueError,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle generic ValueError exceptions.
 
@@ -116,7 +117,7 @@ async def value_error_handler(
         exc: ValueError exception
 
     Returns:
-        JSONResponse with error details
+        ORJSONResponse with error details
 
     Example:
         >>> # ValueError("Invalid date format")
@@ -127,7 +128,7 @@ async def value_error_handler(
         ...     }
         ... }
     """
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
             "detail": {

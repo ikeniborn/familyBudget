@@ -15,6 +15,14 @@ const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().s
 
 // All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
+  // === Network Detection Module (ZERO dependencies - must be first!) ===
+  {
+    name: 'network',
+    input: 'frontend/shared/network/index.ts',
+    output: 'frontend/shared/static/js/network.min.js',
+    globalName: 'NetworkModule'
+  },
+
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',
@@ -39,6 +47,12 @@ const builds = [
     input: 'frontend/shared/static/js/calendar-widget.js',
     output: 'frontend/shared/static/js/calendar-widget.min.js',
     globalName: 'CalendarWidget'
+  },
+  {
+    name: 'confirm-dialog',
+    input: 'frontend/web/static/js/confirm-dialog-bundle.ts',
+    output: 'frontend/web/static/js/confirm-dialog.min.js',
+    globalName: 'ConfirmDialogBundle'
   },
   {
     name: 'choicesCategoryTree',
@@ -144,7 +158,7 @@ const builds = [
   // Workers
   {
     name: 'csvWorker',
-    input: 'frontend/web/static/js/workers/csvWorker.js',
+    input: 'frontend/web/static/js/lists/workers/csvWorker.ts',  // TypeScript migration (v2.0.0)
     output: 'frontend/web/static/js/workers/csvWorker.min.js',
     globalName: 'CSVWorker'
   },

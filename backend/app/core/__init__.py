@@ -14,8 +14,18 @@ from backend.app.core.exceptions import (
     UnauthorizedException,
     UnprocessableEntityException,
 )
+from backend.app.core.json_utils import (
+    JsonSerializer,
+    default_serializer,
+    dumps,
+    dumps_for_cache,
+    dumps_pretty,
+    is_orjson_available,
+    loads,
+)
 
 __all__ = [
+    # Exceptions
     "APIException",
     "BadRequestException",
     "UnauthorizedException",
@@ -26,4 +36,12 @@ __all__ = [
     "InternalServerException",
     "DatabaseException",
     "ServiceUnavailableException",
+    # JSON utilities
+    "JsonSerializer",
+    "default_serializer",
+    "dumps",
+    "loads",
+    "dumps_for_cache",
+    "dumps_pretty",
+    "is_orjson_available",
 ]

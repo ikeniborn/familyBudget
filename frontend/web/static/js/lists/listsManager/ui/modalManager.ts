@@ -22,6 +22,13 @@ declare const showToast: (message: string, type?: 'success' | 'error' | 'info' |
 declare const debugLog: (...args: any[]) => void;
 declare const Choices: any; // Choices.js library
 
+/** Choices.js instance interface for type safety */
+interface ChoicesInstance {
+  passedElement: { element: HTMLSelectElement };
+  destroy(): void;
+  setChoiceByValue(value: string): void;
+}
+
 declare global {
   interface Window {
     deleteListId?: number;
@@ -199,6 +206,9 @@ export function openEditItemModal(itemId: number): void {
  * where items remain shifted (translateX) after modal closes.
  */
 export function closeItemModal(): void {
+  // Reset dropdown z-index state to ensure clean state on modal close
+  dropdownZIndexManager.reset();
+
   // STEP 1: Cleanup swipe state BEFORE closing modal
   // This prevents items from staying shifted left after swipe-to-edit
   const hierarchyView = (window as any).hierarchyView;
@@ -452,6 +462,87 @@ export async function confirmDeleteList(): Promise<void> {
 }
 
 // ============================================================================
+// Choices.js Dropdown Z-Index Management
+// ============================================================================
+
+/**
+ * Encapsulated manager for dropdown z-index state.
+ * Handles case when both store & product-group dropdowns are open simultaneously.
+ */
+const dropdownZIndexManager = {
+  /** Counter for open dropdowns */
+  count: 0,
+
+  /**
+   * Handle dropdown open event - add z-index fix class to modal
+   */
+  open(): void {
+    this.count++;
+    const modal = document.getElementById('item-modal');
+    if (modal) {
+      modal.classList.add('store-dropdown-open');
+      debugLog('[LISTS_MODAL] Dropdown opened, store-dropdown-open class added', {
+        openCount: this.count
+      });
+    }
+  },
+
+  /**
+   * Handle dropdown close event - remove z-index fix class when all dropdowns closed
+   */
+  close(): void {
+    this.count = Math.max(0, this.count - 1);
+    if (this.count === 0) {
+      const modal = document.getElementById('item-modal');
+      if (modal) {
+        modal.classList.remove('store-dropdown-open');
+        debugLog('[LISTS_MODAL] All dropdowns closed, store-dropdown-open class removed');
+      }
+    } else {
+      debugLog('[LISTS_MODAL] Dropdown closed, other still open', { openCount: this.count });
+    }
+  },
+
+  /**
+   * Reset state - used when modal closes to ensure clean state
+   */
+  reset(): void {
+    this.count = 0;
+    const modal = document.getElementById('item-modal');
+    if (modal) {
+      modal.classList.remove('store-dropdown-open');
+      debugLog('[LISTS_MODAL] Modal closing, store-dropdown-open class removed');
+    }
+  }
+};
+
+/**
+ * Setup dropdown z-index event handlers for a Choices.js instance
+ * @param choicesInstance - Choices.js instance
+ * @param dropdownName - Name for logging ('store' or 'productGroup')
+ */
+function setupDropdownZIndexHandlers(choicesInstance: ChoicesInstance, dropdownName: string): void {
+  if (!choicesInstance?.passedElement?.element) {
+    console.warn(`[LISTS_MODAL] Cannot setup z-index handlers for ${dropdownName} - no element`);
+    return;
+  }
+
+  const element = choicesInstance.passedElement.element;
+
+  element.addEventListener('showDropdown', () => {
+    debugLog(`[LISTS_MODAL] ${dropdownName} showDropdown event`);
+    dropdownZIndexManager.open();
+  });
+
+  element.addEventListener('hideDropdown', () => {
+    debugLog(`[LISTS_MODAL] ${dropdownName} hideDropdown event`);
+    dropdownZIndexManager.close();
+  });
+
+  debugLog(`[LISTS_MODAL] Z-index event handlers attached for ${dropdownName}`);
+}
+
+// ============================================================================
 // Choices.js Initialization
 // ============================================================================
 
@@ -495,6 +586,9 @@ export function initStoreChoices(): void {
         updateState({ choicesInstances: {} });
       }
       state.choicesInstances.store = choices;
+
+      // Setup z-index handlers for dropdown (fixes #item-modal dropdown visibility)
+      setupDropdownZIndexHandlers(choices, 'store');
     }
   } catch (error) {
     console.error('[Choices] Error initializing store choices:', error);
@@ -541,6 +635,9 @@ export function initProductGroupChoices(): void {
         updateState({ choicesInstances: {} });
       }
       state.choicesInstances.productGroup = choices;
+
+      // Setup z-index handlers for dropdown (fixes #item-modal dropdown visibility)
+      setupDropdownZIndexHandlers(choices, 'productGroup');
     }
   } catch (error) {
     console.error('[Choices] Error initializing product group choices:', error);

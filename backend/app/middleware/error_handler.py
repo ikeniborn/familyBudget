@@ -13,15 +13,15 @@ Features:
     - Structured logging with correlation IDs
 """
 
-import traceback
 from typing import Any, Optional
 
 from fastapi import Request, status
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from backend.app.core.exceptions import APIException, DatabaseException
+from backend.app.core.json_utils import ORJSONResponse
+
+from backend.app.core.exceptions import APIException
 from backend.app.core.logging import StructuredLogger
 from backend.app.middleware.logging_middleware import get_correlation_id
 
@@ -31,7 +31,7 @@ logger = StructuredLogger(__name__)
 async def api_exception_handler(
     request: Request,
     exc: APIException,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle custom APIException instances.
 
@@ -42,7 +42,7 @@ async def api_exception_handler(
         exc: Custom APIException instance
 
     Returns:
-        JSONResponse with error details
+        ORJSONResponse with error details
 
     Example:
         raise NotFoundException("Article not found")
@@ -68,7 +68,7 @@ async def api_exception_handler(
         details=exc.details,
     )
 
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=exc.status_code,
         content={
             "detail": exc.to_dict()
@@ -79,7 +79,7 @@ async def api_exception_handler(
 async def http_exception_handler(
     request: Request,
     exc: HTTPException,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle FastAPI HTTPException instances.
 
@@ -90,7 +90,7 @@ async def http_exception_handler(
         exc: FastAPI HTTPException instance
 
     Returns:
-        JSONResponse with error details
+        ORJSONResponse with error details
 
     Example:
         raise HTTPException(404, "Not found")
@@ -112,7 +112,7 @@ async def http_exception_handler(
         error_message=exc.detail,
     )
 
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=exc.status_code,
         content={
             "detail": {
@@ -126,7 +126,7 @@ async def http_exception_handler(
 async def database_exception_handler(
     request: Request,
     exc: SQLAlchemyError,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle SQLAlchemy database exceptions.
 
@@ -137,7 +137,7 @@ async def database_exception_handler(
         exc: SQLAlchemy exception
 
     Returns:
-        JSONResponse with error details
+        ORJSONResponse with error details
 
     Security:
         Does not expose internal database errors to client.
@@ -169,7 +169,7 @@ async def database_exception_handler(
 
     if "IntegrityError" in error_type:
         # Unique constraint, foreign key constraint, etc.
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={
                 "detail": {
@@ -182,7 +182,7 @@ async def database_exception_handler(
 
     elif "OperationalError" in error_type:
         # Connection issues, timeout, etc.
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "detail": {
@@ -195,7 +195,7 @@ async def database_exception_handler(
 
     else:
         # Generic database error
-        return JSONResponse(
+        return ORJSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "detail": {
@@ -210,7 +210,7 @@ async def database_exception_handler(
 async def generic_exception_handler(
     request: Request,
     exc: Exception,
-) -> JSONResponse:
+) -> ORJSONResponse:
     """
     Handle generic Python exceptions.
 
@@ -221,7 +221,7 @@ async def generic_exception_handler(
         exc: Any Python exception
 
     Returns:
-        JSONResponse with error details
+        ORJSONResponse with error details
 
     Security:
         Does not expose internal error details to client.
@@ -249,7 +249,7 @@ async def generic_exception_handler(
     )
 
     # Return generic error response (don't expose internal details)
-    return JSONResponse(
+    return ORJSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "detail": {
