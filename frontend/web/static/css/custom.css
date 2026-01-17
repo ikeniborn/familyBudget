@@ -809,7 +809,7 @@ html.offline-mode .save-btn:hover {
     min-width: 56px;
     min-height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, oklch(var(--p)) 0%, oklch(var(--pf)) 100%);
+    background-color: oklch(var(--p));
     color: oklch(var(--pc));
     border: none;
     box-shadow:
