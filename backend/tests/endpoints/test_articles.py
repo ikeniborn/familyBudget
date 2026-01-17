@@ -22,13 +22,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.user import User
 
-# Skip all tests in this module - API returns code=None and permission issues
-# These require investigation in article_service.py and article_router.py
-pytestmark = pytest.mark.skip(
-    reason="Article API tests have systemic issues: code=None in responses, "
-           "permission checks failing, and FK violations. Needs separate investigation."
-)
-
 
 # ============================================================================
 # POST /api/v1/articles - Create Article
