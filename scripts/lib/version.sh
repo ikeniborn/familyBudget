@@ -252,6 +252,38 @@ update_env_version() {
     fi
 }
 
+# Ensure .env contains correct VERSION (even if version not changed)
+# This fixes docker-compose fallback to 4.0.0 when VERSION is missing or empty
+# Args: version
+ensure_env_version() {
+    local version="$1"
+    local env_file="${DEPLOY_DIR}/.env"
+
+    if [[ ! -f "$env_file" ]]; then
+        warning ".env not found: $env_file"
+        return 1
+    fi
+
+    # Check current VERSION in .env
+    local current_env_version=""
+    if grep -q "^VERSION=" "$env_file"; then
+        current_env_version=$(grep "^VERSION=" "$env_file" | cut -d'=' -f2)
+    fi
+
+    # Update if VERSION is missing, empty, or different
+    if [[ -z "$current_env_version" || "$current_env_version" != "$version" ]]; then
+        info "Syncing .env VERSION: ${current_env_version:-<empty>} → $version"
+        if update_env_version "$version" "$env_file"; then
+            success ".env VERSION synchronized: $version"
+        else
+            warning "Failed to sync .env VERSION"
+            return 1
+        fi
+    else
+        info ".env VERSION already correct: $version"
+    fi
+}
+
 # Update all version files in DEPLOYMENT DIRECTORY ONLY
 # IMPORTANT: This function ONLY updates files in /opt/budget (DEPLOY_DIR)
 # Repository files (~/familyBudget) are NEVER modified to keep git clean
@@ -512,7 +544,13 @@ process_version_bump() {
 
     # Update version files in DEPLOY_DIR only (NOT in repository!)
     if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
+        # Version changed - update all files
         update_all_version_files "$NEW_VERSION"
+    else
+        # Version unchanged - ensure .env has correct VERSION for docker-compose
+        # This fixes the bug where VERSION in .env was empty/missing after fresh deploy
+        # causing docker-compose to fallback to 4.0.0 (default value)
+        ensure_env_version "$NEW_VERSION"
     fi
 
     # Check if Docker rebuild needed (comparing DEPLOY_DIR with saved checksums)
