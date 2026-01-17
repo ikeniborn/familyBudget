@@ -4573,7 +4573,8 @@ async function retryFailedItems() {
         showToast('Повторная синхронизация...', 'info');
         // Sync ALL pending items
         const results = await window.offlineManager.sync();
-        await loadPendingRecords();
+        // Note: loadPendingRecords() is now called automatically via
+        // 'offline-sync-complete' event dispatched from syncAll()
 
         // Show appropriate message and refresh UI
         await handleSyncResults(results);
