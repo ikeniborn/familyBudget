@@ -178,11 +178,11 @@ async def test_list_articles_sees_all_shared_references(
 ):
     """Test that users see all shared article references."""
     # Admin creates two articles
-    admin_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
-    admin_client.post(
+    await admin_client.post(
         "/api/v1/articles",
         json={"code": "SALARY", "name": "Salary", "type": "income", "parent_id": None},
     )
