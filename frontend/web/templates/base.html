@@ -1785,6 +1785,7 @@
             const SW_VERSION_KEY = 'pwa_sw_version';
             const SW_UPDATE_AVAILABLE_KEY = 'pwa_update_available';
             const SW_NEW_VERSION_KEY = 'pwa_new_version';
+            const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
 
             // Track if icon already shown this session
             let updateIconShown = false;
@@ -1889,12 +1890,14 @@
                         setTimeout(resolve, 5000);
                     });
 
-                    // Step 5/6: Clear localStorage
+                    // Step 5/6: Clear localStorage + set skip flag
                     console.log('[SW_UPDATE] Step 5/6: Clear localStorage...');
                     const lsKeys = Object.keys(localStorage).length;
                     localStorage.clear();
                     if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
-                    console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys');
+                    // NEW: Skip SW registration on next load to keep cache empty
+                    localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
+                    console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
 
                     // Step 6/6: Clear sessionStorage
                     console.log('[SW_UPDATE] Step 6/6: Clear sessionStorage...');
@@ -2120,6 +2123,27 @@
             });
 
             window.addEventListener('load', () => {
+                // Check if SW registration should be skipped (after update)
+                const skipRegistration = localStorage.getItem(SW_SKIP_REGISTRATION_KEY);
+                if (skipRegistration === 'true') {
+                    console.log('[SW] ⏭️ Skipping SW registration (post-update mode)');
+                    localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
+
+                    // Clear any remaining caches (safety measure)
+                    caches.keys().then(names => {
+                        if (names.length > 0) {
+                            console.log('[SW] 🗑️ Clearing remaining caches:', names);
+                            Promise.all(names.map(name => caches.delete(name)))
+                                .then(() => console.log('[SW] ✅ All remaining caches cleared'))
+                                .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
+                        } else {
+                            console.log('[SW] ✅ Cache Storage is empty');
+                        }
+                    }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
+
+                    return; // Skip SW registration this time
+                }
+
                 navigator.serviceWorker.register('/sw.min.js')
                     .then(async (registration) => {
                         // Сохраняем текущую версию SW при загрузке
