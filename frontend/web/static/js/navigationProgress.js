@@ -1,21 +1,22 @@
 /**
- * Navigation Progress Module v3.2
- * Pre-fetch + Direct Navigation approach (no overlay flash)
+ * Navigation Progress Module v4.0
+ * Pre-fetch + Direct Navigation + Element Loading indicators
  *
  * Flow:
  * 1. Intercept link click/touch
- * 2. Show progress bar (5-95%)
- * 3. Pre-fetch page in background (warms HTTP cache)
- * 4. Wait for minimum display time (1 second)
- * 5. Complete progress bar (100%) with fade-out
- * 6. Navigate directly (instant load from HTTP cache)
+ * 2. Mark clicked element as loading (instant visual feedback)
+ * 3. Show progress bar (5-95%) + fade overlay with dots
+ * 4. Pre-fetch page in background (warms HTTP cache)
+ * 5. Wait for minimum display time (1 second)
+ * 6. Complete progress bar (100%) with fade-out
+ * 7. Navigate directly (instant load from HTTP cache)
  *
- * Key improvements over v3.1:
- * - Removed overlay flash (smoother UX)
- * - Direct navigation after pre-fetch (instant page load)
- * - Progress bar fade-out animation
+ * Key improvements over v3.2:
+ * - Instant visual feedback on clicked nav element
+ * - Fade overlay with loading dots for content area
+ * - Unified loading state for all nav-item elements
  *
- * @version 3.2.0
+ * @version 4.0.0
  */
 
 (function() {
@@ -28,7 +29,9 @@
         // DOM elements
         progressBar: null,
         overlay: null,
+        fadeOverlay: null,
         currentController: null,
+        currentLoadingElement: null,
 
         // Configuration
         config: {
@@ -50,14 +53,17 @@
         init() {
             this.progressBar = document.getElementById('navigation-progress');
             this.overlay = document.getElementById('navigation-overlay');
+            this.fadeOverlay = document.getElementById('navigation-fade-overlay');
 
             if (!this.progressBar) {
                 console.warn('[NavigationProgress] Progress bar element not found');
                 return;
             }
 
-            // Hide overlay on incoming navigation (page load)
+            // Hide overlays on incoming navigation (page load)
             this.hideOverlay();
+            this.hideFadeOverlay();
+            this.clearElementLoading();
 
             // Intercept all clicks on document (capture phase)
             document.addEventListener('click', this.handleClick.bind(this), true);
@@ -69,7 +75,7 @@
                 log('[NavigationProgress] Safari PWA mode detected, touchend handler added');
             }
 
-            log('[NavigationProgress] v3.2 Initialized (Pre-fetch + Direct Navigation + Safari PWA)');
+            log('[NavigationProgress] v4.0 Initialized (Pre-fetch + Element Loading + Fade Overlay)');
         },
 
         /**
@@ -105,6 +111,9 @@
             // Prevent default and handle navigation
             event.preventDefault();
             event.stopPropagation();
+
+            // Mark element as loading immediately (instant feedback)
+            this.markElementLoading(link);
 
             // Mark that we're handling via touch (to prevent duplicate click)
             this._touchHandled = true;
@@ -190,6 +199,9 @@
 
             if (!this.shouldIntercept(link)) return;
 
+            // Mark element as loading immediately (instant feedback)
+            this.markElementLoading(link);
+
             // Close mobile menu before navigation
             this.closeMobileMenu();
 
@@ -216,8 +228,9 @@
             this.startTime = Date.now();
             this.currentController = new AbortController();
 
-            // Show progress bar
+            // Show progress bar and fade overlay
             this.showProgress();
+            this.showFadeOverlay();
             this.setProgress(5); // Initial progress to show activity
 
             try {
@@ -256,6 +269,8 @@
 
                 console.error('[NavigationProgress] Pre-fetch failed:', error);
                 this.hideProgress();
+                this.hideFadeOverlay();
+                this.clearElementLoading();
                 this.isNavigating = false;
 
                 // Fall back to normal navigation (let browser handle it)
@@ -440,6 +455,52 @@
         },
 
         /**
+         * Mark element as loading (instant visual feedback)
+         * @param {HTMLElement} element - The clicked element
+         */
+        markElementLoading(element) {
+            if (!element) return;
+
+            // Find nav-item (button or link)
+            const navItem = element.closest('[data-nav-item], .nav-item, .icon-btn, a[href]');
+            if (navItem) {
+                navItem.classList.add('loading');
+                this.currentLoadingElement = navItem;
+                log('[NavigationProgress] Element marked as loading:', navItem.tagName);
+            }
+        },
+
+        /**
+         * Clear loading state from element
+         */
+        clearElementLoading() {
+            if (this.currentLoadingElement) {
+                this.currentLoadingElement.classList.remove('loading');
+                this.currentLoadingElement = null;
+            }
+            // Fallback: clear all loading states
+            document.querySelectorAll('.nav-item.loading, [data-nav-item].loading, .icon-btn.loading, a[href].loading').forEach(el => {
+                el.classList.remove('loading');
+            });
+        },
+
+        /**
+         * Show fade overlay with loading dots
+         */
+        showFadeOverlay() {
+            if (!this.fadeOverlay) return;
+            this.fadeOverlay.classList.add('active');
+        },
+
+        /**
+         * Hide fade overlay
+         */
+        hideFadeOverlay() {
+            if (!this.fadeOverlay) return;
+            this.fadeOverlay.classList.remove('active');
+        },
+
+        /**
          * Hide progress bar
          */
         hideProgress() {
@@ -472,6 +533,8 @@
             }
             this.hideProgress();
             this.hideOverlay();
+            this.hideFadeOverlay();
+            this.clearElementLoading();
             this.isNavigating = false;
         },
 
@@ -497,10 +560,17 @@
             overlay.classList.remove('active');
         }
 
+        const fadeOverlay = document.getElementById('navigation-fade-overlay');
+        if (fadeOverlay) {
+            fadeOverlay.classList.remove('active');
+        }
+
         // Reset navigation state
         if (window.NavigationProgress) {
             window.NavigationProgress.isNavigating = false;
             window.NavigationProgress.hideProgress();
+            window.NavigationProgress.hideFadeOverlay();
+            window.NavigationProgress.clearElementLoading();
         }
     });
 

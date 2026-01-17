@@ -425,6 +425,111 @@
         }
 
         /* ========================================
+           Navigation Loading States - Unified v4.0
+           ======================================== */
+
+        /* Loading dot indicator on nav items */
+        .nav-item.loading .icon-label,
+        .icon-btn.loading .icon-label,
+        [data-nav-item].loading span,
+        a[href].loading span {
+            position: relative;
+        }
+
+        .nav-item.loading .icon-label::after,
+        .icon-btn.loading .icon-label::after,
+        [data-nav-item].loading span::after {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 5px;
+            height: 5px;
+            /* Fallback for Safari < 15.4 */
+            background: #6366f1;
+            background: oklch(var(--p));
+            border-radius: 50%;
+            animation: nav-dots-blink 0.8s infinite;
+        }
+
+        @keyframes nav-dots-blink {
+            0%, 20% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+            50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
+            80%, 100% { opacity: 0; transform: translateY(-50%) scale(0.8); }
+        }
+
+        /* Content Fade Overlay */
+        .navigation-fade-overlay {
+            position: fixed;
+            top: calc(4rem + var(--safe-area-inset-top));
+            left: 0;
+            right: 0;
+            bottom: calc(80px + env(safe-area-inset-bottom));
+            /* Fallback for Safari < 15.4 */
+            background: rgba(255, 255, 255, 0.5);
+            background: oklch(var(--b1) / 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            z-index: 38;
+            pointer-events: none;
+
+            /* GPU acceleration for iOS Safari */
+            transform: translateZ(0);
+            -webkit-transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+        }
+
+        .navigation-fade-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Loading Dots in Center */
+        .navigation-fade-overlay .loading-dots {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: -webkit-flex;
+            display: flex;
+            gap: 6px;
+        }
+
+        .navigation-fade-overlay .loading-dot {
+            width: 8px;
+            height: 8px;
+            /* Fallback for Safari < 15.4 */
+            background: #6366f1;
+            background: oklch(var(--p));
+            border-radius: 50%;
+            animation: dot-bounce 0.6s infinite ease-in-out;
+        }
+
+        .navigation-fade-overlay .loading-dot:nth-child(1) { animation-delay: 0s; }
+        .navigation-fade-overlay .loading-dot:nth-child(2) { animation-delay: 0.1s; }
+        .navigation-fade-overlay .loading-dot:nth-child(3) { animation-delay: 0.2s; }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1.2); opacity: 1; }
+        }
+
+        /* Reduced Motion for nav loading */
+        @media (prefers-reduced-motion: reduce) {
+            .nav-item.loading .icon-label::after,
+            .icon-btn.loading .icon-label::after,
+            [data-nav-item].loading span::after,
+            .navigation-fade-overlay .loading-dot {
+                animation: none;
+                opacity: 1;
+            }
+        }
+
+        /* ========================================
            View Transitions API (Safari 18+, iOS 18+)
            Progressive enhancement - graceful degradation for older Safari
            ======================================== */
@@ -839,11 +944,11 @@
         <div id="navbar-center-menu" class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
                 {% if user %}
-                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
-                <li data-offline-hidden="true"><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
-                <li data-offline-hidden="true"><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
-                <li data-offline-hidden="true"><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
-                <li><a href="/lists" class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
+                <li><a href="/" data-nav-item class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
+                <li data-offline-hidden="true"><a href="/analytics" data-nav-item class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
+                <li data-offline-hidden="true"><a href="/facts" data-nav-item class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
+                <li data-offline-hidden="true"><a href="/plan" data-nav-item class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
+                <li><a href="/lists" data-nav-item class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
 
                 <!-- Dropdown "Прочее" - доступно всем пользователям -->
                 <li id="analytics-group" data-offline-hidden="true">
@@ -1177,12 +1282,12 @@
                         <div class="divider my-1"></div>
                     {% endif %}
                     {% if user %}
-                    <li><a href="/">🏠 Главная</a></li>
-                    <li data-offline-hidden="true"><a href="/analytics">📊 Аналитика</a></li>
-                    <li data-offline-hidden="true"><a href="/facts">💸 Факт</a></li>
-                    <li data-offline-hidden="true"><a href="/plan">📋 План</a></li>
-                    <li><a href="/lists">🛒 Списки</a></li>
-                    <li data-offline-hidden="true"><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
+                    <li><a href="/" data-nav-item>🏠 Главная</a></li>
+                    <li data-offline-hidden="true"><a href="/analytics" data-nav-item>📊 Аналитика</a></li>
+                    <li data-offline-hidden="true"><a href="/facts" data-nav-item>💸 Факт</a></li>
+                    <li data-offline-hidden="true"><a href="/plan" data-nav-item>📋 План</a></li>
+                    <li><a href="/lists" data-nav-item>🛒 Списки</a></li>
+                    <li data-offline-hidden="true"><a href="/security" data-nav-item>🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
 
                     <!-- Секция "Прочее" -->
                     <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
@@ -1224,6 +1329,15 @@
         <div class="loading-indicator">
             <span class="loading loading-spinner loading-lg text-primary"></span>
             <span class="text-base-content/70">Загрузка...</span>
+        </div>
+    </div>
+
+    <!-- Navigation Fade Overlay (мягкое затемнение контента при переходе v4.0) -->
+    <div id="navigation-fade-overlay" class="navigation-fade-overlay" aria-hidden="true">
+        <div class="loading-dots">
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
+            <div class="loading-dot"></div>
         </div>
     </div>
 
