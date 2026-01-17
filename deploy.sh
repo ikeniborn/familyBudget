@@ -918,8 +918,8 @@ validate_build_artifacts() {
     )
 
     # Legacy files (Terser/PostCSS-generated, not in Vite)
+    # Note: hierarchyView.js was migrated to TypeScript (HierarchyView.ts) and included in lists.min.js bundle
     local -a legacy_files=(
-        "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js"
         "$DEPLOY_DIR/frontend/web/static/css/lists.min.css"
     )
 
@@ -1484,31 +1484,10 @@ main() {
             # Checksums now saved AFTER comprehensive validation (see line ~1548)
             # This prevents deploying incomplete builds
 
-            # Minify legacy files (hierarchyView.js, lists.css) - NOT included in Vite build
-            print_message info "Minifying legacy files (hierarchyView.js, lists.css)..."
+            # Minify legacy files (lists.css) - NOT included in Vite build
+            # Note: hierarchyView.js was migrated to TypeScript and included in lists.min.js bundle
+            print_message info "Minifying legacy files (lists.css)..."
             echo ""
-
-            # Minify hierarchyView.js
-            if [[ -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" ]]; then
-                if npx terser "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.js" \
-                    -c -m \
-                    -o "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
-                    print_message success "✓ hierarchyView.js minified successfully"
-
-                    # Gzip precompression
-                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/js/lists/hierarchyView.min.js" 2>&1; then
-                        print_message success "✓ hierarchyView.min.js.gz created"
-                    else
-                        print_message warning "Failed to create hierarchyView.min.js.gz (non-critical)"
-                    fi
-                else
-                    error "Failed to minify hierarchyView.js"
-                    error "This file is critical - cannot continue"
-                    exit 1
-                fi
-            else
-                print_message warning "hierarchyView.js not found - skipping minification"
-            fi
 
             # Minify lists.css
             if [[ -f "$DEPLOY_DIR/frontend/web/static/css/lists.css" ]]; then
@@ -2039,12 +2018,12 @@ main() {
                 success "✓ Manifest has proper versions (no PLACEHOLDER)"
             fi
 
-            # Test 4: Hierarchy JS loads
-            hierarchy_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/static/js/lists/hierarchyView.min.js 2>/dev/null || echo "000")
-            if [[ "$hierarchy_status" == "200" ]]; then
-                success "✓ Hierarchy JS available (HTTP $hierarchy_status)"
+            # Test 4: Lists bundle loads (includes HierarchyView since ES Modules migration)
+            lists_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/static/js/lists.min.js 2>/dev/null || echo "000")
+            if [[ "$lists_status" == "200" ]]; then
+                success "✓ Lists bundle available (HTTP $lists_status)"
             else
-                warning "✗ Hierarchy JS failed (HTTP $hierarchy_status)"
+                warning "✗ Lists bundle failed (HTTP $lists_status)"
                 smoke_test_failed=true
             fi
 
