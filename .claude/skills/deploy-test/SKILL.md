@@ -5,6 +5,8 @@ version: 1.0.0
 author: Family Budget Team
 tags: [deployment, automation, testing, ssh, budget-test]
 dependencies: [monitoring]
+context: fork
+user-invocable: true
 ---
 
 # Deploy Test Automation Skill
