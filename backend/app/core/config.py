@@ -6,9 +6,48 @@ All configuration values are loaded from environment variables or .env file.
 """
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _read_version_from_file() -> str:
+    """
+    Read VERSION from file with fallback to default.
+
+    Priority:
+    1. /app/VERSION (Docker mount - primary for production)
+    2. ../../VERSION (local development - relative to config.py)
+    3. Default "0.0.0"
+
+    This function is called at module load time, so the version is read once
+    when the Settings class is instantiated. For version updates to take effect,
+    uvicorn workers must be restarted (happens automatically during deploy).
+
+    Returns:
+        str: Version string (e.g., "6.6.1")
+    """
+    # Docker path (inside container) - primary for production
+    docker_path = Path("/app/VERSION")
+    if docker_path.exists():
+        try:
+            return docker_path.read_text().strip()
+        except (OSError, IOError):
+            pass  # Fall through to next option
+
+    # Local development path (relative to config.py)
+    # config.py is at: backend/app/core/config.py
+    # VERSION is at: VERSION (root)
+    # So we need: ../../../../VERSION from config.py
+    local_path = Path(__file__).parent.parent.parent.parent / "VERSION"
+    if local_path.exists():
+        try:
+            return local_path.read_text().strip()
+        except (OSError, IOError):
+            pass  # Fall through to default
+
+    return "0.0.0"
 
 
 class Settings(BaseSettings):
@@ -20,7 +59,9 @@ class Settings(BaseSettings):
     """
 
     # Application
-    VERSION: str = "4.0.0"
+    # VERSION is read from file at module load time (see _read_version_from_file)
+    # This allows version updates without container recreation - just restart workers
+    VERSION: str = _read_version_from_file()
     ENVIRONMENT: str = "production"  # "development" or "production"
     APP_ENV: str = "production"  # Alias for ENVIRONMENT (for compatibility)
 

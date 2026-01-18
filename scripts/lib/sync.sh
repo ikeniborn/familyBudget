@@ -666,9 +666,11 @@ sync_clean() {
     # Step 5: Copy everything from repository (except .env and directories we already handled)
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
     # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
+    # CRITICAL: VERSION excluded (preserve version bumped by --version option)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \

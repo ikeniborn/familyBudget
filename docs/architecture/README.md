@@ -27,6 +27,48 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-18: Deploy Improvements - HTML Templates Checksum & Sync Verification (v7.x)
+- **Change:** Improved deployment reliability for inline CSS/JS changes in HTML templates
+- **Problem:**
+  - Changes to inline CSS (e.g., Elastic Morphing CSS in `base.html`) were not delivered to clients
+  - `needs_frontend_rebuild()` only checked `.ts/.tsx` files, ignoring HTML template changes
+  - No verification that critical features were synced after rsync
+- **Solution:**
+  1. **HTML Templates in Build Checksums** (`scripts/lib/version.sh`):
+     - Added `find frontend/web/templates -name "*.html"` to checksum calculation
+     - When inline CSS/JS changes → npm build runs automatically
+     - sw.min.js rebuilt with new CACHE_VERSION → cache invalidation
+  2. **Sync Verification** (`deploy.sh`):
+     - Check 1: Elastic Morphing CSS (`dot-morph` pattern)
+     - Check 2: Service Worker registration (`serviceWorker`)
+     - Check 3: sw.min.js contains `CACHE_VERSION`
+     - Success/failure logging for each check
+- **Files Modified:**
+  - `scripts/lib/version.sh` (needs_frontend_rebuild, save_frontend_build_checksums)
+  - `deploy.sh` (verification block after sync_code_to_deploy)
+- **Impact:**
+  - ✅ Inline CSS/JS changes trigger automatic frontend rebuild
+  - ✅ sw.min.js updated with new CACHE_VERSION
+  - ✅ Verification catches sync failures before container restart
+
+### 2026-01-18: Timezone-Naive DateTime for PostgreSQL (v7.x)
+- **Change:** Fixed database error when saving Google Sheets URL
+- **Problem:**
+  - `t_d_user.updated_at` column is `TIMESTAMP WITHOUT TIME ZONE`
+  - Code used `datetime.now(timezone.utc)` (timezone-aware)
+  - asyncpg raised: "can't subtract offset-naive and offset-aware datetimes"
+- **Solution:** Changed to `datetime.utcnow()` (timezone-naive) to match model
+- **Critical Pattern:**
+  ```python
+  # ❌ WRONG for TIMESTAMP WITHOUT TIME ZONE
+  user.updated_at = datetime.now(timezone.utc)
+
+  # ✅ CORRECT for TIMESTAMP WITHOUT TIME ZONE
+  user.updated_at = datetime.utcnow()
+  ```
+- **Files Modified:** `backend/app/api/v1/endpoints/users.py`
+- **Impact:** ✅ Google Sheets URL saves correctly
+
 ### 2026-01-18: Google Sheets URL Persistence (v7.x)
 - **Change:** Added ability to save Google Sheets URL per user for reuse in shopping list import
 - **Backend:**
