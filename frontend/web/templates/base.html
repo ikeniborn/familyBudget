@@ -98,6 +98,10 @@
     <!-- Tailwind CSS + DaisyUI -->
     <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
 
+    <!-- DaisyUI Overrides - centralized fixes for DaisyUI conflicts -->
+    <!-- Must load AFTER DaisyUI but BEFORE custom.css -->
+    <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=PLACEHOLDER">
+
     <!-- Custom Styles (FAB Toolbar, Safe-Area, etc.) -->
     <link rel="stylesheet" href="/static/css/custom.min.css?v=PLACEHOLDER">
 
@@ -299,21 +303,9 @@
 
         /* ========================================
            Navigation Loading State Reset
-           Override DaisyUI .loading class for nav items
-           DaisyUI .loading shows a spinner which breaks nav buttons
+           NOTE: Moved to daisyui-overrides.css (Section 2)
            ======================================== */
-        .nav-item.loading,
-        [data-nav-item].loading,
-        .icon-btn.loading {
-            /* Reset DaisyUI .loading styles */
-            pointer-events: auto;
-            display: flex;
-            aspect-ratio: auto;
-            width: auto;
-            background-color: transparent;
-            mask-image: none;
-            -webkit-mask-image: none;
-        }
+        /* @see /static/css/daisyui-overrides.css - Loading State Overrides */
 
         /* Content Fade Overlay */
         .navigation-fade-overlay {
@@ -670,7 +662,7 @@
     <!-- Choices.js -->
     <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
-    <link rel="stylesheet" href="/static/css/modal-dropdowns-fix.min.css?v=PLACEHOLDER">
+    <!-- NOTE: modal-dropdowns-fix.css consolidated into daisyui-overrides.css (Section 3) -->
 
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}

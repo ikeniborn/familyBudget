@@ -1,0 +1,466 @@
+/**
+ * Family Budget - DaisyUI Overrides
+ * ===================================
+ *
+ * Centralized file for all DaisyUI framework overrides.
+ * This file resolves conflicts between DaisyUI default styles and
+ * Family Budget custom components.
+ *
+ * Naming convention:
+ * - .fb-* prefix for Family Budget custom classes
+ * - Avoid generic class names that may conflict with DaisyUI
+ *
+ * Load order: This file should be loaded AFTER DaisyUI but BEFORE custom.css
+ *
+ * Contents:
+ * 1. Load Order Requirements
+ * 2. Loading State Overrides
+ * 3. Modal & Dropdown Z-Index Fixes
+ * 4. SVG Icon Isolation Utilities
+ * 5. Form Element Mobile Fixes
+ * 6. Choices.js Integration Fixes
+ * 7. Reduced Motion Support
+ * 8. Print Styles
+ * 9. High Contrast Support
+ */
+
+/* ============================================== */
+/* 1. Load Order Requirements                     */
+/* ============================================== */
+
+/**
+ * IMPORTANT: This file must be loaded in correct order:
+ * 1. tailwind-daisyui.min.css (DaisyUI base)
+ * 2. daisyui-overrides.min.css (this file)
+ * 3. custom.min.css (project components)
+ *
+ * Other CSS files (style.css, lists.css) depend on animations
+ * defined here (@keyframes fb-dots-animation).
+ */
+
+/* ============================================== */
+/* 2. Loading State Overrides                     */
+/* ============================================== */
+
+/**
+ * DaisyUI .loading class shows a spinner animation
+ * which conflicts with our custom loading states.
+ *
+ * Family Budget uses .loading as a simple text state
+ * in navigation and other components.
+ *
+ * Solution: Reset DaisyUI .loading for specific selectors
+ * that use our custom loading behavior.
+ */
+
+/* Navigation items: Reset DaisyUI spinner */
+.nav-item.loading,
+[data-nav-item].loading,
+.icon-btn.loading {
+    /* Reset DaisyUI .loading styles */
+    pointer-events: auto !important;
+    display: flex !important;
+    aspect-ratio: auto !important;
+    width: auto !important;
+    background-color: transparent !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+}
+
+/**
+ * Family Budget Loading Classes (fb-loading-*)
+ *
+ * Use these instead of bare .loading to avoid DaisyUI conflicts:
+ * - .fb-loading-text: Simple text-based loading state
+ * - .fb-loading-dots: Animated dots (...)
+ * - .fb-loading-overlay: Full container overlay
+ */
+
+/* Text-based loading state */
+.fb-loading-text {
+    text-align: center;
+    color: oklch(var(--bc) / 0.6);
+    font-style: italic;
+}
+
+/* Animated dots loading (replacement for conflicting .loading) */
+.fb-loading-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.fb-loading-dots::after {
+    content: '...';
+    animation: fb-dots-animation 1.5s steps(4, end) infinite;
+}
+
+@keyframes fb-dots-animation {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+
+/* Chart loading state (replaces .chart-loading conflict) */
+.fb-chart-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: oklch(var(--p));
+    font-size: 1.1rem;
+}
+
+.fb-chart-loading::after {
+    content: '...';
+    animation: fb-dots-animation 1.5s steps(4, end) infinite;
+}
+
+/* Full container loading overlay */
+.fb-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: oklch(var(--b1) / 0.8);
+    z-index: 10;
+}
+
+/* Skeleton loading animation */
+.fb-skeleton {
+    background: linear-gradient(
+        90deg,
+        oklch(var(--b2)) 0%,
+        oklch(var(--b3)) 50%,
+        oklch(var(--b2)) 100%
+    );
+    background-size: 200% 100%;
+    animation: fb-skeleton-shimmer 1.5s infinite;
+    border-radius: 0.25rem;
+}
+
+@keyframes fb-skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ============================================== */
+/* 3. Modal & Dropdown Z-Index Fixes              */
+/* ============================================== */
+
+/**
+ * DaisyUI modals and Choices.js dropdowns have z-index conflicts.
+ * This section establishes a consistent z-index hierarchy:
+ *
+ * Z-Index Stack:
+ * - 10: Standard overlays
+ * - 30: Choices.js dropdowns (default)
+ * - 40: Bottom navigation
+ * - 50: FAB containers
+ * - 100: DaisyUI modals
+ * - 1050: Dropdowns inside modals
+ * - 1060: Choices.js in modal (open state)
+ * - 1100: Toast notifications
+ * - 9999: Critical overlays (autocomplete in modal)
+ */
+
+/* Modal with open dropdown: prevent clipping */
+.modal-open .choices__list--dropdown {
+    z-index: 1050 !important;
+}
+
+.modal-open .choices[data-type="select-one"].is-open .choices__inner {
+    z-index: 1050 !important;
+}
+
+/* Modal body scroll lock (iOS Safari fix) */
+body.modal-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+}
+
+/* Bottom nav below modals */
+.modal-open .btm-nav {
+    z-index: 40;
+}
+
+/* Modal box overflow for open dropdowns */
+.modal-box:has(.choices.is-open) {
+    overflow: visible !important;
+}
+
+/* Fallback for browsers without :has() support */
+.modal.autocomplete-active .modal-box {
+    overflow: visible !important;
+}
+
+.modal-box .choices {
+    position: relative;
+    z-index: 1;
+}
+
+/* Specific modal fixes (Shopping Lists - #item-modal) */
+.modal .choices.is-open {
+    z-index: 1060 !important;
+    position: relative;
+}
+
+.modal .choices__list--dropdown {
+    z-index: 1061 !important;
+}
+
+/* Store dropdown open state class */
+.modal.store-dropdown-open .modal-box {
+    overflow: visible !important;
+    overflow-y: visible !important;
+}
+
+.modal.store-dropdown-open .form-control {
+    overflow: visible !important;
+}
+
+/* ============================================== */
+/* 4. SVG Icon Isolation Utilities                */
+/* ============================================== */
+
+/**
+ * DaisyUI may override SVG colors in certain contexts.
+ * These utilities provide explicit control over icon coloring.
+ *
+ * Usage:
+ * - .fb-icon: Base icon class (currentColor)
+ * - .fb-icon-primary: Primary theme color
+ * - .fb-icon-success: Success/green color
+ * - .fb-icon-error: Error/red color
+ * - .fb-icon-warning: Warning/orange color
+ * - .fb-icon-info: Info/blue color
+ * - .fb-icon-muted: Muted/gray color
+ * - .fb-icon-inherit: Inherit from parent (for buttons)
+ */
+
+/* Base icon class - use currentColor by default */
+.fb-icon {
+    color: currentColor;
+    fill: none;
+    stroke: currentColor;
+    flex-shrink: 0;
+}
+
+/* Explicit color utilities */
+.fb-icon-primary {
+    color: oklch(var(--p)) !important;
+    stroke: oklch(var(--p)) !important;
+}
+
+.fb-icon-success {
+    color: oklch(var(--su)) !important;
+    stroke: oklch(var(--su)) !important;
+}
+
+.fb-icon-error {
+    color: oklch(var(--er)) !important;
+    stroke: oklch(var(--er)) !important;
+}
+
+.fb-icon-warning {
+    color: oklch(var(--wa)) !important;
+    stroke: oklch(var(--wa)) !important;
+}
+
+.fb-icon-info {
+    color: oklch(var(--in)) !important;
+    stroke: oklch(var(--in)) !important;
+}
+
+.fb-icon-muted {
+    color: oklch(var(--bc) / 0.5) !important;
+    stroke: oklch(var(--bc) / 0.5) !important;
+}
+
+/* Inherit for buttons (icon color from button text) */
+.fb-icon-inherit {
+    color: inherit !important;
+    stroke: currentColor !important;
+}
+
+/* Icon sizes */
+.fb-icon-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+.fb-icon-md {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.fb-icon-lg {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.fb-icon-xl {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Button icon alignment fix */
+.btn .fb-icon {
+    vertical-align: middle;
+}
+
+/* ============================================== */
+/* 5. Form Element Mobile Fixes                   */
+/* ============================================== */
+
+/**
+ * Mobile browsers auto-zoom on inputs with font-size < 16px.
+ * DaisyUI default is ~14px, which triggers zoom on iOS/Android.
+ *
+ * Solution: Force 16px font-size on mobile for all form elements.
+ */
+
+@media (max-width: 640px) {
+    /* DaisyUI form elements */
+    .select,
+    .input,
+    .textarea {
+        font-size: 16px !important;
+    }
+
+    /* DaisyUI select options */
+    .select option {
+        font-size: 16px !important;
+    }
+
+    /* Form labels (improve readability) */
+    .label-text {
+        font-size: 14px;
+    }
+
+    /* Modal action buttons - larger touch targets */
+    .modal-action .btn {
+        min-height: 2.875rem;       /* 46px vs default 40px */
+        padding-left: 1.15rem;
+        padding-right: 1.15rem;
+        font-size: 0.9375rem;       /* 15px */
+    }
+
+    /* Modal button icons scale */
+    .modal-action .btn svg {
+        width: 1.125rem;            /* 18px */
+        height: 1.125rem;
+    }
+}
+
+/* ============================================== */
+/* 6. Choices.js Integration Fixes                */
+/* ============================================== */
+
+/**
+ * Choices.js dropdown background is transparent by default,
+ * which doesn't work well over charts and other content.
+ *
+ * These fixes ensure solid background and proper theming.
+ */
+
+/* Opaque dropdown background */
+.choices__list--dropdown {
+    background-color: oklch(var(--b1)) !important;
+    border: 1px solid oklch(var(--bc) / 0.2) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+    z-index: 100;
+}
+
+/* Dark mode support (DaisyUI data-theme) */
+[data-theme="dark"] .choices__list--dropdown {
+    background-color: oklch(var(--b2)) !important;
+    border-color: oklch(var(--bc) / 0.3) !important;
+}
+
+/* Dropdown item hover state */
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: oklch(var(--p) / 0.1) !important;
+}
+
+/* ============================================== */
+/* 7. Reduced Motion Support                      */
+/* ============================================== */
+
+/**
+ * Respect user's reduced motion preference.
+ * Disable all custom animations when prefers-reduced-motion is set.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+    .fb-loading-dots::after,
+    .fb-chart-loading::after {
+        animation: none;
+        content: '...';
+    }
+
+    .fb-skeleton {
+        animation: none;
+        background: oklch(var(--b2));
+    }
+}
+
+/* ============================================== */
+/* 8. Print Styles                                */
+/* ============================================== */
+
+/**
+ * Reset visual effects for printing.
+ */
+
+@media print {
+    .fb-loading-overlay,
+    .fb-skeleton {
+        display: none !important;
+    }
+
+    .choices__list--dropdown {
+        display: none !important;
+    }
+}
+
+/* ============================================== */
+/* 9. High Contrast Support                       */
+/* ============================================== */
+
+/**
+ * Enhanced visibility for users with visual impairments.
+ * Increases contrast and border visibility when system
+ * prefers-contrast: more is enabled.
+ */
+
+@media (prefers-contrast: more) {
+    /* Enhanced borders for dropdowns */
+    .choices__list--dropdown {
+        border-width: 2px !important;
+        border-color: oklch(var(--bc)) !important;
+    }
+
+    /* Enhanced focus states */
+    .fb-icon:focus,
+    .btn:focus .fb-icon {
+        outline: 2px solid oklch(var(--p));
+        outline-offset: 2px;
+    }
+
+    /* Stronger skeleton contrast */
+    .fb-skeleton {
+        background: oklch(var(--bc) / 0.3);
+    }
+
+    /* Loading text visibility */
+    .fb-loading-text {
+        color: oklch(var(--bc));
+        font-weight: 500;
+    }
+}
