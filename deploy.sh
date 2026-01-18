@@ -908,7 +908,7 @@ validate_build_artifacts() {
         "$DEPLOY_DIR/frontend/web/static/css/vendor/tailwind-daisyui.min.css"
         "$DEPLOY_DIR/frontend/web/static/css/custom.min.css"
         "$DEPLOY_DIR/frontend/web/static/css/choices-tailwind.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/modal-dropdowns-fix.min.css"
+        "$DEPLOY_DIR/frontend/web/static/css/daisyui-overrides.min.css"
     )
 
     # Bundles (ES modules v7.0+, Vite-generated)
