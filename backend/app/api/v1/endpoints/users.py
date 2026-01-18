@@ -305,7 +305,8 @@ async def update_google_sheets_url(
 
     # Update user
     current_user.google_sheets_url = new_url
-    current_user.updated_at = datetime.now(timezone.utc)
+    # Use utcnow() for timezone-naive datetime (matches model's TIMESTAMP WITHOUT TIME ZONE)
+    current_user.updated_at = datetime.utcnow()
 
     await session.commit()
     await session.refresh(current_user)
