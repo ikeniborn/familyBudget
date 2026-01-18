@@ -464,6 +464,73 @@ save_frontend_build_checksums() {
     info "Saved frontend build checksums"
 }
 
+# =============================================================================
+# HTML TEMPLATES CHECKSUM FUNCTIONS
+# =============================================================================
+# Jinja2 templates are cached in memory by the backend container.
+# When templates change but rsync detects no file changes (files already synced),
+# the backend must still be restarted to clear Jinja2 cache.
+#
+# These functions track HTML templates checksum separately from frontend_build_checksums
+# to detect template changes that require backend restart for Jinja2 cache invalidation.
+
+# File to store checksum of HTML templates from last backend recreation
+HTML_TEMPLATES_CHECKSUM_FILE="${DEPLOY_DIR}/.html_templates_checksum"
+
+# Save HTML templates checksum after backend container recreation
+# Call this AFTER backend container is successfully recreated
+# Args: repo_dir (optional, defaults to SCRIPT_DIR)
+save_html_templates_checksum() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksum_file="$HTML_TEMPLATES_CHECKSUM_FILE"
+
+    local checksum
+    checksum=$(find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null | md5sum | cut -d' ' -f1)
+
+    if [[ -z "$checksum" ]]; then
+        warning "No HTML templates found to save checksum"
+        return 1
+    fi
+
+    echo "$checksum" > "$checksum_file"
+    info "Saved HTML templates checksum: ${checksum:0:12}..."
+    return 0
+}
+
+# Check if HTML templates changed since last backend recreation
+# This catches cases where rsync didn't detect changes but Jinja2 cache is stale
+# Returns: 0 if changed (restart needed), 1 if unchanged
+# Args: repo_dir (optional, defaults to SCRIPT_DIR)
+needs_backend_restart_for_templates() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksum_file="$HTML_TEMPLATES_CHECKSUM_FILE"
+
+    # Always restart if no previous checksum (first deploy or checksum file deleted)
+    if [[ ! -f "$checksum_file" ]]; then
+        info "No previous HTML templates checksum - backend restart needed"
+        return 0
+    fi
+
+    local previous_checksum
+    previous_checksum=$(cat "$checksum_file")
+
+    local current_checksum
+    current_checksum=$(find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null | md5sum | cut -d' ' -f1)
+
+    if [[ -z "$current_checksum" ]]; then
+        warning "No HTML templates found to calculate checksum"
+        return 1
+    fi
+
+    if [[ "$previous_checksum" != "$current_checksum" ]]; then
+        info "HTML templates changed: ${previous_checksum:0:12}... → ${current_checksum:0:12}..."
+        return 0
+    fi
+
+    info "HTML templates unchanged (checksum: ${current_checksum:0:12}...)"
+    return 1
+}
+
 # Check if Docker images need to be rebuilt
 # Compares current trigger files against checksums from LAST SUCCESSFUL BUILD
 # (not against deploy directory, which may have been synced without rebuild)

@@ -66,6 +66,61 @@ user-invocable: true
 
 Этот skill выполняет следующие шаги автоматически:
 
+### Шаг 0: Интерактивный выбор опций деплоя
+
+⚠️ **ВНИМАНИЕ: Production среда!** Все изменения немедленно влияют на реальных пользователей.
+
+Перед началом деплоя Claude запрашивает параметры через AskUserQuestion.
+
+**Условие показа диалога:**
+- Показать диалог если пользователь НЕ указал явно параметры в запросе
+- Пропустить диалог если параметры указаны явно (например: "деплой с версией minor", "deploy --version patch --force-build")
+
+**Примеры явного указания параметров:**
+- "задеплой с версией patch" → версия=patch, показать только вопрос про доп. опции
+- "деплой --version minor --force-build" → версия=minor, force-build=да, пропустить диалог
+- "деплой на прод" → показать полный диалог
+- "обновить на budget-prod" → показать полный диалог
+
+**AskUserQuestion - Вопрос 1: Тип версии**
+```json
+{
+  "question": "⚠️ PRODUCTION: Какой тип версии использовать для деплоя?",
+  "header": "Version",
+  "options": [
+    {"label": "patch (Recommended)", "description": "Bug fixes: 6.6.0 → 6.6.1"},
+    {"label": "minor", "description": "New features: 6.6.0 → 6.7.0"},
+    {"label": "major", "description": "Breaking changes: 6.6.0 → 7.0.0"},
+    {"label": "none", "description": "Без изменения версии"}
+  ],
+  "multiSelect": false
+}
+```
+
+**AskUserQuestion - Вопрос 2: Дополнительные опции**
+```json
+{
+  "question": "Какие дополнительные опции применить?",
+  "header": "Options",
+  "options": [
+    {"label": "Стандартный деплой (Recommended)", "description": "Без дополнительных опций"},
+    {"label": "--force-build", "description": "Принудительная пересборка frontend"},
+    {"label": "--verbose", "description": "Детальный вывод всех операций"},
+    {"label": "--dry-run", "description": "Показать план без выполнения"}
+  ],
+  "multiSelect": true
+}
+```
+
+**Фиксированные опции (всегда применяются):**
+- `--sync-mode update` - только обновление/добавление файлов
+- `--cleanup-mode smart` - умная очистка старых образов
+
+**Формирование итоговой команды:**
+```bash
+ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart [--version TYPE] [OPTIONS]"
+```
+
 ### Шаг 1: Проверка SSH подключения
 ```bash
 ssh budget-prod "echo 'Connection OK'"

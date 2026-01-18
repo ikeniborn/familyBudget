@@ -35,6 +35,7 @@ AUTO_FIX=false
 VERBOSE=false
 DRY_RUN=false
 VERSION_OPTION=""  # Version option to pass to deploy.sh
+FORCE_BUILD=""     # Force build option
 
 # Парсинг аргументов
 while [[ $# -gt 0 ]]; do
@@ -61,9 +62,13 @@ while [[ $# -gt 0 ]]; do
             VERSION_OPTION="--version $2"
             shift 2
             ;;
+        --force-build)
+            FORCE_BUILD="--force-build"
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--auto-fix] [--verbose] [--dry-run] [--version TYPE]"
+            echo "Usage: $0 [--auto-fix] [--verbose] [--dry-run] [--version TYPE] [--force-build]"
             exit 1
             ;;
     esac
@@ -76,6 +81,11 @@ if [[ -n "$VERSION_OPTION" ]]; then
     echo -e "${BLUE}ℹ${NC} Version bump: ${VERSION_OPTION}"
 else
     echo -e "${BLUE}ℹ${NC} Version bump: none (version will not change)"
+fi
+
+if [[ -n "$FORCE_BUILD" ]]; then
+    DEPLOY_SCRIPT="${DEPLOY_SCRIPT} ${FORCE_BUILD}"
+    echo -e "${BLUE}ℹ${NC} Force build: enabled"
 fi
 
 # Создать директорию для логов
