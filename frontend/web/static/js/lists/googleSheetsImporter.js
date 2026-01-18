@@ -19,6 +19,11 @@ class GoogleSheetsImporter {
         this.spreadsheetId = null;
         this.sheetGid = null;
 
+        // Saved URL data
+        this.savedUrl = null;
+        this.hasSavedUrl = false;
+        this.shouldSaveUrl = true;  // Default: save URL after successful import
+
         // CSV data (after fetch)
         this.fileContent = null;  // Base64 CSV from backend
 
@@ -32,7 +37,7 @@ class GoogleSheetsImporter {
     /**
      * Initialize Google Sheets importer
      */
-    init() {
+    async init() {
         // Container should be set by ImportManager
         if (!this.container) {
             this.container = document.getElementById('import-wizard');
@@ -43,8 +48,99 @@ class GoogleSheetsImporter {
             return;
         }
 
+        // Load saved URL from backend
+        await this.fetchSavedGoogleSheetsUrl();
+
         this.renderStep1();
         debugLog('[GoogleSheetsImporter] Initialized');
+    }
+
+    /**
+     * Fetch saved Google Sheets URL from backend
+     */
+    async fetchSavedGoogleSheetsUrl() {
+        try {
+            const response = await fetch('/api/v1/users/me/google-sheets-url', {
+                method: 'GET',
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                debugLog('[GoogleSheetsImporter] Failed to fetch saved URL:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+            this.savedUrl = data.google_sheets_url;
+            this.hasSavedUrl = data.has_saved_url;
+
+            debugLog('[GoogleSheetsImporter] Fetched saved URL:', {
+                hasSavedUrl: this.hasSavedUrl,
+                url: this.savedUrl ? this.savedUrl.substring(0, 50) + '...' : null
+            });
+        } catch (error) {
+            console.error('[GoogleSheetsImporter] Error fetching saved URL:', error);
+        }
+    }
+
+    /**
+     * Save Google Sheets URL to backend
+     * @param {string|null} url - URL to save (null to clear)
+     */
+    async saveGoogleSheetsUrl(url) {
+        try {
+            const response = await fetch('/api/v1/users/me/google-sheets-url', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    google_sheets_url: url
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.savedUrl = data.google_sheets_url;
+            this.hasSavedUrl = data.has_saved_url;
+
+            debugLog('[GoogleSheetsImporter] Saved URL:', {
+                hasSavedUrl: this.hasSavedUrl,
+                url: this.savedUrl ? this.savedUrl.substring(0, 50) + '...' : null
+            });
+
+            return true;
+        } catch (error) {
+            console.error('[GoogleSheetsImporter] Error saving URL:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Clear saved URL
+     */
+    async clearSavedUrl() {
+        const success = await this.saveGoogleSheetsUrl(null);
+        if (success) {
+            showToast('Сохранённая ссылка удалена', 'success');
+            this.renderStep1();
+        } else {
+            showToast('Ошибка при удалении ссылки', 'error');
+        }
+    }
+
+    /**
+     * Handle save URL checkbox change
+     * @param {Event} event - Change event
+     */
+    handleSaveUrlCheckboxChange(event) {
+        this.shouldSaveUrl = event.target.checked;
+        debugLog('[GoogleSheetsImporter] Save URL checkbox:', this.shouldSaveUrl);
     }
 
     /**
@@ -52,6 +148,39 @@ class GoogleSheetsImporter {
      */
     renderStep1() {
         this.currentStep = 1;
+
+        // Build saved URL alert HTML
+        const savedUrlAlert = this.hasSavedUrl ? `
+            <div class="alert alert-success mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div class="flex-1">
+                    <p class="font-bold">Найдена сохранённая ссылка</p>
+                    <p class="text-sm opacity-80 truncate max-w-md">${this.escapeHtml(this.savedUrl)}</p>
+                </div>
+                <button type="button"
+                        class="btn btn-sm btn-ghost"
+                        onclick="window.googleSheetsImporter.clearSavedUrl().catch(e => console.error('[GoogleSheetsImporter] Clear URL error:', e))"
+                        title="Удалить сохранённую ссылку">
+                    ✕
+                </button>
+            </div>
+        ` : '';
+
+        // Build save URL checkbox HTML
+        const saveUrlCheckbox = `
+            <div class="form-control mb-4">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox"
+                           id="save-url-checkbox"
+                           class="checkbox checkbox-primary checkbox-sm"
+                           ${this.shouldSaveUrl ? 'checked' : ''}
+                           onchange="window.googleSheetsImporter.handleSaveUrlCheckboxChange(event)">
+                    <span class="label-text">Сохранить ссылку для будущего использования</span>
+                </label>
+            </div>
+        `;
 
         this.container.innerHTML = `
             <div class="google-sheets-wizard-step">
@@ -66,6 +195,8 @@ class GoogleSheetsImporter {
                         </ul>
                     </div>
                 </div>
+
+                ${savedUrlAlert}
 
                 <div class="alert alert-info mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,12 +217,15 @@ class GoogleSheetsImporter {
                                id="google-sheets-url-input"
                                class="input input-bordered w-full"
                                placeholder="https://docs.google.com/spreadsheets/d/1ABC.../edit#gid=0"
+                               value="${this.hasSavedUrl ? this.escapeHtml(this.savedUrl) : ''}"
                                required
                                pattern=".*docs\\.google\\.com/spreadsheets.*">
                         <label class="label">
                             <span class="label-text-alt">Вставьте ссылку из адресной строки браузера</span>
                         </label>
                     </div>
+
+                    ${saveUrlCheckbox}
 
                     <div class="flex gap-2">
                         <button type="button"
@@ -224,7 +358,17 @@ class GoogleSheetsImporter {
                 size: this.fileContent.length
             });
 
-            showToast('✅ Данные загружены из Google Sheets', 'success');
+            // Save URL if checkbox is checked
+            if (this.shouldSaveUrl) {
+                const saved = await this.saveGoogleSheetsUrl(this.googleSheetsUrl);
+                if (saved) {
+                    showToast('✅ Данные загружены, ссылка сохранена', 'success');
+                } else {
+                    showToast('✅ Данные загружены (ссылка не сохранена)', 'warning');
+                }
+            } else {
+                showToast('✅ Данные загружены из Google Sheets', 'success');
+            }
 
             // Now delegate to CSVImporter for Steps 2-5
             this.delegateToCSVImporter();
