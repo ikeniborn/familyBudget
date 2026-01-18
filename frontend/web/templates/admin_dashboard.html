@@ -50,7 +50,7 @@
                     <button class="btn btn-secondary btn-sm gap-1" onclick="refreshOverview()">🔄 Refresh</button>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="overview-stats">
-                    <div class="loading">Loading overview...</div>
+                    <div class="fb-loading-text">Loading overview...</div>
                 </div>
                 <div id="financial-summary" class="mt-6 hidden">
                     <!-- Populated dynamically -->
@@ -1017,10 +1017,9 @@ window.addEventListener('resize', function() {
 
 <style>
 /* Custom styles for ECharts and stats */
-.loading {
-    text-align: center;
-    padding: 2rem;
-    color: oklch(var(--bc) / 0.5);
+/* NOTE: .fb-loading-text defined in daisyui-overrides.css */
+.fb-loading-text {
+    padding: 2rem;  /* Additional padding for dashboard context */
 }
 
 /* Mobile responsive для charts */
