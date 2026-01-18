@@ -222,17 +222,12 @@ const windowExports = {
   }
 };
 
-// Защищённый экспорт в window (Object.defineProperty)
+// Экспорт в window (Object.assign - надёжнее работает после минификации)
 try {
   if (typeof window !== 'undefined') {
-    Object.entries(windowExports).forEach(([name, fn]) => {
-      Object.defineProperty(window, name, {
-        value: fn,
-        writable: false,
-        configurable: false,
-        enumerable: true
-      });
-    });
+    // Object.assign работает корректно после Vite минификации
+    // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
+    Object.assign(window, windowExports);
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
