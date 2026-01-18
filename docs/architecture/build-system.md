@@ -1,7 +1,7 @@
 # Build System Architecture
 
-**Last Updated:** 2026-01-15
-**Version:** 7.0.1
+**Last Updated:** 2026-01-18
+**Version:** 7.0.2
 
 ## Overview
 
@@ -95,6 +95,60 @@ Backend serves /opt/budget/sw.min.js
 ```
 
 **Commit:** `48588fb5`
+
+---
+
+### 2026-01-18: HTML Templates in Frontend Build Checksums (v7.x)
+
+**Change:** Added HTML templates to frontend build checksum detection
+
+**Problem:**
+- Changes to inline CSS/JS in HTML templates (e.g., Elastic Morphing CSS in `base.html`) were not delivered to clients after deploy
+- `needs_frontend_rebuild()` only checked `.ts/.tsx` files and build config
+- HTML template changes didn't trigger `npm run build`
+- Service Worker's CACHE_VERSION wasn't updated → old cached resources served
+
+**Root Cause Analysis:**
+```
+1. git pull → updates base.html with new inline CSS
+2. rsync -avc → syncs to /opt/budget
+3. needs_frontend_rebuild() → checks .ts/.tsx files only → "no changes"
+4. npm build SKIPPED → sw.min.js NOT rebuilt
+5. CACHE_VERSION remains old → Service Worker serves cached HTML
+6. Client never sees new inline CSS
+```
+
+**Solution:**
+Added HTML templates to checksum calculation in `scripts/lib/version.sh`:
+
+```bash
+# needs_frontend_rebuild() and save_frontend_build_checksums()
+current_checksums=$(
+    # TypeScript source files
+    find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) | sort | xargs md5sum
+    # HTML templates (trigger SW rebuild for cache invalidation)
+    find "$repo_dir/frontend/web/templates" -type f -name "*.html" | sort | xargs md5sum
+    # Build config
+    md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js"
+)
+```
+
+**Why HTML Templates Matter:**
+- `base.html` contains inline CSS/JS (loading animations, critical styles)
+- Service Worker caches HTML pages (OFFLINE_PAGES: `['/', '/lists']`)
+- Inline CSS changes need sw.min.js rebuild to update CACHE_VERSION
+- New CACHE_VERSION forces Service Worker to invalidate old cache
+
+**Files Modified:**
+- `scripts/lib/version.sh`: `needs_frontend_rebuild()`, `save_frontend_build_checksums()`
+
+**Impact:**
+- ✅ Inline CSS/JS changes trigger automatic frontend rebuild
+- ✅ sw.min.js rebuilt with new CACHE_VERSION
+- ✅ Service Worker invalidates stale cached HTML
+- ✅ Clients receive updated inline styles immediately
+
+**Commit:** `809e320a`
 
 ---
 

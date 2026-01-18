@@ -3,7 +3,7 @@
 # utils.sh - Utility Functions
 #
 # This module provides core utility functions for the deployment script:
-# - Logging functions (info, success, warning, error)
+# - Logging functions (info, success, warning, error, debug)
 # - Command existence checks
 # - Privilege checks
 # - Docker compose wrapper
@@ -61,6 +61,18 @@ error_return() {
 # Print step message (visual separator)
 step() {
     print_message "$MAGENTA" "▶ $*"
+}
+
+# Print debug message (only visible with DEBUG=true or --verbose)
+# Used for diagnostic information that is not needed in normal operation
+debug() {
+    # Always log to file for troubleshooting
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [DEBUG] $*" >> "$LOG_FILE"
+
+    # Only print to console if DEBUG mode is enabled
+    if [[ "${DEBUG:-false}" == "true" || "${VERBOSE:-false}" == "true" ]]; then
+        print_message "$CYAN" "[DEBUG] $*"
+    fi
 }
 
 # =============================================================================

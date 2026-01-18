@@ -30,6 +30,17 @@ export interface ItemData {
 }
 
 // ============================================================================
+// DOM Selectors
+// ============================================================================
+
+const SELECTORS = {
+  hierarchyItem: (id: number): string => `.hierarchy-item[data-item-id="${id}"]`,
+  hierarchyItemName: '.hierarchy-item-name',
+  tableRow: (id: number): string => `#items-table-body tr[data-item-id="${id}"]`,
+  tableItemName: '.table-item-name'
+} as const;
+
+// ============================================================================
 // Create Operations
 // ============================================================================
 
@@ -186,6 +197,9 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
     updateState({ currentItems: [...state.currentItems] });
   }
 
+  // Optimistic DOM update (instant visual feedback without full re-render)
+  updateItemCompletedDom(itemId, isCompleted);
+
   try {
     if (state.offlineShopping) {
       await state.offlineShopping.updateItem(itemId, { is_completed: isCompleted });
@@ -213,8 +227,43 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
       if (item) {
         item.is_completed = !isCompleted;
         updateState({ currentItems: [...state.currentItems] });
+        // Revert DOM as well
+        updateItemCompletedDom(itemId, !isCompleted);
         showToast('Ошибка обновления статуса', 'error');
       }
+    }
+  }
+}
+
+/**
+ * Update item completed state in DOM (optimistic update without full re-render)
+ *
+ * @param itemId - Item ID
+ * @param isCompleted - Completed state to set
+ * @returns {void}
+ */
+function updateItemCompletedDom(itemId: number, isCompleted: boolean): void {
+  // Update hierarchy view item
+  const hierarchyItem = document.querySelector(SELECTORS.hierarchyItem(itemId));
+  if (hierarchyItem) {
+    hierarchyItem.classList.toggle('completed', isCompleted);
+    hierarchyItem.setAttribute('data-item-completed', String(isCompleted));
+
+    // Update item name with line-through
+    const nameElement = hierarchyItem.querySelector(SELECTORS.hierarchyItemName);
+    if (nameElement) {
+      nameElement.classList.toggle('line-through', isCompleted);
+    }
+  }
+
+  // Also update table view if visible
+  const tableRow = document.querySelector(SELECTORS.tableRow(itemId));
+  if (tableRow) {
+    tableRow.classList.toggle('completed', isCompleted);
+    const tableName = tableRow.querySelector(SELECTORS.tableItemName);
+    if (tableName) {
+      tableName.classList.toggle('line-through', isCompleted);
+      tableName.classList.toggle('opacity-60', isCompleted);
     }
   }
 }

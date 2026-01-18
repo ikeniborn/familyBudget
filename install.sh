@@ -800,6 +800,80 @@ configure_ufw() {
     warning "PostgreSQL port (5432) will be configured later by setup.sh if needed"
 }
 
+# Configure Redis kernel settings for optimal performance
+configure_redis_kernel_settings() {
+    info "Configuring Redis kernel settings for optimal performance..."
+
+    local sysctl_file="/etc/sysctl.conf"
+    local sysctl_d_file="/etc/sysctl.d/99-redis.conf"
+
+    # Check if vm.overcommit_memory is already set
+    if grep -q "^vm.overcommit_memory" "$sysctl_file" 2>/dev/null || \
+       grep -q "^vm.overcommit_memory" "$sysctl_d_file" 2>/dev/null; then
+        local current_value
+        current_value=$(sysctl -n vm.overcommit_memory 2>/dev/null || echo "unknown")
+        if [[ "$current_value" == "1" ]]; then
+            info "vm.overcommit_memory already set to 1 - skipping"
+            return 0
+        else
+            warning "vm.overcommit_memory is set to $current_value (not optimal for Redis)"
+            info "Updating to recommended value: 1"
+        fi
+    fi
+
+    # Create sysctl.d config file for Redis settings
+    info "Creating Redis sysctl configuration: $sysctl_d_file"
+    cat > "$sysctl_d_file" << 'EOF'
+# Redis kernel settings for optimal performance
+# See: https://redis.io/docs/getting-started/installation/install-redis-on-linux/
+
+# Enable memory overcommit for Redis background saves
+# Value 1 = always overcommit, never check (required for Redis fork/COW)
+# Without this, Redis may fail to persist data under memory pressure
+vm.overcommit_memory = 1
+
+# Disable Transparent Huge Pages (THP) warning workaround
+# Note: THP should be disabled at boot via systemd or rc.local
+# This setting helps but doesn't fully disable THP
+# vm.nr_hugepages = 0
+EOF
+
+    chmod 644 "$sysctl_d_file"
+
+    # Apply the setting immediately
+    info "Applying sysctl settings..."
+    if sysctl -p "$sysctl_d_file" >> "$LOG_FILE" 2>&1; then
+        success "Redis kernel settings applied (vm.overcommit_memory = 1)"
+    else
+        warning "Failed to apply sysctl settings - may require reboot"
+    fi
+
+    # Verify the setting
+    local applied_value
+    applied_value=$(sysctl -n vm.overcommit_memory 2>/dev/null || echo "unknown")
+    if [[ "$applied_value" == "1" ]]; then
+        success "Verified: vm.overcommit_memory = $applied_value"
+    else
+        warning "vm.overcommit_memory = $applied_value (expected 1)"
+        warning "Reboot may be required for settings to take effect"
+    fi
+
+    # Disable Transparent Huge Pages (THP) if possible
+    # This is another Redis recommendation
+    if [[ -f /sys/kernel/mm/transparent_hugepage/enabled ]]; then
+        local thp_status
+        thp_status=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null | grep -o '\[.*\]' | tr -d '[]')
+        if [[ "$thp_status" != "never" ]]; then
+            info "Disabling Transparent Huge Pages for current session..."
+            echo never > /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null || true
+            echo never > /sys/kernel/mm/transparent_hugepage/defrag 2>/dev/null || true
+            info "THP disabled for current session (add to rc.local for persistence)"
+        else
+            info "Transparent Huge Pages already disabled"
+        fi
+    fi
+}
+
 # Create deployment directory structure
 create_directories() {
     info "Creating deployment directory structure in $DEPLOY_DIR..."
@@ -1737,6 +1811,9 @@ main() {
     echo ""
 
     test_docker
+    echo ""
+
+    configure_redis_kernel_settings
     echo ""
 
     # Summary

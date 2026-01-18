@@ -414,9 +414,15 @@ needs_frontend_rebuild() {
 
     # Calculate checksums for frontend source files
     # Include: .ts, .tsx files in frontend/ and build configuration files
+    # IMPORTANT: Also include HTML templates to trigger SW rebuild for cache invalidation
+    # When inline CSS/JS in templates changes, sw.min.js must be rebuilt with new CACHE_VERSION
     local current_checksums
     current_checksums=$(
+        # TypeScript source files
         find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # HTML templates (trigger SW rebuild for cache invalidation)
+        find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # Build config
         md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
     )
 
@@ -437,18 +443,92 @@ needs_frontend_rebuild() {
 }
 
 # Save frontend build checksums after successful npm build
+# MUST use the same files as needs_frontend_rebuild() for consistency
+# IMPORTANT: Also include HTML templates to trigger SW rebuild for cache invalidation
+# When inline CSS/JS in templates changes, sw.min.js must be rebuilt with new CACHE_VERSION
 save_frontend_build_checksums() {
     local repo_dir="${1:-$SCRIPT_DIR}"
     local frontend_checksum_file="${DEPLOY_DIR}/.frontend_build_checksums"
 
     local checksums
     checksums=$(
+        # TypeScript source files
         find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # HTML templates (trigger SW rebuild for cache invalidation)
+        find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # Build config
         md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
     )
 
     echo "$checksums" > "$frontend_checksum_file"
     info "Saved frontend build checksums"
+}
+
+# =============================================================================
+# HTML TEMPLATES CHECKSUM FUNCTIONS
+# =============================================================================
+# Jinja2 templates are cached in memory by the backend container.
+# When templates change but rsync detects no file changes (files already synced),
+# the backend must still be restarted to clear Jinja2 cache.
+#
+# These functions track HTML templates checksum separately from frontend_build_checksums
+# to detect template changes that require backend restart for Jinja2 cache invalidation.
+
+# File to store checksum of HTML templates from last backend recreation
+HTML_TEMPLATES_CHECKSUM_FILE="${DEPLOY_DIR}/.html_templates_checksum"
+
+# Save HTML templates checksum after backend container recreation
+# Call this AFTER backend container is successfully recreated
+# Args: repo_dir (optional, defaults to SCRIPT_DIR)
+save_html_templates_checksum() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksum_file="$HTML_TEMPLATES_CHECKSUM_FILE"
+
+    local checksum
+    checksum=$(find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null | md5sum | cut -d' ' -f1)
+
+    if [[ -z "$checksum" ]]; then
+        warning "No HTML templates found to save checksum"
+        return 1
+    fi
+
+    echo "$checksum" > "$checksum_file"
+    info "Saved HTML templates checksum: ${checksum:0:12}..."
+    return 0
+}
+
+# Check if HTML templates changed since last backend recreation
+# This catches cases where rsync didn't detect changes but Jinja2 cache is stale
+# Returns: 0 if changed (restart needed), 1 if unchanged
+# Args: repo_dir (optional, defaults to SCRIPT_DIR)
+needs_backend_restart_for_templates() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksum_file="$HTML_TEMPLATES_CHECKSUM_FILE"
+
+    # Always restart if no previous checksum (first deploy or checksum file deleted)
+    if [[ ! -f "$checksum_file" ]]; then
+        info "No previous HTML templates checksum - backend restart needed"
+        return 0
+    fi
+
+    local previous_checksum
+    previous_checksum=$(cat "$checksum_file")
+
+    local current_checksum
+    current_checksum=$(find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null | md5sum | cut -d' ' -f1)
+
+    if [[ -z "$current_checksum" ]]; then
+        warning "No HTML templates found to calculate checksum"
+        return 1
+    fi
+
+    if [[ "$previous_checksum" != "$current_checksum" ]]; then
+        info "HTML templates changed: ${previous_checksum:0:12}... → ${current_checksum:0:12}..."
+        return 0
+    fi
+
+    info "HTML templates unchanged (checksum: ${current_checksum:0:12}...)"
+    return 1
 }
 
 # Check if Docker images need to be rebuilt
@@ -546,6 +626,12 @@ process_version_bump() {
     if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
         # Version changed - update all files
         update_all_version_files "$NEW_VERSION"
+
+        # Mark backend for recreation to apply new VERSION
+        # Backend reads VERSION from mounted file (/app/VERSION)
+        # Container restart is needed to re-read the file (uvicorn workers restart)
+        export NEEDS_BACKEND_RECREATE=true
+        info "Backend will be recreated to apply new VERSION"
     else
         # Version unchanged - ensure .env has correct VERSION for docker-compose
         # This fixes the bug where VERSION in .env was empty/missing after fresh deploy

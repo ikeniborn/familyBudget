@@ -228,6 +228,10 @@ services:
       - ./manifest.json:/app/manifest.json:ro  # PWA Manifest
       # Docker socket (for LogsCollectorService to access Docker logs)
       - /var/run/docker.sock:/var/run/docker.sock
+      # VERSION file (for runtime version reading - v6.6.1+)
+      # Backend reads this file directly instead of relying on env var
+      # This allows version updates without container recreation
+      - ./VERSION:/app/VERSION:ro
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:

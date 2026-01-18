@@ -29,10 +29,16 @@ from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import UserResponse
 from backend.app.schemas.user import (
+    GoogleSheetsUrlResponse,
+    GoogleSheetsUrlUpdate,
     UserCreate,
     UserDetailResponse,
     UserListResponse,
     UserUpdate,
+)
+from backend.app.services.google_sheets_parser import (
+    GoogleSheetsError,
+    parse_google_sheets_url,
 )
 from backend.app.services import create_new_version, has_changes
 
@@ -194,6 +200,133 @@ async def update_notification_preferences(
         )
 
     return current_user
+
+
+@router.get(
+    "/me/google-sheets-url",
+    response_model=GoogleSheetsUrlResponse,
+    responses=get_common_responses(),
+)
+async def get_google_sheets_url(
+    current_user: CurrentUser,
+) -> GoogleSheetsUrlResponse:
+    """
+    Get user's saved Google Sheets URL.
+
+    **Public:** Any authenticated user can access their saved URL.
+
+    **Returns:**
+    - 200 OK: GoogleSheetsUrlResponse with saved URL (or None if not set)
+    - 401 Unauthorized: Not authenticated
+
+    **Example Response:**
+    ```json
+    {
+        "google_sheets_url": "https://docs.google.com/spreadsheets/d/1ABC.../edit#gid=0",
+        "has_saved_url": true
+    }
+    ```
+
+    **Logging:**
+    All URL retrieval requests are logged with [GOOGLE_SHEETS_URL] prefix.
+    """
+    url = current_user.google_sheets_url
+
+    logger.debug(
+        f"[GOOGLE_SHEETS_URL] User {current_user.id} fetching saved URL: "
+        f"{url[:50] + '...' if url and len(url) > 50 else url}"
+    )
+
+    return GoogleSheetsUrlResponse(
+        google_sheets_url=url,
+        has_saved_url=url is not None and len(url) > 0
+    )
+
+
+@router.patch(
+    "/me/google-sheets-url",
+    response_model=GoogleSheetsUrlResponse,
+    responses=get_common_responses(include_400=True),
+)
+async def update_google_sheets_url(
+    data: GoogleSheetsUrlUpdate,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> GoogleSheetsUrlResponse:
+    """
+    Save or clear user's Google Sheets URL.
+
+    **Public:** Any authenticated user can update their saved URL.
+
+    **Parameters:**
+    - google_sheets_url: URL to save (set to null or empty string to clear)
+
+    **Validation:**
+    - URL must be a valid Google Sheets URL (docs.google.com/spreadsheets/d/...)
+    - URL is validated using parse_google_sheets_url()
+
+    **Returns:**
+    - 200 OK: Updated GoogleSheetsUrlResponse
+    - 400 Bad Request: Invalid URL format
+    - 401 Unauthorized: Not authenticated
+
+    **Example Request:**
+    ```json
+    {
+        "google_sheets_url": "https://docs.google.com/spreadsheets/d/1ABC.../edit#gid=0"
+    }
+    ```
+
+    **Logging:**
+    All URL updates are logged with [GOOGLE_SHEETS_URL] prefix.
+    """
+    new_url = data.google_sheets_url
+
+    # Clear URL if empty string or None
+    if new_url is not None and new_url.strip() == "":
+        new_url = None
+
+    # Validate URL format if provided
+    if new_url is not None:
+        try:
+            await parse_google_sheets_url(new_url)
+        except GoogleSheetsError as e:
+            logger.warning(
+                f"[GOOGLE_SHEETS_URL] User {current_user.id} invalid URL: {e}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Неверный формат ссылки Google Sheets: {e}"
+            )
+
+    # Track if URL actually changed
+    old_url = current_user.google_sheets_url
+    url_changed = old_url != new_url
+
+    # Update user
+    current_user.google_sheets_url = new_url
+    # Use utcnow() for timezone-naive datetime (matches model's TIMESTAMP WITHOUT TIME ZONE)
+    current_user.updated_at = datetime.utcnow()
+
+    await session.commit()
+    await session.refresh(current_user)
+
+    # Log update (only when changed)
+    if url_changed:
+        if new_url is None:
+            logger.info(
+                f"[GOOGLE_SHEETS_URL] User {current_user.id} cleared URL"
+            )
+        else:
+            logger.info(
+                f"[GOOGLE_SHEETS_URL] User {current_user.id} set URL: "
+                f"{new_url[:50] + '...' if len(new_url) > 50 else new_url}"
+            )
+
+    return GoogleSheetsUrlResponse(
+        google_sheets_url=new_url,
+        has_saved_url=new_url is not None and len(new_url) > 0
+    )
 
 
 @router.get(

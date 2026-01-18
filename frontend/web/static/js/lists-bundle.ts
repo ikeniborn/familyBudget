@@ -51,6 +51,7 @@ import {
 
   // Item operations (v7.0.1 - for onclick handlers)
   toggleItemCompleted,
+  deleteItem,
   handleSaveItem,
 
   // Modal handlers (v7.x.x - CRITICAL fixes)
@@ -236,6 +237,7 @@ try {
       value: {
         showDetailView: renderDetailView,
         toggleItemCompleted,
+        deleteItem,
         // WebSocket compatibility aliases (v7.0.1)
         addItemToUI: handleItemCreated,
         updateItemInUI: handleItemUpdated,

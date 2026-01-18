@@ -666,9 +666,11 @@ sync_clean() {
     # Step 5: Copy everything from repository (except .env and directories we already handled)
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
     # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
+    # CRITICAL: VERSION excluded (preserve version bumped by --version option)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
+        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -724,6 +726,22 @@ analyze_sync_changes() {
     if [[ -z "${SYNC_CHANGED_FILES:-}" ]]; then
         info "No file changes detected in sync - containers may not need recreation"
         info "This is normal if code is up-to-date or sync was skipped"
+
+        # CRITICAL: Check HTML templates checksum for Jinja2 cache invalidation
+        # Even when rsync detects no changes (files already synced), the backend
+        # container may have stale Jinja2 cached templates from a previous deploy.
+        # This happens when:
+        #   1. First deploy syncs files and starts backend (Jinja2 caches templates)
+        #   2. Code change is committed (e.g., CSS removed from base.html)
+        #   3. Second deploy - rsync sees files already identical → SYNC_CHANGED_FILES empty
+        #   4. Without checksum check, backend keeps running with OLD cached templates
+        #
+        # Fix: Compare templates checksum with last backend recreation
+        if needs_backend_restart_for_templates "$SCRIPT_DIR"; then
+            export NEEDS_BACKEND_RECREATE=true
+            info "✓ Backend will be recreated (HTML templates changed since last restart)"
+        fi
+
         return 0
     fi
 

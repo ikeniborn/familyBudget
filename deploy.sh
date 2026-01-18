@@ -1090,6 +1090,58 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # VERIFICATION: Check critical files were synced correctly
+    # Verifies that expected content exists in deployment directory
+    # This catches sync failures (git conflicts, rsync errors)
+    # Add new patterns here as critical features are added
+    local verification_passed=true
+    local verification_checks=0
+    local verification_failures=0
+
+    # Check 1: Elastic Morphing CSS (added in v7.x)
+    if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
+        ((verification_checks++)) || true  # Prevent exit on 0++ with set -e
+        if grep -q "dot-morph" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
+            print_message info "Verified: base.html contains Elastic Morphing CSS"
+        else
+            print_message warning "VERIFICATION FAILED: base.html missing Elastic Morphing CSS (dot-morph)"
+            verification_passed=false
+            ((verification_failures++)) || true
+        fi
+    fi
+
+    # Check 2: Service Worker registration (critical for PWA)
+    if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
+        ((verification_checks++)) || true
+        if grep -q "serviceWorker" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
+            print_message info "Verified: base.html contains Service Worker registration"
+        else
+            print_message warning "VERIFICATION FAILED: base.html missing Service Worker registration"
+            verification_passed=false
+            ((verification_failures++)) || true
+        fi
+    fi
+
+    # Check 3: sw.min.js exists (built Service Worker)
+    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+        ((verification_checks++)) || true
+        if grep -q "CACHE_VERSION" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
+            print_message info "Verified: sw.min.js contains CACHE_VERSION"
+        else
+            print_message warning "VERIFICATION FAILED: sw.min.js missing CACHE_VERSION"
+            verification_passed=false
+            ((verification_failures++)) || true
+        fi
+    fi
+
+    # Summary
+    if [[ "$verification_passed" == "true" ]]; then
+        print_message success "All $verification_checks verification checks passed"
+    else
+        print_message warning "Verification: $verification_failures/$verification_checks checks failed"
+        print_message warning "Check git status and rsync output above"
+    fi
+
     # AUTO-SYNC: VERSION → package.json (if mismatch detected)
     # Ensures package.json version always matches VERSION file (single source of truth)
     # This fixes existing mismatches (e.g., VERSION=6.6.0, package.json=5.3.0)
@@ -1166,6 +1218,13 @@ main() {
     # 1. Reads current version from DEPLOY_DIR (copied from repo)
     # 2. Updates VERSION, package.json, .env ONLY in /opt/budget
     # 3. Repository files are NEVER modified - keeps git clean
+
+    # Log version management parameters for debugging
+    # Uses debug() - only visible with DEBUG=true or --verbose flag
+    debug "Version management parameters:"
+    debug "  VERSION_BUMP_TYPE: ${VERSION_BUMP_TYPE:-<not set>}"
+    debug "  VERSION_SET: ${VERSION_SET:-<not set>}"
+
     process_version_bump
     echo ""
 

@@ -218,6 +218,16 @@ class UserHistory(SQLModel, table=True):
         description="Last login timestamp at time of change (snapshot)"
     )
 
+    # =========================================================================
+    # Google Sheets Integration (v7.x+)
+    # =========================================================================
+
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        max_length=2048,
+        description="Google Sheets URL at time of change (snapshot)"
+    )
+
     # SCD Type 2 fields (temporal validity)
     valid_from: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
