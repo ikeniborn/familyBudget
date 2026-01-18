@@ -297,54 +297,6 @@
             animation: navbar-sync-pulse 2s ease-in-out infinite;
         }
 
-        /* ========================================
-           Navigation Loading States - Unified v4.0
-           ======================================== */
-
-        /* CSS variables for loading dot */
-        :root {
-            --nav-loading-dot-size: 5px;
-            --nav-loading-dot-color: #6366f1;
-        }
-
-        /* Loading dot indicator on nav items - position relative */
-        .nav-item.loading .icon-label,
-        [data-nav-item].loading {
-            position: relative;
-        }
-
-        /* Base loading dot styles (shared) */
-        .nav-item.loading .icon-label::after,
-        [data-nav-item].loading::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: var(--nav-loading-dot-size);
-            height: var(--nav-loading-dot-size);
-            /* Fallback for Safari < 15.4 */
-            background: var(--nav-loading-dot-color);
-            background: oklch(var(--p));
-            border-radius: 50%;
-            animation: nav-dots-blink 0.8s infinite;
-        }
-
-        /* Mobile FAB: dot to the right of icon-label */
-        .nav-item.loading .icon-label::after {
-            right: -10px;
-        }
-
-        /* Desktop/drawer: dot inside the element */
-        [data-nav-item].loading::after {
-            right: 4px;
-        }
-
-        @keyframes nav-dots-blink {
-            0%, 20% { opacity: 0; transform: translateY(-50%) scale(0.8); }
-            50% { opacity: 1; transform: translateY(-50%) scale(1.2); }
-            80%, 100% { opacity: 0; transform: translateY(-50%) scale(0.8); }
-        }
-
         /* Content Fade Overlay */
         .navigation-fade-overlay {
             position: fixed;
@@ -502,14 +454,8 @@
             }
         }
 
-        /* Reduced Motion for nav loading */
+        /* Reduced Motion for morphing dots overlay */
         @media (prefers-reduced-motion: reduce) {
-            .nav-item.loading .icon-label::after,
-            [data-nav-item].loading::after {
-                animation: none;
-                opacity: 1;
-            }
-            /* Для morphing точек: сбросить все трансформации */
             .navigation-fade-overlay .loading-dot {
                 animation: none;
                 opacity: 1;
