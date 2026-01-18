@@ -480,7 +480,7 @@ dropdown_mobile_fixes:
       files:
         - "frontend/web/templates/base.html:1479"
         - "frontend/web/templates/index.html:3372,3389"
-        - "frontend/web/static/css/modal-dropdowns-fix.css"
+        - "frontend/web/static/css/daisyui-overrides.css" # consolidated from modal-dropdowns-fix.css
 
   best_practices:
     - name: "Stop Event Propagation in Modal Handlers"

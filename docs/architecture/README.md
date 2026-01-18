@@ -255,7 +255,7 @@ Use these files to understand component relationships when planning changes or o
   - Deployment: `deploy.sh` (+213 lines, -83 lines)
 - **Critical Files Validated:**
   - Service Worker: `sw.min.js` + `sw.min.js.gz`
-  - CSS: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css`
+  - CSS: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `daisyui-overrides.min.css`
   - Bundles: `lists.min.js`, `budgetShared.min.js`
   - Legacy: `hierarchyView.min.js`, `lists.min.css`
 - **See:** `/docs/architecture/guides/deployment-troubleshooting.md` → "Build Artifact Validation" section

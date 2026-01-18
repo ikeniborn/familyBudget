@@ -421,7 +421,7 @@ After fixing, verify automation works:
 - Added comprehensive `validate_build_artifacts()` function
 - Validates ALL critical files before saving checksums:
   - Service Worker: `sw.min.js` + `sw.min.js.gz`
-  - CSS files: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css`
+  - CSS files: `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `daisyui-overrides.min.css`
   - Bundles: `lists.min.js`, `budgetShared.min.js` (must be > 1KB)
   - Legacy files: `hierarchyView.min.js`, `lists.min.css`
   - PLACEHOLDER tokens replaced in Service Worker
@@ -627,7 +627,7 @@ The `validate_build_artifacts()` function checks:
 | Category | Files | Validation |
 |----------|-------|------------|
 | **Service Worker** | `sw.min.js`, `sw.min.js.gz` | Exists, non-empty, PLACEHOLDER replaced |
-| **CSS** | `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `modal-dropdowns-fix.min.css` | Exists, non-empty |
+| **CSS** | `tailwind-daisyui.min.css`, `custom.min.css`, `choices-tailwind.min.css`, `daisyui-overrides.min.css` | Exists, non-empty |
 | **Bundles** | `lists.min.js`, `budgetShared.min.js` | Exists, size > 1KB |
 | **Legacy** | `hierarchyView.min.js`, `lists.min.css` | Exists, non-empty |
 
@@ -641,7 +641,7 @@ The `validate_build_artifacts()` function checks:
 [SUCCESS] ✓ tailwind-daisyui.min.css (182059B)
 [SUCCESS] ✓ custom.min.css (44312B)
 [SUCCESS] ✓ choices-tailwind.min.css (43450B)
-[SUCCESS] ✓ modal-dropdowns-fix.min.css (2048B)
+[SUCCESS] ✓ daisyui-overrides.min.css (2048B)
 [SUCCESS] ✓ lists.min.js (123914B)
 [SUCCESS] ✓ budgetShared.min.js (42281B)
 [SUCCESS] ✓ hierarchyView.min.js (19827B)
