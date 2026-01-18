@@ -297,6 +297,24 @@
             animation: navbar-sync-pulse 2s ease-in-out infinite;
         }
 
+        /* ========================================
+           Navigation Loading State Reset
+           Override DaisyUI .loading class for nav items
+           DaisyUI .loading shows a spinner which breaks nav buttons
+           ======================================== */
+        .nav-item.loading,
+        [data-nav-item].loading,
+        .icon-btn.loading {
+            /* Reset DaisyUI .loading styles */
+            pointer-events: auto;
+            display: flex;
+            aspect-ratio: auto;
+            width: auto;
+            background-color: transparent;
+            mask-image: none;
+            -webkit-mask-image: none;
+        }
+
         /* Content Fade Overlay */
         .navigation-fade-overlay {
             position: fixed;
