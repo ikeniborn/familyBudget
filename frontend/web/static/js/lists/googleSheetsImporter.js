@@ -161,7 +161,7 @@ class GoogleSheetsImporter {
                 </div>
                 <button type="button"
                         class="btn btn-sm btn-ghost"
-                        onclick="window.googleSheetsImporter.clearSavedUrl()"
+                        onclick="window.googleSheetsImporter.clearSavedUrl().catch(e => console.error('[GoogleSheetsImporter] Clear URL error:', e))"
                         title="Удалить сохранённую ссылку">
                     ✕
                 </button>

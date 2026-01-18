@@ -232,7 +232,7 @@ async def get_google_sheets_url(
     """
     url = current_user.google_sheets_url
 
-    logger.info(
+    logger.debug(
         f"[GOOGLE_SHEETS_URL] User {current_user.id} fetching saved URL: "
         f"{url[:50] + '...' if url and len(url) > 50 else url}"
     )
@@ -296,7 +296,7 @@ async def update_google_sheets_url(
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid Google Sheets URL format: {e}"
+                detail=f"Неверный формат ссылки Google Sheets: {e}"
             )
 
     # Track if URL actually changed
@@ -305,12 +305,12 @@ async def update_google_sheets_url(
 
     # Update user
     current_user.google_sheets_url = new_url
-    current_user.updated_at = datetime.utcnow()
+    current_user.updated_at = datetime.now(timezone.utc)
 
     await session.commit()
     await session.refresh(current_user)
 
-    # Log update
+    # Log update (only when changed)
     if url_changed:
         if new_url is None:
             logger.info(
@@ -321,10 +321,6 @@ async def update_google_sheets_url(
                 f"[GOOGLE_SHEETS_URL] User {current_user.id} set URL: "
                 f"{new_url[:50] + '...' if len(new_url) > 50 else new_url}"
             )
-    else:
-        logger.info(
-            f"[GOOGLE_SHEETS_URL] User {current_user.id} URL unchanged"
-        )
 
     return GoogleSheetsUrlResponse(
         google_sheets_url=new_url,
