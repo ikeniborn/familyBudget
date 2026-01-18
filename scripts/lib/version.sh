@@ -559,6 +559,12 @@ process_version_bump() {
     if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
         # Version changed - update all files
         update_all_version_files "$NEW_VERSION"
+
+        # Mark backend for recreation to apply new VERSION
+        # Backend reads VERSION from mounted file (/app/VERSION)
+        # Container restart is needed to re-read the file (uvicorn workers restart)
+        export NEEDS_BACKEND_RECREATE=true
+        info "Backend will be recreated to apply new VERSION"
     else
         # Version unchanged - ensure .env has correct VERSION for docker-compose
         # This fixes the bug where VERSION in .env was empty/missing after fresh deploy

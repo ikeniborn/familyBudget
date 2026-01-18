@@ -1218,6 +1218,13 @@ main() {
     # 1. Reads current version from DEPLOY_DIR (copied from repo)
     # 2. Updates VERSION, package.json, .env ONLY in /opt/budget
     # 3. Repository files are NEVER modified - keeps git clean
+
+    # Log version management parameters for debugging
+    # Uses debug() - only visible with DEBUG=true or --verbose flag
+    debug "Version management parameters:"
+    debug "  VERSION_BUMP_TYPE: ${VERSION_BUMP_TYPE:-<not set>}"
+    debug "  VERSION_SET: ${VERSION_SET:-<not set>}"
+
     process_version_bump
     echo ""
 
