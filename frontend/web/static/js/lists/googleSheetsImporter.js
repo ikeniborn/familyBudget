@@ -231,7 +231,20 @@ class GoogleSheetsImporter {
 
         } catch (error) {
             console.error('[GoogleSheetsImporter] Error fetching Google Sheets:', error);
-            showToast(`❌ Ошибка загрузки: ${error.message}`, 'error');
+
+            // Check if this is an access/authorization issue (user action required)
+            const message = error.message.toLowerCase();
+            const isAccessIssue = message.includes('авторизац') ||
+                                  message.includes('публичн') ||
+                                  message.includes('доступ') ||
+                                  message.includes('401') ||
+                                  message.includes('403');
+
+            if (isAccessIssue) {
+                showToast(`⚠️ ${error.message}`, 'warning');
+            } else {
+                showToast(`❌ Ошибка загрузки: ${error.message}`, 'error');
+            }
         }
     }
 
