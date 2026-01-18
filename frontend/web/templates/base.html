@@ -356,7 +356,7 @@
            --dot-morph-size: базовый размер точки
            --dot-morph-gap: расстояние между точками
            ======================================== */
-        .navigation-fade-overlay .loading-dots {
+        .navigation-fade-overlay .morphing-dots {
             /* CSS Variables соответствуют Variant 2A: Elastic Morphing из демо */
             --dot-morph-duration: 1.5s;
             --dot-morph-delay: 0.3s;
@@ -380,7 +380,7 @@
             transform-style: preserve-3d;
         }
 
-        .navigation-fade-overlay .loading-dot {
+        .navigation-fade-overlay .morphing-dot {
             /* Размер из CSS Variable */
             width: var(--dot-morph-size);
             height: var(--dot-morph-size);
@@ -402,13 +402,13 @@
         }
 
         /* Задержки для волнового эффекта (используют CSS Variable) */
-        .navigation-fade-overlay .loading-dot:nth-child(1) {
+        .navigation-fade-overlay .morphing-dot:nth-child(1) {
             animation-delay: 0s;
         }
-        .navigation-fade-overlay .loading-dot:nth-child(2) {
+        .navigation-fade-overlay .morphing-dot:nth-child(2) {
             animation-delay: var(--dot-morph-delay);
         }
-        .navigation-fade-overlay .loading-dot:nth-child(3) {
+        .navigation-fade-overlay .morphing-dot:nth-child(3) {
             animation-delay: calc(var(--dot-morph-delay) * 2);
         }
 
@@ -439,7 +439,7 @@
 
         /* Адаптация для маленьких экранов (< 360px) */
         @media (max-width: 359px) {
-            .navigation-fade-overlay .loading-dots {
+            .navigation-fade-overlay .morphing-dots {
                 --dot-morph-size: 14px;
                 --dot-morph-gap: 6px;
                 min-width: 100px;
@@ -448,12 +448,12 @@
 
         /* Адаптация для больших экранов (desktop) */
         @media (min-width: 768px) {
-            .navigation-fade-overlay .loading-dots {
+            .navigation-fade-overlay .morphing-dots {
                 --dot-morph-size: 18px;
                 --dot-morph-gap: 10px;
                 min-width: 140px;
             }
-            .navigation-fade-overlay .loading-dot {
+            .navigation-fade-overlay .morphing-dot {
                 /* Увеличенная тень на desktop для лучшей видимости */
                 box-shadow:
                     0 3px 8px oklch(0 0 0 / 0.3),
@@ -464,7 +464,7 @@
 
         /* Reduced Motion for morphing dots overlay */
         @media (prefers-reduced-motion: reduce) {
-            .navigation-fade-overlay .loading-dot {
+            .navigation-fade-overlay .morphing-dot {
                 animation: none;
                 opacity: 1;
                 transform: none;
@@ -1230,12 +1230,12 @@
         </div>
     </header>
 
-    <!-- Navigation Fade Overlay (v5.1 - Elastic Morphing + CSS Variables) -->
+    <!-- Navigation Fade Overlay (v5.2 - Elastic Morphing, no DaisyUI conflict) -->
     <div id="navigation-fade-overlay" class="navigation-fade-overlay" aria-hidden="true">
-        <div class="loading-dots">
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
-            <div class="loading-dot"></div>
+        <div class="morphing-dots">
+            <div class="morphing-dot"></div>
+            <div class="morphing-dot"></div>
+            <div class="morphing-dot"></div>
         </div>
     </div>
 
