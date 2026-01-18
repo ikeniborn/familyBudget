@@ -414,9 +414,15 @@ needs_frontend_rebuild() {
 
     # Calculate checksums for frontend source files
     # Include: .ts, .tsx files in frontend/ and build configuration files
+    # IMPORTANT: Also include HTML templates to trigger SW rebuild for cache invalidation
+    # When inline CSS/JS in templates changes, sw.min.js must be rebuilt with new CACHE_VERSION
     local current_checksums
     current_checksums=$(
+        # TypeScript source files
         find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # HTML templates (trigger SW rebuild for cache invalidation)
+        find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # Build config
         md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
     )
 
@@ -437,13 +443,20 @@ needs_frontend_rebuild() {
 }
 
 # Save frontend build checksums after successful npm build
+# MUST use the same files as needs_frontend_rebuild() for consistency
+# IMPORTANT: Also include HTML templates to trigger SW rebuild for cache invalidation
+# When inline CSS/JS in templates changes, sw.min.js must be rebuilt with new CACHE_VERSION
 save_frontend_build_checksums() {
     local repo_dir="${1:-$SCRIPT_DIR}"
     local frontend_checksum_file="${DEPLOY_DIR}/.frontend_build_checksums"
 
     local checksums
     checksums=$(
+        # TypeScript source files
         find "$repo_dir/frontend" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # HTML templates (trigger SW rebuild for cache invalidation)
+        find "$repo_dir/frontend/web/templates" -type f -name "*.html" 2>/dev/null | sort | xargs md5sum 2>/dev/null
+        # Build config
         md5sum "$repo_dir/package.json" "$repo_dir/vite.config.ts" "$repo_dir/build-all.js" 2>/dev/null
     )
 
