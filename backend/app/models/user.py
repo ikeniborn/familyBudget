@@ -241,6 +241,16 @@ class User(SQLModel, table=True):
     )
 
     # =========================================================================
+    # Google Sheets Integration (v7.x+)
+    # =========================================================================
+
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        max_length=2048,
+        description="Saved Google Sheets URL for shopping list import (SCD1 - in-place update)"
+    )
+
+    # =========================================================================
     # Audit fields (SCD Type 1 - in-place updates)
     # =========================================================================
 

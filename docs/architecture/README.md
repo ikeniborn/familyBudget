@@ -27,6 +27,31 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-18: Google Sheets URL Persistence (v7.x)
+- **Change:** Added ability to save Google Sheets URL per user for reuse in shopping list import
+- **Backend:**
+  - Added `google_sheets_url` field to `t_d_user` and `t_d_user_history` tables
+  - New endpoints: `GET/PATCH /api/v1/users/me/google-sheets-url`
+  - URL validation via existing `parse_google_sheets_url()` function
+  - SCD Type 2 history tracking for URL changes
+- **Frontend:**
+  - Auto-fill saved URL when opening Google Sheets import wizard
+  - "Найдена сохранённая ссылка" alert with clear button
+  - Checkbox "Сохранить ссылку для будущего использования" (default: checked)
+  - URL saved after successful data fetch
+- **Files Modified:**
+  - `backend/db/migrations/versions/20260118_4c87e46b1cd8_add_google_sheets_url_to_user.py` (new)
+  - `backend/app/models/user.py`, `backend/app/models/user_history.py`
+  - `backend/app/schemas/user.py` (+GoogleSheetsUrlUpdate, GoogleSheetsUrlResponse)
+  - `backend/app/api/v1/endpoints/users.py` (+2 endpoints)
+  - `backend/app/services/user_service.py` (+google_sheets_url in history snapshot)
+  - `frontend/web/static/js/lists/googleSheetsImporter.js`
+- **Logging:** `[GOOGLE_SHEETS_URL]` prefix for all URL operations
+- **Impact:**
+  - ✅ Users don't need to re-enter Google Sheets URL for each import
+  - ✅ URL auto-filled from previous successful import
+  - ✅ Easy clear saved URL functionality
+
 ### 2026-01-16: Fix FAB on /lists Page (v6.6.1)
 - **Change:** Fixed FAB (Floating Action Button) issues on `/lists` page
 - **Problems Fixed:**

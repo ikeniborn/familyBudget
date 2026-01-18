@@ -120,6 +120,7 @@ async def update_user_profile(
         is_active=user.is_active,
         two_factor_enabled=user.two_factor_enabled,  # Include 2FA status
         last_login_at=user.last_login_at,
+        google_sheets_url=user.google_sheets_url,  # Include Google Sheets URL
         valid_from=now,
         valid_to=FAR_FUTURE_DATETIME,
         is_current=True,
@@ -270,6 +271,7 @@ async def create_initial_history(
         is_active=user.is_active,
         two_factor_enabled=user.two_factor_enabled,  # Include 2FA status
         last_login_at=user.last_login_at,
+        google_sheets_url=user.google_sheets_url,  # Include Google Sheets URL
         valid_from=now,
         valid_to=FAR_FUTURE_DATETIME,
         is_current=True,

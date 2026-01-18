@@ -176,6 +176,13 @@ class UserUpdate(BaseModel):
         examples=[True, False]
     )
 
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        max_length=2048,
+        description="Saved Google Sheets URL for shopping list import",
+        examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]
+    )
+
 
 class UserResponse(BaseModel):
     """
@@ -269,6 +276,12 @@ class UserResponse(BaseModel):
         default=None,
         description="Target user ID if this account was merged into another",
         examples=[None, 2]
+    )
+
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        description="Saved Google Sheets URL for shopping list import",
+        examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]
     )
 
     last_login_at: Optional[datetime] = Field(
@@ -616,3 +629,54 @@ class UserMergeResponse(BaseModel):
         description="Whether Telegram ID was transferred",
         examples=[True]
     )
+
+
+class GoogleSheetsUrlUpdate(BaseModel):
+    """
+    Schema for updating user's Google Sheets URL.
+
+    Used by PATCH /users/me/google-sheets-url endpoint.
+
+    Attributes:
+        google_sheets_url: URL to save (None to clear)
+    """
+
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        max_length=2048,
+        description="Google Sheets URL to save. Set to null to clear saved URL.",
+        examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]
+    )
+
+
+class GoogleSheetsUrlResponse(BaseModel):
+    """
+    Schema for Google Sheets URL response.
+
+    Used by GET /users/me/google-sheets-url endpoint.
+
+    Attributes:
+        google_sheets_url: Saved URL or None if not set
+        has_saved_url: Convenience flag for frontend
+    """
+
+    google_sheets_url: Optional[str] = Field(
+        default=None,
+        description="Saved Google Sheets URL (None if not set)",
+        examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]
+    )
+
+    has_saved_url: bool = Field(
+        default=False,
+        description="True if user has a saved Google Sheets URL",
+        examples=[True, False]
+    )
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "google_sheets_url": "https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0",
+                "has_saved_url": True
+            }
+        }
+    }
