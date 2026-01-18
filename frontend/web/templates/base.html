@@ -421,10 +421,11 @@
             border-radius: 50%;
             /* Elastic Morphing анимация с CSS Variable duration */
             animation: dot-morph var(--dot-morph-duration) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
-            /* Тень с использованием oklch для консистентности с primary color */
+            /* Усиленная тень для видимости на светлом фоне */
             box-shadow:
-                0 2px 4px oklch(0 0 0 / 0.15),
-                0 4px 8px oklch(var(--p) / 0.2);
+                0 2px 6px oklch(0 0 0 / 0.25),
+                0 4px 12px oklch(var(--p) / 0.4),
+                0 0 0 2px oklch(var(--p) / 0.15);
             /* GPU acceleration */
             transform: translateZ(0);
             backface-visibility: hidden;
@@ -448,7 +449,7 @@
                 /* Исходное состояние - круг */
                 transform: scaleX(1) scaleY(1) translateZ(0);
                 border-radius: 50%;
-                opacity: 0.7;
+                opacity: 0.85;
             }
             20% {
                 /* Сжатие по вертикали, растяжение по горизонтали */
@@ -466,13 +467,13 @@
                 /* Небольшой отскок */
                 transform: scaleX(1.1) scaleY(0.9) translateZ(0);
                 border-radius: 47%;
-                opacity: 0.9;
+                opacity: 0.95;
             }
             80% {
                 /* Возврат почти к исходному */
                 transform: scaleX(0.95) scaleY(1.05) translateZ(0);
                 border-radius: 48%;
-                opacity: 0.8;
+                opacity: 0.9;
             }
         }
 
@@ -493,10 +494,11 @@
                 min-width: 140px;
             }
             .navigation-fade-overlay .loading-dot {
-                /* Увеличенная тень на desktop */
+                /* Увеличенная тень на desktop для лучшей видимости */
                 box-shadow:
-                    0 3px 6px oklch(0 0 0 / 0.15),
-                    0 6px 12px oklch(var(--p) / 0.25);
+                    0 3px 8px oklch(0 0 0 / 0.3),
+                    0 6px 16px oklch(var(--p) / 0.45),
+                    0 0 0 3px oklch(var(--p) / 0.2);
             }
         }
 
