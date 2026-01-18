@@ -451,6 +451,10 @@
     opacity: 0.55;
 }
 
+.hierarchy-item.completed .hierarchy-item-name {
+    text-decoration: line-through;
+}
+
 .hierarchy-item .checkbox {
     width: 0.875rem;
     height: 0.875rem;
