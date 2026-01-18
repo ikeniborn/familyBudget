@@ -201,7 +201,17 @@ async def fetch_google_sheets_as_csv(
             return response.content
 
         except httpx.HTTPStatusError as e:
-            if e.response.status_code == 403:
+            if e.response.status_code == 401:
+                logger.error(
+                    f"401 Unauthorized for spreadsheet {spreadsheet_id}. "
+                    "The spreadsheet requires authentication."
+                )
+                raise GoogleSheetsError(
+                    "Google Sheets требует авторизацию. "
+                    "Сделайте таблицу публичной: Файл → Доступ → "
+                    "Доступ по ссылке → Просмотр для всех"
+                )
+            elif e.response.status_code == 403:
                 logger.error(
                     f"403 Forbidden for spreadsheet {spreadsheet_id}. "
                     "The spreadsheet is likely not public."
