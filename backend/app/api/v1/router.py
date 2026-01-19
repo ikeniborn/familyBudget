@@ -62,11 +62,13 @@ api_router.include_router(financial_centers_router)
 # Cost Centers endpoints (TASK-007) ✅
 api_router.include_router(cost_centers_router)
 
+# Facts HTMX Partials endpoints (Phase 2: Server-side rendering) ✅
+# ВАЖНО: Partials должны быть ПЕРЕД основным facts router,
+# иначе /{fact_id} перехватывает /table, /stats, /pagination
+api_router.include_router(facts_partials_router)
+
 # Facts endpoints (TASK-016) ✅
 api_router.include_router(facts_router)
-
-# Facts HTMX Partials endpoints (Phase 2: Server-side rendering) ✅
-api_router.include_router(facts_partials_router)
 
 # Users endpoints (TASK-017) ✅
 api_router.include_router(users_router)
