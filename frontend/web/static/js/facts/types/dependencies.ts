@@ -120,7 +120,12 @@ export interface WebSocketManager {
  */
 export interface HTMX {
     trigger(element: HTMLElement | string, eventName: string, detail?: any): void;
-    ajax(method: string, url: string, options?: any): Promise<any>;
+    ajax(method: string, url: string, options?: {
+        target?: string | HTMLElement;
+        swap?: string;
+        values?: Record<string, string>;
+        headers?: Record<string, string>;
+    }): Promise<any>;
     // Add other htmx methods as needed
 }
 

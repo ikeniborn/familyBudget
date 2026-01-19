@@ -3,16 +3,60 @@
  *
  * Coordinates all facts operations (load, CRUD, UI updates).
  *
- * Phase 1 Continuation: Full CRUD Integration
+ * Phase 2: HTMX Integration - Server-Side Rendering
  */
 
 import { loadFactsWithCount } from '../integration/factsAPI';
-import { setCachedFacts, setTotalFacts, setCurrentPage } from '../core/stateManager';
+import { setTotalFacts, getCurrentPage, getPageSize, getTotalFacts, setCurrentPage } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
-import { updatePaginationUI } from './paginationOperations';
-import { renderFactsTable } from '../rendering/factsTable';
-import { updateStats } from '../rendering/statsRenderer';
 import type { CreateFactData, UpdateFactData } from '../types/models';
+
+// Declare htmx global (available from window.htmx)
+declare const htmx: typeof window.htmx;
+
+// ============================================================================
+// HTMX Utilities
+// ============================================================================
+
+/**
+ * Trigger HTMX reload for all partials
+ * Uses htmx.ajax() to reload table, stats, and pagination with current filters
+ * @param total - Total facts count (optional, uses cached value if not provided)
+ */
+function triggerHTMXReload(total?: number): void {
+    const filters = buildFilterQuery();
+    const queryString = filters.toString();
+    const page = getCurrentPage();
+    const pageSize = getPageSize();
+    const totalCount = total !== undefined ? total : getTotalFacts();
+
+    // Reload facts table
+    const tableUrl = `/api/v1/facts/table?${queryString}`;
+    if (typeof htmx !== 'undefined') {
+        htmx.ajax('GET', tableUrl, {
+            target: '#facts-table-container',
+            swap: 'innerHTML'
+        });
+    }
+
+    // Reload stats
+    const statsUrl = `/api/v1/facts/stats?total=${totalCount}&page=${page}&page_size=${pageSize}`;
+    if (typeof htmx !== 'undefined') {
+        htmx.ajax('GET', statsUrl, {
+            target: '#facts-stats',
+            swap: 'innerHTML'
+        });
+    }
+
+    // Reload pagination
+    const paginationUrl = `/api/v1/facts/pagination?total=${totalCount}&page=${page}&page_size=${pageSize}`;
+    if (typeof htmx !== 'undefined') {
+        htmx.ajax('GET', paginationUrl, {
+            target: '#facts-pagination',
+            swap: 'innerHTML'
+        });
+    }
+}
 
 // ============================================================================
 // Main Load Function
@@ -20,44 +64,25 @@ import type { CreateFactData, UpdateFactData } from '../types/models';
 
 /**
  * Load facts with current filters and pagination
- * Updates state, cache, and UI
+ * Phase 2: Hybrid approach - API for total count, HTMX for rendering
  */
 export async function loadFacts(): Promise<void> {
-    const container = document.getElementById('facts-table-container');
-    if (!container) {
-        console.warn('[FactsController] Container not found');
-        return;
-    }
-
-    // Show loading spinner
-    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
-
     try {
-        // Load facts and count in parallel
-        const { facts, total } = await loadFactsWithCount();
+        // Get total count from API (without loading facts data)
+        const { total } = await loadFactsWithCount();
 
         // Update state
-        setCachedFacts(facts);
         setTotalFacts(total);
 
-        // Update UI
-        renderFactsTable(facts);
-        updateStats();
-        updatePaginationUI();
-
-        // Sync filter UI if AdminFactsCommon available
-        if (window.AdminFactsCommon) {
-            const filters = buildFilterQuery();
-            const filterObj: Record<string, string> = {};
-            filters.forEach((value, key) => {
-                filterObj[key] = value;
-            });
-            window.AdminFactsCommon.syncFiltersUI(filterObj);
-        }
+        // Trigger HTMX reload with updated total
+        triggerHTMXReload(total);
     } catch (error) {
         console.error('[FactsController] Error loading facts:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+        const container = document.getElementById('facts-table-container');
+        if (container) {
+            container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+        }
     }
 }
 

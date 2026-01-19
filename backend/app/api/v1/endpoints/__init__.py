@@ -26,6 +26,7 @@ from backend.app.api.v1.endpoints.auth import router as auth_router
 from backend.app.api.v1.endpoints.consent import router as consent_router
 from backend.app.api.v1.endpoints.cost_centers import router as cost_centers_router
 from backend.app.api.v1.endpoints.facts import router as facts_router
+from backend.app.api.v1.endpoints.facts_partials import router as facts_partials_router
 from backend.app.api.v1.endpoints.financial_centers import (
     router as financial_centers_router,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "consent_router",
     "cost_centers_router",
     "facts_router",
+    "facts_partials_router",
     "financial_centers_router",
     "google_sheets_import_router",
     "import_router",

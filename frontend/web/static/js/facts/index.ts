@@ -3,7 +3,7 @@
  *
  * Barrel export and public API for facts management module.
  *
- * Phase 1: TypeScript ES Modules
+ * Phase 2: HTMX Integration (Server-Side Rendering)
  * Bundle: facts.min.js (IIFE format for global scope)
  */
 
@@ -37,13 +37,6 @@ export * from './integration/dropdownAPI';
 export * from './integration/analyticsAPI';
 
 // ============================================================================
-// Rendering Exports (Temporary - Phase 1 only)
-// ============================================================================
-
-export * from './rendering/factsTable';
-export * from './rendering/statsRenderer';
-
-// ============================================================================
 // Window Exports Setup
 // ============================================================================
 
@@ -67,8 +60,8 @@ export function initialize(): void {
     // Setup window exports for onclick compatibility
     setupWindowExports();
 
-    // TODO: Full initialization (load dropdowns, etc.) will be added later
-    console.warn('[FactsManager] Basic initialization complete (Phase 1 - partial)');
+    // Phase 2: HTMX handles rendering, TypeScript handles business logic
+    // Initialization complete (silent)
 }
 
 // ============================================================================

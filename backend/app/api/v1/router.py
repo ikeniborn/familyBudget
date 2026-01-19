@@ -20,6 +20,7 @@ from backend.app.api.v1.endpoints import (
     consent_router,
     cost_centers_router,
     facts_router,
+    facts_partials_router,
     financial_centers_router,
     google_sheets_import_router,
     import_router,
@@ -63,6 +64,9 @@ api_router.include_router(cost_centers_router)
 
 # Facts endpoints (TASK-016) ✅
 api_router.include_router(facts_router)
+
+# Facts HTMX Partials endpoints (Phase 2: Server-side rendering) ✅
+api_router.include_router(facts_partials_router)
 
 # Users endpoints (TASK-017) ✅
 api_router.include_router(users_router)

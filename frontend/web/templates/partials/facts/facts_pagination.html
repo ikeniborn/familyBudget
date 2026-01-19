@@ -1,0 +1,47 @@
+{#
+    Facts Pagination HTMX Partial
+
+    Server-side rendered pagination controls with previous/next buttons and page info.
+
+    Variables expected:
+    - page: int (current page, 0-indexed)
+    - total_pages: int (total number of pages)
+    - page_size: int (items per page)
+    - has_previous: bool (whether previous page exists)
+    - has_next: bool (whether next page exists)
+
+    Usage:
+        GET /api/v1/facts/pagination?total=100&page=0&page_size=50
+        hx-get="/api/v1/facts/pagination"
+        hx-trigger="load, paginationChanged from:body"
+        hx-swap="innerHTML"
+#}
+<div class="pagination-controls flex justify-between items-center">
+    <button class="btn btn-sm btn-outline gap-2"
+            onclick="previousPage()"
+            {% if not has_previous %}disabled{% endif %}>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Назад
+    </button>
+
+    {% if total_pages > 0 %}
+    <span class="text-sm font-medium">
+        Страница {{ page + 1 }} из {{ total_pages }}
+    </span>
+    {% else %}
+    <span class="text-sm font-medium text-base-content/60">
+        Нет данных
+    </span>
+    {% endif %}
+
+    <button class="btn btn-sm btn-outline gap-2"
+            onclick="nextPage()"
+            {% if not has_next %}disabled{% endif %}>
+        Вперед
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+    </button>
+</div>
