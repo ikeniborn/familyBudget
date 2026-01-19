@@ -170,8 +170,9 @@
             background: oklch(var(--b1) / 0.6);
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
-            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            /* v4.1: Increased transition for smoother appearance */
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            -webkit-transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
             z-index: 38;
             pointer-events: none;
 
