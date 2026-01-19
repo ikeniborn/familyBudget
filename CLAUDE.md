@@ -105,6 +105,46 @@ Singleton promise locks for race condition prevention (13x performance improveme
 Use `!important` for display properties, `visibility: hidden` for iOS Safari protection.
 **See:** `/docs/architecture/frontend/responsive-design.md` → FAB Navigation
 
+### 10. Vendor File Management
+**Source Control Strategy:** Store unminified vendor files in git, generate minified versions during build.
+
+**Vendor Files Location:**
+- **CSS:** `frontend/web/static/css/vendor/` (choices.css)
+- **JS:** `frontend/web/static/js/vendor/` (htmx.js, choices.js, echarts.js, qr-creator.js)
+
+**Build Process:**
+```bash
+# CSS minification (PostCSS + cssnano)
+npm run minify:vendor-css
+
+# JS minification (Terser with parallel execution)
+npm run minify:vendor-js
+
+# Combined vendor build
+npm run build:vendor
+```
+
+**Minification Details:**
+- **CSS:** PostCSS with cssnano plugin (`postcss -u cssnano`)
+- **JS:** Terser with `--compress --mangle` via `scripts/minify-vendor.js` (parallel execution using Promise.all)
+- **Output:** `*.min.css` and `*.min.js` files (ignored by git via `.gitignore`)
+
+**Cache Busting:**
+HTML templates use `?v=PLACEHOLDER` pattern, replaced during deployment with actual version/commit hash.
+
+**Adding New Vendor Libraries:**
+1. Download unminified source to `frontend/web/static/{css,js}/vendor/`
+2. Add to `scripts/minify-vendor.js` files array (JS) or add PostCSS script (CSS)
+3. Update HTML templates with cache-busted path: `/static/.../vendor/library.min.{css,js}?v=PLACEHOLDER`
+4. Run `npm run build:vendor` to verify minification works
+5. Commit unminified source only (`.gitignore` prevents minified files from being tracked)
+
+**Download Script:**
+Use `/tmp/download-vendor.sh` for batch downloading vendor files from CDN with redirect handling.
+
+**Pre-Deploy Validation:**
+Deployment scripts automatically run `npm run build:vendor` to ensure all minified files are up-to-date.
+
 ## Important Features
 
 **Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`

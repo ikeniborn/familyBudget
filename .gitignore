@@ -196,10 +196,13 @@ sql/data/*.csv
 sql/data/*.dump
 sql/*.pyc
 
-# Minified files (build artifacts) - НЕ vendor!
-frontend/**/static/**/*.min.js
-frontend/**/static/**/*.min.js.map
-frontend/**/static/**/*.min.css
+# Minified files (build artifacts) - excluding vendor/
+# Vendor source files (.css, .js) are tracked, minified versions generated on build
+frontend/web/static/css/*.min.css
+frontend/web/static/css/vendor/*.min.css
+frontend/shared/static/css/*.min.css
+frontend/**/static/js/**/*.min.js
+frontend/**/static/js/**/*.min.js.map
 # Service Worker minified (generated during deploy)
 sw.min.js
 sw.min.js.map
@@ -208,11 +211,6 @@ sw.min.js.gz
 # Vite bundle files and sourcemaps (build artifacts)
 frontend/**/static/**/*.bundle.js.map
 *.bundle.js.map
-
-# Vendor files (third-party libraries) - TRACKED в git
-# Минифицированные vendor файлы должны быть в git для доставки на сервер
-!frontend/**/static/**/vendor/*.min.js
-!frontend/**/static/**/vendor/*.min.css
 
 # Standalone utility scripts (not built by Vite) - TRACKED в git
 # Эти файлы минифицируются вручную и должны быть в git

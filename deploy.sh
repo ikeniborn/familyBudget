@@ -1501,6 +1501,10 @@ main() {
             print_message success "Static assets built and minified successfully"
             echo ""
 
+            # Validate vendor files are minified correctly (v5.3.0+)
+            validate_vendor_files
+            echo ""
+
             # Copy Service Worker files from .vite-build/ to final location (v7.0.1+ fix)
             # Vite creates sw.js and sw.js.gz in .vite-build/, but we need them as sw.min.js in root
             # Service Worker served by FastAPI backend from /opt/budget/sw.min.js (v6.8.0+)
