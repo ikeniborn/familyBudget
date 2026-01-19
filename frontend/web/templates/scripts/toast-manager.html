@@ -1,0 +1,238 @@
+{#
+    Toast Manager Module
+    Provides global toast notification functions for base.html.
+
+    CRITICAL: This module MUST be loaded FIRST before other scripts that use toast notifications.
+    Dependencies: Service Worker, Offline Manager, and other modules rely on showToast() being defined.
+
+    Functions:
+        - showToast(message, type, duration): Display a simple toast notification
+        - showToastWithAction({message, type, duration, action}): Display toast with action button
+
+    Types: 'success', 'error', 'warning', 'info' (default)
+
+    Security: Uses textContent for XSS prevention (not innerHTML).
+#}
+<script>
+    // Toast Manager Configuration
+    const TOAST_CONFIG = {
+        DEFAULT_DURATION: 2000,
+        ACTION_DURATION: 5000,
+        FADE_DURATION: 300,
+        MAX_WIDTH: 'min(90vw, 400px)',
+        MIN_WIDTH: '200px',
+        Z_INDEX_MODAL: 50,
+        Z_INDEX_GLOBAL: 99999,
+        DEBUG: false // Set to true for debug logging in development
+    };
+
+    /**
+     * Display a simple toast notification
+     * @param {string} message - Toast message text (auto-escaped for XSS prevention)
+     * @param {'info'|'success'|'error'|'warning'} type - Toast type for styling
+     * @param {number} duration - Duration in milliseconds before auto-dismiss
+     */
+    function showToast(message, type = 'info', duration = TOAST_CONFIG.DEFAULT_DURATION) {
+        if (TOAST_CONFIG.DEBUG) {
+            console.log('[showToast] Called:', {message, type, stack: new Error().stack});
+        }
+
+        let container = getToastContainer();
+        if (!container) return;
+
+        // Create toast element
+        const toast = document.createElement('div');
+        const alertClass = getAlertClass(type);
+
+        toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
+        toast.style.cssText = `
+            max-width: ${TOAST_CONFIG.MAX_WIDTH};
+            width: auto;
+            min-width: ${TOAST_CONFIG.MIN_WIDTH};
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        `;
+
+        // SECURITY: Use textContent instead of innerHTML to prevent XSS
+        const messageSpan = document.createElement('span');
+        messageSpan.className = 'break-words whitespace-normal leading-tight text-sm sm:text-base';
+        messageSpan.textContent = message; // Auto-escapes HTML entities
+        toast.appendChild(messageSpan);
+
+        // Add to container
+        container.appendChild(toast);
+
+        // Auto-dismiss
+        scheduleToastRemoval(toast, container, duration);
+    }
+
+    /**
+     * Display toast with action button (for offline mode prompts, sync notifications)
+     * @param {Object} config - Toast configuration object
+     * @param {string} config.message - Toast message text (auto-escaped for XSS prevention)
+     * @param {'info'|'success'|'error'|'warning'} config.type - Toast type for styling
+     * @param {number} config.duration - Duration in milliseconds before auto-dismiss
+     * @param {Object} config.action - Action button configuration
+     * @param {string} config.action.label - Button label text
+     * @param {Function} config.action.onClick - Click handler function
+     */
+    function showToastWithAction({ message, type = 'info', duration = TOAST_CONFIG.ACTION_DURATION, action }) {
+        let container = getToastContainer();
+        if (!container) return;
+
+        // Create toast element
+        const toast = document.createElement('div');
+        const alertClass = getAlertClass(type);
+
+        toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
+        toast.style.cssText = `
+            max-width: ${TOAST_CONFIG.MAX_WIDTH};
+            width: auto;
+            min-width: ${TOAST_CONFIG.MIN_WIDTH};
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+        `;
+
+        // Create content wrapper
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'flex items-center gap-2 flex-1';
+
+        // Add icon
+        const iconSVG = getAlertIcon(type);
+        if (iconSVG) {
+            contentDiv.appendChild(iconSVG);
+        }
+
+        // SECURITY: Use textContent instead of innerHTML to prevent XSS
+        const messageSpan = document.createElement('span');
+        messageSpan.className = 'break-words whitespace-normal leading-tight text-sm sm:text-base';
+        messageSpan.textContent = message; // Auto-escapes HTML entities
+        contentDiv.appendChild(messageSpan);
+
+        toast.appendChild(contentDiv);
+
+        // Add action button if provided
+        if (action && action.label) {
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'btn btn-sm btn-ghost';
+            actionBtn.textContent = action.label; // Safe text content
+            actionBtn.setAttribute('data-toast-action', '');
+
+            if (action.onClick && typeof action.onClick === 'function') {
+                actionBtn.addEventListener('click', () => {
+                    action.onClick();
+                    toast.remove();
+                });
+            }
+
+            toast.appendChild(actionBtn);
+        }
+
+        // Add to container
+        container.appendChild(toast);
+
+        // Auto-dismiss
+        scheduleToastRemoval(toast, container, duration);
+    }
+
+    // ============================================================================
+    // HELPER FUNCTIONS (Internal)
+    // ============================================================================
+
+    /**
+     * Get or create toast container (modal-aware)
+     * @returns {HTMLElement|null} Toast container element
+     * @private
+     */
+    function getToastContainer() {
+        // Check if there's an open dialog (modal)
+        const openDialog = document.querySelector('dialog[open]');
+        if (openDialog) {
+            // Create or find toast-container inside the modal-box
+            let container = openDialog.querySelector('.dialog-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.className = `dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-${TOAST_CONFIG.Z_INDEX_MODAL} flex flex-col items-center gap-2 pointer-events-none`;
+                const modalBox = openDialog.querySelector('.modal-box');
+                if (modalBox) {
+                    modalBox.insertBefore(container, modalBox.firstChild);
+                } else {
+                    openDialog.prepend(container);
+                }
+            }
+            return container;
+        } else {
+            return document.getElementById('toast-container');
+        }
+    }
+
+    /**
+     * Get DaisyUI alert class for toast type
+     * @param {'info'|'success'|'error'|'warning'} type - Toast type
+     * @returns {string} DaisyUI alert class name
+     * @private
+     */
+    function getAlertClass(type) {
+        const classMap = {
+            'success': 'alert-success',
+            'error': 'alert-error',
+            'warning': 'alert-warning',
+            'info': 'alert-info'
+        };
+        return classMap[type] || 'alert-info';
+    }
+
+    /**
+     * Get alert icon SVG element for toast type
+     * @param {'info'|'success'|'error'|'warning'} type - Toast type
+     * @returns {SVGElement} SVG icon element
+     * @private
+     */
+    function getAlertIcon(type) {
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNS, 'svg');
+        svg.setAttribute('class', 'stroke-current shrink-0 h-6 w-6');
+        svg.setAttribute('fill', 'none');
+        svg.setAttribute('viewBox', '0 0 24 24');
+
+        const path = document.createElementNS(svgNS, 'path');
+        path.setAttribute('stroke-linecap', 'round');
+        path.setAttribute('stroke-linejoin', 'round');
+        path.setAttribute('stroke-width', '2');
+
+        // Icon paths for each type
+        const pathData = {
+            'success': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+            'error': 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+            'warning': 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+            'info': 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+        };
+
+        path.setAttribute('d', pathData[type] || pathData['info']);
+        svg.appendChild(path);
+
+        return svg;
+    }
+
+    /**
+     * Schedule toast removal with fade animation
+     * @param {HTMLElement} toast - Toast element to remove
+     * @param {HTMLElement} container - Parent container element
+     * @param {number} duration - Duration before removal (ms)
+     * @private
+     */
+    function scheduleToastRemoval(toast, container, duration) {
+        setTimeout(() => {
+            toast.style.transition = `opacity ${TOAST_CONFIG.FADE_DURATION}ms, transform ${TOAST_CONFIG.FADE_DURATION}ms`;
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                if (toast.parentNode === container) {
+                    container.removeChild(toast);
+                }
+            }, TOAST_CONFIG.FADE_DURATION);
+        }, duration);
+    }
+</script>

@@ -1,0 +1,40 @@
+{#
+    Push Bell Manager Module
+    Push notification bell button state management in navbar.
+
+    CRITICAL: This module MUST be loaded AFTER toast-manager.html (uses showToast function).
+
+    Features:
+        - Push bell button state updates
+        - Navigation to notification settings page
+
+    Functions:
+        - navigateToNotificationSettings(): Redirect to /notifications
+        - updatePushBellState(): Update push bell UI (reserved for future features)
+
+    Note: Icon state is managed by pushManager.js based on subscription status.
+          This module provides navigation and future preference-based UI updates.
+#}
+{% if user %}
+<script>
+    // ============================================================================
+    // Push Bell Button State Management
+    // ============================================================================
+
+    // Navigate to notification settings
+    function navigateToNotificationSettings() {
+        window.location.href = '/notifications';
+    }
+
+    // Update push bell button state
+    async function updatePushBellState() {
+        try {
+            // Note: Icon state is managed by pushManager.js based on subscription status
+            // This function is reserved for future preference-based UI updates if needed
+            console.debug('[PUSH_BELL] Bell state managed by pushManager');
+        } catch (error) {
+            console.error('[PUSH_BELL] Error:', error);
+        }
+    }
+</script>
+{% endif %}

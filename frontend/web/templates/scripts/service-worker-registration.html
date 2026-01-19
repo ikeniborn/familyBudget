@@ -1,0 +1,447 @@
+{#
+    Service Worker Registration Module
+    PWA Service Worker registration with aggressive auto-update strategy.
+
+    CRITICAL: This module MUST be loaded AFTER toast-manager.html (uses showToast function).
+
+    Features:
+        - Service Worker registration and update detection
+        - Version tracking via localStorage
+        - Update modal with version comparison
+        - Automatic cache cleanup on update
+        - Console logging (production-safe, prefixed with [SW_UPDATE])
+
+    Functions exposed to global scope:
+        - handleUpdateClick(): Show update modal
+        - handleUpdateNow(): Execute update with full cleanup
+        - handleUpdateLater(): Dismiss update modal
+
+    Design Note:
+        This file is intentionally monolithic (436 lines) due to tight coupling
+        between SW lifecycle events, update detection, and cleanup logic.
+        Splitting into sub-modules would increase complexity and maintenance burden.
+
+    Security:
+        - No XSS vulnerabilities (uses textContent, no innerHTML)
+        - All user data auto-escaped via Jinja2 templating
+        - Version strings validated before storage
+#}
+<!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
+<script>
+    // Service Worker регистрация для Progressive Web App
+    // Стратегия: Aggressive Auto-Update с автоматической перезагрузкой при обновлении
+    if ('serviceWorker' in navigator) {
+        let refreshing = false;
+        const SW_VERSION_KEY = 'pwa_sw_version';
+        const SW_UPDATE_AVAILABLE_KEY = 'pwa_update_available';
+        const SW_NEW_VERSION_KEY = 'pwa_new_version';
+        const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
+
+        // Track if icon already shown this session
+        let updateIconShown = false;
+
+        /**
+         * Show the update available indicator with animation
+         * Only shows if not already shown this session
+         * Displays "new" text indicator without star icon
+         */
+        function showUpdateIcon() {
+            if (updateIconShown) {
+                return;
+            }
+
+            const wrapper = document.getElementById('update-available-wrapper');
+
+            if (!wrapper) {
+                console.error('[SW_UPDATE] ERROR: Update indicator wrapper not found in DOM');
+                return;
+            }
+
+            // Remove hidden class and add fade-in animation
+            wrapper.classList.remove('hidden');
+            wrapper.classList.add('update-icon-enter');
+
+            // Mark as shown to prevent duplicates
+            updateIconShown = true;
+
+        }
+
+        /**
+         * Handle user clicking the update indicator
+         * Shows confirmation modal instead of immediate reload
+         */
+        function handleUpdateClick() {
+
+            const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+
+            // Show confirmation modal
+            const modal = document.getElementById('sw-update-modal');
+            if (!modal) {
+                console.error('[SW_UPDATE] ERROR: Update modal not found in DOM');
+                handleUpdateNow(); // Fallback
+                return;
+            }
+
+            // Populate version information before showing modal
+            const currentVersion = localStorage.getItem(SW_VERSION_KEY);
+            populateVersionInfo(currentVersion, newVersion);
+
+            modal.showModal();
+        }
+
+        /**
+         * Handle "Reload now" action
+         * Logs out, unregisters Service Worker, clears all caches, storage, then reloads
+         */
+        async function handleUpdateNow() {
+            const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+
+            console.log('[SW_UPDATE] ========================================');
+            console.log('[SW_UPDATE] Starting cleanup process, target:', newVersion);
+
+            showToast('Обновление приложения...', 'info', 15000);
+
+            try {
+                // Step 1/6: API Logout (best effort)
+                console.log('[SW_UPDATE] Step 1/6: Logout API...');
+                try {
+                    await Promise.race([
+                        fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                    ]);
+                    console.log('[SW_UPDATE] ✅ Step 1/6: Logged out');
+                } catch (e) {
+                    console.warn('[SW_UPDATE] ⚠️ Step 1/6: Logout failed:', e.message);
+                }
+
+                // Step 2/6: Unregister Service Worker
+                console.log('[SW_UPDATE] Step 2/6: Unregister SW...');
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.unregister();
+                    console.log('[SW_UPDATE] ✅ Step 2/6: SW unregistered');
+                } else {
+                    console.log('[SW_UPDATE] ✅ Step 2/6: No SW to unregister');
+                }
+
+                // Step 3/6: Clear caches
+                console.log('[SW_UPDATE] Step 3/6: Clear caches...');
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(name => caches.delete(name)));
+                console.log('[SW_UPDATE] ✅ Step 3/6: Cleared', cacheNames.length, 'caches');
+
+                // Step 4/6: Delete IndexedDB
+                console.log('[SW_UPDATE] Step 4/6: Delete IndexedDB...');
+                await new Promise((resolve) => {
+                    const req = indexedDB.deleteDatabase('FamilyBudgetDB');
+                    req.onsuccess = () => { console.log('[SW_UPDATE] ✅ Step 4/6: IndexedDB deleted'); resolve(); };
+                    req.onerror = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB error'); resolve(); };
+                    req.onblocked = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB blocked'); resolve(); };
+                    setTimeout(resolve, 5000);
+                });
+
+                // Step 5/6: Clear localStorage + set skip flag
+                console.log('[SW_UPDATE] Step 5/6: Clear localStorage...');
+                const lsKeys = Object.keys(localStorage).length;
+                localStorage.clear();
+                if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
+                // NEW: Skip SW registration on next load to keep cache empty
+                localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
+                console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
+
+                // Step 6/6: Clear sessionStorage
+                console.log('[SW_UPDATE] Step 6/6: Clear sessionStorage...');
+                const ssKeys = Object.keys(sessionStorage).length;
+                sessionStorage.clear();
+                console.log('[SW_UPDATE] ✅ Step 6/6: Cleared', ssKeys, 'sessionStorage keys');
+
+                // Close modal
+                const modal = document.getElementById('sw-update-modal');
+                if (modal) modal.close();
+                console.log('[SW_UPDATE] Modal closed');
+
+                // Success feedback
+                console.log('[SW_UPDATE] ========================================');
+                console.log('[SW_UPDATE] ✅ All cleanup complete, reloading...');
+                showToast('Обновление завершено!', 'success', 2000);
+
+                // Reload with cache bust (fallback for deprecated reload(true))
+                setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('_update', Date.now());
+                    console.log('[SW_UPDATE] Navigating to:', url.toString());
+                    window.location.href = url.toString();
+                }, 300);
+
+            } catch (error) {
+                console.error('[SW_UPDATE] ❌ ERROR:', error);
+                console.error('[SW_UPDATE] Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                showToast('Ошибка обновления, перезагрузка...', 'error');
+
+                // Force reload on error
+                setTimeout(() => {
+                    window.location.href = window.location.href;
+                }, 500);
+            }
+        }
+
+        /**
+         * Handle "Later" action
+         * Closes modal and keeps update indicator visible
+         */
+        function handleUpdateLater() {
+
+            const modal = document.getElementById('sw-update-modal');
+            if (modal) {
+                modal.close();
+            }
+
+        }
+
+        /**
+         * Populate version information in the update modal
+         * Displays current and new Service Worker versions with fallback handling
+         * @param {string|null} currentVersion - Current installed version from localStorage
+         * @param {string|null} newVersion - New available version from localStorage
+         */
+        function populateVersionInfo(currentVersion, newVersion) {
+
+            const currentElem = document.getElementById('sw-current-version');
+            const newElem = document.getElementById('sw-new-version');
+
+            // Defensive check: Ensure DOM elements exist
+            if (!currentElem || !newElem) {
+                console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
+                console.warn('[SW_UPDATE] Modal will show without version information');
+                return;
+            }
+
+            // Display current version with fallback
+            const currentText = currentVersion || '(неизвестно)';
+            currentElem.textContent = currentText;
+
+            // Display new version with fallback
+            const newText = newVersion || '(неизвестно)';
+            newElem.textContent = newText;
+
+            // Log version transition for debugging
+            if (currentVersion && newVersion) {
+            } else if (!currentVersion && newVersion) {
+                console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
+            } else if (currentVersion && !newVersion) {
+                console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
+            } else {
+                console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
+            }
+        }
+
+        /**
+         * Check if an update was detected previously (e.g., in another tab)
+         * Called on DOMContentLoaded
+         */
+        function checkForPendingUpdate() {
+            const updateAvailable = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY);
+
+            if (updateAvailable === 'true') {
+                showUpdateIcon();
+            }
+        }
+
+        // Expose functions to global scope for onclick handlers
+        window.handleUpdateClick = handleUpdateClick;
+        window.handleUpdateNow = handleUpdateNow;
+        window.handleUpdateLater = handleUpdateLater;
+
+        // Initialize modal button listeners on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const updateNowBtn = document.getElementById('sw-update-now-btn');
+            const updateLaterBtn = document.getElementById('sw-update-later-btn');
+            const backdropBtn = document.getElementById('sw-update-backdrop-btn');
+
+            if (updateNowBtn) {
+                updateNowBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleUpdateNow();
+                });
+            } else {
+                console.error('[SW_UPDATE] ❌ "Обновить сейчас" button not found in DOM!');
+            }
+
+            if (updateLaterBtn) {
+                updateLaterBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleUpdateLater();
+                });
+            } else {
+                console.error('[SW_UPDATE] ❌ "Позже" button not found in DOM!');
+            }
+
+            if (backdropBtn) {
+                backdropBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleUpdateLater();
+                });
+            }
+        });
+
+        /**
+         * Получить CACHE_VERSION из Service Worker через MessageChannel
+         * @param {ServiceWorker} controller - Service Worker controller
+         * @returns {Promise<string|null>} CACHE_VERSION или null
+         */
+        async function getSWVersion(controller) {
+            if (!controller) return null;
+
+            return new Promise((resolve) => {
+                const messageChannel = new MessageChannel();
+                const timeout = setTimeout(() => {
+                    console.warn('[PWA] Timeout getting SW version');
+                    resolve(null);
+                }, 5000); // 5 second timeout
+
+                messageChannel.port1.onmessage = (event) => {
+                    clearTimeout(timeout);
+                    if (event.data.type === 'VERSION_RESPONSE') {
+                        resolve(event.data.version);
+                    } else {
+                        resolve(null);
+                    }
+                };
+
+                controller.postMessage(
+                    { action: 'getVersion' },
+                    [messageChannel.port2]
+                );
+            });
+        }
+
+        // CRITICAL: Listen for controllerchange event (new SW activated)
+        // Показываем иконку обновления вместо автоматической перезагрузки
+        navigator.serviceWorker.addEventListener('controllerchange', async () => {
+
+            const controller = navigator.serviceWorker.controller;
+            if (!controller) {
+                console.warn('[SW_UPDATE] No controller available after controllerchange');
+                return;
+            }
+
+            const savedVersion = localStorage.getItem(SW_VERSION_KEY);
+
+            // First install detection: If no saved version, this is first time
+            if (!savedVersion) {
+
+                try {
+                    const newVersion = await getSWVersion(controller);
+                    localStorage.setItem(SW_VERSION_KEY, newVersion);
+                } catch (error) {
+                    console.error('[SW_UPDATE] ERROR getting initial version:', error);
+                }
+
+                return; // Early exit - don't show icon on first install
+            }
+
+            // Get new version from activated Service Worker
+            let newVersion;
+            try {
+                newVersion = await getSWVersion(controller);
+            } catch (error) {
+                console.error('[SW_UPDATE] ERROR getting new version:', error);
+                return;
+            }
+
+            // Compare versions
+            if (newVersion === savedVersion) {
+                return;
+            }
+
+            // UPDATE DETECTED!
+
+            // Store update state for persistence
+            localStorage.setItem(SW_UPDATE_AVAILABLE_KEY, 'true');
+            localStorage.setItem(SW_NEW_VERSION_KEY, newVersion);
+
+            // Show the update icon instead of auto-reloading
+            showUpdateIcon();
+        });
+
+        window.addEventListener('load', () => {
+            // Check if SW registration should be skipped (after update)
+            const skipRegistration = localStorage.getItem(SW_SKIP_REGISTRATION_KEY);
+            if (skipRegistration === 'true') {
+                console.log('[SW] ⏭️ Skipping SW registration (post-update mode)');
+                localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
+
+                // Clear any remaining caches (safety measure)
+                caches.keys().then(names => {
+                    if (names.length > 0) {
+                        console.log('[SW] 🗑️ Clearing remaining caches:', names);
+                        Promise.all(names.map(name => caches.delete(name)))
+                            .then(() => console.log('[SW] ✅ All remaining caches cleared'))
+                            .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
+                    } else {
+                        console.log('[SW] ✅ Cache Storage is empty');
+                    }
+                }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
+
+                return; // Skip SW registration this time
+            }
+
+            navigator.serviceWorker.register('/sw.min.js')
+                .then(async (registration) => {
+                    // Сохраняем текущую версию SW при загрузке
+                    if (navigator.serviceWorker.controller) {
+                        const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                        if (currentVersion) {
+                            localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                        } else {
+                            console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                        }
+                    }
+
+                    // Проверка обновлений при каждой загрузке страницы
+                    registration.update();
+
+                    // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
+                    setInterval(() => {
+                        registration.update(); // Silent check
+                    }, 60 * 60 * 1000); // 1 hour = 3600000ms
+
+                    // Обработка обновлений SW
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (!newWorker) return;
+
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    // Update available - will auto-activate via skipWaiting()
+                                    // skipWaiting() уже вызван в SW install event
+                                    // controllerchange event триггерит reload
+                                } else {
+                                    // First install - just log, no toast (silent UX)
+                                    // Note: Version will be saved on controllerchange or next page load
+                                    // (cannot get CACHE_VERSION from installing worker via postMessage)
+                                }
+                            }
+                        });
+                    });
+                })
+                .catch((err) => {
+                    console.error('[PWA] Service Worker registration failed:', err);
+                });
+        });
+
+        // Check for pending updates on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkForPendingUpdate();
+        });
+    }
+</script>

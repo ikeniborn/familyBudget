@@ -1,12 +1,26 @@
 // PostCSS configuration for CSS minification
 // Used by minify.sh via postcss-cli
 //
+// Updated 2026-01-19: Added autoprefixer for vendor prefixes
 // Updated 2025-12-26: Enhanced cssnano configuration
 // Using 'default' preset with aggressive safe optimizations
 // Expected reduction: 50-60% (same as advanced but with available packages)
 
 module.exports = {
   plugins: {
+    // Autoprefixer: Add vendor prefixes for cross-browser compatibility
+    // Targets last 2 versions + iOS Safari 12+ (PWA support)
+    autoprefixer: {
+      overrideBrowserslist: [
+        'last 2 versions',
+        'iOS >= 12',
+        'Safari >= 12',
+        'Chrome >= 80',
+        'Firefox >= 78',
+        'Edge >= 80'
+      ]
+    },
+    // cssnano: Minification (runs after autoprefixer)
     cssnano: {
       preset: ['default', {
         discardComments: {

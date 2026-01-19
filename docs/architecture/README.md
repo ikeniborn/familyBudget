@@ -27,6 +27,67 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2026-01-19: Base Template Modular Decomposition (v7.x)
+- **Change:** Декомпозиция base.html на модульные компоненты
+- **Problem:**
+  - base.html монолитный файл 2884 строк (135 KB)
+  - Сложность поддержки и навигации по коду
+  - Дублирование User dropdown (desktop/mobile)
+  - 50+ вызовов getElementById без кэширования
+  - Inline CSS/JS усложняют кэширование браузером
+- **Solution:**
+  1. **JavaScript модули** (`templates/scripts/`):
+     - toast-manager.html (176 строк) - showToast(), showToastWithAction()
+     - service-worker-registration.html (436 строк) - PWA Service Worker
+     - offline-manager-init.html (220 строк) - Offline режим
+     - push-bell-manager.html (40 строк) - Push notifications
+     - navbar-sync-badge.html (115 строк) - Sync badge
+     - pwa-splash-screen.html (134 строки) - PWA Splash
+  2. **Компоненты** (`templates/components/`):
+     - user_dropdown_menu.html - Единый macro (desktop/mobile)
+     - cookie_consent_banner.html - GDPR consent
+     - push_permission_banner.html - Push permission
+     - sw_update_modal.html - SW update modal
+  3. **Partials** (`templates/partials/`):
+     - navbar_center_menu.html (56 строк) - Desktop navbar
+  4. **CSS модули** (`static/css/`):
+     - loading-dots.css - Loading animation (минифицируется через build)
+     - daisyui-overrides.css секция 10 - Modal & iOS Safari fixes
+  5. **Build Pipeline:**
+     - Добавлен loading-dots.css в scripts/minify-vendor.js
+     - Автоматическая минификация через npm run build:vendor
+- **Critical Loading Order:**
+  1. toast-manager.html (ПЕРВЫМ!)
+  2. service-worker-registration.html (использует showToast)
+  3. offline-manager-init.html + push-bell-manager.html + navbar-sync-badge.html
+  4. pwa-splash-screen.html
+- **What Stays Inline:**
+  - Dark Mode IIFE (FOUC prevention)
+  - handleLogout() (onclick в HTML navbar)
+  - setButtonLoading() (утилита для handleLogout)
+  - updateRealVH() (iOS Safari viewport fix)
+  - PWA Splash Screen CSS (критичен для Fast First Paint)
+- **Files Modified:**
+  - `frontend/web/templates/base.html` (2884 → 1355 строк, сокращение на 53%)
+  - `scripts/minify-vendor.js` (+loading-dots.css в CSS_FILES)
+  - `frontend/web/static/css/daisyui-overrides.css` (+секция 10)
+- **Files Created:**
+  - 6 JavaScript модулей в `templates/scripts/`
+  - 4 компонента в `templates/components/`
+  - 1 partial в `templates/partials/`
+  - 1 CSS модуль в `static/css/`
+  - 1 документация `docs/architecture/frontend/base-template-structure.md`
+- **Impact:**
+  - ✅ Улучшена читаемость base.html (1355 строк vs 2884, сокращение на 53%)
+  - ✅ Устранено дублирование User dropdown (desktop/mobile)
+  - ✅ Модульные компоненты переиспользуемы в других layouts
+  - ✅ CSS модули кэшируются браузером (loading-dots.min.css)
+  - ✅ Performance не ухудшен (критический CSS/JS остается inline)
+  - ✅ Обратная совместимость: 0 изменений в дочерних шаблонах
+  - ✅ Строгий порядок загрузки модулей предотвращает ReferenceError
+  - ✅ Автоматическая сборка vendor файлов при deploy (npm run build:prod)
+  - ✅ Все templates синхронизируются через rsync (scripts/, components/, partials/)
+
 ### 2026-01-18: Deploy Improvements - HTML Templates Checksum & Sync Verification (v7.x)
 - **Change:** Improved deployment reliability for inline CSS/JS changes in HTML templates
 - **Problem:**

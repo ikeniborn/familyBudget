@@ -1,0 +1,181 @@
+{#
+    User Dropdown Menu Macro
+    Unified dropdown for desktop and mobile navbar layouts.
+
+    Usage:
+        {% from "components/user_dropdown_menu.html" import user_dropdown_menu %}
+
+        Desktop variant (dropdown with minimal menu):
+        {{ user_dropdown_menu(variant='desktop', user=user, request=request) }}
+
+        Mobile variant (full navigation menu):
+        {{ user_dropdown_menu(variant='mobile', user=user, request=request) }}
+
+    Parameters:
+        - variant (str): 'desktop' | 'mobile' (required)
+        - user (object): User object with fields: username, first_name, photo_url, is_admin, telegram_id, email, id, two_factor_enabled
+        - request (object): Request object for active link detection
+#}
+
+{% macro user_dropdown_menu(variant='desktop', user=None, request=None) %}
+    {% if variant == 'desktop' %}
+        {# Desktop Dropdown - compact menu with user info #}
+        <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex" data-offline-hidden="true">
+            <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
+                <!-- Avatar -->
+                {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
+                    <div class="avatar">
+                        <div class="w-8 h-8 rounded-full">
+                            <img src="{{ user.photo_url }}"
+                                 alt="{{ user.first_name or user.username }}"
+                                 loading="lazy"
+                                 onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                        </div>
+                    </div>
+                    <!-- Fallback placeholder (hidden by default) -->
+                    <div class="avatar placeholder" style="display:none;">
+                        <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                            <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Placeholder with first letter -->
+                    <div class="avatar placeholder">
+                        <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                            <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                        </div>
+                    </div>
+                {% endif %}
+                <!-- Username (hidden on mobile) -->
+                <span class="hidden sm:inline text-sm font-medium">{{ user.first_name or user.username }}</span>
+                {% if user.is_admin %}
+                    <span class="hidden sm:inline badge badge-warning badge-xs">Admin</span>
+                {% endif %}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+            </label>
+            <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-64 sm:w-72">
+                <li class="menu-title">
+                    <div class="flex items-center justify-between w-full">
+                        <span>{{ user.first_name or user.username }}</span>
+                        {% if user.is_admin %}
+                            <span class="badge badge-warning badge-xs">Admin</span>
+                        {% endif %}
+                    </div>
+                </li>
+                <li>
+                    <div class="flex flex-col gap-1 py-2 cursor-default hover:bg-transparent">
+                        <span class="text-xs opacity-60">{% if user.telegram_id %}Telegram ID{% elif user.email %}Email{% else %}ID{% endif %}</span>
+                        <span class="font-mono text-xs break-all">{{ user.telegram_id or user.email or user.id }}</span>
+                    </div>
+                </li>
+                <div class="divider my-1"></div>
+                <li>
+                    <a href="/security" data-nav-item class="gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        <span class="text-sm">Безопасность</span>
+                        {% if user.two_factor_enabled %}
+                            <span class="badge badge-success badge-xs">2FA</span>
+                        {% endif %}
+                    </a>
+                </li>
+                <div class="divider my-1"></div>
+                <li>
+                    <button onclick="handleLogout()" class="text-error gap-2" aria-label="Выйти из системы">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        <span class="text-sm">Выйти</span>
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+    {% elif variant == 'mobile' %}
+        {# Mobile Menu - full navigation with user info #}
+        <div id="mobile-menu-dropdown" class="dropdown dropdown-end lg:hidden">
+            <button id="mobile-menu-btn" type="button" class="btn btn-ghost btn-circle" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobile-menu-content">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <ul id="mobile-menu-content" class="menu menu-sm z-[60] p-2 shadow-xl bg-base-100 rounded-box overscroll-contain" style="position: fixed; top: 4rem; right: 0.5rem; width: 14rem; max-height: calc(100dvh - 5rem); overflow-y: auto; overflow-x: hidden; display: none;">
+                {% if user %}
+                    <!-- User info with avatar -->
+                    <li class="menu-title">
+                        <div class="flex items-center gap-2 px-2 py-2">
+                            {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                            {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
+                                <div class="avatar">
+                                    <div class="w-10 h-10 rounded-full">
+                                        <img src="{{ user.photo_url }}"
+                                             alt="{{ user.first_name or user.username }}"
+                                             loading="lazy"
+                                             onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                                    </div>
+                                </div>
+                                <!-- Fallback placeholder -->
+                                <div class="avatar placeholder" style="display:none;">
+                                    <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                        <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="avatar placeholder">
+                                    <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                        <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            <div class="flex flex-col">
+                                <span class="font-medium">{{ user.first_name or user.username }}</span>
+                                {% if user.is_admin %}
+                                    <span class="badge badge-warning badge-xs">Admin</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    <div class="divider my-1"></div>
+                {% endif %}
+                {% if user %}
+                <li><a href="/" data-nav-item>🏠 Главная</a></li>
+                <li data-offline-hidden="true"><a href="/analytics" data-nav-item>📊 Аналитика</a></li>
+                <li data-offline-hidden="true"><a href="/facts" data-nav-item>💸 Факт</a></li>
+                <li data-offline-hidden="true"><a href="/plan" data-nav-item>📋 План</a></li>
+                <li><a href="/lists" data-nav-item>🛒 Списки</a></li>
+                <li data-offline-hidden="true"><a href="/security" data-nav-item>🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
+
+                <!-- Секция "Прочее" -->
+                <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
+                <li data-offline-hidden="true"><a href="/notifications" data-nav-item>🔔 Уведомления</a></li>
+                <li class="hidden md:block" data-offline-hidden="true"><a href="/import" data-nav-item>📥 Импорт</a></li>
+                <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
+                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles" data-nav-item>📁 Категории</a></li>
+                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers" data-nav-item>💼 Места затрат</a></li>
+                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers" data-nav-item>🏢 Счета</a></li>
+                <li data-offline-hidden="true"><a href="/admin/stores" data-nav-item>🏪 Магазины</a></li>
+                <li data-offline-hidden="true"><a href="/admin/product-groups" data-nav-item>📦 Группы товаров</a></li>
+                {% endif %}
+
+                {% if user and user.is_admin %}
+                    <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users" data-nav-item>👥 Пользователи</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/monitoring" data-nav-item>🔍 Мониторинг</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs" data-nav-item>📋 Системные логи</a></li>
+                {% endif %}
+                {% if user %}
+                    <div class="divider my-1"></div>
+                    <li>
+                        <button onclick="handleLogout()" class="text-error">
+                            🚪 Выйти
+                        </button>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endif %}
+{% endmacro %}
