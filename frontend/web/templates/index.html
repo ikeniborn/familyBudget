@@ -1341,7 +1341,10 @@ async function deleteFactFromDashboard(factId, isRecurring) {
             }
 
             // Reload recent transactions
-            htmx.trigger('#recent-transactions', 'loadRecent');
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
             showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
         } else {
             // Delete single fact
@@ -1356,7 +1359,10 @@ async function deleteFactFromDashboard(factId, isRecurring) {
             }
 
             // Reload recent transactions
-            htmx.trigger('#recent-transactions', 'loadRecent');
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
             showToast('Запись успешно удалена', 'success');
         }
     } catch (error) {
