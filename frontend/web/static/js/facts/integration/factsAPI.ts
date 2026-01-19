@@ -7,7 +7,7 @@
  * Extracted from: frontend/web/templates/facts.html (lines 1304-2161)
  */
 
-import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
+import type { BudgetFact, OfflineFactResponse, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 
@@ -114,7 +114,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
 
         if (result._offline) {
             // Return result with offline flag (logged elsewhere)
-            return { ...result, _offline: true } as any;
+            return { ...result, _offline: true } as OfflineFactResponse;
         }
 
         return result;

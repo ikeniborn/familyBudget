@@ -34,6 +34,14 @@ export interface BudgetFact {
 }
 
 /**
+ * Offline Fact Response
+ * Extends BudgetFact with offline flag for offline mode support
+ */
+export interface OfflineFactResponse extends BudgetFact {
+    _offline: true;
+}
+
+/**
  * Article (Category) model
  */
 export interface Article {

@@ -177,7 +177,7 @@ export function readFiltersFromUI(): void {
     updateFilters({
         user_id: userId ? parseInt(userId) : null,
         article_id: articleId ? parseInt(articleId) : null,
-        article_type: articleType as any,
+        article_type: articleType as 'expense' | 'income' | 'debit' | 'credit' | null,
         date_from,
         date_to,
         financial_center_id: financialCenterId ? parseInt(financialCenterId) : null,
