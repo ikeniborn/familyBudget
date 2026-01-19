@@ -7,33 +7,13 @@
  * Extracted from: frontend/web/templates/facts.html (lines 1304-2161)
  */
 
-import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse } from '../types/models';
+import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 
 // ============================================================================
 // Types
 // ============================================================================
-
-interface CreateFactData {
-    record_type: 'fact';
-    fact_type: 'expense' | 'income';
-    amount: number;
-    article_id: number;
-    financial_center_id: number;
-    cost_center_id: number | null;
-    fact_date: string; // YYYY-MM-DD
-    description: string | null;
-}
-
-interface UpdateFactData {
-    amount: number;
-    fact_date: string; // YYYY-MM-DD
-    article_id: number;
-    description: string | null;
-    financial_center_id?: number;
-    cost_center_id?: number;
-}
 
 interface CreateTransferData {
     from_financial_center_id: number;

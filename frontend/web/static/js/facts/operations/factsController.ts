@@ -12,6 +12,7 @@ import { buildFilterQuery } from './filterOperations';
 import { updatePaginationUI } from './paginationOperations';
 import { renderFactsTable } from '../rendering/factsTable';
 import { updateStats } from '../rendering/statsRenderer';
+import type { CreateFactData, UpdateFactData } from '../types/models';
 
 // ============================================================================
 // Main Load Function
@@ -45,13 +46,13 @@ export async function loadFacts(): Promise<void> {
         updatePaginationUI();
 
         // Sync filter UI if AdminFactsCommon available
-        if ((window as any).AdminFactsCommon) {
+        if (window.AdminFactsCommon) {
             const filters = buildFilterQuery();
-            const filterObj: any = {};
+            const filterObj: Record<string, string> = {};
             filters.forEach((value, key) => {
                 filterObj[key] = value;
             });
-            (window as any).AdminFactsCommon.syncFiltersUI(filterObj);
+            window.AdminFactsCommon.syncFiltersUI(filterObj);
         }
     } catch (error) {
         console.error('[FactsController] Error loading facts:', error);
@@ -156,8 +157,8 @@ export async function updateFact(event: Event): Promise<void> {
 
     const factId = parseInt(formData.get('fact_id') as string);
 
-    if (!factId) {
-        showToast('ID факта не найден', 'error');
+    if (isNaN(factId) || factId <= 0) {
+        showToast('Некорректный ID факта', 'error');
         return;
     }
 
@@ -168,19 +169,32 @@ export async function updateFact(event: Event): Promise<void> {
 
         const BudgetShared = getBudgetShared();
 
+        // Parse and validate form data
+        const articleId = parseInt(formData.get('article_id') as string);
+        const financialCenterId = parseInt(formData.get('financial_center_id') as string);
+        const amount = parseFloat(formData.get('amount') as string);
+
+        if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
+            showToast('Некорректные данные формы', 'error');
+            return;
+        }
+
         // Prepare update data
-        const updateData: any = {
+        const updateData: UpdateFactData = {
             fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
-            article_id: parseInt(formData.get('article_id') as string),
-            financial_center_id: parseInt(formData.get('financial_center_id') as string),
-            amount: parseFloat(formData.get('amount') as string),
+            article_id: articleId,
+            financial_center_id: financialCenterId,
+            amount: amount,
             description: formData.get('description') as string || null
         };
 
         // Cost center (optional)
         const costCenterId = formData.get('cost_center_id') as string;
         if (costCenterId) {
-            updateData.cost_center_id = parseInt(costCenterId);
+            const parsedCostCenterId = parseInt(costCenterId);
+            if (!isNaN(parsedCostCenterId)) {
+                updateData.cost_center_id = parsedCostCenterId;
+            }
         }
 
         await updateFn(factId, updateData);
@@ -215,21 +229,40 @@ export async function createFact(event: Event): Promise<void> {
 
         const BudgetShared = getBudgetShared();
 
+        // Parse and validate form data
+        const articleId = parseInt(formData.get('article_id') as string);
+        const financialCenterId = parseInt(formData.get('financial_center_id') as string);
+        const amount = parseFloat(formData.get('amount') as string);
+        const factType = formData.get('fact_type') as string;
+
+        if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
+            showToast('Некорректные данные формы', 'error');
+            return;
+        }
+
+        if (!factType || !['expense', 'income', 'debit', 'credit'].includes(factType)) {
+            showToast('Некорректный тип факта', 'error');
+            return;
+        }
+
         // Prepare create data
-        const createData: any = {
+        const createData: CreateFactData = {
             record_type: 'fact',
-            fact_type: formData.get('fact_type') as string,
+            fact_type: factType as 'expense' | 'income' | 'debit' | 'credit',
             fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
-            article_id: parseInt(formData.get('article_id') as string),
-            financial_center_id: parseInt(formData.get('financial_center_id') as string),
-            amount: parseFloat(formData.get('amount') as string),
+            article_id: articleId,
+            financial_center_id: financialCenterId,
+            amount: amount,
             description: formData.get('description') as string || null
         };
 
         // Cost center (optional)
         const costCenterId = formData.get('cost_center_id') as string;
         if (costCenterId) {
-            createData.cost_center_id = parseInt(costCenterId);
+            const parsedCostCenterId = parseInt(costCenterId);
+            if (!isNaN(parsedCostCenterId)) {
+                createData.cost_center_id = parsedCostCenterId;
+            }
         }
 
         await createFn(createData);
@@ -237,8 +270,8 @@ export async function createFact(event: Event): Promise<void> {
         showToast('Факт успешно создан', 'success');
 
         // Close modal (if AdminFactsCommon available)
-        if ((window as any).AdminFactsCommon?.closeCreateModal) {
-            (window as any).AdminFactsCommon.closeCreateModal();
+        if (window.AdminFactsCommon?.closeCreateModal) {
+            window.AdminFactsCommon.closeCreateModal();
         }
 
         // Reload facts
@@ -272,13 +305,13 @@ export async function showEditModal(factId: number): Promise<void> {
         }
 
         // Delegate to AdminFactsCommon if available
-        if ((window as any).AdminFactsCommon?.populateEditModal) {
-            (window as any).AdminFactsCommon.populateEditModal(fact);
+        if (window.AdminFactsCommon?.populateEditModal) {
+            window.AdminFactsCommon.populateEditModal(fact);
 
             // Show modal
-            const modal = document.getElementById('edit-fact-modal');
-            if (modal && (modal as any).showModal) {
-                (modal as any).showModal();
+            const modal = document.getElementById('edit-fact-modal') as HTMLDialogElement | null;
+            if (modal?.showModal) {
+                modal.showModal();
             }
         } else {
             showToast('Модальное окно не доступно', 'warning');
@@ -293,9 +326,9 @@ export async function showEditModal(factId: number): Promise<void> {
  * Close edit modal
  */
 export function closeEditModal(): void {
-    const modal = document.getElementById('edit-fact-modal');
-    if (modal && (modal as any).close) {
-        (modal as any).close();
+    const modal = document.getElementById('edit-fact-modal') as HTMLDialogElement | null;
+    if (modal?.close) {
+        modal.close();
     }
 }
 
@@ -313,8 +346,8 @@ export async function deleteFromEditModal(): Promise<void> {
     const formData = new FormData(form);
     const factId = parseInt(formData.get('fact_id') as string);
 
-    if (!factId) {
-        showToast('ID факта не найден', 'error');
+    if (isNaN(factId) || factId <= 0) {
+        showToast('Некорректный ID факта', 'error');
         return;
     }
 

@@ -87,6 +87,36 @@ export interface FactHint {
 }
 
 // ============================================================================
+// API Data Transfer Objects
+// ============================================================================
+
+/**
+ * Data for creating a new fact
+ */
+export interface CreateFactData {
+    record_type: 'fact';
+    fact_type: 'expense' | 'income' | 'debit' | 'credit';
+    fact_date: string; // ISO date (YYYY-MM-DD)
+    article_id: number;
+    financial_center_id: number;
+    amount: number;
+    description: string | null;
+    cost_center_id?: number;
+}
+
+/**
+ * Data for updating an existing fact
+ */
+export interface UpdateFactData {
+    fact_date: string; // ISO date (YYYY-MM-DD)
+    article_id: number;
+    financial_center_id: number;
+    amount: number;
+    description: string | null;
+    cost_center_id?: number;
+}
+
+// ============================================================================
 // State Models
 // ============================================================================
 

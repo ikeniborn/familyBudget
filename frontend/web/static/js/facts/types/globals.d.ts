@@ -7,6 +7,7 @@
  */
 
 import type { BudgetShared, CategoryTreeSelectConstructor, CalendarWidgetConstructor, WebSocketManager, HTMX } from './dependencies';
+import type { BudgetFact } from './models';
 
 declare global {
     interface Window {
@@ -18,6 +19,13 @@ declare global {
         CalendarWidget: CalendarWidgetConstructor;
         budgetWSManager: WebSocketManager | undefined;
         htmx: HTMX;
+
+        // AdminFactsCommon (admin-facts-common.js)
+        AdminFactsCommon?: {
+            syncFiltersUI: (filters: Record<string, string>) => void;
+            populateEditModal: (fact: BudgetFact) => void;
+            closeCreateModal: () => void;
+        };
 
         // Facts Manager functions (exported to global scope for onclick handlers)
         applyFilters: () => void;
