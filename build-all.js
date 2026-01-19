@@ -16,10 +16,11 @@ const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().s
 // All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
   // === Network Detection Module (ZERO dependencies - must be first!) ===
+  // Output to frontend/web/static/js/ because nginx serves /static/ from there
   {
     name: 'network',
     input: 'frontend/shared/network/index.ts',
-    output: 'frontend/shared/static/js/network.min.js',
+    output: 'frontend/web/static/js/network.min.js',
     globalName: 'NetworkModule'
   },
 
