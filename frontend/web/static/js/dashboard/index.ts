@@ -1,0 +1,255 @@
+/**
+ * Dashboard Module Entry Point
+ *
+ * Main entry point for the dashboard module bundle.
+ * Exports all public APIs and initializes the module.
+ *
+ * This module manages:
+ * - Add Transaction/Plan modals
+ * - Edit Fact/Plan modal
+ * - Pending records management (IndexedDB sync queue)
+ * - Mobile UI (collapsible sections)
+ * - WebSocket event handlers for real-time updates
+ */
+
+// ============================================================================
+// Core Exports
+// ============================================================================
+
+export {
+  getState,
+  updateState,
+  resetState,
+  isCacheValid,
+  invalidateCache,
+  setCacheData,
+  setTransactionCategoryTreeSelect,
+  setPlanCategoryTreeSelect,
+  setEditCategoryTreeSelect,
+  incrementPendingCallCount,
+  setPendingLock,
+  getPendingLock,
+} from './core/DashboardState';
+
+export type { DashboardState } from './core/DashboardState';
+
+export {
+  initializeStateFromGlobals,
+  syncStateToGlobals,
+  defineReactiveProperties,
+  isInitialized,
+  setInitialized,
+} from './core/stateManager';
+
+// ============================================================================
+// Type Exports
+// ============================================================================
+
+export type {
+  Category,
+  Article,
+  FinancialCenter,
+  CostCenter,
+  CacheEntry,
+  DropdownCache,
+  PendingRecordEntity,
+  PendingRecordStatus,
+  RecordType,
+  FactType,
+  PendingRecordData,
+  PendingRecord,
+  PendingRecordsRenderResult,
+  UnsyncedItemsResult,
+  EditRecordType,
+  EditFactData,
+  EditPlanData,
+  TransactionFormData,
+  PlanFormData,
+  TransferFormData,
+  FrequencyType,
+  DurationType,
+  PlanMode,
+  RecurringSettings,
+  PlanHintsData,
+  FactHintsData,
+  SyncResults,
+} from './types/dashboard.d';
+
+// ============================================================================
+// Feature Exports
+// ============================================================================
+
+// Pending Records (Phase 2)
+export {
+  // State
+  isLoadInProgress,
+  acquireLoadLock,
+  releaseLoadLock,
+  waitForExistingLock,
+  getNextCallId,
+  getCurrentCallCount,
+  // Renderer
+  formatShortDate,
+  formatAmount,
+  getStatusBadge,
+  getStatusBadgeMobile,
+  getRecordTypeLabel,
+  getRecordTypeLabelXs,
+  generateHTMLSync,
+  generateHTMLAsync,
+  shouldUseWorker,
+  getWorkerThreshold,
+  // Sync operations
+  loadPendingRecords,
+  retryFailedItems,
+  handleSyncResults,
+  deletePendingRecord,
+  deleteFailedRecords,
+  updatePendingCount,
+  syncPendingRecords,
+  notifyPendingRecords,
+  // Transfer split
+  splitTransferToFacts,
+  handleTransferEditClick,
+} from './features/pendingRecords';
+
+// Add Transaction (Phase 3)
+export {
+  loadTransactionCategories,
+  loadFinancialCenters,
+  loadCostCenters,
+  filterCostCenterDropdown,
+  loadFactHints,
+  saveTransaction,
+  saveTransactionOffline,
+  setTransactionDate,
+  setupTransactionTypeButtons,
+} from './features/addTransaction';
+
+// Add Plan (Phase 3)
+export {
+  // Plan form operations
+  loadPlanCategories,
+  savePlan,
+  savePlanOffline,
+  openAddPlanModal,
+  // Plan hints
+  loadPlanHints,
+  // Period buttons
+  setupPlanPeriodButtons,
+  setupPlanTypeButtons,
+  updatePlanPeriodButtons,
+  // Reminder settings
+  toggleReminderSettings,
+  togglePlanMode,
+  prefillReminderDateTime,
+  initReminderCalendarWidget,
+  updateReminderDatetime,
+  resetReminderFields,
+  getCurrentTimeRounded,
+  // Recurring settings
+  initRecurringFields,
+  resetRecurringOnlyFields,
+  resetRecurringSettings,
+  updateFrequencyFields,
+  updateDurationFields,
+  updateRecurringPreview,
+  collectRecurringSettings,
+} from './features/addPlan';
+
+// Edit Modal (Phase 4)
+export {
+  // Dropdown cache
+  remindersMap,
+  loadCategoriesForEdit,
+  loadEditFinancialCenters,
+  loadEditCostCenters,
+  loadRemindersForEdit,
+  populateFinancialCentersDropdown,
+  populateCostCentersDropdown,
+  populateOfflineDropdowns,
+  // Reminder helpers
+  toggleEditReminderSettings,
+  initEditReminderCalendarWidget,
+  updateEditReminderDatetime,
+  populateEditReminderFields,
+  resetEditReminderFields,
+  getReminderStatusBadge,
+  // Form population
+  getCurrentEditingRecordType,
+  getCurrentEditingPendingId,
+  setCurrentEditingState,
+  setEditModalMode,
+  updateEditCategoryTypeBadge,
+  setupEditCategoryTypeButtons,
+  initEditCategoryTreeSelect,
+  openEditPendingRecord,
+  openEditModal,
+  closeEditModal,
+  // Save operations
+  updateFact,
+  // Delete operations
+  showRecurringDeleteDialog,
+  handleRecurringDeleteChoice,
+  deleteFromEditModal,
+  deleteFactFromDashboard,
+} from './features/editModal';
+
+// UI (Phase 5)
+export {
+  toggleQuickStats,
+  toggleAccountBalances,
+  applyQuickStatsState,
+  applyAccountBalancesState,
+  initCollapsibleSections,
+  cleanupCollapsibleSections,
+} from './ui';
+
+// Integration (Phase 5)
+export {
+  refreshDashboard,
+  refreshRecentTransactions,
+  refreshQuickStats,
+  refreshAccountBalances,
+  refreshDashboardWidgets,
+  registerWSEventHandlers,
+} from './integration';
+
+// ============================================================================
+// Window Exports (for backward compatibility)
+// ============================================================================
+
+export { dashboardExports, initWindowExports } from './adapters/windowExports';
+
+// ============================================================================
+// Module Initialization
+// ============================================================================
+
+import { initWindowExports, dashboardExports } from './adapters/windowExports';
+import { setInitialized } from './core/stateManager';
+
+
+
+declare const debugLog: (...args: any[]) => void;
+/**
+ * Initialize dashboard module
+ * Called automatically when bundle loads
+ */
+function initModule(): void {
+  // Initialize window exports first
+  initWindowExports();
+
+  // Mark as initialized
+  setInitialized(true);
+
+  debugLog('[Dashboard] Module loaded');
+}
+
+// Auto-initialize on load
+initModule();
+
+// ============================================================================
+// Default Export
+// ============================================================================
+
+export default dashboardExports;

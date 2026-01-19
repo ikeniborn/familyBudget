@@ -237,6 +237,12 @@ const builds = [
     output: 'frontend/web/static/js/facts.min.js',
     globalName: 'FactsManager'
   },
+  {
+    name: 'dashboard',
+    input: 'frontend/web/static/js/dashboard/index.ts',
+    output: 'frontend/web/static/js/dashboard.min.js',
+    globalName: 'Dashboard'
+  },
 
   // === Service Worker ===
   {

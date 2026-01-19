@@ -45,6 +45,13 @@ declare global {
         today(): string;
         formatForAPI(date: Date | string): string;
         formatForDisplay(date: string): string;
+        isValidDisplayFormat(date: string): boolean;
+      };
+      Reminders?: {
+        createReminder(factId: string, reminderDatetime: string): Promise<any>;
+        updateReminder(factId: string, reminderDatetime: string): Promise<any>;
+        deleteReminder(factId: string): Promise<boolean>;
+        getRemindersForFacts(factIds: number[]): Promise<any[]>;
       };
     };
   }
