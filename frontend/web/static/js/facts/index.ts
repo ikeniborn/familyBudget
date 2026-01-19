@@ -3,7 +3,7 @@
  *
  * Barrel export and public API for facts management module.
  *
- * Phase 2: HTMX Integration (Server-Side Rendering)
+ * Phase 4: Cleanup & Optimization (Event Delegation)
  * Bundle: facts.min.js (IIFE format for global scope)
  */
 
@@ -43,6 +43,12 @@ export * from './integration/analyticsAPI';
 export * from './integration/wsEventHandlers';
 
 // ============================================================================
+// Event Delegation Setup (Phase 4)
+// ============================================================================
+
+export * from './adapters/eventDelegation';
+
+// ============================================================================
 // Window Exports Setup
 // ============================================================================
 
@@ -55,6 +61,7 @@ export { setupWindowExports };
 
 import { initializeState } from './core/FactsState';
 import { registerWSHandlers } from './integration/wsEventHandlers';
+import { setupEventDelegation } from './adapters/eventDelegation';
 
 /**
  * Initialize Facts Manager
@@ -64,11 +71,14 @@ export function initialize(): void {
     // Initialize state
     initializeState();
 
-    // Setup window exports for onclick compatibility
+    // Setup window exports for onclick compatibility (HTMX partials)
     setupWindowExports();
 
     // Phase 3: Register WebSocket handlers for real-time updates
     registerWSHandlers();
+
+    // Phase 4: Setup event delegation for data-action pattern
+    setupEventDelegation();
 
     // Initialization complete (silent)
 }
