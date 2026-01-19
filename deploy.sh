@@ -905,7 +905,7 @@ validate_build_artifacts() {
     local -a critical_files=(
         "$DEPLOY_DIR/sw.min.js"
         "$DEPLOY_DIR/sw.min.js.gz"
-        "$DEPLOY_DIR/frontend/web/static/css/vendor/tailwind-daisyui.min.css"
+        "$DEPLOY_DIR/frontend/web/static/css/tailwind-daisyui.min.css"
         "$DEPLOY_DIR/frontend/web/static/css/custom.min.css"
         "$DEPLOY_DIR/frontend/web/static/css/choices-tailwind.min.css"
         "$DEPLOY_DIR/frontend/web/static/css/daisyui-overrides.min.css"
