@@ -37,6 +37,12 @@ export * from './integration/dropdownAPI';
 export * from './integration/analyticsAPI';
 
 // ============================================================================
+// WebSocket Integration Exports (Phase 3)
+// ============================================================================
+
+export * from './integration/wsEventHandlers';
+
+// ============================================================================
 // Window Exports Setup
 // ============================================================================
 
@@ -48,6 +54,7 @@ export { setupWindowExports };
 // ============================================================================
 
 import { initializeState } from './core/FactsState';
+import { registerWSHandlers } from './integration/wsEventHandlers';
 
 /**
  * Initialize Facts Manager
@@ -60,7 +67,9 @@ export function initialize(): void {
     // Setup window exports for onclick compatibility
     setupWindowExports();
 
-    // Phase 2: HTMX handles rendering, TypeScript handles business logic
+    // Phase 3: Register WebSocket handlers for real-time updates
+    registerWSHandlers();
+
     // Initialization complete (silent)
 }
 
