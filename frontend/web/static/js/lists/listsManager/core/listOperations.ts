@@ -10,6 +10,9 @@
 
 import { getState, updateState } from './ListsState';
 import { isOnline } from './stateManager';
+import { renderCurrentView } from '../rendering/tableBuilder';
+import { updateFABButtons } from '../features/searchFilter';
+import { updateFABVisibility } from '../rendering/listRenderer';
 
 // ============================================================================
 // Type Definitions
@@ -39,6 +42,42 @@ const SELECTORS = {
   tableRow: (id: number): string => `#items-table-body tr[data-item-id="${id}"]`,
   tableItemName: '.table-item-name'
 } as const;
+
+// ============================================================================
+// UI Helper Functions
+// ============================================================================
+
+/**
+ * Debounce timer for UI refresh operations
+ */
+let refreshUITimer: number | null = null;
+
+/**
+ * Refresh UI after state changes
+ * Centralizes UI update logic to avoid code duplication
+ */
+function refreshUI(): void {
+  renderCurrentView();
+  updateFABButtons();
+  updateFABVisibility();
+}
+
+/**
+ * Debounced UI refresh for bulk operations
+ * Prevents multiple re-renders during rapid state changes
+ *
+ * @param delay - Debounce delay in milliseconds (default: 50ms)
+ */
+function refreshUIDebounced(delay: number = 50): void {
+  if (refreshUITimer !== null) {
+    clearTimeout(refreshUITimer);
+  }
+
+  refreshUITimer = window.setTimeout(() => {
+    refreshUI();
+    refreshUITimer = null;
+  }, delay);
+}
 
 // ============================================================================
 // Create Operations
@@ -298,6 +337,10 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
 
   updateState({ currentItems, selectedItemIds });
 
+  // Re-render UI after optimistic deletion
+  refreshUI();
+  debugLog('[ListsManager] UI re-rendered after item deletion:', itemId);
+
   try {
     if (state.offlineShopping) {
       await state.offlineShopping.deleteItem(itemId);
@@ -323,6 +366,10 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
     if (isOnline() && !(error as Error).message?.includes('offline')) {
       currentItems.splice(itemIndex, 0, deletedItem);
       updateState({ currentItems });
+
+      // Re-render after revert
+      refreshUI();
+
       showToast('Ошибка удаления товара', 'error');
     }
   }
@@ -350,6 +397,10 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
   itemIds.forEach(id => selectedItemIds.delete(id));
   updateState({ currentItems: remainingItems, selectedItemIds });
 
+  // Re-render UI after optimistic deletion (debounced for bulk operations)
+  refreshUIDebounced(50);
+  debugLog('[ListsManager] UI re-rendered after bulk deletion:', itemIds.length, 'items');
+
   try {
     // Delete each item
     const promises = itemIds.map(id => {
@@ -375,6 +426,10 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
     // Revert on error
     if (isOnline()) {
       updateState({ currentItems: currentItems });
+
+      // Re-render after revert (debounced for bulk operations)
+      refreshUIDebounced(50);
+
       showToast('Ошибка удаления товаров', 'error');
     }
   }
