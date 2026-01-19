@@ -13,7 +13,7 @@ bash .claude/skills/deploy-test/templates/deploy-test.sh
 **Что происходит:**
 1. Проверка SSH подключения к `budget-test`
 2. Git pull в ветке `test` в `~/familyBudget`
-3. Запуск `deploy.sh --sync-mode update --cleanup-mode smart --patch`
+3. Запуск `deploy.sh --sync-mode update --cleanup-mode smart --version patch`
 4. Анализ логов деплоя (`/opt/budget/logs/deploy.log`)
 5. Анализ логов контейнеров (backend, postgres, redis)
 6. Проверка статуса контейнеров
@@ -84,7 +84,7 @@ bash .claude/skills/deploy-test/templates/deploy-test.sh --dry-run
 **Вывод:**
 ```
 [INFO] [DRY-RUN] Would execute: ssh budget-test 'cd ~/familyBudget && git fetch --all && git checkout test && git pull origin test'
-[INFO] [DRY-RUN] Would execute: cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch
+[INFO] [DRY-RUN] Would execute: cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch
 [INFO] [DRY-RUN] Would analyze: cat /opt/budget/logs/deploy.log | tail -100
 [INFO] [DRY-RUN] Would check logs for: backend
 [INFO] [DRY-RUN] Would check logs for: postgres

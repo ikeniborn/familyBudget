@@ -296,7 +296,7 @@ ssh budget-test "echo 'Connection OK'"
 ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && git pull origin test"
 
 # Шаг 3: Deploy
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
 
 # Шаг 4: Анализ логов деплоя
 ssh budget-test "tail -100 /opt/budget/logs/deploy.log"
@@ -329,7 +329,7 @@ Claude: [читает и анализирует сохраненные логи]
 ## FAQ
 
 **Q: Как часто можно запускать deploy-test?**
-A: Сколько угодно раз. Skill безопасен и использует `--patch` режим.
+A: Сколько угодно раз. Skill безопасен и использует `--version patch` режим.
 
 **Q: Что если я хочу деплой без анализа логов?**
 A: Используйте обычный deployment skill или выполните команды вручную.
@@ -338,7 +338,7 @@ A: Используйте обычный deployment skill или выполни�
 A: Да, укажите параметры явно:
 ```
 "Задеплой на тестовый сервер с полной пересборкой"
-→ Claude использует --build вместо --patch
+→ Claude использует --force-build
 ```
 
 **Q: Что если deploy-test не срабатывает автоматически?**
