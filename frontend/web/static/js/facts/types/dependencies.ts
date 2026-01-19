@@ -26,6 +26,12 @@ export interface DateFormatter {
 
     /**
      * Parse display format (DD.MM.YYYY) to ISO (YYYY-MM-DD)
+     * Alias for parseFromDisplay
+     */
+    formatForAPI(displayDate: string): string;
+
+    /**
+     * Parse display format (DD.MM.YYYY) to ISO (YYYY-MM-DD)
      */
     parseFromDisplay(displayDate: string): string;
 }
