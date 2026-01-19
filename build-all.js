@@ -231,6 +231,12 @@ const builds = [
     output: 'frontend/web/static/js/transfers.min.js',
     globalName: 'Transfers'
   },
+  {
+    name: 'facts',
+    input: 'frontend/web/static/js/facts/index.ts',
+    output: 'frontend/web/static/js/facts.min.js',
+    globalName: 'FactsManager'
+  },
 
   // === Service Worker ===
   {
