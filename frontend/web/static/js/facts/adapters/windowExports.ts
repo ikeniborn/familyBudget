@@ -10,6 +10,20 @@
 import { applyFiltersAction, resetFiltersAction, collapseFilters } from '../operations/filterOperations';
 import { previousPage as prevPage, nextPage as nxtPage } from '../operations/paginationOperations';
 import { toggleSelectAll as toggleAll, updateBatchDeleteButtonUI } from '../operations/selectionOperations';
+import {
+    deleteFact as deleteFactAction,
+    batchDelete as batchDeleteAction,
+    showEditModal as showEditModalAction,
+    closeEditModal as closeEditModalAction,
+    updateFact as updateFactAction,
+    deleteFromEditModal as deleteFromEditModalAction,
+    createFact as createFactAction,
+    exportFilteredFacts as exportFilteredFactsAction,
+    applyFiltersAndReload,
+    resetFiltersAndReload,
+    goToPreviousPage,
+    goToNextPage
+} from '../operations/factsController';
 
 // Placeholder functions - will be implemented in full integration
 declare global {
@@ -62,29 +76,18 @@ export function setupWindowExports(): void {
     window.toggleSelectAll = toggleSelectAll;
     window.updateBatchDeleteButton = updateBatchDeleteButton;
 
-    // Placeholders for full implementation
-    // These will be replaced with actual implementations in full integration
-    window.batchDelete = async () => {
-        console.warn('[FactsManager] batchDelete not yet implemented');
-    };
-    window.showEditModal = async (factId: number) => {
-        console.warn('[FactsManager] showEditModal not yet implemented:', factId);
-    };
-    window.closeEditModal = () => {
-        console.warn('[FactsManager] closeEditModal not yet implemented');
-    };
-    window.updateFact = async (_event: Event) => {
-        console.warn('[FactsManager] updateFact not yet implemented');
-    };
-    window.deleteFact = async (factId: number) => {
-        console.warn('[FactsManager] deleteFact not yet implemented:', factId);
-    };
-    window.deleteFromEditModal = async () => {
-        console.warn('[FactsManager] deleteFromEditModal not yet implemented');
-    };
-    window.exportFilteredFacts = (format: 'csv') => {
-        console.warn('[FactsManager] exportFilteredFacts not yet implemented:', format);
-    };
+    // CRUD operations
+    window.batchDelete = batchDelete;
+    window.showEditModal = showEditModal;
+    window.closeEditModal = closeEditModal;
+    window.updateFact = updateFact;
+    window.deleteFact = deleteFact;
+    window.deleteFromEditModal = deleteFromEditModal;
+    window.exportFilteredFacts = exportFilteredFacts;
+    window.createFact = createFact;
+
+    // Placeholders for functions not yet implemented
+    // These will be replaced with actual implementations later
     window.openCreateModal = () => {
         console.warn('[FactsManager] openCreateModal not yet implemented');
     };
@@ -99,9 +102,6 @@ export function setupWindowExports(): void {
     };
     window.saveTransfer = (_button: HTMLButtonElement) => {
         console.warn('[FactsManager] saveTransfer not yet implemented');
-    };
-    window.createFact = async (_event: Event) => {
-        console.warn('[FactsManager] createFact not yet implemented');
     };
     window.createTransfer = async (_event: Event) => {
         console.warn('[FactsManager] createTransfer not yet implemented');
@@ -126,8 +126,8 @@ export function setupWindowExports(): void {
  */
 function applyFilters(): void {
     applyFiltersAction();
-    // Trigger reload (will be implemented in full integration)
-    console.warn('[FactsManager] applyFilters: reload not yet implemented');
+    // Trigger reload
+    applyFiltersAndReload();
 }
 
 /**
@@ -135,8 +135,8 @@ function applyFilters(): void {
  */
 function resetFilters(): void {
     resetFiltersAction();
-    // Trigger reload (will be implemented in full integration)
-    console.warn('[FactsManager] resetFilters: reload not yet implemented');
+    // Trigger reload
+    resetFiltersAndReload();
 }
 
 /**
@@ -144,8 +144,8 @@ function resetFilters(): void {
  */
 function previousPage(): void {
     if (prevPage()) {
-        // Trigger reload (will be implemented in full integration)
-        console.warn('[FactsManager] previousPage: reload not yet implemented');
+        // Trigger reload
+        goToPreviousPage();
     }
 }
 
@@ -154,8 +154,8 @@ function previousPage(): void {
  */
 function nextPage(): void {
     if (nxtPage()) {
-        // Trigger reload (will be implemented in full integration)
-        console.warn('[FactsManager] nextPage: reload not yet implemented');
+        // Trigger reload
+        goToNextPage();
     }
 }
 
@@ -171,4 +171,64 @@ function toggleSelectAll(checkbox: HTMLInputElement): void {
  */
 function updateBatchDeleteButton(): void {
     updateBatchDeleteButtonUI();
+}
+
+// ============================================================================
+// CRUD Operations Wrappers
+// ============================================================================
+
+/**
+ * Wrapper for batchDelete
+ */
+async function batchDelete(): Promise<void> {
+    await batchDeleteAction();
+}
+
+/**
+ * Wrapper for showEditModal
+ */
+async function showEditModal(factId: number): Promise<void> {
+    await showEditModalAction(factId);
+}
+
+/**
+ * Wrapper for closeEditModal
+ */
+function closeEditModal(): void {
+    closeEditModalAction();
+}
+
+/**
+ * Wrapper for updateFact
+ */
+async function updateFact(event: Event): Promise<void> {
+    await updateFactAction(event);
+}
+
+/**
+ * Wrapper for deleteFact
+ */
+async function deleteFact(factId: number): Promise<void> {
+    await deleteFactAction(factId);
+}
+
+/**
+ * Wrapper for deleteFromEditModal
+ */
+async function deleteFromEditModal(): Promise<void> {
+    await deleteFromEditModalAction();
+}
+
+/**
+ * Wrapper for exportFilteredFacts
+ */
+function exportFilteredFacts(format: 'csv'): void {
+    exportFilteredFactsAction(format);
+}
+
+/**
+ * Wrapper for createFact
+ */
+async function createFact(event: Event): Promise<void> {
+    await createFactAction(event);
 }

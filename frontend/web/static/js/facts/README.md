@@ -2,8 +2,8 @@
 
 TypeScript ES Modules для управления фактами (транзакциями).
 
-**Status:** Phase 1 Complete (Partial Integration)
-**Bundle:** `facts.min.js` (14 KB, gzip: 2.89 KB)
+**Status:** Phase 1 Continuation Complete (Full CRUD Integration)
+**Bundle:** `facts.min.js` (40.93 KB, gzip: 9.04 KB)
 **Global:** `window.FactsManager`
 
 ## Architecture
@@ -60,22 +60,32 @@ Available globally for HTML onclick handlers:
 
 ```javascript
 // Filters
-window.applyFilters()
-window.resetFilters()
-window.collapseFilters()
+window.applyFilters()          // Apply filters and reload
+window.resetFilters()          // Reset filters and reload
+window.collapseFilters()       // Toggle filter panel
 
 // Pagination
-window.previousPage()
-window.nextPage()
+window.previousPage()          // Go to previous page
+window.nextPage()              // Go to next page
 
 // Selection
-window.toggleSelectAll(checkbox)
-window.updateBatchDeleteButton()
+window.toggleSelectAll(checkbox)       // Toggle all checkboxes
+window.updateBatchDeleteButton()       // Update batch delete button state
 
-// Placeholders (TODO in full integration)
-window.batchDelete()
-window.showEditModal(factId)
-window.deleteFact(factId)
+// CRUD Operations (✅ Implemented)
+window.batchDelete()                   // Delete selected facts
+window.showEditModal(factId)           // Show edit modal
+window.closeEditModal()                // Close edit modal
+window.deleteFact(factId)              // Delete single fact
+window.deleteFromEditModal()           // Delete from edit modal
+window.updateFact(event)               // Update fact from form
+window.createFact(event)               // Create fact from form
+window.exportFilteredFacts(format)     // Export to CSV
+
+// Placeholders (TODO)
+window.openCreateModal()
+window.loadFactHints(category)
+window.filterEditCostCenters(fcId)
 // ... and more
 ```
 
@@ -125,6 +135,47 @@ updateFilters({ article_type: 'expense' });
 const selectedIds = getSelectedIds();
 ```
 
+### CRUD Operations (Phase 1 Continuation)
+
+```typescript
+import {
+    loadFacts,
+    deleteFact,
+    updateFact,
+    createFact,
+    batchDelete,
+    showEditModal,
+    closeEditModal,
+    exportFilteredFacts
+} from './operations/factsController';
+
+// Load facts with current filters and pagination
+await loadFacts();
+
+// Delete single fact (with confirmation)
+await deleteFact(123);
+
+// Update fact from form submission
+const form = document.getElementById('edit-fact-form');
+await updateFact(new Event('submit', { target: form }));
+
+// Create fact from form submission
+const createForm = document.getElementById('create-fact-form');
+await createFact(new Event('submit', { target: createForm }));
+
+// Batch delete selected facts (with confirmation)
+await batchDelete();
+
+// Show edit modal
+await showEditModal(123);
+
+// Close edit modal
+closeEditModal();
+
+// Export filtered facts to CSV
+exportFilteredFacts('csv');
+```
+
 ## Build
 
 ```bash
@@ -151,14 +202,16 @@ Output: `frontend/web/static/js/facts.min.js`
 - [x] Build configuration
 - [x] Basic integration in facts.html
 
-### 🔄 Phase 1 Continuation (TODO)
+### ✅ Phase 1 Continuation Complete (2026-01-19)
 
-- [ ] Full CRUD integration (replace inline JavaScript)
-- [ ] Modal operations (showEditModal, closeEditModal)
-- [ ] Transfer operations (createTransfer)
-- [ ] Cost center filtering (filterEditCostCenters)
-- [ ] Fact hints integration (loadFactHints with UI update)
-- [ ] Export functionality (exportFilteredFacts)
+- [x] Full CRUD integration (delete, update, create)
+- [x] Modal operations (showEditModal, closeEditModal, deleteFromEditModal)
+- [x] Batch delete with confirmation and UI feedback
+- [x] Export functionality (exportFilteredFacts CSV)
+- [x] Main controller (factsController.ts) with full orchestration
+- [ ] Transfer operations (createTransfer) - delegated to transfers.min.js
+- [ ] Cost center filtering (filterEditCostCenters) - TODO
+- [ ] Fact hints integration (loadFactHints with UI update) - TODO
 
 ### 📋 Phase 2: HTMX Partials (Future)
 
@@ -195,7 +248,8 @@ facts/
 ├── operations/
 │   ├── filterOperations.ts (290 lines)    # Filter logic
 │   ├── paginationOperations.ts (140 lines)# Pagination
-│   └── selectionOperations.ts (175 lines) # Selection
+│   ├── selectionOperations.ts (175 lines) # Selection
+│   └── factsController.ts (340 lines)     # Main controller (CRUD, modals)
 ├── integration/
 │   ├── factsAPI.ts (260 lines)      # CRUD API
 │   ├── dropdownAPI.ts (230 lines)   # Dropdowns API
@@ -208,7 +262,7 @@ facts/
 └── index.ts (85 lines)              # Barrel export
 ```
 
-**Total:** 15 files, 2,791 lines
+**Total:** 16 files, 3,282 lines
 
 ## Dependencies
 
@@ -283,7 +337,21 @@ npm run lint
 
 ## Changelog
 
-### Phase 1 (2026-01-19)
+### Phase 1 Continuation (2026-01-19)
+
+- **CRUD Operations:** Full implementation (create, update, delete)
+- **Modal Operations:** showEditModal, closeEditModal, deleteFromEditModal
+- **Batch Operations:** batchDelete with confirmation dialog
+- **Export:** exportFilteredFacts CSV functionality
+- **Main Controller:** factsController.ts with full orchestration
+- **Window Exports:** Updated with real implementations (no more placeholders for CRUD)
+- **Bundle:** 40.93 KB minified, 9.04 KB gzipped (15 modules)
+
+**Commits:** 7
+**Files:** 16
+**Lines:** 3,282
+
+### Phase 1 Initial (2026-01-19)
 
 - Initial TypeScript module structure
 - State management (filters, pagination, selection)
