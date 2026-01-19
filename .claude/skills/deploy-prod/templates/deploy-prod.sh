@@ -17,6 +17,7 @@ set -euo pipefail
 # Конфигурация
 SSH_HOST="budget-prod"
 REMOTE_DIR="~/familyBudget"
+REMOTE_DEPLOY_DIR="/opt/budget"  # Директория деплоя на сервере
 GIT_BRANCH="prod"
 DEPLOY_SCRIPT_BASE="sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
 LOG_DIR="$(pwd)/logs"
@@ -213,7 +214,7 @@ deploy() {
 analyze_deploy_logs() {
     log INFO "Анализ логов деплоя на сервере..."
 
-    local cmd="cat /opt/budget/logs/deploy.log | tail -100"
+    local cmd="cat ${REMOTE_DEPLOY_DIR}/logs/deploy.log | tail -100"
 
     if [[ "${DRY_RUN}" == "true" ]]; then
         log INFO "[DRY-RUN] Would analyze: ${cmd}"
@@ -247,7 +248,7 @@ analyze_container_logs() {
     for service in "${services[@]}"; do
         log INFO "Проверка логов сервиса: ${service}"
 
-        local cmd="cd /opt/budget && docker compose logs ${service} --tail=50"
+        local cmd="cd ${REMOTE_DEPLOY_DIR} && docker compose logs ${service} --tail=50"
 
         if [[ "${DRY_RUN}" == "true" ]]; then
             log INFO "[DRY-RUN] Would check logs for: ${service}"
@@ -281,7 +282,7 @@ analyze_container_logs() {
 check_container_status() {
     log INFO "Проверка статуса контейнеров..."
 
-    local cmd="cd /opt/budget && docker compose ps --format json"
+    local cmd="cd ${REMOTE_DEPLOY_DIR} && docker compose ps --format json"
 
     if [[ "${DRY_RUN}" == "true" ]]; then
         log INFO "[DRY-RUN] Would check container status"
@@ -352,7 +353,7 @@ fix_issues() {
     case ${issue_type} in
         container_unhealthy)
             log INFO "Перезапуск нездоровых контейнеров..."
-            ssh_exec "cd /opt/budget && docker compose restart" "Перезапуск контейнеров"
+            ssh_exec "cd ${REMOTE_DEPLOY_DIR} && docker compose restart" "Перезапуск контейнеров"
             ;;
         deploy_failed)
             log INFO "Повторная попытка деплоя..."
