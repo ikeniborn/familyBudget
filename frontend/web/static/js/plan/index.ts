@@ -3,8 +3,8 @@
  * Main module for plan.html page initialization and public API
  *
  * @module plan
- * @version 3.0.0 (Phase 3: Week 3 - Partial CRUD Integration)
- * @description Entry point for plan page modularization (Phase 3: Week 3 progress)
+ * @version 3.1.0 (Phase 3: Week 4 - Recurring + Reminder Helpers)
+ * @description Entry point for plan page modularization (Phase 3: Week 4 partial progress)
  */
 
 // Import all plan modules
@@ -55,7 +55,7 @@ interface PlanAppGlobal {
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
 
-  // CRUD Actions (exposed for onclick handlers - Phase 3: Week 3)
+  // CRUD Actions (exposed for onclick handlers - Phase 3: Week 3-4)
   closeEditModal: () => void;
   deleteFact: (factId: number) => Promise<void>;
   deleteFromEditModal: () => Promise<void>;
@@ -63,6 +63,17 @@ interface PlanAppGlobal {
   openAddPlanModal: () => Promise<void>; // TODO: Week 4
   createPlan: (event: Event) => Promise<void>; // TODO: Week 4
   updateFact: (event: Event) => Promise<void>; // TODO: Week 4
+
+  // Recurring Plan Helpers (exposed for onclick handlers - Phase 3: Week 4)
+  recurringDeleteResolve: (choice: 'single' | 'all' | null) => void;
+  updateFrequencyFields: (modalId: string) => void;
+  updateYearlyFrequencyValue: (modalId: string) => void;
+  updateDurationFields: (modalId: string) => void;
+  updateRecurringPreview: (modalId: string) => void;
+
+  // Reminder Helpers (exposed for onclick handlers - Phase 3: Week 4)
+  updateReminderDatetime: (modalId: string) => void;
+  updateEditReminderDatetime: () => void;
 }
 
 declare global {
@@ -396,14 +407,25 @@ window.PlanApp = {
   syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
   syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters,
 
-  // CRUD Actions (for onclick handlers - Phase 3: Week 3)
+  // CRUD Actions (for onclick handlers - Phase 3: Week 3-4)
   closeEditModal: PlanCRUD.closeEditModal,
   deleteFact: PlanCRUD.deleteFact,
   deleteFromEditModal: PlanCRUD.deleteFromEditModal,
   showEditModal: PlanCRUD.showEditModal, // TODO: Week 4
   openAddPlanModal: PlanCRUD.openAddPlanModal, // TODO: Week 4
   createPlan: PlanCRUD.createPlan, // TODO: Week 4
-  updateFact: PlanCRUD.updateFact // TODO: Week 4
+  updateFact: PlanCRUD.updateFact, // TODO: Week 4
+
+  // Recurring Plan Helpers (for onclick handlers - Phase 3: Week 4)
+  recurringDeleteResolve: PlanCRUD.recurringDeleteResolve,
+  updateFrequencyFields: PlanCRUD.updateFrequencyFields,
+  updateYearlyFrequencyValue: PlanCRUD.updateYearlyFrequencyValue,
+  updateDurationFields: PlanCRUD.updateDurationFields,
+  updateRecurringPreview: PlanCRUD.updateRecurringPreview,
+
+  // Reminder Helpers (for onclick handlers - Phase 3: Week 4)
+  updateReminderDatetime: PlanCRUD.updateReminderDatetime,
+  updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 3 partial)');
+console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 partial)');
