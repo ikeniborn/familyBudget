@@ -1,7 +1,7 @@
 ---
 name: deploy-test
 description: Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением после ошибок
-version: 2.0.0
+version: 2.0.1
 author: Family Budget Team
 tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling]
 dependencies: [monitoring]
@@ -9,7 +9,7 @@ context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v2.0.0
+# Deploy Test Automation Skill v2.0.1
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
 - ✅ Автоматическим обнаружением и классификацией ошибок
@@ -17,6 +17,7 @@ user-invocable: true
 - ✅ Автоматическим commit/push исправлений в ветку test
 - ✅ Циклом повторных попыток с exponential backoff
 - ✅ Детальным мониторингом и summary отчетами
+- ✅ Timeout защитой для SSH команд (v2.0.1+)
 
 ## Когда использовать этот скил
 
@@ -659,3 +660,27 @@ Claude:
 - **monitoring** - мониторинг сервисов
 - **testing** - тестирование перед деплоем
 - **deploy-prod** - деплой на production сервер
+
+## Changelog
+
+### v2.0.1 (2026-01-20)
+**Bug Fixes:**
+- Add timeout protection for SSH commands to prevent hanging
+- `analyze_container_logs()`: 60s timeout for docker logs (prevents SIGKILL on large logs)
+- `analyze_deploy_logs()`: 30s timeout for deploy log reading
+- `check_container_status()`: 30s timeout for container status check
+- `check_running_processes()`: 20s timeout for process listing
+- Add SSH connection timeout (10s) for all remote commands
+- Non-critical timeouts continue execution instead of failing deployment
+
+**Impact:**
+- Fixes exit code 1/137 (SIGKILL) when postgres logs are too large
+- Improves reliability of post-deployment analysis
+- Prevents memory exhaustion during log retrieval
+
+### v2.0.0 (2026-01-19)
+**Major Features:**
+- Automatic error recovery with local code fixes
+- Auto-commit and push to test branch
+- Retry loop with exponential backoff
+- Detailed monitoring and summary reports

@@ -2,7 +2,7 @@
 #
 # deploy-test.sh
 # Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением
-# Версия: 2.0.0
+# Версия: 2.0.1
 #
 # Использование:
 #   ./deploy-test.sh [OPTIONS]
@@ -276,7 +276,20 @@ analyze_deploy_logs() {
         return 0
     fi
 
-    local deploy_log=$(ssh "${SSH_HOST}" "${cmd}" 2>&1)
+    # Execute with timeout (30s) and connection timeout (10s)
+    local deploy_log=""
+    local ssh_exit_code=0
+
+    deploy_log=$(timeout 30 ssh -o ConnectTimeout=10 "${SSH_HOST}" "${cmd}" 2>&1) || ssh_exit_code=$?
+
+    # Check for timeout or SSH errors
+    if [[ ${ssh_exit_code} -eq 124 ]]; then
+        log WARNING "Timeout при получении логов деплоя (превышено 30 секунд)"
+        return 0  # Non-critical, continue
+    elif [[ ${ssh_exit_code} -ne 0 ]]; then
+        log WARNING "Ошибка SSH при получении логов деплоя (exit code: ${ssh_exit_code})"
+        return 0  # Non-critical, continue
+    fi
 
     echo "${deploy_log}" > "${LOG_DIR}/server_deploy_${TIMESTAMP}.log"
 
@@ -310,8 +323,25 @@ analyze_container_logs() {
             continue
         fi
 
-        local service_log=$(ssh "${SSH_HOST}" "${cmd}" 2>&1)
+        # Execute with timeout (60s) and connection timeout (10s)
+        local service_log=""
+        local ssh_exit_code=0
 
+        service_log=$(timeout 60 ssh -o ConnectTimeout=10 "${SSH_HOST}" "${cmd}" 2>&1) || ssh_exit_code=$?
+
+        # Check for timeout (exit code 124) or SSH errors
+        if [[ ${ssh_exit_code} -eq 124 ]]; then
+            log WARNING "Timeout при получении логов ${service} (превышено 60 секунд)"
+            echo "TIMEOUT: SSH command exceeded 60 seconds" > "${LOG_DIR}/container_${service}_${TIMESTAMP}.log"
+            continue
+        elif [[ ${ssh_exit_code} -ne 0 ]]; then
+            log WARNING "Ошибка SSH при получении логов ${service} (exit code: ${ssh_exit_code})"
+            echo "SSH ERROR: Exit code ${ssh_exit_code}" > "${LOG_DIR}/container_${service}_${TIMESTAMP}.log"
+            echo "${service_log}" >> "${LOG_DIR}/container_${service}_${TIMESTAMP}.log"
+            continue
+        fi
+
+        # Save logs to file
         echo "${service_log}" > "${LOG_DIR}/container_${service}_${TIMESTAMP}.log"
 
         # Проверка на ошибки
@@ -344,7 +374,20 @@ check_container_status() {
         return 0
     fi
 
-    local container_status=$(ssh "${SSH_HOST}" "${cmd}" 2>&1)
+    # Execute with timeout (30s) and connection timeout (10s)
+    local container_status=""
+    local ssh_exit_code=0
+
+    container_status=$(timeout 30 ssh -o ConnectTimeout=10 "${SSH_HOST}" "${cmd}" 2>&1) || ssh_exit_code=$?
+
+    # Check for timeout or SSH errors
+    if [[ ${ssh_exit_code} -eq 124 ]]; then
+        log WARNING "Timeout при проверке статуса контейнеров (превышено 30 секунд)"
+        return 0  # Non-critical, continue
+    elif [[ ${ssh_exit_code} -ne 0 ]]; then
+        log WARNING "Ошибка SSH при проверке статуса контейнеров (exit code: ${ssh_exit_code})"
+        return 0  # Non-critical, continue
+    fi
 
     echo "${container_status}" > "${LOG_DIR}/container_status_${TIMESTAMP}.json"
 
@@ -372,7 +415,21 @@ check_running_processes() {
         return 0
     fi
 
-    local processes=$(ssh "${SSH_HOST}" "${cmd}" 2>&1)
+    # Execute with timeout (20s) and connection timeout (10s)
+    local processes=""
+    local ssh_exit_code=0
+
+    processes=$(timeout 20 ssh -o ConnectTimeout=10 "${SSH_HOST}" "${cmd}" 2>&1) || ssh_exit_code=$?
+
+    # Check for timeout or SSH errors
+    if [[ ${ssh_exit_code} -eq 124 ]]; then
+        log WARNING "Timeout при проверке процессов (превышено 20 секунд)"
+        return 0  # Non-critical, continue
+    elif [[ ${ssh_exit_code} -ne 0 && ${ssh_exit_code} -ne 1 ]]; then
+        # Exit code 1 is normal (grep found nothing)
+        log WARNING "Ошибка SSH при проверке процессов (exit code: ${ssh_exit_code})"
+        return 0  # Non-critical, continue
+    fi
 
     if [[ -n "${processes}" ]]; then
         log WARNING "Обнаружены запущенные процессы деплоя:"
