@@ -72,6 +72,7 @@ import {
     setCachedCostCenters,
     setAllCategories
 } from './core/stateManager';
+import { factsLogger as logger } from './utilities/logger';
 
 /**
  * Initialize Facts Manager
@@ -112,7 +113,7 @@ async function initializeUI(): Promise<void> {
         await loadFacts();
 
     } catch (error) {
-        console.error('[FactsManager] Initialization error:', error);
+        logger.error(' Initialization error:', error);
     }
 }
 
@@ -122,13 +123,13 @@ async function initializeUI(): Promise<void> {
 function initDateRangeCalendar(): void {
     const CalendarWidget = (window as any).CalendarWidget;
     if (!CalendarWidget) {
-        console.warn('[FactsManager] CalendarWidget not available');
+        logger.warn(' CalendarWidget not available');
         return;
     }
 
     const BudgetShared = (window as any).BudgetShared;
     if (!BudgetShared?.DateFormatter) {
-        console.warn('[FactsManager] BudgetShared.DateFormatter not available');
+        logger.warn(' BudgetShared.DateFormatter not available');
         return;
     }
 
@@ -145,24 +146,33 @@ function initDateRangeCalendar(): void {
     triggerBtn.id = 'date-range-calendar-btn';
     triggerContainer.appendChild(triggerBtn);
 
+    // Get input elements (required by CalendarWidget API)
+    const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement;
+    const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement;
+
+    if (!startInputElement || !endInputElement) {
+        logger.warn(' Date inputs not found, skipping CalendarWidget initialization');
+        return;
+    }
+
     try {
         new CalendarWidget({
-            triggerId: 'date-range-calendar-btn',
             mode: 'range',
-            startInputId: 'filter-date-from',
-            endInputId: 'filter-date-to',
-            position: 'bottom-end',
-            onRangeSelected: (startDate: string, endDate: string) => {
-                // Dates are already in DD.MM.YYYY format from CalendarWidget
-                const dateFromInput = document.getElementById('filter-date-from') as HTMLInputElement;
-                const dateToInput = document.getElementById('filter-date-to') as HTMLInputElement;
-
-                if (dateFromInput) dateFromInput.value = startDate;
-                if (dateToInput) dateToInput.value = endDate;
+            startInputElement: startInputElement,
+            endInputElement: endInputElement,
+            triggerContainer: '#date-range-calendar-trigger',
+            onSelect: (dateFrom: string, dateTo: string) => {
+                logger.log(' Date range selected:', dateFrom, '-', dateTo);
+                // CalendarWidget already updates input values
+                // Trigger filter reload
+                import('./operations/filterOperations').then(({ applyFiltersAction }) => {
+                    applyFiltersAction();
+                });
             }
         });
+        logger.log(' CalendarWidget initialized successfully');
     } catch (error) {
-        console.error('[FactsManager] Error initializing CalendarWidget:', error);
+        logger.error(' Error initializing CalendarWidget:', error);
     }
 }
 
@@ -193,7 +203,7 @@ async function loadAndPopulateDropdowns(): Promise<void> {
         populateCreateModalDropdowns(financialCenters, costCenters);
 
     } catch (error) {
-        console.error('[FactsManager] Error loading dropdowns:', error);
+        logger.error(' Error loading dropdowns:', error);
     }
 }
 

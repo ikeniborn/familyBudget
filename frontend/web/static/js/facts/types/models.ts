@@ -42,6 +42,23 @@ export interface OfflineFactResponse extends BudgetFact {
 }
 
 /**
+ * Fact Row for Table Rendering
+ * API response may use different field names (fact_sum, fact_comment)
+ * This type handles both BudgetFact and API response variations
+ */
+export interface FactRow {
+    id: number;
+    fact_date: string;
+    article_name: string;
+    financial_center_name: string;
+    cost_center_name: string | null;
+    fact_sum?: number; // API field (alternative to amount)
+    amount?: number; // BudgetFact field
+    fact_comment?: string | null; // API field (alternative to description)
+    description?: string | null; // BudgetFact field
+}
+
+/**
  * Article (Category) model
  */
 export interface Article {

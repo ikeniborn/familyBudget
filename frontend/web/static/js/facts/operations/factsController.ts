@@ -3,60 +3,15 @@
  *
  * Coordinates all facts operations (load, CRUD, UI updates).
  *
- * Phase 2: HTMX Integration - Server-Side Rendering
+ * Post-TypeScript Migration: Client-side rendering with XSS protection
  */
 
 import { loadFactsWithCount } from '../integration/factsAPI';
-import { setTotalFacts, getCurrentPage, getPageSize, getTotalFacts, setCurrentPage } from '../core/stateManager';
+import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
-import type { CreateFactData, UpdateFactData } from '../types/models';
-
-// Declare htmx global (available from window.htmx)
-declare const htmx: typeof window.htmx;
-
-// ============================================================================
-// HTMX Utilities
-// ============================================================================
-
-/**
- * Trigger HTMX reload for all partials
- * Uses htmx.ajax() to reload table, stats, and pagination with current filters
- * @param total - Total facts count (optional, uses cached value if not provided)
- */
-function triggerHTMXReload(total?: number): void {
-    const filters = buildFilterQuery();
-    const queryString = filters.toString();
-    const page = getCurrentPage();
-    const pageSize = getPageSize();
-    const totalCount = total !== undefined ? total : getTotalFacts();
-
-    // Reload facts table
-    const tableUrl = `/api/v1/facts/table?${queryString}`;
-    if (typeof htmx !== 'undefined') {
-        htmx.ajax('GET', tableUrl, {
-            target: '#facts-table-container',
-            swap: 'innerHTML'
-        });
-    }
-
-    // Reload stats
-    const statsUrl = `/api/v1/facts/stats?total=${totalCount}&page=${page}&page_size=${pageSize}`;
-    if (typeof htmx !== 'undefined') {
-        htmx.ajax('GET', statsUrl, {
-            target: '#facts-stats',
-            swap: 'innerHTML'
-        });
-    }
-
-    // Reload pagination
-    const paginationUrl = `/api/v1/facts/pagination?total=${totalCount}&page=${page}&page_size=${pageSize}`;
-    if (typeof htmx !== 'undefined') {
-        htmx.ajax('GET', paginationUrl, {
-            target: '#facts-pagination',
-            swap: 'innerHTML'
-        });
-    }
-}
+import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
+import { escapeHtml, sanitizeErrorMessage } from '../utilities/htmlSanitizer';
+import { factsControllerLogger as logger } from '../utilities/logger';
 
 // ============================================================================
 // Main Load Function
@@ -64,24 +19,51 @@ function triggerHTMXReload(total?: number): void {
 
 /**
  * Load facts with current filters and pagination
- * Phase 2: Hybrid approach - API for total count, HTMX for rendering
+ * Post-TypeScript Migration: Client-side rendering (removed HTMX partials)
  */
 export async function loadFacts(): Promise<void> {
     try {
-        // Get total count from API (without loading facts data)
-        const { total } = await loadFactsWithCount();
+        logger.log('Loading facts...');
+
+        // Get facts data from API
+        const { facts, total } = await loadFactsWithCount();
+
+        logger.log(`Loaded ${facts.length} facts (total: ${total})`);
 
         // Update state
         setTotalFacts(total);
 
-        // Trigger HTMX reload with updated total
-        triggerHTMXReload(total);
+        const currentPage = getCurrentPage();
+        const pageSize = getPageSize();
+
+        // Calculate page range
+        const pageStart = currentPage * pageSize + 1;
+        const pageEnd = Math.min(pageStart + facts.length - 1, total);
+
+        // Render UI components
+        updateStats(total, pageStart, pageEnd);
+        renderFactsTable(facts);
+        updatePagination(currentPage, total, pageSize);
+
+        logger.log('Facts loaded and rendered successfully');
     } catch (error) {
-        console.error('[FactsController] Error loading facts:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        logger.error('Error loading facts:', error);
+
+        // Sanitize error message to prevent XSS
+        const safeErrorMessage = sanitizeErrorMessage(error);
+
         const container = document.getElementById('facts-table-container');
         if (container) {
-            container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+            // Create error element safely using DOM methods
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-error';
+
+            const errorSpan = document.createElement('span');
+            errorSpan.textContent = `❌ Ошибка загрузки: ${safeErrorMessage}`;
+
+            errorDiv.appendChild(errorSpan);
+            container.innerHTML = '';
+            container.appendChild(errorDiv);
         }
     }
 }
@@ -165,7 +147,7 @@ export async function deleteFact(factId: number): Promise<void> {
         // Reload facts
         await loadFacts();
     } catch (error) {
-        console.error('[FactsController] Error deleting fact:', error);
+        logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка удаления: ${errorMessage}`, 'error');
     }
@@ -233,7 +215,7 @@ export async function updateFact(event: Event): Promise<void> {
         // Reload facts
         await loadFacts();
     } catch (error) {
-        console.error('[FactsController] Error updating fact:', error);
+        logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка обновления: ${errorMessage}`, 'error');
     }
@@ -303,7 +285,7 @@ export async function createFact(event: Event): Promise<void> {
         // Reload facts
         await loadFacts();
     } catch (error) {
-        console.error('[FactsController] Error creating fact:', error);
+        logger.error(' Error creating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка создания: ${errorMessage}`, 'error');
     }
@@ -340,7 +322,7 @@ export async function showEditModal(factId: number): Promise<void> {
             modal.showModal();
         }
     } catch (error) {
-        console.error('[FactsController] Error showing edit modal:', error);
+        logger.error(' Error showing edit modal:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка: ${errorMessage}`, 'error');
     }
@@ -485,7 +467,7 @@ export async function batchDelete(): Promise<void> {
         // Reload facts
         await loadFacts();
     } catch (error) {
-        console.error('[FactsController] Error batch deleting:', error);
+        logger.error(' Error batch deleting:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка массового удаления: ${errorMessage}`, 'error');
     }
@@ -516,7 +498,7 @@ export function exportFilteredFacts(format: 'csv'): void {
 
         showToast('Экспорт начался', 'info');
     } catch (error) {
-        console.error('[FactsController] Error exporting:', error);
+        logger.error(' Error exporting:', error);
         showToast('Ошибка экспорта', 'error');
     }
 }
@@ -545,4 +527,152 @@ export async function showConfirmDialog(message: string, title?: string): Promis
         // Fallback to native confirm
         return confirm(message);
     }
+}
+
+// ============================================================================
+// Client-Side Rendering Functions (Post-TypeScript Migration)
+// ============================================================================
+
+/**
+ * Update stats section with total and page info
+ */
+export function updateStats(totalFacts: number, pageStart: number, pageEnd: number): void {
+    const statTotal = document.getElementById('stat-total');
+    const statPageInfo = document.getElementById('stat-page-info');
+
+    if (statTotal) {
+        statTotal.textContent = String(totalFacts);
+    }
+
+    if (statPageInfo) {
+        statPageInfo.textContent = totalFacts === 0
+            ? '0-0 из 0'
+            : `${pageStart}-${pageEnd} из ${totalFacts}`;
+    }
+}
+
+/**
+ * Render facts table from data
+ */
+export function renderFactsTable(facts: FactRow[]): void {
+    const container = document.getElementById('facts-table-container');
+    if (!container) {
+        logger.warn('facts-table-container not found');
+        return;
+    }
+
+    if (facts.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8">
+                <p class="text-base-content/70">Нет фактов для отображения</p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
+                        <th>Дата</th>
+                        <th>Категория</th>
+                        <th>Сумма</th>
+                        <th>Счет</th>
+                        <th>МЗ</th>
+                        <th>Комментарий</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    facts.forEach(fact => {
+        html += renderFactRow(fact);
+    });
+
+    html += `</tbody></table></div>`;
+    container.innerHTML = html;
+}
+
+/**
+ * Render single fact row with XSS protection
+ */
+export function renderFactRow(fact: FactRow): string {
+    const BudgetShared = (window as any).BudgetShared;
+
+    // Format date safely (DateFormatter output is trusted)
+    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(fact.fact_date) || fact.fact_date;
+
+    // Format amount (numeric values are safe)
+    const amount = fact.fact_sum ?? fact.amount ?? 0;
+    const amountFormatted = Number(amount).toFixed(2);
+
+    // Escape all user-generated content to prevent XSS
+    const articleName = escapeHtml(truncateText(fact.article_name ?? '', 30));
+    const financialCenterName = escapeHtml(truncateText(fact.financial_center_name ?? '', 20));
+    const costCenterName = fact.cost_center_name
+        ? escapeHtml(truncateText(fact.cost_center_name, 20))
+        : '—';
+
+    const commentText = fact.fact_comment ?? fact.description ?? null;
+    const comment = commentText
+        ? escapeHtml(truncateText(commentText, 40))
+        : '—';
+
+    return `
+        <tr>
+            <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
+            <td>${escapeHtml(dateFormatted)}</td>
+            <td>${articleName}</td>
+            <td class="font-medium">${amountFormatted}</td>
+            <td>${financialCenterName}</td>
+            <td>${costCenterName}</td>
+            <td>${comment}</td>
+            <td>
+                <div class="flex gap-2">
+                    <button class="btn btn-xs btn-ghost" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>
+                    <button class="btn btn-xs btn-ghost text-error" onclick="window.FactsManager?.deleteFact?.(${fact.id})">🗑️</button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+/**
+ * Truncate text to max length with ellipsis
+ */
+export function truncateText(text: string | null | undefined, maxLength: number = 30): string {
+    if (!text || text === '—') return text || '—';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
+/**
+ * Update pagination controls
+ */
+export function updatePagination(currentPage: number, totalFacts: number, pageSize: number): void {
+    const controls = document.getElementById('pagination-controls');
+    const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement;
+    const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+    const pageInfo = document.getElementById('page-info');
+
+    if (!controls || !prevBtn || !nextBtn || !pageInfo) {
+        logger.warn(' Pagination elements not found');
+        return;
+    }
+
+    const totalPages = Math.ceil(totalFacts / pageSize);
+    const pageNumber = currentPage + 1;
+
+    if (totalPages <= 1) {
+        controls.style.display = 'none';
+        return;
+    }
+
+    controls.style.display = 'flex';
+    pageInfo.textContent = `Страница ${pageNumber} из ${totalPages}`;
+    prevBtn.disabled = currentPage === 0;
+    nextBtn.disabled = currentPage >= totalPages - 1;
 }

@@ -143,17 +143,25 @@
         </div>
     </div>
 
-    <!-- Stats Section (HTMX Partial) -->
-    <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
-    <div id="facts-stats"
-         hx-get="/api/v1/facts/stats"
-         hx-trigger="statsUpdated from:body"
-         hx-swap="innerHTML"
-         hx-indicator="#loading-spinner"
-         class="min-h-[80px]">
-        <!-- Server-rendered stats loaded via HTMX -->
-        <div class="flex items-center justify-center py-8">
-            <span class="loading loading-spinner loading-lg text-primary"></span>
+    <!-- Stats Section -->
+    <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Всего фактов</div>
+            <div class="stat-value text-primary" id="stat-total">0</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Текущая страница</div>
+            <div class="stat-value text-secondary" id="stat-page-info">0-0 из 0</div>
         </div>
     </div>
 
@@ -173,40 +181,24 @@
                 </div>
             </div>
 
-            <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
-            <div id="facts-table-container"
-                 hx-get="/api/v1/facts/table"
-                 hx-trigger="filterChanged from:body"
-                 hx-swap="innerHTML"
-                 hx-indicator="#loading-spinner"
-                 class="min-h-[200px]">
-                <!-- Server-rendered facts table loaded via HTMX -->
+            <!-- Facts Table Container -->
+            <div id="facts-table-container" class="min-h-[200px]">
+                <!-- Initial loading state -->
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
 
-            <!-- Pagination (HTMX Partial) -->
-            <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
-            <div id="facts-pagination"
-                 hx-get="/api/v1/facts/pagination"
-                 hx-trigger="paginationChanged from:body"
-                 hx-swap="innerHTML"
-                 hx-indicator="#loading-spinner"
-                 class="mt-4">
-                <!-- Server-rendered pagination controls loaded via HTMX -->
-                <div class="flex items-center justify-center py-4">
-                    <span class="loading loading-spinner loading-md text-primary"></span>
-                </div>
+            <!-- Pagination -->
+            <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
+                <button class="btn btn-sm btn-outline" id="prev-btn" data-action="previous-page" disabled>
+                    ← Предыдущая
+                </button>
+                <span class="font-medium" id="page-info">Страница 1</span>
+                <button class="btn btn-sm btn-outline" id="next-btn" data-action="next-page" disabled>
+                    Следующая →
+                </button>
             </div>
-        </div>
-    </div>
-
-    <!-- HTMX Loading Spinner -->
-    <div id="loading-spinner" class="htmx-indicator fixed top-4 right-4 z-50">
-        <div class="bg-base-100 shadow-lg rounded-lg p-4 flex items-center gap-3">
-            <span class="loading loading-spinner loading-md text-primary"></span>
-            <span class="text-sm font-medium">Загрузка...</span>
         </div>
     </div>
 </div>
