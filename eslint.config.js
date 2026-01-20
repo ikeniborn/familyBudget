@@ -102,6 +102,7 @@ module.exports = [
       "no-case-declarations": "warn",
       "no-empty": "warn",
       "no-redeclare": "warn",
+      "no-dupe-class-members": "warn",
     },
   },
 ];
