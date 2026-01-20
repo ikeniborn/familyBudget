@@ -515,7 +515,7 @@ export async function showEditModal(factId: number): Promise<void> {
         if (recurringInfoDiv) {
           recurringInfoDiv.innerHTML = `
             <div class="alert alert-error">
-              <span>❌ Ошибка: ${(error as Error).message}</span>
+              <span>❌ Ошибка: ${escapeHtml((error as Error).message)}</span>
             </div>
           `;
         }
@@ -854,6 +854,22 @@ export async function deleteFromEditModal(): Promise<void> {
 // ============================================================================
 
 /**
+ * Escape HTML to prevent XSS attacks
+ * Converts special characters to HTML entities
+ *
+ * @param unsafe - Unsafe string that may contain HTML/JavaScript
+ * @returns Escaped string safe for innerHTML
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Show confirmation dialog
  * Wrapper around BudgetShared.ConfirmDialog
  *
@@ -898,14 +914,14 @@ async function showConfirmDialogWithCheckbox(
     const modalHTML = `
       <div class="modal modal-open" id="${modalId}">
         <div class="modal-box">
-          <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">${title}</h2>
-          <p class="py-4">${message}</p>
+          <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">${escapeHtml(title)}</h2>
+          <p class="py-4">${escapeHtml(message)}</p>
           ${options.checkboxLabel ? `
             <div class="form-control">
               <label class="label cursor-pointer justify-start gap-2">
                 <input type="checkbox" id="${checkboxId}" class="checkbox checkbox-primary"
                        ${options.checkboxDefault ? 'checked' : ''}>
-                <span class="label-text">${options.checkboxLabel}</span>
+                <span class="label-text">${escapeHtml(options.checkboxLabel)}</span>
               </label>
             </div>
           ` : ''}
