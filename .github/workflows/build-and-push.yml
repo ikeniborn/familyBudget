@@ -167,6 +167,23 @@ jobs:
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
           echo "Generated CACHE_VERSION: $CACHE_VERSION"
 
+      - name: Check image changes
+        id: changes
+        run: |
+          # Backend changes
+          if bash scripts/ci/check_image_changes.sh backend | grep -q "build"; then
+            echo "backend=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Bot changes
+          if bash scripts/ci/check_image_changes.sh bot | grep -q "build"; then
+            echo "bot=true" >> $GITHUB_OUTPUT
+          else
+            echo "bot=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Docker meta (backend)
         id: meta-backend
         uses: docker/metadata-action@v5
@@ -206,6 +223,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push backend
+        if: steps.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -221,6 +239,7 @@ jobs:
             CACHE_VERSION=${{ env.CACHE_VERSION }}
 
       - name: Build and push bot
+        if: steps.changes.outputs.bot == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
