@@ -1,21 +1,42 @@
-# CI/CD Build & Deploy Pipeline - GitHub Actions
+# CI/CD Build & Deploy Pipeline - Registry-First Architecture
 
 **Дата создания**: 2026-01-20
-**Версия**: 1.0
+**Версия**: 2.0 (Registry-First)
 **Статус**: Active
-**Phase**: Phase 1 & 2 Complete
+**Last Updated**: 2026-01-21
 
 ## Обзор
 
-Family Budget использует GitHub Actions для автоматической сборки Docker образов и их публикации в GitHub Container Registry (ghcr.io). Деплоймент скрипт поддерживает как локальную сборку, так и pull готовых образов из registry.
+Family Budget использует **registry-first архитектуру**: все сборки (минификация, Docker build, кэшбастинг) происходят ТОЛЬКО в GitHub Actions CI/CD. На сервере - только pull готовых образов из GitHub Container Registry (ghcr.io) и запуск.
 
-**Архитектура**: CI/CD-based delivery с Container Registry integration
+**BREAKING CHANGE (v9.0)**: Build mode полностью удален. Деплоймент скрипт поддерживает ТОЛЬКО pull образов из registry.
+
+**Архитектура**: CI/CD-based delivery с обязательной Container Registry integration
+
+## Ключевые изменения v9.0
+
+**Удалено:**
+- ❌ Локальная сборка на сервере (build mode)
+- ❌ npm/Node.js на сервере (не требуется)
+- ❌ Кэшбастинг на сервере (перенесен в CI)
+- ❌ Множественные теги (test, sha-*, latest)
+- ❌ Флаги --use-registry, --force-build, --image-tag
+
+**Добавлено:**
+- ✅ 5 кастомных образов (backend, bot, nginx, redis, postgresql)
+- ✅ Multi-stage Dockerfile с embedded frontend
+- ✅ Кэшбастинг в GitHub Actions
+- ✅ Только semver теги (6.6.0)
+- ✅ Автоматическая очистка старых образов (7 дней)
+- ✅ Селективная пересборка (IMAGE_VERSIONS.json)
+
+---
 
 ## CI/CD Workflows
 
 ### 1. Build and Push Docker Images (`build-and-push.yml`)
 
-**Purpose**: Автоматическая сборка и публикация Docker образов в ghcr.io при каждом push в test branch или создании git tag.
+**Purpose**: Автоматическая сборка и публикация 5 Docker образов в ghcr.io при каждом push в test branch или создании git tag.
 
 **Trigger**:
 ```yaml
@@ -35,27 +56,39 @@ on:
 
 #### Job 1: Frontend Build
 
-**Purpose**: Сборка frontend assets и коммит в test branch
+**Purpose**: Кэшбастинг и сборка frontend assets
 
 **Steps**:
 1. Checkout code с полной историей (fetch-depth: 0)
 2. Setup Node.js 18 с npm cache
-3. Install dependencies (`npm ci`)
-4. Build frontend (`npm run build`)
-5. Check for changes (git diff)
-6. Auto-commit built files (if changed) с `[skip ci]` tag
+3. **Cache busting** (НОВОЕ в v9.0):
+   ```bash
+   CACHE_VERSION=$(git rev-parse --short HEAD)
+   bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+   # Обновляет ?v=PLACEHOLDER → ?v=abc1234 в HTML templates
+   ```
+4. Install dependencies (`npm ci`)
+5. Build frontend (`npm run build:prod`)
+6. Check for changes (git diff)
+7. Auto-commit built files (if changed) с `[skip ci]` tag
 
 **Output**:
 - Built files committed to test branch:
   - `frontend/web/static/js/dist/**`
   - `frontend/web/static/css/*.min.css`
+  - Cache versions updated in templates
 
 **Auto-commit message**:
 ```
 chore(ci): auto-build frontend assets [skip ci]
 ```
 
-**Note**: `[skip ci]` предотвращает infinite loop (новый коммит не запускает новый workflow)
+**Note**: `[skip ci]` предотвращает infinite loop
+
+**Cache Busting Script**: `scripts/ci/cache_busting_ci.sh`
+- Заменяет PLACEHOLDER на git short hash
+- Обрабатывает 26 HTML/template файлов
+- Perl regex для CSS/JS путей
 
 ---
 
@@ -86,23 +119,16 @@ chore(ci): auto-build frontend assets [skip ci]
 
 **ESLint Rules Strategy**:
 - Все legacy code issues переведены в warnings (не errors)
-- Это позволяет CI проходить без блокировки на legacy code
+- CI проходит без блокировки на legacy code
 - Warnings видны в логах для постепенного исправления
-
-**Configured ESLint rules as warnings**:
-- `no-var`, `no-useless-catch`, `no-inner-declarations`
-- `no-prototype-builtins`, `no-case-declarations`, `no-empty`
-- `no-redeclare`, `no-dupe-class-members`, `no-fallthrough`
-- `no-constant-condition`, `no-useless-escape`, `no-cond-assign`
-- `no-self-assign`, `no-dupe-else-if`, `no-extra-boolean-cast`, `no-extra-semi`
 
 ---
 
-#### Job 3: Build and Push
+#### Job 3: Build and Push (5 Images)
 
 **Depends on**: quality-checks
 
-**Purpose**: Сборка Docker образов и публикация в ghcr.io
+**Purpose**: Сборка 5 Docker образов и публикация в ghcr.io
 
 **Permissions**:
 ```yaml
@@ -114,38 +140,86 @@ permissions:
 **Steps**:
 1. Checkout code + pull latest changes
 2. Read VERSION file
-3. **Docker metadata** (для backend и bot):
-   - Tags: SemVer (if git tag), SHA, branch name, latest
+3. **Check image changes** (IMAGE_VERSIONS.json):
+   ```bash
+   bash scripts/ci/check_image_changes.sh backend  # build or skip?
+   bash scripts/ci/check_image_changes.sh bot
+   bash scripts/ci/check_image_changes.sh nginx
+   bash scripts/ci/check_image_changes.sh redis
+   bash scripts/ci/check_image_changes.sh postgresql
+   ```
+4. **Docker metadata** (для всех 5 образов):
+   - Tags: ТОЛЬКО semver (6.6.0)
    - Labels: OCI-compliant metadata
-4. Setup Docker Buildx
-5. Login to ghcr.io
-6. **Build and push backend** image
-7. **Build and push bot** image
+5. Setup Docker Buildx
+6. Login to ghcr.io
+7. **Conditional builds** (только если изменения):
+   - Build and push backend (if changes detected)
+   - Build and push bot (if changes detected)
+   - Build and push nginx (if changes detected)
+   - Build and push redis (if changes detected)
+   - Build and push postgresql (if changes detected)
 
 **Image naming**:
-- Backend: `ghcr.io/<owner>/familybudget-backend`
-- Bot: `ghcr.io/<owner>/familybudget-bot`
+- Backend: `ghcr.io/<owner>/familybudget-backend:6.6.0`
+- Bot: `ghcr.io/<owner>/familybudget-bot:6.6.0`
+- Nginx: `ghcr.io/<owner>/familybudget-nginx:6.6.0`
+- Redis: `ghcr.io/<owner>/familybudget-redis:6.6.0`
+- PostgreSQL: `ghcr.io/<owner>/familybudget-postgresql:6.6.0`
 
-**Tags applied** (auto-generated):
-- `test` (from branch name)
-- `sha-<short_hash>` (from commit SHA)
-- `v6.6.0` (from git tag, if applicable)
-- `latest` (if default branch)
+**Tags applied** (v9.0 - ТОЛЬКО semver):
+```yaml
+tags: |
+  type=raw,value=${{ steps.version.outputs.VERSION }}
+```
+
+**Примеры тегов**:
+- ✅ `6.6.0` (from VERSION file)
+- ❌ `test` (УДАЛЕНО)
+- ❌ `sha-abc1234` (УДАЛЕНО)
+- ❌ `latest` (УДАЛЕНО)
 
 **Build context**:
 - Backend: `context: .`, `file: backend/Dockerfile`
 - Bot: `context: .`, `file: bot/Dockerfile`
+- Nginx: `context: nginx/`, `file: nginx/Dockerfile`
+- Redis: `context: redis/`, `file: redis/Dockerfile`
+- PostgreSQL: `context: postgres/`, `file: postgres/Dockerfile`
 
 **Build args**:
 ```dockerfile
+# backend/Dockerfile
 VERSION=${{ steps.version.outputs.VERSION }}
 PYTHON_VERSION=3.11
+CACHE_VERSION=${{ env.CACHE_VERSION }}
 ```
 
 **Cache strategy**:
 - `cache-from: type=gha` (GitHub Actions cache)
 - `cache-to: type=gha,mode=max`
-- Layer cache between builds for speed
+- Layer cache между builds для скорости
+
+**Multi-stage build (backend)**:
+```dockerfile
+# Stage 1: Python deps builder
+FROM python:3.11-slim as python-builder
+RUN pip install -r requirements.txt
+
+# Stage 2: Frontend builder (НОВОЕ v9.0)
+FROM node:18-alpine as frontend-builder
+COPY frontend/ ./frontend/
+RUN npm run build:prod
+
+# Stage 3: Runtime (embedded frontend)
+FROM python:3.11-slim
+COPY --from=python-builder /opt/venv /opt/venv
+COPY --from=frontend-builder /build/frontend/ /app/frontend/
+```
+
+**Selective rebuilding**:
+- IMAGE_VERSIONS.json tracks git hash для каждого образа
+- Skip сборки если нет изменений (экономия времени)
+- Update hash после успешной сборки
 
 ---
 
@@ -153,7 +227,7 @@ PYTHON_VERSION=3.11
 
 **Depends on**: build-push
 
-**Purpose**: CVE scanning с Trivy на собранных образах
+**Purpose**: CVE scanning с Trivy на 5 собранных образах
 
 **Permissions**:
 ```yaml
@@ -165,17 +239,17 @@ permissions:
 **Steps**:
 1. Checkout code
 2. Read VERSION
-3. Determine image tag (version or branch name)
-4. **Trivy scan backend** image
-   - Format: SARIF
-   - Severity: CRITICAL,HIGH
-5. Upload SARIF to GitHub Security tab
-6. **Trivy scan bot** image
-7. Upload SARIF to GitHub Security tab
+3. **Trivy scan** для каждого образа:
+   - backend (format: SARIF, severity: CRITICAL,HIGH)
+   - bot
+   - nginx
+   - redis
+   - postgresql
+4. Upload SARIF reports to GitHub Security tab
 
 **Output**:
 - SARIF reports uploaded to GitHub Code Scanning
-- Vulnerabilities visible in Security → Code scanning tab
+- Vulnerabilities visible в Security → Code scanning tab
 
 **Exit behavior**: `continue-on-error: true` (не блокирует workflow)
 
@@ -191,21 +265,32 @@ permissions:
 
 **Output example**:
 ```markdown
-## 🚀 CI/CD Pipeline Summary
+## 🚀 CI/CD Pipeline Summary (v9.0)
 
 **Version:** 6.6.0
 **Commit:** abc1234567890def
 **Branch/Tag:** test
+**Cache Version:** abc1234
 
 ### Job Status
-- Frontend Build: success
-- Quality Checks: success
-- Build & Push: success
-- Security Scan: success
+- Frontend Build: success ✅
+- Quality Checks: success ✅
+- Build & Push: success ✅ (5 images)
+- Security Scan: success ✅
 
-### Docker Images
-- ghcr.io/<owner>/familybudget-backend:test
-- ghcr.io/<owner>/familybudget-bot:test
+### Docker Images (Registry-First)
+- ghcr.io/<owner>/familybudget-backend:6.6.0
+- ghcr.io/<owner>/familybudget-bot:6.6.0
+- ghcr.io/<owner>/familybudget-nginx:6.6.0
+- ghcr.io/<owner>/familybudget-redis:6.6.0
+- ghcr.io/<owner>/familybudget-postgresql:6.6.0
+
+### Selective Build Results
+- backend: built (changes detected)
+- bot: skipped (no changes)
+- nginx: skipped (no changes)
+- redis: skipped (no changes)
+- postgresql: skipped (no changes)
 ```
 
 ---
@@ -226,100 +311,129 @@ on:
 
 **Job**: quality-checks (single job)
 
-**Steps**:
-1. Setup Node.js 18
-2. Install dependencies
-3. TypeScript type check
-4. ESLint
-5. Build frontend (verification only)
-6. Setup Python 3.11
-7. Install Python dependencies
-8. Python mypy (continue-on-error: true)
-9. Python ruff (continue-on-error: true)
-10. Unit tests (continue-on-error: true)
-11. Upload coverage (continue-on-error: true)
-
-**Summary output**:
-```markdown
-## ✅ PR Quality Checks Summary
-
-**PR:** #123
-**Branch:** feature/xyz → test
-**Commit:** abc1234
-
-All quality checks completed. Review the logs above for details.
-```
+**Steps**: Identical to main workflow Job 2 (TypeScript, ESLint, Python, tests)
 
 **No Docker builds**: Только code validation, no image publishing
 
 ---
 
-## Container Registry Integration
+## Registry-First Deployment
 
-### Pull Images from ghcr.io (Phase 2)
+### Image Pull from ghcr.io (v9.0 - ЕДИНСТВЕННЫЙ режим)
 
-**New deploy.sh flags**:
-
+**deploy.sh** (simplified):
 ```bash
-# Pull pre-built images instead of building locally
-./deploy.sh --use-registry
-
-# Specify image tag explicitly
-./deploy.sh --use-registry --image-tag test
-
-# Combined with other flags
-./deploy.sh --use-registry --sync-mode skip --cleanup-mode smart
+# ВСЕГДА registry mode, никаких флагов не требуется
+./deploy.sh --sync-mode update --cleanup-mode smart
 ```
+
+**Что происходит**:
+1. Read VERSION file → `6.6.0`
+2. Pull 5 images from ghcr.io:
+   - `ghcr.io/<owner>/familybudget-backend:6.6.0`
+   - `ghcr.io/<owner>/familybudget-bot:6.6.0`
+   - `ghcr.io/<owner>/familybudget-nginx:6.6.0`
+   - `ghcr.io/<owner>/familybudget-redis:6.6.0`
+   - `ghcr.io/<owner>/familybudget-postgresql:6.6.0`
+3. `docker compose up -d` (phased startup)
+4. Run migrations
+5. Health checks
+6. **Cleanup old images** (>7 дней)
+
+**Deployment time**: 2-3 минуты (ВСЕГДА)
 
 ---
 
-### Image Tag Auto-Detection
+### VERSION File (Manual Bump)
 
-**Priority order** (функция `determine_image_tag()`):
+**ТРЕБОВАНИЕ**: VERSION файл ВСЕГДА bumps вручную (не автоматически)
 
-1. **USER_IMAGE_TAG** environment variable (manual override)
-   ```bash
-   ./deploy.sh --use-registry --image-tag v6.6.0
-   ```
+**Примеры**:
+```bash
+# Feature release (minor)
+echo "6.7.0" > VERSION
+git add VERSION
+git commit -m "feat: add shopping lists"
+git push origin test
 
-2. **Git branch name** (from repository directory)
-   - Extracted from: `git rev-parse --abbrev-ref HEAD`
-   - Example: `test`, `main`, `feature/xyz`
+# Bug fix (patch)
+echo "6.6.1" > VERSION
+git add VERSION
+git commit -m "fix: transfer deduplication"
+git push origin test
 
-3. **VERSION file** (in deployment directory)
-   - Path: `/opt/budget/VERSION`
-   - Example: `6.6.0`
+# Breaking change (major)
+echo "7.0.0" > VERSION
+git add VERSION
+git commit -m "BREAKING: ES modules migration"
+git push origin test
+```
 
-4. **Short git hash** (from repository)
-   - Extracted from: `git rev-parse --short HEAD`
-   - Example: `abc1234`
+**Semver Convention**:
+- **MAJOR** (7.0.0): Breaking changes
+- **MINOR** (6.7.0): New features (backwards-compatible)
+- **PATCH** (6.6.1): Bug fixes
 
-5. **Fallback**: `latest`
+---
+
+### Automatic Image Cleanup
+
+**НОВОЕ в v9.0**: Автоматическое удаление старых Docker images
+
+**Функция**: `cleanup_old_images()` в deploy.sh
+
+**Когда запускается**: После успешного `docker compose up`
+
+**Логика**:
+1. Находит все Family Budget образы старше 7 дней
+2. Исключает running containers из удаления
+3. Удаляет старые образы
+4. Логирует в `/opt/budget/logs/cleanup-history.log`
+
+**Retention**: 7 дней (настраивается через `CLEANUP_RETENTION_DAYS`)
+
+**Экономия дискового пространства**:
+- 1 версия = ~1.2 GB (5 образов)
+- 7 дней retention = ~7-8 GB
+- Автоматическая очистка предотвращает disk full
+
+**Log example**:
+```
+[2026-01-21T10:30:00Z] removed: ghcr.io/<owner>/familybudget-backend:6.5.0
+[2026-01-21T10:30:01Z] removed: ghcr.io/<owner>/familybudget-bot:6.5.0
+[2026-01-21T10:30:02Z] skipped: ghcr.io/<owner>/familybudget-backend:6.6.0 (running)
+```
 
 ---
 
 ### Registry Functions (`scripts/lib/registry.sh`)
 
-**Module location**: `scripts/lib/registry.sh` (225 lines)
+**Module location**: `scripts/lib/registry.sh`
 
 #### pull_from_registry()
 
-**Purpose**: Pull Docker images from ghcr.io
+**Purpose**: Pull 5 Docker images from ghcr.io
 
 **Usage**:
 ```bash
-pull_from_registry [service...]  # Default: backend (+ bot if full profile)
+pull_from_registry  # Pulls all 5 images
 ```
 
 **Algorithm**:
-1. Determine services to pull (based on DEPLOYMENT_PROFILE)
-2. Determine image tag (via `determine_image_tag()`)
-3. Pull each image: `docker pull ghcr.io/<owner>/familybudget-<service>:TAG`
-4. Tag for docker-compose compatibility: `docker tag ... familybudget-<service>:latest`
-5. Log deployment history
+1. Read VERSION file → determine tag
+2. Pull каждого образа: `docker pull ghcr.io/<owner>/familybudget-<service>:TAG`
+3. Tag для docker-compose compatibility: `docker tag ... familybudget-<service>:TAG`
+4. Log deployment history
+
+**Services pulled** (v9.0):
+- backend
+- bot
+- nginx
+- redis
+- postgresql
 
 **Exit code**:
-- 0: Success
+- 0: Success (all 5 images pulled)
 - 1: Pull failed for at least one service
 
 ---
@@ -330,7 +444,7 @@ pull_from_registry [service...]  # Default: backend (+ bot if full profile)
 
 **Usage**:
 ```bash
-validate_registry_images [service...]
+validate_registry_images  # Validates all 5 images
 ```
 
 **Algorithm**:
@@ -339,26 +453,26 @@ validate_registry_images [service...]
 
 **Error output**:
 ```
-✗ backend image NOT found in registry: ghcr.io/<owner>/familybudget-backend:test
+✗ backend image NOT found in registry: ghcr.io/<owner>/familybudget-backend:6.6.0
 
 Possible solutions:
-  1. Push images to registry using CI/CD workflow
-  2. Build images locally without --use-registry flag
-  3. Specify different tag with USER_IMAGE_TAG environment variable
+  1. Check VERSION file matches GitHub Actions build
+  2. Verify GitHub Actions workflow completed successfully
+  3. Wait for CI/CD to finish building images (5-7 min)
 ```
 
 ---
 
 #### log_deployment_history()
 
-**Purpose**: Track deployment mode (build vs registry) в лог файле
+**Purpose**: Track deployment в лог файле
 
 **Log location**: `/opt/budget/logs/deployment-history.log`
 
-**Format**:
+**Format** (v9.0):
 ```
-[2026-01-20 22:07:01] mode=registry tag=test result=pull_success user=admin
-[2026-01-20 21:15:33] mode=build tag=6.6.0 result=success user=admin
+[2026-01-21 10:30:00] mode=registry tag=6.6.1 result=success user=admin
+[2026-01-20 22:15:00] mode=registry tag=6.6.0 result=success user=admin
 ```
 
 **Retention**: Last 100 entries
@@ -369,62 +483,66 @@ Possible solutions:
 
 **File**: `scripts/lib/services.sh` (функция `start_application_services()`)
 
-**Build vs Registry Decision**:
-
+**Registry-Only Mode** (v9.0):
 ```bash
-if [[ "${USE_REGISTRY:-false}" == "true" ]]; then
-    # Registry mode
-    pull_from_registry
-    build_flag=""  # Skip --build in docker compose up
-else
-    # Build mode (default)
-    build_flag="--build"
-    # ... existing build logic ...
-fi
+# ВСЕГДА registry mode (no build option)
+pull_from_registry  # Pull 5 images
+
+# Docker Compose up (NO --build flag)
+docker compose up -d --force-recreate backend bot nginx redis postgres
 ```
 
-**Docker Compose command**:
-```bash
-# Registry mode
-docker compose up -d --force-recreate backend bot
+**Phased Startup**:
+1. PostgreSQL (wait until healthy)
+2. Redis (wait until healthy)
+3. Backend (wait until healthy)
+4. Migrations (Alembic upgrade head)
+5. Bot + Nginx
 
-# Build mode (default)
-docker compose up --build -d --force-recreate backend bot
-```
+**Health check timeouts**:
+- PostgreSQL: 30s
+- Redis: 10s
+- Backend: 60s
 
 ---
 
 ## Workflow Execution Times
 
-| Job | Approx Duration |
-|-----|-----------------|
-| Frontend Build | 1m30s - 2m |
+| Job | Approx Duration (v9.0) |
+|-----|------------------------|
+| Frontend Build (с cache busting) | 1m30s - 2m |
 | Quality Checks | 1m - 1m20s |
-| Build & Push (backend) | 2m - 3m |
-| Build & Push (bot) | 1m - 2m |
-| Security Scan | 45s - 1m |
+| Build & Push (5 images, selective) | 2m - 4m |
+| Security Scan (5 images) | 1m - 1m30s |
 | Summary | 5s |
 
-**Total pipeline time**: ~5-7 минут (parallel execution)
+**Total CI/CD time**: ~5-8 минут (зависит от selective build)
+
+**Server deployment time**: 2-3 минуты (ВСЕГДА, только pull)
 
 ---
 
-## Docker Image Size & Optimization
+## Docker Image Sizes & Optimization
 
-**Backend image**:
-- Base: `python:3.11-slim`
-- Multi-stage build: Yes
-- Final size: ~400-500 MB
+**Production images (v9.0)**:
+- **Backend**: ~500 MB (multi-stage + embedded frontend)
+- **Bot**: ~400 MB
+- **Nginx**: ~50 MB (nginx:alpine)
+- **Redis**: ~40 MB (redis:7-alpine)
+- **PostgreSQL**: ~250 MB (postgres:16-alpine)
+- **Total**: ~1.2 GB на версию
 
-**Bot image**:
-- Base: `python:3.11-slim`
-- Multi-stage build: Yes
-- Final size: ~350-450 MB
+**First deployment pull**: ~1.2 GB
+**Subsequent deployments**: ~50-200 MB (только измененные слои)
 
-**Layer caching**:
-- `requirements.txt` dependencies cached separately
-- Code changes don't invalidate dependency cache
-- Rebuild time (code change only): ~30-60 seconds
+**Optimization strategies**:
+1. **.dockerignore**: Уменьшение build context на 30-50%
+   - Исключает: .git, docs/, tests/, node_modules/, logs/, .env
+2. **Multi-stage builds**: Separate builder и runtime stages
+3. **Layer caching**: Dependencies cached отдельно от code
+4. **Alpine base images**: Minimal size для nginx, redis, postgresql
+
+**Build time (code change only)**: ~30-60 seconds (благодаря layer caching)
 
 ---
 
@@ -437,96 +555,163 @@ docker compose up --build -d --force-recreate backend bot
 **Permissions**:
 ```yaml
 permissions:
-  contents: read
-  packages: write
+  contents: read    # Read repository code
+  packages: write   # Push images to ghcr.io
 ```
 
 **Registry visibility**: Inherits repository visibility
 - Private repo → Private images
-- Public repo → Public images (can be overridden)
+- Public repo → Public images
 
-**Image pull** (unauthenticated):
-- Public images: ✅ Yes
+**Image pull**:
+- Public images: ✅ Yes (unauthenticated)
 - Private images: ❌ No (requires `docker login ghcr.io`)
+
+**Server authentication** (для приватных репозиториев):
+```bash
+docker login ghcr.io
+Username: <github_username>
+Password: <github_personal_access_token>
+```
 
 ---
 
 ## Deployment Scenarios
 
-### Scenario 1: Test Server (CI/CD Images)
+### Scenario 1: Test Server (Registry-Only)
 
 **Server**: `budget-test`
 
 **Workflow**:
-1. Push code to test branch
-2. GitHub Actions builds images → ghcr.io
-3. SSH to budget-test
-4. Pull repository: `git pull origin test`
-5. Deploy with registry: `sudo ./deploy.sh --use-registry --sync-mode mirror --cleanup-mode smart`
-6. Images pulled from ghcr.io (no local build)
+1. Bump VERSION locally:
+   ```bash
+   echo "6.6.1" > VERSION
+   git add VERSION
+   git commit -m "chore: bump to 6.6.1"
+   git push origin test
+   ```
+2. ⏳ GitHub Actions builds images → ghcr.io (5-8 min)
+3. SSH to budget-test:
+   ```bash
+   ssh budget-test
+   cd ~/familyBudget
+   git pull origin test
+   sudo ./deploy.sh --sync-mode update --cleanup-mode smart
+   ```
+4. Images pulled from ghcr.io:6.6.1 (2-3 min)
 
 **Benefits**:
-- ✅ Fast deployment (~2-3 min)
+- ✅ Fast deployment (2-3 min)
 - ✅ Consistent images (same as CI built)
-- ✅ No Node.js/npm required on server
+- ✅ No Node.js/npm on server
+- ✅ No build artifacts on server
 
 ---
 
-### Scenario 2: Production Server (Local Build)
+### Scenario 2: Production Server (Registry-Only)
 
 **Server**: `budget-prod`
 
 **Workflow**:
-1. Create git tag: `git tag v6.7.0 && git push --tags`
-2. GitHub Actions builds release images
-3. SSH to budget-prod
-4. Pull repository: `git pull origin main`
-5. Deploy with local build: `sudo ./deploy.sh --sync-mode mirror --cleanup-mode smart`
-6. Images built locally (traditional flow)
+1. **ОБЯЗАТЕЛЬНО**: Тестирование на budget-test (минимум 1 неделя)
+2. После успешного теста → Production:
+   ```bash
+   ssh budget-prod
+   cd ~/familyBudget
+   git pull origin test
+   sudo ./deploy.sh --sync-mode update --cleanup-mode smart
+   ```
+3. Использует ТОТ ЖЕ VERSION что на budget-test
+4. Pull тех же образов из ghcr.io (проверенные)
 
 **Benefits**:
-- ✅ Air-gapped deployment (no external dependencies)
-- ✅ Verified images from repository code
-- ✅ Fallback if registry unavailable
+- ✅ Консистентность: Те же образы что на test
+- ✅ Безопасность: Нет сборки на production
+- ✅ Скорость: 2-3 минуты
+- ✅ Надежность: Образы проверены через CI/CD + test
 
 ---
 
-### Scenario 3: Development (Specific Tag)
+### Scenario 3: Rollback (Emergency)
 
 **Workflow**:
 ```bash
-# Deploy specific CI-built version
-sudo ./deploy.sh --use-registry --image-tag sha-abc1234
+# Production сломан, быстрый откат
+ssh budget-prod
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
 
-# Or use branch tag
-sudo ./deploy.sh --use-registry --image-tag test
+# Что происходит:
+# 1. Read VERSION → 6.6.0
+# 2. Pull образов 6.6.0 из ghcr.io
+# 3. docker compose up -d
+# Время: 2-3 минуты
 ```
 
-**Use cases**:
-- Rollback to previous version
-- Test specific commit
-- A/B testing between versions
+**Benefits**:
+- ✅ Быстрый rollback без пересборки
+- ✅ Образы всех предыдущих версий в ghcr.io
+- ✅ Данные сохранены (postgres_data, redis_data)
 
 ---
 
 ## Troubleshooting
 
-### Issue 1: Image Pull Fails
+### Issue 1: VERSION файл не изменился
 
-**Error**:
+**Warning в GitHub Actions**:
 ```
-✗ Failed to pull backend image: ghcr.io/<owner>/familybudget-backend:test
+VERSION не изменился (6.6.0), но есть коммиты.
+Рекомендуется bump VERSION.
 ```
 
-**Solutions**:
-1. Check image exists: `docker manifest inspect ghcr.io/<owner>/familybudget-backend:test`
-2. Check authentication: `docker login ghcr.io` (if private repo)
-3. Verify CI/CD completed successfully (check GitHub Actions tab)
-4. Try different tag: `--image-tag latest` or `--image-tag sha-<hash>`
+**Причина**: VERSION файл не был изменен перед push
+
+**Решение**:
+```bash
+echo "6.6.1" > VERSION
+git add VERSION
+git commit --amend --no-edit
+git push -f origin test
+```
 
 ---
 
-### Issue 2: CI/CD Workflow Fails on ESLint
+### Issue 2: Image Pull Fails
+
+**Ошибка**:
+```
+✗ Failed to pull backend image: ghcr.io/<owner>/familybudget-backend:6.6.1
+Error: manifest for ghcr.io/<owner>/familybudget-backend:6.6.1 not found
+```
+
+**Решения**:
+1. Проверьте GitHub Actions:
+   ```
+   https://github.com/<owner>/familyBudget/actions
+   # "Build and Push Docker Images" должен быть success
+   ```
+
+2. Проверьте VERSION bump committed:
+   ```bash
+   git log --oneline -1
+   # Должен содержать VERSION 6.6.1
+   ```
+
+3. Проверьте наличие образа:
+   ```bash
+   docker manifest inspect ghcr.io/<owner>/familybudget-backend:6.6.1
+   # Если "manifest unknown" - образ не собран
+   ```
+
+4. Для приватных репозиториев:
+   ```bash
+   docker login ghcr.io
+   ```
+
+---
+
+### Issue 3: CI/CD Workflow Fails on ESLint
 
 **Error**:
 ```
@@ -542,28 +727,102 @@ If new errors appear:
 
 ---
 
-### Issue 3: Frontend Build Not Committed
+### Issue 4: Frontend Build Not Committed
 
-**Symptom**: Quality checks fail because built files missing
+**Symptom**: Quality checks fail, built files missing
 
 **Cause**: Build changed but auto-commit didn't trigger
 
 **Solution**:
 1. Check frontend-build job logs
-2. Verify `[skip ci]` in commit message
+2. Verify `[skip ci]` в commit message
 3. Manually trigger workflow: Actions → Build and Push → Run workflow
 
 ---
 
-### Issue 4: Docker Build Cache Miss
+### Issue 5: Docker Build Cache Miss
 
-**Symptom**: Build takes 5+ minutes (should be ~2 minutes)
+**Symptom**: Build takes 5-8 min (should be ~2-3 min)
 
 **Cause**: GitHub Actions cache invalidated
 
 **Solution**: Normal behavior, cache will rebuild
-- First build after cache clear: 5-7 minutes
-- Subsequent builds: 2-3 minutes
+- First build after cache clear: 5-8 min
+- Subsequent builds: 2-4 min
+
+---
+
+### Issue 6: Старые образы не удаляются
+
+**Symptom**: Много старых образов (>7 дней)
+
+**Проверка**:
+```bash
+docker images | grep familybudget
+```
+
+**Решение**:
+```bash
+# Ручной запуск cleanup
+cd /opt/budget
+source deploy.sh
+cleanup_old_images 7
+
+# Или изменить retention
+echo "CLEANUP_RETENTION_DAYS=3" >> .env
+```
+
+---
+
+### Issue 7: Frontend статика не отдается
+
+**Ошибка**:
+```
+404 Not Found: /static/css/tailwind-daisyui.min.css
+```
+
+**Причина**: Backend должен отдавать статику через FastAPI StaticFiles
+
+**Решение**:
+1. Проверьте frontend в backend образе:
+   ```bash
+   docker exec familybudget-backend ls -lh /app/frontend/web/static/css/
+   ```
+
+2. Проверьте backend логи:
+   ```bash
+   docker logs familybudget-backend | grep StaticFiles
+   ```
+
+3. Проверьте nginx (НЕ должно быть location /static/):
+   ```bash
+   docker exec familybudget-nginx cat /etc/nginx/conf.d/app-https.conf
+   # НЕ должно быть: location /static/ { alias ... }
+   ```
+
+---
+
+### Issue 8: Disk Space Full
+
+**Ошибка**:
+```
+Error: write /var/lib/docker: no space left on device
+```
+
+**Решение**:
+```bash
+# Проверка места
+df -h /var/lib/docker
+
+# Удаление старых образов (>7 дней)
+docker image prune -a --filter "until=168h"
+
+# Удаление dangling images
+docker image prune -f
+
+# ОСТОРОЖНО: удаление unused volumes
+docker volume prune -f
+```
 
 ---
 
@@ -583,19 +842,19 @@ If new errors appear:
 
 ### Secret Scanning
 
-**Trivy**: Scans for secrets in images
+**Trivy**: Scans for secrets in images (всех 5)
 **Gitleaks**: Scans git history
 
-**Prevention**: Never commit secrets to repository
+**Prevention**: Never commit secrets
 - Use `.env` files (gitignored)
-- Use GitHub Secrets for CI/CD
-- Use environment variables in production
+- Use GitHub Secrets для CI/CD
+- Use environment variables в production
 
 ---
 
 ### Vulnerability Monitoring
 
-**Automated**: Trivy scan on every push
+**Automated**: Trivy scan on every push (5 images)
 
 **Manual**: GitHub Security tab → Code scanning
 
@@ -610,52 +869,157 @@ If new errors appear:
 
 **Recommended metrics**:
 
-1. **Deployment frequency**: How often images are built/deployed
-2. **Lead time**: Time from commit to deployment
+1. **Deployment frequency**: Как часто images deployed
+2. **Lead time**: Время от commit до deployment
 3. **Change failure rate**: % of deployments causing issues
-4. **Mean time to recovery**: Time to rollback/fix failed deployment
+4. **Mean time to recovery**: Время до rollback/fix
+5. **Image pull time**: Average pull time для 5 images
+6. **Selective build ratio**: % of skipped builds
 
 **GitHub Actions Insights**:
 - Actions → Workflows → Build and Push → View runs
-- Filter by status/branch/time range
+- Filter by status/branch/time
+
+**Deployment history**:
+```bash
+# На сервере
+tail -20 /opt/budget/logs/deployment-history.log
+tail -20 /opt/budget/logs/cleanup-history.log
+```
+
+---
+
+## Architecture Diagrams
+
+### Build & Deploy Flow (v9.0)
+
+```
+Developer (local)          GitHub Actions (CI/CD)         Server (budget-test/prod)
+─────────────────          ──────────────────────         ─────────────────────────
+
+1. Bump VERSION
+   echo "6.6.1" > VERSION
+   git commit
+   git push origin test
+        │
+        └──────────────────> 2. Cache Busting
+                                bash cache_busting_ci.sh
+
+                             3. Frontend Build
+                                npm run build:prod
+
+                             4. Check Image Changes
+                                (IMAGE_VERSIONS.json)
+
+                             5. Docker Build (5 images)
+                                ├─ backend (multi-stage)
+                                ├─ bot
+                                ├─ nginx
+                                ├─ redis
+                                └─ postgresql
+
+                             6. Push to ghcr.io:6.6.1
+
+                             7. Trivy Security Scan (5)
+                                       │
+                                       └────────────────> 8. Pull Images
+                                                             (ghcr.io:6.6.1)
+
+                                                          9. docker compose up
+
+                                                          10. Migrations
+
+                                                          11. Health Checks
+
+                                                          12. Cleanup (7d)
+```
+
+---
+
+### Multi-Stage Dockerfile (backend)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 1: python-builder                                     │
+│ FROM python:3.11-slim                                       │
+│ ├─ Install build dependencies (gcc, libpq-dev)             │
+│ ├─ Create venv: /opt/venv                                  │
+│ └─ pip install requirements.txt                            │
+│     Size: ~300 MB (discarded)                              │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 2: frontend-builder                                   │
+│ FROM node:18-alpine                                         │
+│ ├─ CACHE_VERSION from git hash                             │
+│ ├─ npm ci                                                   │
+│ ├─ COPY frontend/ (source)                                 │
+│ └─ npm run build:prod                                       │
+│     Output: frontend/web/static/js/dist/*.min.js           │
+│             frontend/web/static/css/*.min.css              │
+│     Size: ~500 MB (discarded)                              │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 3: runtime                                            │
+│ FROM python:3.11-slim                                       │
+│ ├─ Install runtime deps (libpq5, curl, ca-certs)           │
+│ ├─ COPY --from=python-builder /opt/venv                    │
+│ ├─ COPY backend/ (source code)                             │
+│ ├─ COPY --from=frontend-builder /build/frontend/ (BUILT!)  │
+│ ├─ COPY --from=frontend-builder sw.min.js, manifest.json   │
+│ ├─ Create appuser (non-root)                               │
+│ ├─ mkdir logs/, uploads/                                   │
+│ └─ CMD ["uvicorn", "backend.app.main:app"]                 │
+│     Final Size: ~500 MB                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key Points**:
+- Frontend embedded в backend image (no bind mounts)
+- Cache versions уже обновлены в CI
+- Non-root user (appuser)
+- Health check included
 
 ---
 
 ## Future Enhancements
 
-### Phase 3: Automated Testing on Registry Images
+### Phase 3: Blue-Green Deployment
 
 **Plan**:
-1. Pull images from ghcr.io
-2. Run integration tests
-3. Tag as `stable` if tests pass
+1. Deploy новой версии parallel к старой
+2. Switch traffic через nginx upstream
+3. Monitor metrics
+4. Rollback if issues
 
-### Phase 4: Multi-Environment Deployment
-
-**Plan**:
-1. Separate workflows for test/staging/prod
-2. Environment-specific tags
-3. Manual approval gates for production
-
-### Phase 5: Rollback Automation
+### Phase 4: Canary Releases
 
 **Plan**:
-1. Track deployed versions
-2. One-command rollback to previous version
-3. Automatic health checks post-rollback
+1. Deploy новой версии для 10% traffic
+2. Gradually increase to 100%
+3. Auto-rollback on error rate spike
+
+### Phase 5: Image Promotion Pipeline
+
+**Plan**:
+1. test → staging → production tags
+2. Manual approval gates
+3. Automated smoke tests после promotion
 
 ---
 
 ## Related Documentation
 
-- [CI/CD Pipeline (Testing)](./ci-cd-pipeline.md) - Test workflows
-- [Build System](./build-system.md) - Frontend build details
-- [Deployment Troubleshooting](./guides/deployment-troubleshooting.md)
-- [Docker Compose Setup](../../docker-compose.yml)
+- **CI/CD Summary**: [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md)
+- **Docker Architecture**: [docker.md](./docker.md) (v9.0 - NEW)
+- **Build System**: [build-system.md](./build-system.md)
+- **Deployment Troubleshooting**: [deployment-troubleshooting.md](./guides/deployment-troubleshooting.md)
+- **Build Mode Archive**: [archive/README-ARCHIVE.md](../../archive/README-ARCHIVE.md)
 
 ---
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-21
 **Maintainer**: Family Budget Team
-**Version**: 1.0 (Phase 1 & 2 Complete)
-**Next Phase**: Phase 3 (Test server deployment)
+**Version**: 2.0 (Registry-First Architecture)
+**Breaking Changes**: Build mode removed, 5 custom images, semver-only tags

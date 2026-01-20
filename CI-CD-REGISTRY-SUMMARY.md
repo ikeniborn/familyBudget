@@ -1,79 +1,181 @@
-# Что изменилось: CI/CD Registry Integration (v8.0)
+# Registry-First Architecture: CI/CD Integration (v9.0.0)
 
 ## Краткое описание
 
-Добавлена возможность деплоя на тестовый сервер **без локальной сборки Docker образов** - теперь можно pull готовые образы из GitHub Container Registry (ghcr.io), собранные через CI/CD.
+**BREAKING CHANGE:** Build mode полностью удален. Все сборки (минификация, Docker build, кэшбастинг) происходят ТОЛЬКО в GitHub Actions CI/CD. На сервере - только pull готовых образов из ghcr.io и запуск.
+
+## BREAKING CHANGES (v8.0 → v9.0)
+
+**Удалено:**
+- ❌ Build mode (локальная сборка на сервере)
+- ❌ Флаг `--use-registry` (теперь default и единственный режим)
+- ❌ Флаг `--force-build` (нет локальной сборки)
+- ❌ Флаг `--image-tag` (используется VERSION файл)
+- ❌ Множественные теги (`test`, `sha-abc1234`, `latest`)
+- ❌ npm/Node.js на сервере (не требуется)
+- ❌ Кэшбастинг на сервере (перенесен в CI)
+
+**Добавлено:**
+- ✅ Registry-only mode (ЕДИНСТВЕННЫЙ режим)
+- ✅ Только semver теги (6.6.0)
+- ✅ Ручной VERSION bump (manual semver)
+- ✅ 5 кастомных образов (backend, bot, nginx, redis, postgresql)
+- ✅ Multi-stage Dockerfile с embedded frontend
+- ✅ Кэшбастинг в GitHub Actions
+- ✅ Автоматическая очистка старых образов (7 дней retention)
+- ✅ Селективная пересборка образов (IMAGE_VERSIONS.json)
+
+---
 
 ## Ключевые преимущества
 
 **⚡ Скорость:**
-- **Раньше:** 5-7 минут (локальная сборка Docker образов)
-- **Теперь:** 2-3 минуты (pull готовых образов из registry)
-- **Экономия времени:** ~50-60%
+- **v8.0 registry mode:** 2-3 минуты (pull + up)
+- **v9.0 registry-only:** 2-3 минуты (ВСЕГДА)
+- **v7.0 build mode:** 5-7 минут (УДАЛЕН)
 
 **✅ Консистентность:**
-- Те же образы что прошли CI/CD проверки (ESLint, TypeScript, pytest, Trivy security scan)
-- Гарантированное качество (все проверки прошли в GitHub Actions)
+- Те же образы что прошли CI/CD проверки (ESLint, TypeScript, pytest, Trivy)
+- Гарантированное качество (все проверки в GitHub Actions)
+- Production = Test = CI образы (одинаковые binaries)
 
 **🚀 Простота:**
-- Не требуется Node.js/npm на сервере для registry deployments
-- Автоматическое определение тега образа
+- Не требуется Node.js/npm на сервере
+- Не требуется npm build на сервере
+- Не требуется кэшбастинг на сервере
+- Автоматическая очистка старых образов
+
+**🔒 Безопасность:**
+- Нет сборки на production (меньше риска)
+- Образы проверены Trivy security scan
+- Минимальная attack surface на сервере
+
+**📦 5 кастомных образов:**
+- `ghcr.io/ikeniborn/familybudget-backend:6.6.0`
+- `ghcr.io/ikeniborn/familybudget-bot:6.6.0`
+- `ghcr.io/ikeniborn/familybudget-nginx:6.6.0`
+- `ghcr.io/ikeniborn/familybudget-redis:6.6.0`
+- `ghcr.io/ikeniborn/familybudget-postgresql:6.6.0`
 
 ---
 
 ## Как это работает
 
-### 1. GitHub Actions (автоматически при push в test)
+### Workflow (Manual VERSION Bump)
 
-Когда вы делаете `git push origin test`, GitHub Actions автоматически:
-
-1. **Frontend build** - собирает TypeScript/CSS
-2. **Quality checks** - ESLint, TypeScript, Python mypy/ruff, pytest
-3. **Build Docker images** - создает backend и bot образы
-4. **Push to ghcr.io** - публикует в GitHub Container Registry с тегами:
-   - `test` (от имени ветки)
-   - `sha-abc1234` (от git commit hash)
-   - `v6.6.0` (если git tag)
-   - `latest` (для default branch)
-5. **Security scan** - Trivy CVE scanning
-
-**Результат:** Готовые Docker images в `ghcr.io/ikeniborn/familybudget-backend:test` и `ghcr.io/ikeniborn/familybudget-bot:test`
-
-### 2. Deployment на budget-test (вручную или через deploy-test skill)
-
-**Два режима деплоя:**
-
-#### Режим A: Локальная сборка (как раньше)
-```bash
-# На локальной машине
-git push origin test
-
-# SSH на сервер
-ssh budget-test
-
-# Деплой с локальной сборкой
-cd ~/familyBudget
-sudo ./deploy.sh --sync-mode update --cleanup-mode smart --version patch
 ```
-**Время:** 5-7 минут
-**Сборка:** Локально на сервере (требует npm, Node.js)
+Developer (local)                GitHub Actions               Server (budget-test/prod)
+─────────────────                ──────────────               ─────────────────────────
 
-#### Режим B: Registry Pull (НОВОЕ v8.0)
-```bash
-# На локальной машине
-git push origin test
-# ⏳ Ждем пока GitHub Actions соберет образы (5-7 мин)
-
-# SSH на сервер
-ssh budget-test
-
-# Деплой с pull из registry
-cd ~/familyBudget
-sudo ./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+1. Bump VERSION manually
+   echo "6.6.1" > VERSION
+   git add VERSION
+   git commit -m "chore: bump to 6.6.1"
+   git push origin test
+                                    ↓
+                              2. CI/CD starts (5-7 min)
+                                 ├─ Cache busting (git hash)
+                                 ├─ Frontend build (npm run build:prod)
+                                 ├─ Docker build (5 images)
+                                 │  ├─ backend (multi-stage + embedded frontend)
+                                 │  ├─ bot
+                                 │  ├─ nginx
+                                 │  ├─ redis
+                                 │  └─ postgresql
+                                 ├─ Push to ghcr.io:6.6.1
+                                 └─ Trivy security scan
+                                    ↓
+                                                        3. Server deployment (2-3 min)
+                                                           ├─ Read VERSION file → 6.6.1
+                                                           ├─ Pull 5 images from ghcr.io
+                                                           ├─ docker compose up -d
+                                                           ├─ Run migrations
+                                                           ├─ Health checks
+                                                           └─ Cleanup old images (7d retention)
 ```
-**Время:** 2-3 минуты
-**Сборка:** Нет (pull готовых образов)
-**Тег:** Автоопределение (git branch → VERSION → hash → latest)
+
+### 1. Developer: Manual VERSION Bump
+
+**ТРЕБОВАНИЕ:** VERSION файл ВСЕГДА bumps вручную перед push.
+
+```bash
+# Локально
+echo "6.6.1" > VERSION  # ОБЯЗАТЕЛЬНО ручной bump
+git add VERSION
+git commit -m "chore: bump version to 6.6.1"
+git push origin test
+```
+
+**Semver Convention:**
+- **MAJOR** (7.0.0): Breaking changes
+- **MINOR** (6.7.0): New features
+- **PATCH** (6.6.1): Bug fixes
+
+### 2. GitHub Actions: CI/CD Build (5-7 min)
+
+При push в `test` branch или создании git tag:
+
+1. **Cache Busting (CI)**
+   ```bash
+   CACHE_VERSION=$(git rev-parse --short HEAD)
+   bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+   # Обновляет ?v=PLACEHOLDER → ?v=abc1234 в HTML templates
+   ```
+
+2. **Frontend Build**
+   ```bash
+   npm ci
+   npm run build:prod
+   # Минификация CSS/JS уже с обновленными cache versions
+   ```
+
+3. **Docker Build (multi-stage)**
+   ```dockerfile
+   # backend/Dockerfile:
+   # Stage 1: Python deps builder
+   # Stage 2: Frontend builder (npm run build:prod)
+   # Stage 3: Runtime (COPY --from=frontend-builder)
+   ```
+
+4. **Push to ghcr.io**
+   ```
+   ghcr.io/ikeniborn/familybudget-backend:6.6.1
+   ghcr.io/ikeniborn/familybudget-bot:6.6.1
+   ghcr.io/ikeniborn/familybudget-nginx:6.6.1
+   ghcr.io/ikeniborn/familybudget-redis:6.6.1
+   ghcr.io/ikeniborn/familybudget-postgresql:6.6.1
+   ```
+
+5. **Conditional Builds (IMAGE_VERSIONS.json)**
+   - Проверяет git hash для каждого образа
+   - Skip сборки если нет изменений
+   - Пересобирает только измененные образы
+
+6. **Security Scan**
+   ```bash
+   trivy image ghcr.io/ikeniborn/familybudget-backend:6.6.1
+   # CVE scanning, vulnerability report
+   ```
+
+### 3. Server: Registry Pull (2-3 min)
+
+```bash
+# SSH на budget-test
+ssh budget-test
+cd ~/familyBudget
+git pull origin test
+
+# Деплой (ВСЕГДА registry mode)
+sudo ./deploy.sh --sync-mode update --cleanup-mode smart
+
+# Что происходит:
+# 1. Читает VERSION файл → 6.6.1
+# 2. Pull 5 образов из ghcr.io:6.6.1
+# 3. docker compose up -d
+# 4. Run migrations
+# 5. Health checks
+# 6. Cleanup старых образов (>7 дней)
+```
 
 ---
 
@@ -82,267 +184,381 @@ sudo ./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
 ### Вариант 1: Через deploy-test skill (рекомендуется)
 
 ```
-Пользователь: "Задеплой на тестовый сервер используя образы из registry"
+Пользователь: "Задеплой на тестовый сервер"
 ```
 
 Claude автоматически:
 1. Проверит SSH подключение
 2. Сделает git pull на сервере
-3. Запустит `deploy.sh --use-registry --sync-mode update --cleanup-mode smart`
+3. Запустит `deploy.sh --sync-mode update --cleanup-mode smart`
 4. Проанализирует логи
 5. Проверит статус контейнеров
 6. Выведет итоговый отчет
 
-**Новая опция в интерактивном диалоге:**
-```
-Вопрос: Какие дополнительные опции применить?
-[ ] Стандартный деплой (Recommended)
-[✓] --use-registry (Pull pre-built images из ghcr.io)  ← НОВАЯ ОПЦИЯ
-[ ] --force-build (Принудительная пересборка)
-[ ] --verbose (Детальный вывод)
-...
-```
+**Интерактивный диалог больше НЕ спрашивает про --use-registry** (default behavior)
 
-### Вариант 2: Вручную (прямо на сервере)
+### Вариант 2: Вручную (на сервере)
 
 ```bash
 # SSH на budget-test
 ssh budget-test
-
-# Переход в репозиторий
 cd ~/familyBudget
-
-# Pull последних изменений
 git pull origin test
 
-# Деплой с registry pull
-sudo ./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+# Деплой (registry mode - ЕДИНСТВЕННЫЙ режим)
+sudo ./deploy.sh --sync-mode update --cleanup-mode smart
 ```
 
 **Дополнительные опции:**
 ```bash
-# С явным указанием тега
-sudo ./deploy.sh --use-registry --image-tag test
+# С версионированием (VERSION bump на сервере)
+sudo ./deploy.sh --version patch  # 6.6.0 → 6.6.1
 
-# С версионированием (version bump без пересборки)
-sudo ./deploy.sh --use-registry --version patch
-
-# Rollback на предыдущую версию
-sudo ./deploy.sh --use-registry --image-tag sha-abc1234
-
-# Pull production версии
-sudo ./deploy.sh --use-registry --image-tag 6.6.0
+# Verbose режим
+sudo ./deploy.sh --verbose
 ```
 
----
+### Вариант 3: VERSION Bump Workflow
 
-## Автоматическое определение тега
-
-При использовании `--use-registry` без явного `--image-tag`, скрипт определяет тег в таком порядке:
-
-1. **Флаг --image-tag** (если указан явно)
-   ```bash
-   --image-tag test  → ghcr.io/ikeniborn/familybudget-backend:test
-   ```
-
-2. **Git branch name** (из ~/familyBudget на сервере)
-   ```bash
-   cd ~/familyBudget && git branch
-   # * test
-   → ghcr.io/ikeniborn/familybudget-backend:test
-   ```
-
-3. **VERSION файл** (в /opt/budget/VERSION)
-   ```bash
-   cat /opt/budget/VERSION
-   # 6.6.0
-   → ghcr.io/ikeniborn/familybudget-backend:6.6.0
-   ```
-
-4. **Git short hash** (из ~/familyBudget)
-   ```bash
-   cd ~/familyBudget && git rev-parse --short HEAD
-   # abc1234
-   → ghcr.io/ikeniborn/familybudget-backend:sha-abc1234
-   ```
-
-5. **Fallback: latest**
-   ```bash
-   → ghcr.io/ikeniborn/familybudget-backend:latest
-   ```
-
----
-
-## Когда использовать каждый режим
-
-### Используйте Registry Mode (`--use-registry`) когда:
-- ✅ GitHub Actions workflow успешно собрал образы
-- ✅ Нужен быстрый деплой (50-60% экономия времени)
-- ✅ Важна консистентность образов с CI/CD
-- ✅ Хотите использовать образы прошедшие все проверки
-- ✅ На сервере нет Node.js/npm
-
-### Используйте Build Mode (обычный) когда:
-- ✅ Тестируете локальные изменения (еще не в git)
-- ✅ CI/CD workflow еще не завершился
-- ✅ Нужен air-gapped деплой (без внешних зависимостей)
-- ✅ Изменения только в коде (не требуют полной пересборки)
-
----
-
-## Примеры workflow
-
-### Workflow 1: Быстрый деплой после push
+**ВАЖНО:** VERSION файл ВСЕГДА bumps вручную (не автоматически)
 
 ```bash
-# Локально
-git add .
-git commit -m "feat: add new feature"
+# Feature release (minor)
+echo "6.7.0" > VERSION
+git add VERSION
+git commit -m "feat: add shopping lists feature"
 git push origin test
 
-# ⏳ Ждем GitHub Actions (~5-7 мин)
-# Проверяем: https://github.com/user/familyBudget/actions
+# Bug fix (patch)
+echo "6.6.1" > VERSION
+git add VERSION
+git commit -m "fix: correct transfer deduplication"
+git push origin test
 
-# Деплой через skill
-"Задеплой на тестовый сервер используя образы из registry"
+# Breaking change (major)
+echo "7.0.0" > VERSION
+git add VERSION
+git commit -m "BREAKING: migrate to ES modules"
+git push origin test
 ```
-
-**Результат:** Деплой за 2-3 минуты вместо 5-7
-
-### Workflow 2: Rollback на предыдущую версию
-
-```bash
-# Если текущая версия сломана, откатываемся
-ssh budget-test
-cd ~/familyBudget
-
-# Находим предыдущий commit hash
-git log --oneline -5
-# abc1234 fix: current broken version
-# def5678 feat: previous working version  ← откатимся сюда
-
-# Rollback
-sudo ./deploy.sh --use-registry --image-tag sha-def5678 --sync-mode skip --cleanup-mode smart
-```
-
-**Результат:** Быстрый rollback без пересборки
-
-### Workflow 3: Тестирование production образов
-
-```bash
-# Деплой production версии на test сервер для проверки
-ssh budget-test
-cd ~/familyBudget
-
-sudo ./deploy.sh --use-registry --image-tag 6.6.0 --sync-mode skip --cleanup-mode smart
-```
-
-**Результат:** Точно те же образы что в production
 
 ---
 
-## Что изменилось в файлах
+## Автоматическая очистка старых образов
+
+**НОВОЕ в v9.0:** Автоматическое удаление старых Docker images после каждого деплоя.
+
+### Как работает
+
+```bash
+# В deploy.sh после успешного docker compose up:
+cleanup_old_images 7  # Retention: 7 дней
+```
+
+**Логика:**
+1. Находит все Family Budget образы старше 7 дней
+2. Исключает running containers из удаления
+3. Удаляет старые образы
+4. Логирует в `/opt/budget/logs/cleanup-history.log`
+
+**Пример:**
+```
+[2026-01-21T10:30:00Z] removed: ghcr.io/ikeniborn/familybudget-backend:6.5.0
+[2026-01-21T10:30:01Z] removed: ghcr.io/ikeniborn/familybudget-bot:6.5.0
+[2026-01-21T10:30:02Z] skipped: ghcr.io/ikeniborn/familybudget-backend:6.6.0 (running)
+```
+
+**Экономия дискового пространства:**
+- Backend image: ~500 MB
+- Bot image: ~400 MB
+- Nginx image: ~50 MB
+- Redis image: ~40 MB
+- PostgreSQL image: ~250 MB
+- **Total:** ~1.2 GB на версию
+
+При retention 7 дней и 1 деплое в день: **Экономия ~7 GB** после недели
+
+**Настройка retention:**
+```bash
+# В .env
+CLEANUP_RETENTION_DAYS=7  # Default: 7 дней
+```
+
+---
+
+## Rollback
+
+### Вариант 1: Откат через VERSION файл (быстрый)
+
+```bash
+# На сервере
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
+
+# Что происходит:
+# 1. Читает VERSION → 6.6.0
+# 2. Pull образов 6.6.0 из ghcr.io (если нет локально)
+# 3. docker compose up -d
+# Время: 2-3 минуты
+```
+
+### Вариант 2: Откат через git (полный)
+
+```bash
+# На сервере
+cd ~/familyBudget
+git log --oneline -5
+# abc1234 fix: broken feature (CURRENT)
+# def5678 feat: working version (ROLLBACK TO THIS)
+
+git reset --hard def5678
+git push -f origin test  # Опасно! Только для test сервера
+
+sudo bash deploy.sh
+# Pull образов версии из def5678 коммита
+```
+
+### Вариант 3: Аварийный откат (локальные образы)
+
+```bash
+# Если registry недоступен
+docker images | grep familybudget
+# ghcr.io/ikeniborn/familybudget-backend:6.6.0
+# ghcr.io/ikeniborn/familybudget-backend:6.5.0  ← откатимся
+
+# Ручной запуск с предыдущей версией
+VERSION=6.5.0 docker compose up -d
+```
+
+---
+
+## Что изменилось в файлах (v9.0)
 
 ### Новые файлы:
-1. **`.github/workflows/build-and-push.yml`** - CI/CD pipeline (5 jobs)
-2. **`.github/workflows/pr-checks.yml`** - PR validation workflow
-3. **`scripts/lib/registry.sh`** - Registry integration module
-4. **`docs/architecture/ci-cd-build-deploy.md`** - Полная документация CI/CD
+1. **`scripts/ci/cache_busting_ci.sh`** - CI-совместимый cache busting
+2. **`scripts/ci/check_image_changes.sh`** - Определение какие образы пересобирать
+3. **`.dockerignore`** - Оптимизация Docker build context (30-50% меньше)
+4. **`IMAGE_VERSIONS.json`** - Версионирование каждого образа отдельно
+5. **`nginx/Dockerfile`** - Кастомный nginx образ
+6. **`redis/Dockerfile`** - Кастомный redis образ
+7. **`postgres/Dockerfile`** - Кастомный postgresql образ
+8. **`docker-compose.dev.yml`** - Dev overrides для локальной разработки
+9. **`archive/README-ARCHIVE.md`** - Документация build mode (бэкап)
+
+### Полностью переписанные файлы:
+1. **`backend/Dockerfile`** - Multi-stage build (python-builder → frontend-builder → runtime)
+2. **`.github/workflows/build-and-push.yml`** - 5 образов, semver tags, cache busting
+3. **`docker-compose.yml`** - Удалены build секции, только registry images
+4. **`deploy.sh`** - Удалено 451 строк build logic, добавлен cleanup_old_images()
+5. **`scripts/lib/registry.sh`** - Pull 5 образов вместо 2
 
 ### Обновленные файлы:
-1. **`deploy.sh`** - добавлены флаги `--use-registry`, `--image-tag`
-2. **`scripts/lib/services.sh`** - логика выбора build vs registry mode
-3. **`scripts/lib/validation.sh`** - обновлена help документация
-4. **`.claude/skills/deploy-test/SKILL.md`** - обновлена v8.0.0 с registry support
-5. **`.claude/skills/deploy-test/examples/usage.md`** - добавлен пример registry mode
-6. **`eslint.config.js`** - конфигурация ESLint для CI/CD (CommonJS)
-7. **`package.json`** - добавлены lint скрипты
+1. **`nginx/conf.d/app-https.conf.template`** - Удалена секция /static/ (backend отдает)
+2. **`.claude/skills/deploy-test/SKILL.md`** - v9.0.0, registry-only
+3. **`.claude/skills/deploy-prod/SKILL.md`** - v9.0.0, production safety requirements
+4. **`CI-CD-REGISTRY-SUMMARY.md`** - Этот документ (v9.0.0)
 
-### Новые сущности:
-- **GitHub Container Registry images:**
-  - `ghcr.io/ikeniborn/familybudget-backend:test`
-  - `ghcr.io/ikeniborn/familybudget-bot:test`
-- **Deployment history log:**
-  - `/opt/budget/logs/deployment-history.log`
-  - Формат: `[timestamp] mode=registry tag=test result=success user=admin`
+### Удаленные возможности:
+- ~~`deploy.sh --force-build`~~ (нет локальной сборки)
+- ~~`deploy.sh --use-registry`~~ (default behavior)
+- ~~`deploy.sh --image-tag`~~ (используется VERSION файл)
+- ~~npm build на сервере~~ (все в CI)
+- ~~cache busting на сервере~~ (все в CI)
+- ~~Bind mounts для кода в docker-compose.yml~~ (код в образах)
+
+### Сохраненные volumes:
+✅ `postgres_data` - данные PostgreSQL
+✅ `redis_data` - данные Redis
+✅ `./logs` - логи приложения
+✅ `./uploads` - загруженные файлы
+✅ `nginx_cache` - кэш nginx
 
 ---
 
-## Важные замечания
+## Требования для deployment (v9.0)
 
-### 1. Требования для registry mode
+### GitHub (CI/CD):
+- ✅ GitHub Actions workflow успешно завершился
+- ✅ Образы опубликованы в ghcr.io:${VERSION}
+- ✅ VERSION файл bump вручную перед push
+- ✅ Trivy security scan прошел
 
-**На GitHub:**
-- ✅ GitHub Actions workflow должен успешно завершиться
-- ✅ Образы должны быть опубликованы в ghcr.io
-
-**На сервере:**
-- ✅ Docker должен быть аутентифицирован (для приватных репозиториев):
+### Server (budget-test/prod):
+- ✅ Docker установлен (версия 20.10+)
+- ✅ Docker Compose V2 (версия 2.0+)
+- ✅ Docker аутентифицирован в ghcr.io (для приватных репозиториев):
   ```bash
   docker login ghcr.io
   Username: <github_username>
   Password: <github_personal_access_token>
   ```
+- ✅ VERSION файл существует в /opt/budget/VERSION
+- ❌ npm/Node.js НЕ требуются (все в CI)
 
-### 2. Проверка наличия образов
+---
 
-Перед деплоем можно проверить наличие образов:
+## Production Safety Requirements
+
+**CRITICAL для production (budget-prod):**
+
+1. ✅ **ОБЯЗАТЕЛЬНО тестирование на budget-test** (минимум 1 неделя)
+2. ✅ Проверка всех критических функций на тесте
+3. ✅ Анализ логов budget-test на ошибки
+4. ✅ Мониторинг метрик (CPU, memory, disk)
+5. ✅ GitHub Actions build MUST complete successfully
+6. ✅ Images MUST exist in ghcr.io:${VERSION}
+7. ✅ VERSION совпадает с протестированным на budget-test
+
+**Workflow (Production-Safe):**
 ```bash
-# Проверка через docker manifest (не скачивает образ)
-docker manifest inspect ghcr.io/ikeniborn/familybudget-backend:test
+# 1. Test на budget-test (1 неделя)
+ssh budget-test
+cd ~/familyBudget
+sudo ./deploy.sh --version patch
+# ... Тестирование 1 неделя ...
+# ... Мониторинг логов, метрик ...
+# ... Проверка всех функций ...
 
-# Если образ существует - выведет JSON манифест
-# Если не существует - ошибка "manifest unknown"
+# 2. После успешного теста → Production
+ssh budget-prod
+cd ~/familyBudget
+sudo ./deploy.sh  # Использует ТОТ ЖЕ VERSION
 ```
 
-### 3. Размеры образов
+**Преимущества:**
+- ✅ Консистентность: Те же образы что на test (проверены)
+- ✅ Безопасность: Нет сборки на production
+- ✅ Надежность: Образы проверены через CI/CD + test сервер
 
-- **Backend image:** ~400-500 MB
-- **Bot image:** ~350-450 MB
-- **Total download:** ~750-950 MB (при первом pull)
-- **Subsequent pulls:** Только измененные слои (~50-200 MB)
+---
 
-### 4. Deployment history
+## Примеры workflow
 
-Все деплои логируются в `/opt/budget/logs/deployment-history.log`:
+### Workflow 1: Feature Release
+
+```bash
+# Локально
+echo "6.7.0" > VERSION
+git add VERSION backend/ frontend/
+git commit -m "feat: add shopping lists feature"
+git push origin test
+
+# ⏳ Ждем GitHub Actions (5-7 мин)
+# Проверяем: https://github.com/user/familyBudget/actions
+
+# Деплой на budget-test
+ssh budget-test
+cd ~/familyBudget
+git pull origin test
+sudo ./deploy.sh
+
+# Тестирование (1 неделя)
+# ...
+
+# Деплой на budget-prod
+ssh budget-prod
+cd ~/familyBudget
+git pull origin test
+sudo ./deploy.sh
 ```
-[2026-01-20 22:07:01] mode=registry tag=test result=pull_success user=admin
-[2026-01-20 21:15:33] mode=build tag=6.6.0 result=success user=admin
+
+**Результат:** Консистентный деплой одинаковых образов на test и prod
+
+### Workflow 2: Hotfix (patch release)
+
+```bash
+# Локально
+echo "6.6.1" > VERSION
+git add VERSION backend/
+git commit -m "fix: correct transfer deduplication bug"
+git push origin test
+
+# ⏳ GitHub Actions (5-7 мин)
+
+# Деплой на budget-test (проверка hotfix)
+ssh budget-test
+cd ~/familyBudget
+git pull origin test
+sudo ./deploy.sh
+
+# После проверки → Production
+ssh budget-prod
+cd ~/familyBudget
+git pull origin test
+sudo ./deploy.sh
 ```
 
-Хранится последние 100 записей.
+### Workflow 3: Emergency Rollback
+
+```bash
+# Production сломан, нужен быстрый откат
+ssh budget-prod
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
+
+# Pull образов 6.6.0 из ghcr.io
+# Перезапуск контейнеров
+# Время: 2-3 минуты
+```
 
 ---
 
 ## Troubleshooting
 
-### Проблема 1: Image pull fails
+### Проблема 1: VERSION файл не изменился
 
 **Ошибка:**
 ```
-✗ Failed to pull backend image: ghcr.io/ikeniborn/familybudget-backend:test
+GitHub Actions Warning: VERSION не изменился (6.6.0), но есть коммиты.
+Рекомендуется bump VERSION.
+```
+
+**Решение:**
+```bash
+# Bump VERSION вручную
+echo "6.6.1" > VERSION  # patch bump для bug fix
+git add VERSION
+git commit --amend --no-edit
+git push -f origin test
+```
+
+### Проблема 2: Image pull fails
+
+**Ошибка:**
+```
+✗ Failed to pull backend image: ghcr.io/ikeniborn/familybudget-backend:6.6.1
+Error response from daemon: manifest for ghcr.io/ikeniborn/familybudget-backend:6.6.1 not found
 ```
 
 **Решения:**
-1. Проверьте что образ существует:
-   ```bash
-   docker manifest inspect ghcr.io/ikeniborn/familybudget-backend:test
+1. Проверьте GitHub Actions:
    ```
-2. Проверьте GitHub Actions:
-   - Перейдите в https://github.com/user/familyBudget/actions
-   - Убедитесь что workflow "Build and Push Docker Images" завершился успешно
-3. Для приватных репозиториев - аутентифицируйтесь:
+   https://github.com/user/familyBudget/actions
+   # Build and Push Docker Images должен быть success
+   ```
+
+2. Проверьте наличие образа:
+   ```bash
+   docker manifest inspect ghcr.io/ikeniborn/familybudget-backend:6.6.1
+   # Если "manifest unknown" - образ не собран
+   ```
+
+3. Убедитесь что VERSION bump committed:
+   ```bash
+   git log --oneline -1
+   # Должен содержать VERSION 6.6.1
+   ```
+
+4. Для приватных репозиториев - аутентификация:
    ```bash
    docker login ghcr.io
-   ```
-4. Попробуйте другой тег:
-   ```bash
-   sudo ./deploy.sh --use-registry --image-tag latest
+   Username: <github_username>
+   Password: <github_personal_access_token>
    ```
 
-### Проблема 2: CI/CD workflow не запустился
+### Проблема 3: CI/CD workflow не запустился
 
-**Причина:** Workflow триггерится только при push в test branch или создании git tag.
+**Причина:** Workflow триггерится только при push в test branch.
 
 **Решение:**
 ```bash
@@ -354,12 +570,112 @@ git push origin test
 # GitHub → Actions → Build and Push Docker Images → Run workflow
 ```
 
-### Проблема 3: Тег определился неправильно
+### Проблема 4: Старые образы не удаляются
 
-**Если автоопределение выбрало не тот тег:**
+**Проверка:**
 ```bash
-# Используйте явное указание тега
-sudo ./deploy.sh --use-registry --image-tag test
+# На сервере
+docker images | grep familybudget
+# Если много старых образов (>7 дней)
+```
+
+**Решение:**
+```bash
+# Ручной запуск cleanup
+cd /opt/budget
+source deploy.sh
+cleanup_old_images 7
+
+# Или изменить retention в .env
+echo "CLEANUP_RETENTION_DAYS=3" >> .env
+```
+
+### Проблема 5: Frontend статика не отдается
+
+**Ошибка:**
+```
+404 Not Found: /static/css/tailwind-daisyui.min.css
+```
+
+**Причина:** Backend должен отдавать статику через FastAPI StaticFiles (не nginx)
+
+**Решение:**
+1. Проверьте что frontend в backend образе:
+   ```bash
+   docker exec familybudget-backend ls -lh /app/frontend/web/static/css/
+   # Должен показать файлы
+   ```
+
+2. Проверьте backend логи:
+   ```bash
+   docker logs familybudget-backend | grep StaticFiles
+   ```
+
+3. Проверьте nginx конфигурацию (НЕ должно быть location /static/):
+   ```bash
+   docker exec familybudget-nginx cat /etc/nginx/conf.d/app-https.conf
+   # НЕ должно быть: location /static/ { alias ... }
+   ```
+
+### Проблема 6: Disk space full
+
+**Ошибка:**
+```
+Error response from daemon: write /var/lib/docker: no space left on device
+```
+
+**Решение:**
+```bash
+# Проверка места
+df -h /var/lib/docker
+
+# Удаление всех старых образов
+docker image prune -a --filter "until=168h"  # Старше 7 дней
+
+# Удаление dangling images
+docker image prune -f
+
+# Удаление unused volumes (ОСТОРОЖНО!)
+docker volume prune -f
+```
+
+---
+
+## Размеры образов (v9.0)
+
+**Production images:**
+- **Backend:** ~500 MB (с embedded frontend)
+- **Bot:** ~400 MB
+- **Nginx:** ~50 MB (nginx:alpine)
+- **Redis:** ~40 MB (redis:7-alpine)
+- **PostgreSQL:** ~250 MB (postgres:16-alpine)
+- **Total:** ~1.2 GB на версию
+
+**First deployment pull:** ~1.2 GB
+**Subsequent deployments:** ~50-200 MB (только измененные слои)
+
+**Disk space planning:**
+- 1 версия: 1.2 GB
+- 7 дней retention (1 deploy/день): ~7-8 GB
+- **Рекомендуется:** Минимум 20 GB для /var/lib/docker
+
+---
+
+## Deployment History
+
+Все деплои логируются в `/opt/budget/logs/deployment-history.log`:
+
+```
+[2026-01-21 10:30:00] mode=registry tag=6.6.1 result=success user=admin
+[2026-01-20 22:15:00] mode=registry tag=6.6.0 result=success user=admin
+[2026-01-20 21:00:00] mode=registry tag=6.5.0 result=success user=admin
+```
+
+**Cleanup history:** `/opt/budget/logs/cleanup-history.log`:
+```
+[2026-01-21T10:30:05Z] removed: ghcr.io/ikeniborn/familybudget-backend:6.5.0
+[2026-01-21T10:30:06Z] removed: ghcr.io/ikeniborn/familybudget-bot:6.5.0
+[2026-01-21T10:30:07Z] skipped: ghcr.io/ikeniborn/familybudget-backend:6.6.1 (running)
 ```
 
 ---
@@ -367,28 +683,67 @@ sudo ./deploy.sh --use-registry --image-tag test
 ## Ссылки на документацию
 
 - **CI/CD архитектура:** `docs/architecture/ci-cd-build-deploy.md`
+- **Docker архитектура:** `docs/architecture/docker.md`
 - **Registry module:** `scripts/lib/registry.sh`
 - **Deploy-test skill:** `.claude/skills/deploy-test/SKILL.md`
-- **GitHub Actions workflows:** `.github/workflows/`
+- **Deploy-prod skill:** `.claude/skills/deploy-prod/SKILL.md`
+- **GitHub Actions workflows:** `.github/workflows/build-and-push.yml`
 - **Deployment troubleshooting:** `docs/architecture/guides/deployment-troubleshooting.md`
+- **Build mode archive:** `archive/README-ARCHIVE.md`
 
 ---
 
-## Итого
+## Rollback к Build Mode (Emergency)
+
+**ТОЛЬКО для критических ситуаций**, если registry-only mode полностью сломан:
+
+```bash
+# На сервере
+cd ~/familyBudget
+git fetch origin archive/build-mode-backup
+git checkout archive/build-mode-backup
+
+# Deploy со старым deploy.sh (с build logic)
+sudo bash deploy.sh
+
+# Данные сохранены (postgres_data, redis_data)
+```
+
+**Документация build mode:** `archive/README-ARCHIVE.md`
+
+---
+
+## Итого (v9.0)
 
 **Что получили:**
-1. ⚡ **Быстрее:** Деплой 2-3 минуты вместо 5-7
-2. ✅ **Надежнее:** Образы прошли все CI/CD проверки
-3. 🚀 **Проще:** Не нужен Node.js/npm на сервере
-4. 🔄 **Гибче:** Можно pull любую версию (rollback, A/B testing)
+1. ⚡ **Всегда быстро:** Деплой ВСЕГДА 2-3 минуты (только pull)
+2. ✅ **Надежнее:** Образы прошли CI/CD + test сервер проверку
+3. 🚀 **Проще:** Нет npm/Node.js на сервере, нет build logic
+4. 🔒 **Безопаснее:** Нет сборки на production, Trivy scan
+5. 📦 **5 образов:** Полный контроль над всеми сервисами
+6. 🔄 **Auto-cleanup:** Автоматическая очистка старых образов (7d)
+7. 🎯 **Селективная сборка:** Пересборка только измененных образов
+
+**Breaking Changes:**
+- ❌ Build mode удален (используйте archive ветку для отката)
+- ❌ --use-registry флаг удален (default behavior)
+- ❌ npm на сервере больше не требуется
+
+**Migration Guide:**
+1. Убедитесь что все деплои проходят через GitHub Actions
+2. Удалите Node.js/npm с production сервера (опционально)
+3. Обновите deployment scripts (deploy.sh v9.0)
+4. Настройте auto-cleanup retention (CLEANUP_RETENTION_DAYS)
 
 **Как начать использовать:**
-1. Убедитесь что GitHub Actions workflow успешно собрал образы
-2. Используйте `--use-registry` флаг при деплое
-3. Наслаждайтесь ускорением на 50-60% 🎉
+1. ✅ Bump VERSION вручную перед push
+2. ✅ Push → GitHub Actions собирает образы
+3. ✅ Деплой на budget-test → тестирование 1 неделя
+4. ✅ Деплой на budget-prod → консистентные образы
+5. ✅ Наслаждайтесь скоростью и надежностью 🎉
 
 ---
 
-**Версия документа:** 1.0
-**Дата:** 2026-01-20
+**Версия документа:** 2.0 (Registry-Only Architecture)
+**Дата:** 2026-01-21
 **Автор:** Claude Sonnet 4.5
