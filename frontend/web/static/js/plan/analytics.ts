@@ -229,8 +229,12 @@ export async function loadAnalyticsArticleFilter(articleType: string | null = nu
     // Save current selection
     const currentValue = select.value;
 
-    // Clear and repopulate
-    select.innerHTML = '<option value="">Все категории</option>';
+    // Clear and repopulate (safe DOM API instead of innerHTML)
+    select.textContent = '';
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Все категории';
+    select.appendChild(defaultOption);
 
     // Build tree and flatten (same as filter dropdown)
     const tree = PlanHelpers.buildArticleTree(articles);

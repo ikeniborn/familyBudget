@@ -125,6 +125,22 @@ export function clearSelection(): void {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Set HTML content safely using DOM API (no XSS risk)
+ * @param element - Target element
+ * @param htmlString - HTML string to set
+ */
+function setInnerHTML(element: HTMLElement, htmlString: string): void {
+  element.textContent = '';
+  const template = document.createElement('template');
+  template.innerHTML = htmlString.trim();
+  element.appendChild(template.content);
+}
+
+// ============================================================================
 // Data Loading
 // ============================================================================
 
@@ -190,9 +206,11 @@ export async function loadFacts(): Promise<void> {
     return;
   }
 
-  // Show loading spinner
-  container.innerHTML =
-    '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+  // Show loading spinner (safe DOM API)
+  setInnerHTML(
+    container,
+    '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>'
+  );
 
   try {
     // Build query params
@@ -251,7 +269,15 @@ export async function loadFacts(): Promise<void> {
   } catch (error) {
     console.error('[PlanFactsTable] Error loading facts:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+
+    // Show error message (safe DOM API)
+    container.textContent = '';
+    const alert = document.createElement('div');
+    alert.className = 'alert alert-error';
+    const span = document.createElement('span');
+    span.textContent = `❌ Ошибка загрузки: ${errorMessage}`;
+    alert.appendChild(span);
+    container.appendChild(alert);
   }
 }
 
@@ -285,8 +311,12 @@ function renderFactsTable(facts: BudgetFact[]): void {
   updateBatchDeleteButton();
 
   if (facts.length === 0) {
-    container.innerHTML =
-      '<div class="text-center py-8 text-base-content/60">📅 Плановые записи не найдены. Измените фильтры или добавьте новые плановые записи.</div>';
+    // Show empty state (safe DOM API)
+    container.textContent = '';
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'text-center py-8 text-base-content/60';
+    emptyDiv.textContent = '📅 Плановые записи не найдены. Измените фильтры или добавьте новые плановые записи.';
+    container.appendChild(emptyDiv);
     return;
   }
 
@@ -406,8 +436,8 @@ function renderFactsTable(facts: BudgetFact[]): void {
 
   mobileHtml += `</div>`;
 
-  // Combine both views
-  container.innerHTML = tableHtml + mobileHtml;
+  // Combine both views (safe DOM API using template)
+  setInnerHTML(container, tableHtml + mobileHtml);
 }
 
 // ============================================================================
