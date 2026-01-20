@@ -242,6 +242,10 @@ function initModule(): void {
   // Mark as initialized
   setInitialized(true);
 
+  // Call Dashboard.init() to set up forms, event listeners, and WebSocket handlers
+  // This is critical for the module to work properly
+  dashboardExports.init();
+
   debugLog('[Dashboard] Module loaded');
 }
 

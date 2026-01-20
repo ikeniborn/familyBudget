@@ -25,38 +25,9 @@ import {
     goToNextPage
 } from '../operations/factsController';
 
-// Placeholder functions - will be implemented in full integration
-declare global {
-    interface Window {
-        // Export все функции используемые в onclick handlers
-        applyFilters: () => void;
-        resetFilters: () => void;
-        collapseFilters: () => void;
-        previousPage: () => void;
-        nextPage: () => void;
-        toggleSelectAll: (checkbox: HTMLInputElement) => void;
-        updateBatchDeleteButton: () => void;
-
-        // Placeholders for full implementation
-        batchDelete: () => Promise<void>;
-        showEditModal: (factId: number) => Promise<void>;
-        closeEditModal: () => void;
-        updateFact: (event: Event) => Promise<void>;
-        deleteFact: (factId: number) => Promise<void>;
-        deleteFromEditModal: () => Promise<void>;
-        exportFilteredFacts: (format: 'csv') => void;
-        openCreateModal: () => void;
-        openAddTransactionModal: () => void;
-        openFactTransferModal: () => void;
-        saveTransaction: (button: HTMLButtonElement) => void;
-        saveTransfer: (button: HTMLButtonElement) => void;
-        createFact: (event: Event) => Promise<void>;
-        createTransfer: (event: Event) => Promise<void>;
-        setTransactionDate: (offsetDays: number) => void;
-        loadFactHints: (category?: any) => Promise<void>;
-        filterEditCostCenters: (financialCenterId: string) => Promise<void>;
-    }
-}
+// Window interface declarations are in:
+// - facts/types/globals.d.ts (facts-specific functions)
+// - dashboard/types/globals.d.ts (shared functions like closeEditModal, deleteFact, etc.)
 
 /**
  * Setup window exports for onclick compatibility
@@ -146,7 +117,7 @@ function openFactTransferModal(): void {
 /**
  * Save transaction from modal
  */
-function saveTransaction(button: HTMLButtonElement): void {
+function saveTransaction(button: HTMLElement): void {
     const formId = button.dataset.formId;
     const modalId = button.dataset.modalId;
 
@@ -180,7 +151,7 @@ function saveTransaction(button: HTMLButtonElement): void {
 /**
  * Save transfer from modal
  */
-function saveTransfer(_button: HTMLButtonElement): void {
+function saveTransfer(_button: HTMLElement): void {
     // Transfer saving is handled by transfers.min.js
     // No-op: actual implementation in transfers.min.js
 }

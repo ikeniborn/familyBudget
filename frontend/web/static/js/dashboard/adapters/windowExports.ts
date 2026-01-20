@@ -20,6 +20,7 @@ import {
   loadPendingRecords as loadPendingRecordsImpl,
   deletePendingRecord as deletePendingRecordImpl,
   retryFailedItems as retryFailedItemsImpl,
+  deleteFailedRecords as deleteFailedRecordsImpl,
   handleTransferEditClick as handleTransferEditClickImpl,
 } from '../features/pendingRecords';
 
@@ -223,6 +224,77 @@ function setupEditCategoryTypeButtons(): void {
   return setupEditCategoryTypeButtonsImpl();
 }
 
+/**
+ * Open edit modal for a fact from dashboard recent-transactions list.
+ * Wrapper for openEditModal('fact', factId).
+ */
+async function openEditFromDashboard(factId: number): Promise<void> {
+  return openEditModalImpl('fact', factId);
+}
+
+/**
+ * Delete a record from dashboard recent-transactions list.
+ * Wrapper for deleteFactFromDashboard(factId, false).
+ */
+async function deleteRecordFromDashboard(factId: number): Promise<void> {
+  return deleteFactFromDashboardImpl(factId, false);
+}
+
+/**
+ * Alias for handleRecurringDeleteChoice for backward compatibility.
+ * HTML uses onclick="recurringDeleteResolve(choice)".
+ */
+function recurringDeleteResolve(choice: string | null): void {
+  return handleRecurringDeleteChoiceImpl(choice);
+}
+
+/**
+ * Open add transaction modal.
+ * Opens the #modal_add_transaction dialog.
+ */
+function openAddTransactionModal(): void {
+  const modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
+  if (modal) {
+    modal.showModal();
+    // Load categories when modal opens
+    loadTransactionCategoriesImpl();
+  } else {
+    debugLog('[Dashboard] modal_add_transaction not found');
+  }
+}
+
+/**
+ * Open fact transfer modal.
+ * Delegates to transfers module openTransferModal.
+ * Record type is 'fact' by default in transfers module.
+ */
+function openFactTransferModal(): void {
+  // Set record_type hidden field to 'fact' (for safety)
+  const recordTypeInput = document.getElementById('transfer_record_type') as HTMLInputElement | null;
+  if (recordTypeInput) {
+    recordTypeInput.value = 'fact';
+  }
+
+  // Show date section, hide period section
+  const dateSection = document.getElementById('transfer-date-section-fact');
+  const periodSection = document.getElementById('transfer-period-section-plan');
+  if (dateSection) dateSection.classList.remove('hidden');
+  if (periodSection) periodSection.classList.add('hidden');
+
+  // Delegate to transfers module
+  if (typeof window.openTransferModal === 'function') {
+    window.openTransferModal();
+  } else {
+    // Fallback: open modal directly
+    const modal = document.getElementById('transfer_modal');
+    if (modal) {
+      modal.classList.add('modal-open');
+    } else {
+      debugLog('[Dashboard] transfer_modal not found');
+    }
+  }
+}
+
 // ============================================================================
 // Add Transaction (Phase 3 - IMPLEMENTED)
 // ============================================================================
@@ -360,6 +432,10 @@ async function retryFailedItems(): Promise<void> {
   return retryFailedItemsImpl();
 }
 
+async function deleteFailedRecords(): Promise<void> {
+  return deleteFailedRecordsImpl();
+}
+
 // ============================================================================
 // Transfer placeholders (handled by transfers module)
 // ============================================================================
@@ -443,6 +519,7 @@ export const dashboardExports: DashboardExports = {
   loadPendingRecords,
   deletePendingRecord,
   retryFailedItems,
+  deleteFailedRecords,
 
   // Transfer (delegated to transfers module)
   setTransferRecordType,
@@ -451,6 +528,13 @@ export const dashboardExports: DashboardExports = {
   // UI (Phase 5 - IMPLEMENTED)
   toggleQuickStats,
   toggleAccountBalances,
+
+  // Dashboard-specific functions for HTML onclick handlers
+  openEditFromDashboard,
+  deleteRecordFromDashboard,
+  recurringDeleteResolve,
+  openAddTransactionModal,
+  openFactTransferModal,
 };
 
 /**
@@ -462,54 +546,65 @@ export function initWindowExports(): void {
   window.Dashboard = dashboardExports;
 
   // Also expose handleTransferEditClick globally for onclick handlers
-  (window as any).handleTransferEditClick = handleTransferEditClickImpl;
+  window.handleTransferEditClick = handleTransferEditClickImpl;
 
   // Expose pending records functions globally for onclick handlers
-  (window as any).loadPendingRecords = loadPendingRecords;
-  (window as any).deletePendingRecord = deletePendingRecord;
-  (window as any).retryFailedItems = retryFailedItems;
+  window.loadPendingRecords = loadPendingRecords;
+  window.deletePendingRecord = deletePendingRecord;
+  window.retryFailedItems = retryFailedItems;
 
   // Expose add transaction functions globally for onclick handlers
-  (window as any).loadTransactionCategories = loadTransactionCategories;
-  (window as any).saveTransaction = saveTransaction;
-  (window as any).filterCostCenterDropdown = filterCostCenterDropdown;
+  window.loadTransactionCategories = loadTransactionCategories;
+  window.saveTransaction = saveTransaction;
+  window.filterCostCenterDropdown = filterCostCenterDropdown;
 
   // Expose add plan functions globally for onclick handlers
-  (window as any).loadPlanCategories = loadPlanCategories;
-  (window as any).openAddPlanModal = openAddPlanModal;
-  (window as any).savePlan = savePlan;
-  (window as any).togglePlanMode = togglePlanMode;
-  (window as any).toggleReminderSettings = toggleReminderSettings;
+  window.loadPlanCategories = loadPlanCategories;
+  window.openAddPlanModal = openAddPlanModal;
+  window.savePlan = savePlan;
+  window.togglePlanMode = togglePlanMode;
+  window.toggleReminderSettings = toggleReminderSettings;
 
   // Expose recurring functions globally for onclick handlers
-  (window as any).initRecurringFields = initRecurringFields;
-  (window as any).resetRecurringOnlyFields = resetRecurringOnlyFields;
-  (window as any).resetRecurringSettings = resetRecurringSettings;
-  (window as any).updateFrequencyFields = updateFrequencyFields;
-  (window as any).updateDurationFields = updateDurationFields;
-  (window as any).updateRecurringPreview = updateRecurringPreview;
-  (window as any).collectRecurringSettings = collectRecurringSettings;
+  window.initRecurringFields = initRecurringFields;
+  window.resetRecurringOnlyFields = resetRecurringOnlyFields;
+  window.resetRecurringSettings = resetRecurringSettings;
+  window.updateFrequencyFields = updateFrequencyFields;
+  window.updateDurationFields = updateDurationFields;
+  window.updateRecurringPreview = updateRecurringPreview;
+  window.collectRecurringSettings = collectRecurringSettings;
 
   // Expose edit modal functions globally for onclick handlers (Phase 4)
-  (window as any).openEditModal = openEditModal;
-  (window as any).openEditPendingRecord = openEditPendingRecord;
-  (window as any).closeEditModal = closeEditModal;
-  (window as any).updateEditFact = updateEditFact;
-  (window as any).deleteFact = deleteFact;
-  (window as any).deleteFactFromDashboard = deleteFactFromDashboard;
-  (window as any).toggleEditReminderSettings = toggleEditReminderSettings;
-  (window as any).handleRecurringDeleteChoice = handleRecurringDeleteChoice;
-  (window as any).setupEditCategoryTypeButtons = setupEditCategoryTypeButtons;
+  window.openEditModal = openEditModal;
+  window.openEditPendingRecord = openEditPendingRecord;
+  window.closeEditModal = closeEditModal;
+  window.updateEditFact = updateEditFact;
+  // Note: window.deleteFact is exported by facts module with signature (factId: number)
+  // Dashboard.deleteFact() (no params) is available via window.Dashboard.deleteFact()
+  window.deleteFactFromDashboard = deleteFactFromDashboard;
+  window.toggleEditReminderSettings = toggleEditReminderSettings;
+  window.handleRecurringDeleteChoice = handleRecurringDeleteChoice;
+  window.setupEditCategoryTypeButtons = setupEditCategoryTypeButtons;
 
   // Expose UI functions globally for onclick handlers (Phase 5)
-  (window as any).toggleQuickStats = toggleQuickStats;
-  (window as any).toggleAccountBalances = toggleAccountBalances;
+  window.toggleQuickStats = toggleQuickStats;
+  window.toggleAccountBalances = toggleAccountBalances;
 
   // Expose HTMX refresh functions globally (Phase 5)
-  (window as any).refreshDashboard = refreshDashboardImpl;
-  (window as any).refreshRecentTransactions = refreshRecentTransactionsImpl;
-  (window as any).refreshQuickStats = refreshQuickStatsImpl;
-  (window as any).refreshAccountBalances = refreshAccountBalancesImpl;
+  window.refreshDashboard = refreshDashboardImpl;
+  window.refreshRecentTransactions = refreshRecentTransactionsImpl;
+  window.refreshQuickStats = refreshQuickStatsImpl;
+  window.refreshAccountBalances = refreshAccountBalancesImpl;
+
+  // Expose pending records delete function globally (Phase 2)
+  window.deleteFailedRecords = deleteFailedRecords;
+
+  // Expose dashboard-specific functions globally for HTML onclick handlers
+  window.openEditFromDashboard = openEditFromDashboard;
+  window.deleteRecordFromDashboard = deleteRecordFromDashboard;
+  window.recurringDeleteResolve = recurringDeleteResolve;
+  window.openAddTransactionModal = openAddTransactionModal;
+  window.openFactTransferModal = openFactTransferModal;
 
   debugLog('[Dashboard] Window exports initialized');
 }

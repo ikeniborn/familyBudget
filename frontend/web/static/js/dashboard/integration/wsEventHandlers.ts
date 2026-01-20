@@ -16,6 +16,17 @@ import {
 
 
 declare const debugLog: (...args: any[]) => void;
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Maximum number of retry attempts for WebSocket client registration */
+const WS_MAX_RETRIES = 5;
+
+/** Base delay in milliseconds for exponential backoff (500ms → 1s → 2s → 4s → 8s) */
+const WS_BASE_DELAY_MS = 500;
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -37,12 +48,18 @@ interface BatchDeleteEventData {
 /**
  * Register all WebSocket event handlers for dashboard updates.
  * Should be called once after DOMContentLoaded.
+ * Uses exponential backoff retry mechanism if budgetWSClient is not yet available.
  */
 export function registerWSEventHandlers(): void {
-  // Wait for budgetWSClient to be available (loaded in base.html)
-  setTimeout(() => {
+  function tryRegister(attempt: number): void {
     if (!window.budgetWSClient) {
-      debugLog('[WS] budgetWSClient not available');
+      if (attempt < WS_MAX_RETRIES) {
+        const delay = WS_BASE_DELAY_MS * Math.pow(2, attempt);
+        debugLog(`[WS] budgetWSClient not available, retry ${attempt + 1}/${WS_MAX_RETRIES} in ${delay}ms`);
+        setTimeout(() => tryRegister(attempt + 1), delay);
+        return;
+      }
+      debugLog('[WS] budgetWSClient not available after max retries');
       return;
     }
 
@@ -62,7 +79,10 @@ export function registerWSEventHandlers(): void {
     registerCacheInvalidationHandlers();
 
     debugLog('[WS] Event handlers registered');
-  }, 1000);
+  }
+
+  // Start first attempt after initial delay
+  setTimeout(() => tryRegister(0), WS_BASE_DELAY_MS);
 }
 
 // ============================================================================

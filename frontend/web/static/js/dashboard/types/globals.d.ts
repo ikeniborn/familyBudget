@@ -207,6 +207,74 @@ declare global {
 
     // Transfer modal integration
     handleTransferEditClick?: (itemId: number, side: 'from' | 'to') => Promise<void>;
+    openTransferModal?: () => Promise<void>;
+
+    // =========================================================================
+    // Dashboard Window Exports (for HTML onclick handlers)
+    // =========================================================================
+
+    // Pending records
+    loadPendingRecords?: () => Promise<void>;
+    deletePendingRecord?: (id: number) => Promise<void>;
+    retryFailedItems?: () => Promise<void>;
+    deleteFailedRecords?: () => Promise<void>;
+
+    // Add transaction
+    loadTransactionCategories?: () => Promise<void>;
+    saveTransaction?: (button: HTMLElement) => void;
+    filterCostCenterDropdown?: (formSelectorOrFcId: string | number | null, financialCenterId?: number | null) => Promise<void>;
+
+    // Add plan
+    loadPlanCategories?: () => Promise<void>;
+    openAddPlanModal?: () => void;
+    savePlan?: (button: HTMLElement) => void;
+    togglePlanMode?: (modalId: string) => void;
+    toggleReminderSettings?: (modalId: string) => void;
+
+    // Recurring settings
+    initRecurringFields?: (modalId: string) => void;
+    resetRecurringOnlyFields?: (modalId: string) => void;
+    resetRecurringSettings?: (modalId: string) => void;
+    updateFrequencyFields?: (modalId: string) => void;
+    updateDurationFields?: (modalId: string) => void;
+    updateRecurringPreview?: (modalId: string) => void;
+    collectRecurringSettings?: (modalId: string) => RecurringSettings | null;
+
+    // Edit modal
+    openEditModal?: (recordType: 'fact' | 'plan', recordId: number) => Promise<void>;
+    openEditPendingRecord?: (pendingId: number, entity: string) => Promise<void>;
+    closeEditModal?: () => void;
+    updateEditFact?: (event: Event) => Promise<void>;
+    deleteFact?: (factId: number) => Promise<void>;
+    deleteFactFromDashboard?: (factId: number, isRecurring: number | boolean) => Promise<void>;
+    toggleEditReminderSettings?: () => void;
+    handleRecurringDeleteChoice?: (choice: string | null) => void;
+    setupEditCategoryTypeButtons?: () => void;
+
+    // UI
+    toggleQuickStats?: () => void;
+    toggleAccountBalances?: () => void;
+
+    // HTMX refresh
+    refreshDashboard?: () => void;
+    refreshRecentTransactions?: () => void;
+    refreshQuickStats?: () => void;
+    refreshAccountBalances?: () => void;
+
+    // Dashboard-specific (HTML onclick handlers)
+    openEditFromDashboard?: (factId: number) => Promise<void>;
+    deleteRecordFromDashboard?: (factId: number) => Promise<void>;
+    recurringDeleteResolve?: (choice: string | null) => void;
+    openAddTransactionModal?: () => void;
+    openFactTransferModal?: () => void;
+
+    // Facts module shared functions (used by both dashboard and facts)
+    updateBatchDeleteButton?: () => void;
+    updateFact?: (event: Event) => Promise<void>;
+    deleteFromEditModal?: () => Promise<void>;
+    saveTransfer?: (button: HTMLElement) => void;
+    setTransactionDate?: (offsetDays: number) => void;
+    loadFactHints?: (category?: any) => Promise<void>;
   }
 
   // Global functions
@@ -272,6 +340,7 @@ export interface DashboardExports {
   loadPendingRecords(): Promise<void>;
   deletePendingRecord(id: number): Promise<void>;
   retryFailedItems(): Promise<void>;
+  deleteFailedRecords(): Promise<void>;
 
   // Transfer (delegated to transfers module)
   setTransferRecordType(type: RecordType): void;
@@ -280,6 +349,13 @@ export interface DashboardExports {
   // UI (Phase 5)
   toggleQuickStats(): void;
   toggleAccountBalances(): void;
+
+  // Dashboard-specific functions for HTML onclick handlers
+  openEditFromDashboard(factId: number): Promise<void>;
+  deleteRecordFromDashboard(factId: number): Promise<void>;
+  recurringDeleteResolve(choice: string | null): void;
+  openAddTransactionModal(): void;
+  openFactTransferModal(): void;
 }
 
 export {};
