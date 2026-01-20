@@ -3,7 +3,7 @@
  * Handles plan creation, editing, deletion, and modal management
  *
  * @module plan/crud
- * @version 3.3.0 (Phase 3: Week 4 - Complete)
+ * @version 3.4.0 (Phase 5: TypeScript Consolidation)
  * @description CRUD operations for budget plans with full modal management
  */
 
@@ -37,10 +37,18 @@ declare let editDateCalendar: any;
 declare let createCategoryTreeSelect: any;
 declare const remindersMap: Map<number, any>;
 declare const ModalListenerManager: any;
-declare const debugLog: (...args: any[]) => void;
 declare const showNotification: (message: string, type: string) => void;
 declare const selectedFactIds: Set<number>;
 declare const selectedRecurringPlanIds: Set<number>;
+
+// Logger class from utils/logger.js (loaded globally via bundle)
+declare class Logger {
+  constructor(prefix: string, moduleKey: string);
+  debug(...args: any[]): void;
+  info(...args: any[]): void;
+  warn(...args: any[]): void;
+  error(...args: any[]): void;
+}
 
 // Global functions from plan.html
 declare function loadFinancialCenters(): Promise<void>;
@@ -65,56 +73,20 @@ declare function updateBatchDeleteRecurringPlansButtonState(): void;
 // ============================================================================
 // Type Definitions
 // ============================================================================
+// Re-export shared types from helpers for backward compatibility
+export type BudgetFact = PlanHelpers.BudgetFact;
+export type RecurringPlan = PlanHelpers.RecurringPlan;
+export type Reminder = PlanHelpers.Reminder;
 
-/**
- * Budget fact data structure
- * Matches API response from /api/v1/facts
- */
-export interface BudgetFact {
-  id: number;
-  fact_date: string; // ISO date string
-  financial_center_id: number;
-  financial_center_name: string;
-  cost_center_id: number | null;
-  cost_center_name: string | null;
-  article_id: number;
-  article_name: string;
-  amount: number;
-  description: string | null;
-  user_id: number;
-  user_name: string;
-  record_type: 'plan' | 'fact';
-  recurring_plan_id: number | null;
-  is_template: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// ============================================================================
+// Logger Instance
+// ============================================================================
 
-/**
- * Recurring plan data structure
- * Matches API response from /api/v1/recurring-plans/{id}
- */
-export interface RecurringPlan {
-  id: number;
-  user_id: number;
-  start_date: string;
-  end_date: string | null;
-  financial_center_id: number;
-  cost_center_id: number | null;
-  article_id: number;
-  amount: number;
-  description: string | null;
-  frequency_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  frequency_value: number;
-  duration_type: 'indefinite' | 'until_date' | 'count';
-  duration_value: number | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+const logCrud = new Logger('[PLAN_CRUD]', 'PLAN');
 
 /**
  * Form data for plan creation/editing
+ * Module-specific interface for form validation and submission
  */
 export interface PlanFormData {
   start_date: string;
@@ -196,10 +168,10 @@ export function setCurrentRecurringPlan(plan: RecurringPlan | null): void {
  * @param plan - Recurring plan data from API
  */
 function populateRecurringPlanInfo(plan: RecurringPlan | null): void {
-  console.log('[POPULATE] populating recurring plan info:', plan);
+  logCrud.debug('[POPULATE] populating recurring plan info:', plan);
 
   if (!plan) {
-    console.warn('[POPULATE] Plan is null/undefined, skipping');
+    logCrud.warn('[POPULATE] Plan is null/undefined, skipping');
     return;
   }
 
@@ -308,7 +280,7 @@ export function openAddPlanModal(): void {
   if (typeof createCategoryTreeSelect !== 'undefined' && createCategoryTreeSelect) {
     createCategoryTreeSelect.options.financialCenterId = null;
     createCategoryTreeSelect.clearSelection();
-    console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
+    logCrud.debug('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
   }
 
   // Pre-fill reminder date and time before opening
@@ -343,20 +315,20 @@ export function openAddPlanModal(): void {
  * @param factId - ID of fact to edit
  */
 export async function showEditModal(factId: number): Promise<void> {
-  console.log('[SHOW_EDIT_MODAL] Called with factId:', factId);
+  logCrud.debug('[SHOW_EDIT_MODAL] Called with factId:', factId);
 
   const factsData = PlanFactsTable.getFactsData();
-  console.log('[SHOW_EDIT_MODAL] factsData length:', factsData?.length);
+  logCrud.debug('[SHOW_EDIT_MODAL] factsData length:', factsData?.length);
 
   const fact = factsData.find(f => f.id === factId);
 
   if (!fact) {
-    console.error('[SHOW_EDIT_MODAL] Fact not found in factsData! factId:', factId);
-    console.error('[SHOW_EDIT_MODAL] Available fact IDs:', factsData?.map(f => f.id));
+    logCrud.error('[SHOW_EDIT_MODAL] Fact not found in factsData! factId:', factId);
+    logCrud.error('[SHOW_EDIT_MODAL] Available fact IDs:', factsData?.map(f => f.id));
     return;
   }
 
-  console.log('[SHOW_EDIT_MODAL] Fact found:', fact);
+  logCrud.debug('[SHOW_EDIT_MODAL] Fact found:', fact);
 
   // Fill basic fields
   (document.getElementById('edit-id') as HTMLInputElement).value = String(fact.id);
@@ -367,7 +339,7 @@ export async function showEditModal(factId: number): Promise<void> {
   // ✅ FIX: Ensure financial center dropdown is loaded before setting value (race condition fix)
   const fcDropdown = document.getElementById('edit-financial-center') as HTMLSelectElement;
   if (fcDropdown.options.length <= 1) {
-    debugLog('[Edit Modal] Financial center dropdown not loaded, loading now...');
+    logCrud.debug('[Edit Modal] Financial center dropdown not loaded, loading now...');
     await loadFinancialCenters();
   }
   // Verify the option exists before setting
@@ -375,9 +347,9 @@ export async function showEditModal(factId: number): Promise<void> {
     const fcOption = Array.from(fcDropdown.options).find(opt => Number(opt.value) === fact.financial_center_id);
     if (fcOption) {
       fcDropdown.value = String(fact.financial_center_id);
-      debugLog('[Edit Modal] Set financial center to:', fact.financial_center_id);
+      logCrud.debug('[Edit Modal] Set financial center to:', fact.financial_center_id);
     } else {
-      console.warn('[Edit Modal] Financial center not found in dropdown:', fact.financial_center_id, '(may be archived/inactive)');
+      logCrud.warn('[Edit Modal] Financial center not found in dropdown:', fact.financial_center_id, '(may be archived/inactive)');
     }
   } else {
     fcDropdown.value = '';  // Explicitly set to empty if no FC
@@ -386,7 +358,7 @@ export async function showEditModal(factId: number): Promise<void> {
   // ✅ FIX: Ensure cost center dropdown is loaded before setting value (race condition fix)
   const ccDropdown = document.getElementById('edit-cost-center') as HTMLSelectElement;
   if (ccDropdown.options.length <= 1) {
-    debugLog('[Edit Modal] Cost center dropdown not loaded, loading now...');
+    logCrud.debug('[Edit Modal] Cost center dropdown not loaded, loading now...');
     await loadCostCenters();
   }
   // Verify the option exists before setting (cost center is optional)
@@ -394,9 +366,9 @@ export async function showEditModal(factId: number): Promise<void> {
     const ccOption = Array.from(ccDropdown.options).find(opt => Number(opt.value) === fact.cost_center_id);
     if (ccOption) {
       ccDropdown.value = String(fact.cost_center_id);
-      debugLog('[Edit Modal] Set cost center to:', fact.cost_center_id);
+      logCrud.debug('[Edit Modal] Set cost center to:', fact.cost_center_id);
     } else {
-      console.warn('[Edit Modal] Cost center not found in dropdown:', fact.cost_center_id, '(may be archived/inactive)');
+      logCrud.warn('[Edit Modal] Cost center not found in dropdown:', fact.cost_center_id, '(may be archived/inactive)');
     }
   } else {
     ccDropdown.value = '';  // Explicitly set to empty if no CC
@@ -415,22 +387,22 @@ export async function showEditModal(factId: number): Promise<void> {
     recurringPlanIdField.value = fact.recurring_plan_id ? String(fact.recurring_plan_id) : '';
   }
 
-  console.log('[EDIT MODAL] Fact loaded:', fact);
-  console.log('[EDIT MODAL] record_type:', fact.record_type);
-  console.log('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
+  logCrud.debug('[EDIT MODAL] Fact loaded:', fact);
+  logCrud.debug('[EDIT MODAL] record_type:', fact.record_type);
+  logCrud.debug('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
 
   // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
-  console.log('[SHOW_EDIT_MODAL] Opening modal...');
+  logCrud.debug('[SHOW_EDIT_MODAL] Opening modal...');
   const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
 
   if (!modal) {
-    console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
+    logCrud.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
     return;
   }
 
-  console.log('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
+  logCrud.debug('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
   modal.showModal();
-  console.log('[SHOW_EDIT_MODAL] Modal opened successfully');
+  logCrud.debug('[SHOW_EDIT_MODAL] Modal opened successfully');
 
   // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
   if (!(modal.dataset.backdropHandlerAdded)) {
@@ -446,7 +418,7 @@ export async function showEditModal(factId: number): Promise<void> {
   // ✅ OPTIMIZATION: Check if this is recurring plan before fetching
   if (!fact.recurring_plan_id) {
     // Not a recurring plan - hide recurring info section
-    console.log('[EDIT_MODAL] Fact has NO recurring_plan_id, hiding recurring info');
+    logCrud.debug('[EDIT_MODAL] Fact has NO recurring_plan_id, hiding recurring info');
     if (recurringInfoDiv) {
       recurringInfoDiv.classList.add('hidden');
     }
@@ -455,7 +427,7 @@ export async function showEditModal(factId: number): Promise<void> {
     // ✅ Continue to category initialization (don't return early)
   } else {
     // This is a recurring plan fact - prepare UI
-    console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
+    logCrud.debug('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
 
     if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
     if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
@@ -478,17 +450,17 @@ export async function showEditModal(factId: number): Promise<void> {
     // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
     (async () => {
       try {
-        console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
+        logCrud.debug('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
 
         const planResponse = await fetch(
           `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
           { credentials: 'include' }
         );
 
-        console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
+        logCrud.debug('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
 
         if (!planResponse.ok) {
-          console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+          logCrud.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
           // Показать error state
           if (recurringInfoDiv) {
             recurringInfoDiv.innerHTML = `
@@ -501,17 +473,17 @@ export async function showEditModal(factId: number): Promise<void> {
         }
 
         currentRecurringPlan = await planResponse.json();
-        console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+        logCrud.debug('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
 
         // Clear loading state and populate content
         if (recurringInfoDiv) {
           recurringInfoDiv.innerHTML = ''; // Clear loading spinner
         }
         populateRecurringPlanInfo(currentRecurringPlan);
-        console.log('[EDIT_MODAL] Recurring plan info populated');
+        logCrud.debug('[EDIT_MODAL] Recurring plan info populated');
 
       } catch (error) {
-        console.error('[EDIT_MODAL] Error loading recurring plan:', error);
+        logCrud.error('[EDIT_MODAL] Error loading recurring plan:', error);
         if (recurringInfoDiv) {
           recurringInfoDiv.innerHTML = `
             <div class="alert alert-error">
@@ -549,7 +521,7 @@ export async function showEditModal(factId: number): Promise<void> {
       mode: 'edit',  // ✅ Edit mode - preserves category even on initial FC filter
       financialCenterId: fact.financial_center_id,
       onCategoryChange: (category: any) => {
-        debugLog('Category changed in edit modal:', category);
+        logCrud.debug('Category changed in edit modal:', category);
       }
     });
 
@@ -564,21 +536,21 @@ export async function showEditModal(factId: number): Promise<void> {
         // Get choices from the correct location: _store.choices
         const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
 
-        debugLog('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
+        logCrud.debug('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
 
         if (choicesStore.length > 0) {
           clearInterval(initCheckInterval);
 
           // Try to set the category (may fail if archived/inactive)
           if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
-            debugLog('[Edit Modal] Setting category to:', fact.article_id);
+            logCrud.debug('[Edit Modal] Setting category to:', fact.article_id);
             await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
 
             // Verify it was set
             const selectedValue = editSelect.value;
-            debugLog('[Edit Modal] Category set. Dropdown value:', selectedValue);
+            logCrud.debug('[Edit Modal] Category set. Dropdown value:', selectedValue);
           } else {
-            console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
+            logCrud.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
             // Leave default "-- Выберите категорию --" selected
           }
 
@@ -591,7 +563,7 @@ export async function showEditModal(factId: number): Promise<void> {
     // Safety timeout to prevent infinite loop
     setTimeout(() => {
       clearInterval(initCheckInterval);
-      console.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
+      logCrud.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
     }, 10000);
   }
 
@@ -601,7 +573,7 @@ export async function showEditModal(factId: number): Promise<void> {
     // Register listener with automatic cleanup via ModalListenerManager
     ModalListenerManager.registerListener(editFcSelect, 'change', async (e: Event) => {
       const fcId = editFcSelect.value ? parseInt(editFcSelect.value) : null;
-      console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
+      logCrud.debug(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
         newFcId: fcId,
         currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
       });
@@ -609,20 +581,20 @@ export async function showEditModal(factId: number): Promise<void> {
       // CRITICAL: Stop event propagation to prevent global listeners from interfering
       e.stopPropagation();
       (e as any).stopImmediatePropagation();
-      console.log('[FC_CHANGE] Stopped event propagation');
+      logCrud.debug('[FC_CHANGE] Stopped event propagation');
 
       // Filter categories by selected FC (will preserve selection if category is still available)
       if (editCategoryTreeSelect) {
-        console.log('[FC_CHANGE] Updating category tree with new FC');
+        logCrud.debug('[FC_CHANGE] Updating category tree with new FC');
         await editCategoryTreeSelect.updateFinancialCenter(fcId);
-        console.log('[FC_CHANGE] Category tree updated successfully');
+        logCrud.debug('[FC_CHANGE] Category tree updated successfully');
       }
       // Filter cost centers by selected FC
       await filterCostCenterDropdown('#edit-form', fcId);
 
       // Small delay to allow DOM to settle (mobile browser optimization)
       await new Promise(resolve => setTimeout(resolve, 50));
-      console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+      logCrud.debug('[FC_CHANGE] DOM settled, category dropdown ready');
     });
   }
 
@@ -640,7 +612,7 @@ export async function showEditModal(factId: number): Promise<void> {
       mode: 'single',
       inputElement: editDateInput,
       onSelect: (date: Date) => {
-        debugLog('Выбрана дата для edit modal:', date);
+        logCrud.debug('Выбрана дата для edit modal:', date);
       }
     });
   }
@@ -705,7 +677,7 @@ export function closeEditModal(): void {
     editTemplateEndDateCalendar = null;
   }
 
-  console.log('[CRUD] Edit modal closed and cleaned up');
+  logCrud.debug('[CRUD] Edit modal closed and cleaned up');
 }
 
 // ============================================================================
@@ -721,7 +693,7 @@ export function closeEditModal(): void {
 export async function deleteFact(factId: number): Promise<void> {
   // Prevent multiple simultaneous deletes of the same fact (race condition protection)
   if (deletingFactIds.has(factId)) {
-    console.warn('[CRUD] Delete already in progress for fact:', factId);
+    logCrud.warn('[CRUD] Delete already in progress for fact:', factId);
     return;
   }
 
@@ -774,7 +746,7 @@ export async function deleteFact(factId: number): Promise<void> {
         .filter(f => f.recurring_plan_id === recurringPlanId)
         .map(f => f.id);
 
-      console.log(`[CRUD] Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
+      logCrud.debug(`[CRUD] Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
 
       // Use batch delete endpoint
       const response = await fetch('/api/v1/facts/batch-delete', {
@@ -811,7 +783,7 @@ export async function deleteFact(factId: number): Promise<void> {
       PlanHelpers.showToast('Факт успешно удален', 'success');
     }
   } catch (error) {
-    console.error('[CRUD] Error deleting fact:', error);
+    logCrud.error('[CRUD] Error deleting fact:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Reload even on error to sync UI
@@ -831,14 +803,14 @@ export async function deleteFromEditModal(): Promise<void> {
   const factIdInput = document.getElementById('edit-id') as HTMLInputElement | null;
 
   if (!factIdInput || !factIdInput.value) {
-    console.warn('[CRUD] deleteFromEditModal - No fact ID found');
+    logCrud.warn('[CRUD] deleteFromEditModal - No fact ID found');
     return;
   }
 
   const factId = parseInt(factIdInput.value);
 
   if (isNaN(factId)) {
-    console.error('[CRUD] deleteFromEditModal - Invalid fact ID:', factIdInput.value);
+    logCrud.error('[CRUD] deleteFromEditModal - Invalid fact ID:', factIdInput.value);
     return;
   }
 
@@ -905,7 +877,7 @@ async function showConfirmDialogWithCheckbox(
     checkboxDefault?: boolean;
   } = {}
 ): Promise<{ result: boolean; checkboxValue: boolean }> {
-  console.log('[CONFIRM_DIALOG] Showing confirmation dialog:', title);
+  logCrud.debug('[CONFIRM_DIALOG] Showing confirmation dialog:', title);
 
   return new Promise((resolve) => {
     const modalId = 'confirm-dialog-checkbox-modal';
@@ -940,20 +912,20 @@ async function showConfirmDialogWithCheckbox(
     const checkbox = document.getElementById(checkboxId) as HTMLInputElement | null;
 
     const cleanup = () => {
-      console.log('[CONFIRM_DIALOG] Cleaning up confirmation dialog');
+      logCrud.debug('[CONFIRM_DIALOG] Cleaning up confirmation dialog');
       modal.remove();
     };
 
     okBtn.addEventListener('click', () => {
       cleanup();
       const checkboxValue = checkbox ? checkbox.checked : false;
-      console.log('[CONFIRM_DIALOG] User confirmed, checkbox:', checkboxValue);
+      logCrud.debug('[CONFIRM_DIALOG] User confirmed, checkbox:', checkboxValue);
       resolve({ result: true, checkboxValue });
     });
 
     cancelBtn.addEventListener('click', () => {
       cleanup();
-      console.log('[CONFIRM_DIALOG] User cancelled');
+      logCrud.debug('[CONFIRM_DIALOG] User cancelled');
       resolve({ result: false, checkboxValue: false });
     });
   });
@@ -974,7 +946,7 @@ export function showRecurringDeleteDialog(): Promise<'single' | 'all' | null> {
     const modal = document.getElementById('recurring-delete-modal') as HTMLDialogElement | null;
 
     if (!modal) {
-      console.error('[CRUD] Recurring delete modal not found');
+      logCrud.error('[CRUD] Recurring delete modal not found');
       resolve(null);
       return;
     }
@@ -1012,7 +984,7 @@ export function recurringDeleteResolve(choice: 'single' | 'all' | null): void {
  * @returns Human-readable frequency text
  */
 function getFrequencyDisplayText(type: string, value: number | null): string {
-  console.log(`[CRUD] getFrequencyDisplayText: type=${type}, value=${value}`);
+  logCrud.debug(`[CRUD] getFrequencyDisplayText: type=${type}, value=${value}`);
 
   switch (type) {
     case 'monthly':
@@ -1038,10 +1010,10 @@ function getFrequencyDisplayText(type: string, value: number | null): string {
         'декабря'
       ];
       const monthName = monthNames[month - 1] || '';
-      console.log(`[CRUD] Yearly decoded: ${value} → ${day} ${monthName}`);
+      logCrud.debug(`[CRUD] Yearly decoded: ${value} → ${day} ${monthName}`);
       return `Ежегодно, ${day} ${monthName}`;
     default:
-      console.warn(`[CRUD] Unknown frequency type: ${type}`);
+      logCrud.warn(`[CRUD] Unknown frequency type: ${type}`);
       return type;
   }
 }
@@ -1059,12 +1031,12 @@ export function updateFrequencyFields(modalId: string): void {
   const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
   const yearlyPicker = document.getElementById(`yearly-picker-${modalId}`);
 
-  console.log('[CRUD] updateFrequencyFields called, modalId:', modalId);
+  logCrud.debug('[CRUD] updateFrequencyFields called, modalId:', modalId);
 
   if (!frequencySelect) return;
 
   const frequency = frequencySelect.value;
-  console.log('[CRUD] Selected frequency:', frequency);
+  logCrud.debug('[CRUD] Selected frequency:', frequency);
 
   // Show/hide appropriate picker based on frequency
   if (monthdayPicker) {
@@ -1100,7 +1072,7 @@ export function updateYearlyFrequencyValue(modalId: string): void {
   const month = parseInt(monthSelect.value);
   const day = parseInt(daySelect.value);
 
-  console.log(`[CRUD] updateYearlyFrequencyValue: month=${month}, day=${day}`);
+  logCrud.debug(`[CRUD] updateYearlyFrequencyValue: month=${month}, day=${day}`);
 
   if (!month || !day) {
     hiddenInput.value = '';
@@ -1130,7 +1102,7 @@ export function updateYearlyFrequencyValue(modalId: string): void {
     alert(`${monthNames[month - 1]} имеет только ${maxDay} дней. Выберите день 1-${maxDay}.`);
     daySelect.value = '';
     hiddenInput.value = '';
-    console.warn(`[CRUD] Invalid day ${day} for month ${month}`);
+    logCrud.warn(`[CRUD] Invalid day ${day} for month ${month}`);
     return;
   }
 
@@ -1138,7 +1110,7 @@ export function updateYearlyFrequencyValue(modalId: string): void {
   const frequencyValue = month * 100 + day;
   hiddenInput.value = String(frequencyValue);
 
-  console.log(`[CRUD] Encoded frequency_value: ${frequencyValue} (MMDD format)`);
+  logCrud.debug(`[CRUD] Encoded frequency_value: ${frequencyValue} (MMDD format)`);
 
   updateRecurringPreview(modalId);
 }
@@ -1159,7 +1131,7 @@ export function updateDurationFields(modalId: string): void {
   if (!durationSelect) return;
 
   const type = durationSelect.value;
-  console.log('[CRUD] updateDurationFields - Duration type selected:', type);
+  logCrud.debug('[CRUD] updateDurationFields - Duration type selected:', type);
 
   // Hide both fields if no selection (empty string)
   if (!type || type === '') {
@@ -1362,7 +1334,7 @@ export async function createPlan(event: Event): Promise<void> {
   // Get reminder datetime (only relevant if in reminder mode)
   const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
-  console.log('[createPlan] Form submitted:', {
+  logCrud.debug('[createPlan] Form submitted:', {
     planMode,
     isRecurring,
     enableReminder,
@@ -1374,12 +1346,12 @@ export async function createPlan(event: Event): Promise<void> {
   try {
     if (isRecurring) {
       // ===== RECURRING PLAN CREATION =====
-      console.log('[createPlan] Collecting recurring settings for modalId:', modalId);
+      logCrud.debug('[createPlan] Collecting recurring settings for modalId:', modalId);
       const recurringSettings = collectRecurringSettings(modalId);
-      console.log('[createPlan] Collected recurringSettings:', recurringSettings);
+      logCrud.debug('[createPlan] Collected recurringSettings:', recurringSettings);
 
       if (!recurringSettings) {
-        console.error('[createPlan] collectRecurringSettings() returned null!');
+        logCrud.error('[createPlan] collectRecurringSettings() returned null!');
         showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
         setSubmitLoading(form, false);
         return;
@@ -1413,7 +1385,7 @@ export async function createPlan(event: Event): Promise<void> {
           }
         } catch (err) {
           // Ignore error - type is optional for offline display
-          console.warn('[createPlan] Failed to fetch article type:', err);
+          logCrud.warn('[createPlan] Failed to fetch article type:', err);
         }
       }
 
@@ -1453,11 +1425,11 @@ export async function createPlan(event: Event): Promise<void> {
           setSubmitLoading(form, false);
           return;
         }
-        console.log(`[createPlan] Reminder enabled: ${recurringData.reminder_hour.toString().padStart(2, '0')}:${recurringData.reminder_minute.toString().padStart(2, '0')}`);
+        logCrud.debug(`[createPlan] Reminder enabled: ${recurringData.reminder_hour.toString().padStart(2, '0')}:${recurringData.reminder_minute.toString().padStart(2, '0')}`);
       }
 
-      console.log('[createPlan] Recurring data with reminders:', recurringData);
-      debugLog('[createPlan] Creating recurring plan:', recurringData);
+      logCrud.debug('[createPlan] Recurring data with reminders:', recurringData);
+      logCrud.debug('[createPlan] Creating recurring plan:', recurringData);
 
       // Use OfflineManager if available for offline support
       if ((window as any).offlineManager) {
@@ -1465,14 +1437,14 @@ export async function createPlan(event: Event): Promise<void> {
 
         if (result._offline) {
           showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
-          debugLog('[createPlan] Recurring plan saved offline:', result);
+          logCrud.debug('[createPlan] Recurring plan saved offline:', result);
         } else {
           let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
           if (result.enable_reminder && result.reminder_time_display) {
             message += `. Напоминания в ${result.reminder_time_display}`;
           }
           showToast(message, 'success');
-          debugLog('[createPlan] Recurring plan created:', result);
+          logCrud.debug('[createPlan] Recurring plan created:', result);
         }
 
         (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
@@ -1500,7 +1472,7 @@ export async function createPlan(event: Event): Promise<void> {
             message += `. Напоминания в ${createdPlan.reminder_time_display}`;
           }
           showToast(message, 'success');
-          debugLog('[createPlan] Recurring plan created:', createdPlan);
+          logCrud.debug('[createPlan] Recurring plan created:', createdPlan);
 
           (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
           form.reset();
@@ -1541,10 +1513,10 @@ export async function createPlan(event: Event): Promise<void> {
 
       if (result._offline) {
         showToast('План сохранён оффлайн (будет синхронизирован при подключении)', 'warning');
-        debugLog('[createPlan] Saved offline:', result);
+        logCrud.debug('[createPlan] Saved offline:', result);
       } else {
         showToast('План успешно создан!', 'success');
-        debugLog('[createPlan] Saved online:', result);
+        logCrud.debug('[createPlan] Saved online:', result);
 
         // Create reminder if enabled (only for online plans)
         if (enableReminder && reminderDatetime && result.id) {
@@ -1611,7 +1583,7 @@ export async function createPlan(event: Event): Promise<void> {
       }
     }
   } catch (error) {
-    console.error('Error creating plan:', error);
+    logCrud.error('Error creating plan:', error);
     showToast('Ошибка при создании плана: ' + (error as Error).message, 'error');
   } finally {
     setSubmitLoading(form, false);
@@ -1673,7 +1645,7 @@ export async function updateFact(event: Event): Promise<void> {
   try {
     // Логирование вызова updateFact
     const factsData = PlanFactsTable.getFactsData();
-    console.log('[EDIT MODAL] updateFact called:', {
+    logCrud.debug('[EDIT MODAL] updateFact called:', {
       factId: factId,
       recordType: factsData.find(f => f.id == Number(factId))?.record_type,
       recurringPlanId: recurringPlanId,
@@ -1685,7 +1657,7 @@ export async function updateFact(event: Event): Promise<void> {
 
     // Check if editing recurring plan template
     if (recurringPlanId && editScope === 'template') {
-      console.log('[EDIT MODAL] Updating RECURRING PLAN TEMPLATE');
+      logCrud.debug('[EDIT MODAL] Updating RECURRING PLAN TEMPLATE');
       // Update recurring plan template
       // Fields that can be updated: amount, description, cost_center_id, end_date, is_active
       const templateData: any = {
@@ -1721,7 +1693,7 @@ export async function updateFact(event: Event): Promise<void> {
       });
       successMessage = '✅ Шаблон обновлен, будущие записи пересозданы!';
     } else {
-      console.log('[EDIT MODAL] Updating SINGLE FACT');
+      logCrud.debug('[EDIT MODAL] Updating SINGLE FACT');
       // Update single fact
       response = await fetch(`/api/v1/facts/${factId}`, {
         method: 'PUT',
@@ -1733,7 +1705,7 @@ export async function updateFact(event: Event): Promise<void> {
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('Validation errors:', error);
+      logCrud.error('Validation errors:', error);
 
       // Parse validation errors for better UX
       let errorMsg = 'Ошибка сохранения';
@@ -1797,7 +1769,7 @@ export async function updateFact(event: Event): Promise<void> {
     await loadFacts();
     showNotification(successMessage, 'success');
   } catch (error) {
-    console.error('Error updating fact:', error);
+    logCrud.error('Error updating fact:', error);
     const errorMessage = (error as any)?.message || String(error);
     showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
   } finally {
@@ -1868,7 +1840,7 @@ export async function batchDeleteFacts(): Promise<void> {
     await loadFacts();
     showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
   } catch (error) {
-    console.error('Error batch deleting facts:', error);
+    logCrud.error('Error batch deleting facts:', error);
     const errorMessage = (error as any)?.message || String(error);
     showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
   } finally {
@@ -1897,10 +1869,10 @@ export async function batchDeleteFacts(): Promise<void> {
  * onclick="window.PlanApp.batchDeleteRecurringPlans()"
  */
 export async function batchDeleteRecurringPlans(): Promise<void> {
-  console.log('[RECURRING_DELETE] Starting batch delete, selectedIds:', Array.from(selectedRecurringPlanIds));
+  logCrud.debug('[RECURRING_DELETE] Starting batch delete, selectedIds:', Array.from(selectedRecurringPlanIds));
 
   if (selectedRecurringPlanIds.size === 0) {
-    console.warn('[RECURRING_DELETE] No plans selected');
+    logCrud.warn('[RECURRING_DELETE] No plans selected');
     return;
   }
 
@@ -1918,12 +1890,12 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
   );
 
   if (!confirmed.result) {
-    console.log('[RECURRING_DELETE] User cancelled batch delete');
+    logCrud.debug('[RECURRING_DELETE] User cancelled batch delete');
     return;
   }
 
   const deleteFutureFacts = confirmed.checkboxValue || false;
-  console.log('[RECURRING_DELETE] User confirmed, delete_future_facts:', deleteFutureFacts);
+  logCrud.debug('[RECURRING_DELETE] User confirmed, delete_future_facts:', deleteFutureFacts);
 
   const btn = document.getElementById('batch-delete-recurring-plans-btn') as HTMLButtonElement | null;
   if (!btn) return;
@@ -1953,7 +1925,7 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
     }
 
     const result = await response.json();
-    console.log('[RECURRING_DELETE] Batch delete result:', result);
+    logCrud.debug('[RECURRING_DELETE] Batch delete result:', result);
 
     // Reload data
     await loadRecurringPlans();
@@ -1965,14 +1937,14 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
       : `✅ Удалено регламентных платежей: ${result.deleted_count}`;
 
     showNotification(message, 'success');
-    console.log('[RECURRING_DELETE] Batch delete completed successfully');
+    logCrud.debug('[RECURRING_DELETE] Batch delete completed successfully');
 
     // Clear selection
     selectedRecurringPlanIds.clear();
     updateBatchDeleteRecurringPlansButtonState();
 
   } catch (error) {
-    console.error('[RECURRING_DELETE] Batch delete error:', error);
+    logCrud.error('[RECURRING_DELETE] Batch delete error:', error);
     showNotification(`❌ Ошибка массового удаления: ${(error as any)?.message}`, 'error');
   } finally {
     btn.classList.remove('loading', 'loading-spinner');
@@ -1981,4 +1953,4 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
   }
 }
 
-console.log('[CRUD] Plan CRUD module loaded (Phase 3: Week 4 complete)');
+logCrud.debug('[CRUD] Plan CRUD module loaded (Phase 3: Week 4 complete)');
