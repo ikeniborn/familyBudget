@@ -1,7 +1,7 @@
 ---
 name: deploy-prod
-description: Автоматизированный деплой на production сервер budget-prod
-version: 1.0.0
+description: Автоматизированный деплой на production сервер budget-prod с registry-only архитектурой (ОБЯЗАТЕЛЬНО тестирование на budget-test перед prod)
+version: 9.0.0
 author: Family Budget Team
 tags: [deployment, automation, production, ssh, budget-prod]
 dependencies: [monitoring]
@@ -30,6 +30,56 @@ user-invocable: true
 - "Проверь изменения на production сервере"
 
 ## Использование версионирования (v7.0+)
+
+
+## Registry-Only Architecture (v9.0+)
+
+**BREAKING CHANGE:** Build mode удален. Все сборки происходят ТОЛЬКО в GitHub Actions CI/CD.
+
+**CRITICAL: Production Safety Requirements**
+- ✅ **ОБЯЗАТЕЛЬНО тестирование на budget-test** перед production deployment
+- ✅ Минимум 1 неделя стабильности на budget-test
+- ✅ Проверка всех критических функций на тесте
+- ✅ Анализ логов budget-test на ошибки
+- ✅ GitHub Actions build MUST complete successfully
+- ✅ Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
+
+**Workflow (Production-Safe):**
+```bash
+# 1. Test на budget-test
+./deploy-test.sh --version patch
+# ... Тестирование 1 неделя ...
+# ... Мониторинг логов, метрик ...
+# ... Проверка всех функций ...
+
+# 2. После успешного теста → Production
+./deploy-prod.sh --sync-mode update --cleanup-mode smart
+#    - Использует ТОТ ЖЕ VERSION что на budget-test
+#    - Pull тех же образов из ghcr.io
+#    - Консистентный деплой (те же binaries)
+```
+
+**Преимущества для Production:**
+- ✅ **Консистентность:** Те же образы что на test (проверены)
+- ✅ **Безопасность:** Нет сборки на production (меньше риска)
+- ✅ **Скорость:** 2-3 мин деплой (vs 5-7 мин build)
+- ✅ **Надежность:** Образы проверены через CI/CD + test сервер
+
+**Rollback:**
+```bash
+# БЫСТРЫЙ откат на предыдущую версию (2-3 мин)
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
+
+# Pull образов 6.6.0 из ghcr.io (проверенные)
+# Перезапуск контейнеров
+```
+
+**Requirements:**
+- ✅ Успешное тестирование на budget-test (минимум 1 неделя)
+- ✅ GitHub Actions build completed
+- ✅ Images exist in ghcr.io
+- ✅ VERSION совпадает с протестированным на budget-test
 
 **Базовый деплой (БЕЗ изменения версии):**
 ```bash
@@ -550,3 +600,48 @@ Claude:
 - **monitoring** - мониторинг сервисов
 - **testing** - тестирование перед деплоем
 - **deploy-test** - деплой на тестовый сервер
+
+## Changelog
+
+### v9.0.0 (2026-01-21)
+**BREAKING CHANGES:**
+- ❌ **Build mode REMOVED**: Only registry mode supported
+- ❌ **`--force-build` flag REMOVED**: All builds in GitHub Actions
+- ❌ **`--use-registry` flag REMOVED**: Registry is now DEFAULT and ONLY mode
+- ✅ **Manual VERSION bump REQUIRED**: Developer must bump VERSION before push
+- ✅ **Mandatory budget-test testing**: Minimum 1 week stability required
+
+**Production Safety Improvements:**
+- Registry-first architecture eliminates build risks on production
+- Consistent images between test and prod (same binaries)
+- Fast rollback capability (2-3 min to previous VERSION)
+- Automatic cleanup of old Docker images (7 days retention)
+
+**Workflow Changes:**
+1. Test thoroughly on budget-test (1 week minimum)
+2. Verify GitHub Actions build completed
+3. Deploy same VERSION to production
+4. Automatic cleanup of old images
+
+**Removed Options:**
+- ~~`--force-build`~~ (removed in v9.0)
+- ~~`--use-registry`~~ (default behavior)
+- ~~`--image-tag TAG`~~ (VERSION file used)
+- ~~`--skip-local-validation`~~ (no local build)
+
+**Requirements:**
+- Successful testing on budget-test (1 week stability)
+- GitHub Actions build completed successfully
+- Images exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
+- VERSION matches tested version on budget-test
+
+**See also:**
+- `.github/workflows/build-and-push.yml` - CI/CD pipeline
+- `docker-compose.yml` - Registry images configuration
+- `.claude/skills/deploy-test/SKILL.md` - Test deployment guide
+
+### v1.0.0 (Initial Release)
+- Production deployment automation
+- SSH-based deployment to budget-prod
+- Container status monitoring
+- Log analysis and health checks
