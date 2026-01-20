@@ -109,6 +109,9 @@ module.exports = [
       "no-useless-escape": "warn",
       "no-cond-assign": "warn",
       "no-self-assign": "warn",
+      "no-dupe-else-if": "warn",
+      "no-extra-boolean-cast": "warn",
+      "no-extra-semi": "warn",
     },
   },
 ];
