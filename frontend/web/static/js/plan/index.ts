@@ -3,16 +3,19 @@
  * Main module for plan.html page initialization and public API
  *
  * @module plan
- * @version 1.0.0 (Phase 1)
- * @description Entry point for plan page modularization (Phase 1: Helpers + Filters)
+ * @version 2.0.0 (Phase 2)
+ * @description Entry point for plan page modularization (Phase 2: Complete migration)
  */
 
 // Import all plan modules
 import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
+import * as PlanFactsTable from './factsTable';
+import * as PlanAnalytics from './analytics';
+import * as FilterAnalyticsSync from './filterAnalyticsSync';
 
 // Re-export modules for external use
-export { PlanHelpers, PlanFilters };
+export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync };
 
 // ============================================================================
 // Global Window Interface
@@ -29,11 +32,26 @@ interface PlanAppGlobal {
   // Modules
   Helpers: typeof PlanHelpers;
   Filters: typeof PlanFilters;
+  FactsTable: typeof PlanFactsTable;
+  Analytics: typeof PlanAnalytics;
+  FilterAnalyticsSync: typeof FilterAnalyticsSync;
 
   // Filter Actions (exposed for onclick handlers)
   applyFilters: () => Promise<void>;
   resetFilters: () => Promise<void>;
   collapseFilters: () => void;
+
+  // Facts Table Actions (exposed for onclick handlers)
+  loadFacts: () => Promise<void>;
+  previousPage: () => void;
+  nextPage: () => void;
+
+  // Analytics Actions (exposed for onclick handlers)
+  selectAnalyticsMonth: (month: string, btn: HTMLButtonElement) => Promise<void>;
+
+  // Sync Actions (exposed for onclick handlers)
+  syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
+  syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
 }
 
 declare global {
@@ -51,24 +69,33 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  console.log('[PLAN] Initializing plan page (Phase 1: Helpers + Filters)...');
+  console.log('[PLAN] Initializing plan page (Phase 2: Complete)...');
 
   try {
     // Initialize default period filter UI
     PlanFilters.initDefaultPeriodFilter();
 
-    // Load dropdown data
+    // Initialize analytics month buttons
+    PlanAnalytics.initAnalyticsMonthButtons();
+
+    // Load dropdown data in parallel
     console.log('[PLAN] Loading dropdown data...');
     await Promise.all([
       loadUsersDropdown(),
       loadArticlesDropdown(),
       loadFinancialCentersDropdown(),
-      loadCostCentersDropdown()
+      loadCostCentersDropdown(),
+      PlanAnalytics.loadAnalyticsCFOFilter(),
+      PlanAnalytics.loadAnalyticsArticleFilter()
     ]);
 
     // Apply filters and load initial data
     console.log('[PLAN] Applying initial filters...');
     await applyFiltersAndLoadData();
+
+    // Load analytics
+    console.log('[PLAN] Loading analytics...');
+    await PlanAnalytics.loadPlanAnalytics();
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
@@ -279,20 +306,13 @@ export async function applyFiltersAndLoadData(): Promise<void> {
     // Apply filters (reads from UI, updates state)
     await PlanFilters.applyFilters();
 
-    // TODO Phase 2: Call loadFacts() from PlanFactsTable module
-    // TODO Phase 2: Call syncFiltersToAnalytics() from FilterAnalyticsSync module
-    console.log('[PLAN] Filters applied (data reload pending - Phase 2)');
+    // Reload facts table
+    await PlanFactsTable.loadFacts();
 
-    // TEMPORARY: Call global functions if they exist (backward compatibility)
-    if (typeof (window as any).loadFacts === 'function') {
-      console.log('[PLAN] Calling global loadFacts() (backward compatibility)');
-      await (window as any).loadFacts();
-    }
+    // Sync filters to analytics (debounced to prevent cascading reloads)
+    FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    if (typeof (window as any).syncFiltersToAnalytics === 'function') {
-      console.log('[PLAN] Calling global syncFiltersToAnalytics() (backward compatibility)');
-      await (window as any).syncFiltersToAnalytics();
-    }
+    console.log('[PLAN] Filters applied and data reloaded');
   } catch (error) {
     console.error('[PLAN] Error applying filters:', error);
     PlanHelpers.showNotification('Ошибка применения фильтров: ' + (error as Error).message, 'error');
@@ -308,20 +328,13 @@ export async function resetFiltersAndLoadData(): Promise<void> {
     // Reset filters (clears UI, restores defaults)
     await PlanFilters.resetFilters();
 
-    // TODO Phase 2: Call loadFacts() from PlanFactsTable module
-    // TODO Phase 2: Call syncFiltersToAnalytics() from FilterAnalyticsSync module
-    console.log('[PLAN] Filters reset (data reload pending - Phase 2)');
+    // Reload facts table
+    await PlanFactsTable.loadFacts();
 
-    // TEMPORARY: Call global functions if they exist (backward compatibility)
-    if (typeof (window as any).loadFacts === 'function') {
-      console.log('[PLAN] Calling global loadFacts() (backward compatibility)');
-      await (window as any).loadFacts();
-    }
+    // Sync filters to analytics (debounced to prevent cascading reloads)
+    FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    if (typeof (window as any).syncFiltersToAnalytics === 'function') {
-      console.log('[PLAN] Calling global syncFiltersToAnalytics() (backward compatibility)');
-      await (window as any).syncFiltersToAnalytics();
-    }
+    console.log('[PLAN] Filters reset and data reloaded');
   } catch (error) {
     console.error('[PLAN] Error resetting filters:', error);
     PlanHelpers.showNotification('Ошибка сброса фильтров: ' + (error as Error).message, 'error');
@@ -350,11 +363,26 @@ window.PlanApp = {
   // Modules
   Helpers: PlanHelpers,
   Filters: PlanFilters,
+  FactsTable: PlanFactsTable,
+  Analytics: PlanAnalytics,
+  FilterAnalyticsSync,
 
-  // Actions (for onclick handlers)
+  // Filter Actions (for onclick handlers)
   applyFilters: applyFiltersAndLoadData,
   resetFilters: resetFiltersAndLoadData,
-  collapseFilters: collapseFiltersAction
+  collapseFilters: collapseFiltersAction,
+
+  // Facts Table Actions (for onclick handlers)
+  loadFacts: PlanFactsTable.loadFacts,
+  previousPage: PlanFactsTable.previousPage,
+  nextPage: PlanFactsTable.nextPage,
+
+  // Analytics Actions (for onclick handlers)
+  selectAnalyticsMonth: PlanAnalytics.selectAnalyticsMonth,
+
+  // Sync Actions (for onclick handlers)
+  syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
+  syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters
 };
 
-console.log('[PLAN] PlanApp exposed to window object');
+console.log('[PLAN] PlanApp exposed to window object (Phase 2 complete)');
