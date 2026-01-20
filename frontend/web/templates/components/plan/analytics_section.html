@@ -1,0 +1,85 @@
+{#
+  Plan Analytics Section Component
+  Collapsible analytics with filters and ECharts visualizations
+
+  @version 1.0.0 (Phase 4: HTML Component Extraction)
+  @description Analytics dashboard with month navigation, filters, and chart containers
+#}
+
+{% macro analytics_section() %}
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="analytics-toggle" class="peer" />
+        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                📊 Аналитика планирования
+            </h2>
+        </label>
+        <div class="collapse-content">
+
+            <!-- Analytics Filters - Row 1 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <!-- Planning Month Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📅 Месяц планирования</span>
+                    </label>
+                    <div class="join h-12" id="analytics-month-buttons">
+                        <!-- Buttons populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CFO Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">🏦 Счет</span>
+                    </label>
+                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="onAnalyticsCFOChange()">
+                        <option value="">Все счета</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Article Type Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">💰 Тип категории</span>
+                    </label>
+                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleTypeChange()">
+                        <option value="">Все типы</option>
+                        <option value="expense">Расходы</option>
+                        <option value="income">Доходы</option>
+                        <option value="debit">Списание</option>
+                        <option value="credit">Пополнение</option>
+                    </select>
+                </div>
+
+                <!-- Article Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📁 Категория</span>
+                    </label>
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()">
+                        <option value="">Все категории</option>
+                        <!-- Options populated dynamically by loadAnalyticsArticleFilter() -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Sync Buttons Row -->
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button class="btn btn-sm btn-outline btn-primary gap-1" onclick="window.PlanApp.syncFiltersToAnalytics()">
+                    ⬇️ Применить фильтры к аналитике
+                </button>
+                <button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="window.PlanApp.syncAnalyticsToFilters()">
+                    ⬆️ Применить аналитику к фильтрам
+                </button>
+            </div>
+
+            <!-- Comparison Chart -->
+            <div id="comparison-chart" class="w-full h-80 sm:h-96 bg-base-200/50 rounded-lg mb-4"></div>
+
+            <!-- Categories Chart -->
+            <div id="categories-chart" class="w-full h-96 sm:h-[32rem] bg-base-200/50 rounded-lg"></div>
+        </div>
+    </div>
+{% endmacro %}

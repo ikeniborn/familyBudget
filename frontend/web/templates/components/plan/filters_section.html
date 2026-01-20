@@ -1,0 +1,148 @@
+{#
+  Plan Filters Section Component
+  Hierarchical filter UI with 3 levels: Period, Main Filters, Additional Filters
+
+  @version 1.0.0 (Phase 4: HTML Component Extraction)
+  @description Responsive filter section for plan.html page
+#}
+
+{% macro filters_section() %}
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="filters-toggle" class="peer" />
+        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
+            <span>
+                🔍 Фильтры
+                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
+            </span>
+            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); window.PlanApp.resetFilters();">Сбросить</button>
+        </label>
+        <div class="collapse-content">
+            <div class="pt-4">
+
+            <!-- Уровень 1: Фильтры по дате -->
+            <div class="filter-section">
+                <div class="filter-section-title">📅 Период</div>
+                <!-- v5.1.9: Responsive layout - vertical on mobile, horizontal on desktop -->
+                <div class="flex flex-col gap-3 md:flex-row md:items-end md:gap-2">
+                    <div class="form-control flex-1">
+                        <label class="label">
+                            <span class="label-text font-medium">Дата с</span>
+                        </label>
+                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
+                    </div>
+                    <div class="form-control flex-1">
+                        <label class="label">
+                            <span class="label-text font-medium">Дата по</span>
+                        </label>
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="filter-date-to" class="input input-bordered flex-1" placeholder="ДД.ММ.ГГГГ" readonly>
+                            <!-- Calendar trigger button (range mode) -->
+                            <div id="date-range-calendar-trigger" class="flex items-center"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Уровень 2: Основные фильтры -->
+            <div class="filter-section">
+                <div class="filter-section-title">🔍 Основные фильтры</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Тип категории -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">💰 Тип категории</span>
+                        </label>
+                        <select id="filter-article-type" class="select select-bordered w-full" title="Фильтровать по типу категории">
+                            <option value="">Все типы категорий</option>
+                            <option value="expense">Расходы</option>
+                            <option value="income">Доходы</option>
+                            <option value="debit">Списание</option>
+                            <option value="credit">Пополнение</option>
+                        </select>
+                    </div>
+
+                    <!-- Категория -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">📁 Категория</span>
+                        </label>
+                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать плановые записи по категории">
+                            <option value="">Все категории</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Счет -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">🏦 Счет</span>
+                        </label>
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать плановые записи по счету">
+                            <option value="">Все счета</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Место затрат -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">💼 Место затрат</span>
+                        </label>
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать плановые записи по МЗ">
+                            <option value="">Все МЗ</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Уровень 3: Дополнительно -->
+            <div class="filter-section">
+                <div class="filter-section-title">⚙️ Дополнительно</div>
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- Пользователь -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">👤 Пользователь</span>
+                        </label>
+                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
+                            <option value="">Все пользователи</option>
+                            <!-- Populated dynamically -->
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-medium">🔍 Поиск по комментариям</span>
+                        </label>
+                        <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию плановой записи (trigram search)">
+                    </div>
+
+                    <!-- Checkbox filters for recurring and reminder -->
+                    <div class="flex flex-wrap gap-4 pt-2">
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-recurring" class="checkbox checkbox-sm checkbox-secondary" onchange="applyFilters()">
+                                <span class="label-text">🔄 Регламентные записи</span>
+                            </label>
+                        </div>
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-with-reminder" class="checkbox checkbox-sm checkbox-primary" onchange="applyFilters()">
+                                <span class="label-text">🔔 С напоминанием</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end items-center gap-2 mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="window.PlanApp.collapseFilters()">
+                    ⬆️ Свернуть
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="window.PlanApp.applyFilters()">Применить фильтры</button>
+            </div>
+            </div>
+        </div>
+    </div>
+{% endmacro %}
