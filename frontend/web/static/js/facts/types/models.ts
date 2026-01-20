@@ -50,6 +50,7 @@ export interface FactRow {
     id: number;
     fact_date: string;
     article_name: string;
+    article_type?: 'expense' | 'income' | 'debit' | 'credit'; // Article record type for color coding
     financial_center_name: string;
     cost_center_name: string | null;
     fact_sum?: number; // API field (alternative to amount)

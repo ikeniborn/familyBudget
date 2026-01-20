@@ -552,7 +552,7 @@ export function updateStats(totalFacts: number, pageStart: number, pageEnd: numb
 }
 
 /**
- * Render facts table from data
+ * Render facts table from data (desktop + mobile views)
  */
 export function renderFactsTable(facts: FactRow[]): void {
     const container = document.getElementById('facts-table-container');
@@ -563,37 +563,50 @@ export function renderFactsTable(facts: FactRow[]): void {
 
     if (facts.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-8">
-                <p class="text-base-content/70">Нет фактов для отображения</p>
+            <div class="text-center py-8 text-base-content/60">
+                <p>📊 Факты не найдены. Измените фильтры или добавьте новые факты.</p>
             </div>
         `;
         return;
     }
 
-    let html = `
-        <div class="overflow-x-auto">
-            <table class="table table-zebra w-full">
+    // Desktop table HTML
+    let tableHtml = `
+        <div class="facts-desktop-table overflow-x-auto">
+            <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
-                        <th>Дата</th>
-                        <th>Категория</th>
-                        <th>Сумма</th>
-                        <th>Счет</th>
-                        <th>МЗ</th>
-                        <th>Комментарий</th>
-                        <th>Действия</th>
+                        <th>📅 Дата</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
+                        <th>🏦 Счет</th>
+                        <th>💼 МЗ</th>
+                        <th>📝 Комментарий</th>
+                        <th>⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
+    // Mobile list HTML (Two-Line List format)
+    let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
+
     facts.forEach(fact => {
-        html += renderFactRow(fact);
+        tableHtml += renderFactRow(fact);
+        mobileHtml += renderFactMobileCard(fact);
     });
 
-    html += `</tbody></table></div>`;
-    container.innerHTML = html;
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    mobileHtml += `</div>`;
+
+    // Combine both views
+    container.innerHTML = tableHtml + mobileHtml;
 }
 
 /**
@@ -608,6 +621,18 @@ export function renderFactRow(fact: FactRow): string {
     // Format amount (numeric values are safe)
     const amount = fact.fact_sum ?? fact.amount ?? 0;
     const amountFormatted = Number(amount).toFixed(2);
+
+    // Determine color class based on article_type
+    let articleColorClass = '';
+    if (fact.article_type === 'expense') {
+        articleColorClass = 'text-error';
+    } else if (fact.article_type === 'income') {
+        articleColorClass = 'text-success';
+    } else if (fact.article_type === 'debit') {
+        articleColorClass = 'text-info';
+    } else if (fact.article_type === 'credit') {
+        articleColorClass = 'text-warning';
+    }
 
     // Escape all user-generated content to prevent XSS
     const articleName = escapeHtml(truncateText(fact.article_name ?? '', 30));
@@ -625,18 +650,75 @@ export function renderFactRow(fact: FactRow): string {
         <tr>
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
             <td>${escapeHtml(dateFormatted)}</td>
-            <td>${articleName}</td>
-            <td class="font-medium">${amountFormatted}</td>
-            <td>${financialCenterName}</td>
-            <td>${costCenterName}</td>
-            <td>${comment}</td>
+            <td><span class="${articleColorClass}">${articleName}</span></td>
+            <td class="${articleColorClass} font-bold">${amountFormatted}</td>
+            <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
+            <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
+            <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
             <td>
-                <div class="flex gap-2">
-                    <button class="btn btn-xs btn-ghost" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>
-                    <button class="btn btn-xs btn-ghost text-error" onclick="window.FactsManager?.deleteFact?.(${fact.id})">🗑️</button>
+                <div class="flex gap-1">
+                    <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); window.FactsManager?.deleteFact?.(${fact.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
                 </div>
             </td>
         </tr>
+    `;
+}
+
+/**
+ * Render single fact mobile card (Two-Line List format)
+ * @param fact - Fact data
+ * @returns HTML string for mobile card
+ */
+export function renderFactMobileCard(fact: FactRow): string {
+    const BudgetShared = (window as any).BudgetShared;
+
+    // Format date and get short version (DD.MM)
+    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(fact.fact_date) || fact.fact_date;
+    const shortDate = dateFormatted.slice(0, 5); // DD.MM
+
+    // Format amount with color
+    const amount = fact.fact_sum ?? fact.amount ?? 0;
+    const amountFormatted = Number(amount).toFixed(2);
+
+    // Determine color class based on article_type or amount sign
+    let amountClass = 'text-base-content';
+    if (fact.article_type === 'expense') {
+        amountClass = 'amount-expense';
+    } else if (fact.article_type === 'income') {
+        amountClass = 'amount-income';
+    } else if (fact.article_type === 'debit') {
+        amountClass = 'amount-debit';
+    } else if (fact.article_type === 'credit') {
+        amountClass = 'amount-credit';
+    } else {
+        // Fallback: use amount sign
+        amountClass = Number(amount) < 0 ? 'amount-expense' : 'amount-income';
+    }
+
+    // Escape user content
+    const articleName = escapeHtml(fact.article_name ?? '—');
+    const financialCenter = escapeHtml(fact.financial_center_name ?? '—');
+    const commentText = fact.fact_comment ?? fact.description ?? '';
+    const description = commentText ? escapeHtml(truncateText(commentText, 30)) : '—';
+
+    return `
+        <div class="transaction-item py-2" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
+            <!-- Line 1: Badge + Category + Amount -->
+            <div class="flex items-center gap-2">
+                <span class="badge badge-primary badge-xs shrink-0">Факт</span>
+                <span class="flex-1 font-medium truncate">${articleName}</span>
+                <span class="${amountClass} font-bold whitespace-nowrap">${amountFormatted}</span>
+            </div>
+            <!-- Line 2: Date • Account • Description -->
+            <div class="text-xs text-base-content/60 mt-1 truncate">
+                ${shortDate} • ${financialCenter} • ${description}
+            </div>
+        </div>
     `;
 }
 

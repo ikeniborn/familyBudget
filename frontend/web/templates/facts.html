@@ -181,13 +181,7 @@
                 </div>
             </div>
 
-            <!-- Facts Table Container -->
-            <div id="facts-table-container" class="min-h-[200px]">
-                <!-- Initial loading state -->
-                <div class="flex items-center justify-center py-8">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
-                </div>
-            </div>
+            {% include "partials/facts/facts_table_container.html" %}
 
             <!-- Pagination -->
             <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
