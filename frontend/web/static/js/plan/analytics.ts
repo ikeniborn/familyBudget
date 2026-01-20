@@ -177,6 +177,76 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
 }
 
 // ============================================================================
+// Filter Dropdowns - Helper Functions
+// ============================================================================
+
+/**
+ * Group articles by type while preserving hierarchical order
+ * @param flatNodes - Flattened article nodes
+ * @returns Sorted nodes (expense → income → debit → credit)
+ */
+function groupArticlesByType(flatNodes: PlanHelpers.FlatArticle[]): PlanHelpers.FlatArticle[] {
+  const groupedByType: Record<string, PlanHelpers.FlatArticle[]> = {
+    expense: [],
+    income: [],
+    debit: [],
+    credit: []
+  };
+
+  flatNodes.forEach(node => {
+    if (groupedByType[node.type]) {
+      groupedByType[node.type].push(node);
+    }
+  });
+
+  // Flatten back in type order
+  return [
+    ...groupedByType.expense,
+    ...groupedByType.income,
+    ...groupedByType.debit,
+    ...groupedByType.credit
+  ];
+}
+
+/**
+ * Build option elements for article dropdown
+ * @param select - Target select element
+ * @param sortedNodes - Sorted article nodes
+ */
+function buildArticleOptions(select: HTMLSelectElement, sortedNodes: PlanHelpers.FlatArticle[]): void {
+  // Color map for article types
+  const colorMap: Record<string, string> = {
+    expense: 'rgb(239, 68, 68)', // Red
+    income: 'rgb(34, 197, 94)', // Green
+    debit: 'rgb(59, 130, 246)', // Blue
+    credit: 'rgb(251, 146, 60)' // Orange
+  };
+
+  sortedNodes.forEach(node => {
+    const option = document.createElement('option');
+    option.value = String(node.id);
+
+    const indent = '›  '.repeat(node.level);
+    const icon = node.isLeaf ? '▸' : '📂';
+    option.textContent = `${indent}${icon} ${node.name}`;
+    option.dataset.type = node.type;
+
+    // Color coding by article type
+    if (colorMap[node.type]) {
+      option.style.color = colorMap[node.type];
+    }
+
+    // Style parent categories
+    if (!node.isLeaf) {
+      option.style.fontWeight = 'bold';
+      option.style.opacity = '0.7';
+    }
+
+    select.appendChild(option);
+  });
+}
+
+// ============================================================================
 // Filter Dropdowns
 // ============================================================================
 
@@ -236,62 +306,13 @@ export async function loadAnalyticsArticleFilter(articleType: string | null = nu
     defaultOption.textContent = 'Все категории';
     select.appendChild(defaultOption);
 
-    // Build tree and flatten (same as filter dropdown)
+    // Build tree, flatten, and group by type
     const tree = PlanHelpers.buildArticleTree(articles);
     const flatNodes = PlanHelpers.flattenArticleTree(tree);
+    const sortedNodes = groupArticlesByType(flatNodes);
 
-    // Group by type while preserving hierarchical order
-    const groupedByType: Record<string, PlanHelpers.FlatArticle[]> = {
-      expense: [],
-      income: [],
-      debit: [],
-      credit: []
-    };
-    flatNodes.forEach(node => {
-      if (groupedByType[node.type]) {
-        groupedByType[node.type].push(node);
-      }
-    });
-
-    // Flatten back in type order
-    const sortedNodes = [
-      ...groupedByType.expense,
-      ...groupedByType.income,
-      ...groupedByType.debit,
-      ...groupedByType.credit
-    ];
-
-    // Color map for article types
-    const colorMap: Record<string, string> = {
-      expense: 'rgb(239, 68, 68)', // Red
-      income: 'rgb(34, 197, 94)', // Green
-      debit: 'rgb(59, 130, 246)', // Blue
-      credit: 'rgb(251, 146, 60)' // Orange
-    };
-
-    // Build options
-    sortedNodes.forEach(node => {
-      const option = document.createElement('option');
-      option.value = String(node.id);
-
-      const indent = '›  '.repeat(node.level);
-      const icon = node.isLeaf ? '▸' : '📂';
-      option.textContent = `${indent}${icon} ${node.name}`;
-      option.dataset.type = node.type;
-
-      // Color coding by article type
-      if (colorMap[node.type]) {
-        option.style.color = colorMap[node.type];
-      }
-
-      // Style parent categories
-      if (!node.isLeaf) {
-        option.style.fontWeight = 'bold';
-        option.style.opacity = '0.7';
-      }
-
-      select.appendChild(option);
-    });
+    // Build and append options
+    buildArticleOptions(select, sortedNodes);
 
     // Restore selection if still valid
     if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
@@ -475,16 +496,15 @@ function initCategoriesChart(): void {
 }
 
 // ============================================================================
-// Charts Update
+// Charts Update - Helper Functions
 // ============================================================================
 
 /**
- * Update comparison chart - Types on X-axis, months as series
+ * Build ECharts configuration for comparison chart
  * @param data - Analytics data from API
+ * @returns ECharts option object
  */
-function updateComparisonChart(data: MonthlyAnalyticsData): void {
-  if (!analyticsComparisonChart) return;
-
+function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
   const typeLabels: Record<string, string> = {
     expense: 'Расходы',
     income: 'Доходы',
@@ -503,7 +523,7 @@ function updateComparisonChart(data: MonthlyAnalyticsData): void {
   const currentByType = data.current_month.by_type || {};
   const previousByType = data.previous_month.by_type || {};
 
-  const option = {
+  return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -571,42 +591,50 @@ function updateComparisonChart(data: MonthlyAnalyticsData): void {
       }
     ]
   };
+}
 
+// ============================================================================
+// Charts Update
+// ============================================================================
+
+/**
+ * Update comparison chart - Types on X-axis, months as series
+ * @param data - Analytics data from API
+ */
+function updateComparisonChart(data: MonthlyAnalyticsData): void {
+  if (!analyticsComparisonChart) return;
+  const option = buildComparisonChartConfig(data);
   analyticsComparisonChart.setOption(option);
 }
 
 /**
- * Update categories bar chart - current vs previous month
+ * Build ECharts configuration for categories comparison chart
  * @param data - Analytics data from API
+ * @returns ECharts option object
  */
-function updateCategoriesChart(data: MonthlyAnalyticsData): void {
-  if (!analyticsCategoriesChart) return;
-
+function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
   const categories = data.categories_comparison || [];
 
+  // Empty state
   if (categories.length === 0) {
-    analyticsCategoriesChart.setOption(
-      {
-        title: {
-          text: 'Нет данных',
-          subtext: 'Планы по категориям не найдены',
-          left: 'center',
-          top: 'center',
-          textStyle: { fontSize: 14, color: '#999' }
-        },
-        xAxis: { show: false },
-        yAxis: { show: false },
-        series: []
+    return {
+      title: {
+        text: 'Нет данных',
+        subtext: 'Планы по категориям не найдены',
+        left: 'center',
+        top: 'center',
+        textStyle: { fontSize: 14, color: '#999' }
       },
-      true
-    );
-    return;
+      xAxis: { show: false },
+      yAxis: { show: false },
+      series: []
+    };
   }
 
   // Take top 10 categories
   const topCategories = categories.slice(0, 10);
 
-  const option = {
+  return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -667,6 +695,16 @@ function updateCategoriesChart(data: MonthlyAnalyticsData): void {
       }
     ]
   };
+}
 
-  analyticsCategoriesChart.setOption(option);
+/**
+ * Update categories bar chart - current vs previous month
+ * @param data - Analytics data from API
+ */
+function updateCategoriesChart(data: MonthlyAnalyticsData): void {
+  if (!analyticsCategoriesChart) return;
+
+  const option = buildCategoriesChartConfig(data);
+  const categories = data.categories_comparison || [];
+  analyticsCategoriesChart.setOption(option, categories.length === 0);
 }
