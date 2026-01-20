@@ -61,8 +61,8 @@ interface PlanAppGlobal {
   deleteFromEditModal: () => Promise<void>;
   showEditModal: (factId: number) => Promise<void>;
   openAddPlanModal: () => void;
-  createPlan: (event: Event) => Promise<void>; // TODO: Week 4
-  updateFact: (event: Event) => Promise<void>; // TODO: Week 4
+  createPlan: (event: Event) => Promise<void>;
+  updateFact: (event: Event) => Promise<void>;
 
   // Recurring Plan Helpers (exposed for onclick handlers - Phase 3: Week 4)
   recurringDeleteResolve: (choice: 'single' | 'all' | null) => void;

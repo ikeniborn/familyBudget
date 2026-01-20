@@ -50,6 +50,13 @@ declare function initEditReminderCalendarWidget(): void;
 declare function getReminderStatusBadge(status: string): { text: string; class: string };
 declare function prefillReminderDateTime(modalId: string): void;
 declare function togglePlanMode(modalId: string): void;
+declare function collectRecurringSettings(modalId: string): any;
+declare function resetRecurringSettings(modalId: string): void;
+declare function resetReminderFields(modalId: string): void;
+declare function setupCreatePlanPeriodButtons(): void;
+declare function setSubmitLoading(form: HTMLFormElement, isLoading: boolean): void;
+declare function loadFacts(): Promise<void>;
+declare function showToast(message: string, type: string): void;
 
 // ============================================================================
 // Type Definitions
@@ -702,30 +709,6 @@ export function closeEditModal(): void {
 // ============================================================================
 
 /**
- * Create new plan
- * Handles form submission from create modal
- *
- * @param event - Form submit event
- */
-export async function createPlan(event: Event): Promise<void> {
-  event.preventDefault();
-  console.log('[CRUD] createPlan - TODO: Implement');
-  // TODO: Week 3 - Extract from plan.html line 3792
-}
-
-/**
- * Update existing fact
- * Handles form submission from edit modal
- *
- * @param event - Form submit event
- */
-export async function updateFact(event: Event): Promise<void> {
-  event.preventDefault();
-  console.log('[CRUD] updateFact - TODO: Implement');
-  // TODO: Week 3 - Extract from plan.html line 3172
-}
-
-/**
  * Delete fact by ID
  * Shows confirmation dialog before deletion
  *
@@ -1259,6 +1242,475 @@ export function updateEditReminderDatetime(): void {
     }
   } else {
     hiddenInput.value = '';
+  }
+}
+
+// ============================================================================
+// Form Handlers
+// ============================================================================
+
+/**
+ * Create plan (regular, recurring, or with reminder)
+ * Handles form submission from add plan modal
+ * @param event - Form submit event
+ */
+export async function createPlan(event: Event): Promise<void> {
+  event.preventDefault();
+  const form = (event.target as HTMLFormElement);
+  setSubmitLoading(form, true);
+
+  const formData = new FormData(form);
+  const modalId = 'modal_add_plan';
+
+  // Check plan mode from radio buttons
+  const planMode = formData.get('plan_mode') || 'regular';
+  const isRecurring = (planMode === 'recurring');
+  const enableReminder = (planMode === 'reminder');
+
+  // Get reminder datetime (only relevant if in reminder mode)
+  const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
+
+  console.log('[createPlan] Form submitted:', {
+    planMode,
+    isRecurring,
+    enableReminder,
+    amount: formData.get('amount'),
+    article_id: formData.get('article_id'),
+    plan_month: formData.get('plan_month')
+  });
+
+  try {
+    if (isRecurring) {
+      // ===== RECURRING PLAN CREATION =====
+      console.log('[createPlan] Collecting recurring settings for modalId:', modalId);
+      const recurringSettings = collectRecurringSettings(modalId);
+      console.log('[createPlan] Collected recurringSettings:', recurringSettings);
+
+      if (!recurringSettings) {
+        console.error('[createPlan] collectRecurringSettings() returned null!');
+        showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
+        setSubmitLoading(form, false);
+        return;
+      }
+
+      // Get start date from plan_month
+      const planMonth = formData.get('plan_month') as string; // "2025-11"
+      const startDate = `${planMonth}-01`; // "2025-11-01"
+
+      // Get names from select elements for offline display
+      const articleId = parseInt(formData.get('article_id') as string);
+      const financialCenterId = parseInt(formData.get('financial_center_id') as string);
+      const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null;
+
+      const articleSelect = document.querySelector(`#${modalId} select[name="article_id"]`) as HTMLSelectElement | null;
+      const financialCenterSelect = document.querySelector(`#${modalId} select[name="financial_center_id"]`) as HTMLSelectElement | null;
+      const costCenterSelect = document.querySelector(`#${modalId} select[name="cost_center_id"]`) as HTMLSelectElement | null;
+
+      const articleName = articleSelect?.selectedOptions[0]?.textContent || null;
+      const financialCenterName = financialCenterSelect?.selectedOptions[0]?.textContent || null;
+      const costCenterName = costCenterId ? (costCenterSelect?.selectedOptions[0]?.textContent || null) : null;
+
+      // Try to get article type from data attribute or fetch (for offline display color)
+      let articleType = articleSelect?.selectedOptions[0]?.dataset?.type || null;
+      if (!articleType && articleId) {
+        try {
+          const articleResp = await fetch(`/api/v1/articles/${articleId}`, { credentials: 'include' });
+          if (articleResp.ok) {
+            const articleData = await articleResp.json();
+            articleType = articleData.type;
+          }
+        } catch (err) {
+          // Ignore error - type is optional for offline display
+          console.warn('[createPlan] Failed to fetch article type:', err);
+        }
+      }
+
+      // Build recurring plan data
+      const recurringData: any = {
+        article_id: articleId,
+        financial_center_id: financialCenterId,
+        cost_center_id: costCenterId,
+        amount: parseFloat(formData.get('amount') as string),
+        description: formData.get('description') || null,
+        record_type: 'plan',
+        frequency_type: recurringSettings.frequency_type,
+        frequency_value: recurringSettings.frequency_value,
+        start_date: startDate,
+        end_date: recurringSettings.end_date,
+        occurrences_count: recurringSettings.occurrences_count,
+        // Add names, type, and date for offline display in pending-records-card
+        article_name: articleName,
+        article_type: articleType,
+        financial_center_name: financialCenterName,
+        cost_center_name: costCenterName,
+        plan_date: startDate,  // For pending records date display
+        // Reminder settings
+        enable_reminder: formData.get('recurring_enable_reminder') === 'on',
+        reminder_hour: formData.get('recurring_enable_reminder') === 'on'
+          ? parseInt(formData.get('recurring_reminder_hour') as string)
+          : null,
+        reminder_minute: formData.get('recurring_enable_reminder') === 'on'
+          ? parseInt(formData.get('recurring_reminder_minute') as string)
+          : null,
+      };
+
+      // Validate reminder time if enabled
+      if (recurringData.enable_reminder) {
+        if (recurringData.reminder_hour === null || recurringData.reminder_minute === null || isNaN(recurringData.reminder_hour) || isNaN(recurringData.reminder_minute)) {
+          showToast('Укажите время напоминания для регулярного платежа', 'warning');
+          setSubmitLoading(form, false);
+          return;
+        }
+        console.log(`[createPlan] Reminder enabled: ${recurringData.reminder_hour.toString().padStart(2, '0')}:${recurringData.reminder_minute.toString().padStart(2, '0')}`);
+      }
+
+      console.log('[createPlan] Recurring data with reminders:', recurringData);
+      debugLog('[createPlan] Creating recurring plan:', recurringData);
+
+      // Use OfflineManager if available for offline support
+      if ((window as any).offlineManager) {
+        const result = await (window as any).offlineManager.createRecurringPlan(recurringData);
+
+        if (result._offline) {
+          showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
+          debugLog('[createPlan] Recurring plan saved offline:', result);
+        } else {
+          let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
+          if (result.enable_reminder && result.reminder_time_display) {
+            message += `. Напоминания в ${result.reminder_time_display}`;
+          }
+          showToast(message, 'success');
+          debugLog('[createPlan] Recurring plan created:', result);
+        }
+
+        (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+        form.reset();
+        // Reset recurring settings
+        resetRecurringSettings(modalId);
+        // Reset reminder settings
+        const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+        if (reminderSettings) reminderSettings.classList.add('hidden');
+        resetReminderFields(modalId);
+        await loadFacts();
+        setupCreatePlanPeriodButtons();
+      } else {
+        // Fallback to direct fetch if OfflineManager not available
+        const response = await fetch('/api/v1/recurring-plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(recurringData)
+        });
+
+        if (response.ok) {
+          const createdPlan = await response.json();
+          let message = `Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`;
+          if (createdPlan.enable_reminder && createdPlan.reminder_time_display) {
+            message += `. Напоминания в ${createdPlan.reminder_time_display}`;
+          }
+          showToast(message, 'success');
+          debugLog('[createPlan] Recurring plan created:', createdPlan);
+
+          (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+          form.reset();
+          // Reset recurring settings
+          resetRecurringSettings(modalId);
+          // Reset reminder settings
+          const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+          if (reminderSettings) reminderSettings.classList.add('hidden');
+          resetReminderFields(modalId);
+          await loadFacts();
+          setupCreatePlanPeriodButtons();
+        } else {
+          const error = await response.json();
+          showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+        }
+      }
+      return;
+    }
+
+    // ===== REGULAR PLAN CREATION =====
+    // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
+    const planMonth = formData.get('plan_month') as string; // "2025-11"
+    const factDate = `${planMonth}-01`; // "2025-11-01"
+
+    const data: any = {
+      record_type: 'plan',
+      amount: parseFloat(formData.get('amount') as string),
+      article_id: parseInt(formData.get('article_id') as string),
+      financial_center_id: parseInt(formData.get('financial_center_id') as string),
+      cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null,
+      fact_date: factDate, // Обязательное поле - первое число месяца плана
+      description: formData.get('description') || null
+    };
+
+    // Use OfflineManager if available, otherwise fallback to direct fetch
+    if ((window as any).offlineManager) {
+      const result = await (window as any).offlineManager.createPlan(data);
+
+      if (result._offline) {
+        showToast('План сохранён оффлайн (будет синхронизирован при подключении)', 'warning');
+        debugLog('[createPlan] Saved offline:', result);
+      } else {
+        showToast('План успешно создан!', 'success');
+        debugLog('[createPlan] Saved online:', result);
+
+        // Create reminder if enabled (only for online plans)
+        if (enableReminder && reminderDatetime && result.id) {
+          const reminderCreated = await (BudgetShared as any).Reminders.createReminder(result.id, reminderDatetime);
+          if (reminderCreated) {
+            // ✅ FIX 2: Update remindersMap to show icon in table
+            remindersMap.set(result.id, reminderCreated);
+            showToast('Напоминание установлено', 'success');
+          } else {
+            showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
+          }
+        }
+      }
+
+      (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+      form.reset();
+      // Reset reminder settings visibility and fields
+      const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+      if (reminderSettings) reminderSettings.classList.add('hidden');
+      resetReminderFields('modal_add_plan');
+      await loadFacts(); // Перезагрузить список планов
+
+      // Переинициализировать кнопки периода
+      setupCreatePlanPeriodButtons();
+    } else {
+      // Fallback to direct fetch if OfflineManager not available
+      const response = await fetch('/api/v1/facts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        const createdPlan = await response.json();
+        showToast('План успешно создан!', 'success');
+
+        // Create reminder if enabled
+        if (enableReminder && reminderDatetime && createdPlan.id) {
+          const reminderCreated = await (BudgetShared as any).Reminders.createReminder(createdPlan.id, reminderDatetime);
+          if (reminderCreated) {
+            // ✅ FIX 2: Update remindersMap to show icon in table
+            remindersMap.set(createdPlan.id, reminderCreated);
+            showToast('Напоминание установлено', 'success');
+          } else {
+            showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
+          }
+        }
+
+        (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+        form.reset();
+        // Reset reminder settings visibility and fields
+        const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+        if (reminderSettings) reminderSettings.classList.add('hidden');
+        resetReminderFields('modal_add_plan');
+        await loadFacts(); // Перезагрузить список планов
+
+        // Переинициализировать кнопки периода
+        setupCreatePlanPeriodButtons();
+      } else {
+        const error = await response.json();
+        showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+      }
+    }
+  } catch (error) {
+    console.error('Error creating plan:', error);
+    showToast('Ошибка при создании плана: ' + (error as Error).message, 'error');
+  } finally {
+    setSubmitLoading(form, false);
+  }
+}
+
+/**
+ * Update fact (single or recurring plan template)
+ * Handles form submission from edit modal
+ * @param event - Form submit event
+ */
+export async function updateFact(event: Event): Promise<void> {
+  event.preventDefault();
+
+  const formData = new FormData(event.target as HTMLFormElement);
+  const factId = formData.get('id') as string;
+  const displayDate = formData.get('fact_date') as string;
+
+  // Get recurring plan settings FIRST (needed for validation)
+  const recurringPlanId = formData.get('recurring_plan_id') as string;
+  const editScope = formData.get('edit_scope') as string;
+
+  // VALIDATION: Check date format BEFORE calling formatForAPI
+  // Skip validation for template scope (date field is hidden)
+  if (editScope !== 'template') {
+    if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
+      showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+      return;
+    }
+  }
+
+  // ========== ALL VALIDATION PASSED - SHOW LOADING ==========
+  setSubmitLoading(event.target as HTMLFormElement, true);
+
+  // Build data object with optional center fields
+  const data: any = {
+    amount: parseFloat(formData.get('amount') as string),
+    fact_date: editScope !== 'template' ? BudgetShared.DateFormatter.formatForAPI(displayDate) : null,
+    article_id: parseInt(formData.get('article_id') as string),
+    description: formData.get('description') || null
+  };
+
+  // Add center fields if selected
+  const financialCenterId = formData.get('financial_center_id') as string;
+  const costCenterId = formData.get('cost_center_id') as string;
+
+  if (financialCenterId) {
+    data.financial_center_id = parseInt(financialCenterId);
+  }
+
+  if (costCenterId) {
+    data.cost_center_id = parseInt(costCenterId);
+  }
+
+  // Get reminder settings from edit form
+  const enableReminder = formData.get('enable_reminder') === 'on';
+  const reminderDatetime = formData.get('reminder_datetime') as string;
+
+  try {
+    // Логирование вызова updateFact
+    const factsData = PlanFactsTable.getFactsData();
+    console.log('[EDIT MODAL] updateFact called:', {
+      factId: factId,
+      recordType: factsData.find(f => f.id == Number(factId))?.record_type,
+      recurringPlanId: recurringPlanId,
+      editScope: editScope
+    });
+
+    let response: Response;
+    let successMessage = '✅ Факт успешно обновлен!';
+
+    // Check if editing recurring plan template
+    if (recurringPlanId && editScope === 'template') {
+      console.log('[EDIT MODAL] Updating RECURRING PLAN TEMPLATE');
+      // Update recurring plan template
+      // Fields that can be updated: amount, description, cost_center_id, end_date, is_active
+      const templateData: any = {
+        amount: data.amount,
+        description: data.description
+      };
+
+      // cost_center_id is optional (send null to clear)
+      if (costCenterId) {
+        templateData.cost_center_id = parseInt(costCenterId);
+      } else {
+        templateData.cost_center_id = null;
+      }
+
+      // Get template-specific fields
+      const templateEndDate = formData.get('template_end_date') as string;
+      const templateIsActive = formData.get('template_is_active') === 'on';
+
+      // Add end_date if provided (convert from display format to API format)
+      if (templateEndDate && BudgetShared.DateFormatter.isValidDisplayFormat(templateEndDate)) {
+        templateData.end_date = BudgetShared.DateFormatter.formatForAPI(templateEndDate);
+      }
+
+      // Add is_active status
+      templateData.is_active = templateIsActive;
+
+      // Update recurring plan with regenerate_future=true to update existing future facts
+      response = await fetch(`/api/v1/recurring-plans/${recurringPlanId}?regenerate_future=true`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify(templateData)
+      });
+      successMessage = '✅ Шаблон обновлен, будущие записи пересозданы!';
+    } else {
+      console.log('[EDIT MODAL] Updating SINGLE FACT');
+      // Update single fact
+      response = await fetch(`/api/v1/facts/${factId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+    }
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Validation errors:', error);
+
+      // Parse validation errors for better UX
+      let errorMsg = 'Ошибка сохранения';
+
+      // Handle custom error format: {detail: {message: "...", errors: [...]}}
+      if (error.detail && typeof error.detail === 'object') {
+        if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+          // Custom validation error format
+          errorMsg = error.detail.errors
+            .map((e: any) => e.message || e.msg || 'Unknown error')
+            .join('; ');
+        } else if (typeof error.detail.message === 'string') {
+          errorMsg = error.detail.message;
+        } else if (typeof error.detail === 'string') {
+          errorMsg = error.detail;
+        } else if (Array.isArray(error.detail)) {
+          // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
+          errorMsg = error.detail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+        } else {
+          // Fallback: stringify unknown object
+          errorMsg = JSON.stringify(error.detail);
+        }
+      } else if (typeof error.detail === 'string') {
+        errorMsg = error.detail;
+      } else {
+        errorMsg = `HTTP error! status: ${response.status}`;
+      }
+
+      throw new Error(errorMsg);
+    }
+
+    // Handle reminder update (only for single fact scope, not template)
+    if (editScope !== 'template') {
+      const existingReminder = remindersMap.get(parseInt(factId));
+
+      if (enableReminder && reminderDatetime) {
+        // Create or update reminder
+        if (existingReminder) {
+          // Update existing reminder
+          const updated = await (BudgetShared as any).Reminders.updateReminder(factId, reminderDatetime);
+          if (!updated) {
+            showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+          }
+        } else {
+          // Create new reminder
+          const created = await (BudgetShared as any).Reminders.createReminder(factId, reminderDatetime);
+          if (!created) {
+            showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+          }
+        }
+      } else if (!enableReminder && existingReminder) {
+        // Delete reminder if checkbox is unchecked
+        const deleted = await (BudgetShared as any).Reminders.deleteReminder(factId);
+        if (!deleted) {
+          showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
+        }
+      }
+    }
+
+    closeEditModal();
+    await loadFacts();
+    showNotification(successMessage, 'success');
+  } catch (error) {
+    console.error('Error updating fact:', error);
+    const errorMessage = (error as any)?.message || String(error);
+    showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+  } finally {
+    // ========== ALWAYS RESTORE BUTTON ==========
+    setSubmitLoading(event.target as HTMLFormElement, false);
   }
 }
 
