@@ -102,6 +102,7 @@ source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/version.sh"     # Depends on config.sh, utils.sh (version management)
+source "$SCRIPT_DIR/scripts/lib/registry.sh"    # Depends on config.sh, utils.sh (container registry integration)
 
 # =============================================================================
 # CONFIGURATION (Legacy - variables moved to config.sh)
@@ -137,6 +138,10 @@ SKIP_DOCKERD_RESTART=false   # Skip automatic Docker daemon restart optimization
 
 # Frontend build options
 FORCE_FRONTEND_BUILD=false   # Force frontend rebuild regardless of checksums
+
+# Container registry options
+USE_REGISTRY=false           # Pull images from container registry instead of building locally
+USER_IMAGE_TAG=""            # User-specified image tag (overrides auto-detection)
 
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
@@ -408,6 +413,14 @@ parse_args() {
             --force-build)
                 FORCE_FRONTEND_BUILD=true
                 shift
+                ;;
+            --use-registry)
+                USE_REGISTRY=true
+                shift
+                ;;
+            --image-tag)
+                USER_IMAGE_TAG="$2"
+                shift 2
                 ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"

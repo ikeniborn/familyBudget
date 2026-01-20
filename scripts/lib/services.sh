@@ -652,19 +652,47 @@ start_application_services() {
     info "Starting backend/bot/nginx containers..."
     local start_result=0
 
+    # =========================================================================
+    # CONTAINER REGISTRY MODE: Pull images instead of building
+    # =========================================================================
+    if [[ "${USE_REGISTRY:-false}" == "true" ]]; then
+        info "Registry mode enabled - pulling images instead of building"
+        echo ""
+
+        # Pull images from container registry
+        if ! pull_from_registry; then
+            error "Failed to pull images from registry"
+            info "Tip: Check that images exist in registry with:"
+            info "  docker manifest inspect ghcr.io/ikeniborn/familybudget-backend:TAG"
+            return 1
+        fi
+
+        # Log deployment history
+        local image_tag=$(determine_image_tag)
+        log_deployment_history "registry" "$image_tag" "pull_success"
+
+        # Skip build logic - proceed directly to docker compose up
+        info "Images pulled successfully - proceeding to start services"
+        echo ""
+    fi
+
     # Determine build strategy based on DOCKER_REBUILD_NEEDED
     local needs_fresh_build=false
     local build_flag="--build"
 
-    if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
+    # Skip build flag when using registry images
+    if [[ "${USE_REGISTRY:-false}" == "true" ]]; then
+        build_flag=""
+        info "Using pre-built images from registry (--build flag skipped)"
+    elif [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
         needs_fresh_build=true
         info "Docker images will be rebuilt with --no-cache (trigger files changed)"
     else
         info "Docker images will be rebuilt with layer cache (source code may have changed)"
     fi
 
-    # If fresh build needed, build with --no-cache first
-    if [[ "$needs_fresh_build" == "true" ]]; then
+    # If fresh build needed, build with --no-cache first (skip in registry mode)
+    if [[ "$needs_fresh_build" == "true" && "${USE_REGISTRY:-false}" != "true" ]]; then
         info "Building Docker images with --no-cache..."
         echo ""
 

@@ -47,6 +47,12 @@ Build Options:
   --force-build                   Force frontend rebuild regardless of checksums
                                   (useful when checksums detection fails or for testing)
 
+Container Registry Options:
+  --use-registry                  Pull Docker images from ghcr.io instead of building locally
+                                  (requires images to exist in GitHub Container Registry)
+  --image-tag TAG                 Specify image tag to pull (default: auto-detect from branch/VERSION)
+                                  Example: --image-tag test, --image-tag 6.6.0
+
 Docker Optimization:
   --restart-dockerd               Force Docker daemon restart at end of deployment
                                   (clears accumulated state, reduces CPU)
@@ -81,6 +87,9 @@ Examples:
   ./deploy.sh --repo-dir ~/familyBudget                 # Specify repository path
   ./deploy.sh --reapply-migration b2232d851007          # Reapply specific migration
   AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh              # Auto-detect changed migrations (dev/staging only)
+  ./deploy.sh --use-registry                            # Pull images from ghcr.io (auto-detect tag)
+  ./deploy.sh --use-registry --image-tag test           # Pull images with 'test' tag
+  ./deploy.sh --use-registry --sync-mode skip --cleanup-mode smart  # Registry mode + smart cleanup
 
 Workflow:
   1. Detects repository directory (current dir, ~/familyBudget, or ask)
