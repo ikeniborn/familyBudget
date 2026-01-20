@@ -104,6 +104,11 @@ module.exports = [
       "no-empty": "warn",
       "no-redeclare": "warn",
       "no-dupe-class-members": "warn",
+      "no-fallthrough": "warn",
+      "no-constant-condition": "warn",
+      "no-useless-escape": "warn",
+      "no-cond-assign": "warn",
+      "no-self-assign": "warn",
     },
   },
 ];
