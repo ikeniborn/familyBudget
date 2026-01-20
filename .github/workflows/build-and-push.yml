@@ -184,6 +184,27 @@ jobs:
             echo "bot=false" >> $GITHUB_OUTPUT
           fi
 
+          # Nginx changes
+          if bash scripts/ci/check_image_changes.sh nginx | grep -q "build"; then
+            echo "nginx=true" >> $GITHUB_OUTPUT
+          else
+            echo "nginx=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Redis changes
+          if bash scripts/ci/check_image_changes.sh redis | grep -q "build"; then
+            echo "redis=true" >> $GITHUB_OUTPUT
+          else
+            echo "redis=false" >> $GITHUB_OUTPUT
+          fi
+
+          # PostgreSQL changes
+          if bash scripts/ci/check_image_changes.sh postgresql | grep -q "build"; then
+            echo "postgresql=true" >> $GITHUB_OUTPUT
+          else
+            echo "postgresql=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Docker meta (backend)
         id: meta-backend
         uses: docker/metadata-action@v5
@@ -208,6 +229,48 @@ jobs:
           labels: |
             org.opencontainers.image.title=Family Budget Bot
             org.opencontainers.image.description=Family Budget Telegram bot
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (nginx)
+        id: meta-nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-nginx
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Nginx
+            org.opencontainers.image.description=Family Budget Nginx reverse proxy
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (redis)
+        id: meta-redis
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-redis
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Redis
+            org.opencontainers.image.description=Family Budget Redis cache
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (postgresql)
+        id: meta-postgresql
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-postgresql
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget PostgreSQL
+            org.opencontainers.image.description=Family Budget PostgreSQL database
             org.opencontainers.image.vendor=Family Budget Team
             org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -252,6 +315,42 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
+
+      - name: Build and push nginx
+        if: steps.changes.outputs.nginx == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push redis
+        if: steps.changes.outputs.redis == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./redis
+          file: ./redis/Dockerfile
+          push: true
+          tags: ${{ steps.meta-redis.outputs.tags }}
+          labels: ${{ steps.meta-redis.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push postgresql
+        if: steps.changes.outputs.postgresql == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./postgres
+          file: ./postgres/Dockerfile
+          push: true
+          tags: ${{ steps.meta-postgresql.outputs.tags }}
+          labels: ${{ steps.meta-postgresql.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # Job 4: Security Scan
   security-scan:
@@ -339,5 +438,8 @@ jobs:
           echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
