@@ -20,7 +20,8 @@ function postBuildCopy() {
         { src: 'dist/components.js', dest: 'frontend/web/static/js/dist/components.bundle.js' },
         { src: 'dist/sw.js', dest: 'sw.min.js' },
         { src: 'dist/lists.js', dest: 'frontend/web/static/js/lists.min.js' },
-        { src: 'dist/transfers.js', dest: 'frontend/web/static/js/transfers.min.js' }
+        { src: 'dist/transfers.js', dest: 'frontend/web/static/js/transfers.min.js' },
+        { src: 'dist/plan.js', dest: 'frontend/web/static/js/dist/plan.bundle.js' }
       ];
 
       files.forEach(({ src, dest }) => {
@@ -45,14 +46,15 @@ export default defineConfig({
     target: 'es2020',
 
     rollupOptions: {
-      // 5 entry points (NOTE: Not used in build process - build-all.js uses vite.config.single.ts)
+      // 6 entry points (NOTE: Not used in build process - build-all.js uses vite.config.single.ts)
       input: {
         budgetShared: resolve(__dirname, 'frontend/shared/static/js/budgetShared.ts'),
         bundle: resolve(__dirname, 'frontend/web/static/js/index.ts'),
         webapp: resolve(__dirname, 'frontend/webapp/static/js/index.ts'),
         components: resolve(__dirname, 'frontend/web/static/js/modules/uiComponents/index.ts'),
         sw: resolve(__dirname, 'sw.js'),
-        transfers: resolve(__dirname, 'frontend/web/static/js/transfers/index.ts')
+        transfers: resolve(__dirname, 'frontend/web/static/js/transfers/index.ts'),
+        plan: resolve(__dirname, 'frontend/web/static/js/plan/index.ts')
       },
 
       output: {

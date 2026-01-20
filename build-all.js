@@ -233,6 +233,12 @@ const builds = [
     globalName: 'Transfers'
   },
   {
+    name: 'plan',
+    input: 'frontend/web/static/js/plan/index.ts',
+    output: 'frontend/web/static/js/dist/plan.bundle.js',
+    globalName: 'PlanApp'
+  },
+  {
     name: 'facts',
     input: 'frontend/web/static/js/facts/index.ts',
     output: 'frontend/web/static/js/facts.min.js',
