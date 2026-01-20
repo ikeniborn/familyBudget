@@ -17,6 +17,14 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 **Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose
 
+**Deployment (v9.0+):** Registry-First Architecture
+- All builds in GitHub Actions CI/CD
+- 5 custom Docker images (backend, bot, nginx, redis, postgresql)
+- Server only pulls from ghcr.io (no npm/Node.js required)
+- Multi-stage Dockerfiles with embedded frontend
+- Automatic image cleanup (7 days retention)
+- Deployment always 2-3 min (pull only)
+
 ## Quick Start
 
 ### Local Development (Code Validation Only)
@@ -25,11 +33,22 @@ Family Budget is a family budget management system with Telegram bot and web int
 Use **testing** skill for code quality checks.
 **See:** `docs/architecture/build-system.md` for build commands
 
-### Deployment
+### Deployment (Registry-First v9.0+)
 **Testing:** Use **deploy-test** skill for automated deployment to budget-test
 **Production:** Use **deploy-prod** skill for automated deployment to budget-prod
 
-**See:** `.claude/skills/deploy-test/SKILL.md`, `/docs/architecture/guides/deployment-troubleshooting.md`
+**BREAKING CHANGE (v9.0):**
+- All builds (frontend, Docker) happen in GitHub Actions CI/CD
+- Server only pulls ready images from ghcr.io (registry-first)
+- npm/Node.js NOT required on server
+- Manual VERSION bump before push
+- Deployment ALWAYS takes 2-3 min (pull only)
+
+**See:**
+- `.claude/skills/deploy-test/SKILL.md` (v9.0.0)
+- `.claude/skills/deploy-prod/SKILL.md` (v9.0.0)
+- `CI-CD-REGISTRY-SUMMARY.md` (registry-first guide)
+- `/docs/architecture/guides/deployment-troubleshooting.md`
 
 ## Terminology (UI ↔ Code)
 
@@ -159,13 +178,22 @@ Deployment scripts automatically run `npm run build:vendor` to ensure all minifi
 ### Code Quality
 Use **testing** skill for automated quality checks (linting, formatting, type checking, tests).
 
-### Build Requirements
-**Development:** Minification NOT required. **Production:** `npm run build` before commit/deploy.
-**See:** `docs/architecture/build-system.md`
+### Build Requirements (v9.0: CI/CD Only)
+**Development:** Minification NOT required locally
+**Production:** All builds (frontend, Docker) happen in GitHub Actions CI/CD
+- Cache busting in CI (scripts/ci/cache_busting_ci.sh)
+- Frontend build (npm run build:prod)
+- Docker build (5 images: backend, bot, nginx, redis, postgresql)
+- Push to ghcr.io with semver tags
+**See:** `docs/architecture/build-system.md`, `docs/architecture/ci-cd-build-deploy.md`
 
-### Deployment
+### Deployment (Registry-First)
 Use **deploy-test** or **deploy-prod** skills for automated deployment.
-**See:** `.claude/skills/deploy-*/SKILL.md`, `/docs/architecture/guides/deployment-troubleshooting.md`
+**Server workflow:** Pull images from ghcr.io → docker compose up → migrations
+**See:**
+- `.claude/skills/deploy-*/SKILL.md` (v9.0.0)
+- `CI-CD-REGISTRY-SUMMARY.md` (complete guide)
+- `/docs/architecture/guides/deployment-troubleshooting.md`
 
 ## API Endpoints
 
@@ -221,6 +249,8 @@ Project includes specialized skills in `.claude/skills/` for automated workflows
 
 ### Architecture
 - [README.md](docs/architecture/README.md) - Dependency graph + recent changes
+- **[ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md)** - CI/CD Pipeline (v2.0, Registry-First) ⭐ NEW
+- **[docker.md](docs/architecture/docker.md)** - Docker Multi-Stage Builds (5 images) ⭐ NEW
 - [authentication.md](docs/architecture/authentication.md) - JWT, OAuth, WebAuthn
 - [pwa.md](docs/architecture/pwa.md) - PWA, offline, Service Worker
 - [websocket.md](docs/architecture/websocket.md) - Real-time updates
@@ -232,11 +262,15 @@ Project includes specialized skills in `.claude/skills/` for automated workflows
 - [installation-resilience.md](docs/architecture/installation-resilience.md) - Installation framework
 - [backup-system.md](docs/architecture/backup-system.md) - Backup + restore
 - [caching-strategy.md](docs/architecture/caching-strategy.md) - HTTP caching
+- [es-modules-migration.md](docs/architecture/es-modules-migration.md) - ES Modules migration (v7.0.0)
 
 ### Guides
 - [deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) - Deployment
 - [disaster-recovery.md](docs/architecture/guides/disaster-recovery.md) - Disaster recovery
 - [backup-operations.md](docs/architecture/guides/backup-operations.md) - Backup procedures
+
+### Deployment (v9.0+ Registry-First)
+- **[CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md)** - Complete Registry-First Guide ⭐ MUST READ
 
 ### Product
 - [docs/prd/](docs/prd/) - Product requirements
