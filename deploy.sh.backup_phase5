@@ -97,6 +97,7 @@ source "$SCRIPT_DIR/scripts/lib/backup_integration.sh"  # Depends on config.sh, 
 
 # Phase 3 modules (NEW)
 source "$SCRIPT_DIR/scripts/lib/sync.sh"        # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/cache_busting.sh"  # Depends on config.sh, utils.sh (NEW)
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
@@ -1278,53 +1279,457 @@ main() {
     fi
     echo ""
 
-    # =============================================================================
-    # REGISTRY-FIRST ARCHITECTURE (v9.0.0+)
-    # =============================================================================
-    # All building (minification, cache busting, packaging) happens in GitHub Actions CI/CD.
-    # On server: only pull ready Docker images from ghcr.io and run them.
-    #
-    # Benefits:
-    # - Faster deployments (2-3 min vs 5-7 min)
-    # - No npm/Node.js dependencies on server
-    # - Consistent builds across environments
-    # - Frontend embedded in backend Docker image (no bind mounts)
-    #
-    # See: .github/workflows/build-and-push.yml for CI/CD pipeline
-    # =============================================================================
-
-    step "Pulling Docker Images from GitHub Container Registry"
+    # Minify static assets (JS and CSS) for production
+    echo ""
+    print_message info "Minifying static assets..."
     echo ""
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    # Determine image tag from VERSION file
-    if [[ -f "$DEPLOY_DIR/VERSION" ]]; then
-        VERSION=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
-        info "Deploying version: $VERSION"
+    # Fix permissions before build (prevent EACCES errors)
+    # IMPORTANT: Build process needs write access to frontend/ directory
+    print_message info "Ensuring correct permissions for build..."
+    # Use SUDO_USER if available (when running with sudo), otherwise current user
+    local build_user="${SUDO_USER:-$(whoami)}"
+    sudo chown -R "${build_user}:${build_user}" /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
+
+    # Clean up ALL npm-related processes before build (prevent zombie process buildup)
+    # ARCHITECTURE IMPROVEMENT (2025-11-08):
+    # - Kill ALL npm processes (not just specific patterns)
+    # - Prevents zombie process accumulation from interrupted builds
+    # - No timeout needed if we aggressively cleanup before starting
+    echo ""
+    print_message info "Cleaning up npm processes before build..."
+
+    # Kill npm-related processes from /opt/budget only (more targeted, avoids killing unrelated processes)
+    # SECURITY: Use specific path patterns to avoid affecting other npm processes
+    sudo pkill -9 -f "/opt/budget.*npm" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*terser" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*postcss" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*tailwindcss" 2>&1 | grep -v "Killed" || true
+    sleep 2  # Give processes time to fully terminate
+
+    # Verify cleanup (only check /opt/budget processes)
+    local remaining=$(ps aux | grep -E "/opt/budget.*(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
+    if [[ $remaining -eq 0 ]]; then
+        print_message success "Build processes cleaned up (0 remaining)"
+        echo ""
     else
-        error "VERSION file not found in $DEPLOY_DIR"
+        print_message warning "Some processes still running ($remaining), attempting targeted cleanup..."
+        # Only kill node processes from /opt/budget
+        sudo pkill -9 -f "/opt/budget.*node" 2>&1 | grep -v "Killed" || true
+        sleep 1
+        print_message success "Targeted cleanup completed"
+        echo ""
+    fi
+
+    # Check that npm dependencies are installed in production isolated environment
+    # ARCHITECTURE CHANGE (2025-11-08):
+    # - npm env now in /opt/budget/.npm-isolated (NOT copied via rsync)
+    # - Must be created by install.sh (runs once, persists across deploys)
+    # - Faster deploys (~100-200MB not transferred)
+    local npm_isolated_dir="/opt/budget/.npm-isolated"
+    local node_modules_dir="$npm_isolated_dir/node_modules"
+    local build_allowed=true
+
+    # Generate cache version ONCE for entire deployment (v6.8.0+)
+    # CRITICAL: Export BEFORE build_allowed check so it's available for:
+    # 1. npm run build → Vite plugin (vite-plugin-sw-version.ts)
+    # 2. update-cache-busting.sh validation
+    export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
+    print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
+
+    # Write to file for Vite plugin and validation scripts
+    # vite-plugin-sw-version.ts reads CACHE_VERSION from env or .cache-version file
+    # IMPORTANT: Fix ownership when running with sudo to prevent permission issues
+    if echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"; then
+        # Fix ownership if running as root (sudo deploy.sh)
+        if [[ $EUID -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
+            chown "$SUDO_USER:$SUDO_USER" "$DEPLOY_DIR/.cache-version" || {
+                print_message warning "Could not fix .cache-version ownership (non-critical)"
+            }
+        fi
+
+        # Verify file was written correctly
+        if [[ -f "$DEPLOY_DIR/.cache-version" ]]; then
+            local written_version=$(cat "$DEPLOY_DIR/.cache-version")
+            if [[ "$written_version" == "$CACHE_VERSION" ]]; then
+                print_message info "Written CACHE_VERSION to .cache-version: $CACHE_VERSION"
+                print_message info "File ownership: $(stat -c '%U:%G' "$DEPLOY_DIR/.cache-version" 2>/dev/null || stat -f '%Su:%Sg' "$DEPLOY_DIR/.cache-version")"
+            else
+                print_message error "CRITICAL: .cache-version content mismatch!"
+                print_message error "  Expected: $CACHE_VERSION"
+                print_message error "  Actual:   $written_version"
+                exit 1
+            fi
+        else
+            print_message error "CRITICAL: Failed to create .cache-version file"
+            exit 1
+        fi
+    else
+        print_message error "CRITICAL: Cannot write to .cache-version file"
+        print_message error "Check permissions: ls -la $DEPLOY_DIR/.cache-version"
         exit 1
     fi
     echo ""
 
-    # Pull images from ghcr.io (backend, bot, nginx, redis, postgresql)
-    info "Pulling Docker images from registry..."
-    if ! pull_from_registry; then
-        error "Failed to pull Docker images from registry"
-        error ""
-        error "Please check:"
-        error "  1. GitHub Actions build completed successfully"
-        error "  2. Images exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}"
-        error "  3. Network connectivity to ghcr.io"
-        error "  4. Docker daemon is running"
-        error ""
-        error "To debug: docker pull ghcr.io/ikeniborn/familybudget-backend:${VERSION}"
+    if [[ ! -d "$npm_isolated_dir" ]]; then
+        print_message error "Production npm environment not found: $npm_isolated_dir"
+        print_message error "This directory must exist in production (not copied from repository)"
+        print_message error ""
+        print_message error "To fix: Run install.sh to create production npm environment"
+        print_message error "  cd ~/familyBudget && sudo ./install.sh"
+        print_message error ""
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+        build_allowed=false
+    elif [[ ! -d "$node_modules_dir" ]]; then
+        print_message error "node_modules not found in production npm environment: $node_modules_dir"
+        print_message error "Please run install.sh to install npm dependencies"
+        print_message warning "Skipping minification - deployment will continue with unminified assets"
+        build_allowed=false
+    elif [[ ! -f "$node_modules_dir/.package-lock.json" ]]; then
+        print_message warning "package-lock.json not found in $node_modules_dir - dependencies may be corrupted"
+        print_message warning "Consider re-running install.sh to reinstall npm packages"
+        print_message warning "Attempting to run build anyway..."
+    fi
+
+    # Validate npm package versions (especially Tailwind CSS to prevent 4.x mismatch)
+    if [[ "$build_allowed" == true ]] && command -v jq &> /dev/null; then
+        print_message info "Validating npm package versions..."
+
+        if [[ -f "package.json" && -f "$node_modules_dir/tailwindcss/package.json" ]]; then
+            local expected_tailwind
+            local installed_tailwind
+
+            expected_tailwind=$(jq -r '.devDependencies.tailwindcss // empty' "package.json" 2>/dev/null)
+            installed_tailwind=$(jq -r '.version // empty' "$node_modules_dir/tailwindcss/package.json" 2>/dev/null)
+
+            if [[ -n "$expected_tailwind" && -n "$installed_tailwind" ]]; then
+                if [[ "$expected_tailwind" != "$installed_tailwind" ]]; then
+                    print_message error "Tailwind CSS version mismatch detected!"
+                    print_message error "  Expected (package.json): $expected_tailwind"
+                    print_message error "  Installed (node_modules): $installed_tailwind"
+                    print_message error ""
+                    print_message error "This mismatch can cause build failures (especially 4.x vs 3.x)"
+                    print_message error "Please reinstall npm dependencies with correct versions:"
+                    print_message error "  cd ~/familyBudget"
+                    print_message error "  sudo ./install.sh"
+                    print_message error ""
+                    print_message warning "Skipping build to prevent errors"
+                    build_allowed=false
+                else
+                    print_message success "Tailwind CSS version validated: $installed_tailwind"
+                    echo ""
+                fi
+            fi
+        fi
+    fi
+
+    # Check if frontend rebuild needed (v7.0+ TypeScript architecture)
+    # CRITICAL: Check BEFORE build to avoid unnecessary npm builds
+    # Checks: .ts/.tsx files in frontend/, package.json, vite.config.ts, build-all.js
+    if [[ "$build_allowed" == true ]]; then
+        if [[ "$FORCE_FRONTEND_BUILD" == true ]]; then
+            print_message info "Force frontend rebuild requested (--force-build flag)"
+            print_message info "Skipping checksum validation"
+        elif ! needs_frontend_rebuild "$SCRIPT_DIR"; then
+            print_message info "No frontend source files changed since last build"
+            print_message info "Skipping npm build (assets are up-to-date)"
+            build_allowed=false
+        else
+            print_message info "Frontend source files changed - npm build required"
+        fi
+        echo ""
+    fi
+
+    # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
+    if [[ "$build_allowed" == true ]]; then
+        # Validate npm environment comprehensively (with auto-repair)
+        if ! repair_npm_environment; then
+            echo ""
+            print_message error "npm environment validation/repair failed"
+            print_message error "Cannot proceed with deployment - critical packages missing or corrupted"
+            print_message error ""
+            print_message error "Manual fix required:"
+            print_message error "  cd ~/familyBudget && sudo ./install.sh"
+            print_message error ""
+            exit 1
+        fi
+
+        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-07):
+        # - Use NODE_PATH for CommonJS require() module resolution
+        # - Use temporary symlink for ES modules (vite.config.single.ts) import resolution
+        # - Problem: Symlinked node_modules breaks nested require() in bundled modules
+        #   (browserslist → node-releases/data/processed/envs.json fails)
+        # - Solution 1: Set NODE_PATH to tell Node.js where to find CommonJS modules
+        # - Solution 2: Create temporary symlink for Vite ES imports (removed after build)
+
+        # CRITICAL: Remove /opt/budget/node_modules before build (if exists)
+        # - Only .npm-isolated/node_modules should exist (accessed via NODE_PATH or symlink)
+        # - If /opt/budget/node_modules exists BEFORE build, npm may use wrong version
+        # - Temporary symlink will be created DURING build for Vite (line ~1240)
+        if [[ -e "$PWD/node_modules" ]]; then
+            print_message info "Removing $PWD/node_modules (will recreate temporarily for Vite)"
+            rm -rf "$PWD/node_modules"
+            print_message success "Removed - using .npm-isolated/node_modules exclusively"
+        fi
+
+        # Add isolated node_modules/.bin to PATH for npx executables
+        export PATH="$node_modules_dir/.bin:$PATH"
+
+        # Set NODE_PATH for correct nested module resolution
+        export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
+
+        print_message info "npm build environment configured (PATH + NODE_PATH)"
+
+        # CRITICAL FIX (2026-01-07): ES modules (vite.config.single.ts) don't use NODE_PATH
+        # - Vite config uses ES import which ignores NODE_PATH
+        # - Create temporary symlink for ES module resolution
+        # - Will be removed after build (line ~1285)
+        if [[ ! -e "$PWD/node_modules" ]]; then
+            ln -sf "$node_modules_dir" "$PWD/node_modules"
+            print_message info "Created temporary node_modules symlink for Vite ES imports"
+        fi
+
+        # CRITICAL FIX (2026-01-12): Clear Vite cache before build
+        # - Vite caches compiled modules in node_modules/.vite/
+        # - Stale cache can cause old code to be bundled even with updated source files
+        # - Clear cache when TypeScript sources changed to ensure fresh build
+        # - Cache is in .npm-isolated/node_modules/.vite/ (isolated environment)
+        local vite_cache_dir="${node_modules_dir}/.vite"
+        if [[ -d "$vite_cache_dir" ]]; then
+            print_message info "Clearing Vite cache (stale modules prevention)..."
+            rm -rf "$vite_cache_dir"
+            print_message success "Vite cache cleared from $vite_cache_dir"
+        else
+            print_message info "Vite cache not found (first build or already clean)"
+        fi
+
+        echo ""
+        # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
+        # build-all.js reads these variables for production minification
+        # Use env to ensure variable propagation across npm script chain
+        print_message info "Passing CACHE_VERSION=$CACHE_VERSION and NODE_ENV=production to Vite build"
+        if env NODE_ENV=production CACHE_VERSION="$CACHE_VERSION" npm run build:prod 2>&1; then
+            echo ""
+            print_message success "Static assets built and minified successfully"
+            echo ""
+
+            # Validate vendor files are minified correctly (v5.3.0+)
+            validate_vendor_files
+            echo ""
+
+            # Copy Service Worker files from .vite-build/ to final location (v7.0.1+ fix)
+            # Vite creates sw.js and sw.js.gz in .vite-build/, but we need them as sw.min.js in root
+            # Service Worker served by FastAPI backend from /opt/budget/sw.min.js (v6.8.0+)
+            if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+                print_message info "Copying Service Worker files from .vite-build/ to deployment root..."
+                cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+                cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+                print_message success "✓ Service Worker files copied: sw.min.js + sw.min.js.gz"
+            else
+                print_message warning "Service Worker files not found in .vite-build/ - build may have failed"
+            fi
+            echo ""
+
+            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
+            if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+                # Check if CACHE_VERSION itself contains PLACEHOLDER (NOT validation check variable)
+                if grep -q 'CACHE_VERSION.*=.*"PLACEHOLDER"' "$DEPLOY_DIR/sw.min.js" || \
+                   grep -q "CACHE_VERSION.*=.*'PLACEHOLDER'" "$DEPLOY_DIR/sw.min.js"; then
+                    print_message error "CRITICAL: CACHE_VERSION not replaced in sw.min.js!"
+                    print_message error "Service Worker version was not updated during Vite build"
+                    print_message error ""
+                    print_message error "This will cause PWA cache issues for users"
+                    print_message error ""
+                    print_message error "Debug info:"
+                    print_message error "  CACHE_VERSION set to: ${CACHE_VERSION:-<not set>}"
+                    print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
+                    grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
+                    print_message error ""
+                    print_message error "DEPLOYMENT BLOCKED - please check vite-plugin-sw-version.ts"
+                    exit 1
+                else
+                    SW_VERSION=$(grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
+                    print_message success "✓ Service Worker version verified: $SW_VERSION"
+                fi
+            else
+                print_message warning "sw.min.js not found - Service Worker may not be available"
+            fi
+
+            # REMOVED: save_frontend_build_checksums (Issue #1 fix)
+            # Checksums now saved AFTER comprehensive validation (see line ~1548)
+            # This prevents deploying incomplete builds
+
+            # Minify legacy files (lists.css) - NOT included in Vite build
+            # Note: hierarchyView.js was migrated to TypeScript and included in lists.min.js bundle
+            print_message info "Minifying legacy files (lists.css)..."
+            echo ""
+
+            # Minify lists.css
+            if [[ -f "$DEPLOY_DIR/frontend/web/static/css/lists.css" ]]; then
+                if npx postcss "$DEPLOY_DIR/frontend/web/static/css/lists.css" \
+                    -o "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" \
+                    --no-map --use cssnano 2>&1; then
+                    print_message success "✓ lists.css minified successfully"
+
+                    # Gzip precompression
+                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" 2>&1; then
+                        print_message success "✓ lists.min.css.gz created"
+                    else
+                        print_message warning "Failed to create lists.min.css.gz (non-critical)"
+                    fi
+                else
+                    error "Failed to minify lists.css"
+                    error "This file is critical - cannot continue"
+                    exit 1
+                fi
+            else
+                print_message warning "lists.css not found - skipping minification"
+            fi
+
+            echo ""
+            print_message success "Legacy files minification completed"
+            echo ""
+
+            # NOTE: Individual JS files (debugLog, budgetShared, etc.) are now built
+            # through Vite in build-all.js (v7.1.0+). No separate minification needed.
+
+            echo ""
+        else
+            echo ""
+            print_message warning "Build failed - check npm logs above"
+            print_message warning "Continuing with existing/unminified assets"
+            echo ""
+        fi
+
+        # Remove temporary symlink (created for Rollup ES imports)
+        if [[ -L "$PWD/node_modules" ]]; then
+            rm -f "$PWD/node_modules"
+            print_message info "Removed temporary node_modules symlink"
+        fi
+
+        # Restore PATH and NODE_PATH (remove isolated paths)
+        export PATH="${PATH#$node_modules_dir/.bin:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir}"
+    else
+        echo ""
+        print_message warning "Minification skipped (build validation failed)"
+        echo ""
+    fi
+
+    cd - > /dev/null || error_return "Failed to return to previous directory"
+    echo ""
+
+    # SAFEGUARD: Ensure Service Worker minified files are properly created
+    # Docker creates empty DIRECTORIES for non-existent mount paths in docker-compose.yml
+    # This breaks nginx serving of sw.js. We must ensure sw.min.js and sw.min.js.gz are FILES.
+    local sw_min="$DEPLOY_DIR/sw.min.js"
+    local sw_min_gz="$DEPLOY_DIR/sw.min.js.gz"
+
+    # Check 1: Fix if files are directories (Docker artifact)
+    if [[ -d "$sw_min" ]] || [[ -d "$sw_min_gz" ]]; then
+        warning "Service Worker minified files are directories (Docker artifact) - fixing..."
+        rm -rf "$sw_min" "$sw_min_gz"
+    fi
+
+    # Check 2: Validate Service Worker files exist (created by Vite during npm run build)
+    # Service Worker is built through: npm run build → build-all.js → vite.config.single.ts
+    # Vite handles: minification, gzip compression, CACHE_VERSION injection
+    if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
+        # Try to copy from .vite-build/ as fallback (v7.0.1+ fix)
+        if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
+            warning "Service Worker files missing in deployment root - copying from .vite-build/..."
+            cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
+            cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
+            success "✓ Service Worker files copied from .vite-build/ (fallback)"
+        else
+            warning "Service Worker files missing after build"
+            warning "IMPORTANT: sw.min.js must be created by 'npm run build' (Vite handles all processing)"
+            warning "If build was skipped, Service Worker will not be updated"
+            warning "Manual regeneration is no longer supported (minify.sh removed in v7.0.0)"
+        fi
+    fi
+
+    # Re-validate after potential fallback copy
+    if [[ -f "$sw_min" ]] && [[ -f "$sw_min_gz" ]]; then
+        local sw_min_size=$(stat -c%s "$sw_min" 2>/dev/null || stat -f%z "$sw_min" 2>/dev/null)
+        local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
+        success "Service Worker validated: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
+
+        # NOTE: Cache busting now runs outside this block (after line 1407)
+        # to ensure PLACEHOLDER replacement even when build is skipped
+
+        # Service Worker served by backend (v6.8.0+)
+        # No nginx update needed - backend reads sw.min.js directly from /app/
+        # Backend automatically serves fresh file after deployment
+        info "Service Worker will be served by FastAPI backend (auto-updates)"
+    fi
+    echo ""
+
+    # Update cache busting versions AFTER minification (v7.1.1+)
+    # CRITICAL: Must run ALWAYS, not just when Service Worker exists
+    # PLACEHOLDER tokens in HTML templates must be replaced on every deployment
+    step "Updating Cache Busting Versions (Post-Build)"
+    cd "$DEPLOY_DIR" || error_return "Failed to cd to $DEPLOY_DIR"
+
+    if [[ -f "scripts/update-cache-busting.sh" ]]; then
+        info "Running update-cache-busting.sh to replace PLACEHOLDER tokens..."
+        if ! bash scripts/update-cache-busting.sh; then
+            error "CRITICAL: Failed to update cache busting versions!"
+            error "Deployment ABORTED - cannot deploy with PLACEHOLDER tokens"
+            exit 1
+        fi
+        echo ""
+    else
+        error "CRITICAL: scripts/update-cache-busting.sh not found!"
+        error "Deployment ABORTED - cannot deploy without cache busting update"
         exit 1
     fi
     echo ""
-    success "All Docker images pulled successfully"
-    echo ""
 
+    # =============================================================================
+    # COMPREHENSIVE BUILD ARTIFACT VALIDATION (Issue #1 fix)
+    # =============================================================================
+    # Validate ALL build artifacts before saving checksums. This prevents deploying
+    # incomplete builds that would cause next deployment to skip rebuild.
+    # Timing is critical: AFTER build + minification + cache busting, BEFORE checksum save.
+    # CRITICAL: Only validate if build was actually performed (build_allowed=true)
+
+    # Only validate and save checksums if frontend build was actually performed
+    if [[ "$build_allowed" == "true" ]]; then
+        step "Validating Build Artifacts"
+
+        # Run comprehensive validation
+        if ! validate_build_artifacts; then
+            error ""
+            error "═══════════════════════════════════════════════════════════"
+            error "      BUILD ARTIFACT VALIDATION FAILED                    "
+            error "═══════════════════════════════════════════════════════════"
+            error ""
+            error "Some critical files are missing or invalid after build."
+            error "Checksums will NOT be saved - next deploy will rebuild."
+            error ""
+            error "Common causes:"
+            error "  1. npm build failed partially (check logs above)"
+            error "  2. Vite bundle creation failed"
+            error "  3. File permissions preventing writes"
+            error "  4. Disk space exhausted during build"
+            error ""
+            error "DEPLOYMENT ABORTED"
+            error "═══════════════════════════════════════════════════════════"
+            exit 1
+        fi
+
+        # Save checksums ONLY after comprehensive validation
+        save_frontend_build_checksums "$SCRIPT_DIR"
+        success "Build artifacts validated and checksums saved"
+        echo ""
+    else
+        info "Frontend build was skipped (no source files changed)"
+        info "Checksums NOT updated - using existing build artifacts"
+        echo ""
+    fi
 
     # REMOVED: Duplicate PLACEHOLDER check block (Issue #1 fix)
     # The comprehensive validate_build_artifacts() function (added above) already
