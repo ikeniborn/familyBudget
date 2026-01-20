@@ -34,7 +34,7 @@
                     <label class="label">
                         <span class="label-text font-medium">🏦 Счет</span>
                     </label>
-                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="onAnalyticsCFOChange()">
+                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsCFOChange()">
                         <option value="">Все счета</option>
                         <!-- Options populated dynamically -->
                     </select>
@@ -45,7 +45,7 @@
                     <label class="label">
                         <span class="label-text font-medium">💰 Тип категории</span>
                     </label>
-                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleTypeChange()">
+                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsArticleTypeChange()">
                         <option value="">Все типы</option>
                         <option value="expense">Расходы</option>
                         <option value="income">Доходы</option>
@@ -59,7 +59,7 @@
                     <label class="label">
                         <span class="label-text font-medium">📁 Категория</span>
                     </label>
-                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()" title="Фильтр категорий для графика">
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsArticleChange()" title="Фильтр категорий для графика">
                         <option value="">Все категории</option>
                         <!-- Options populated dynamically -->
                     </select>
@@ -109,7 +109,7 @@
 
             <!-- Collapse button -->
             <div class="flex justify-end mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="window.PlanApp.collapseAnalytics()">
                     ⬆️ Свернуть
                 </button>
             </div>

@@ -302,6 +302,22 @@ let editCategoryTreeSelect = null;
 let editDateCalendar = null; // CalendarWidget instance for edit modal
 // allCostCenters is declared in transfers module - DO NOT redeclare here to avoid conflicts
 
+/**
+ * Escape HTML to prevent XSS attacks
+ * Converts special characters to HTML entities
+ * @param {string} unsafe - Unsafe string containing potential HTML
+ * @returns {string} Safe HTML-escaped string
+ */
+function escapeHtml(unsafe) {
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Modal Listener Manager - encapsulated AbortController for edit modal
 const ModalListenerManager = (function() {
     let abortController = null;
@@ -2114,7 +2130,7 @@ async function loadFacts() {
     } catch (error) {
         console.error('Error loading facts:', error);
         const errorMessage = error?.message || String(error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${errorMessage}</span></div>`;
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${escapeHtml(errorMessage)}</span></div>`;
     }
 }
 
@@ -4271,7 +4287,7 @@ function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-[100] shadow-lg`;
     toast.innerHTML = `
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
     `;
     document.body.appendChild(toast);
 
