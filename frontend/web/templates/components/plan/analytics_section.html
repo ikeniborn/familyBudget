@@ -1,12 +1,13 @@
 {#
   Plan Analytics Section Component
-  Collapsible analytics with filters and ECharts visualizations
+  Collapsible analytics with filters, summary cards, and ECharts visualizations
 
-  @version 1.0.0 (Phase 4: HTML Component Extraction)
-  @description Analytics dashboard with month navigation, filters, and chart containers
+  @version 1.1.0 (Phase 4: HTML Component Extraction - Corrected Structure)
+  @description Analytics dashboard with month navigation, filters, summary cards, and charts
 #}
 
 {% macro analytics_section() %}
+    <!-- Plan Analytics Section -->
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="analytics-toggle" class="peer" />
         <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
@@ -58,28 +59,60 @@
                     <label class="label">
                         <span class="label-text font-medium">📁 Категория</span>
                     </label>
-                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()">
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()" title="Фильтр категорий для графика">
                         <option value="">Все категории</option>
-                        <!-- Options populated dynamically by loadAnalyticsArticleFilter() -->
+                        <!-- Options populated dynamically -->
                     </select>
                 </div>
             </div>
 
-            <!-- Sync Buttons Row -->
-            <div class="flex flex-wrap gap-2 mb-4">
-                <button class="btn btn-sm btn-outline btn-primary gap-1" onclick="window.PlanApp.syncFiltersToAnalytics()">
-                    ⬇️ Применить фильтры к аналитике
-                </button>
-                <button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="window.PlanApp.syncAnalyticsToFilters()">
-                    ⬆️ Применить аналитику к фильтрам
-                </button>
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Расходы</div>
+                    <div class="stat-value text-error text-lg" id="analytics-expense">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Доходы</div>
+                    <div class="stat-value text-success text-lg" id="analytics-income">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Списание</div>
+                    <div class="stat-value text-warning text-lg" id="analytics-debit">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Пополнение</div>
+                    <div class="stat-value text-info text-lg" id="analytics-credit">0</div>
+                </div>
             </div>
 
-            <!-- Comparison Chart -->
-            <div id="comparison-chart" class="w-full h-80 sm:h-96 bg-base-200/50 rounded-lg mb-4"></div>
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-charts-grid">
+                <!-- Comparison Chart: Types on X-axis, months as columns -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📊 По типам операций</h3>
+                    <div id="chart-plan-comparison" style="height: 300px;"></div>
+                </div>
 
-            <!-- Categories Chart -->
-            <div id="categories-chart" class="w-full h-96 sm:h-[32rem] bg-base-200/50 rounded-lg"></div>
+                <!-- Categories Bar Chart -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📁 По категориям</h3>
+                    <div id="chart-plan-categories" style="height: 300px;"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="analytics-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">📅</div>
+                <p>Нет данных для отображения. Добавьте плановые записи.</p>
+            </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
         </div>
     </div>
 {% endmacro %}

@@ -1,23 +1,13 @@
 {#
   Plan Facts Table Container
-  Container for client-side rendered plan facts table
+  Empty container for client-side rendered plan facts table
 
-  @version 1.0.0 (Phase 4: HTML Component Extraction)
-  @description Empty container populated dynamically by plan/factsTable.ts
+  @version 1.1.0 (Phase 4: HTML Component Extraction - Corrected Structure)
+  @description Container populated dynamically by plan/factsTable.ts renderFactsTable()
 #}
 
-<!-- Facts Table Container -->
-<div id="plan-facts-container">
-    <!-- Populated dynamically by plan/factsTable.ts renderFactsTable() -->
-    <div class="text-center py-8 text-base-content/60">
-        <span class="loading loading-spinner loading-md"></span>
-        <p class="mt-2">Загрузка плановых записей...</p>
+<div id="facts-table-container" class="min-h-[200px]">
+    <div class="flex items-center justify-center py-8">
+        <span class="loading loading-spinner loading-lg text-primary"></span>
     </div>
-</div>
-
-<!-- Batch Delete Button Container -->
-<div id="batch-delete-container" class="mt-4" style="display: none;">
-    <button class="btn btn-error btn-sm gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
-        🗑️ Удалить выбранные (<span id="selected-count">0</span>)
-    </button>
 </div>

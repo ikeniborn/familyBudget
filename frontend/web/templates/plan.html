@@ -2,6 +2,11 @@
 {% from "components/modal_plan.html" import plan_modal %}
 {% from "components/modal_edit_plan.html" import edit_plan_modal %}
 {% from "components/modal_confirm.html" import confirm_modal %}
+{# Phase 4: Modular Components #}
+{% from "components/plan/filters_section.html" import filters_section %}
+{% from "components/plan/stats_widget.html" import stats_widget %}
+{% from "components/plan/analytics_section.html" import analytics_section %}
+{% from "components/plan/pagination.html" import pagination_controls %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -27,144 +32,7 @@
     </div>
 
     <!-- Filters Section -->
-    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <input type="checkbox" id="filters-toggle" class="peer" />
-        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
-            <span>
-                🔍 Фильтры
-                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
-            </span>
-            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); window.PlanApp.resetFilters();">Сбросить</button>
-        </label>
-        <div class="collapse-content">
-            <div class="pt-4">
-
-            <!-- Уровень 1: Фильтры по дате -->
-            <div class="filter-section">
-                <div class="filter-section-title">📅 Период</div>
-                <!-- v5.1.9: Responsive layout - vertical on mobile, horizontal on desktop -->
-                <div class="flex flex-col gap-3 md:flex-row md:items-end md:gap-2">
-                    <div class="form-control flex-1">
-                        <label class="label">
-                            <span class="label-text font-medium">Дата с</span>
-                        </label>
-                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
-                    </div>
-                    <div class="form-control flex-1">
-                        <label class="label">
-                            <span class="label-text font-medium">Дата по</span>
-                        </label>
-                        <div class="flex gap-2 items-center">
-                            <input type="text" id="filter-date-to" class="input input-bordered flex-1" placeholder="ДД.ММ.ГГГГ" readonly>
-                            <!-- Calendar trigger button (range mode) -->
-                            <div id="date-range-calendar-trigger" class="flex items-center"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Уровень 2: Основные фильтры -->
-            <div class="filter-section">
-                <div class="filter-section-title">🔍 Основные фильтры</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <!-- Тип категории -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">💰 Тип категории</span>
-                        </label>
-                        <select id="filter-article-type" class="select select-bordered w-full" title="Фильтровать по типу категории">
-                            <option value="">Все типы категорий</option>
-                            <option value="expense">Расходы</option>
-                            <option value="income">Доходы</option>
-                            <option value="debit">Списание</option>
-                            <option value="credit">Пополнение</option>
-                        </select>
-                    </div>
-
-                    <!-- Категория -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">📁 Категория</span>
-                        </label>
-                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать плановые записи по категории">
-                            <option value="">Все категории</option>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <!-- Счет -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">🏦 Счет</span>
-                        </label>
-                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать плановые записи по счету">
-                            <option value="">Все счета</option>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <!-- Место затрат -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">💼 Место затрат</span>
-                        </label>
-                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать плановые записи по МЗ">
-                            <option value="">Все МЗ</option>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Уровень 3: Дополнительно -->
-            <div class="filter-section">
-                <div class="filter-section-title">⚙️ Дополнительно</div>
-                <div class="grid grid-cols-1 gap-4">
-                    <!-- Пользователь -->
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">👤 Пользователь</span>
-                        </label>
-                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать плановые записи по пользователю">
-                            <option value="">Все пользователи</option>
-                            <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text font-medium">🔍 Поиск по комментариям</span>
-                        </label>
-                        <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию плановой записи (trigram search)">
-                    </div>
-
-                    <!-- Checkbox filters for recurring and reminder -->
-                    <div class="flex flex-wrap gap-4 pt-2">
-                        <div class="form-control">
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="checkbox" id="filter-recurring" class="checkbox checkbox-sm checkbox-secondary" onchange="applyFilters()">
-                                <span class="label-text">🔄 Регламентные записи</span>
-                            </label>
-                        </div>
-                        <div class="form-control">
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="checkbox" id="filter-with-reminder" class="checkbox checkbox-sm checkbox-primary" onchange="applyFilters()">
-                                <span class="label-text">🔔 С напоминанием</span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end items-center gap-2 mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="window.PlanApp.collapseFilters()">
-                    ⬆️ Свернуть
-                </button>
-                <button class="btn btn-primary btn-sm" onclick="window.PlanApp.applyFilters()">Применить фильтры</button>
-            </div>
-            </div>
-        </div>
-    </div>
+    {{ filters_section() }}
 
     <!-- Recurring Plan Stats Widget -->
     <div id="recurring-plan-stats" class="stats stats-vertical sm:stats-horizontal shadow w-full hidden">
@@ -175,135 +43,9 @@
     </div>
 
     <!-- Stats Section -->
-    <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
-        <div class="stat">
-            <div class="stat-figure text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-            </div>
-            <div class="stat-title">Всего плановых записей</div>
-            <div class="stat-value text-primary" id="stat-total">0</div>
-        </div>
-        <div class="stat">
-            <div class="stat-figure text-secondary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-            </div>
-            <div class="stat-title">Текущая страница</div>
-            <div class="stat-value text-secondary" id="stat-page-info">0-0 из 0</div>
-        </div>
-    </div>
+    {{ stats_widget() }}
 
-    <!-- Plan Analytics Section -->
-    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <input type="checkbox" id="analytics-toggle" class="peer" />
-        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
-            <h2 class="text-lg sm:text-xl font-bold mb-0">
-                📊 Аналитика планирования
-            </h2>
-        </label>
-        <div class="collapse-content">
-
-            <!-- Analytics Filters - Row 1 -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <!-- Planning Month Filter -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📅 Месяц планирования</span>
-                    </label>
-                    <div class="join h-12" id="analytics-month-buttons">
-                        <!-- Buttons populated dynamically -->
-                    </div>
-                </div>
-
-                <!-- CFO Filter for Analytics -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">🏦 Счет</span>
-                    </label>
-                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="onAnalyticsCFOChange()">
-                        <option value="">Все счета</option>
-                        <!-- Options populated dynamically -->
-                    </select>
-                </div>
-
-                <!-- Article Type Filter for Analytics -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">💰 Тип категории</span>
-                    </label>
-                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleTypeChange()">
-                        <option value="">Все типы</option>
-                        <option value="expense">Расходы</option>
-                        <option value="income">Доходы</option>
-                        <option value="debit">Списание</option>
-                        <option value="credit">Пополнение</option>
-                    </select>
-                </div>
-
-                <!-- Article Filter for Analytics -->
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text font-medium">📁 Категория</span>
-                    </label>
-                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()" title="Фильтр категорий для графика">
-                        <option value="">Все категории</option>
-                        <!-- Options populated dynamically -->
-                    </select>
-                </div>
-            </div>
-
-            <!-- Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="stat bg-base-200 rounded-box p-4">
-                    <div class="stat-title text-xs">Расходы</div>
-                    <div class="stat-value text-error text-lg" id="analytics-expense">0</div>
-                </div>
-                <div class="stat bg-base-200 rounded-box p-4">
-                    <div class="stat-title text-xs">Доходы</div>
-                    <div class="stat-value text-success text-lg" id="analytics-income">0</div>
-                </div>
-                <div class="stat bg-base-200 rounded-box p-4">
-                    <div class="stat-title text-xs">Списание</div>
-                    <div class="stat-value text-warning text-lg" id="analytics-debit">0</div>
-                </div>
-                <div class="stat bg-base-200 rounded-box p-4">
-                    <div class="stat-title text-xs">Пополнение</div>
-                    <div class="stat-value text-info text-lg" id="analytics-credit">0</div>
-                </div>
-            </div>
-
-            <!-- Charts Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-charts-grid">
-                <!-- Comparison Chart: Types on X-axis, months as columns -->
-                <div class="bg-base-200 rounded-box p-4">
-                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📊 По типам операций</h3>
-                    <div id="chart-plan-comparison" style="height: 300px;"></div>
-                </div>
-
-                <!-- Categories Bar Chart -->
-                <div class="bg-base-200 rounded-box p-4">
-                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📁 По категориям</h3>
-                    <div id="chart-plan-categories" style="height: 300px;"></div>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="analytics-empty-state" class="hidden text-center py-8 text-base-content/60">
-                <div class="text-4xl mb-2">📅</div>
-                <p>Нет данных для отображения. Добавьте плановые записи.</p>
-            </div>
-
-            <!-- Collapse button -->
-            <div class="flex justify-end mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
-                    ⬆️ Свернуть
-                </button>
-            </div>
-        </div>
-    </div>
+    {{ analytics_section() }}
 
     <!-- Recurring Plans Management Section -->
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
@@ -365,18 +107,10 @@
                 </div>
             </div>
 
-            <div id="facts-table-container" class="min-h-[200px]">
-                <div class="flex items-center justify-center py-8">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
-                </div>
-            </div>
+            {% include "partials/plan/facts_table_container.html" %}
 
             <!-- Pagination -->
-            <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
-                <button class="btn btn-sm btn-outline" id="prev-btn" onclick="previousPage()" disabled>← Предыдущая</button>
-                <span class="font-medium" id="page-info">Страница 1</span>
-                <button class="btn btn-sm btn-outline" id="next-btn" onclick="nextPage()" disabled>Следующая →</button>
-            </div>
+            {{ pagination_controls() }}
         </div>
     </div>
 </div>
