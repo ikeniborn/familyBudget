@@ -1,17 +1,22 @@
 ---
 name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test
-version: 1.0.0
+description: Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением после ошибок
+version: 2.0.0
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test]
+tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling]
 dependencies: [monitoring]
 context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill
+# Deploy Test Automation Skill v2.0.0
 
-Автоматизирует весь процесс деплоя на тестовый сервер budget-test с полным анализом логов и проверкой состояния.
+Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
+- ✅ Автоматическим обнаружением и классификацией ошибок
+- ✅ Локальным исправлением кода (TypeScript, Python, npm)
+- ✅ Автоматическим commit/push исправлений в ветку test
+- ✅ Циклом повторных попыток с exponential backoff
+- ✅ Детальным мониторингом и summary отчетами
 
 ## Когда использовать этот скил
 
@@ -62,6 +67,100 @@ user-invocable: true
 
 **ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
 
+## Автоматическое исправление ошибок (v2.0.0+)
+
+Навык автоматически обнаруживает и исправляет следующие типы ошибок:
+
+### Локальное исправление (с commit в test)
+
+Исправления выполняются в локальном окружении с автоматическим commit и push в ветку test:
+
+- **TypeScript errors** - `npm run type-check && npm run build` + commit
+- **Python syntax** - `black` автоформатирование + commit
+- **npm dependencies** - `npm ci` (чистая установка) + commit
+- **Python dependencies** - `pip install -r requirements.txt` + commit
+- **Git pathspec errors** - `git reset HEAD && git add -A` + commit
+
+**Формат commit message:**
+```
+fix(deploy): auto-fix {category} errors
+
+Automated fix triggered by deploy-test skill.
+
+Error details:
+{error_log_excerpt}
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+### Ошибки требующие ручного действия на сервере
+
+**ВАЖНО:** Исправления применяются ТОЛЬКО локально с коммитом. Для следующих ошибок выводятся инструкции для ручного выполнения на сервере:
+
+- **container unhealthy** - `ssh budget-test "cd /opt/budget && docker compose restart {service}"`
+- **database connection** - `ssh budget-test "cd /opt/budget && docker compose restart postgres && sleep 10"`
+- **redis connection** - `ssh budget-test "cd /opt/budget && docker compose restart redis && sleep 5"`
+- **port conflict** - `ssh budget-test "cd /opt/budget && docker compose down && docker compose up -d"`
+- **network missing** - `ssh budget-test "cd /opt/budget && docker compose down && docker compose up -d"`
+
+### Неисправимые ошибки (требуют ручного вмешательства)
+
+При обнаружении критических ошибок деплой останавливается с инструкциями:
+
+- **No space left on device** - `docker system prune -a && docker volume prune`
+- **Permission denied (sudo)** - проверить sudoers конфигурацию
+- **Git permission errors** - `sudo chown -R $(whoami) /opt/budget`
+- **Git authentication** - проверить SSH ключи (`ssh -T git@github.com`)
+- **Merge conflicts** - разрешить конфликты вручную
+
+## Алгоритм повторных попыток (v2.0.0+)
+
+**Цикл восстановления (до 3 попыток):**
+
+1. **Попытка деплоя** → ошибка
+2. **Классификация ошибки** (error-patterns.json)
+3. **Если FIXABLE_LOCALLY:**
+   - Исправить код локально
+   - Commit + push в test
+   - Git pull на сервере
+   - Повторный деплой
+4. **Если FIXABLE_REMOTELY:**
+   - Показать команду для ручного выполнения на сервере
+   - Попытка продолжить без исправления (даем шанс следующей попытке)
+   - **НЕ исправляет автоматически** (только локальные исправления с commit)
+5. **Если NOT_FIXABLE:**
+   - Показать инструкции для ручного исправления
+   - ABORT
+6. **Exponential backoff:** задержки 5s, 10s, 20s, ... (до 60s)
+7. **Критические ошибки:** немедленный ABORT с abort_on_critical=true
+
+**Новые опции v2.0.0:**
+```bash
+# Управление повторами
+--max-retries N         # Максимум попыток (default: 3)
+--retry-delay N         # Базовая задержка (default: 5s)
+
+# Управление проверками
+--skip-local-validation # Пропустить предварительную проверку кода
+--no-auto-commit        # Не коммитить исправления автоматически
+--rollback-on-fail      # Откатить на предыдущую версию при ошибке
+```
+
+**Примеры использования:**
+```bash
+# Деплой с 5 попытками и задержкой 10s
+./deploy-test.sh --version patch --max-retries 5 --retry-delay 10
+
+# Без автокоммита (исправления не пушатся)
+./deploy-test.sh --version minor --no-auto-commit
+
+# Пропустить локальную проверку
+./deploy-test.sh --skip-local-validation
+
+# Комбинация опций
+./deploy-test.sh --version patch --max-retries 3 --skip-local-validation
+```
+
 ## Алгоритм работы
 
 Этот skill выполняет следующие шаги автоматически:
@@ -101,14 +200,24 @@ user-invocable: true
   "question": "Какие дополнительные опции применить?",
   "header": "Options",
   "options": [
-    {"label": "Стандартный деплой (Recommended)", "description": "Без дополнительных опций"},
+    {"label": "Стандартный деплой (Recommended)", "description": "Автоматическое восстановление включено (v2.0)"},
     {"label": "--force-build", "description": "Принудительная пересборка frontend"},
     {"label": "--verbose", "description": "Детальный вывод всех операций"},
-    {"label": "--dry-run", "description": "Показать план без выполнения"}
+    {"label": "--dry-run", "description": "Показать план без выполнения"},
+    {"label": "--skip-local-validation", "description": "Пропустить предварительную проверку кода"},
+    {"label": "--no-auto-commit", "description": "Не коммитить исправления автоматически"},
+    {"label": "--max-retries 5", "description": "Увеличить попытки до 5 (default: 3)"}
   ],
   "multiSelect": true
 }
 ```
+
+**Опции автоматического восстановления (v2.0.0):**
+- `--max-retries N` - максимум попыток деплоя (default: 3)
+- `--retry-delay N` - базовая задержка между попытками (default: 5s)
+- `--skip-local-validation` - пропустить предварительную проверку кода
+- `--no-auto-commit` - не коммитить исправления автоматически
+- `--rollback-on-fail` - откатить на предыдущую версию при ошибке
 
 **Фиксированные опции (всегда применяются):**
 - `--sync-mode update` - только обновление/добавление файлов

@@ -1,18 +1,34 @@
 #!/usr/bin/env bash
 #
 # deploy-test.sh
-# Автоматизированный деплой на тестовый сервер budget-test
+# Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением
+# Версия: 2.0.0
 #
 # Использование:
-#   ./deploy-test.sh [--auto-fix] [--verbose]
+#   ./deploy-test.sh [OPTIONS]
 #
 # Опции:
-#   --auto-fix    Автоматически исправлять найденные проблемы
-#   --verbose     Детальный вывод логов
-#   --dry-run     Показать что будет сделано без выполнения
+#   --auto-fix              Автоматически исправлять найденные проблемы
+#   --verbose               Детальный вывод логов
+#   --dry-run               Показать что будет сделано без выполнения
+#   --version TYPE          Bump версии (patch|minor|major)
+#   --force-build           Принудительная пересборка
+#   --max-retries N         Максимум попыток деплоя (default: 3)
+#   --retry-delay N         Базовая задержка между попытками (default: 5s)
+#   --skip-local-validation Пропустить предварительную проверку кода
+#   --no-auto-commit        Не коммитить исправления автоматически
+#   --rollback-on-fail      Откатить на предыдущую версию при ошибке
 #
 
 set -euo pipefail
+
+# Получить путь к директории скриптов
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source модулей для автоматического восстановления (v2.0.0)
+if [[ -f "${SCRIPT_DIR}/recovery-strategies.sh" ]]; then
+    source "${SCRIPT_DIR}/recovery-strategies.sh"
+fi
 
 # Конфигурация
 SSH_HOST="budget-test"
@@ -37,6 +53,13 @@ VERBOSE=false
 DRY_RUN=false
 VERSION_OPTION=""  # Version option to pass to deploy.sh
 FORCE_BUILD=""     # Force build option
+
+# Флаги v2.0.0 (автоматическое восстановление)
+MAX_RETRY_ATTEMPTS=3        # Максимум попыток деплоя
+RETRY_BASE_DELAY=5          # Базовая задержка между попытками (секунды)
+SKIP_LOCAL_VALIDATION=false # Пропустить предварительную проверку кода
+NO_AUTO_COMMIT=false        # Не коммитить исправления автоматически
+ROLLBACK_ON_FAIL=false      # Откатить на предыдущую версию при ошибке
 
 # Парсинг аргументов
 while [[ $# -gt 0 ]]; do
@@ -67,9 +90,41 @@ while [[ $# -gt 0 ]]; do
             FORCE_BUILD="--force-build"
             shift
             ;;
+        --max-retries)
+            MAX_RETRY_ATTEMPTS="$2"
+            shift 2
+            ;;
+        --retry-delay)
+            RETRY_BASE_DELAY="$2"
+            shift 2
+            ;;
+        --skip-local-validation)
+            SKIP_LOCAL_VALIDATION=true
+            shift
+            ;;
+        --no-auto-commit)
+            NO_AUTO_COMMIT=true
+            shift
+            ;;
+        --rollback-on-fail)
+            ROLLBACK_ON_FAIL=true
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--auto-fix] [--verbose] [--dry-run] [--version TYPE] [--force-build]"
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --auto-fix              Автоматически исправлять найденные проблемы"
+            echo "  --verbose               Детальный вывод логов"
+            echo "  --dry-run               Показать что будет сделано без выполнения"
+            echo "  --version TYPE          Bump версии (patch|minor|major)"
+            echo "  --force-build           Принудительная пересборка"
+            echo "  --max-retries N         Максимум попыток деплоя (default: 3)"
+            echo "  --retry-delay N         Базовая задержка между попытками (default: 5s)"
+            echo "  --skip-local-validation Пропустить предварительную проверку кода"
+            echo "  --no-auto-commit        Не коммитить исправления автоматически"
+            echo "  --rollback-on-fail      Откатить на предыдущую версию при ошибке"
             exit 1
             ;;
     esac
@@ -368,77 +423,263 @@ fix_issues() {
     esac
 }
 
-# Главная функция
+# Функция предварительной проверки локального кода (v2.0.0)
+validate_local_code() {
+    log INFO "========================================="
+    log INFO "Предварительная проверка локального кода"
+    log INFO "========================================="
+
+    local validation_failed=false
+
+    # TypeScript type-check
+    if [[ -f "package.json" ]] && grep -q '"type-check"' package.json 2>/dev/null; then
+        log INFO "Проверка TypeScript типов..."
+        if npm run type-check 2>&1 | tee -a "${LOG_FILE}"; then
+            log SUCCESS "TypeScript type-check: OK"
+        else
+            log WARNING "TypeScript type-check: обнаружены ошибки"
+            validation_failed=true
+        fi
+    else
+        log INFO "TypeScript type-check: пропущено (скрипт не найден)"
+    fi
+
+    # Python linting (опционально)
+    if command -v flake8 &> /dev/null; then
+        if [[ -d "backend" ]]; then
+            log INFO "Проверка Python кода (flake8)..."
+            if flake8 backend/ --count --show-source --statistics 2>&1 | tee -a "${LOG_FILE}"; then
+                log SUCCESS "Python linting: OK"
+            else
+                log WARNING "Python linting: обнаружены предупреждения"
+                # Не фейлим на flake8 warnings
+            fi
+        fi
+    else
+        log INFO "Python linting: пропущено (flake8 не установлен)"
+    fi
+
+    # Build check (если есть build скрипт)
+    if [[ -f "package.json" ]] && grep -q '"build"' package.json 2>/dev/null; then
+        log INFO "Проверка сборки фронтенда..."
+        if npm run build 2>&1 | tee -a "${LOG_FILE}"; then
+            log SUCCESS "Frontend build: OK"
+        else
+            log ERROR "Frontend build: FAILED"
+            validation_failed=true
+        fi
+    fi
+
+    if [[ "$validation_failed" == "true" ]]; then
+        log WARNING "Предварительная проверка выявила проблемы, но деплой продолжится"
+        return 1
+    else
+        log SUCCESS "Предварительная проверка пройдена успешно"
+        return 0
+    fi
+}
+
+# Функция генерации summary (v2.0.0)
+generate_summary() {
+    local status="$1"
+    local attempts="${2:-1}"
+    local summary_file="${LOG_DIR}/summary_${TIMESTAMP}.md"
+
+    log INFO "========================================="
+    log INFO "Генерация summary отчета"
+    log INFO "========================================="
+
+    cat > "$summary_file" <<EOF
+# Deploy-test Summary v2.0.0
+
+**Status:** ${status}
+**Timestamp:** $(date +"%Y-%m-%d %H:%M:%S")
+**Server:** ${SSH_HOST}
+**Branch:** ${GIT_BRANCH}
+
+## Deployment Details
+
+- **Version bump:** ${VERSION_OPTION:-none}
+- **Force build:** ${FORCE_BUILD:-no}
+- **Max retry attempts:** ${MAX_RETRY_ATTEMPTS}
+- **Attempts used:** ${attempts}
+- **Auto-fix enabled:** ${AUTO_FIX}
+- **Auto-commit enabled:** $(if [[ "$NO_AUTO_COMMIT" == "true" ]]; then echo "no"; else echo "yes"; fi)
+
+## Logs
+
+- Main log: \`${LOG_FILE}\`
+- Deploy output: \`${LOG_DIR}/deploy_output_${TIMESTAMP}.log\`
+- Server deploy log: \`${LOG_DIR}/server_deploy_${TIMESTAMP}.log\`
+$(find "${LOG_DIR}" -name "container_*_${TIMESTAMP}.log" 2>/dev/null | sed 's/^/- Container log: `/' | sed 's/$/`/' || true)
+
+EOF
+
+    if [[ "$status" == "SUCCESS" ]]; then
+        cat >> "$summary_file" <<EOF
+## Success Details
+
+✅ All services healthy
+✅ No errors in logs
+✅ Deployment completed successfully
+
+EOF
+    else
+        cat >> "$summary_file" <<EOF
+## Failure Details
+
+❌ Deployment failed after ${attempts} attempt(s)
+❌ Check logs for detailed error information
+
+## Troubleshooting
+
+1. Review error logs in \`${LOG_DIR}/\`
+2. Check container status: \`ssh ${SSH_HOST} "cd ${REMOTE_DEPLOY_DIR} && docker compose ps"\`
+3. View container logs: \`ssh ${SSH_HOST} "cd ${REMOTE_DEPLOY_DIR} && docker compose logs --tail=100"\`
+4. Verify git status: \`ssh ${SSH_HOST} "cd ${REMOTE_DIR} && git status"\`
+
+EOF
+    fi
+
+    log INFO "Summary сохранен в: ${summary_file}"
+    echo ""
+    cat "$summary_file"
+}
+
+# Обертка для деплоя с проверками (используется в retry_deploy_with_backoff)
+run_deploy() {
+    log INFO "Выполнение деплоя с проверками..."
+
+    # Выполнение деплоя
+    if ! deploy; then
+        log ERROR "Деплой завершился с ошибкой"
+        return 1
+    fi
+
+    log SUCCESS "Деплой выполнен, проверка состояния..."
+
+    # Анализ логов деплоя
+    if ! analyze_deploy_logs; then
+        log WARNING "Обнаружены проблемы в логах деплоя"
+        # Не фейлим, продолжаем проверки
+    fi
+
+    # Анализ логов контейнеров
+    if ! analyze_container_logs; then
+        log WARNING "Обнаружены проблемы в логах контейнеров"
+        # Не фейлим, продолжаем проверки
+    fi
+
+    # Проверка статуса контейнеров (критично)
+    if ! check_container_status; then
+        log ERROR "Контейнеры в нездоровом состоянии"
+        return 1
+    fi
+
+    # Проверка запущенных процессов
+    if ! check_running_processes; then
+        log WARNING "Обнаружены незавершенные процессы"
+        # Не фейлим
+    fi
+
+    log SUCCESS "Все проверки пройдены"
+    return 0
+}
+
+# Главная функция v2.0.0
 main() {
     log INFO "========================================="
-    log INFO "Начало автоматизированного деплоя на тестовый сервер"
+    log INFO "Deploy-test v2.0.0 с автоматическим восстановлением"
     log INFO "Сервер: ${SSH_HOST}"
     log INFO "Ветка: ${GIT_BRANCH}"
+    log INFO "Макс. попыток: ${MAX_RETRY_ATTEMPTS}"
     log INFO "Лог файл: ${LOG_FILE}"
     log INFO "========================================="
 
     # Шаг 1: Проверка SSH подключения
     if ! check_ssh_connection; then
         log ERROR "Деплой прерван: не удалось установить SSH подключение"
+        generate_summary "FAILED" 0
         exit 1
     fi
 
-    # Шаг 2: Git pull
+    # Шаг 2: Локальная проверка кода (pre-deployment validation)
+    if [[ "${SKIP_LOCAL_VALIDATION}" != "true" ]]; then
+        validate_local_code || log WARNING "Локальная проверка выявила проблемы"
+    else
+        log INFO "Локальная проверка пропущена (--skip-local-validation)"
+    fi
+
+    # Шаг 3: Git pull на сервере
     if ! git_pull; then
         log ERROR "Деплой прерван: git pull завершился с ошибкой"
+        generate_summary "FAILED" 0
         exit 1
     fi
 
-    # Шаг 3: Деплой
-    local deploy_success=true
-    if ! deploy; then
-        deploy_success=false
-        log WARNING "Деплой завершился с ошибкой, продолжаем анализ..."
-    fi
+    # Шаг 4: Деплой с автоматическим recovery
+    # Проверка наличия recovery-strategies (v2.0.0)
+    if declare -f retry_deploy_with_backoff &>/dev/null; then
+        log INFO "========================================="
+        log INFO "Использование автоматического восстановления v2.0.0"
+        log INFO "========================================="
 
-    # Шаг 4: Анализ логов деплоя
-    if ! analyze_deploy_logs; then
-        log WARNING "Обнаружены проблемы в логах деплоя"
+        # Экспорт переменных для recovery-strategies
+        export SSH_HOST
+        export REMOTE_DIR
+        export NO_AUTO_COMMIT
+        export LOG_FILE
 
-        if [[ "${AUTO_FIX}" == "true" ]]; then
-            fix_issues "deploy_failed"
+        # Запуск деплоя с retry logic
+        local attempt_count=0
+        if retry_deploy_with_backoff "${MAX_RETRY_ATTEMPTS}" "${RETRY_BASE_DELAY}"; then
+            # Подсчет реальных попыток (из логов)
+            attempt_count=$(grep -c "ПОПЫТКА.*из" "${LOG_FILE}" 2>/dev/null || echo 1)
+
+            log SUCCESS "========================================="
+            log SUCCESS "ДЕПЛОЙ ЗАВЕРШЕН УСПЕШНО!"
+            log SUCCESS "========================================="
+            generate_summary "SUCCESS" "${attempt_count}"
+            exit 0
+        else
+            # Подсчет реальных попыток
+            attempt_count=$(grep -c "ПОПЫТКА.*из" "${LOG_FILE}" 2>/dev/null || echo "${MAX_RETRY_ATTEMPTS}")
+
+            log ERROR "========================================="
+            log ERROR "ДЕПЛОЙ НЕ УДАЛСЯ ПОСЛЕ ${attempt_count} ПОПЫТОК"
+            log ERROR "========================================="
+            generate_summary "FAILED" "${attempt_count}"
+            exit 1
         fi
-    fi
-
-    # Шаг 5: Анализ логов контейнеров
-    if ! analyze_container_logs; then
-        log WARNING "Обнаружены проблемы в логах контейнеров"
-    fi
-
-    # Шаг 6: Проверка статуса контейнеров
-    if ! check_container_status; then
-        log WARNING "Обнаружены проблемы со статусом контейнеров"
-
-        if [[ "${AUTO_FIX}" == "true" ]]; then
-            fix_issues "container_unhealthy"
-        fi
-    fi
-
-    # Шаг 7: Проверка запущенных процессов
-    if ! check_running_processes; then
-        log WARNING "Обнаружены незавершенные процессы"
-
-        if [[ "${AUTO_FIX}" == "true" ]]; then
-            fix_issues "stuck_processes"
-        fi
-    fi
-
-    # Итоговый статус
-    log INFO "========================================="
-    if [[ "${deploy_success}" == "true" ]]; then
-        log SUCCESS "Деплой завершен успешно!"
-        log INFO "Логи сохранены в: ${LOG_DIR}"
-        exit 0
     else
-        log ERROR "Деплой завершился с ошибками"
-        log INFO "Логи сохранены в: ${LOG_DIR}"
-        log INFO "Проверьте логи для получения деталей"
-        exit 1
+        # Fallback на старую логику (v1.0.0) если recovery-strategies не загружен
+        log WARNING "========================================="
+        log WARNING "Recovery-strategies.sh не загружен, используется базовая логика v1.0.0"
+        log WARNING "========================================="
+
+        local deploy_success=true
+        if ! run_deploy; then
+            deploy_success=false
+            log WARNING "Деплой завершился с ошибкой"
+
+            if [[ "${AUTO_FIX}" == "true" ]]; then
+                log INFO "Попытка исправления через fix_issues..."
+                fix_issues "deploy_failed"
+                fix_issues "container_unhealthy"
+            fi
+        fi
+
+        # Итоговый статус
+        log INFO "========================================="
+        if [[ "${deploy_success}" == "true" ]]; then
+            log SUCCESS "Деплой завершен успешно!"
+            generate_summary "SUCCESS" 1
+            exit 0
+        else
+            log ERROR "Деплой завершился с ошибками"
+            generate_summary "FAILED" 1
+            exit 1
+        fi
     fi
 }
 

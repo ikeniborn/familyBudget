@@ -1,0 +1,128 @@
+{
+  "fixable_locally": [
+    {
+      "pattern": "TypeScript error TS[0-9]+:",
+      "category": "typescript",
+      "fix_command": "npm run type-check && npm run build",
+      "severity": "medium",
+      "retry_delay": 5,
+      "description": "TypeScript compilation errors"
+    },
+    {
+      "pattern": "SyntaxError: .* in .*\\.py",
+      "category": "python_syntax",
+      "fix_command": "black {file} && flake8 {file}",
+      "severity": "high",
+      "retry_delay": 10,
+      "description": "Python syntax errors"
+    },
+    {
+      "pattern": "npm ERR! Missing dependencies",
+      "category": "npm_deps",
+      "fix_command": "npm ci",
+      "severity": "medium",
+      "retry_delay": 5,
+      "description": "Missing npm dependencies"
+    },
+    {
+      "pattern": "ModuleNotFoundError: No module named",
+      "category": "python_deps",
+      "fix_command": "pip install -r requirements.txt",
+      "severity": "medium",
+      "retry_delay": 10,
+      "description": "Missing Python dependencies"
+    },
+    {
+      "pattern": "error: pathspec '.*' did not match any file",
+      "category": "git_pathspec",
+      "fix_command": "git reset HEAD && git add -A",
+      "severity": "low",
+      "retry_delay": 5,
+      "description": "Git pathspec errors"
+    }
+  ],
+  "fixable_remotely": [
+    {
+      "pattern": "container .* unhealthy",
+      "category": "container_health",
+      "fix_command": "docker compose restart {service}",
+      "severity": "medium",
+      "retry_delay": 30,
+      "description": "Unhealthy Docker containers"
+    },
+    {
+      "pattern": "Database connection refused",
+      "category": "db_connection",
+      "fix_command": "docker compose restart postgres && sleep 10",
+      "severity": "high",
+      "retry_delay": 30,
+      "description": "Database connection failures"
+    },
+    {
+      "pattern": "redis.*Connection refused",
+      "category": "redis_connection",
+      "fix_command": "docker compose restart redis && sleep 5",
+      "severity": "medium",
+      "retry_delay": 20,
+      "description": "Redis connection failures"
+    },
+    {
+      "pattern": "port.*already allocated",
+      "category": "port_conflict",
+      "fix_command": "docker compose down && docker compose up -d",
+      "severity": "medium",
+      "retry_delay": 15,
+      "description": "Port allocation conflicts"
+    },
+    {
+      "pattern": "network.*not found",
+      "category": "network_missing",
+      "fix_command": "docker compose down && docker compose up -d",
+      "severity": "medium",
+      "retry_delay": 20,
+      "description": "Docker network not found"
+    }
+  ],
+  "not_fixable": [
+    {
+      "pattern": "No space left on device",
+      "category": "disk_space",
+      "manual_action": "Free up disk space:\n  docker system prune -a\n  docker volume prune\n  Check /opt/budget/logs/ for large files",
+      "severity": "critical",
+      "description": "Disk space exhausted"
+    },
+    {
+      "pattern": "Permission denied.*sudo",
+      "category": "sudo_permissions",
+      "manual_action": "Check sudo permissions:\n  visudo -c\n  Verify user is in sudoers\n  Check /etc/sudoers.d/ files",
+      "severity": "critical",
+      "description": "Sudo permission errors"
+    },
+    {
+      "pattern": "Permission denied.*\\.git",
+      "category": "git_permissions",
+      "manual_action": "Fix git repository permissions:\n  sudo chown -R $(whoami):$(whoami) /opt/budget\n  chmod -R 755 /opt/budget/.git",
+      "severity": "high",
+      "description": "Git repository permission errors"
+    },
+    {
+      "pattern": "fatal: Could not read from remote repository",
+      "category": "git_auth",
+      "manual_action": "Check SSH key authentication:\n  ssh -T git@github.com\n  ssh-add -l\n  Verify deploy key permissions",
+      "severity": "critical",
+      "description": "Git authentication failures"
+    },
+    {
+      "pattern": "CONFLICT.*Merge conflict",
+      "category": "merge_conflict",
+      "manual_action": "Resolve merge conflicts manually:\n  git status\n  Edit conflicted files\n  git add <resolved files>\n  git commit",
+      "severity": "high",
+      "description": "Git merge conflicts"
+    }
+  ],
+  "metadata": {
+    "version": "2.0.0",
+    "last_updated": "2026-01-20",
+    "description": "Error pattern classification for deploy-test auto-recovery"
+  }
+}
