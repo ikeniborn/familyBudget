@@ -63,6 +63,8 @@ interface PlanAppGlobal {
   openAddPlanModal: () => void;
   createPlan: (event: Event) => Promise<void>;
   updateFact: (event: Event) => Promise<void>;
+  batchDeleteFacts: () => Promise<void>;
+  batchDeleteRecurringPlans: () => Promise<void>;
 
   // Recurring Plan Helpers (exposed for onclick handlers - Phase 3: Week 4)
   recurringDeleteResolve: (choice: 'single' | 'all' | null) => void;
@@ -411,10 +413,12 @@ window.PlanApp = {
   closeEditModal: PlanCRUD.closeEditModal,
   deleteFact: PlanCRUD.deleteFact,
   deleteFromEditModal: PlanCRUD.deleteFromEditModal,
-  showEditModal: PlanCRUD.showEditModal, // TODO: Week 4
-  openAddPlanModal: PlanCRUD.openAddPlanModal, // TODO: Week 4
-  createPlan: PlanCRUD.createPlan, // TODO: Week 4
-  updateFact: PlanCRUD.updateFact, // TODO: Week 4
+  showEditModal: PlanCRUD.showEditModal,
+  openAddPlanModal: PlanCRUD.openAddPlanModal,
+  createPlan: PlanCRUD.createPlan,
+  updateFact: PlanCRUD.updateFact,
+  batchDeleteFacts: PlanCRUD.batchDeleteFacts,
+  batchDeleteRecurringPlans: PlanCRUD.batchDeleteRecurringPlans,
 
   // Recurring Plan Helpers (for onclick handlers - Phase 3: Week 4)
   recurringDeleteResolve: PlanCRUD.recurringDeleteResolve,
@@ -428,4 +432,4 @@ window.PlanApp = {
   updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 partial)');
+console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');

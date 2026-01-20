@@ -3,7 +3,7 @@
  * Handles plan creation, editing, deletion, and modal management
  *
  * @module plan/crud
- * @version 3.2.0 (Phase 3: Week 4 - Complex Modals + Helpers)
+ * @version 3.3.0 (Phase 3: Week 4 - Complete)
  * @description CRUD operations for budget plans with full modal management
  */
 
@@ -39,6 +39,8 @@ declare const remindersMap: Map<number, any>;
 declare const ModalListenerManager: any;
 declare const debugLog: (...args: any[]) => void;
 declare const showNotification: (message: string, type: string) => void;
+declare const selectedFactIds: Set<number>;
+declare const selectedRecurringPlanIds: Set<number>;
 
 // Global functions from plan.html
 declare function loadFinancialCenters(): Promise<void>;
@@ -57,6 +59,8 @@ declare function setupCreatePlanPeriodButtons(): void;
 declare function setSubmitLoading(form: HTMLFormElement, isLoading: boolean): void;
 declare function loadFacts(): Promise<void>;
 declare function showToast(message: string, type: string): void;
+declare function loadRecurringPlans(): Promise<void>;
+declare function updateBatchDeleteRecurringPlansButtonState(): void;
 
 // ============================================================================
 // Type Definitions
@@ -864,6 +868,78 @@ async function showConfirmDialog(message: string, title: string): Promise<boolea
     confirmText: 'Удалить',
     cancelText: 'Отмена',
     confirmClass: 'btn-error'
+  });
+}
+
+/**
+ * Show confirmation dialog with optional checkbox
+ * Used for batch operations that need additional user input
+ *
+ * @param message - Confirmation message
+ * @param title - Dialog title
+ * @param options - Optional configuration (checkboxLabel, checkboxId, checkboxDefault)
+ * @returns Promise with { result: boolean, checkboxValue: boolean }
+ */
+async function showConfirmDialogWithCheckbox(
+  message: string,
+  title: string,
+  options: {
+    checkboxLabel?: string;
+    checkboxId?: string;
+    checkboxDefault?: boolean;
+  } = {}
+): Promise<{ result: boolean; checkboxValue: boolean }> {
+  console.log('[CONFIRM_DIALOG] Showing confirmation dialog:', title);
+
+  return new Promise((resolve) => {
+    const modalId = 'confirm-dialog-checkbox-modal';
+    const checkboxId = options.checkboxId || 'confirm-checkbox';
+
+    const modalHTML = `
+      <div class="modal modal-open" id="${modalId}">
+        <div class="modal-box">
+          <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">${title}</h2>
+          <p class="py-4">${message}</p>
+          ${options.checkboxLabel ? `
+            <div class="form-control">
+              <label class="label cursor-pointer justify-start gap-2">
+                <input type="checkbox" id="${checkboxId}" class="checkbox checkbox-primary"
+                       ${options.checkboxDefault ? 'checked' : ''}>
+                <span class="label-text">${options.checkboxLabel}</span>
+              </label>
+            </div>
+          ` : ''}
+          <div class="modal-action">
+            <button class="btn" id="confirm-cancel-btn">Отмена</button>
+            <button class="btn btn-error" id="confirm-ok-btn">Удалить</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    const modal = document.getElementById(modalId) as HTMLElement;
+    const okBtn = document.getElementById('confirm-ok-btn') as HTMLButtonElement;
+    const cancelBtn = document.getElementById('confirm-cancel-btn') as HTMLButtonElement;
+    const checkbox = document.getElementById(checkboxId) as HTMLInputElement | null;
+
+    const cleanup = () => {
+      console.log('[CONFIRM_DIALOG] Cleaning up confirmation dialog');
+      modal.remove();
+    };
+
+    okBtn.addEventListener('click', () => {
+      cleanup();
+      const checkboxValue = checkbox ? checkbox.checked : false;
+      console.log('[CONFIRM_DIALOG] User confirmed, checkbox:', checkboxValue);
+      resolve({ result: true, checkboxValue });
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      cleanup();
+      console.log('[CONFIRM_DIALOG] User cancelled');
+      resolve({ result: false, checkboxValue: false });
+    });
   });
 }
 
@@ -1721,19 +1797,172 @@ export async function updateFact(event: Event): Promise<void> {
 /**
  * Batch delete selected facts
  * Shows confirmation dialog with count, deletes all selected facts
+ *
+ * @description
+ * Performs bulk deletion of selected plan facts from the table.
+ * - Shows confirmation dialog with count
+ * - Displays loading state on button during operation
+ * - Forces DOM update for immediate visual feedback
+ * - Reloads facts table after successful deletion
+ * - Handles errors gracefully with notifications
+ *
+ * @example
+ * // Called from onclick handler in plan.html
+ * onclick="window.PlanApp.batchDeleteFacts()"
  */
 export async function batchDeleteFacts(): Promise<void> {
-  console.log('[CRUD] batchDeleteFacts - TODO: Week 4');
-  // TODO: Week 4 - Extract from plan.html line 3497
+  if (selectedFactIds.size === 0) return;
+
+  const count = selectedFactIds.size;
+  const confirmed = await showConfirmDialog(
+    `Вы уверены, что хотите удалить ${count} транзакций? Это действие необратимо.`,
+    '🗑️ Массовое удаление транзакций'
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  // ✅ Show loader on button during operation
+  const btn = document.getElementById('batch-delete-btn') as HTMLButtonElement | null;
+  if (!btn) return;
+
+  const originalText = btn.textContent || '';
+
+  btn.disabled = true;
+  btn.classList.add('loading', 'loading-spinner');
+  btn.textContent = `Удаление... (${count})`;
+
+  // ✅ Force DOM update before starting async operation (fix: loader visible immediately)
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    const response = await fetch('/api/v1/facts/batch-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Array.from(selectedFactIds))
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    await loadFacts();
+    showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
+  } catch (error) {
+    console.error('Error batch deleting facts:', error);
+    const errorMessage = (error as any)?.message || String(error);
+    showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+  } finally {
+    // ✅ Hide loader after operation (success or error)
+    btn.classList.remove('loading', 'loading-spinner');
+    btn.textContent = originalText;
+    // Button state will be updated by updateBatchDeleteButton() after loadFacts()
+  }
 }
 
 /**
  * Batch delete selected recurring plans
  * Shows confirmation dialog with checkbox, deletes all selected plans
+ *
+ * @description
+ * Performs bulk deletion of selected recurring plans.
+ * - Shows confirmation dialog with checkbox for "delete future facts" option
+ * - Displays loading state on button during operation
+ * - Forces DOM update for immediate visual feedback
+ * - Reloads both recurring plans table and facts table after deletion
+ * - Handles partial failures (some plans deleted, some failed)
+ * - Clears selection after successful deletion
+ *
+ * @example
+ * // Called from onclick handler in plan.html
+ * onclick="window.PlanApp.batchDeleteRecurringPlans()"
  */
 export async function batchDeleteRecurringPlans(): Promise<void> {
-  console.log('[CRUD] batchDeleteRecurringPlans - TODO: Week 4');
-  // TODO: Week 4 - Extract from plan.html line 5242
+  console.log('[RECURRING_DELETE] Starting batch delete, selectedIds:', Array.from(selectedRecurringPlanIds));
+
+  if (selectedRecurringPlanIds.size === 0) {
+    console.warn('[RECURRING_DELETE] No plans selected');
+    return;
+  }
+
+  const count = selectedRecurringPlanIds.size;
+
+  // Show confirmation dialog with checkbox for delete_future_facts
+  const confirmed = await showConfirmDialogWithCheckbox(
+    `Вы уверены, что хотите удалить ${count} регламентных платежей?`,
+    '🗑️ Массовое удаление регламентных платежей',
+    {
+      checkboxLabel: 'Также удалить все будущие записи',
+      checkboxId: 'batch-delete-future-facts',
+      checkboxDefault: false,
+    }
+  );
+
+  if (!confirmed.result) {
+    console.log('[RECURRING_DELETE] User cancelled batch delete');
+    return;
+  }
+
+  const deleteFutureFacts = confirmed.checkboxValue || false;
+  console.log('[RECURRING_DELETE] User confirmed, delete_future_facts:', deleteFutureFacts);
+
+  const btn = document.getElementById('batch-delete-recurring-plans-btn') as HTMLButtonElement | null;
+  if (!btn) return;
+
+  const originalText = btn.textContent || '';
+  btn.disabled = true;
+  btn.classList.add('loading', 'loading-spinner');
+  btn.textContent = `Удаление... (${count})`;
+
+  // Force UI update before heavy operation
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  try {
+    const response = await fetch(
+      `/api/v1/recurring-plans/batch-delete?delete_future_facts=${deleteFutureFacts}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(Array.from(selectedRecurringPlanIds))
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Batch delete failed');
+    }
+
+    const result = await response.json();
+    console.log('[RECURRING_DELETE] Batch delete result:', result);
+
+    // Reload data
+    await loadRecurringPlans();
+    await loadFacts(); // Reload plan facts table
+
+    // Success notification (SINGLE)
+    const message = result.failed && result.failed.length > 0
+      ? `✅ Удалено: ${result.deleted_count}, ошибок: ${result.failed.length}`
+      : `✅ Удалено регламентных платежей: ${result.deleted_count}`;
+
+    showNotification(message, 'success');
+    console.log('[RECURRING_DELETE] Batch delete completed successfully');
+
+    // Clear selection
+    selectedRecurringPlanIds.clear();
+    updateBatchDeleteRecurringPlansButtonState();
+
+  } catch (error) {
+    console.error('[RECURRING_DELETE] Batch delete error:', error);
+    showNotification(`❌ Ошибка массового удаления: ${(error as any)?.message}`, 'error');
+  } finally {
+    btn.classList.remove('loading', 'loading-spinner');
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 }
 
-console.log('[CRUD] Plan CRUD module loaded (Phase 3: Week 3 skeleton)');
+console.log('[CRUD] Plan CRUD module loaded (Phase 3: Week 4 complete)');
