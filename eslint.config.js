@@ -97,6 +97,11 @@ module.exports = [
       "no-debugger": "warn",
       "prefer-const": "warn",
       "no-var": "error",
+      "no-inner-declarations": "warn",
+      "no-prototype-builtins": "warn",
+      "no-case-declarations": "warn",
+      "no-empty": "warn",
+      "no-redeclare": "warn",
     },
   },
 ];
