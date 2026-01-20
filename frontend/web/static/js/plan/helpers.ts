@@ -317,47 +317,36 @@ export function formatDesktopAmount(amount: number, type: string): string {
 // ============================================================================
 
 /**
- * Show responsive toast notification
+ * Update toast container position based on viewport width
  * Desktop: top-right corner, Mobile: center
  *
- * @param message - Notification message (string or error object)
- * @param type - Notification type ('success' | 'error' | 'info' | 'warning')
+ * @param container - Toast container element
  */
-export function showNotification(
-  message: string | Error | { detail?: string; message?: string },
-  type: 'success' | 'error' | 'info' | 'warning' = 'info'
-): void {
-  // Handle error objects properly
-  let messageText: string;
-  if (typeof message === 'object' && message !== null) {
-    if (message instanceof Error) {
-      messageText = message.message;
-    } else {
-      messageText = message.detail || message.message || JSON.stringify(message);
-    }
+function updateToastPosition(container: HTMLElement): void {
+  if (window.innerWidth > 768) {
+    // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
+    container.style.top = '80px';
+    container.style.right = '20px';
+    container.style.left = 'auto';
+    container.style.transform = 'none';
   } else {
-    messageText = message;
+    // Mobile: центр экрана
+    container.style.top = '50%';
+    container.style.left = '50%';
+    container.style.right = 'auto';
+    container.style.transform = 'translate(-50%, -50%)';
   }
+}
 
-  // Responsive positioning function (extracted for reuse)
-  const updatePosition = (container: HTMLElement) => {
-    if (window.innerWidth > 768) {
-      // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
-      container.style.top = '80px';
-      container.style.right = '20px';
-      container.style.left = 'auto';
-      container.style.transform = 'none';
-    } else {
-      // Mobile: центр экрана
-      container.style.top = '50%';
-      container.style.left = '50%';
-      container.style.right = 'auto';
-      container.style.transform = 'translate(-50%, -50%)';
-    }
-  };
-
-  // Create toast container if it doesn't exist
+/**
+ * Get or create toast container element
+ * Creates container if it doesn't exist and sets up resize listener
+ *
+ * @returns Toast container element
+ */
+function getOrCreateToastContainer(): HTMLElement {
   let toastContainer = document.getElementById('toast-container');
+
   if (!toastContainer) {
     toastContainer = document.createElement('div');
     toastContainer.id = 'toast-container';
@@ -372,29 +361,89 @@ export function showNotification(
     document.body.appendChild(toastContainer);
 
     // Update position on window resize
-    window.addEventListener('resize', () => updatePosition(toastContainer!));
+    window.addEventListener('resize', () => updateToastPosition(toastContainer!));
   }
 
-  // Update position initially
-  updatePosition(toastContainer);
+  return toastContainer;
+}
 
-  // Create toast element
+/**
+ * Create toast element with message and type
+ *
+ * @param messageText - Message to display
+ * @param type - Toast type for styling
+ * @returns Toast element
+ */
+function createToastElement(
+  messageText: string,
+  type: 'success' | 'error' | 'info' | 'warning'
+): HTMLElement {
   const toast = document.createElement('div');
-  const alertClass = type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : type === 'warning' ? 'alert-warning' : 'alert-info';
-  toast.className = `alert ${alertClass} shadow-lg max-w-md`;
-  toast.innerHTML = `
-    <div>
-      <span>${messageText}</span>
-    </div>
-  `;
+  const alertClass =
+    type === 'error'
+      ? 'alert-error'
+      : type === 'success'
+      ? 'alert-success'
+      : type === 'warning'
+      ? 'alert-warning'
+      : 'alert-info';
 
+  toast.className = `alert ${alertClass} shadow-lg max-w-md`;
+
+  // Use DOM API instead of innerHTML for security
+  const wrapper = document.createElement('div');
+  const span = document.createElement('span');
+  span.textContent = messageText;
+  wrapper.appendChild(span);
+  toast.appendChild(wrapper);
+
+  return toast;
+}
+
+/**
+ * Extract message text from various message types
+ *
+ * @param message - Message in various formats
+ * @returns Extracted text message
+ */
+function extractMessageText(
+  message: string | Error | { detail?: string; message?: string }
+): string {
+  if (typeof message === 'object' && message !== null) {
+    if (message instanceof Error) {
+      return message.message;
+    }
+    return message.detail || message.message || JSON.stringify(message);
+  }
+  return message;
+}
+
+/**
+ * Show responsive toast notification
+ * Desktop: top-right corner, Mobile: center
+ *
+ * @param message - Notification message (string or error object)
+ * @param type - Notification type ('success' | 'error' | 'info' | 'warning')
+ */
+export function showNotification(
+  message: string | Error | { detail?: string; message?: string },
+  type: 'success' | 'error' | 'info' | 'warning' = 'info'
+): void {
+  const messageText = extractMessageText(message);
+  const toastContainer = getOrCreateToastContainer();
+
+  // Update position
+  updateToastPosition(toastContainer);
+
+  // Create and append toast
+  const toast = createToastElement(messageText, type);
   toastContainer.appendChild(toast);
 
   // Auto-remove after 3 seconds
   setTimeout(() => {
     toast.remove();
     // Remove container if empty
-    if (toastContainer && toastContainer.children.length === 0) {
+    if (toastContainer.children.length === 0) {
       toastContainer.remove();
     }
   }, 3000);
@@ -408,9 +457,12 @@ export function showNotification(
 export function showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info'): void {
   const toast = document.createElement('div');
   toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-[100] shadow-lg`;
-  toast.innerHTML = `
-    <span>${message}</span>
-  `;
+
+  // Use DOM API instead of innerHTML for security
+  const span = document.createElement('span');
+  span.textContent = message;
+  toast.appendChild(span);
+
   document.body.appendChild(toast);
 
   setTimeout(() => {

@@ -111,6 +111,79 @@ async function loadUsersDropdown(): Promise<void> {
 }
 
 /**
+ * Group articles by type while preserving hierarchical order
+ *
+ * @param flatNodes - Flattened article tree nodes
+ * @returns Articles sorted by type (expense → income → debit → credit)
+ */
+function groupArticlesByType(flatNodes: PlanHelpers.FlatArticle[]): PlanHelpers.FlatArticle[] {
+  const groupedByType: Record<string, PlanHelpers.FlatArticle[]> = {
+    'expense': [],
+    'income': [],
+    'debit': [],
+    'credit': []
+  };
+
+  flatNodes.forEach(node => {
+    if (groupedByType[node.type]) {
+      groupedByType[node.type].push(node);
+    }
+  });
+
+  // Flatten back in type order: expense → income → debit → credit
+  return [
+    ...groupedByType['expense'],
+    ...groupedByType['income'],
+    ...groupedByType['debit'],
+    ...groupedByType['credit']
+  ];
+}
+
+/**
+ * Create article option element with styling and metadata
+ *
+ * @param node - Article node data
+ * @returns Configured option element
+ */
+function createArticleOption(node: PlanHelpers.FlatArticle): HTMLOptionElement {
+  const option = document.createElement('option');
+  option.value = String(node.id);
+
+  // Simplified indentation: use single symbol per level
+  const indent = '›  '.repeat(node.level);
+  const icon = node.isLeaf ? '▸' : '📂';
+  option.textContent = `${indent}${icon} ${node.name}`;
+
+  // Add data-type attribute for category filter colors
+  if (node.type) {
+    option.dataset.type = node.type;
+  }
+
+  // Color coding by article type
+  const colorMap: Record<string, string> = {
+    'expense': 'rgb(239, 68, 68)', // Red (DaisyUI error)
+    'income': 'rgb(34, 197, 94)', // Green (DaisyUI success)
+    'debit': 'rgb(59, 130, 246)', // Blue (DaisyUI info)
+    'credit': 'rgb(251, 146, 60)' // Orange (DaisyUI warning)
+  };
+  if (colorMap[node.type]) {
+    option.style.color = colorMap[node.type];
+  }
+
+  // Disable parent categories with visual styling
+  if (!node.isLeaf) {
+    option.disabled = true;
+    option.classList.add('category-parent');
+    option.style.fontWeight = 'bold';
+    option.style.opacity = '0.7';
+  } else {
+    option.classList.add('category-leaf');
+  }
+
+  return option;
+}
+
+/**
  * Load articles and populate filter dropdown with tree structure
  */
 async function loadArticlesDropdown(): Promise<void> {
@@ -118,28 +191,7 @@ async function loadArticlesDropdown(): Promise<void> {
     const articles = await PlanHelpers.loadArticles();
     const tree = PlanHelpers.buildArticleTree(articles);
     const flatNodes = PlanHelpers.flattenArticleTree(tree);
-
-    // Group by type while preserving hierarchical order within each type
-    const groupedByType: Record<string, typeof flatNodes> = {
-      'expense': [],
-      'income': [],
-      'debit': [],
-      'credit': []
-    };
-
-    flatNodes.forEach(node => {
-      if (groupedByType[node.type]) {
-        groupedByType[node.type].push(node);
-      }
-    });
-
-    // Flatten back in type order: expense → income → debit → credit
-    const sortedNodes = [
-      ...groupedByType['expense'],
-      ...groupedByType['income'],
-      ...groupedByType['debit'],
-      ...groupedByType['credit']
-    ];
+    const sortedNodes = groupArticlesByType(flatNodes);
 
     // Populate filter dropdown
     const filterSelect = document.getElementById('filter-article') as HTMLSelectElement | null;
@@ -150,40 +202,7 @@ async function loadArticlesDropdown(): Promise<void> {
     }
 
     sortedNodes.forEach(node => {
-      const option = document.createElement('option');
-      option.value = String(node.id);
-
-      // Simplified indentation: use single symbol per level
-      const indent = '›  '.repeat(node.level);
-      const icon = node.isLeaf ? '▸' : '📂';
-      option.textContent = `${indent}${icon} ${node.name}`;
-
-      // Add data-type attribute for category filter colors
-      if (node.type) {
-        option.dataset.type = node.type;
-      }
-
-      // Color coding by article type
-      const colorMap: Record<string, string> = {
-        'expense': 'rgb(239, 68, 68)', // Red (DaisyUI error)
-        'income': 'rgb(34, 197, 94)', // Green (DaisyUI success)
-        'debit': 'rgb(59, 130, 246)', // Blue (DaisyUI info)
-        'credit': 'rgb(251, 146, 60)' // Orange (DaisyUI warning)
-      };
-      if (colorMap[node.type]) {
-        option.style.color = colorMap[node.type];
-      }
-
-      // Disable parent categories with visual styling
-      if (!node.isLeaf) {
-        option.disabled = true;
-        option.classList.add('category-parent');
-        option.style.fontWeight = 'bold';
-        option.style.opacity = '0.7';
-      } else {
-        option.classList.add('category-leaf');
-      }
-
+      const option = createArticleOption(node);
       filterSelect.appendChild(option);
     });
 
