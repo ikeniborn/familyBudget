@@ -3,8 +3,8 @@
  * Main module for plan.html page initialization and public API
  *
  * @module plan
- * @version 2.0.0 (Phase 2)
- * @description Entry point for plan page modularization (Phase 2: Complete migration)
+ * @version 3.0.0 (Phase 3: Week 3 - Partial CRUD Integration)
+ * @description Entry point for plan page modularization (Phase 3: Week 3 progress)
  */
 
 // Import all plan modules
@@ -13,9 +13,10 @@ import * as PlanFilters from './filters';
 import * as PlanFactsTable from './factsTable';
 import * as PlanAnalytics from './analytics';
 import * as FilterAnalyticsSync from './filterAnalyticsSync';
+import * as PlanCRUD from './crud';
 
 // Re-export modules for external use
-export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync };
+export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
 
 // ============================================================================
 // Global Window Interface
@@ -35,6 +36,7 @@ interface PlanAppGlobal {
   FactsTable: typeof PlanFactsTable;
   Analytics: typeof PlanAnalytics;
   FilterAnalyticsSync: typeof FilterAnalyticsSync;
+  CRUD: typeof PlanCRUD;
 
   // Filter Actions (exposed for onclick handlers)
   applyFilters: () => Promise<void>;
@@ -52,6 +54,15 @@ interface PlanAppGlobal {
   // Sync Actions (exposed for onclick handlers)
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
+
+  // CRUD Actions (exposed for onclick handlers - Phase 3: Week 3)
+  closeEditModal: () => void;
+  deleteFact: (factId: number) => Promise<void>;
+  deleteFromEditModal: () => Promise<void>;
+  showEditModal: (factId: number) => Promise<void>; // TODO: Week 4
+  openAddPlanModal: () => Promise<void>; // TODO: Week 4
+  createPlan: (event: Event) => Promise<void>; // TODO: Week 4
+  updateFact: (event: Event) => Promise<void>; // TODO: Week 4
 }
 
 declare global {
@@ -366,6 +377,7 @@ window.PlanApp = {
   FactsTable: PlanFactsTable,
   Analytics: PlanAnalytics,
   FilterAnalyticsSync,
+  CRUD: PlanCRUD,
 
   // Filter Actions (for onclick handlers)
   applyFilters: applyFiltersAndLoadData,
@@ -382,7 +394,16 @@ window.PlanApp = {
 
   // Sync Actions (for onclick handlers)
   syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
-  syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters
+  syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters,
+
+  // CRUD Actions (for onclick handlers - Phase 3: Week 3)
+  closeEditModal: PlanCRUD.closeEditModal,
+  deleteFact: PlanCRUD.deleteFact,
+  deleteFromEditModal: PlanCRUD.deleteFromEditModal,
+  showEditModal: PlanCRUD.showEditModal, // TODO: Week 4
+  openAddPlanModal: PlanCRUD.openAddPlanModal, // TODO: Week 4
+  createPlan: PlanCRUD.createPlan, // TODO: Week 4
+  updateFact: PlanCRUD.updateFact // TODO: Week 4
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 2 complete)');
+console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 3 partial)');

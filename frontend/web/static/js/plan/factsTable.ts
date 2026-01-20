@@ -109,6 +109,14 @@ export function setCurrentPage(page: number): void {
 }
 
 /**
+ * Get facts data for current page
+ * @returns Array of facts
+ */
+export function getFactsData(): BudgetFact[] {
+  return factsData;
+}
+
+/**
  * Get selected fact IDs
  * @returns Readonly set of selected IDs
  */
