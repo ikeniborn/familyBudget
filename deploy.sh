@@ -1006,6 +1006,93 @@ validate_build_artifacts() {
     return 0
 }
 
+
+# Cleanup old Docker images (older than retention_days)
+# Usage: cleanup_old_images [retention_days]
+# Default retention: 7 days
+cleanup_old_images() {
+    local retention_days="${1:-7}"
+    
+    info "Cleaning up Docker images older than ${retention_days} days..."
+    
+    # Get list of currently running images (protect from deletion)
+    local running_images=$(docker ps --format "{{.Image}}" 2>/dev/null || echo "")
+    
+    # Find Family Budget images older than N days
+    local old_images=$(docker images --format "{{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" \
+        | grep -E "familybudget|ghcr.io.*familybudget" \
+        | awk -v days="$retention_days" '
+            {
+                # Parse date (format: "2026-01-20 12:34:56 +0000 UTC")
+                cmd = "date -d\"" $2 " " $3 "\" +%s 2>/dev/null"
+                cmd | getline created_timestamp
+                close(cmd)
+                
+                # Current timestamp
+                "date +%s" | getline current_timestamp
+                close("date +%s")
+                
+                # Calculate age in days
+                age_days = (current_timestamp - created_timestamp) / 86400
+                
+                if (age_days > days) {
+                    print $1
+                }
+            }
+        ')
+    
+    if [[ -z "$old_images" ]]; then
+        info "No old images found (retention: ${retention_days} days)"
+        return 0
+    fi
+    
+    # Cleanup log file
+    local cleanup_log="/opt/budget/logs/cleanup-history.log"
+    mkdir -p "$(dirname "$cleanup_log")"
+    
+    # Remove old images (protect running ones)
+    local removed_count=0
+    local skipped_count=0
+    
+    while IFS= read -r image; do
+        if [[ -n "$image" ]]; then
+            # Check if image is currently running
+            if echo "$running_images" | grep -q "$image"; then
+                debug "Skipping running image: $image"
+                echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skipped: $image (running)" >> "$cleanup_log"
+                skipped_count=$((skipped_count + 1))
+            else
+                info "Removing old image: $image"
+                if docker rmi "$image" >> "$LOG_FILE" 2>&1; then
+                    success "✓ Removed: $image"
+                    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] removed: $image" >> "$cleanup_log"
+                    removed_count=$((removed_count + 1))
+                else
+                    warning "Failed to remove: $image (may be in use)"
+                    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] failed: $image" >> "$cleanup_log"
+                fi
+            fi
+        fi
+    done <<< "$old_images"
+    
+    # Summary
+    success "Image cleanup complete: ${removed_count} removed, ${skipped_count} skipped"
+    
+    # Docker system prune (dangling images)
+    if [[ $removed_count -gt 0 ]]; then
+        info "Removing dangling images..."
+        docker image prune -f >> "$LOG_FILE" 2>&1 || true
+        success "Dangling images cleaned up"
+    fi
+    
+    # Keep only last 100 entries in cleanup log
+    if [[ -f "$cleanup_log" ]]; then
+        tail -n 100 "$cleanup_log" > "${cleanup_log}.tmp" && mv "${cleanup_log}.tmp" "$cleanup_log"
+    fi
+    
+    return 0
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -1608,6 +1695,17 @@ main() {
 
         # Wait for all services to become healthy
         wait_for_services
+        echo ""
+
+        # Cleanup old Docker images (retention: 7 days)
+        # This prevents disk space exhaustion from accumulated image versions
+        # Running images are protected from deletion
+        step "Cleaning Up Old Docker Images"
+        if cleanup_old_images "${CLEANUP_RETENTION_DAYS:-7}"; then
+            success "Old Docker images cleaned up successfully"
+        else
+            warning "Image cleanup had some issues - check logs"
+        fi
         echo ""
 
         # Configure Docker firewall (DOCKER-USER chain)
