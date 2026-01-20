@@ -3,8 +3,8 @@
  * Handles plan creation, editing, deletion, and modal management
  *
  * @module plan/crud
- * @version 3.0.0 (Phase 3: Week 3 - Modal Management + Basic CRUD)
- * @description CRUD operations for budget plans with RecurringPlanForm integration
+ * @version 3.2.0 (Phase 3: Week 4 - Complex Modals + Helpers)
+ * @description CRUD operations for budget plans with full modal management
  */
 
 import * as PlanHelpers from './helpers';
@@ -15,11 +15,9 @@ declare const BudgetShared: {
   DateFormatter: {
     formatForDisplay: (isoDate: string) => string;
     formatForAPI: (displayDate: string) => string;
+    isValidDisplayFormat: (displayDate: string) => boolean;
   };
-  CalendarWidget: {
-    init: (inputId: string, options?: any) => void;
-    destroy: (inputId: string) => void;
-  };
+  CalendarWidget: any; // Constructor
   ConfirmDialog: {
     show: (options: {
       title: string;
@@ -29,7 +27,29 @@ declare const BudgetShared: {
       confirmClass?: string;
     }) => Promise<boolean>;
   };
+  ChoicesCategoryTree: any; // Constructor
 };
+
+// Global variables from plan.html
+declare let allCategories: any[];
+declare let editCategoryTreeSelect: any;
+declare let editDateCalendar: any;
+declare let createCategoryTreeSelect: any;
+declare const remindersMap: Map<number, any>;
+declare const ModalListenerManager: any;
+declare const debugLog: (...args: any[]) => void;
+declare const showNotification: (message: string, type: string) => void;
+
+// Global functions from plan.html
+declare function loadFinancialCenters(): Promise<void>;
+declare function loadCostCenters(): Promise<void>;
+declare function filterCostCenterDropdown(formSelector: string, fcId: number | null): Promise<void>;
+declare function resetEditReminderFields(): void;
+declare function populateEditReminderFields(datetime: string): void;
+declare function initEditReminderCalendarWidget(): void;
+declare function getReminderStatusBadge(status: string): { text: string; class: string };
+declare function prefillReminderDateTime(modalId: string): void;
+declare function togglePlanMode(modalId: string): void;
 
 // ============================================================================
 // Type Definitions
@@ -156,13 +176,153 @@ export function setCurrentRecurringPlan(plan: RecurringPlan | null): void {
 // Modal Management
 // ============================================================================
 
+// ============================================================================
+// Helper Functions for Modal Management
+// ============================================================================
+
+/**
+ * Populate recurring plan info in edit modal
+ * @param plan - Recurring plan data from API
+ */
+function populateRecurringPlanInfo(plan: RecurringPlan | null): void {
+  console.log('[POPULATE] populating recurring plan info:', plan);
+
+  if (!plan) {
+    console.warn('[POPULATE] Plan is null/undefined, skipping');
+    return;
+  }
+
+  // Update status badge
+  const statusBadge = document.getElementById('edit-recurring-status') as HTMLSpanElement | null;
+  if (statusBadge) {
+    if (plan.is_active) {
+      statusBadge.textContent = 'Активен';
+      statusBadge.className = 'badge badge-sm badge-success';
+    } else {
+      statusBadge.textContent = 'Приостановлен';
+      statusBadge.className = 'badge badge-sm badge-warning';
+    }
+  }
+
+  // Update frequency display
+  const frequencyEl = document.getElementById('edit-recurring-frequency') as HTMLSpanElement | null;
+  if (frequencyEl) {
+    frequencyEl.textContent = (plan as any).frequency_display || getFrequencyDisplayText(plan.frequency_type, plan.frequency_value);
+  }
+
+  // Update next generation date
+  const nextDateEl = document.getElementById('edit-recurring-next-date') as HTMLSpanElement | null;
+  if (nextDateEl) {
+    if ((plan as any).next_generation_date) {
+      nextDateEl.textContent = BudgetShared.DateFormatter.formatForDisplay((plan as any).next_generation_date);
+    } else {
+      nextDateEl.textContent = plan.is_active ? '—' : 'Приостановлено';
+    }
+  }
+
+  // Update period (start_date - end_date)
+  const periodEl = document.getElementById('edit-recurring-period') as HTMLSpanElement | null;
+  if (periodEl) {
+    const startStr = BudgetShared.DateFormatter.formatForDisplay(plan.start_date);
+    if (plan.end_date) {
+      const endStr = BudgetShared.DateFormatter.formatForDisplay(plan.end_date);
+      periodEl.textContent = `${startStr} — ${endStr}`;
+    } else if ((plan as any).occurrences_count) {
+      periodEl.textContent = `с ${startStr} (${(plan as any).occurrences_count} повторений)`;
+    } else {
+      periodEl.textContent = `с ${startStr} (бессрочно)`;
+    }
+  }
+
+  // Update generated count
+  const generatedEl = document.getElementById('edit-recurring-generated') as HTMLSpanElement | null;
+  if (generatedEl) {
+    if ((plan as any).occurrences_count) {
+      generatedEl.textContent = `${(plan as any).occurrences_generated} / ${(plan as any).occurrences_count}`;
+    } else {
+      generatedEl.textContent = String((plan as any).occurrences_generated);
+    }
+  }
+
+  // Pre-fill template fields
+  const endDateInput = document.getElementById('edit-template-end-date') as HTMLInputElement | null;
+  if (endDateInput && plan.end_date) {
+    endDateInput.value = BudgetShared.DateFormatter.formatForDisplay(plan.end_date);
+  } else if (endDateInput) {
+    endDateInput.value = '';
+  }
+
+  const isActiveCheckbox = document.getElementById('edit-template-is-active') as HTMLInputElement | null;
+  if (isActiveCheckbox) {
+    isActiveCheckbox.checked = plan.is_active;
+  }
+}
+
+/**
+ * Update category type badge in edit modal
+ * @param type - Category type (expense, income, debit, credit)
+ */
+function updateEditCategoryTypeBadge(type: string): void {
+  const badge = document.getElementById('edit-category-type-label') as HTMLSpanElement | null;
+  if (!badge) return;
+
+  const typeConfig: Record<string, { text: string; class: string }> = {
+    expense: { text: 'Расход', class: 'badge-error' },
+    income: { text: 'Доход', class: 'badge-success' },
+    debit: { text: 'Списание', class: 'badge-info' },
+    credit: { text: 'Пополнение', class: 'badge-warning' }
+  };
+
+  const config = typeConfig[type] || typeConfig.expense;
+  badge.textContent = config.text;
+  badge.className = `badge badge-sm ${config.class}`;
+}
+
 /**
  * Open add plan modal
  * Shows create form for new plan (regular, recurring, or with reminder)
  */
-export async function openAddPlanModal(): Promise<void> {
-  console.log('[CRUD] openAddPlanModal - TODO: Implement');
-  // TODO: Week 3 - Extract from plan.html line 4319
+export function openAddPlanModal(): void {
+  const modalId = 'modal_add_plan';
+
+  // Reset button state
+  const form = document.getElementById('form_modal_add_plan') as HTMLFormElement | null;
+  const submitBtn = form?.querySelector('.save-btn') as HTMLButtonElement | null;
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    delete (submitBtn as any).dataset.originalHtml; // Clear cache (if exists)
+  }
+
+  // CRITICAL: Reset FC filter state and clear selection for create modals
+  if (typeof createCategoryTreeSelect !== 'undefined' && createCategoryTreeSelect) {
+    createCategoryTreeSelect.options.financialCenterId = null;
+    createCategoryTreeSelect.clearSelection();
+    console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
+  }
+
+  // Pre-fill reminder date and time before opening
+  prefillReminderDateTime(modalId);
+
+  // Open the modal
+  const modal = document.getElementById(modalId) as HTMLDialogElement | null;
+  if (modal && modal.showModal) {
+    modal.showModal();
+
+    // ✅ FIX: Handle backdrop clicks explicitly
+    if (!(modal.dataset.backdropHandlerAdded)) {
+      modal.addEventListener('click', (e) => {
+        // Close only if click is OUTSIDE modal-box
+        const modalBox = modal.querySelector('.modal-box');
+        if (modalBox && !modalBox.contains(e.target as Node)) {
+          modal.close();
+        }
+      });
+      modal.dataset.backdropHandlerAdded = 'true';
+    }
+
+    // ✅ FIX: Initialize plan mode on modal open
+    togglePlanMode(modalId);
+  }
 }
 
 /**
@@ -172,8 +332,341 @@ export async function openAddPlanModal(): Promise<void> {
  * @param factId - ID of fact to edit
  */
 export async function showEditModal(factId: number): Promise<void> {
-  console.log('[CRUD] showEditModal - TODO: Implement', factId);
-  // TODO: Week 3 - Extract from plan.html line 2606
+  console.log('[SHOW_EDIT_MODAL] Called with factId:', factId);
+
+  const factsData = PlanFactsTable.getFactsData();
+  console.log('[SHOW_EDIT_MODAL] factsData length:', factsData?.length);
+
+  const fact = factsData.find(f => f.id === factId);
+
+  if (!fact) {
+    console.error('[SHOW_EDIT_MODAL] Fact not found in factsData! factId:', factId);
+    console.error('[SHOW_EDIT_MODAL] Available fact IDs:', factsData?.map(f => f.id));
+    return;
+  }
+
+  console.log('[SHOW_EDIT_MODAL] Fact found:', fact);
+
+  // Fill basic fields
+  (document.getElementById('edit-id') as HTMLInputElement).value = String(fact.id);
+  (document.getElementById('edit-amount') as HTMLInputElement).value = String(parseFloat(String(fact.amount)));
+  (document.getElementById('edit-date') as HTMLInputElement).value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+  (document.getElementById('edit-description') as HTMLTextAreaElement).value = fact.description || '';
+
+  // ✅ FIX: Ensure financial center dropdown is loaded before setting value (race condition fix)
+  const fcDropdown = document.getElementById('edit-financial-center') as HTMLSelectElement;
+  if (fcDropdown.options.length <= 1) {
+    debugLog('[Edit Modal] Financial center dropdown not loaded, loading now...');
+    await loadFinancialCenters();
+  }
+  // Verify the option exists before setting
+  if (fact.financial_center_id) {
+    const fcOption = Array.from(fcDropdown.options).find(opt => Number(opt.value) === fact.financial_center_id);
+    if (fcOption) {
+      fcDropdown.value = String(fact.financial_center_id);
+      debugLog('[Edit Modal] Set financial center to:', fact.financial_center_id);
+    } else {
+      console.warn('[Edit Modal] Financial center not found in dropdown:', fact.financial_center_id, '(may be archived/inactive)');
+    }
+  } else {
+    fcDropdown.value = '';  // Explicitly set to empty if no FC
+  }
+
+  // ✅ FIX: Ensure cost center dropdown is loaded before setting value (race condition fix)
+  const ccDropdown = document.getElementById('edit-cost-center') as HTMLSelectElement;
+  if (ccDropdown.options.length <= 1) {
+    debugLog('[Edit Modal] Cost center dropdown not loaded, loading now...');
+    await loadCostCenters();
+  }
+  // Verify the option exists before setting (cost center is optional)
+  if (fact.cost_center_id) {
+    const ccOption = Array.from(ccDropdown.options).find(opt => Number(opt.value) === fact.cost_center_id);
+    if (ccOption) {
+      ccDropdown.value = String(fact.cost_center_id);
+      debugLog('[Edit Modal] Set cost center to:', fact.cost_center_id);
+    } else {
+      console.warn('[Edit Modal] Cost center not found in dropdown:', fact.cost_center_id, '(may be archived/inactive)');
+    }
+  } else {
+    ccDropdown.value = '';  // Explicitly set to empty if no CC
+  }
+
+  // Handle recurring plan info and reminder container visibility
+  const recurringPlanIdField = document.getElementById('edit-recurring-plan-id') as HTMLInputElement | null;
+  const recurringInfoDiv = document.getElementById('edit-recurring-info') as HTMLDivElement | null;
+  const reminderContainer = document.getElementById('edit-reminder-container') as HTMLDivElement | null;
+  const templateFieldsDiv = document.getElementById('edit-template-fields') as HTMLDivElement | null;
+
+  // Reset recurring plan state
+  currentRecurringPlan = null;
+
+  if (recurringPlanIdField) {
+    recurringPlanIdField.value = fact.recurring_plan_id ? String(fact.recurring_plan_id) : '';
+  }
+
+  console.log('[EDIT MODAL] Fact loaded:', fact);
+  console.log('[EDIT MODAL] record_type:', fact.record_type);
+  console.log('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
+
+  // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
+  console.log('[SHOW_EDIT_MODAL] Opening modal...');
+  const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+
+  if (!modal) {
+    console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
+    return;
+  }
+
+  console.log('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
+  modal.showModal();
+  console.log('[SHOW_EDIT_MODAL] Modal opened successfully');
+
+  // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
+  if (!(modal.dataset.backdropHandlerAdded)) {
+    modal.addEventListener('click', (e) => {
+      // Close only if click is directly on dialog (backdrop area)
+      if (e.target === modal) {
+        modal.close();
+      }
+    });
+    modal.dataset.backdropHandlerAdded = 'true';
+  }
+
+  // ✅ OPTIMIZATION: Check if this is recurring plan before fetching
+  if (!fact.recurring_plan_id) {
+    // Not a recurring plan - hide recurring info section
+    console.log('[EDIT_MODAL] Fact has NO recurring_plan_id, hiding recurring info');
+    if (recurringInfoDiv) {
+      recurringInfoDiv.classList.add('hidden');
+    }
+    if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
+    if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+    // ✅ Continue to category initialization (don't return early)
+  } else {
+    // This is a recurring plan fact - prepare UI
+    console.log('[EDIT_MODAL] Fact has recurring_plan_id, loading plan details asynchronously...');
+
+    if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
+    if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
+
+    // Reset scope to 'single' by default
+    const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]') as HTMLInputElement | null;
+    if (singleRadio) singleRadio.checked = true;
+
+    // ✅ OPTIMIZATION: Show loading state immediately
+    if (recurringInfoDiv) {
+      recurringInfoDiv.innerHTML = `
+        <div class="flex items-center justify-center py-4">
+          <span class="loading loading-spinner loading-md text-primary"></span>
+          <span class="ml-2">Загрузка данных регламентного платежа...</span>
+        </div>
+      `;
+      recurringInfoDiv.classList.remove('hidden');
+    }
+
+    // ✅ OPTIMIZATION: Fetch асинхронно (non-blocking IIFE)
+    (async () => {
+      try {
+        console.log('[EDIT_MODAL] Fetching recurring plan:', fact.recurring_plan_id);
+
+        const planResponse = await fetch(
+          `/api/v1/recurring-plans/${fact.recurring_plan_id}`,
+          { credentials: 'include' }
+        );
+
+        console.log('[EDIT_MODAL] Recurring plan API response status:', planResponse.status);
+
+        if (!planResponse.ok) {
+          console.error('[EDIT_MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+          // Показать error state
+          if (recurringInfoDiv) {
+            recurringInfoDiv.innerHTML = `
+              <div class="alert alert-warning">
+                <span>⚠️ Не удалось загрузить данные регламентного платежа</span>
+              </div>
+            `;
+          }
+          return;
+        }
+
+        currentRecurringPlan = await planResponse.json();
+        console.log('[EDIT_MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+
+        // Clear loading state and populate content
+        if (recurringInfoDiv) {
+          recurringInfoDiv.innerHTML = ''; // Clear loading spinner
+        }
+        populateRecurringPlanInfo(currentRecurringPlan);
+        console.log('[EDIT_MODAL] Recurring plan info populated');
+
+      } catch (error) {
+        console.error('[EDIT_MODAL] Error loading recurring plan:', error);
+        if (recurringInfoDiv) {
+          recurringInfoDiv.innerHTML = `
+            <div class="alert alert-error">
+              <span>❌ Ошибка: ${(error as Error).message}</span>
+            </div>
+          `;
+        }
+      }
+    })();
+  } // End of else block (recurring plan loading)
+
+  // Determine category type from allCategories
+  const selectedArticle = allCategories.find((a: any) => a.id === fact.article_id);
+  const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+  // Update category type badge
+  updateEditCategoryTypeBadge(categoryType);
+
+  // Destroy previous ChoicesCategoryTree instance if exists
+  if (editCategoryTreeSelect) {
+    editCategoryTreeSelect.destroy();
+    editCategoryTreeSelect = null;
+  }
+
+  // Initialize ChoicesCategoryTree for edit modal
+  const editSelect = document.getElementById('edit-article') as HTMLSelectElement;
+  if (editSelect) {
+    // Clear existing options
+    editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
+
+    // @ts-ignore - BudgetShared.ChoicesCategoryTree is a constructor
+    editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
+      type: categoryType,
+      showLeafOnly: true,
+      mode: 'edit',  // ✅ Edit mode - preserves category even on initial FC filter
+      financialCenterId: fact.financial_center_id,
+      onCategoryChange: (category: any) => {
+        debugLog('Category changed in edit modal:', category);
+      }
+    });
+
+    // Wait for initialization to complete, then set selected value
+    const initCheckInterval = setInterval(async () => {
+      // Check if ChoicesCategoryTree has fully initialized
+      if (editCategoryTreeSelect &&
+          editCategoryTreeSelect.choices &&
+          editCategoryTreeSelect.categoryMap &&
+          editCategoryTreeSelect.categoryMap.size > 0) {
+
+        // Get choices from the correct location: _store.choices
+        const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
+
+        debugLog('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
+
+        if (choicesStore.length > 0) {
+          clearInterval(initCheckInterval);
+
+          // Try to set the category (may fail if archived/inactive)
+          if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+            debugLog('[Edit Modal] Setting category to:', fact.article_id);
+            await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+
+            // Verify it was set
+            const selectedValue = editSelect.value;
+            debugLog('[Edit Modal] Category set. Dropdown value:', selectedValue);
+          } else {
+            console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
+            // Leave default "-- Выберите категорию --" selected
+          }
+
+          // Filter cost centers by financial center
+          await filterCostCenterDropdown('#edit-form', fact.financial_center_id);
+        }
+      }
+    }, 150); // Check every 150ms
+
+    // Safety timeout to prevent infinite loop
+    setTimeout(() => {
+      clearInterval(initCheckInterval);
+      console.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
+    }, 10000);
+  }
+
+  // Setup financial center change handler for edit modal
+  const editFcSelect = document.getElementById('edit-financial-center') as HTMLSelectElement;
+  if (editFcSelect && editCategoryTreeSelect) {
+    // Register listener with automatic cleanup via ModalListenerManager
+    ModalListenerManager.registerListener(editFcSelect, 'change', async (e: Event) => {
+      const fcId = editFcSelect.value ? parseInt(editFcSelect.value) : null;
+      console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
+        newFcId: fcId,
+        currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
+      });
+
+      // CRITICAL: Stop event propagation to prevent global listeners from interfering
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation();
+      console.log('[FC_CHANGE] Stopped event propagation');
+
+      // Filter categories by selected FC (will preserve selection if category is still available)
+      if (editCategoryTreeSelect) {
+        console.log('[FC_CHANGE] Updating category tree with new FC');
+        await editCategoryTreeSelect.updateFinancialCenter(fcId);
+        console.log('[FC_CHANGE] Category tree updated successfully');
+      }
+      // Filter cost centers by selected FC
+      await filterCostCenterDropdown('#edit-form', fcId);
+
+      // Small delay to allow DOM to settle (mobile browser optimization)
+      await new Promise(resolve => setTimeout(resolve, 50));
+      console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+    });
+  }
+
+  // Initialize CalendarWidget for edit modal date input
+  const editDateInput = document.getElementById('edit-date') as HTMLInputElement | null;
+  if (editDateInput) {
+    // Destroy previous calendar instance if exists (prevent memory leak)
+    if (editDateCalendar) {
+      editDateCalendar.destroy();
+      editDateCalendar = null;
+    }
+
+    // @ts-ignore - BudgetShared.CalendarWidget is a constructor
+    editDateCalendar = new BudgetShared.CalendarWidget({
+      mode: 'single',
+      inputElement: editDateInput,
+      onSelect: (date: Date) => {
+        debugLog('Выбрана дата для edit modal:', date);
+      }
+    });
+  }
+
+  // Load reminder data for edit modal
+  const reminderCheckbox = document.getElementById('edit-enable-reminder') as HTMLInputElement | null;
+  const reminderSettingsDiv = document.getElementById('edit-reminder-settings') as HTMLDivElement | null;
+  const reminderStatusBadge = document.getElementById('edit-reminder-status') as HTMLSpanElement | null;
+
+  // Reset reminder fields
+  if (reminderCheckbox) reminderCheckbox.checked = false;
+  resetEditReminderFields();
+  if (reminderSettingsDiv) reminderSettingsDiv.classList.add('hidden');
+  if (reminderStatusBadge) {
+    reminderStatusBadge.classList.add('hidden');
+    reminderStatusBadge.className = 'badge badge-sm badge-ghost hidden';
+    reminderStatusBadge.textContent = '';
+  }
+
+  // Check existing reminder from pre-loaded map (no extra fetch needed)
+  const reminder = remindersMap.get(factId);
+  if (reminder) {
+    if (reminderCheckbox) reminderCheckbox.checked = true;
+    // Populate separate date/hour/minute fields
+    populateEditReminderFields(reminder.reminder_datetime);
+    if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
+    // Initialize CalendarWidget for edit reminder date
+    initEditReminderCalendarWidget();
+
+    // Show status badge
+    if (reminderStatusBadge && reminder.status) {
+      const badge = getReminderStatusBadge(reminder.status);
+      reminderStatusBadge.textContent = badge.text;
+      reminderStatusBadge.className = `badge badge-sm ${badge.class}`;
+      reminderStatusBadge.classList.remove('hidden');
+    }
+  }
 }
 
 /**

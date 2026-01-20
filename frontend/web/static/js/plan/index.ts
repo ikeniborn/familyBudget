@@ -3,8 +3,8 @@
  * Main module for plan.html page initialization and public API
  *
  * @module plan
- * @version 3.1.0 (Phase 3: Week 4 - Recurring + Reminder Helpers)
- * @description Entry point for plan page modularization (Phase 3: Week 4 partial progress)
+ * @version 3.2.0 (Phase 3: Week 4 - Complex Modals)
+ * @description Entry point for plan page modularization (Phase 3: Week 4 - modals + helpers)
  */
 
 // Import all plan modules
@@ -59,8 +59,8 @@ interface PlanAppGlobal {
   closeEditModal: () => void;
   deleteFact: (factId: number) => Promise<void>;
   deleteFromEditModal: () => Promise<void>;
-  showEditModal: (factId: number) => Promise<void>; // TODO: Week 4
-  openAddPlanModal: () => Promise<void>; // TODO: Week 4
+  showEditModal: (factId: number) => Promise<void>;
+  openAddPlanModal: () => void;
   createPlan: (event: Event) => Promise<void>; // TODO: Week 4
   updateFact: (event: Event) => Promise<void>; // TODO: Week 4
 
