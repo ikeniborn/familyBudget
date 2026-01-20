@@ -6,6 +6,8 @@
   "scripts": {
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "build:tailwind": "tailwindcss -i ./frontend/web/static/css/tailwind.input.css -o ./frontend/web/static/css/tailwind-daisyui.min.css --minify",
     "minify:custom-css": "postcss frontend/web/static/css/custom.css -u cssnano -o frontend/web/static/css/custom.min.css",
     "minify:overrides": "postcss frontend/web/static/css/daisyui-overrides.css -u cssnano -o frontend/web/static/css/daisyui-overrides.min.css",

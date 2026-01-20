@@ -1,0 +1,80 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    branches: [test, main]
+    types: [opened, synchronize, reopened]
+
+# Allow only one workflow run per PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  quality-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npm run type-check
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install mypy ruff pytest pytest-cov
+          pip install -r backend/requirements.txt
+
+      - name: Python mypy type check
+        run: mypy backend/ || true
+        continue-on-error: true
+
+      - name: Python ruff lint
+        run: ruff check backend/
+        continue-on-error: true
+
+      - name: Unit tests
+        run: pytest tests/unit/ --cov --cov-report=xml || true
+        continue-on-error: true
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: PR Summary
+        if: always()
+        run: |
+          echo "## ✅ PR Quality Checks Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All quality checks completed. Review the logs above for details." >> $GITHUB_STEP_SUMMARY
