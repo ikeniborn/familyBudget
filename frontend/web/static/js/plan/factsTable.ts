@@ -25,38 +25,9 @@ declare const AdminFactsCommon: {
 // ============================================================================
 // TypeScript Interfaces
 // ============================================================================
-
-/**
- * Budget fact (plan record) from API
- */
-export interface BudgetFact {
-  id: number;
-  fact_date: string; // YYYY-MM-DD
-  financial_center_id: number;
-  financial_center_name: string;
-  cost_center_id: number | null;
-  cost_center_name: string | null;
-  article_id: number;
-  article_name: string;
-  article_type: 'expense' | 'income' | 'debit' | 'credit';
-  amount: number;
-  description: string | null;
-  user_id: number;
-  user_name: string;
-  recurring_plan_id: number | null;
-  is_offline_sync: boolean;
-  record_type: string;
-}
-
-/**
- * Reminder entity for facts
- */
-export interface Reminder {
-  id: number;
-  fact_id: number;
-  remind_at: string;
-  status: 'pending' | 'sent' | 'failed' | 'cancelled';
-}
+// Re-export shared types from helpers for backward compatibility
+export type BudgetFact = PlanHelpers.BudgetFact;
+export type Reminder = PlanHelpers.Reminder;
 
 // ============================================================================
 // State Management

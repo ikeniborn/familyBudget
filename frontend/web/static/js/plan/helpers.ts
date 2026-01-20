@@ -78,6 +78,94 @@ export interface ReminderStatusBadge {
   class: string;
 }
 
+/**
+ * Budget fact (plan/fact record) entity from API
+ * Consolidated interface used across all plan modules
+ */
+export interface BudgetFact {
+  id: number;
+  fact_date: string; // YYYY-MM-DD
+  financial_center_id: number;
+  financial_center_name: string;
+  cost_center_id: number | null;
+  cost_center_name: string | null;
+  article_id: number;
+  article_name: string;
+  article_type: 'expense' | 'income' | 'debit' | 'credit';
+  amount: number;
+  description: string | null;
+  user_id: number;
+  user_name: string;
+  record_type: 'plan' | 'fact' | string;
+  recurring_plan_id: number | null;
+  is_offline_sync?: boolean;
+  is_template?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Reminder entity for facts
+ */
+export interface Reminder {
+  id: number;
+  fact_id: number;
+  remind_at: string;
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+}
+
+/**
+ * Recurring plan entity from API
+ */
+export interface RecurringPlan {
+  id: number;
+  user_id: number;
+  start_date: string;
+  end_date: string | null;
+  financial_center_id: number;
+  cost_center_id: number | null;
+  article_id: number;
+  amount: number;
+  description: string | null;
+  frequency_type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  frequency_value: number;
+  duration_type: 'indefinite' | 'until_date' | 'count';
+  duration_value: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Analytics filters state
+ */
+export interface AnalyticsFilters {
+  month: string; // YYYY-MM
+  financial_center_id: number | null;
+  article_type: string | null;
+  article_id: number | null;
+}
+
+/**
+ * Pagination state
+ */
+export interface PaginationState {
+  currentPage: number; // 0-indexed
+  pageSize: number;
+  totalRecords: number;
+}
+
+/**
+ * API response wrapper for lists
+ */
+export interface APIListResponse<T> {
+  data: T[];
+  total: number;
+  page?: number;
+  limit?: number;
+  offset?: number;
+}
+
 // ============================================================================
 // Data Loading Functions
 // ============================================================================
