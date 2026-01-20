@@ -90,7 +90,7 @@ determine_image_tag() {
     # Priority 1: USER_IMAGE_TAG environment variable (manual override)
     if [[ -n "${USER_IMAGE_TAG:-}" ]]; then
         tag="$USER_IMAGE_TAG"
-        debug "Using user-specified tag: $tag"
+        debug "Using user-specified tag: $tag" >&2
         echo "$tag"
         return 0
     fi
@@ -101,7 +101,7 @@ determine_image_tag() {
         branch_name=$(cd "$REPO_DIR" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
         if [[ -n "$branch_name" && "$branch_name" != "HEAD" ]]; then
             tag="$branch_name"
-            debug "Using git branch tag: $tag"
+            debug "Using git branch tag: $tag" >&2
             echo "$tag"
             return 0
         fi
@@ -111,7 +111,7 @@ determine_image_tag() {
     if [[ -f "$DEPLOY_DIR/VERSION" ]]; then
         tag=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
         if [[ -n "$tag" ]]; then
-            debug "Using VERSION file tag: $tag"
+            debug "Using VERSION file tag: $tag" >&2
             echo "$tag"
             return 0
         fi
@@ -121,7 +121,7 @@ determine_image_tag() {
     if [[ -n "${REPO_DIR:-}" && -d "$REPO_DIR/.git" ]]; then
         tag=$(cd "$REPO_DIR" && git rev-parse --short HEAD 2>/dev/null)
         if [[ -n "$tag" ]]; then
-            debug "Using git hash tag: $tag"
+            debug "Using git hash tag: $tag" >&2
             echo "$tag"
             return 0
         fi
