@@ -8,7 +8,7 @@
  */
 
 import { applyFiltersAction, resetFiltersAction, collapseFilters } from '../operations/filterOperations';
-import { batchDelete, exportFilteredFacts } from '../operations/factsController';
+import { batchDelete, exportFilteredFacts, applyFiltersAndReload, resetFiltersAndReload } from '../operations/factsController';
 
 /**
  * Setup event delegation for all clickable elements
@@ -41,11 +41,15 @@ function handleClick(event: Event): void {
     switch (action) {
         case 'apply-filters':
             applyFiltersAction();
+            applyFiltersAndReload();
             break;
 
         case 'reset-filters':
-            event.stopPropagation(); // Prevent collapse toggle
+            // Prevent collapse toggle and default checkbox behavior
+            event.stopPropagation();
+            event.preventDefault();
             resetFiltersAction();
+            resetFiltersAndReload();
             break;
 
         case 'collapse-filters':

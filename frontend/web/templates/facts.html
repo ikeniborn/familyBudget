@@ -144,9 +144,10 @@
     </div>
 
     <!-- Stats Section (HTMX Partial) -->
+    <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
     <div id="facts-stats"
          hx-get="/api/v1/facts/stats"
-         hx-trigger="load, statsUpdated from:body"
+         hx-trigger="statsUpdated from:body"
          hx-swap="innerHTML"
          hx-indicator="#loading-spinner"
          class="min-h-[80px]">
@@ -172,9 +173,10 @@
                 </div>
             </div>
 
+            <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
             <div id="facts-table-container"
                  hx-get="/api/v1/facts/table"
-                 hx-trigger="load, filterChanged from:body"
+                 hx-trigger="filterChanged from:body"
                  hx-swap="innerHTML"
                  hx-indicator="#loading-spinner"
                  class="min-h-[200px]">
@@ -185,9 +187,10 @@
             </div>
 
             <!-- Pagination (HTMX Partial) -->
+            <!-- Note: Initial load triggered by JS (loadFacts), not hx-trigger="load" to apply default filters -->
             <div id="facts-pagination"
                  hx-get="/api/v1/facts/pagination"
-                 hx-trigger="load, paginationChanged from:body"
+                 hx-trigger="paginationChanged from:body"
                  hx-swap="innerHTML"
                  hx-indicator="#loading-spinner"
                  class="mt-4">

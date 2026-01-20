@@ -180,7 +180,8 @@ export async function updateFact(event: Event): Promise<void> {
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    const factId = parseInt(formData.get('fact_id') as string);
+    // Form uses 'id' field, not 'fact_id' (from edit modal)
+    const factId = parseInt(formData.get('id') as string || formData.get('fact_id') as string);
 
     if (isNaN(factId) || factId <= 0) {
         showToast('Некорректный ID факта', 'error');
@@ -314,36 +315,96 @@ export async function createFact(event: Event): Promise<void> {
 
 /**
  * Show edit modal for fact
+ * Phase 2 fix: Load fact from API instead of cache
  */
 export async function showEditModal(factId: number): Promise<void> {
     try {
         // Import dynamically to avoid circular dependency
-        const { getCachedFacts } = await import('../core/stateManager');
+        const { getFact } = await import('../integration/factsAPI');
+        const { getBudgetShared } = await import('../types/dependencies');
 
-        // Find fact in cache
-        const facts = getCachedFacts();
-        const fact = facts.find(f => f.id === factId);
+        // Load fact from server
+        const fact = await getFact(factId);
 
         if (!fact) {
             showToast('Факт не найден', 'error');
             return;
         }
 
-        // Delegate to AdminFactsCommon if available
-        if (window.AdminFactsCommon?.populateEditModal) {
-            window.AdminFactsCommon.populateEditModal(fact);
+        // Populate edit modal
+        populateEditModal(fact, getBudgetShared());
 
-            // Show modal
-            const modal = document.getElementById('edit-fact-modal') as HTMLDialogElement | null;
-            if (modal?.showModal) {
-                modal.showModal();
-            }
-        } else {
-            showToast('Модальное окно не доступно', 'warning');
+        // Show modal
+        const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+        if (modal?.showModal) {
+            modal.showModal();
         }
     } catch (error) {
         console.error('[FactsController] Error showing edit modal:', error);
-        showToast('Ошибка открытия модального окна', 'error');
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        showToast(`Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+/**
+ * Populate edit modal with fact data
+ * @internal
+ */
+function populateEditModal(fact: any, BudgetShared: any): void {
+    // Hidden ID field
+    const idInput = document.getElementById('edit-id') as HTMLInputElement;
+    if (idInput) {
+        idInput.value = String(fact.id);
+    }
+
+    // Дата (YYYY-MM-DD → DD.MM.YYYY)
+    const dateInput = document.getElementById('edit-date') as HTMLInputElement;
+    if (dateInput && fact.fact_date) {
+        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+    }
+
+    // Счет
+    const fcSelect = document.getElementById('edit-financial-center') as HTMLSelectElement;
+    if (fcSelect && fact.financial_center_id) {
+        fcSelect.value = String(fact.financial_center_id);
+    }
+
+    // Тип категории - badge
+    const categoryTypeLabel = document.getElementById('edit-category-type-label');
+    if (categoryTypeLabel && fact.article) {
+        const typeMap: Record<string, { text: string; badgeClass: string }> = {
+            'expense': { text: 'Расход', badgeClass: 'badge-error' },
+            'income': { text: 'Доход', badgeClass: 'badge-success' },
+            'debit': { text: 'Списание', badgeClass: 'badge-info' },
+            'credit': { text: 'Пополнение', badgeClass: 'badge-warning' }
+        };
+        const typeInfo = typeMap[fact.article.record_type] || { text: 'Неизвестно', badgeClass: 'badge-neutral' };
+        categoryTypeLabel.textContent = typeInfo.text;
+        categoryTypeLabel.className = `badge badge-sm ${typeInfo.badgeClass}`;
+    }
+
+    // Категория
+    const articleSelect = document.getElementById('edit-article') as HTMLSelectElement;
+    if (articleSelect && fact.article_id) {
+        articleSelect.value = String(fact.article_id);
+    }
+
+    // Место затрат
+    const ccSelect = document.getElementById('edit-cost-center') as HTMLSelectElement;
+    if (ccSelect) {
+        ccSelect.value = fact.cost_center_id ? String(fact.cost_center_id) : '';
+    }
+
+    // Сумма
+    const amountInput = document.getElementById('edit-amount') as HTMLInputElement;
+    if (amountInput && fact.amount !== undefined) {
+        amountInput.value = String(fact.amount);
+    }
+
+    // Описание
+    const descriptionInput = document.getElementById('edit-description') as HTMLTextAreaElement;
+    if (descriptionInput) {
+        descriptionInput.value = fact.description || '';
     }
 }
 
@@ -351,7 +412,7 @@ export async function showEditModal(factId: number): Promise<void> {
  * Close edit modal
  */
 export function closeEditModal(): void {
-    const modal = document.getElementById('edit-fact-modal') as HTMLDialogElement | null;
+    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
     if (modal?.close) {
         modal.close();
     }
@@ -361,15 +422,15 @@ export function closeEditModal(): void {
  * Delete fact from edit modal
  */
 export async function deleteFromEditModal(): Promise<void> {
-    // Get fact ID from modal form
-    const form = document.getElementById('edit-fact-form') as HTMLFormElement;
+    // Get fact ID from modal form (form id is 'edit-form', field is 'id')
+    const form = document.getElementById('edit-form') as HTMLFormElement;
     if (!form) {
         showToast('Форма не найдена', 'error');
         return;
     }
 
     const formData = new FormData(form);
-    const factId = parseInt(formData.get('fact_id') as string);
+    const factId = parseInt(formData.get('id') as string);
 
     if (isNaN(factId) || factId <= 0) {
         showToast('Некорректный ID факта', 'error');

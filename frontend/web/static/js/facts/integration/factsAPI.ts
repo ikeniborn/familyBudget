@@ -100,6 +100,30 @@ export async function loadFactsWithCount(): Promise<{
 }
 
 // ============================================================================
+// Get Single Fact
+// ============================================================================
+
+/**
+ * Load single fact by ID
+ * Used for edit modal population (Phase 2 fix)
+ */
+export async function getFact(factId: number): Promise<BudgetFact> {
+    const response = await fetch(`/api/v1/facts/${factId}`, {
+        credentials: 'include'
+    });
+
+    if (!response.ok) {
+        if (response.status === 404) {
+            throw new Error('Факт не найден');
+        }
+        const errorText = await response.text();
+        throw new Error(`Failed to load fact: HTTP ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
+}
+
+// ============================================================================
 // Create Fact
 // ============================================================================
 
