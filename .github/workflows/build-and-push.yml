@@ -36,6 +36,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache busting
+        run: |
+          # Генерация cache version из git hash
+          CACHE_VERSION=$(git rev-parse --short HEAD)
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "Generated cache version: $CACHE_VERSION"
+
+          # Запуск cache busting скрипта
+          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+
+          # Проверка изменений
+          if git diff --quiet frontend/; then
+            echo "No changes after cache busting"
+          else
+            echo "Cache versions updated in templates"
+            git diff frontend/ | head -50
+          fi
+
       - name: Build frontend
         run: npm run build
 
@@ -143,16 +161,19 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Project version: $VERSION"
 
+      - name: Generate CACHE_VERSION
+        run: |
+          CACHE_VERSION=$(git rev-parse --short HEAD)
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "Generated CACHE_VERSION: $CACHE_VERSION"
+
       - name: Docker meta (backend)
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-backend
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.version.outputs.VERSION }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=sha,format=short
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.version.outputs.VERSION }}
           labels: |
             org.opencontainers.image.title=Family Budget Backend
             org.opencontainers.image.description=Family Budget application backend (FastAPI)
@@ -166,10 +187,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-bot
           tags: |
-            type=semver,pattern={{version}},value=${{ steps.version.outputs.VERSION }},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=sha,format=short
-            type=ref,event=branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ steps.version.outputs.VERSION }}
           labels: |
             org.opencontainers.image.title=Family Budget Bot
             org.opencontainers.image.description=Family Budget Telegram bot
@@ -200,6 +218,7 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
+            CACHE_VERSION=${{ env.CACHE_VERSION }}
 
       - name: Build and push bot
         uses: docker/build-push-action@v5

@@ -1,15 +1,15 @@
 ---
 name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением после ошибок
-version: 2.0.1
+description: Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением после ошибок и CI/CD registry integration
+version: 8.0.0
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling]
+tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry]
 dependencies: [monitoring]
 context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v2.0.1
+# Deploy Test Automation Skill v8.0.0
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
 - ✅ Автоматическим обнаружением и классификацией ошибок
@@ -18,6 +18,7 @@ user-invocable: true
 - ✅ Циклом повторных попыток с exponential backoff
 - ✅ Детальным мониторингом и summary отчетами
 - ✅ Timeout защитой для SSH команд (v2.0.1+)
+- ✅ CI/CD Registry Integration - pull pre-built images из ghcr.io (v8.0+)
 
 ## Когда использовать этот скил
 
@@ -67,6 +68,56 @@ user-invocable: true
 ```
 
 **ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
+
+## CI/CD Registry Mode (v8.0+)
+
+**Новая возможность:** Pull pre-built Docker images из GitHub Container Registry вместо локальной сборки.
+
+**Преимущества:**
+- ✅ Быстрый деплой (2-3 мин вместо 5-7 мин)
+- ✅ Консистентные образы (собраны через CI/CD)
+- ✅ Не требует Node.js/npm на сервере
+- ✅ Автоопределение тега (из git branch или VERSION файла)
+
+**Использование:**
+```bash
+# Pull images из ghcr.io (тег определяется автоматически)
+./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+
+# С явным указанием тега
+./deploy.sh --use-registry --image-tag test --sync-mode update --cleanup-mode smart
+
+# Комбинация с версионированием (version bump без пересборки)
+./deploy.sh --use-registry --version patch --sync-mode update --cleanup-mode smart
+```
+
+**Автоопределение тега (приоритет):**
+1. Флаг `--image-tag` (если указан)
+2. Git branch name (из ~/familyBudget на сервере)
+3. Файл `/opt/budget/VERSION`
+4. Git short hash
+5. Fallback: `latest`
+
+**Примеры:**
+```bash
+# Если на сервере ветка test → pull ghcr.io/ikeniborn/familybudget-backend:test
+./deploy.sh --use-registry
+
+# Явный тег для rollback на предыдущую версию
+./deploy.sh --use-registry --image-tag sha-abc1234
+
+# Pull production версии
+./deploy.sh --use-registry --image-tag 6.6.0
+```
+
+**Когда использовать:**
+- После успешного прохождения GitHub Actions workflow
+- Для быстрого разворачивания на test сервере
+- Когда нужны точно те же образы что в CI/CD
+
+**Ограничения:**
+- Требует наличие образов в ghcr.io (запушенные через CI/CD)
+- Для приватных репозиториев нужна аутентификация (`docker login ghcr.io`)
 
 ## Автоматическое исправление ошибок (v2.0.0+)
 
@@ -202,6 +253,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
   "header": "Options",
   "options": [
     {"label": "Стандартный деплой (Recommended)", "description": "Автоматическое восстановление включено (v2.0)"},
+    {"label": "--use-registry", "description": "Pull pre-built images из ghcr.io (v8.0+, faster deploy)"},
     {"label": "--force-build", "description": "Принудительная пересборка frontend"},
     {"label": "--verbose", "description": "Детальный вывод всех операций"},
     {"label": "--dry-run", "description": "Показать план без выполнения"},
@@ -289,6 +341,13 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
   - Используется когда автоматическое определение изменений не сработало
   - Или для тестирования без изменения файлов
 - `--set-version X.Y.Z` - явное указание версии (например `--set-version 7.0.0`)
+- `--use-registry` - pull Docker images из ghcr.io вместо локальной сборки (v8.0+)
+  - Требует наличие образов в GitHub Container Registry
+  - Ускоряет деплой (~2-3 мин вместо 5-7 мин)
+  - Автоопределение тега из git branch/VERSION/hash
+- `--image-tag TAG` - явное указание тега для registry pull (v8.0+)
+  - Работает только с `--use-registry`
+  - Примеры: `--image-tag test`, `--image-tag 6.6.0`, `--image-tag sha-abc1234`
 
 **Что происходит:**
 - Синхронизация кода в /opt/budget
@@ -310,6 +369,15 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
 
 # Явная версия
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --set-version 7.1.0"
+
+# Registry mode: pull pre-built images (v8.0+)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+
+# Registry mode с явным тегом
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag test --sync-mode update --cleanup-mode smart"
+
+# Registry mode + version bump (version bump без пересборки образов)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --version patch --sync-mode update --cleanup-mode smart"
 ```
 
 ### Шаг 4: Анализ логов деплоя
@@ -662,6 +730,37 @@ Claude:
 - **deploy-prod** - деплой на production сервер
 
 ## Changelog
+
+### v8.0.0 (2026-01-20)
+**Major Features:**
+- **Container Registry Integration**: Support for pulling pre-built Docker images from ghcr.io
+- Add `--use-registry` flag for CI/CD-based deployments
+- Add `--image-tag TAG` flag for explicit image tag selection
+- Automatic image tag detection (git branch → VERSION → git hash → latest)
+- Deployment history tracking (build mode vs registry mode)
+
+**Performance:**
+- Faster deployments: 2-3 minutes (registry) vs 5-7 minutes (build)
+- No Node.js/npm required on server for registry deployments
+- Consistent images across environments (CI/CD built)
+
+**Usage:**
+```bash
+# Pull images from registry (auto-detect tag)
+./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+
+# Pull with explicit tag
+./deploy.sh --use-registry --image-tag test --sync-mode update --cleanup-mode smart
+```
+
+**Requirements:**
+- Docker images must exist in GitHub Container Registry (ghcr.io)
+- Pushed via GitHub Actions workflow (.github/workflows/build-and-push.yml)
+- For private repos: `docker login ghcr.io` authentication required
+
+**See also:**
+- `docs/architecture/ci-cd-build-deploy.md` - CI/CD documentation
+- `scripts/lib/registry.sh` - Registry integration module
 
 ### v2.0.1 (2026-01-20)
 **Bug Fixes:**

@@ -1,0 +1,45 @@
+{
+  "backend": {
+    "version": "6.6.0",
+    "hash": "placeholder",
+    "lastModified": "2026-01-20T23:30:00Z",
+    "paths": [
+      "backend/",
+      "frontend/",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "bot": {
+    "version": "6.6.0",
+    "hash": "placeholder",
+    "lastModified": "2026-01-20T23:30:00Z",
+    "paths": [
+      "bot/"
+    ]
+  },
+  "nginx": {
+    "version": "1.0.0",
+    "hash": "placeholder",
+    "lastModified": "2026-01-20T23:30:00Z",
+    "paths": [
+      "nginx/"
+    ]
+  },
+  "redis": {
+    "version": "1.0.0",
+    "hash": "placeholder",
+    "lastModified": "2026-01-20T23:30:00Z",
+    "paths": [
+      "redis/"
+    ]
+  },
+  "postgresql": {
+    "version": "1.0.0",
+    "hash": "placeholder",
+    "lastModified": "2026-01-20T23:30:00Z",
+    "paths": [
+      "postgres/"
+    ]
+  }
+}
