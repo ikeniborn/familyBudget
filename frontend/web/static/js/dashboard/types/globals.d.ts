@@ -34,7 +34,7 @@ export interface CategoryTreeSelectInstance {
   updateFinancialCenter(fcId: number | null): Promise<void>;
   getSelectedCategory(): Category | null;
   clearSelection(): void;
-  setCategory(categoryId: number): Promise<void>;
+  setSelectedCategory(categoryId: number, maxRetries?: number, retryDelay?: number): Promise<void>;
   destroy(): void;
   options: CategoryTreeSelectOptions;
 }

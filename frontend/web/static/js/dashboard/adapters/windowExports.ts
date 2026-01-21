@@ -268,7 +268,7 @@ function openAddTransactionModal(): void {
  * Delegates to transfers module openTransferModal.
  * Record type is 'fact' by default in transfers module.
  */
-function openFactTransferModal(): void {
+async function openFactTransferModal(): Promise<void> {
   // Set record_type hidden field to 'fact' (for safety)
   const recordTypeInput = document.getElementById('transfer_record_type') as HTMLInputElement | null;
   if (recordTypeInput) {
@@ -280,6 +280,11 @@ function openFactTransferModal(): void {
   const periodSection = document.getElementById('transfer-period-section-plan');
   if (dateSection) dateSection.classList.remove('hidden');
   if (periodSection) periodSection.classList.add('hidden');
+
+  // Initialize transfer modal lazily on first open (awaited to prevent race conditions)
+  if (typeof window.initTransferModal === 'function') {
+    await window.initTransferModal(); // Load data (financial centers, categories)
+  }
 
   // Delegate to transfers module
   if (typeof window.openTransferModal === 'function') {
@@ -557,6 +562,7 @@ export function initWindowExports(): void {
   window.loadTransactionCategories = loadTransactionCategories;
   window.saveTransaction = saveTransaction;
   window.filterCostCenterDropdown = filterCostCenterDropdown;
+  window.setTransactionDate = setTransactionDate;
 
   // Expose add plan functions globally for onclick handlers
   window.loadPlanCategories = loadPlanCategories;

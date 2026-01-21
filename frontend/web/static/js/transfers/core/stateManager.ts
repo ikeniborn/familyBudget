@@ -12,6 +12,9 @@ import { loadTransferData } from './dataLoader';
 declare const BudgetShared: any;
 declare const debugLog: (...args: any[]) => void;
 
+// Lazy initialization flag
+let isInitialized = false;
+
 /**
  * Initialize transfer modal widgets
  * Called on DOMContentLoaded
@@ -19,6 +22,10 @@ declare const debugLog: (...args: any[]) => void;
  * Migrated from: transfer.js initTransferModal() (lines 459-526)
  */
 export async function initTransferModal(): Promise<void> {
+  if (isInitialized) {
+    debugLog('[Transfer] Already initialized, skipping');
+    return;
+  }
   // 1. Create CalendarWidget
   const dateWidget = new BudgetShared.CalendarWidget('#transfer_date', {
     dateFormat: 'Y-m-d',
@@ -92,6 +99,7 @@ export async function initTransferModal(): Promise<void> {
   setupQuickDateButtons();
   setupPeriodButtons();
 
+  isInitialized = true;
   debugLog('[Transfer] Modal initialized');
 }
 

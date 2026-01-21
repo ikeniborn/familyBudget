@@ -181,7 +181,7 @@ export function initEditCategoryTreeSelect(
         const choicesStore = (currentState.editCategoryTreeSelect as any).choices._store?.choices || [];
         if (choicesStore.length > 0) {
           clearInterval(initCheckInterval);
-          await currentState.editCategoryTreeSelect.setCategory(articleId);
+          await currentState.editCategoryTreeSelect.setSelectedCategory(articleId);
         }
       }
     }, 100);
