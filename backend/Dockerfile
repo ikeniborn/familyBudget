@@ -36,6 +36,14 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# Копируем build configuration files (required for npm run build:prod)
+COPY build-all.js ./
+COPY vite.config.ts vite.config.single.ts vite-plugin-sw-version.ts ./
+COPY vitest.config.ts postcss.config.js ./
+COPY tsconfig.json tsconfig.node.json ./
+COPY tailwind.config.js eslint.config.js ./
+COPY sw.js manifest.json ./
+
 # Копируем исходники frontend
 COPY frontend/ ./frontend/
 COPY scripts/ ./scripts/
