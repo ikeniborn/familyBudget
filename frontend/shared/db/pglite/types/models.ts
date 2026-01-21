@@ -1,6 +1,7 @@
 /**
  * Data models for PGlite
  * Phase 1: Reference Data (Articles, Financial Centers, Cost Centers)
+ * Phase 2: Transactional Data (Budget Facts, Pending Operations, Sync Conflicts)
  */
 
 /**
@@ -67,3 +68,12 @@ export interface LocalSchemaMigration {
   version: number;
   applied_at: Date;
 }
+
+// Phase 2: Transactional Data (re-export from fact.ts)
+export type {
+  LocalBudgetFact,
+  LocalPendingOperation,
+  LocalSyncConflict,
+  LocalRecurringPlan,
+  FactFilters
+} from './fact';

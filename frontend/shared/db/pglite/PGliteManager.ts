@@ -22,6 +22,11 @@ import {
   bulkInsertHierarchy,
   type ProgressCallback
 } from './operations/bulkOperations';
+import {
+  createFact,
+  queryFacts,
+  getPendingOperations
+} from './operations/factOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
 import type { IPGliteConfig } from './types/dependencies';
 import type {
@@ -29,7 +34,10 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
-  LocalSyncMetadata
+  LocalSyncMetadata,
+  LocalBudgetFact,
+  LocalPendingOperation,
+  FactFilters
 } from './types/models';
 import type { CountResult, SizeResult } from './types/pglite';
 import { logger } from './utils/logger';
@@ -244,6 +252,48 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await queryFilteredCostCenters(db, user_id, financial_center_id, is_active);
+  }
+
+  // === Fact Operations (Phase 2) ===
+
+  /**
+   * Create budget fact (offline-first)
+   *
+   * @param fact - Partial fact data
+   * @returns temp_id (UUID)
+   */
+  async createFact(
+    fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
+  ): Promise<string> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await createFact(db, fact);
+  }
+
+  /**
+   * Query budget facts with filters and data window
+   *
+   * @param filters - Optional filters
+   * @returns Array of budget facts
+   */
+  async queryFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryFacts(db, filters);
+  }
+
+  /**
+   * Get pending operations queue
+   *
+   * @returns Array of pending operations
+   */
+  async getPendingOperations(): Promise<LocalPendingOperation[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await getPendingOperations(db);
   }
 
   // === Sync Metadata Methods ===

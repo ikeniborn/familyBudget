@@ -1,30 +1,33 @@
 # PGlite Integration Module
 
-**Version:** 1.3.0 (Task-004)
-**Status:** ✅ Feature Flag & Diagnostic UI Complete
+**Version:** 1.4.0 (Task-006)
+**Status:** ✅ Schema v2 (Transactional Data) Complete
 
 ## Overview
 
 PGlite WASM integration for client-side PostgreSQL database with WebSocket sync support.
 
-**Capabilities (Phase 1):**
+**Capabilities (Phase 1 + Phase 2):**
 - ✅ PGlite dependency installed (@electric-sql/pglite@0.2.0)
 - ✅ TypeScript configuration (path alias @db/*)
 - ✅ Vite WASM support (loader + exclude)
 - ✅ Build process configured (build-all.js entry point)
 - ✅ Feature flags (localStorage-based)
 - ✅ Schema initialization (v1 reference data)
+- ✅ Schema v2 (transactional data: facts, pending operations, sync conflicts)
 - ✅ Migration system (schema versioning)
 - ✅ PGliteManager class (high-level API)
 - ✅ CRUD operations (articles, financial centers, cost centers)
+- ✅ Fact operations (create, query with filters, windowed data)
+- ✅ Pending operations queue (deduplication via content hash)
 - ✅ Bulk insert operations (chunked, with progress tracking)
 - ✅ WebSocket sync protocol (initial sync)
 - ✅ Feature flag system (setPGliteEnabled, setPGliteFactsWindow)
 - ✅ Diagnostic UI (PGliteDiagnosticModal)
 - ✅ Performance metrics tracking
 - ✅ Settings page integration
-- ✅ Unit tests (20 tests, 100% passed)
-- ⏳ Incremental sync (task-005)
+- ✅ Unit tests (30 tests, 100% passed)
+- ⏳ Incremental sync (task-007)
 
 ## Installation
 
@@ -200,7 +203,21 @@ npm run test -- pglite        # Run PGlite tests only
   ✓ bulkInsertCostCenters > should insert cost centers in bulk
   ✓ bulkInsertHierarchy > should insert hierarchy in bulk
 
-Total: 20 tests, 20 passed (100%)
+✓ Schema V2 Migration (4 tests) - task-006
+  ✓ should apply schema v2 migration
+  ✓ should create all v2 tables
+  ✓ should have indexes on local_budget_facts
+  ✓ should have UNIQUE constraint on pending_operations.content_hash
+
+✓ Fact Operations (6 tests) - task-006
+  ✓ should create fact with temp_id
+  ✓ should add pending operation on create
+  ✓ should deduplicate pending operations
+  ✓ should respect data window (90 days default)
+  ✓ should filter facts by article_id
+  ✓ should filter facts by record_type
+
+Total: 30 tests, 30 passed (100%)
 ```
 
 ## Architecture
@@ -216,23 +233,29 @@ frontend/shared/db/pglite/
 │   ├── dbInitializer.ts        # Database initialization
 │   └── migrationManager.ts     # Schema migrations
 ├── schemas/
-│   └── v1_referenceData.sql    # Schema v1 (reference data)
+│   ├── v1_referenceData.sql    # Schema v1 (reference data)
+│   └── v2_transactional.sql    # Schema v2 (transactional data) - task-006
 ├── operations/
 │   ├── schemaOperations.ts     # CRUD operations
-│   └── bulkOperations.ts       # Bulk insert with chunking (task-003)
+│   ├── bulkOperations.ts       # Bulk insert with chunking (task-003)
+│   └── factOperations.ts       # Fact CRUD + windowed queries (task-006)
 ├── features/
 │   └── featureFlags.ts         # Feature flags (localStorage)
 ├── types/
 │   ├── dependencies.ts         # DI types
 │   ├── models.ts               # Data models (LocalArticle, etc.)
+│   ├── fact.ts                 # Fact models (LocalBudgetFact, etc.) - task-006
 │   ├── errors.ts               # Custom errors
 │   └── pglite.ts               # PGliteResult<T> type
 ├── utils/
-│   └── logger.ts               # Configurable logger (task-002)
+│   ├── logger.ts               # Configurable logger (task-002)
+│   └── hash.ts                 # Content hash utilities (task-006)
 └── __tests__/
     ├── integration.test.ts     # Basic integration tests (4)
     ├── PGliteManager.test.ts   # PGliteManager tests (9)
-    └── bulkOperations.test.ts  # Bulk operations tests (7)
+    ├── bulkOperations.test.ts  # Bulk operations tests (7)
+    ├── schemaV2.test.ts        # Schema v2 migration tests (4) - task-006
+    └── factOperations.test.ts  # Fact operations tests (6) - task-006
 ```
 
 **Frontend WebSocket Integration:**
@@ -402,15 +425,95 @@ backend/app/api/v1/endpoints/
 - Error Handling: 15/15
 - Type Safety: 10/10 (was 7/10)
 
-## Next Steps (Task-005)
+### Task-006: Extend PGlite Schema для транзакций ✅
+**Date:** 2026-01-21
+**Goal:** Расширить PGlite schema с v1 (reference data) до v2 (transactional data)
 
-**Task-005: Incremental Sync**
+**Created Tables (4):**
+1. `local_budget_facts` - Транзакции с sync tracking
+   - temp_id (UUID) PRIMARY KEY для offline-first
+   - id (server ID) nullable для pending creates
+   - sync_status ('synced' | 'pending' | 'conflict')
+   - content_hash для deduplication
+   - date, amount, record_type, comment
+   - transfer_group_id, is_transfer
+   - No FK constraints (offline-first mode)
+2. `local_pending_operations` - Очередь pending операций
+   - operation ('create' | 'update' | 'delete')
+   - entity_type, temp_id, server_id
+   - payload (JSONB) для flexible data
+   - content_hash UNIQUE для deduplication
+   - attempts, max_attempts, last_error
+3. `local_sync_conflicts` - Лог конфликтов синхронизации
+   - entity_type, entity_id, temp_id
+   - local_version, server_version (JSONB)
+   - resolution ('server' | 'client' | 'merged' | 'pending')
+4. `local_recurring_plans` - Рекуррентные платежи
+   - article_id, financial_center_id, amount
+   - day_of_month, frequency, is_active
 
-1. Добавить timestamp-based sync (последние изменения)
-2. Реализовать conflict resolution (last-write-wins)
-3. Добавить sync version tracking
-4. Background auto-sync с configurable interval
-5. Integration test: incremental sync
+**Extended PGliteManager (3 methods):**
+- `createFact()` - создание транзакции (offline-first)
+  - Генерирует temp_id (UUID)
+  - Вычисляет content_hash (SHA-256)
+  - Добавляет в pending_operations queue
+- `queryFacts()` - запрос с фильтрами и data window
+  - Windowed data (90 дней по умолчанию, configurable)
+  - Фильтры: user_id, article_id, financial_center_id, cost_center_id, record_type, sync_status
+  - NUMERIC → number conversion
+  - LIMIT 1000 для performance
+- `getPendingOperations()` - получение pending операций
+  - Фильтр по attempts < max_attempts
+  - JSONB auto-parsing (PGlite returns object)
+
+**Hash Utilities (utils/hash.ts):**
+- `calculateContentHash()` - SHA-256 хеш для deduplication
+  - Normalized JSON (sorted keys)
+  - Crypto Web API (SHA-256)
+  - Hex string output
+- `generateUUID()` - UUID v4 generation
+  - Crypto.randomUUID() (modern browsers)
+  - Fallback polyfill для older browsers
+
+**TypeScript Types (types/fact.ts):**
+- `LocalBudgetFact` - транзакция с sync tracking
+- `LocalPendingOperation` - pending операция
+- `LocalSyncConflict` - sync conflict
+- `LocalRecurringPlan` - рекуррентный платеж
+- `FactFilters` - фильтры для queryFacts()
+
+**Testing (10 tests, 100% passed):**
+- Schema V2 Migration (4 tests)
+  - Migration applied (version = 2)
+  - All v2 tables created
+  - Indexes on local_budget_facts
+  - UNIQUE constraint on content_hash
+- Fact Operations (6 tests)
+  - Create fact with temp_id
+  - Pending operation on create
+  - Deduplication via content_hash
+  - Data window (90 days default)
+  - Filter by article_id
+  - Filter by record_type
+
+**Architecture Decisions:**
+- **Offline-First:** temp_id PRIMARY KEY (UUID), id nullable для pending creates
+- **No FK Constraints:** Validation на server during sync
+- **SHA-256 Hashing:** Content deduplication для pending operations
+- **Data Window:** 90 дней по умолчанию (configurable: 30-365)
+- **Type Conversions:** NUMERIC → number, JSONB auto-parsing
+- **Test Isolation:** Unique dataDir per test для предотвращения data pollution
+
+## Next Steps (Task-007)
+
+**Task-007: Incremental Sync Protocol**
+
+1. Добавить sync operations (syncFacts, resolvePendingOperations)
+2. Реализовать conflict resolution (last-write-wins strategy)
+3. WebSocket event handlers (sync_incremental_request/response)
+4. Backend sync handlers (incremental sync endpoint)
+5. Background auto-sync с configurable interval (pgliteAutoSyncInterval)
+6. Integration test: incremental sync + conflict resolution
 
 ## Known Issues
 

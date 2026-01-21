@@ -9,6 +9,7 @@ import { logger } from '../utils/logger';
 
 // Import schema SQL files as strings
 import v1ReferenceData from '../schemas/v1_referenceData.sql?raw';
+import v2Transactional from '../schemas/v2_transactional.sql?raw';
 
 /**
  * Migration definition
@@ -27,9 +28,12 @@ const MIGRATIONS: Migration[] = [
     version: 1,
     name: 'Reference Data (Articles, Financial Centers, Cost Centers)',
     sql: v1ReferenceData
+  },
+  {
+    version: 2,
+    name: 'Transactional Data (Budget Facts, Pending Operations, Sync Conflicts)',
+    sql: v2Transactional
   }
-  // Future migrations will be added here:
-  // { version: 2, name: 'Budget Facts', sql: v2BudgetFacts }
 ];
 
 /**
