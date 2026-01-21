@@ -120,3 +120,17 @@ TASK-*.md
 
 # Claude Code skills (не нужны в production образе)
 .claude/
+
+# IMPORTANT: Build configuration files MUST be included for frontend build in Docker
+!build-all.js
+!vite.config.ts
+!vite.config.single.ts
+!vite-plugin-sw-version.ts
+!vitest.config.ts
+!postcss.config.js
+!tsconfig.json
+!tsconfig.node.json
+!tailwind.config.js
+!eslint.config.js
+!sw.js
+!manifest.json
