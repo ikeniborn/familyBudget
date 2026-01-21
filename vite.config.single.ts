@@ -19,7 +19,7 @@ const isServiceWorker = process.env.VITE_IS_SW === 'true';
 function postBuildCopy() {
   return {
     name: 'post-build-copy-single',
-    closeBundle() {
+    async writeBundle() {
       const { readFileSync, writeFileSync, existsSync } = require('fs');
       const { basename } = require('path');
 
@@ -30,6 +30,11 @@ function postBuildCopy() {
         const dest = entryOutput;
         const destMap = `${dest}.map`;
         const destGz = `${dest}.gz`;
+
+        // Проверить что source файл существует (Vite должен был его создать)
+        if (!existsSync(src)) {
+          throw new Error(`Source file not found: ${src}. Vite may have failed to write the bundle.`);
+        }
 
         // Создать родительскую директорию если не существует
         mkdirSync(dirname(dest), { recursive: true });
