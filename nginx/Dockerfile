@@ -1,8 +1,9 @@
 FROM nginx:alpine
 
 # Копируем nginx конфигурацию
-COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/conf.d/ /etc/nginx/conf.d/
+# Context: ./nginx (paths relative to nginx/ directory)
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY conf.d/ /etc/nginx/conf.d/
 
 # Создаем директории для логов и cache
 RUN mkdir -p /var/log/nginx /var/cache/nginx && \
