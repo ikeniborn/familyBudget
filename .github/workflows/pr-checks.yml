@@ -4,6 +4,28 @@ on:
   pull_request:
     branches: [test, main]
     types: [opened, synchronize, reopened]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'bot/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - 'alembic/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements.txt'
+      - 'pytest.ini'
+      - 'tsconfig.json'
+      - 'vitest.config.ts'
+      - 'playwright.config.ts'
+      - 'docker-compose*.yml'
+      - '**/Dockerfile'
+      - '.env.example'
+      - '.github/workflows/**'
+      - '!docs/**'
+      - '!**.md'
+      - '!.claude/**'
+      - '!README.md'
 
 # Allow only one workflow run per PR
 concurrency:

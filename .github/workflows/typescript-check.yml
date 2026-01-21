@@ -5,15 +5,21 @@ on:
     branches: [ main, test, develop ]
     paths:
       - '**.ts'
+      - 'frontend/**/*.ts'
       - 'tsconfig.json'
       - 'package.json'
       - '.github/workflows/typescript-check.yml'
+      - '!docs/**'
+      - '!**.md'
   pull_request:
     branches: [ main, test ]
     paths:
       - '**.ts'
+      - 'frontend/**/*.ts'
       - 'tsconfig.json'
       - 'package.json'
+      - '!docs/**'
+      - '!**.md'
 
 jobs:
   type-check:

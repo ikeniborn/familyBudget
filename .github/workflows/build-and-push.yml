@@ -1,8 +1,21 @@
 name: Build and Push Docker Images
 
 on:
-  push:
+  pull_request:
     branches: [test]
+    types: [closed]
+    paths:
+      - 'VERSION'
+      - 'backend/**'
+      - 'bot/**'
+      - 'nginx/**'
+      - 'redis/**'
+      - 'postgres/**'
+      - 'frontend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/build-and-push.yml'
+  push:
     tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
@@ -10,6 +23,11 @@ on:
         description: 'Custom image tag (optional)'
         required: false
         type: string
+      skip_version_check:
+        description: 'Skip VERSION change check'
+        required: false
+        type: boolean
+        default: false
 
 # Allow only one workflow run at a time
 concurrency:
@@ -17,9 +35,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Job 0: Check VERSION changes
+  check-version:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
+    outputs:
+      version_changed: ${{ steps.check.outputs.changed }}
+      current_version: ${{ steps.read.outputs.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read current VERSION
+        id: read
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Check VERSION changes
+        id: check
+        run: |
+          # Для PR событий
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            # Проверяем изменился ли VERSION в PR
+            if git diff HEAD~1 HEAD -- VERSION | grep -q "^[+-][0-9]"; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "✓ VERSION changed in this PR"
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "⚠ VERSION not changed in this PR, build may create duplicate tags"
+            fi
+
+          # Для tags и manual
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✓ Skipping VERSION check for tag/manual trigger"
+          fi
+
   # Job 1: Frontend Build
   frontend-build:
+    needs: check-version
     runs-on: ubuntu-latest
+    if: |
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      ((github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+       github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,45 +152,69 @@ jobs:
       - name: Pull latest changes
         run: git pull origin ${{ github.ref_name }}
 
+      - name: Detect merge commit from PR
+        id: detect-merge
+        run: |
+          # Проверяем является ли коммит merge коммитом из PR
+          commit_message=$(git log -1 --pretty=%B)
+
+          if echo "$commit_message" | grep -qE "^Merge pull request #[0-9]+ from"; then
+            echo "is_pr_merge=true" >> $GITHUB_OUTPUT
+            echo "✓ Detected PR merge commit, quality checks already passed in pr-checks.yml"
+          else
+            echo "is_pr_merge=false" >> $GITHUB_OUTPUT
+            echo "Direct push to test, running quality checks"
+          fi
+
       - name: Setup Node.js
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
       - name: Install Node dependencies
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: npm ci
 
       - name: TypeScript type check
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: npm run type-check
 
       - name: ESLint
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: npm run lint
 
       - name: Setup Python
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install Python dependencies
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: |
           pip install mypy ruff pytest pytest-cov
           pip install -r backend/requirements.txt
 
       - name: Python mypy type check
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: mypy backend/ || true
         continue-on-error: true
 
       - name: Python ruff lint
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: ruff check backend/
         continue-on-error: true
 
       - name: Unit tests
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: pytest tests/unit/ --cov --cov-report=xml || true
         continue-on-error: true
 
       - name: Upload coverage to Codecov
+        if: steps.detect-merge.outputs.is_pr_merge == 'false'
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -144,6 +229,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      backend_built: ${{ steps.changes.outputs.backend }}
+      bot_built: ${{ steps.changes.outputs.bot }}
+      nginx_built: ${{ steps.changes.outputs.nginx }}
+      redis_built: ${{ steps.changes.outputs.redis }}
+      postgresql_built: ${{ steps.changes.outputs.postgresql }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -352,9 +443,77 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Job 3.5: Update IMAGE_VERSIONS.json для собранных образов
+  update-versions:
+    needs: build-push
+    runs-on: ubuntu-latest
+    if: |
+      needs.build-push.outputs.backend_built == 'true' ||
+      needs.build-push.outputs.bot_built == 'true' ||
+      needs.build-push.outputs.nginx_built == 'true' ||
+      needs.build-push.outputs.redis_built == 'true' ||
+      needs.build-push.outputs.postgresql_built == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull latest changes
+        run: git pull origin ${{ github.ref_name }}
+
+      - name: Read VERSION
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Update backend version
+        if: needs.build-push.outputs.backend_built == 'true'
+        run: bash scripts/ci/update_image_version.sh backend "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update bot version
+        if: needs.build-push.outputs.bot_built == 'true'
+        run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update nginx version
+        if: needs.build-push.outputs.nginx_built == 'true'
+        run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update redis version
+        if: needs.build-push.outputs.redis_built == 'true'
+        run: bash scripts/ci/update_image_version.sh redis "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update postgresql version
+        if: needs.build-push.outputs.postgresql_built == 'true'
+        run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "IMAGE_VERSIONS.json has been updated:"
+            git diff IMAGE_VERSIONS.json
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes to IMAGE_VERSIONS.json"
+          fi
+
+      - name: Commit IMAGE_VERSIONS.json
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add IMAGE_VERSIONS.json
+          git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+          git push
+
   # Job 4: Security Scan
   security-scan:
-    needs: build-push
+    needs: [build-push, update-versions]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -409,7 +568,7 @@ jobs:
 
   # Job 5: Summary
   summary:
-    needs: [frontend-build, quality-checks, build-push, security-scan]
+    needs: [check-version, frontend-build, quality-checks, build-push, update-versions, security-scan]
     runs-on: ubuntu-latest
     if: always()
     steps:

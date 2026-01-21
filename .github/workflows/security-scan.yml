@@ -7,10 +7,25 @@ on:
       - test
       - 'feature/**'
       - 'fix/**'
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'bot/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements.txt'
+      - '.github/workflows/security-scan.yml'
   pull_request:
     branches:
       - main
       - test
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'bot/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements.txt'
   schedule:
     # Run daily at 3 AM UTC
     - cron: '0 3 * * *'
