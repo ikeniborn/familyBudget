@@ -268,7 +268,7 @@ function openAddTransactionModal(): void {
  * Delegates to transfers module openTransferModal.
  * Record type is 'fact' by default in transfers module.
  */
-function openFactTransferModal(): void {
+async function openFactTransferModal(): Promise<void> {
   // Set record_type hidden field to 'fact' (for safety)
   const recordTypeInput = document.getElementById('transfer_record_type') as HTMLInputElement | null;
   if (recordTypeInput) {
@@ -281,9 +281,9 @@ function openFactTransferModal(): void {
   if (dateSection) dateSection.classList.remove('hidden');
   if (periodSection) periodSection.classList.add('hidden');
 
-  // Initialize transfer modal lazily on first open
+  // Initialize transfer modal lazily on first open (awaited to prevent race conditions)
   if (typeof window.initTransferModal === 'function') {
-    window.initTransferModal(); // Load data (financial centers, categories)
+    await window.initTransferModal(); // Load data (financial centers, categories)
   }
 
   // Delegate to transfers module
