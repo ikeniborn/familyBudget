@@ -1,0 +1,48 @@
+{#
+    Delete Button Macros
+
+    Стандартизированные кнопки удаления для desktop таблиц и mobile модалей.
+    Обеспечивает визуальную консистентность во всем приложении.
+
+    Использование:
+        {% from "components/macros/delete_buttons.html" import delete_button_desktop, delete_button_mobile, delete_icon_svg %}
+#}
+
+{# ============================================================================ #}
+{# Desktop Table Delete Button (btn-xs, h-4 w-4 icon)                          #}
+{# ============================================================================ #}
+
+{% macro delete_button_desktop(entity_id, delete_function, entity_type='entity', title='Удалить', extra_classes='') %}
+<button class="btn btn-xs btn-error btn-square hidden md:inline-flex {{ extra_classes }}"
+        data-{{ entity_type }}-id="{{ entity_id }}"
+        onclick="event.stopPropagation(); {{ delete_function }}({{ entity_id }})"
+        title="{{ title }}"
+        aria-label="{{ title }} {{ entity_type }} ID {{ entity_id }}">
+    {{ delete_icon_svg('h-4 w-4') }}
+</button>
+{% endmacro %}
+
+{# ============================================================================ #}
+{# Mobile Modal Delete Button (btn-sm sm:btn-md, h-5 w-5 icon)                  #}
+{# ============================================================================ #}
+
+{% macro delete_button_mobile(onclick_handler, title='Удалить', extra_classes='') %}
+<button type="button"
+        class="btn btn-sm sm:btn-md btn-error btn-square md:hidden {{ extra_classes }}"
+        onclick="{{ onclick_handler }}"
+        title="{{ title }}"
+        aria-label="{{ title }}">
+    {{ delete_icon_svg('h-5 w-5') }}
+</button>
+{% endmacro %}
+
+{# ============================================================================ #}
+{# Delete Icon SVG (Переиспользуемая иконка корзины)                           #}
+{# ============================================================================ #}
+
+{% macro delete_icon_svg(size_class='h-4 w-4', stroke_color='currentColor') %}
+<svg xmlns="http://www.w3.org/2000/svg" class="{{ size_class }}" fill="none" viewBox="0 0 24 24" stroke="{{ stroke_color }}">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+</svg>
+{% endmacro %}
