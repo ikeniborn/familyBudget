@@ -13,12 +13,20 @@ import {
   getSyncMetadata,
   updateSyncMetadata
 } from './operations/schemaOperations';
+import {
+  bulkInsertArticles,
+  bulkInsertFinancialCenters,
+  bulkInsertCostCenters,
+  bulkInsertHierarchy,
+  type ProgressCallback
+} from './operations/bulkOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
 import type { IPGliteConfig } from './types/dependencies';
 import type {
   LocalArticle,
   LocalFinancialCenter,
   LocalCostCenter,
+  LocalArticleHierarchy,
   LocalSyncMetadata
 } from './types/models';
 import { logger } from './utils/logger';
@@ -200,6 +208,72 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     await updateSyncMetadata(db, entity_type, data);
+  }
+
+  // === Bulk Insert Methods ===
+
+  /**
+   * Bulk insert articles with chunking and progress tracking
+   *
+   * @param articles - Articles to insert
+   * @param onProgress - Optional progress callback
+   */
+  async bulkInsertArticles(
+    articles: LocalArticle[],
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    await bulkInsertArticles(db, articles, onProgress);
+  }
+
+  /**
+   * Bulk insert financial centers with chunking and progress tracking
+   *
+   * @param centers - Financial centers to insert
+   * @param onProgress - Optional progress callback
+   */
+  async bulkInsertFinancialCenters(
+    centers: LocalFinancialCenter[],
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    await bulkInsertFinancialCenters(db, centers, onProgress);
+  }
+
+  /**
+   * Bulk insert cost centers with chunking and progress tracking
+   *
+   * @param centers - Cost centers to insert
+   * @param onProgress - Optional progress callback
+   */
+  async bulkInsertCostCenters(
+    centers: LocalCostCenter[],
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    await bulkInsertCostCenters(db, centers, onProgress);
+  }
+
+  /**
+   * Bulk insert article hierarchy with chunking and progress tracking
+   *
+   * @param hierarchy - Article hierarchy entries to insert
+   * @param onProgress - Optional progress callback
+   */
+  async bulkInsertHierarchy(
+    hierarchy: LocalArticleHierarchy[],
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    await bulkInsertHierarchy(db, hierarchy, onProgress);
   }
 }
 

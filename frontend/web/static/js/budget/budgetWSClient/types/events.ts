@@ -178,3 +178,52 @@ export interface PollResponse {
   events: PollEvent[];
   server_time: number;
 }
+
+// ============================================================================
+// PGlite Sync Events
+// ============================================================================
+
+export interface SyncInitialRequest {
+  event: 'sync_initial';
+  data: {
+    user_id: number;
+  };
+}
+
+export interface SyncInitialResponse {
+  event: 'sync_initial';
+  data: {
+    articles: Array<{
+      id: number;
+      user_id: number;
+      parent_id: number | null;
+      name: string;
+      type: 'income' | 'expense';
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    }>;
+    financial_centers: Array<{
+      id: number;
+      user_id: number;
+      name: string;
+      type: 'account' | 'wallet' | 'card';
+      currency: string;
+      is_active: boolean;
+      created_at: string;
+    }>;
+    cost_centers: Array<{
+      id: number;
+      user_id: number;
+      name: string;
+      is_active: boolean;
+      created_at: string;
+    }>;
+    hierarchy: Array<{
+      ancestor_id: number;
+      descendant_id: number;
+      depth: number;
+    }>;
+    total_records: number;
+  };
+}

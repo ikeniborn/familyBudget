@@ -1,11 +1,11 @@
 # PGlite Integration Module
 
-**Version:** 1.1.0 (Task-002)
-**Status:** ✅ PGliteManager Core Complete
+**Version:** 1.2.0 (Task-003)
+**Status:** ✅ Initial Sync Protocol Complete
 
 ## Overview
 
-PGlite WASM integration for client-side PostgreSQL database.
+PGlite WASM integration for client-side PostgreSQL database with WebSocket sync support.
 
 **Capabilities (Phase 1):**
 - ✅ PGlite dependency installed (@electric-sql/pglite@0.2.0)
@@ -17,8 +17,10 @@ PGlite WASM integration for client-side PostgreSQL database.
 - ✅ Migration system (schema versioning)
 - ✅ PGliteManager class (high-level API)
 - ✅ CRUD operations (articles, financial centers, cost centers)
-- ✅ Unit tests (13 tests, 100% passed)
-- ⏳ Sync protocol (task-003)
+- ✅ Bulk insert operations (chunked, with progress tracking)
+- ✅ WebSocket sync protocol (initial sync)
+- ✅ Unit tests (20 tests, 100% passed)
+- ⏳ Incremental sync (task-004)
 
 ## Installation
 
@@ -49,6 +51,12 @@ if (manager.isReady()) {
   const centers = await manager.queryFinancialCenters(1, true); // only active
   console.log(centers);
 
+  // Bulk insert with progress tracking
+  const newArticles = [ /* ... */ ];
+  await manager.bulkInsertArticles(newArticles, (current, total) => {
+    console.log(`Progress: ${current}/${total}`);
+  });
+
   // Update sync metadata
   await manager.updateSyncMetadata('articles', {
     last_sync_timestamp: new Date(),
@@ -58,6 +66,21 @@ if (manager.isReady()) {
 
 // Close when done
 await manager.close();
+```
+
+### WebSocket Sync Usage
+
+```typescript
+import { requestInitialSync } from '@db/pglite';
+
+// Request initial sync from backend (via WebSocket)
+requestInitialSync(userId);
+
+// Sync will be handled automatically by budgetWSClient
+// Progress updates available via:
+// - window.updateSyncProgress(current, total)
+// - window.onSyncComplete()
+// - window.onSyncError(error)
 ```
 
 ### Low-Level Usage (Direct DB Access)
@@ -131,7 +154,16 @@ npm run test -- pglite        # Run PGlite tests only
   ✓ should handle sync metadata
   ✓ should close database successfully
 
-Total: 13 tests, 13 passed (100%)
+✓ Bulk Operations (7 tests) - Bulk insert with chunking
+  ✓ bulkInsertArticles > should insert articles in bulk
+  ✓ bulkInsertArticles > should handle empty array
+  ✓ bulkInsertArticles > should update on conflict
+  ✓ bulkInsertArticles > should report progress
+  ✓ bulkInsertFinancialCenters > should insert financial centers in bulk
+  ✓ bulkInsertCostCenters > should insert cost centers in bulk
+  ✓ bulkInsertHierarchy > should insert hierarchy in bulk
+
+Total: 20 tests, 20 passed (100%)
 ```
 
 ## Architecture
@@ -149,16 +181,38 @@ frontend/shared/db/pglite/
 ├── schemas/
 │   └── v1_referenceData.sql    # Schema v1 (reference data)
 ├── operations/
-│   └── schemaOperations.ts     # CRUD operations
+│   ├── schemaOperations.ts     # CRUD operations
+│   └── bulkOperations.ts       # Bulk insert with chunking (task-003)
 ├── features/
 │   └── featureFlags.ts         # Feature flags (localStorage)
 ├── types/
 │   ├── dependencies.ts         # DI types
 │   ├── models.ts               # Data models (LocalArticle, etc.)
-│   └── errors.ts               # Custom errors
+│   ├── errors.ts               # Custom errors
+│   └── pglite.ts               # PGliteResult<T> type
+├── utils/
+│   └── logger.ts               # Configurable logger (task-002)
 └── __tests__/
     ├── integration.test.ts     # Basic integration tests (4)
-    └── PGliteManager.test.ts   # PGliteManager tests (9)
+    ├── PGliteManager.test.ts   # PGliteManager tests (9)
+    └── bulkOperations.test.ts  # Bulk operations tests (7)
+```
+
+**Frontend WebSocket Integration:**
+```
+frontend/web/static/js/budget/budgetWSClient/
+├── types/
+│   └── events.ts               # Added SyncInitialRequest, SyncInitialResponse
+├── integration/
+│   ├── syncHandler.ts          # PGlite sync handler (task-003)
+│   └── eventHandlers.ts        # Updated with sync_initial handler
+```
+
+**Backend Sync Handlers:**
+```
+backend/app/api/v1/endpoints/
+├── sync_handlers.py            # PGlite sync handlers (task-003)
+└── budget_ws.py                # Updated with sync_initial handler
 ```
 
 **State Management Pattern:**
@@ -191,7 +245,7 @@ frontend/shared/db/pglite/
 - Vite WASM support
 - Build process configured
 - Feature flags
-- Integration tests
+- Integration tests (4 tests)
 
 ### Task-002: PGliteManager Core ✅
 - Database initialization (dbInitializer.ts)
@@ -199,17 +253,29 @@ frontend/shared/db/pglite/
 - Schema v1 reference data (articles, financial_centers, cost_centers, article_hierarchy)
 - CRUD operations (schemaOperations.ts)
 - PGliteManager class (high-level API)
-- 9 unit tests (100% passed)
+- Configurable logger (utils/logger.ts)
+- Type-safe query results (types/pglite.ts)
+- Unit tests (9 tests, 100% passed)
 
-## Next Steps (Task-003)
+### Task-003: Initial Sync Protocol ✅
+- Bulk insert operations (operations/bulkOperations.ts)
+  - Chunked inserts (1000 records per chunk)
+  - Progress tracking callbacks
+  - ON CONFLICT handling (idempotency)
+- WebSocket event types (SyncInitialRequest, SyncInitialResponse)
+- Frontend sync handler (budgetWSClient/integration/syncHandler.ts)
+- Backend sync handlers (sync_handlers.py, budget_ws.py)
+- Unit tests (7 bulk operations tests, 100% passed)
 
-**Task-003: Sync Protocol**
+## Next Steps (Task-004)
 
-1. Создать `sync/syncManager.ts` - sync orchestration
-2. Добавить `sync/syncOperations.ts` - sync helpers
-3. Реализовать differential sync (только изменённые записи)
-4. Добавить conflict resolution (last-write-wins)
-5. Integration test: sync + query after sync
+**Task-004: Incremental Sync**
+
+1. Добавить timestamp-based sync (последние изменения)
+2. Реализовать conflict resolution (last-write-wins)
+3. Добавить sync version tracking
+4. Background auto-sync с configurable interval
+5. Integration test: incremental sync
 
 ## Known Issues
 

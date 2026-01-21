@@ -19,7 +19,9 @@ import type {
   ItemUpdatedEvent,
   ItemDeletedEvent,
   ItemCompletedEvent,
+  SyncInitialResponse,
 } from '../types/events';
+import { handleSyncInitial } from './syncHandler';
 
 /**
  * Handle fact_created event
@@ -172,6 +174,11 @@ export function dispatchEvent(eventType: string, eventData: unknown): void {
       break;
     case 'item_completed':
       handleItemCompleted(eventData as ItemCompletedEvent);
+      break;
+    case 'sync_initial':
+      handleSyncInitial((eventData as SyncInitialResponse).data).catch(err => {
+        console.error('[SYNC] Failed to handle sync_initial', err);
+      });
       break;
     default:
       handleEvent(eventType, eventData);

@@ -52,6 +52,7 @@ from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.core.dependencies import get_current_user
 from backend.app.services.jwt import create_ws_token, decode_ws_token
+from backend.app.api.v1.endpoints.sync_handlers import handle_sync_initial
 
 # Security constants
 MAX_CONNECTIONS_PER_USER = 10  # Max WebSocket connections per user
@@ -609,6 +610,15 @@ async def budget_websocket_endpoint(
                             "online": True,
                             "timestamp": datetime.utcnow().isoformat(),
                         })
+
+                    elif msg_type == "sync_initial":
+                        # PGlite initial sync request
+                        await ws_manager.update_activity(connection_id)
+                        logger.info(f"[SYNC] Received sync_initial request from user {user_id}")
+
+                        async with get_session_context() as session:
+                            sync_data = await handle_sync_initial(session, user_id)
+                            await ws_manager.send_to_connection(connection_id, "sync_initial", sync_data)
 
                     else:
                         logger.debug(f"Budget WS unknown message type: {msg_type}")

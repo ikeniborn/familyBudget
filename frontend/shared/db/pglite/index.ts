@@ -14,6 +14,7 @@ export * from './core/migrationManager';
 
 // Operations
 export * from './operations/schemaOperations';
+export * from './operations/bulkOperations';
 
 // Features
 export * from './features/featureFlags';
