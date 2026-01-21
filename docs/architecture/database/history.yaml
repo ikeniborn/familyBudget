@@ -418,6 +418,110 @@ tables:
     services:
       - $ref: "../functionality/shopping-lists.yaml#/module/services/7"
 
+  # ---------------------------------------------------------------------------
+  # PRODUCT GROUP HISTORY
+  # ---------------------------------------------------------------------------
+  t_d_product_group_history:
+    model: ProductGroupHistory
+    file: "backend/app/models/product_group_history.py"
+    main_table:
+      $ref: "./dimensions.yaml#/tables/t_d_product_group"
+    description: "Product group change history with hierarchy tracking"
+
+    columns:
+      - name: history_id
+        type: SERIAL PRIMARY KEY
+        description: "Surrogate primary key for history records"
+      - name: product_group_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_product_group"
+        description: "Foreign key to stable product group PK"
+      - name: creator_id
+        type: INTEGER NOT NULL
+        description: "Creator user ID (snapshot at time of change)"
+      - name: parent_id
+        type: INTEGER
+        description: "Parent product group ID (snapshot for hierarchy)"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+        description: "Product group name snapshot"
+      - name: description
+        type: TEXT
+        description: "Description snapshot"
+      - name: code
+        type: VARCHAR(50)
+        description: "Business code snapshot"
+      - name: is_active
+        type: BOOLEAN NOT NULL
+        description: "Active status snapshot"
+      - name: valid_from
+        type: TIMESTAMP WITH TIME ZONE NOT NULL
+        description: "Start of validity period"
+      - name: valid_to
+        type: TIMESTAMP WITH TIME ZONE DEFAULT '9999-12-31 23:59:59 UTC'
+        description: "End of validity period (9999-12-31 for current)"
+      - name: is_current
+        type: BOOLEAN NOT NULL
+        description: "True for current version"
+      - name: change_type
+        type: VARCHAR(50) NOT NULL
+        description: "CREATE, UPDATE, ARCHIVE, RESTORE, HIERARCHY_CHANGE"
+      - name: changed_fields
+        type: VARCHAR[] (ARRAY)
+        description: "Array of changed field names (NULL for CREATE)"
+      - name: changed_by_user_id
+        type: INTEGER
+        description: "Who made the change (NULL for automatic)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+        description: "When history record was created"
+
+    indexes:
+      - name: idx_pgh_product_group_id
+        columns: [product_group_id]
+        description: "Fast lookup of history for specific product group"
+      - name: idx_pgh_valid_from
+        columns: [valid_from]
+        description: "Temporal queries (find version at specific time)"
+      - name: idx_pgh_is_current
+        columns: [is_current]
+        description: "Find current version"
+      - name: idx_pgh_name
+        columns: [name]
+        description: "Search history by business key"
+
+    change_types:
+      - CREATE: "Initial product group creation"
+      - UPDATE: "Name, description, code, or is_active changed"
+      - ARCHIVE: "Product group archived (is_active=False)"
+      - RESTORE: "Product group restored (is_active=True)"
+      - HIERARCHY_CHANGE: "Parent product group changed (parent_id)"
+
+    temporal_validity:
+      current_version: "valid_to = 9999-12-31 23:59:59 UTC AND is_current = TRUE"
+      historical_version: "valid_to < NOW() AND is_current = FALSE"
+      constraint: "Only ONE record per product_group_id should have is_current=TRUE"
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/6"
+
+    notes: |
+      SCD Type 2 pattern with change tracking metadata.
+      Each change: close old version (is_current=False, set valid_to) + create new version.
+
+      change_type values:
+        - CREATE: Initial creation (changed_fields = NULL)
+        - UPDATE: Regular field updates
+        - ARCHIVE: Soft delete (is_active=False)
+        - RESTORE: Reactivation (is_active=True)
+        - HIERARCHY_CHANGE: parent_id changed
+
+      Hierarchy tracking:
+        - parent_id snapshot preserves hierarchical relationships over time
+        - Can reconstruct product group tree structure at any historical point
+        - Used for audit trail and GET /product-groups/{id}/history endpoint
+
 # Querying History
 queries:
   current_version:

@@ -212,6 +212,133 @@ tables:
       - $ref: "../functionality/shopping-lists.yaml#/module/services/4"
 
   # ---------------------------------------------------------------------------
+  # SHOPPING LIST ITEM (Header+Lines pattern - Lines)
+  # ---------------------------------------------------------------------------
+  t_f_shopping_list_item:
+    model: ShoppingListItem
+    file: "backend/app/models/shopping_list_item.py"
+    pattern: "Header+Lines (Lines)"
+    description: "Individual items in shopping lists"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: creator_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "User who created the item (audit only)"
+      - name: shopping_list_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_shopping_list"
+        on_delete: CASCADE
+        description: "Parent shopping list (Header)"
+      - name: store_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_store"
+        description: "Which store to buy from (REQUIRED)"
+      - name: product_group_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_product_group"
+        description: "Product category (REQUIRED)"
+      - name: product_name
+        type: VARCHAR(255) NOT NULL
+        description: "Product name (e.g., 'Organic Milk 1L')"
+      - name: quantity
+        type: NUMERIC(10,3)
+        description: "Quantity to buy (optional, e.g., 2.5)"
+      - name: unit
+        type: VARCHAR(50)
+        description: "Unit of measurement (e.g., 'kg', 'liters', 'pieces')"
+      - name: comment
+        type: TEXT
+        description: "Optional notes (e.g., 'buy on sale')"
+      - name: is_completed
+        type: BOOLEAN DEFAULT FALSE
+        description: "Completion flag (True = bought, False = needed)"
+      - name: completed_at
+        type: TIMESTAMP
+        description: "When item was marked as completed"
+      - name: sync_status
+        type: VARCHAR(20) DEFAULT 'synced'
+        description: "Offline sync: synced, pending, conflict"
+      - name: version
+        type: INTEGER DEFAULT 1
+        description: "Optimistic locking version"
+      - name: deleted_at
+        type: TIMESTAMP
+        description: "Soft delete timestamp (NULL = active)"
+      - name: last_modified_by
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "User who last modified this item"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_sli_creator_id
+        columns: [creator_id]
+      - name: idx_sli_shopping_list_id
+        columns: [shopping_list_id]
+      - name: idx_sli_store_id
+        columns: [store_id]
+      - name: idx_sli_product_group_id
+        columns: [product_group_id]
+      - name: idx_sli_product_name
+        columns: [product_name]
+      - name: idx_sli_is_completed
+        columns: [is_completed]
+      - name: idx_sli_sync_status
+        columns: [sync_status]
+      - name: idx_sli_deleted_at
+        columns: [deleted_at]
+
+    shared_architecture:
+      pattern: "SHARED across all users"
+      rules:
+        - "Any user can CREATE/UPDATE/DELETE any item"
+        - "creator_id is audit only (NOT for filtering)"
+        - "Items belong to a shopping list via shopping_list_id FK"
+
+    offline_sync:
+      sync_status:
+        - "synced: Item synchronized with server"
+        - "pending: Created/updated offline, not yet synced"
+        - "conflict: Conflicting changes (offline + online)"
+      optimistic_locking: "version field incremented on each update"
+      conflict_detection: "client version != server version"
+
+    soft_delete:
+      description: "deleted_at NULL = active, NOT NULL = deleted"
+      purpose:
+        - "Keep for autocomplete history"
+        - "Conflict resolution"
+        - "Audit trail"
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/3"
+
+    endpoints:
+      - $ref: "../endpoints/shopping.yaml#/routes"
+
+    notes: |
+      Header+Lines pattern: ShoppingList (Header) → ShoppingListItem (Lines).
+      All users can add/edit/delete any item (SHARED architecture).
+
+      Offline sync support:
+        - sync_status tracks synchronization state
+        - version field for optimistic locking
+        - Conflict resolution: user chooses server/client/merge
+
+      Soft delete preserves autocomplete history and audit trail.
+
+  # ---------------------------------------------------------------------------
   # WEBAUTHN CHALLENGE (v6.5.0+)
   # ---------------------------------------------------------------------------
   t_f_webauthn_challenge:
