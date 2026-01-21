@@ -135,7 +135,7 @@ tables:
         columns: [valid_from]
 
     services:
-      - $ref: "../functionality/budget-management.yaml#/module/services/3"
+      - $ref: "../functionality/budget-management.yaml#/module/services/0"
 
   # ---------------------------------------------------------------------------
   # FINANCIAL CENTER HISTORY
@@ -342,7 +342,7 @@ tables:
         type: VARCHAR(10) NOT NULL
 
     services:
-      - $ref: "../functionality/shopping-lists.yaml#/module/services/5"
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/0"
 
   # ---------------------------------------------------------------------------
   # SHOPPING LIST ITEM HISTORY
@@ -381,7 +381,7 @@ tables:
         type: VARCHAR(10) NOT NULL
 
     services:
-      - $ref: "../functionality/shopping-lists.yaml#/module/services/6"
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/1"
 
   # ---------------------------------------------------------------------------
   # STORE HISTORY
@@ -416,7 +416,7 @@ tables:
         type: VARCHAR(10) NOT NULL
 
     services:
-      - $ref: "../functionality/shopping-lists.yaml#/module/services/7"
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/2"
 
   # ---------------------------------------------------------------------------
   # PRODUCT GROUP HISTORY
@@ -504,7 +504,7 @@ tables:
       constraint: "Only ONE record per product_group_id should have is_current=TRUE"
 
     services:
-      - $ref: "../functionality/shopping-lists.yaml#/module/services/6"
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/3"
 
     notes: |
       SCD Type 2 pattern with change tracking metadata.
