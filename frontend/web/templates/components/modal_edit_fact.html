@@ -1,3 +1,4 @@
+{% from "components/macros/delete_buttons.html" import delete_button_mobile %}
 {% macro edit_fact_modal(modal_id='edit-modal') %}
 <dialog id="{{ modal_id }}" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 max-h-[90vh] overflow-y-auto my-auto">
@@ -76,11 +77,7 @@
             <!-- Кнопки -->
             <div class="modal-action mt-3 flex flex-row gap-2 items-center">
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-sm sm:btn-md btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="white">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
+                {{ delete_button_mobile('deleteFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
                 <div class="flex-1 md:hidden"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">
