@@ -52,9 +52,12 @@ COPY VERSION ./
 # Минификация и сборка (cache busting уже выполнен в CI)
 RUN npm run build:prod
 
-# Проверка результатов
+# Проверка результатов (включая Service Worker)
 RUN ls -lh frontend/web/static/css/ && \
     ls -lh frontend/web/static/js/dist/ && \
+    echo "Checking for Service Worker files..." && \
+    ls -lh sw.min.js* 2>&1 || echo "SW files not in /build root" && \
+    find . -name "sw.min.js*" -type f && \
     echo "Frontend build complete with CACHE_VERSION=${CACHE_VERSION}"
 
 # Stage 3: Runtime image
@@ -86,8 +89,8 @@ COPY --chown=appuser:appuser backend/ $APP_HOME/backend/
 COPY --from=frontend-builder --chown=appuser:appuser /build/frontend/ $APP_HOME/frontend/
 
 # Копируем Service Worker и Manifest
+# Note: sw.min.js is required, .gz is optional (may be created with wrong path by compression plugin)
 COPY --from=frontend-builder --chown=appuser:appuser /build/sw.min.js $APP_HOME/sw.min.js
-COPY --from=frontend-builder --chown=appuser:appuser /build/sw.min.js.gz $APP_HOME/sw.min.js.gz
 COPY --from=frontend-builder --chown=appuser:appuser /build/manifest.json $APP_HOME/manifest.json
 
 # Создаем директории
