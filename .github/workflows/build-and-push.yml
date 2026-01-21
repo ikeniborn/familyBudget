@@ -372,11 +372,8 @@ jobs:
       - name: Determine image tag
         id: tag
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG="${{ steps.version.outputs.VERSION }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
+          # Always use VERSION file (matches tags from build-push job)
+          TAG="${{ steps.version.outputs.VERSION }}"
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
           echo "Using image tag: $TAG"
 
