@@ -281,6 +281,11 @@ function openFactTransferModal(): void {
   if (dateSection) dateSection.classList.remove('hidden');
   if (periodSection) periodSection.classList.add('hidden');
 
+  // Initialize transfer modal lazily on first open
+  if (typeof window.initTransferModal === 'function') {
+    window.initTransferModal(); // Load data (financial centers, categories)
+  }
+
   // Delegate to transfers module
   if (typeof window.openTransferModal === 'function') {
     window.openTransferModal();
@@ -557,6 +562,7 @@ export function initWindowExports(): void {
   window.loadTransactionCategories = loadTransactionCategories;
   window.saveTransaction = saveTransaction;
   window.filterCostCenterDropdown = filterCostCenterDropdown;
+  window.setTransactionDate = setTransactionDate;
 
   // Expose add plan functions globally for onclick handlers
   window.loadPlanCategories = loadPlanCategories;
