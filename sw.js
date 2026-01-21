@@ -24,12 +24,12 @@ const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Validation: warn if PLACEHOLDER wasn't replaced (build script error)
-// Use runtime string construction to prevent terser constant folding
-const PLACEHOLDER_CHECK = 'PLACE' + 'HOLDER'; // Split to prevent replacement
-if (CACHE_VERSION.includes(PLACEHOLDER_CHECK)) {
-  console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
+// Check if version starts with 'v' and has proper format (v20260121_0438)
+// PLACEHOLDER (11 chars) doesn't match this pattern
+if (CACHE_VERSION.length === 11 || !CACHE_VERSION.startsWith('v')) {
+  console.error('[SW] CRITICAL: Cache version not properly set - build script failed!');
   console.error('[SW] Service Worker will NOT work correctly');
-  console.error('[SW] Please check minify.sh execution');
+  console.error('[SW] Expected format: v{YYYYMMDD_HHMM}, got:', CACHE_VERSION);
 }
 
 // Критическая статика БЕЗ версий (для precaching в install event)
