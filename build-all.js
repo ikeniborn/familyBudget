@@ -24,6 +24,14 @@ const builds = [
     globalName: 'NetworkModule'
   },
 
+  // === PGlite WASM Database (loaded after network, before other modules) ===
+  {
+    name: 'pglite',
+    input: 'frontend/shared/db/pglite/index.ts',
+    output: 'frontend/shared/db/pglite.min.js',
+    globalName: 'PGlite'
+  },
+
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',
