@@ -172,8 +172,8 @@ tables:
             SUM(CASE WHEN record_type = 'expense' THEN ABS(amount) ELSE 0 END) as expense
           FROM t_f_budget_fact
           GROUP BY DATE_TRUNC('month', fact_date)
-        service:
-          $ref: "../functionality/analytics.yaml#/module/services/0"
+        endpoints:
+          $ref: "../endpoints/analytics.yaml#/routes"
 
   # ---------------------------------------------------------------------------
   # SHOPPING LIST FACT

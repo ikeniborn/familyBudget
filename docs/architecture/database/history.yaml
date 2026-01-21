@@ -189,7 +189,7 @@ tables:
         where: "is_current = TRUE"
 
     services:
-      - $ref: "../functionality/financial-centers.yaml#/module/services/2"
+      - $ref: "../functionality/financial-centers.yaml#/module/services/0"
 
   # ---------------------------------------------------------------------------
   # COST CENTER HISTORY
@@ -239,7 +239,7 @@ tables:
         where: "is_current = TRUE"
 
     services:
-      - $ref: "../functionality/cost-centers.yaml#/module/services/1"
+      - $ref: "../functionality/cost-centers.yaml#/module/services/0"
 
   # ---------------------------------------------------------------------------
   # BUDGET FACT HISTORY
@@ -306,8 +306,8 @@ tables:
       Пропуск любого поля приведет к IntegrityError!
       См. CLAUDE.md секция "History Tables: Полное копирование полей"
 
-    services:
-      - $ref: "../functionality/budget-management.yaml#/module/services/4"
+    endpoints:
+      - $ref: "../endpoints/facts.yaml#/routes"
 
   # ---------------------------------------------------------------------------
   # SHOPPING LIST HISTORY

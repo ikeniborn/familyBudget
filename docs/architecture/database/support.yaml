@@ -574,7 +574,7 @@ tables:
         columns: [financial_center_id]
 
     services:
-      - $ref: "../functionality/financial-centers.yaml#/module/services/2"
+      - $ref: "../functionality/financial-centers.yaml#/module/services/1"
 
     optimization:
       purpose: "Avoid scanning all transactions for balance queries"
@@ -595,6 +595,200 @@ tables:
       closing_balance is cumulative (includes ALL transactions from beginning).
       For current month, use aggregate + movements since start of month.
       If aggregate missing, fall back to full calculation.
+
+  # ===========================================================================
+  # LINKING TABLES
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ARTICLE-FINANCIAL CENTER LINKING
+  # ---------------------------------------------------------------------------
+  t_article_financial_center:
+    model: ArticleFinancialCenter
+    file: "backend/app/models/article_financial_center.py"
+    pattern: "Many-to-many linking (whitelist)"
+    description: "Article availability per financial center (whitelist pattern)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: article_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_article"
+        description: "FK to article (must be LEAF article)"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        description: "FK to financial center"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_afc_article_id
+        columns: [article_id]
+      - name: idx_afc_financial_center_id
+        columns: [financial_center_id]
+
+    business_rules:
+      whitelist_pattern:
+        description: |
+          - No links = article available for ALL financial centers
+          - Has links = article available ONLY for linked financial centers
+        use_case: "Filter transaction form articles by selected account"
+
+  # ---------------------------------------------------------------------------
+  # COST CENTER-FINANCIAL CENTER LINKING
+  # ---------------------------------------------------------------------------
+  t_cost_center_financial_center:
+    model: CostCenterFinancialCenter
+    file: "backend/app/models/cost_center_financial_center.py"
+    pattern: "Many-to-many linking (whitelist)"
+    description: "Cost center availability per financial center (whitelist pattern)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: cost_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_cost_center"
+        description: "FK to cost center"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        description: "FK to financial center"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_ccfc_cost_center_id
+        columns: [cost_center_id]
+      - name: idx_ccfc_financial_center_id
+        columns: [financial_center_id]
+
+    business_rules:
+      whitelist_pattern:
+        description: |
+          - No links = cost center available for ALL financial centers
+          - Has links = cost center available ONLY for linked financial centers
+        use_case: "Filter transaction form cost centers by selected account"
+
+  # ===========================================================================
+  # AGGREGATION STATISTICS
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ARTICLE USAGE STATISTICS
+  # ---------------------------------------------------------------------------
+  t_article_usage_stats:
+    model: ArticleUsageStats
+    file: "backend/app/models/article.py"
+    pattern: "Aggregated statistics (recalculated daily)"
+    description: "Pre-calculated category popularity for frontend sorting"
+
+    columns:
+      - name: article_id
+        type: INTEGER PRIMARY KEY
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_article"
+        description: "FK to article (only used categories)"
+      - name: usage_count
+        type: INTEGER NOT NULL DEFAULT 0
+        description: "Number of transactions (all time)"
+      - name: last_updated
+        type: TIMESTAMP NOT NULL
+        description: "When statistics were last recalculated"
+
+    indexes:
+      - name: idx_aus_usage_count
+        columns: [usage_count]
+        order: DESC
+        description: "Fast sorting by popularity"
+
+    update_mechanism:
+      schedule: "Daily at 00:00 (APScheduler cron)"
+      function: "recalculate_article_usage_stats()"
+      strategy: "TRUNCATE + recalculate from t_f_budget_fact"
+      note: "No historical data - only current statistics"
+
+    performance:
+      size: "Small table (~100 rows, only used categories)"
+      query: "JOIN with t_d_article for sorted dropdown lists"
+
+  # ===========================================================================
+  # GDPR COMPLIANCE
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # USER CONSENT AUDIT LOG
+  # ---------------------------------------------------------------------------
+  t_user_consent:
+    model: UserConsent
+    file: "backend/app/models/user_consent.py"
+    pattern: "Append-only audit log (GDPR)"
+    description: "User consent records for cookies, analytics, push notifications"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "User ID (NULL for anonymous/pre-login consent)"
+      - name: session_id
+        type: VARCHAR(255)
+        description: "Session ID for anonymous consent tracking"
+      - name: consent_type
+        type: VARCHAR(50) NOT NULL
+        description: "essential | analytics | push_notifications | personalization"
+      - name: consent_given
+        type: BOOLEAN NOT NULL
+        description: "True=granted, False=withdrawn"
+      - name: privacy_policy_version
+        type: VARCHAR(20) NOT NULL DEFAULT '1.0'
+        description: "Version of privacy policy at time of consent"
+      - name: ip_address
+        type: VARCHAR(45)
+        description: "User IP (legal proof, supports IPv6)"
+      - name: user_agent
+        type: VARCHAR(500)
+        description: "Browser user agent (legal proof)"
+      - name: created_at
+        type: TIMESTAMP NOT NULL DEFAULT NOW()
+
+    indexes:
+      - name: idx_uc_user_id
+        columns: [user_id]
+      - name: idx_uc_session_id
+        columns: [session_id]
+      - name: idx_uc_consent_type
+        columns: [consent_type]
+      - name: idx_uc_created_at
+        columns: [created_at]
+
+    consent_types:
+      essential:
+        description: "Required cookies (session, auth)"
+        required: true
+      analytics:
+        description: "Usage analytics tracking"
+        required: false
+      push_notifications:
+        description: "Web push notifications"
+        required: false
+      personalization:
+        description: "Personalized content"
+        required: false
+
+    gdpr_notes:
+      pattern: "APPEND-ONLY - never update or delete records"
+      withdrawal: "New record with consent_given=False"
+      current_state: "Latest record per user_id/consent_type"
+      legal_proof: "ip_address + user_agent required by GDPR"
 
   # ===========================================================================
   # SYSTEM

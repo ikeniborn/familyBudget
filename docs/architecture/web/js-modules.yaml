@@ -562,8 +562,8 @@ modules:
       - budgetWSClient (WebSocket events)
     templates:
       - "frontend/web/templates/facts.html"
-    functionality:
-      $ref: "../functionality/budget-management.yaml#/facts"
+    tables:
+      $ref: "../database/facts.yaml#/tables/t_f_budget_fact"
 
   # ---------------------------------------------------------------------------
   # TRANSFER
