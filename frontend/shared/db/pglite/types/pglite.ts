@@ -26,3 +26,23 @@ export interface PGliteTransaction {
  * Helper type for extracting row type from query result
  */
 export type RowType<T> = T extends PGliteResult<infer R> ? R : never;
+
+// =============================================================================
+// Diagnostic Query Result Types
+// =============================================================================
+
+/**
+ * Result of COUNT(*) queries
+ * Used in getDiagnosticData() for table statistics
+ */
+export interface CountResult {
+  count: number;
+}
+
+/**
+ * Result of pg_database_size() query
+ * Used in getDiagnosticData() for database size calculation
+ */
+export interface SizeResult {
+  size_bytes: number;
+}

@@ -2,6 +2,34 @@
  * Feature flags for PGlite integration
  */
 
+/// <reference path="../types/globals.d.ts" />
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+/** Minimum facts window in days */
+export const MIN_FACTS_WINDOW_DAYS = 30;
+
+/** Maximum facts window in days */
+export const MAX_FACTS_WINDOW_DAYS = 365;
+
+/** Default facts window in days */
+export const DEFAULT_FACTS_WINDOW_DAYS = 90;
+
+/** Minimum auto-sync interval in milliseconds (1 minute) */
+export const MIN_AUTO_SYNC_INTERVAL_MS = 60000;
+
+/** Default auto-sync interval in milliseconds (5 minutes) */
+export const DEFAULT_AUTO_SYNC_INTERVAL_MS = 300000;
+
+/** Default toast notification duration in milliseconds */
+export const DEFAULT_TOAST_DURATION_MS = 10000;
+
+// =============================================================================
+// Types
+// =============================================================================
+
 export interface PGliteFeatureFlags {
   enabled: boolean;          // Main toggle for PGlite
   debug: boolean;            // Debug logging
@@ -19,8 +47,8 @@ export function getPGliteFeatureFlags(): PGliteFeatureFlags {
   return {
     enabled: localStorage.getItem('enablePGlite') === 'true',
     debug: isDevelopment && localStorage.getItem('pgliteDebug') !== 'false',
-    factsWindow: parseInt(localStorage.getItem('pgliteFactsWindow') || '90', 10),
-    autoSyncInterval: parseInt(localStorage.getItem('pgliteAutoSync') || '300000', 10)
+    factsWindow: parseInt(localStorage.getItem('pgliteFactsWindow') || DEFAULT_FACTS_WINDOW_DAYS.toString(), 10),
+    autoSyncInterval: parseInt(localStorage.getItem('pgliteAutoSync') || DEFAULT_AUTO_SYNC_INTERVAL_MS.toString(), 10)
   };
 }
 
@@ -40,47 +68,47 @@ export function setPGliteEnabled(enabled: boolean): void {
   localStorage.setItem('enablePGlite', enabled ? 'true' : 'false');
 
   // Show notification via global showToast (from base.html)
-  if ((window as any).showToast) {
+  if (window.showToast) {
     const message = enabled
       ? 'PGlite включен. Обновите страницу для инициализации offline режима.'
       : 'PGlite отключен. Обновите страницу для online-only режима.';
 
-    (window as any).showToast(message, 'info', 10000); // 10 seconds
+    window.showToast(message, 'info');
   }
 }
 
 /**
  * Set PGlite facts window (days)
  *
- * @param days - Number of days to sync (30, 90, 180, 365)
+ * @param days - Number of days to sync (MIN_FACTS_WINDOW_DAYS to MAX_FACTS_WINDOW_DAYS)
  */
 export function setPGliteFactsWindow(days: number): void {
-  if (days < 30 || days > 365) {
-    throw new Error('Facts window must be between 30 and 365 days');
+  if (days < MIN_FACTS_WINDOW_DAYS || days > MAX_FACTS_WINDOW_DAYS) {
+    throw new Error(`Facts window must be between ${MIN_FACTS_WINDOW_DAYS} and ${MAX_FACTS_WINDOW_DAYS} days`);
   }
 
   localStorage.setItem('pgliteFactsWindow', days.toString());
 
   // No reload needed, will apply on next sync
-  if ((window as any).showToast) {
-    (window as any).showToast(`Facts window обновлен до ${days} дней`, 'success');
+  if (window.showToast) {
+    window.showToast(`Facts window обновлен до ${days} дней`, 'success');
   }
 }
 
 /**
  * Set PGlite auto-sync interval (milliseconds)
  *
- * @param intervalMs - Auto-sync interval in milliseconds
+ * @param intervalMs - Auto-sync interval in milliseconds (minimum: MIN_AUTO_SYNC_INTERVAL_MS)
  */
 export function setPGliteAutoSyncInterval(intervalMs: number): void {
-  if (intervalMs < 60000) { // minimum 1 minute
-    throw new Error('Auto-sync interval must be at least 60000ms (1 minute)');
+  if (intervalMs < MIN_AUTO_SYNC_INTERVAL_MS) {
+    throw new Error(`Auto-sync interval must be at least ${MIN_AUTO_SYNC_INTERVAL_MS}ms (1 minute)`);
   }
 
   localStorage.setItem('pgliteAutoSync', intervalMs.toString());
 
-  if ((window as any).showToast) {
-    const minutes = Math.round(intervalMs / 60000);
-    (window as any).showToast(`Auto-sync интервал обновлен до ${minutes} минут`, 'success');
+  if (window.showToast) {
+    const minutes = Math.round(intervalMs / MIN_AUTO_SYNC_INTERVAL_MS);
+    window.showToast(`Auto-sync интервал обновлен до ${minutes} минут`, 'success');
   }
 }

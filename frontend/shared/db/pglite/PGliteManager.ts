@@ -29,6 +29,7 @@ import type {
   LocalArticleHierarchy,
   LocalSyncMetadata
 } from './types/models';
+import type { CountResult, SizeResult } from './types/pglite';
 import { logger } from './utils/logger';
 
 /**
@@ -345,16 +346,16 @@ export class PGliteManager {
     const startTime = performance.now();
 
     try {
-      // Get table counts in parallel
+      // Get table counts in parallel (type-safe queries with type assertion)
       const [articlesResult, fcResult, ccResult] = await Promise.all([
         db.query('SELECT COUNT(*) as count FROM local_articles'),
         db.query('SELECT COUNT(*) as count FROM local_financial_centers'),
         db.query('SELECT COUNT(*) as count FROM local_cost_centers'),
       ]);
 
-      // Calculate DB size using PostgreSQL system catalog
+      // Calculate DB size using PostgreSQL system catalog (type-safe query with type assertion)
       const sizeResult = await db.query('SELECT pg_database_size(current_database()) as size_bytes');
-      const dbSizeKB = Math.round((sizeResult.rows[0] as any).size_bytes / 1024);
+      const dbSizeKB = Math.round((sizeResult.rows[0] as SizeResult).size_bytes / 1024);
 
       // Get sync metadata
       const syncMeta = await this.getSyncMetadata('articles');
@@ -377,9 +378,9 @@ export class PGliteManager {
           : 'Never',
         syncStatus: 'idle', // TODO: track sync state
         tableStats: {
-          articles: (articlesResult.rows[0] as any).count,
-          financial_centers: (fcResult.rows[0] as any).count,
-          cost_centers: (ccResult.rows[0] as any).count,
+          articles: (articlesResult.rows[0] as CountResult).count,
+          financial_centers: (fcResult.rows[0] as CountResult).count,
+          cost_centers: (ccResult.rows[0] as CountResult).count,
         },
         performanceMetrics: {
           avgQueryTimeMs: Math.round(avgQueryTime * 100) / 100, // 2 decimal places

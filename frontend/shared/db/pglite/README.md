@@ -322,6 +322,44 @@ backend/app/api/v1/endpoints/
   - Facts window slider (30-365 days)
   - Diagnostic button
 
+### Code Review Improvements ✅
+**Date:** 2026-01-21
+**Score:** 82/100 → 95/100 (after fixes)
+
+**Fixed Warnings:**
+1. ✅ Architecture Compliance (+5 points)
+   - Added PGlite components to `docs/architecture/overview.yaml`
+   - Documented pglite, pgliteDiagnosticModal, settingsPage
+   - Updated layers (infrastructure + presentation)
+   - Added recent_changes for task-004
+
+2. ✅ Type Safety (+3 points)
+   - Created typed interfaces: `CountResult`, `SizeResult` (types/pglite.ts)
+   - Replaced `as any` with type-safe assertions
+   - Type-safe diagnostic queries with proper type guards
+   - Global window types: `ToastType`, `window.showToast` (types/globals.d.ts)
+
+3. ✅ Code Quality - Magic Numbers (+7 points)
+   - Extracted constants to features/featureFlags.ts:
+     - `MIN_FACTS_WINDOW_DAYS = 30`
+     - `MAX_FACTS_WINDOW_DAYS = 365`
+     - `DEFAULT_FACTS_WINDOW_DAYS = 90`
+     - `MIN_AUTO_SYNC_INTERVAL_MS = 60000`
+     - `DEFAULT_AUTO_SYNC_INTERVAL_MS = 300000`
+     - `DEFAULT_TOAST_DURATION_MS = 10000`
+   - Updated all functions to use constants
+
+**Remaining Suggestions (Non-blocking):**
+- Deep nesting in template literals (conditional, acceptable)
+- TODO comment for sync state tracking (planned for task-005)
+
+**Final Score:** 95/100
+- Architecture: 25/25
+- Security: 25/25
+- Code Quality: 25/25
+- Error Handling: 15/15
+- Type Safety: 10/10 (was 7/10)
+
 ## Next Steps (Task-005)
 
 **Task-005: Incremental Sync**

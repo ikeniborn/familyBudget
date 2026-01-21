@@ -132,6 +132,92 @@ architecture:
       layer: "infrastructure"
 
     # ==========================================================================
+    # PGLITE MODULE (Offline Database)
+    # ==========================================================================
+    - id: "pglite"
+      name: "PGlite Module"
+      type: "offline-database"
+      file_path: "frontend/shared/db/pglite.min.js"
+      source_path: "frontend/shared/db/pglite/"
+      bundle_size: "~15KB (minified), ~4KB (gzip) + 2.6MB WASM"
+      loc: 800
+      language: "TypeScript"
+      description: "Client-side PostgreSQL database using WebAssembly for offline mode"
+      architecture:
+        - "core/PGliteState.ts - State management (ZERO deps)"
+        - "core/dbInitializer.ts - Database initialization"
+        - "core/migrationManager.ts - Schema versioning"
+        - "operations/schemaOperations.ts - CRUD operations"
+        - "operations/bulkOperations.ts - Bulk insert with chunking"
+        - "features/featureFlags.ts - Feature flag setters"
+      key_methods:
+        - "PGliteManager.init() - Initialize database and run migrations"
+        - "PGliteManager.bulkInsertArticles(articles, onProgress) - Chunked bulk insert"
+        - "PGliteManager.getDiagnosticData() - Performance metrics and DB stats"
+        - "setPGliteEnabled(enabled) - Enable/disable with toast notification"
+        - "setPGliteFactsWindow(days) - Configure data window (30-365 days)"
+      external_dependencies:
+        - "@electric-sql/pglite@0.2.0"
+      dependencies: []
+      layer: "infrastructure"
+      version: "1.3.0"
+      status: "Phase 1: Reference Data (task-001 to task-004 complete)"
+      key_features:
+        - "WebSocket sync protocol (initial sync)"
+        - "Feature flags (localStorage-based)"
+        - "Performance tracking (last 100 queries)"
+        - "Diagnostic UI integration"
+        - "Schema migrations with versioning"
+        - "Bulk operations with progress callbacks"
+
+    # ==========================================================================
+    # PGLITE DIAGNOSTIC MODAL
+    # ==========================================================================
+    - id: "pgliteDiagnosticModal"
+      name: "PGlite Diagnostic Modal"
+      type: "modal-component"
+      file_path: "frontend/web/static/js/modules/uiComponents/modals/PGliteDiagnosticModal.ts"
+      bundle_size: "Included in modals.min.js"
+      loc: 199
+      language: "TypeScript"
+      description: "Diagnostic modal for PGlite monitoring and debugging"
+      architecture:
+        - "Extends BaseModal with onOpen lifecycle hook"
+        - "Singleton pattern with openPGliteDiagnostic() helper"
+        - "Real-time data loading from PGliteManager"
+      displays:
+        - "Status badges (active/inactive, DB size, last sync)"
+        - "Table statistics (articles, financial_centers, cost_centers)"
+        - "Performance metrics (avg query time, total queries tracked)"
+      dependencies:
+        - pglite
+        - baseModal
+      layer: "presentation"
+      version: "1.0.0"
+
+    # ==========================================================================
+    # SETTINGS PAGE
+    # ==========================================================================
+    - id: "settingsPage"
+      name: "Settings Page"
+      type: "template-page"
+      file_path: "frontend/web/templates/settings.html"
+      loc: 154
+      language: "Jinja2 + TypeScript"
+      description: "Application settings page with PGlite configuration UI"
+      features:
+        - "Enable/disable PGlite toggle"
+        - "Facts window slider (30-365 days)"
+        - "Auto-sync interval display"
+        - "Diagnostic button to open PGliteDiagnosticModal"
+        - "Status alert with reload guidance"
+      dependencies:
+        - pglite
+        - pgliteDiagnosticModal
+      layer: "presentation"
+      version: "1.0.0"
+
+    # ==========================================================================
     # FACTS MODULE
     # ==========================================================================
     - id: "facts"
@@ -222,6 +308,8 @@ architecture:
         - facts
         - lists
         - deleteButtonMacros
+        - pgliteDiagnosticModal
+        - settingsPage
 
     - name: "integration"
       description: "External service integration (WebSocket, API clients)"
@@ -233,8 +321,25 @@ architecture:
       components:
         - budgetShared
         - offlineManager
+        - pglite
 
   recent_changes:
+    - date: "2026-01-21"
+      commit: "b128ef2f"
+      description: "feat(pglite): add feature flag setters and diagnostic UI (task-004)"
+      files_changed:
+        - "frontend/shared/db/pglite/PGliteManager.ts"
+        - "frontend/shared/db/pglite/features/featureFlags.ts"
+        - "frontend/web/static/js/modules/uiComponents/modals/PGliteDiagnosticModal.ts"
+        - "frontend/web/templates/settings.html"
+      impact:
+        - "Added setPGliteEnabled/setPGliteFactsWindow/setPGliteAutoSyncInterval setters"
+        - "Added getDiagnosticData() with performance tracking (last 100 queries)"
+        - "Created PGliteDiagnosticModal extending BaseModal"
+        - "Created settings.html with PGlite configuration UI"
+        - "Performance tracking with circular buffer pattern"
+        - "Toast notifications for user guidance"
+
     - date: "2026-01-21"
       commit: "dea96f53"
       description: "Fix TypeScript module errors: setCategory → setSelectedCategory"
