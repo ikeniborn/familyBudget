@@ -10,7 +10,7 @@ routes:
     auth: user
     description: "Generate registration challenge and options"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     request:
       body:
         device_name: "string (optional, default: 'Authenticator')"
@@ -47,7 +47,7 @@ routes:
     auth: user
     description: "Verify attestation and store credential"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     request:
       body:
         credential:
@@ -87,7 +87,7 @@ routes:
     auth: public
     description: "Generate authentication challenge"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     request:
       body:
         email: "string (optional, for user identification)"
@@ -108,7 +108,7 @@ routes:
     auth: public
     description: "Verify assertion and issue JWT tokens"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     request:
       body:
         credential:
@@ -153,7 +153,7 @@ routes:
     auth: user
     description: "List user's registered credentials"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     response:
       status: 200
       body:
@@ -171,7 +171,7 @@ routes:
     auth: user
     description: "Revoke (soft delete) credential"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     request:
       path_params:
         credential_id: "integer"
@@ -198,7 +198,7 @@ routes:
     auth: user
     description: "Check if user has WebAuthn credentials"
     service:
-      $ref: "../functionality/authentication.yaml#/module/services/8"
+      $ref: "../functionality/authentication.yaml#/module/services/7"
     response:
       status: 200
       body:

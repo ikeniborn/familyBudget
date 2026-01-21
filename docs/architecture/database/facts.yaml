@@ -140,11 +140,10 @@ tables:
         2. transfer_in (positive amount) to target FinancialCenter
       invariant: "SUM(amount) WHERE transfer_id = X MUST equal 0"
       implementation:
-        $ref: "../functionality/transfers.yaml#/module/services/0"
+        $ref: "../functionality/transfers.yaml#/module/transfer_logic"
 
     services:
       - $ref: "../functionality/budget-management.yaml#/module/services/2"
-      - $ref: "../functionality/transfers.yaml#/module/services/0"
 
     endpoints:
       - $ref: "../endpoints/facts.yaml#/routes"
@@ -265,7 +264,7 @@ tables:
       - t_d_user (optional)
 
     services:
-      - $ref: "../functionality/authentication.yaml#/module/services/8"
+      - $ref: "../functionality/authentication.yaml#/module/services/7"
 
     cleanup:
       job: "Hourly scheduler task"

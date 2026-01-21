@@ -68,7 +68,7 @@ tables:
   # ---------------------------------------------------------------------------
   # TWO FACTOR SESSION
   # ---------------------------------------------------------------------------
-  t_two_factor_session:
+  t_2fa_session:
     model: TwoFactorSession
     file: "backend/app/models/two_factor_session.py"
     description: "Temporary 2FA verification sessions"
@@ -150,7 +150,7 @@ tables:
       - t_d_user (optional, SET NULL on delete)
 
     services:
-      - $ref: "../functionality/authentication.yaml#/module/services/8"
+      - $ref: "../functionality/authentication.yaml#/module/services/7"
 
     notes: |
       Immutable log (never updated, never deleted except by retention policy).
@@ -223,6 +223,139 @@ tables:
 
     endpoints:
       - $ref: "../endpoints/auth.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # SCHEDULED REMINDER
+  # ---------------------------------------------------------------------------
+  t_scheduled_reminder:
+    model: ScheduledReminder
+    file: "backend/app/models/scheduled_reminder.py"
+    description: "Scheduled reminders for budget plans"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: fact_id
+        type: INTEGER NOT NULL UNIQUE
+        description: "Reference to budget plan (no FK due to partitioned table)"
+        note: "Referential integrity enforced at application level"
+      - name: reminder_datetime
+        type: TIMESTAMP NOT NULL
+        description: "When to send reminder (naive datetime in SYSTEM_TIMEZONE)"
+      - name: status
+        type: VARCHAR(20) NOT NULL DEFAULT 'pending'
+        description: "Status: pending, sent, failed, cancelled"
+      - name: sent_at
+        type: TIMESTAMP
+        description: "When reminder was actually sent"
+      - name: telegram_sent
+        type: BOOLEAN DEFAULT FALSE
+        description: "Whether Telegram notification was sent"
+      - name: web_push_sent
+        type: BOOLEAN DEFAULT FALSE
+        description: "Whether Web Push notification was sent"
+      - name: error_message
+        type: VARCHAR(1000)
+        description: "Last error message for debugging"
+      - name: retry_count
+        type: INTEGER DEFAULT 0
+        description: "Number of failed send attempts (max 3)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_sr_fact_id
+        columns: [fact_id]
+        unique: true
+        description: "One reminder per plan"
+      - name: idx_sr_reminder_datetime
+        columns: [reminder_datetime]
+        description: "Query pending reminders by due date"
+
+    constraints:
+      - "UNIQUE (fact_id) - One reminder per plan"
+      - "No FK on fact_id due to partitioned t_f_budget_fact"
+
+    services:
+      - $ref: "../functionality/notifications.yaml#/module/services/1"
+
+    notes: |
+      Stores reminder configuration for budget plans (record_type='plan').
+      Each plan can have at most one scheduled reminder (UNIQUE constraint).
+
+      Status values:
+        - pending: Reminder scheduled, not yet sent
+        - sent: Reminder successfully sent via at least one channel
+        - failed: All send attempts failed after max retries
+        - cancelled: Reminder cancelled by user
+
+      Retry logic:
+        - Max 3 retry attempts before marking as failed
+        - Error messages stored for debugging
+
+  # ---------------------------------------------------------------------------
+  # PUSH SUBSCRIPTION
+  # ---------------------------------------------------------------------------
+  t_push_subscription:
+    model: PushSubscription
+    file: "backend/app/models/push_subscription.py"
+    description: "Web Push subscriptions for browser notifications"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+      - name: endpoint
+        type: VARCHAR(2000) NOT NULL
+        description: "Push service endpoint URL (unique per subscription)"
+      - name: p256dh_key
+        type: VARCHAR(500) NOT NULL
+        description: "ECDH public key for encryption (base64)"
+      - name: auth_key
+        type: VARCHAR(100) NOT NULL
+        description: "Authentication secret for encryption (base64)"
+      - name: user_agent
+        type: VARCHAR(500)
+        description: "Browser user agent for debugging"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: last_used_at
+        type: TIMESTAMP
+        description: "When subscription was last successfully used"
+
+    indexes:
+      - name: idx_ps_user_id
+        columns: [user_id]
+      - name: idx_ps_endpoint
+        columns: [endpoint]
+        description: "Query by endpoint for cleanup"
+
+    services:
+      - $ref: "../functionality/notifications.yaml#/module/services/2"
+
+    cleanup:
+      description: "Remove expired subscriptions"
+      trigger: "Push endpoint returns 410 Gone"
+      cascade: "User deletion cascades to subscriptions"
+
+    notes: |
+      Stores browser push subscriptions for Web Push API notifications.
+      Users can have multiple subscriptions (different browsers/devices).
+
+      Subscriptions are automatically deleted when:
+        - User is deleted (CASCADE)
+        - Push endpoint returns 410 Gone (expired)
+
+      Encryption:
+        - Uses ECDH (Elliptic Curve Diffie-Hellman) for message encryption
+        - p256dh_key: Public key for ECDH key exchange
+        - auth_key: Authentication secret
 
   # ===========================================================================
   # IMPORT
@@ -393,6 +526,77 @@ tables:
       - $ref: "../functionality/csv-import.yaml#/module/services/6"
 
   # ===========================================================================
+  # AGGREGATION
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # MONTHLY BALANCE AGGREGATES
+  # ---------------------------------------------------------------------------
+  t_agg_financial_center_balance_monthly:
+    model: FinancialCenterBalanceMonthly
+    file: "backend/app/models/financial_center_balance_monthly.py"
+    description: "Pre-calculated monthly closing balances for optimization"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        on_delete: CASCADE
+      - name: year
+        type: INTEGER NOT NULL
+        description: "Year (YYYY, e.g., 2025)"
+      - name: month
+        type: INTEGER NOT NULL
+        description: "Month (1-12)"
+      - name: closing_balance
+        type: NUMERIC(15,2) NOT NULL DEFAULT 0.00
+        description: "Cumulative balance at end of month (all transactions from beginning)"
+      - name: transaction_count
+        type: INTEGER NOT NULL DEFAULT 0
+        description: "Number of transactions in this month (for verification)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: ix_fcb_monthly_unique
+        columns: [financial_center_id, year, month]
+        unique: true
+        description: "Business key constraint"
+      - name: ix_fcb_monthly_period
+        columns: [year, month]
+        description: "Query by period"
+      - name: idx_fcb_financial_center_id
+        columns: [financial_center_id]
+
+    services:
+      - $ref: "../functionality/financial-centers.yaml#/module/services/2"
+
+    optimization:
+      purpose: "Avoid scanning all transactions for balance queries"
+      pattern: "Opening Balance for Month N = Closing Balance for Month N-1"
+      update_strategy:
+        - "Manual: Call refresh_monthly_balances() after end of month"
+        - "Auto: Scheduled job on first day of new month"
+        - "On-demand: Lazy calculation if aggregate missing"
+
+    notes: |
+      Stores pre-calculated closing balances for each financial center
+      at the end of each month to optimize balance queries.
+
+      Logic:
+        Opening Balance for Month N = Closing Balance for Month N-1
+        Current Balance = Opening Balance + Month Movements
+
+      closing_balance is cumulative (includes ALL transactions from beginning).
+      For current month, use aggregate + movements since start of month.
+      If aggregate missing, fall back to full calculation.
+
+  # ===========================================================================
   # SYSTEM
   # ===========================================================================
 
@@ -421,7 +625,7 @@ cleanup_jobs:
     schedule: "daily"
 
   expired_2fa_sessions:
-    table: t_two_factor_session
+    table: t_2fa_session
     condition: "expires_at < NOW()"
     schedule: "hourly"
 

@@ -539,7 +539,7 @@ tables:
       - t_d_user
 
     services:
-      - $ref: "../functionality/authentication.yaml#/module/services/8"
+      - $ref: "../functionality/authentication.yaml#/module/services/7"
 
     endpoints:
       - $ref: "../endpoints/webauthn.yaml#/routes"
