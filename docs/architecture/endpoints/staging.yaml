@@ -202,7 +202,7 @@ authorization:
 models:
   - $ref: "../database/support.yaml#/tables/t_import_staging"
   - $ref: "../database/facts.yaml#/tables/t_f_budget_fact"
-  - $ref: "../database/facts.yaml#/tables/t_f_budget_fact_history"
+  - $ref: "../database/history.yaml#/tables/t_f_budget_fact_history"
 
 # Related
 related:

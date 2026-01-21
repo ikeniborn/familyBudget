@@ -1,0 +1,531 @@
+# Database Migration Strategies
+# Alembic best practices and patterns
+
+meta:
+  version: "1.0.0"
+  description: "Database migration patterns using Alembic"
+  created: "2026-01-21"
+  last_updated: "2026-01-21"
+  status: "active"
+  tool: "Alembic 1.13.x"
+  related_docs:
+    - "./constraints.yaml"
+    - "./dimensions.yaml"
+    - "./facts.yaml"
+    - "../guides/deployment-troubleshooting.md"
+
+# =============================================================================
+# ALEMBIC OVERVIEW
+# =============================================================================
+
+alembic:
+  config_file: "backend/alembic.ini"
+  migrations_dir: "backend/alembic/versions/"
+  env_file: "backend/alembic/env.py"
+
+  common_commands:
+    generate_migration: "alembic revision --autogenerate -m 'description'"
+    apply_migrations: "alembic upgrade head"
+    rollback_one: "alembic downgrade -1"
+    show_current: "alembic current"
+    show_history: "alembic history"
+
+# =============================================================================
+# MIGRATION TYPES
+# =============================================================================
+
+migration_types:
+
+  # ---------------------------------------------------------------------------
+  # 1. ADDITIVE MIGRATIONS (Safe, no downtime)
+  # ---------------------------------------------------------------------------
+  additive:
+    description: "Add new tables, columns, indexes without affecting existing data"
+    risk: "Low"
+    downtime: "None"
+
+    examples:
+      add_table:
+        description: "Create new table"
+        pattern: |
+          def upgrade():
+              op.create_table(
+                  't_d_new_entity',
+                  sa.Column('id', sa.UUID(), nullable=False),
+                  sa.Column('name', sa.String(255), nullable=False),
+                  sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+                  sa.PrimaryKeyConstraint('id'),
+              )
+
+          def downgrade():
+              op.drop_table('t_d_new_entity')
+
+        best_practices:
+          - "Include all constraints in create_table"
+          - "Use server_default for timestamps"
+          - "Always provide downgrade (rollback)"
+
+      add_nullable_column:
+        description: "Add nullable column (safe)"
+        pattern: |
+          def upgrade():
+              op.add_column(
+                  't_d_user',
+                  sa.Column('phone_number', sa.String(20), nullable=True)
+              )
+
+          def downgrade():
+              op.drop_column('t_d_user', 'phone_number')
+
+        best_practices:
+          - "Start with nullable=True (safe)"
+          - "Backfill data in separate migration"
+          - "Add NOT NULL constraint in third migration"
+
+      add_index:
+        description: "Create index for query performance"
+        pattern: |
+          def upgrade():
+              op.create_index(
+                  'idx_user_email',
+                  't_d_user',
+                  ['email'],
+                  unique=True
+              )
+
+          def downgrade():
+              op.drop_index('idx_user_email', table_name='t_d_user')
+
+        best_practices:
+          - "Use CONCURRENTLY for large tables (PostgreSQL)"
+          - "Monitor index creation time"
+          - "Consider partial indexes for filtered queries"
+
+  # ---------------------------------------------------------------------------
+  # 2. DESTRUCTIVE MIGRATIONS (Careful, potential data loss)
+  # ---------------------------------------------------------------------------
+  destructive:
+    description: "Drop tables, columns, constraints (may lose data)"
+    risk: "High"
+    downtime: "Possible"
+
+    examples:
+      drop_column:
+        description: "Remove unused column"
+        pattern: |
+          def upgrade():
+              # Step 1: Ensure column is unused (check application code)
+              # Step 2: Drop column
+              op.drop_column('t_d_article', 'legacy_field')
+
+          def downgrade():
+              # WARNING: Data lost, cannot restore
+              op.add_column(
+                  't_d_article',
+                  sa.Column('legacy_field', sa.String(100), nullable=True)
+              )
+
+        checklist:
+          - "✅ Verify column unused in application code"
+          - "✅ Check dependent indexes/constraints"
+          - "✅ Backup data if needed"
+          - "✅ Test on staging environment"
+          - "⚠️ Data loss irreversible"
+
+      drop_table:
+        description: "Remove entire table"
+        pattern: |
+          def upgrade():
+              op.drop_table('t_d_deprecated_entity')
+
+          def downgrade():
+              # WARNING: Table structure and data lost
+              raise NotImplementedError("Cannot restore dropped table")
+
+        best_practices:
+          - "Archive data before dropping"
+          - "Consider soft delete (is_deleted flag) instead"
+          - "Downgrade should raise NotImplementedError"
+
+  # ---------------------------------------------------------------------------
+  # 3. DATA MIGRATIONS (Transform existing data)
+  # ---------------------------------------------------------------------------
+  data:
+    description: "Update existing rows (backfill, transform)"
+    risk: "Medium"
+    downtime: "Depends on data volume"
+
+    examples:
+      backfill_column:
+        description: "Fill new column with computed values"
+        pattern: |
+          from alembic import op
+          import sqlalchemy as sa
+          from sqlalchemy.sql import table, column
+
+          def upgrade():
+              # Step 1: Add nullable column (done in previous migration)
+              # Step 2: Backfill data
+              conn = op.get_bind()
+
+              # For small tables (<10k rows)
+              conn.execute(
+                  sa.text("""
+                      UPDATE t_d_article
+                      SET full_name = CONCAT(parent_name, ' > ', name)
+                      WHERE full_name IS NULL
+                  """)
+              )
+
+              # For large tables (100k+ rows)
+              # Use batch processing to avoid long locks
+              while True:
+                  result = conn.execute(
+                      sa.text("""
+                          UPDATE t_d_article
+                          SET full_name = CONCAT(parent_name, ' > ', name)
+                          WHERE full_name IS NULL
+                          LIMIT 1000
+                      """)
+                  )
+                  if result.rowcount == 0:
+                      break
+
+          def downgrade():
+              # Clear backfilled data
+              conn = op.get_bind()
+              conn.execute(
+                  sa.text("""
+                      UPDATE t_d_article
+                      SET full_name = NULL
+                  """)
+              )
+
+        best_practices:
+          - "Use batch processing for >10k rows"
+          - "Add WHERE clause to avoid re-processing"
+          - "Monitor execution time on staging"
+          - "Consider application-level backfill for huge tables"
+
+      transform_enum_values:
+        description: "Update enum values (e.g., rename)"
+        pattern: |
+          def upgrade():
+              conn = op.get_bind()
+              conn.execute(
+                  sa.text("""
+                      UPDATE t_f_budget_fact
+                      SET transaction_type = 'expense'
+                      WHERE transaction_type = 'spend'
+                  """)
+              )
+
+          def downgrade():
+              conn = op.get_bind()
+              conn.execute(
+                  sa.text("""
+                      UPDATE t_f_budget_fact
+                      SET transaction_type = 'spend'
+                      WHERE transaction_type = 'expense'
+                  """)
+              )
+
+  # ---------------------------------------------------------------------------
+  # 4. SCHEMA CHANGES (Alter types, constraints)
+  # ---------------------------------------------------------------------------
+  schema_changes:
+    description: "Modify column types, add/drop constraints"
+    risk: "Medium to High"
+    downtime: "Possible (depends on table size)"
+
+    examples:
+      add_not_null:
+        description: "Make nullable column NOT NULL (3-step process)"
+        steps:
+          step_1:
+            description: "Add nullable column"
+            migration: "add_column_nullable.py"
+            pattern: |
+              def upgrade():
+                  op.add_column('t_d_user', sa.Column('email', sa.String(255), nullable=True))
+
+          step_2:
+            description: "Backfill data"
+            migration: "backfill_email.py"
+            pattern: |
+              def upgrade():
+                  conn = op.get_bind()
+                  conn.execute(sa.text("UPDATE t_d_user SET email = telegram_username WHERE email IS NULL"))
+
+          step_3:
+            description: "Add NOT NULL constraint"
+            migration: "make_email_not_null.py"
+            pattern: |
+              def upgrade():
+                  # Check no NULL values remain
+                  conn = op.get_bind()
+                  result = conn.execute(sa.text("SELECT COUNT(*) FROM t_d_user WHERE email IS NULL"))
+                  if result.scalar() > 0:
+                      raise Exception("Cannot add NOT NULL: NULL values exist")
+
+                  op.alter_column('t_d_user', 'email', nullable=False)
+
+        rationale: "3-step process avoids downtime and allows rollback at each step"
+
+      change_column_type:
+        description: "Change column data type"
+        pattern: |
+          def upgrade():
+              # Example: String(50) → String(255)
+              op.alter_column(
+                  't_d_article',
+                  'name',
+                  type_=sa.String(255),
+                  existing_type=sa.String(50)
+              )
+
+          def downgrade():
+              # WARNING: May truncate data if values > 50 chars
+              op.alter_column(
+                  't_d_article',
+                  'name',
+                  type_=sa.String(50),
+                  existing_type=sa.String(255)
+              )
+
+        caution:
+          - "Narrowing types (255 → 50) may truncate data"
+          - "Check existing data fits new type"
+          - "Test downgrade on staging"
+
+      add_check_constraint:
+        description: "Add CHECK constraint for data validation"
+        pattern: |
+          def upgrade():
+              op.create_check_constraint(
+                  'ck_amount_positive',
+                  't_f_budget_fact',
+                  'amount > 0'
+              )
+
+          def downgrade():
+              op.drop_constraint('ck_amount_positive', 't_f_budget_fact', type_='check')
+
+        best_practices:
+          - "Validate existing data before adding constraint"
+          - "Use descriptive constraint names (ck_table_condition)"
+
+# =============================================================================
+# SCD TYPE 2 PATTERN (History Tables)
+# =============================================================================
+
+scd_type_2_pattern:
+  description: "Slowly Changing Dimension Type 2 - Full history tracking"
+  use_case: "Track all changes to dimension tables (audit trail)"
+
+  structure:
+    main_table: "t_d_article (SCD Type 1 - current state only)"
+    history_table: "t_d_article_history (SCD Type 2 - all versions)"
+
+  migration_steps:
+    step_1_create_history_table:
+      description: "Create history table with versioning columns"
+      pattern: |
+        def upgrade():
+            op.create_table(
+                't_d_article_history',
+                sa.Column('history_id', sa.BigInteger(), nullable=False),
+                sa.Column('article_id', sa.UUID(), nullable=False),
+                sa.Column('valid_from', sa.DateTime(), nullable=False),
+                sa.Column('valid_to', sa.DateTime(), nullable=True),
+                sa.Column('is_current', sa.Boolean(), nullable=False, server_default='false'),
+                sa.Column('change_type', sa.String(10), nullable=False),  # CREATE, UPDATE, DELETE
+
+                # Copy ALL columns from main table
+                sa.Column('name', sa.String(255), nullable=False),
+                sa.Column('type', sa.String(20), nullable=False),
+                sa.Column('user_id', sa.UUID(), nullable=False),
+                sa.Column('parent_id', sa.UUID(), nullable=True),
+                sa.Column('is_active', sa.Boolean(), nullable=False),
+                # ... all other columns ...
+
+                sa.PrimaryKeyConstraint('history_id'),
+                sa.ForeignKeyConstraint(['article_id'], ['t_d_article.id'], ondelete='CASCADE'),
+            )
+
+            op.create_index('idx_article_history_article_id', 't_d_article_history', ['article_id'])
+            op.create_index('idx_article_history_current', 't_d_article_history', ['article_id', 'is_current'])
+
+    step_2_create_trigger:
+      description: "PostgreSQL trigger to auto-populate history"
+      pattern: |
+        def upgrade():
+            conn = op.get_bind()
+            conn.execute(sa.text("""
+                CREATE OR REPLACE FUNCTION record_article_history()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF (TG_OP = 'INSERT') THEN
+                        INSERT INTO t_d_article_history (
+                            article_id, valid_from, valid_to, is_current, change_type,
+                            name, type, user_id, parent_id, is_active
+                        ) VALUES (
+                            NEW.id, NOW(), NULL, TRUE, 'CREATE',
+                            NEW.name, NEW.type, NEW.user_id, NEW.parent_id, NEW.is_active
+                        );
+
+                    ELSIF (TG_OP = 'UPDATE') THEN
+                        -- Close previous record
+                        UPDATE t_d_article_history
+                        SET valid_to = NOW(), is_current = FALSE
+                        WHERE article_id = OLD.id AND is_current = TRUE;
+
+                        -- Insert new record
+                        INSERT INTO t_d_article_history (
+                            article_id, valid_from, valid_to, is_current, change_type,
+                            name, type, user_id, parent_id, is_active
+                        ) VALUES (
+                            NEW.id, NOW(), NULL, TRUE, 'UPDATE',
+                            NEW.name, NEW.type, NEW.user_id, NEW.parent_id, NEW.is_active
+                        );
+
+                    ELSIF (TG_OP = 'DELETE') THEN
+                        UPDATE t_d_article_history
+                        SET valid_to = NOW(), is_current = FALSE, change_type = 'DELETE'
+                        WHERE article_id = OLD.id AND is_current = TRUE;
+                    END IF;
+
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                CREATE TRIGGER article_history_trigger
+                AFTER INSERT OR UPDATE OR DELETE ON t_d_article
+                FOR EACH ROW EXECUTE FUNCTION record_article_history();
+            """))
+
+  critical_requirements:
+    - "⚠️ MUST copy ALL columns from main table to history table"
+    - "⚠️ INCLUDING nullable columns (missing columns = IntegrityError)"
+    - "✅ Trigger auto-maintains history (no application changes needed)"
+    - "✅ Query current state: SELECT * FROM history WHERE is_current = TRUE"
+    - "✅ Query at date: SELECT * FROM history WHERE date BETWEEN valid_from AND valid_to"
+
+# =============================================================================
+# CLOSURE TABLE PATTERN (Hierarchies)
+# =============================================================================
+
+closure_table_pattern:
+  description: "Efficient O(1) hierarchical queries"
+  use_case: "Article categories, product groups (parent-child relationships)"
+
+  structure:
+    entity_table: "t_d_article"
+    hierarchy_table: "t_d_article_hierarchy"
+
+  migration:
+    create_hierarchy_table:
+      pattern: |
+        def upgrade():
+            op.create_table(
+                't_d_article_hierarchy',
+                sa.Column('ancestor_id', sa.UUID(), nullable=False),
+                sa.Column('descendant_id', sa.UUID(), nullable=False),
+                sa.Column('depth', sa.Integer(), nullable=False),
+                sa.PrimaryKeyConstraint('ancestor_id', 'descendant_id'),
+                sa.ForeignKeyConstraint(['ancestor_id'], ['t_d_article.id'], ondelete='CASCADE'),
+                sa.ForeignKeyConstraint(['descendant_id'], ['t_d_article.id'], ondelete='CASCADE'),
+            )
+
+            op.create_index('idx_hierarchy_descendant', 't_d_article_hierarchy', ['descendant_id'])
+            op.create_index('idx_hierarchy_depth', 't_d_article_hierarchy', ['depth'])
+
+  queries:
+    get_all_descendants: "SELECT * FROM article WHERE id IN (SELECT descendant_id FROM hierarchy WHERE ancestor_id = ?)"
+    get_all_ancestors: "SELECT * FROM article WHERE id IN (SELECT ancestor_id FROM hierarchy WHERE descendant_id = ?)"
+    get_direct_children: "SELECT * FROM article WHERE id IN (SELECT descendant_id FROM hierarchy WHERE ancestor_id = ? AND depth = 1)"
+
+# =============================================================================
+# BEST PRACTICES
+# =============================================================================
+
+best_practices:
+  testing:
+    - "✅ Always test on staging environment first"
+    - "✅ Run migrations against production-sized dataset"
+    - "✅ Test both upgrade AND downgrade paths"
+    - "✅ Measure migration execution time"
+    - "✅ Check for locks on tables during migration"
+
+  safety:
+    - "✅ Backup database before destructive migrations"
+    - "✅ Use transactions (Alembic default)"
+    - "✅ Add --sql flag to preview SQL before running"
+    - "✅ Monitor migration progress on large tables"
+    - "⚠️ NEVER edit existing migrations (create new one)"
+
+  performance:
+    - "✅ Create indexes CONCURRENTLY (PostgreSQL)"
+    - "✅ Batch large data migrations (1000 rows at a time)"
+    - "✅ Avoid full table scans on large tables"
+    - "✅ Consider application-level backfill for huge tables"
+    - "✅ Monitor database CPU/IO during migration"
+
+  rollback:
+    - "✅ Always provide downgrade() method"
+    - "✅ Test rollback on staging"
+    - "⚠️ Downgrade may not restore lost data"
+    - "⚠️ Document non-reversible migrations"
+
+# =============================================================================
+# TROUBLESHOOTING
+# =============================================================================
+
+troubleshooting:
+  constraint_violation:
+    error: "IntegrityError: violates check constraint"
+    cause: "Existing data doesn't satisfy new constraint"
+    fix: "Clean data before adding constraint"
+    example: |
+      # Step 1: Find violating rows
+      SELECT * FROM t_f_budget_fact WHERE amount <= 0;
+
+      # Step 2: Fix or delete violating rows
+      DELETE FROM t_f_budget_fact WHERE amount <= 0;
+
+      # Step 3: Add constraint
+      op.create_check_constraint('ck_amount_positive', 't_f_budget_fact', 'amount > 0')
+
+  slow_migration:
+    symptom: "Migration takes >5 minutes"
+    causes:
+      - "Full table scan on large table"
+      - "Missing index for WHERE clause"
+      - "Table lock preventing concurrent access"
+    fixes:
+      - "Add index before data migration"
+      - "Use batching for large updates"
+      - "Run during low-traffic window"
+
+  migration_conflict:
+    error: "Multiple heads detected"
+    cause: "Parallel development created conflicting migrations"
+    fix: "Merge heads with alembic merge command"
+    command: "alembic merge heads -m 'merge migrations'"
+
+# =============================================================================
+# RELATED DOCUMENTATION
+# =============================================================================
+
+related_docs:
+  database_patterns:
+    - "./history.yaml - SCD Type 2 history tables"
+    - "./hierarchy.yaml - Closure table hierarchies"
+    - "./constraints.yaml - Database constraints"
+
+  deployment:
+    - "../guides/deployment-troubleshooting.md - Migration failures"
+
+  code:
+    - "backend/alembic/versions/ - Existing migrations"
+    - "backend/alembic/env.py - Alembic configuration"

@@ -112,7 +112,7 @@ indexes:
     where: "transfer_id IS NOT NULL"
     description: "Transfer pair lookup (partial)"
     used_by:
-      - $ref: "../functionality/transfers.yaml#/module/services/0"
+      - $ref: "../endpoints/transfers.yaml#/routes"
 
   idx_bf_record_type:
     table: t_f_budget_fact

@@ -1,6 +1,23 @@
 # Offline Module
 # IndexedDB, sync queue, conflict resolution
 
+meta:
+  version: "1.0.0"
+  description: "Offline mode with IndexedDB storage and sync queue"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "4.0.0"
+  frontend_only: true
+  technologies:
+    - "IndexedDB (idb library)"
+    - "Service Worker"
+    - "Sync queue with retry"
+  related_docs:
+    - "../pwa.md"
+    - "../web/js-modules.yaml#/modules/offlineManager"
+    - "../web/js-modules.yaml#/modules/idb"
+
 module:
   name: offline
   description: "Offline режим: IndexedDB, очередь синхронизации, разрешение конфликтов"
@@ -251,9 +268,9 @@ module:
     offline_status:
       location: "navbar"
       states:
-        - "online" (green)
-        - "offline" (red)
-        - "syncing" (yellow spinner)
+        - "online (green)"
+        - "offline (red)"
+        - "syncing (yellow spinner)"
 
     pending_count:
       location: "navbar badge"

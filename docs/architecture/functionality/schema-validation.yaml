@@ -1,0 +1,462 @@
+# Schema Validation Patterns
+# Pydantic (Backend) and Zod (Frontend) validation
+
+meta:
+  version: "1.0.0"
+  description: "Data validation patterns for backend (Pydantic) and frontend (Zod)"
+  created: "2026-01-21"
+  last_updated: "2026-01-21"
+  status: "active"
+  technologies:
+    - "Pydantic v2 (backend)"
+    - "Zod (frontend TypeScript)"
+  related_docs:
+    - "../build-system.md"
+    - "./error-handling-patterns.yaml"
+
+# =============================================================================
+# BACKEND VALIDATION (Pydantic)
+# =============================================================================
+
+backend:
+  framework: "Pydantic v2"
+  location: "backend/app/api/v1/endpoints/*.py"
+
+  # ---------------------------------------------------------------------------
+  # Common Validation Patterns
+  # ---------------------------------------------------------------------------
+  patterns:
+    uuid_validation:
+      description: "UUID field validation with automatic conversion"
+      example: |
+        from pydantic import Field, UUID4
+        from uuid import UUID
+
+        class ItemCreate(BaseModel):
+            id: UUID4 = Field(..., description="Unique identifier")
+            # Automatically validates UUID format and converts string to UUID
+
+      error_codes:
+        - "422 Unprocessable Entity"
+        - "value is not a valid uuid"
+
+    decimal_validation:
+      description: "Decimal field for monetary amounts"
+      example: |
+        from decimal import Decimal
+        from pydantic import Field, condecimal
+
+        class TransactionCreate(BaseModel):
+            amount: condecimal(max_digits=10, decimal_places=2) = Field(
+                ...,
+                description="Transaction amount",
+                gt=Decimal('0.01'),  # Greater than 0.01
+                le=Decimal('9999999.99')  # Less than or equal to max
+            )
+
+      constraints:
+        - "max_digits: 10"
+        - "decimal_places: 2"
+        - "gt: 0.01 (must be positive)"
+        - "le: 9999999.99 (max value)"
+
+    date_validation:
+      description: "Date field validation with timezone handling"
+      example: |
+        from datetime import date, datetime
+        from pydantic import Field, field_validator
+
+        class PlanCreate(BaseModel):
+            start_date: date = Field(..., description="Plan start date")
+
+            @field_validator('start_date')
+            @classmethod
+            def validate_start_date(cls, v):
+                if v < date.today():
+                    raise ValueError('start_date cannot be in the past')
+                return v
+
+      error_codes:
+        - "422 Unprocessable Entity"
+        - "start_date cannot be in the past"
+
+    enum_validation:
+      description: "Enum field for predefined values"
+      example: |
+        from enum import Enum
+        from pydantic import Field
+
+        class TransactionType(str, Enum):
+            INCOME = "income"
+            EXPENSE = "expense"
+            TRANSFER = "transfer"
+
+        class TransactionCreate(BaseModel):
+            type: TransactionType = Field(
+                ...,
+                description="Transaction type"
+            )
+
+      error_codes:
+        - "422 Unprocessable Entity"
+        - "value is not a valid enumeration member"
+
+    optional_fields:
+      description: "Optional fields with default values"
+      example: |
+        from typing import Optional
+        from pydantic import Field
+
+        class ItemUpdate(BaseModel):
+            name: Optional[str] = Field(None, max_length=255)
+            description: Optional[str] = Field(None)
+            is_active: bool = Field(True, description="Active status")
+
+      rules:
+        - "Use Optional[Type] for nullable fields"
+        - "Provide sensible defaults with Field(default=...)"
+        - "None means field can be omitted in request"
+
+    string_constraints:
+      description: "String field length and pattern validation"
+      example: |
+        from pydantic import Field, field_validator
+        import re
+
+        class UserCreate(BaseModel):
+            email: str = Field(
+                ...,
+                max_length=255,
+                pattern=r'^[\w\.-]+@[\w\.-]+\.\w+$'
+            )
+
+            username: str = Field(
+                ...,
+                min_length=3,
+                max_length=50,
+                pattern=r'^[a-zA-Z0-9_-]+$'
+            )
+
+      constraints:
+        - "min_length: Minimum string length"
+        - "max_length: Maximum string length"
+        - "pattern: Regex pattern (Python re syntax)"
+
+  # ---------------------------------------------------------------------------
+  # Custom Validators
+  # ---------------------------------------------------------------------------
+  custom_validators:
+    cross_field_validation:
+      description: "Validation involving multiple fields"
+      example: |
+        from pydantic import model_validator
+
+        class TransferCreate(BaseModel):
+            from_fc_id: UUID4
+            to_fc_id: UUID4
+            amount: Decimal
+
+            @model_validator(mode='after')
+            def validate_different_accounts(self):
+                if self.from_fc_id == self.to_fc_id:
+                    raise ValueError('Cannot transfer to the same account')
+                return self
+
+      use_cases:
+        - "Transfer between different accounts"
+        - "Date range validation (start < end)"
+        - "Conditional required fields"
+
+    database_uniqueness:
+      description: "Async validation against database"
+      example: |
+        from pydantic import field_validator
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        class ArticleCreate(BaseModel):
+            name: str
+
+            @field_validator('name')
+            @classmethod
+            async def validate_unique_name(cls, v, info):
+                # Note: Actual implementation in service layer
+                # Pydantic validators cannot be async
+                # Check uniqueness in service method instead
+                return v
+
+      note: "Database validation should be in service layer, not Pydantic validators"
+
+  # ---------------------------------------------------------------------------
+  # Error Response Format
+  # ---------------------------------------------------------------------------
+  error_response:
+    format: "FastAPI ValidationError (Pydantic)"
+    structure:
+      detail:
+        - loc: ["body", "amount"]
+          msg: "ensure this value is greater than 0.01"
+          type: "value_error.decimal.not_gt"
+        - loc: ["body", "start_date"]
+          msg: "start_date cannot be in the past"
+          type: "value_error"
+
+    http_status: 422
+    content_type: "application/json"
+
+# =============================================================================
+# FRONTEND VALIDATION (Zod)
+# =============================================================================
+
+frontend:
+  framework: "Zod"
+  location: "frontend/web/static/js/**/*.ts"
+
+  # ---------------------------------------------------------------------------
+  # Common Validation Patterns
+  # ---------------------------------------------------------------------------
+  patterns:
+    uuid_validation:
+      description: "UUID string validation"
+      example: |
+        import { z } from 'zod';
+
+        const transactionSchema = z.object({
+          id: z.string().uuid(),
+          fcId: z.string().uuid().optional(),
+        });
+
+      error_messages:
+        - "Invalid uuid"
+
+    number_validation:
+      description: "Numeric field validation with constraints"
+      example: |
+        import { z } from 'zod';
+
+        const amountSchema = z.object({
+          amount: z.number()
+            .positive('Amount must be positive')
+            .max(9999999.99, 'Amount too large')
+            .refine(
+              (val) => /^\d+(\.\d{1,2})?$/.test(val.toString()),
+              'Amount must have at most 2 decimal places'
+            ),
+        });
+
+      constraints:
+        - "positive(): Greater than 0"
+        - "min(n): Minimum value"
+        - "max(n): Maximum value"
+        - "refine(): Custom validation"
+
+    date_validation:
+      description: "Date string validation with parsing"
+      example: |
+        import { z } from 'zod';
+
+        const planSchema = z.object({
+          startDate: z.string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format')
+            .refine(
+              (val) => new Date(val) >= new Date(),
+              'Start date cannot be in the past'
+            ),
+        });
+
+    enum_validation:
+      description: "Enum (union) validation"
+      example: |
+        import { z } from 'zod';
+
+        const transactionTypeSchema = z.enum(['income', 'expense', 'transfer']);
+
+        const transactionSchema = z.object({
+          type: transactionTypeSchema,
+        });
+
+      error_messages:
+        - "Invalid enum value. Expected 'income' | 'expense' | 'transfer'"
+
+    optional_fields:
+      description: "Optional and nullable fields"
+      example: |
+        import { z } from 'zod';
+
+        const itemSchema = z.object({
+          name: z.string().optional(),           // Can be undefined
+          description: z.string().nullable(),    // Can be null
+          tags: z.array(z.string()).optional().default([]),  // Default value
+        });
+
+  # ---------------------------------------------------------------------------
+  # Form Validation Integration
+  # ---------------------------------------------------------------------------
+  form_integration:
+    description: "Client-side form validation before API submission"
+    pattern: |
+      // 1. Define schema
+      const transactionSchema = z.object({
+        amount: z.number().positive(),
+        fcId: z.string().uuid(),
+        articleId: z.string().uuid(),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      });
+
+      // 2. Validate before submit
+      function validateForm(formData) {
+        try {
+          const validated = transactionSchema.parse(formData);
+          return { success: true, data: validated };
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            return {
+              success: false,
+              errors: error.errors.map(e => ({
+                field: e.path.join('.'),
+                message: e.message
+              }))
+            };
+          }
+          throw error;
+        }
+      }
+
+      // 3. Submit API request
+      async function submitTransaction(formData) {
+        const validation = validateForm(formData);
+        if (!validation.success) {
+          displayErrors(validation.errors);
+          return;
+        }
+
+        // API call with validated data
+        const response = await fetch('/api/v1/facts', {
+          method: 'POST',
+          body: JSON.stringify(validation.data)
+        });
+      }
+
+    benefits:
+      - "Immediate feedback (no server round-trip)"
+      - "Consistent validation with backend (shared logic)"
+      - "Better UX (client-side errors faster)"
+
+# =============================================================================
+# COMMON VALIDATION ERRORS
+# =============================================================================
+
+common_errors:
+  uuid_invalid:
+    code: "422"
+    backend_message: "value is not a valid uuid"
+    frontend_message: "Invalid uuid"
+    cause: "String not matching UUID format"
+    fix: "Ensure ID is valid UUID v4"
+
+  decimal_out_of_range:
+    code: "422"
+    backend_message: "ensure this value is greater than 0.01"
+    frontend_message: "Amount must be positive"
+    cause: "Decimal value violates constraints (gt, le)"
+    fix: "Check amount is within valid range"
+
+  date_in_past:
+    code: "422"
+    backend_message: "start_date cannot be in the past"
+    frontend_message: "Start date cannot be in the past"
+    cause: "Date validation failed (custom validator)"
+    fix: "Select future date"
+
+  enum_invalid:
+    code: "422"
+    backend_message: "value is not a valid enumeration member"
+    frontend_message: "Invalid enum value"
+    cause: "Value not in allowed enum values"
+    fix: "Use one of: income, expense, transfer"
+
+  string_too_long:
+    code: "422"
+    backend_message: "ensure this value has at most 255 characters"
+    frontend_message: "String too long (max 255)"
+    cause: "String exceeds max_length constraint"
+    fix: "Shorten string to fit constraint"
+
+# =============================================================================
+# BEST PRACTICES
+# =============================================================================
+
+best_practices:
+  backend:
+    - "Use Pydantic Field() for all fields with description"
+    - "Provide clear error messages in validators"
+    - "Use custom validators for business logic"
+    - "Keep validators pure (no side effects, no DB calls)"
+    - "Use model_validator for cross-field validation"
+    - "Document all constraints in Field description"
+
+  frontend:
+    - "Validate on client before API submission"
+    - "Use Zod parse() for synchronous validation"
+    - "Use Zod safeParse() when errors expected"
+    - "Provide user-friendly error messages"
+    - "Reuse schemas across multiple forms"
+    - "Keep validation logic close to form components"
+
+  consistency:
+    - "Backend validation is authoritative (always run)"
+    - "Frontend validation is UX enhancement (can be bypassed)"
+    - "Duplicate validation logic on both sides"
+    - "Keep constraints in sync (e.g., max_length)"
+    - "Document validation rules in YAML schemas"
+
+# =============================================================================
+# MIGRATION GUIDE
+# =============================================================================
+
+migration:
+  pydantic_v1_to_v2:
+    breaking_changes:
+      - "validator → field_validator decorator"
+      - "root_validator → model_validator decorator"
+      - "Config class → ConfigDict"
+      - "orm_mode → from_attributes"
+
+    example: |
+      # Pydantic v1 (OLD)
+      class Item(BaseModel):
+          name: str
+
+          @validator('name')
+          def validate_name(cls, v):
+              return v.strip()
+
+          class Config:
+              orm_mode = True
+
+      # Pydantic v2 (NEW)
+      class Item(BaseModel):
+          model_config = ConfigDict(from_attributes=True)
+
+          name: str
+
+          @field_validator('name')
+          @classmethod
+          def validate_name(cls, v):
+              return v.strip()
+
+# =============================================================================
+# RELATED PATTERNS
+# =============================================================================
+
+related_patterns:
+  error_handling:
+    file: "./error-handling-patterns.yaml"
+    description: "Exception hierarchy and error responses"
+
+  api_contracts:
+    file: "../endpoints/*.yaml"
+    description: "OpenAPI schema definitions"
+
+  database_constraints:
+    file: "../database/constraints.yaml"
+    description: "Database-level validation (CHECK, UNIQUE)"

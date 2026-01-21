@@ -6,6 +6,10 @@
 
 ## Обзор
 
+> **📖 Related Documentation:**
+> - For **Build & Deploy workflows** (registry-first v9.0, Docker images, deployment process), see [ci-cd-build-deploy.md](./ci-cd-build-deploy.md)
+> - This document focuses on **Testing & Validation** workflows
+
 Family Budget использует GitHub Actions для автоматизации тестирования, валидации и проверки качества кода в pull requests. CI/CD pipeline состоит из 8 workflows, покрывающих frontend, backend, E2E, security и accessibility тестирование.
 
 ## Список Workflows
