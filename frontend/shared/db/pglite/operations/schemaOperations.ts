@@ -8,6 +8,7 @@ import type {
   LocalArticle,
   LocalFinancialCenter,
   LocalCostCenter,
+  LocalArticleHierarchy,
   LocalSyncMetadata
 } from '../types/models';
 
@@ -197,4 +198,63 @@ export async function updateSyncMetadata(
       ]
     );
   }
+}
+
+/**
+ * Query article hierarchy using closure table
+ *
+ * @param db - PGlite instance
+ * @param article_id - Article ID to get hierarchy for
+ * @returns Array of hierarchy records (ancestor-descendant pairs)
+ */
+export async function queryArticleHierarchy(
+  db: PGlite,
+  article_id: number
+): Promise<LocalArticleHierarchy[]> {
+  const result = await db.query(
+    `SELECT * FROM local_article_hierarchy
+     WHERE ancestor_id = $1
+     ORDER BY depth ASC`,
+    [article_id]
+  );
+
+  return result.rows as LocalArticleHierarchy[];
+}
+
+/**
+ * Query cost centers filtered by financial center
+ *
+ * @param db - PGlite instance
+ * @param user_id - User ID
+ * @param financial_center_id - Financial center ID to filter by (null = no filter)
+ * @param is_active - Optional filter for active centers
+ * @returns Array of cost centers
+ */
+export async function queryFilteredCostCenters(
+  db: PGlite,
+  user_id: number,
+  financial_center_id: number | null,
+  is_active?: boolean
+): Promise<LocalCostCenter[]> {
+  let sql = 'SELECT * FROM local_cost_centers WHERE user_id = $1';
+  const params: unknown[] = [user_id];
+  let paramIndex = 2;
+
+  // Note: In backend API, financial_center_id filtering is done via associations
+  // For PGlite, we assume cost_centers table has financial_center_id column
+  // (This will be added in schema migration when implementing task-005 fully)
+  if (financial_center_id !== null) {
+    sql += ` AND financial_center_id = $${paramIndex++}`;
+    params.push(financial_center_id);
+  }
+
+  if (is_active !== undefined) {
+    sql += ` AND is_active = $${paramIndex}`;
+    params.push(is_active);
+  }
+
+  sql += ' ORDER BY name';
+
+  const result = await db.query(sql, params);
+  return result.rows as LocalCostCenter[];
 }

@@ -10,6 +10,8 @@ import {
   queryArticles,
   queryFinancialCenters,
   queryCostCenters,
+  queryArticleHierarchy,
+  queryFilteredCostCenters,
   getSyncMetadata,
   updateSyncMetadata
 } from './operations/schemaOperations';
@@ -210,6 +212,38 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await queryCostCenters(db, user_id, is_active);
+  }
+
+  /**
+   * Query article hierarchy using closure table
+   *
+   * @param article_id - Article ID to get hierarchy for
+   * @returns Array of hierarchy records (ancestor-descendant pairs)
+   */
+  async queryArticleHierarchy(article_id: number): Promise<LocalArticleHierarchy[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryArticleHierarchy(db, article_id);
+  }
+
+  /**
+   * Query cost centers filtered by financial center
+   *
+   * @param user_id - User ID
+   * @param financial_center_id - Financial center ID to filter by (null = no filter)
+   * @param is_active - Optional filter for active centers
+   * @returns Array of cost centers
+   */
+  async queryFilteredCostCenters(
+    user_id: number,
+    financial_center_id: number | null,
+    is_active?: boolean
+  ): Promise<LocalCostCenter[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryFilteredCostCenters(db, user_id, financial_center_id, is_active);
   }
 
   // === Sync Metadata Methods ===

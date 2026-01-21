@@ -32,6 +32,22 @@ const builds = [
     globalName: 'PGlite'
   },
 
+  // === Performance Monitoring (loaded after PGlite) ===
+  {
+    name: 'performanceMonitor',
+    input: 'frontend/web/static/js/monitoring/PerformanceMonitor.ts',
+    output: 'frontend/web/static/js/monitoring/PerformanceMonitor.min.js',
+    globalName: 'PerformanceMonitor'
+  },
+
+  // === Data Layer (PGlite-first with API fallback) ===
+  {
+    name: 'dataLayer',
+    input: 'frontend/web/static/js/data/DataLayer.ts',
+    output: 'frontend/web/static/js/data/DataLayer.min.js',
+    globalName: 'DataLayer'
+  },
+
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',

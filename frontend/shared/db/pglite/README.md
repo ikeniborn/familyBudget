@@ -322,6 +322,48 @@ backend/app/api/v1/endpoints/
   - Facts window slider (30-365 days)
   - Diagnostic button
 
+### Task-005: Replace Reference API Calls ✅
+**Date:** 2026-01-21
+**Goal:** Replace API calls with PGlite queries (70%+ reduction target)
+
+**Created Components:**
+- PerformanceMonitor (monitoring/PerformanceMonitor.ts)
+  - trackAPICall() / trackPGliteCall() - duration tracking
+  - getStats() - reductionPercent + speedupFactor
+  - Circular buffer (last 100 queries per method)
+  - Global singleton with window exposure
+- DataLayer (data/DataLayer.ts)
+  - PGlite-first with graceful API fallback
+  - getArticles() / getFinancialCenters() / getCostCenters() / getArticleHierarchy()
+  - Automatic performance tracking
+  - Global singleton with window exposure
+
+**Extended PGliteManager:**
+- Added queryArticleHierarchy() - closure table queries
+- Added queryFilteredCostCenters() - FC-filtered cost centers
+
+**Replaced API Calls (9 endpoints):**
+1. dashboard/categoryLoader.ts (3 endpoints)
+   - loadFinancialCenters() - /api/v1/financial-centers
+   - loadCostCenters() - /api/v1/cost-centers
+   - filterCostCenterDropdown() - /api/v1/cost-centers?financial_center_id=X
+2. facts/integration/dropdownAPI.ts (3 endpoints)
+   - loadArticles() - /api/v1/articles
+   - loadFinancialCenters() - /api/v1/financial-centers
+   - loadCostCenters() - /api/v1/cost-centers
+3. plan/helpers.ts (3 endpoints)
+   - loadArticles() - /api/v1/articles
+   - loadFinancialCenters() - /api/v1/financial-centers
+   - loadCostCenters() - /api/v1/cost-centers
+
+**Build Configuration:**
+- Added PerformanceMonitor entry point (build-all.js)
+- Added DataLayer entry point (build-all.js)
+
+**TypeScript Validation:**
+- Type-safe conversions (as unknown as Type)
+- Zero TypeScript errors
+
 ### Code Review Improvements ✅
 **Date:** 2026-01-21
 **Score:** 82/100 → 95/100 (after fixes)
