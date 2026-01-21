@@ -1,0 +1,256 @@
+# Family Budget - Frontend Architecture Overview
+# Generated for code-review integration
+# Format: arch-doc (compatible with architecture-documentation skill)
+
+architecture:
+  metadata:
+    generated_by: "Claude Code"
+    generated_at: "2026-01-21T09:45:00Z"
+    project_name: "Family Budget"
+    version: "7.0.0"
+    description: "Frontend TypeScript modules with ES Modules architecture"
+    focus: "frontend/web/static/js"
+    documentation_index: "docs/architecture/index.yaml"
+    detailed_docs: "docs/architecture/web/js-modules.yaml"
+
+  components:
+    # ==========================================================================
+    # DASHBOARD MODULE (TypeScript ES Modules)
+    # ==========================================================================
+    - id: "dashboard"
+      name: "Dashboard Module"
+      type: "frontend-module"
+      file_path: "frontend/web/static/js/dashboard.min.js"
+      source_path: "frontend/web/static/js/dashboard/"
+      bundle_size: "~143KB (minified), ~26KB (gzip)"
+      loc: 1500
+      language: "TypeScript"
+      description: "Dashboard with modular TypeScript architecture for budget management"
+      architecture:
+        - "core/DashboardState.ts - State management"
+        - "features/editModal/formPopulation.ts - Edit modal population"
+        - "adapters/windowExports.ts - Global window exports"
+      key_changes:
+        - "v7.0.0 - TypeScript migration with ES Modules"
+        - "2026-01-21 - Fixed setCategory → setSelectedCategory"
+        - "2026-01-21 - Added window.setTransactionDate export"
+        - "2026-01-21 - Lazy initialization for Transfer Modal with await"
+      dependencies:
+        - budgetShared
+        - budgetWSClient
+        - offlineManager
+      layer: "presentation"
+
+    # ==========================================================================
+    # TRANSFERS MODULE (TypeScript ES Modules)
+    # ==========================================================================
+    - id: "transfers"
+      name: "Transfer Module"
+      type: "frontend-module"
+      file_path: "frontend/web/static/js/transfers.min.js"
+      source_path: "frontend/web/static/js/transfers/"
+      bundle_size: "~34KB (minified), ~6KB (gzip)"
+      loc: 800
+      language: "TypeScript"
+      description: "Transfer operations between financial accounts with lazy initialization"
+      architecture:
+        - "core/TransferState.ts - State management"
+        - "core/stateManager.ts - Lifecycle with isInitialized flag"
+        - "core/dataLoader.ts - API data fetching"
+        - "features/hints.ts - Transfer hints"
+        - "adapters/windowExports.ts - Global exports"
+      key_changes:
+        - "v7.0.0 - TypeScript migration with ES Modules"
+        - "2026-01-21 - Added isInitialized flag to prevent duplicate init"
+        - "2026-01-21 - Lazy initialization pattern"
+      dependencies:
+        - budgetShared
+      layer: "presentation"
+
+    # ==========================================================================
+    # SHARED BUNDLE
+    # ==========================================================================
+    - id: "budgetShared"
+      name: "Budget Shared Library"
+      type: "shared-library"
+      file_path: "frontend/shared/static/js/budgetShared.min.js"
+      bundle_size: "~86KB (minified), ~17KB (gzip)"
+      language: "JavaScript"
+      description: "Unified bundle with shared utilities and widgets"
+      exports:
+        - DateFormatter
+        - CalendarWidget
+        - ChoicesCategoryTree
+        - ChoicesProductGroupTree
+        - Reminders
+      key_methods:
+        - "ChoicesCategoryTree.setSelectedCategory(categoryId, maxRetries?, retryDelay?)"
+        - "ChoicesCategoryTree.updateFinancialCenter(fcId)"
+        - "CalendarWidget(selector, options)"
+        - "DateFormatter.formatForAPI(date)"
+      dependencies: []
+      layer: "infrastructure"
+
+    # ==========================================================================
+    # WEBSOCKET CLIENT
+    # ==========================================================================
+    - id: "budgetWSClient"
+      name: "WebSocket Client"
+      type: "realtime-module"
+      file_path: "frontend/web/static/js/budget/budgetWSClient.min.js"
+      bundle_size: "~69KB (minified), ~13KB (gzip)"
+      loc: 1200
+      language: "JavaScript"
+      description: "WebSocket client for real-time updates with Long Polling fallback"
+      events:
+        - fact_created
+        - fact_updated
+        - fact_deleted
+        - transfer_created
+        - transfer_deleted
+        - article_created
+        - article_updated
+      dependencies:
+        - network (NetworkDetector)
+      layer: "integration"
+
+    # ==========================================================================
+    # OFFLINE MANAGER
+    # ==========================================================================
+    - id: "offlineManager"
+      name: "Offline Manager"
+      type: "offline-module"
+      file_path: "frontend/web/static/js/offline/offlineManager.min.js"
+      bundle_size: "~37KB (minified), ~6KB (gzip)"
+      loc: 1500
+      language: "JavaScript"
+      description: "Offline mode with IndexedDB sync queue"
+      dependencies:
+        - idb
+        - networkDetector
+        - conflictResolver
+      layer: "infrastructure"
+
+    # ==========================================================================
+    # FACTS MODULE
+    # ==========================================================================
+    - id: "facts"
+      name: "Facts Manager"
+      type: "frontend-module"
+      file_path: "frontend/web/static/js/facts.min.js"
+      source_path: "frontend/web/static/js/facts/"
+      bundle_size: "~67KB (minified), ~14KB (gzip)"
+      loc: 1500
+      language: "TypeScript"
+      description: "Budget facts (transactions) with TypeScript modular architecture"
+      architecture:
+        - "core/FactsState.ts - State management"
+        - "operations/factsController.ts - CRUD operations"
+        - "integration/factsAPI.ts - API client"
+        - "utilities/htmlSanitizer.ts - XSS protection"
+      dependencies:
+        - budgetShared
+        - budgetWSClient
+      layer: "presentation"
+
+    # ==========================================================================
+    # LISTS MODULE
+    # ==========================================================================
+    - id: "lists"
+      name: "Lists Manager"
+      type: "frontend-module"
+      file_path: "frontend/web/static/js/lists.min.js"
+      source_path: "frontend/web/static/js/lists/"
+      bundle_size: "~221KB (minified), ~43KB (gzip)"
+      loc: 2700
+      language: "JavaScript"
+      description: "Shopping lists CRUD with hierarchy view and offline sync"
+      dependencies:
+        - budgetShared
+        - offlineShoppingManager
+        - hierarchyView
+        - confirmDialog
+      layer: "presentation"
+
+  layers:
+    - name: "presentation"
+      description: "User interface modules (dashboard, facts, lists, transfers)"
+      components:
+        - dashboard
+        - transfers
+        - facts
+        - lists
+
+    - name: "integration"
+      description: "External service integration (WebSocket, API clients)"
+      components:
+        - budgetWSClient
+
+    - name: "infrastructure"
+      description: "Shared utilities and offline support"
+      components:
+        - budgetShared
+        - offlineManager
+
+  recent_changes:
+    - date: "2026-01-21"
+      commit: "dea96f53"
+      description: "Fix TypeScript module errors: setCategory → setSelectedCategory"
+      files_changed:
+        - "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts"
+        - "frontend/web/static/js/dashboard/types/globals.d.ts"
+        - "frontend/web/static/js/dashboard/adapters/windowExports.ts"
+        - "frontend/web/static/js/transfers/core/stateManager.ts"
+      impact:
+        - "Fixed console error: editCategoryTreeSelect.setCategory is not a function"
+        - "Added window.setTransactionDate export for date buttons"
+        - "Implemented lazy initialization for Transfer Modal"
+        - "Added isInitialized flag to prevent duplicate initialization"
+
+    - date: "2026-01-21"
+      commit: "3db2622e"
+      description: "Improve lazy initialization with await to prevent race conditions"
+      files_changed:
+        - "frontend/web/static/js/dashboard/adapters/windowExports.ts"
+      impact:
+        - "Made openFactTransferModal async with Promise<void> return type"
+        - "Added await for window.initTransferModal() to prevent race conditions"
+        - "Ensures modal data loads before opening"
+
+  patterns:
+    - name: "Lazy Initialization"
+      description: "Defer modal initialization until first use"
+      components:
+        - transfers
+      implementation: "isInitialized flag + async/await pattern"
+
+    - name: "Type Safety"
+      description: "TypeScript interfaces for component state"
+      components:
+        - dashboard
+        - transfers
+        - facts
+      implementation: "globals.d.ts with CategoryTreeSelectInstance interface"
+
+    - name: "XSS Protection"
+      description: "HTML escaping for user-generated content"
+      components:
+        - facts
+      implementation: "escapeHtml() utility in htmlSanitizer.ts"
+
+    - name: "Offline First"
+      description: "IndexedDB sync queue with conflict resolution"
+      components:
+        - offlineManager
+        - lists
+      implementation: "Sync queue + conflict resolver"
+
+  code_review_compatibility:
+    format: "arch-doc"
+    component_validation: "enabled"
+    dependency_validation: "enabled"
+    circular_dependency_detection: "enabled"
+    notes: |
+      This overview.yaml is compatible with code-review skill for automated validation.
+      See docs/architecture/web/js-modules.yaml for detailed component documentation.
+      See docs/architecture/index.yaml for complete architecture index.
