@@ -1,23 +1,25 @@
 ---
 name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test с автоматическим восстановлением после ошибок
-version: 2.0.1
+description: Автоматизированный деплой на тестовый сервер budget-test с registry-only архитектурой (все сборки в GitHub Actions CI/CD)
+version: 9.0.0
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling]
+tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-only]
 dependencies: [monitoring]
 context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v2.0.1
+# Deploy Test Automation Skill v9.0.0
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
+- ✅ **Registry-Only Architecture** - все сборки в GitHub Actions CI/CD (v9.0+)
 - ✅ Автоматическим обнаружением и классификацией ошибок
 - ✅ Локальным исправлением кода (TypeScript, Python, npm)
 - ✅ Автоматическим commit/push исправлений в ветку test
 - ✅ Циклом повторных попыток с exponential backoff
 - ✅ Детальным мониторингом и summary отчетами
 - ✅ Timeout защитой для SSH команд (v2.0.1+)
+- ✅ Автоматической очисткой старых Docker images (v9.0+)
 
 ## Когда использовать этот скил
 
@@ -67,6 +69,68 @@ user-invocable: true
 ```
 
 **ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
+
+## Registry-Only Architecture (v9.0+)
+
+**BREAKING CHANGE:** Build mode удален. Все сборки происходят ТОЛЬКО в GitHub Actions CI/CD.
+
+**Архитектура:**
+- ✅ Весь build (минификация, cache busting, упаковка) в GitHub Actions
+- ✅ На сервере: только pull готовых Docker images из ghcr.io
+- ✅ 5 кастомных образов: backend, bot, nginx, redis, postgresql
+- ✅ Frontend embedded в backend Docker image
+- ✅ Автоматическая очистка старых images (7 дней retention)
+
+**Преимущества:**
+- ✅ **Быстрый деплой:** 2-3 мин (vs 5-7 мин build mode)
+- ✅ **Консистентность:** те же образы что в CI/CD
+- ✅ **Безопасность:** нет npm/Node.js на production сервере
+- ✅ **Надежность:** проверенные образы из CI/CD pipeline
+
+**Workflow:**
+```bash
+# 1. Developer bumps VERSION manually
+echo "6.6.1" > VERSION
+git add VERSION
+git commit -m "chore: bump version to 6.6.1"
+git push origin test
+
+# 2. GitHub Actions автоматически:
+#    - Выполняет cache busting (git hash)
+#    - Собирает frontend (npm run build:prod)
+#    - Создает 5 Docker images с embedded кодом
+#    - Пушит в ghcr.io/ikeniborn/familybudget-*:6.6.1
+
+# 3. Deploy на сервере:
+./deploy.sh --sync-mode update --cleanup-mode smart --version patch
+#    - Читает VERSION file → 6.6.1
+#    - Pull 5 images из ghcr.io
+#    - docker compose up -d
+#    - Migrations
+#    - Health checks
+#    - Cleanup old images (>7 days)
+```
+
+**IMPORTANT: Manual VERSION Bump Required**
+- ✅ Developer MUST bump VERSION перед push
+- ✅ GitHub Actions собирает образы с VERSION тегом
+- ✅ Server pull образы по VERSION
+- ❌ Automatic version increment removed (manual control)
+
+**Rollback:**
+```bash
+# Откат на предыдущую версию
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
+
+# Pull образов 6.6.0 из ghcr.io
+# Перезапуск контейнеров
+```
+
+**Requirements:**
+- ✅ GitHub Actions build MUST complete successfully
+- ✅ Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
+- ✅ VERSION file MUST exist in /opt/budget/
 
 ## Автоматическое исправление ошибок (v2.0.0+)
 
@@ -202,6 +266,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
   "header": "Options",
   "options": [
     {"label": "Стандартный деплой (Recommended)", "description": "Автоматическое восстановление включено (v2.0)"},
+    {"label": "--use-registry", "description": "Pull pre-built images из ghcr.io (v8.0+, faster deploy)"},
     {"label": "--force-build", "description": "Принудительная пересборка frontend"},
     {"label": "--verbose", "description": "Детальный вывод всех операций"},
     {"label": "--dry-run", "description": "Показать план без выполнения"},
@@ -289,6 +354,13 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
   - Используется когда автоматическое определение изменений не сработало
   - Или для тестирования без изменения файлов
 - `--set-version X.Y.Z` - явное указание версии (например `--set-version 7.0.0`)
+- `--use-registry` - pull Docker images из ghcr.io вместо локальной сборки (v8.0+)
+  - Требует наличие образов в GitHub Container Registry
+  - Ускоряет деплой (~2-3 мин вместо 5-7 мин)
+  - Автоопределение тега из git branch/VERSION/hash
+- `--image-tag TAG` - явное указание тега для registry pull (v8.0+)
+  - Работает только с `--use-registry`
+  - Примеры: `--image-tag test`, `--image-tag 6.6.0`, `--image-tag sha-abc1234`
 
 **Что происходит:**
 - Синхронизация кода в /opt/budget
@@ -310,6 +382,15 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
 
 # Явная версия
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --set-version 7.1.0"
+
+# Registry mode: pull pre-built images (v8.0+)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+
+# Registry mode с явным тегом
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag test --sync-mode update --cleanup-mode smart"
+
+# Registry mode + version bump (version bump без пересборки образов)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --version patch --sync-mode update --cleanup-mode smart"
 ```
 
 ### Шаг 4: Анализ логов деплоя
@@ -662,6 +743,62 @@ Claude:
 - **deploy-prod** - деплой на production сервер
 
 ## Changelog
+
+### v9.0.0 (2026-01-21)
+**BREAKING CHANGES:**
+- ❌ **Build mode REMOVED**: Only registry mode supported
+- ❌ **`--force-build` flag REMOVED**: All builds in GitHub Actions
+- ❌ **`--use-registry` flag REMOVED**: Registry is now DEFAULT and ONLY mode
+- ✅ **Manual VERSION bump REQUIRED**: Developer must bump VERSION before push
+- ✅ **5 images pulled**: backend, bot, nginx, redis, postgresql (all custom)
+
+**Registry-First Architecture:**
+- All build (minification, cache busting, packaging) in GitHub Actions CI/CD
+- Server only pulls ready Docker images from ghcr.io
+- Frontend embedded in backend Docker image (no bind mounts)
+- Custom images for ALL services (Redis, PostgreSQL, Nginx included)
+- Only semver tags (6.6.0) - no "test", "sha-", "latest"
+
+**Automatic Cleanup:**
+- Old Docker images cleanup after deployment (7 days retention)
+- Saves ~7GB disk space per week (1 deploy/day scenario)
+- Running containers protected from deletion
+
+**Workflow Changes:**
+1. Developer bumps VERSION locally
+2. GitHub Actions builds ALL 5 images
+3. Server pulls images by VERSION tag
+4. docker compose up -d
+5. Automatic cleanup of old images
+
+**Removed Options:**
+- ~~`--force-build`~~ (removed in v9.0)
+- ~~`--use-registry`~~ (default behavior)
+- ~~`--image-tag TAG`~~ (VERSION file used)
+- ~~`--skip-local-validation`~~ (no local build)
+
+**New Requirements:**
+- GitHub Actions MUST complete successfully before deployment
+- VERSION file MUST be bumped manually
+- Images MUST exist in ghcr.io before deployment
+
+**Rollback:**
+```bash
+# Change VERSION file and redeploy
+echo "6.6.0" > /opt/budget/VERSION
+sudo bash deploy.sh
+```
+
+**See also:**
+- `.github/workflows/build-and-push.yml` - CI/CD pipeline
+- `docker-compose.yml` - Registry images configuration
+- `docs/architecture/ci-cd-build-deploy.md` - Updated architecture
+
+### v8.0.0 (2026-01-20)
+**DEPRECATED:** Build mode support removed in v9.0.0
+- Container Registry Integration (now the only mode)
+- `--use-registry` flag (now default behavior)
+- `--image-tag TAG` flag (replaced by VERSION file)
 
 ### v2.0.1 (2026-01-20)
 **Bug Fixes:**

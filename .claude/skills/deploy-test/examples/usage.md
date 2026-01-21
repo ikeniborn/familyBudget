@@ -326,6 +326,71 @@ logs/deploy-test/YYYYMMDD_HHMMSS/
 Claude: [читает и анализирует сохраненные логи]
 ```
 
+## Сценарий 5: Registry Mode (v8.0+)
+
+**Запрос:**
+```
+Задеплой на тестовый сервер используя образы из registry
+```
+
+**Действия Claude:**
+```
+[Шаг 1/7] Проверка SSH подключения к budget-test...
+✅ SSH подключение установлено
+
+[Шаг 2/7] Выполнение git pull в ветке test...
+✅ Git pull выполнен успешно (2 файла обновлено)
+
+[Шаг 3/7] Запуск deploy.sh с --use-registry...
+ℹ️ Registry mode enabled
+ℹ️ Auto-detected tag: test (from git branch)
+ℹ️ Pulling images from ghcr.io/ikeniborn/familybudget-*:test
+
+Pulling backend image...
+✅ backend image pulled successfully
+Pulling bot image...
+✅ bot image pulled successfully
+
+ℹ️ Skipping Docker build (using registry images)
+✅ Deploy.sh завершен успешно (время: 2м 18с)
+
+[Шаг 4/7] Анализ логов деплоя...
+✅ Логи деплоя не содержат ошибок
+
+[Шаг 5/7] Анализ логов контейнеров...
+✅ Backend: 0 ошибок
+✅ Bot: 0 ошибок
+✅ PostgreSQL: 0 ошибок
+✅ Redis: 0 ошибок
+
+[Шаг 6/7] Проверка статуса контейнеров...
+✅ Все контейнеры healthy:
+   - backend: running (healthy)
+   - bot: running (healthy)
+   - postgres: running (healthy)
+   - redis: running (healthy)
+
+[Шаг 7/7] Проверка запущенных процессов...
+✅ Незавершенных процессов не обнаружено
+
+========================================
+✅ Деплой завершен успешно (Registry Mode)!
+========================================
+
+📦 Registry Details:
+   - Source: ghcr.io/ikeniborn/familybudget-*
+   - Tag: test
+   - Mode: registry pull (no build)
+   - Build time saved: ~3 минуты
+
+Время выполнения: 2м 32с
+```
+
+**Преимущества registry mode:**
+- Быстрее на 50-60% (2-3 мин vs 5-7 мин)
+- Консистентные образы (собраны через CI/CD)
+- Не требует Node.js/npm на сервере
+
 ## FAQ
 
 **Q: Как часто можно запускать deploy-test?**
@@ -339,10 +404,28 @@ A: Да, укажите параметры явно:
 ```
 "Задеплой на тестовый сервер с полной пересборкой"
 → Claude использует --force-build
+
+"Задеплой используя образы из registry"
+→ Claude использует --use-registry
 ```
 
 **Q: Что если deploy-test не срабатывает автоматически?**
 A: Проверьте что skill установлен в `.claude/skills/deploy-test/SKILL.md`
+
+**Q: Когда использовать --use-registry?**
+A: Используйте registry mode когда:
+- GitHub Actions workflow успешно собрал образы
+- Нужен быстрый деплой (2-3 мин вместо 5-7 мин)
+- Важна консистентность образов с CI/CD
+- На сервере нет Node.js/npm
+
+**Q: Как узнать какой тег будет использован в registry mode?**
+A: Claude автоматически определит тег в таком порядке:
+1. Явно указанный `--image-tag TAG`
+2. Git branch name (если ~/familyBudget на сервере)
+3. Файл /opt/budget/VERSION
+4. Git short hash
+5. Fallback: latest
 
 ## Связанные skills
 

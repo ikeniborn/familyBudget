@@ -32,9 +32,11 @@ pull_from_registry() {
             set +a
         fi
 
-        services=("backend")
+        # Registry-first architecture: Pull ALL 5 custom images
+        # PostgreSQL, Redis, Nginx use custom images with embedded configs
+        services=("backend" "postgresql" "redis")
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services+=("bot")
+            services+=("bot" "nginx")
         fi
     fi
 
@@ -149,9 +151,10 @@ validate_registry_images() {
             set +a
         fi
 
-        services=("backend")
+        # Registry-first architecture: Validate ALL 5 custom images
+        services=("backend" "postgresql" "redis")
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services+=("bot")
+            services+=("bot" "nginx")
         fi
     fi
 

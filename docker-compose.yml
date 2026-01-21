@@ -15,7 +15,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: ghcr.io/ikeniborn/familybudget-postgresql:${VERSION:-6.6.0}
     container_name: familybudget-postgres
     # Restart policy: "always" ensures PostgreSQL starts even after manual stop or Docker daemon restart
     # Unlike "unless-stopped", "always" will restart the container after Docker daemon restarts,
@@ -88,7 +88,7 @@ services:
 
   # Redis (Caching & WebSocket Sync)
   redis:
-    image: redis:7-alpine
+    image: ghcr.io/ikeniborn/familybudget-redis:${VERSION:-6.6.0}
     container_name: familybudget-redis
     # Restart policy: "always" ensures Redis is always available for caching
     restart: always
@@ -124,12 +124,7 @@ services:
 
   # Backend Application (FastAPI + HTMX)
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-      args:
-        PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
-    image: familybudget-backend:${VERSION:-latest}
+    image: ghcr.io/ikeniborn/familybudget-backend:${VERSION:-6.6.0}
     container_name: familybudget-backend
     # Restart policy: "always" ensures backend is always available after Docker daemon restarts
     # Critical service - entire application depends on backend (API, auth, business logic)
@@ -217,21 +212,8 @@ services:
       WEBAUTHN_RP_NAME: ${WEBAUTHN_RP_NAME:-"Family Budget"}
       WEBAUTHN_ORIGIN: ${WEBAUTHN_ORIGIN:-http://localhost:8000}
     volumes:
-      - ./backend:/app/backend:ro
-      - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
-      - ./scripts:/app/scripts:ro  # Scripts: backup health check, deployment utilities
-      - ./backups:/app/backups:ro  # Backups directory (read-only for health checks)
       - ./logs:/app/logs
       - ./uploads:/app/uploads
-      # PWA files (served by FastAPI StaticFiles)
-      - ./sw.min.js:/app/sw.min.js:ro  # Service Worker (minified)
-      - ./manifest.json:/app/manifest.json:ro  # PWA Manifest
-      # Docker socket (for LogsCollectorService to access Docker logs)
-      - /var/run/docker.sock:/var/run/docker.sock
-      # VERSION file (for runtime version reading - v6.6.1+)
-      # Backend reads this file directly instead of relying on env var
-      # This allows version updates without container recreation
-      - ./VERSION:/app/VERSION:ro
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
@@ -267,12 +249,7 @@ services:
 
   # Telegram Bot (Optional - can run in same container as backend)
   bot:
-    build:
-      context: .
-      dockerfile: bot/Dockerfile
-      args:
-        PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
-    image: familybudget-bot:${VERSION:-latest}
+    image: ghcr.io/ikeniborn/familybudget-bot:${VERSION:-6.6.0}
     container_name: familybudget-bot
     # Restart policy: "always" ensures Telegram bot is always available for users
     # Critical service - primary user interface for Telegram users (polling mode requires 24/7 uptime)
@@ -305,7 +282,6 @@ services:
       # Timezone (IANA format: Europe/Moscow, America/New_York, UTC)
       TZ: ${SYSTEM_TIMEZONE:-UTC}
     volumes:
-      - ./bot:/app/bot:ro
       - ./logs:/app/logs
     networks:
       - familybudget
@@ -322,7 +298,7 @@ services:
 
   # Nginx Reverse Proxy (Optional)
   nginx:
-    image: nginx:alpine
+    image: ghcr.io/ikeniborn/familybudget-nginx:${VERSION:-6.6.0}
     container_name: familybudget-nginx
     # Restart policy: "always" ensures nginx (entry point for all HTTPS traffic) is always available
     # CRITICAL service - without nginx, application is completely inaccessible from internet
@@ -331,18 +307,10 @@ services:
       backend:
         condition: service_healthy
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./frontend/web/static:/usr/share/nginx/html/static:ro
       - nginx_cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
       # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
       - /etc/letsencrypt:/etc/letsencrypt:ro
-      # Service Worker (minified + gzip pre-compressed for nginx gzip_static)
-      - ./sw.min.js:/usr/share/nginx/html/sw.min.js:ro
-      - ./sw.min.js.gz:/usr/share/nginx/html/sw.min.js.gz:ro
-      # PWA Manifest
-      - ./manifest.json:/usr/share/nginx/html/manifest.json:ro
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
