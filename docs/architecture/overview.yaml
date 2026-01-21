@@ -172,14 +172,56 @@ architecture:
         - confirmDialog
       layer: "presentation"
 
+    # ==========================================================================
+    # TEMPLATE COMPONENTS (Jinja2 Macros)
+    # ==========================================================================
+    - id: "deleteButtonMacros"
+      name: "Delete Button Macros"
+      type: "template-component"
+      file_path: "frontend/web/templates/components/macros/delete_buttons.html"
+      loc: 140
+      language: "Jinja2"
+      description: "Переиспользуемые Jinja2 macros для стандартизированных кнопок удаления"
+      exports:
+        - delete_button_desktop
+        - delete_button_mobile
+        - delete_icon_svg
+      usage:
+        - "Desktop tables: {{ delete_button_desktop(entity.id, 'deleteEntity', entity_type='entity') }}"
+        - "Mobile modals: {{ delete_button_mobile('deleteFromEditModal()') }}"
+      key_features:
+        - "Визуальная консистентность: desktop (btn-xs, h-4 w-4) vs mobile (btn-sm sm:btn-md, h-5 w-5)"
+        - "Accessibility: aria-label, title, data-* attributes"
+        - "Type safety: Детальные docstrings с type hints"
+        - "DRY principle: 81% сокращение дублирующегося кода"
+      dependencies: []
+      layer: "presentation"
+      version: "1.0.0"
+      created: "2026-01-21"
+      migrated_templates:
+        - "frontend/web/templates/components/facts/fact_row_desktop.html"
+        - "frontend/web/templates/components/modal_edit_fact.html"
+        - "frontend/web/templates/components/modal_edit_plan.html"
+        - "frontend/web/templates/admin_articles.html"
+        - "frontend/web/templates/admin_cost_centers.html"
+        - "frontend/web/templates/admin_financial_centers.html"
+        - "frontend/web/templates/admin_product_groups.html"
+        - "frontend/web/templates/admin_stores.html"
+        - "frontend/web/templates/partials/recent_transactions.html"
+      impact:
+        - "Исправлено: stroke='white' → stroke='currentColor' (2 файла)"
+        - "Исправлено: mobile modal размеры btn-xs → btn-sm sm:btn-md (5 файлов)"
+        - "Сокращение: 48 строк дублированного кода → 9 строк macro calls"
+
   layers:
     - name: "presentation"
-      description: "User interface modules (dashboard, facts, lists, transfers)"
+      description: "User interface modules (dashboard, facts, lists, transfers) and template components"
       components:
         - dashboard
         - transfers
         - facts
         - lists
+        - deleteButtonMacros
 
     - name: "integration"
       description: "External service integration (WebSocket, API clients)"
