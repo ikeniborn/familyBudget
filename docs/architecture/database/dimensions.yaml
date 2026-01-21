@@ -1,6 +1,18 @@
 # Dimension Tables
 # Master data tables (t_d_*)
 
+meta:
+  version: "1.0.0"
+  description: "Dimension tables (master data) - t_d_* pattern"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  pattern: "SCD Type 1 (in-place updates)"
+  related_docs:
+    - "./history.yaml"  # History tables (SCD Type 2)
+    - "./indexes.yaml"
+    - "./constraints.yaml"
+
 tables:
   # ---------------------------------------------------------------------------
   # USER

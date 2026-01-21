@@ -7,14 +7,15 @@ Use these files to understand component relationships when planning changes or o
 
 | Directory | Description | Files |
 |-----------|-------------|-------|
-| [functionality/](./functionality/) | Business logic modules | 13 |
+| [functionality/](./functionality/) | Business logic modules | 15 |
 | [web/](./web/) | Frontend components | 5 |
-| [endpoints/](./endpoints/) | API endpoints | 13 |
+| [endpoints/](./endpoints/) | API endpoints | 18 |
 | [database/](./database/) | Database objects | 9 |
 | [flows/](./flows/) | Data flow diagrams | 6 |
 | [guides/](./guides/) | Development guides | 7 |
+| [frontend/](./frontend/) | Frontend patterns | 6 |
 
-**Total: 56 files + 4 architecture docs**
+**Total: 62 YAML files + 30+ architecture .md docs**
 
 ### Core Architecture Documents
 
@@ -26,6 +27,31 @@ Use these files to understand component relationships when planning changes or o
 | [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
 
 ## Recent Changes
+
+### 2026-01-21: Registry-First CI/CD Architecture (v9.0.0) ⭐ BREAKING
+
+- **Change:** Complete CI/CD pipeline redesign - all builds moved to GitHub Actions
+- **Breaking Changes:**
+  - ❌ Removed: Local builds on server (build mode)
+  - ❌ Removed: npm/Node.js requirement on server
+  - ❌ Removed: Multiple image tags (test, sha-*, latest)
+  - ✅ Added: 5 custom Docker images (backend, bot, nginx, redis, postgresql)
+  - ✅ Added: Semver-only tags (e.g., 6.6.0)
+  - ✅ Added: Automatic image cleanup (7 days retention)
+  - ✅ Added: Selective rebuilding via IMAGE_VERSIONS.json
+- **Impact:**
+  - Deployment time: **ALWAYS 2-3 min** (pull only, no builds)
+  - Server requirements: **No npm/Node.js needed**
+  - Registry: All images in ghcr.io
+  - Build: GitHub Actions CI/CD only
+- **Documentation:**
+  - [ci-cd-build-deploy.md](./ci-cd-build-deploy.md) - Complete v9.0 guide
+  - [docker.md](./docker.md) - Multi-stage Dockerfiles
+  - [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md) - Migration guide
+- **Skills:**
+  - Updated: deploy-test, deploy-prod (v9.0.0)
+
+---
 
 ### 2026-01-19: Base Template Modular Decomposition (v7.x)
 - **Change:** Декомпозиция base.html на модульные компоненты

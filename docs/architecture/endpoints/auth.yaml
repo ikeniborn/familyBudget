@@ -1,6 +1,23 @@
 # Auth Endpoints
 # Authentication and authorization
 
+meta:
+  version: "1.0.0"
+  description: "Authentication and authorization API endpoints"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  base_path: "/api/v1/auth"
+  authentication_methods:
+    - "Telegram OAuth"
+    - "Email + Password"
+    - "JWT Token Refresh"
+    - "2FA (Email OTP)"
+  related_docs:
+    - "../functionality/authentication.yaml"
+    - "../authentication.md"
+    - "./webauthn.yaml"
+
 routes:
   # ---------------------------------------------------------------------------
   # TELEGRAM OAUTH

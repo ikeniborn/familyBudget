@@ -9,12 +9,12 @@ pattern:
     History table contains ALL versions with validity period.
 
   columns:
-    - history_id: "Primary key for history record"
-    - "{entity}_id: "FK to main table (stable reference)"
-    - valid_from: "When this version became effective"
-    - valid_to: "When superseded (NULL = current)"
-    - is_current: "Boolean flag for quick filtering"
-    - change_type: "CREATE | UPDATE | DELETE"
+    - "history_id: Primary key for history record"
+    - "{entity}_id: FK to main table (stable reference)"
+    - "valid_from: When this version became effective"
+    - "valid_to: When superseded (NULL = current)"
+    - "is_current: Boolean flag for quick filtering"
+    - "change_type: CREATE | UPDATE | DELETE"
     - "...all columns from main table..."
 
   invariants:

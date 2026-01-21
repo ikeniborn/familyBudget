@@ -1,6 +1,23 @@
 # Authentication Module
 # JWT, Telegram OAuth, Email/Password, 2FA
 
+meta:
+  version: "1.0.0"
+  description: "Authentication and authorization module"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "5.0.0"
+  breaking_changes:
+    - version: "6.5.0"
+      description: "Added WebAuthn passwordless authentication"
+      migration: "See authentication.md for WebAuthn setup"
+  related_docs:
+    - "../authentication.md"
+    - "../admin-setup.md"
+    - "../endpoints/auth.yaml"
+    - "../endpoints/webauthn.yaml"
+
 module:
   name: authentication
   description: "Аутентификация и авторизация пользователей"

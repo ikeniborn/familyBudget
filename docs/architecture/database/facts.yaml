@@ -1,6 +1,20 @@
 # Fact Tables
 # Transactional data (t_f_*)
 
+meta:
+  version: "1.0.0"
+  description: "Fact tables (transactional data) - t_f_* pattern"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  pattern: "Star schema with dimension FK references"
+  partitioning: "Monthly partitions for budget_fact"
+  related_docs:
+    - "./dimensions.yaml"
+    - "./indexes.yaml"
+    - "../endpoints/facts.yaml"
+    - "../functionality/budget-management.yaml"
+
 tables:
   # ---------------------------------------------------------------------------
   # BUDGET FACT
