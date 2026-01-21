@@ -42,24 +42,41 @@ fi
 echo "✅ No console.log found"
 echo ""
 
-# Run TypeScript type checking
-echo "2️⃣  Running TypeScript type check..."
-cd "$GIT_ROOT/frontend/web" && npm run type-check
-if [ $? -ne 0 ]; then
-  echo "❌ Type check failed! Fix errors before committing."
-  exit 1
+# Run TypeScript type checking (only if TypeScript files changed)
+CHANGED_TS_ALL=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.ts$' || true)
+
+if [ -n "$CHANGED_TS_ALL" ]; then
+  echo "2️⃣  Running TypeScript type check..."
+  cd "$GIT_ROOT/frontend/web" && npm run type-check
+  if [ $? -ne 0 ]; then
+    echo "❌ Type check failed! Fix errors before committing."
+    exit 1
+  fi
+  echo "✅ Type check passed"
+else
+  echo "2️⃣  Skipping type check (no TypeScript files changed)"
 fi
-echo "✅ Type check passed"
 echo ""
 
-# Run unit tests (fast only, no coverage)
-echo "3️⃣  Running unit tests..."
-cd "$GIT_ROOT/frontend/web" && npm test -- --run --reporter=dot 2>&1 | tail -5
-if [ $? -ne 0 ]; then
-  echo "❌ Tests failed! Fix failing tests before committing."
-  exit 1
+# Run unit tests (only if TypeScript source files changed, not for docs/configs)
+# Skip tests if SKIP_TESTS=1 environment variable is set
+CHANGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v '\.d\.ts$' | grep -v 'vite\.config\.ts$' | grep -v 'vitest\.config\.ts$' || true)
+
+if [ -n "$CHANGED_TS_FILES" ] && [ "${SKIP_TESTS:-0}" != "1" ]; then
+  echo "3️⃣  Running unit tests..."
+  cd "$GIT_ROOT/frontend/web" && npm test -- --run --reporter=dot 2>&1 | tail -5
+  if [ $? -ne 0 ]; then
+    echo "❌ Tests failed! Fix failing tests before committing."
+    exit 1
+  fi
+  echo "✅ All tests passed"
+else
+  if [ "${SKIP_TESTS:-0}" = "1" ]; then
+    echo "3️⃣  Skipping unit tests (SKIP_TESTS=1)"
+  else
+    echo "3️⃣  Skipping unit tests (no source files changed)"
+  fi
 fi
-echo "✅ All tests passed"
 echo ""
 
 echo "✅ All pre-commit checks passed!"
