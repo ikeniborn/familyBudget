@@ -3,6 +3,7 @@ name: Build and Push Docker Images
 on:
   push:
     branches: [test]
+    tags: ['v*.*.*']
     paths:
       - 'VERSION'
       - 'backend/**'
@@ -14,8 +15,6 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/build-and-push.yml'
-  push:
-    tags: ['v*.*.*']
   workflow_dispatch:
     inputs:
       custom_tag:
