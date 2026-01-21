@@ -26,6 +26,12 @@ export const DEFAULT_AUTO_SYNC_INTERVAL_MS = 300000;
 /** Default toast notification duration in milliseconds */
 export const DEFAULT_TOAST_DURATION_MS = 10000;
 
+/** Maximum number of facts to return in a single query */
+export const MAX_FACTS_QUERY_LIMIT = 1000;
+
+/** Default maximum retry attempts for pending operations */
+export const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+
 // =============================================================================
 // Types
 // =============================================================================

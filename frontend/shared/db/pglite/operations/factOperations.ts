@@ -9,7 +9,11 @@ import type {
   FactFilters
 } from '../types/fact';
 import { calculateContentHash, generateUUID } from '../utils/hash';
-import { getPGliteFeatureFlags } from '../features/featureFlags';
+import {
+  getPGliteFeatureFlags,
+  MAX_FACTS_QUERY_LIMIT,
+  DEFAULT_MAX_RETRY_ATTEMPTS
+} from '../features/featureFlags';
 import { logger } from '../utils/logger';
 
 /**
@@ -61,7 +65,7 @@ export async function createFact(
     server_id: null,
     payload: fact as Record<string, unknown>,
     attempts: 0,
-    max_attempts: 3,
+    max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
     last_error: null,
     content_hash,
     created_at: new Date(),
@@ -71,6 +75,77 @@ export async function createFact(
   logger.info('[PGLITE] Fact created', { temp_id });
 
   return temp_id;
+}
+
+/**
+ * Helper: Apply filter to query
+ *
+ * @param query - Current query string
+ * @param params - Query parameters array
+ * @param paramIndex - Current parameter index
+ * @param columnName - Column name to filter
+ * @param filterValue - Filter value (undefined = skip)
+ * @returns Updated query state
+ */
+function applyFilter<T>(
+  query: string,
+  params: unknown[],
+  paramIndex: number,
+  columnName: string,
+  filterValue: T | undefined
+): { query: string; paramIndex: number } {
+  if (filterValue !== undefined) {
+    query += ` AND ${columnName} = $${paramIndex++}`;
+    params.push(filterValue);
+  }
+  return { query, paramIndex };
+}
+
+/**
+ * Build facts query with filters
+ *
+ * @param filters - Optional filters
+ * @param windowStartStr - Window start date (YYYY-MM-DD)
+ * @returns Query string and parameters
+ */
+function buildFactsQuery(
+  filters: FactFilters | undefined,
+  windowStartStr: string
+): { query: string; params: unknown[] } {
+  // Base query with data window
+  let query = `
+    SELECT * FROM local_budget_facts
+    WHERE date >= $1 AND sync_status != 'deleted'
+  `;
+  const params: unknown[] = [filters?.date_from || windowStartStr];
+  let paramIndex = 2;
+
+  // Apply filters using helper
+  const filterMappings: Array<{ column: string; value: unknown }> = [
+    { column: 'user_id', value: filters?.user_id },
+    { column: 'article_id', value: filters?.article_id },
+    { column: 'financial_center_id', value: filters?.financial_center_id },
+    { column: 'cost_center_id', value: filters?.cost_center_id },
+    { column: 'record_type', value: filters?.record_type },
+    { column: 'sync_status', value: filters?.sync_status }
+  ];
+
+  for (const { column, value } of filterMappings) {
+    const result = applyFilter(query, params, paramIndex, column, value);
+    query = result.query;
+    paramIndex = result.paramIndex;
+  }
+
+  // Date range filter (date_to)
+  if (filters?.date_to !== undefined) {
+    query += ` AND date <= $${paramIndex++}`;
+    params.push(filters.date_to);
+  }
+
+  // Ordering and limit
+  query += ` ORDER BY date DESC LIMIT ${MAX_FACTS_QUERY_LIMIT}`;
+
+  return { query, params };
 }
 
 /**
@@ -91,51 +166,8 @@ export async function queryFacts(
   windowStart.setDate(windowStart.getDate() - flags.factsWindow);
   const windowStartStr = windowStart.toISOString().split('T')[0]; // YYYY-MM-DD
 
-  // Build query
-  let query = `
-    SELECT * FROM local_budget_facts
-    WHERE date >= $1 AND sync_status != 'deleted'
-  `;
-  const params: unknown[] = [filters?.date_from || windowStartStr];
-  let paramIndex = 2;
-
-  // Apply filters
-  if (filters?.user_id !== undefined) {
-    query += ` AND user_id = $${paramIndex++}`;
-    params.push(filters.user_id);
-  }
-
-  if (filters?.article_id !== undefined) {
-    query += ` AND article_id = $${paramIndex++}`;
-    params.push(filters.article_id);
-  }
-
-  if (filters?.financial_center_id !== undefined) {
-    query += ` AND financial_center_id = $${paramIndex++}`;
-    params.push(filters.financial_center_id);
-  }
-
-  if (filters?.cost_center_id !== undefined) {
-    query += ` AND cost_center_id = $${paramIndex++}`;
-    params.push(filters.cost_center_id);
-  }
-
-  if (filters?.record_type !== undefined) {
-    query += ` AND record_type = $${paramIndex++}`;
-    params.push(filters.record_type);
-  }
-
-  if (filters?.sync_status !== undefined) {
-    query += ` AND sync_status = $${paramIndex++}`;
-    params.push(filters.sync_status);
-  }
-
-  if (filters?.date_to !== undefined) {
-    query += ` AND date <= $${paramIndex++}`;
-    params.push(filters.date_to);
-  }
-
-  query += ' ORDER BY date DESC LIMIT 1000';
+  // Build query with filters
+  const { query, params } = buildFactsQuery(filters, windowStartStr);
 
   logger.debug('[PGLITE] Querying facts', { filters, windowStart: windowStartStr });
 
