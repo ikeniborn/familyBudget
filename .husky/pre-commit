@@ -1,3 +1,32 @@
+#!/usr/bin/env bash
+
+# Save git repository root
+GIT_ROOT=$(git rev-parse --show-toplevel)
+
+# Setup PATH to find npm (for VS Code and other GUI tools)
+# Check common npm installation locations
+if command -v npm >/dev/null 2>&1; then
+  # npm already in PATH
+  :
+elif [ -f "$HOME/.nvm/nvm.sh" ]; then
+  # Standard NVM installation
+  . "$HOME/.nvm/nvm.sh"
+elif [ -d "$HOME/.nvm-isolated/versions/node" ]; then
+  # Isolated NVM installation (iclaude)
+  export PATH="$HOME/.nvm-isolated/versions/node/$(ls -1 "$HOME/.nvm-isolated/versions/node" | tail -1)/bin:$PATH"
+elif [ -f "/usr/local/bin/npm" ]; then
+  # System npm
+  export PATH="/usr/local/bin:$PATH"
+fi
+
+# Verify npm is available
+if ! command -v npm >/dev/null 2>&1; then
+  echo "❌ npm not found in PATH"
+  echo "   Please ensure Node.js and npm are installed"
+  echo "   Current PATH: $PATH"
+  exit 1
+fi
+
 echo "🔍 Running pre-commit checks..."
 echo ""
 
@@ -15,7 +44,7 @@ echo ""
 
 # Run TypeScript type checking
 echo "2️⃣  Running TypeScript type check..."
-npm run type-check
+cd "$GIT_ROOT/frontend/web" && npm run type-check
 if [ $? -ne 0 ]; then
   echo "❌ Type check failed! Fix errors before committing."
   exit 1
@@ -25,7 +54,7 @@ echo ""
 
 # Run unit tests (fast only, no coverage)
 echo "3️⃣  Running unit tests..."
-npm test -- --run --reporter=dot 2>&1 | tail -5
+cd "$GIT_ROOT/frontend/web" && npm test -- --run --reporter=dot 2>&1 | tail -5
 if [ $? -ne 0 ]; then
   echo "❌ Tests failed! Fix failing tests before committing."
   exit 1
