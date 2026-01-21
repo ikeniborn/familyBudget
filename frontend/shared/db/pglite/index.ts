@@ -5,6 +5,7 @@
 
 // Main Manager
 export { PGliteManager, getPGliteManager } from './PGliteManager';
+export type { DiagnosticData } from './PGliteManager';
 
 // Core
 export * from './core/PGliteState';

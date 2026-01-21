@@ -1,7 +1,7 @@
 # PGlite Integration Module
 
-**Version:** 1.2.0 (Task-003)
-**Status:** ✅ Initial Sync Protocol Complete
+**Version:** 1.3.0 (Task-004)
+**Status:** ✅ Feature Flag & Diagnostic UI Complete
 
 ## Overview
 
@@ -19,8 +19,12 @@ PGlite WASM integration for client-side PostgreSQL database with WebSocket sync 
 - ✅ CRUD operations (articles, financial centers, cost centers)
 - ✅ Bulk insert operations (chunked, with progress tracking)
 - ✅ WebSocket sync protocol (initial sync)
+- ✅ Feature flag system (setPGliteEnabled, setPGliteFactsWindow)
+- ✅ Diagnostic UI (PGliteDiagnosticModal)
+- ✅ Performance metrics tracking
+- ✅ Settings page integration
 - ✅ Unit tests (20 tests, 100% passed)
-- ⏳ Incremental sync (task-004)
+- ⏳ Incremental sync (task-005)
 
 ## Installation
 
@@ -81,6 +85,39 @@ requestInitialSync(userId);
 // - window.updateSyncProgress(current, total)
 // - window.onSyncComplete()
 // - window.onSyncError(error)
+```
+
+### Feature Flags Usage
+
+```typescript
+import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled } from '@db/pglite';
+
+// Check if enabled
+if (isPGliteEnabled()) {
+  console.log('PGlite is active');
+}
+
+// Enable PGlite (shows toast notification)
+setPGliteEnabled(true);
+
+// Set facts window to 180 days
+setPGliteFactsWindow(180);
+```
+
+### Diagnostic Modal Usage
+
+```typescript
+import { openPGliteDiagnostic } from '@components';
+
+// Open diagnostic modal
+openPGliteDiagnostic();
+
+// Or get diagnostic data programmatically
+const pglite = getPGliteManager();
+const diagnostics = await pglite.getDiagnosticData();
+console.log('DB Size:', diagnostics.dbSizeKB, 'KB');
+console.log('Articles:', diagnostics.tableStats.articles);
+console.log('Avg Query Time:', diagnostics.performanceMetrics.avgQueryTimeMs, 'ms');
 ```
 
 ### Low-Level Usage (Direct DB Access)
@@ -267,9 +304,27 @@ backend/app/api/v1/endpoints/
 - Backend sync handlers (sync_handlers.py, budget_ws.py)
 - Unit tests (7 bulk operations tests, 100% passed)
 
-## Next Steps (Task-004)
+### Task-004: Feature Flag & Diagnostic UI ✅
+- Feature flag setters (features/featureFlags.ts)
+  - setPGliteEnabled() - enable/disable with notification
+  - setPGliteFactsWindow() - configure data window
+  - setPGliteAutoSyncInterval() - configure auto-sync
+- PGliteManager diagnostic methods
+  - getDiagnosticData() - collect DB stats, performance metrics
+  - Query time tracking (last 100 queries)
+  - DB size calculation via pg_database_size()
+- Diagnostic Modal (PGliteDiagnosticModal.ts)
+  - Real-time stats display
+  - Table counts (articles, financial_centers, cost_centers)
+  - Performance metrics (avg query time)
+- Settings page integration (settings.html)
+  - Enable/disable toggle
+  - Facts window slider (30-365 days)
+  - Diagnostic button
 
-**Task-004: Incremental Sync**
+## Next Steps (Task-005)
+
+**Task-005: Incremental Sync**
 
 1. Добавить timestamp-based sync (последние изменения)
 2. Реализовать conflict resolution (last-write-wins)

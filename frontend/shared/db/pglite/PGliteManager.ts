@@ -32,10 +32,46 @@ import type {
 import { logger } from './utils/logger';
 
 /**
+ * Diagnostic data interface
+ */
+export interface DiagnosticData {
+  isEnabled: boolean;
+  isInitialized: boolean;
+  dbSizeKB: number;
+  lastSyncTimestamp: string;
+  syncStatus: 'idle' | 'syncing' | 'error';
+  tableStats: {
+    articles: number;
+    financial_centers: number;
+    cost_centers: number;
+  };
+  performanceMetrics: {
+    avgQueryTimeMs: number;
+    totalQueries: number;
+  };
+}
+
+/**
  * PGliteManager class
  * Main entry point for PGlite database operations
  */
 export class PGliteManager {
+  // Performance tracking
+  private queryTimes: number[] = [];
+  private readonly MAX_QUERY_TIMES = 100;
+
+  /**
+   * Track query execution time
+   *
+   * @param durationMs - Query duration in milliseconds
+   */
+  private trackQueryTime(durationMs: number): void {
+    this.queryTimes.push(durationMs);
+    if (this.queryTimes.length > this.MAX_QUERY_TIMES) {
+      this.queryTimes.shift(); // Keep last 100
+    }
+  }
+
   /**
    * Initialize database and run migrations
    *
@@ -274,6 +310,86 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     await bulkInsertHierarchy(db, hierarchy, onProgress);
+  }
+
+  // === Diagnostic Methods ===
+
+  /**
+   * Get diagnostic data for monitoring and debugging
+   *
+   * @returns Diagnostic data including DB size, table stats, and performance metrics
+   */
+  async getDiagnosticData(): Promise<DiagnosticData> {
+    const { db } = getState();
+    if (!db) {
+      // Return default data if not initialized
+      return {
+        isEnabled: false,
+        isInitialized: false,
+        dbSizeKB: 0,
+        lastSyncTimestamp: 'Never',
+        syncStatus: 'idle',
+        tableStats: {
+          articles: 0,
+          financial_centers: 0,
+          cost_centers: 0,
+        },
+        performanceMetrics: {
+          avgQueryTimeMs: 0,
+          totalQueries: 0,
+        },
+      };
+    }
+
+    // Track timing for diagnostic query
+    const startTime = performance.now();
+
+    try {
+      // Get table counts in parallel
+      const [articlesResult, fcResult, ccResult] = await Promise.all([
+        db.query('SELECT COUNT(*) as count FROM local_articles'),
+        db.query('SELECT COUNT(*) as count FROM local_financial_centers'),
+        db.query('SELECT COUNT(*) as count FROM local_cost_centers'),
+      ]);
+
+      // Calculate DB size using PostgreSQL system catalog
+      const sizeResult = await db.query('SELECT pg_database_size(current_database()) as size_bytes');
+      const dbSizeKB = Math.round((sizeResult.rows[0] as any).size_bytes / 1024);
+
+      // Get sync metadata
+      const syncMeta = await this.getSyncMetadata('articles');
+
+      // Calculate average query time
+      const avgQueryTime =
+        this.queryTimes.length > 0
+          ? this.queryTimes.reduce((a, b) => a + b, 0) / this.queryTimes.length
+          : 0;
+
+      const endTime = performance.now();
+      this.trackQueryTime(endTime - startTime);
+
+      return {
+        isEnabled: true,
+        isInitialized: this.isReady(),
+        dbSizeKB,
+        lastSyncTimestamp: syncMeta?.last_sync_timestamp
+          ? new Date(syncMeta.last_sync_timestamp).toLocaleString('ru-RU')
+          : 'Never',
+        syncStatus: 'idle', // TODO: track sync state
+        tableStats: {
+          articles: (articlesResult.rows[0] as any).count,
+          financial_centers: (fcResult.rows[0] as any).count,
+          cost_centers: (ccResult.rows[0] as any).count,
+        },
+        performanceMetrics: {
+          avgQueryTimeMs: Math.round(avgQueryTime * 100) / 100, // 2 decimal places
+          totalQueries: this.queryTimes.length,
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to get diagnostic data', error);
+      throw new Error('[PGLITE] Failed to get diagnostic data');
+    }
   }
 }
 

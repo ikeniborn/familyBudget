@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки приложения{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">⚙️ Настройки приложения</h1>
+        <p class="opacity-70">Управление общими настройками и функциями</p>
+    </div>
+
+    <!-- PGlite Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">PGlite (Offline Mode)</h2>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Enable PGlite Toggle -->
+                <div class="form-control">
+                    <label class="label cursor-pointer">
+                        <span class="label-text">
+                            <span class="font-semibold">Включить PGlite</span>
+                            <p class="text-sm opacity-70">Локальная база данных для offline режима</p>
+                        </span>
+                        <input type="checkbox" id="enablePGliteCheckbox" class="toggle toggle-primary" />
+                    </label>
+                </div>
+
+                <!-- PGlite Settings (shown when enabled) -->
+                <div id="pgliteSettings" class="hidden space-y-4 pl-4 border-l-2 border-base-300">
+                    <!-- Facts Window Slider -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Окно данных (дни)</span>
+                            <span class="label-text-alt" id="factsWindowValue">90</span>
+                        </label>
+                        <input type="range" min="30" max="365" value="90" id="factsWindowSlider" class="range range-sm range-primary" step="30" />
+                        <div class="w-full flex justify-between text-xs px-2 opacity-60">
+                            <span>30</span>
+                            <span>90</span>
+                            <span>180</span>
+                            <span>365</span>
+                        </div>
+                        <p class="text-sm opacity-70 mt-1">Количество дней фактов для синхронизации</p>
+                    </div>
+
+                    <!-- Auto-sync Interval (optional, for future) -->
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Авто-синхронизация</span>
+                            <span class="label-text-alt">5 минут</span>
+                        </label>
+                        <p class="text-sm opacity-70">Автоматическая синхронизация каждые 5 минут</p>
+                    </div>
+
+                    <!-- Diagnostic Button -->
+                    <div class="card bg-base-200">
+                        <div class="card-body p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-semibold">🔍 Диагностика</div>
+                                    <p class="text-sm opacity-70">Просмотр статистики и производительности БД</p>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline" id="openPGliteDiagnostic">
+                                    Открыть
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Badge -->
+                <div id="pgliteStatus" class="alert alert-info hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="pgliteStatusText"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other settings sections can be added here -->
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script type="module">
+import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled } from '/static/db/pglite.min.js';
+import { openPGliteDiagnostic } from '/static/js/modules/uiComponents/modals.min.js';
+
+// Initialize settings from localStorage
+document.addEventListener('DOMContentLoaded', () => {
+    const enableCheckbox = document.getElementById('enablePGliteCheckbox');
+    const factsWindowSlider = document.getElementById('factsWindowSlider');
+    const factsWindowValue = document.getElementById('factsWindowValue');
+    const pgliteSettings = document.getElementById('pgliteSettings');
+    const pgliteStatus = document.getElementById('pgliteStatus');
+    const pgliteStatusText = document.getElementById('pgliteStatusText');
+    const openDiagnosticBtn = document.getElementById('openPGliteDiagnostic');
+
+    // Load current state
+    const isEnabled = isPGliteEnabled();
+    enableCheckbox.checked = isEnabled;
+
+    if (isEnabled) {
+        pgliteSettings.classList.remove('hidden');
+    }
+
+    const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
+    factsWindowSlider.value = factsWindow.toString();
+    factsWindowValue.textContent = factsWindow.toString();
+
+    // Handle enable/disable toggle
+    enableCheckbox.addEventListener('change', (e) => {
+        const enabled = e.target.checked;
+
+        setPGliteEnabled(enabled);
+
+        // Show/hide settings
+        if (enabled) {
+            pgliteSettings.classList.remove('hidden');
+            pgliteStatus.classList.remove('hidden');
+            pgliteStatusText.textContent = 'Обновите страницу для инициализации offline режима';
+        } else {
+            pgliteSettings.classList.add('hidden');
+            pgliteStatus.classList.remove('hidden');
+            pgliteStatusText.textContent = 'Обновите страницу для возврата в online-only режим';
+        }
+    });
+
+    // Handle facts window slider
+    factsWindowSlider.addEventListener('input', (e) => {
+        factsWindowValue.textContent = e.target.value;
+    });
+
+    factsWindowSlider.addEventListener('change', (e) => {
+        const days = parseInt(e.target.value);
+        setPGliteFactsWindow(days);
+    });
+
+    // Handle diagnostic button
+    openDiagnosticBtn.addEventListener('click', () => {
+        openPGliteDiagnostic();
+    });
+});
+</script>
+{% endblock %}
