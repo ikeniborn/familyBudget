@@ -1,13 +1,13 @@
 # Broken References Fix Progress
 
 **Дата:** 2026-01-21
-**Статус:** В процессе (50% завершено)
+**Статус:** В процессе (68% завершено)
 
 ## Прогресс
 
 **Всего broken references:** 50
-**Исправлено:** 25 (50%)
-**Осталось:** 25 (50%)
+**Исправлено:** 34 (68%)
+**Осталось:** 16 (32%)
 
 ## Исправленные категории
 
@@ -66,54 +66,93 @@
 
 **Коммит:** b741b435
 
-## Оставшиеся категории (25 ссылок)
+### 7. Shopping List Tables (4 ссылки) ✅
+**Проблема:** Таблицы `t_f_shopping_list_item` и `t_d_product_group_history` не документированы
 
-### 1. Shopping Tables (4 ссылки)
-- `t_d_product_group_history` (2 refs) - нужно добавить в `history.yaml`
-- `t_f_shopping_list_item` (2 refs) - нужно добавить в `facts.yaml`
+**Исправления:**
+- Добавлена `t_f_shopping_list_item` в `facts.yaml` (Header+Lines pattern)
+- Добавлена `t_d_product_group_history` в `history.yaml` (SCD Type 2)
 
-### 2. Missing Service Indices (~15 ссылок)
-- `shopping-lists.yaml#/module/services/5,6,7` (3 refs)
-- `budget-management.yaml#/module/services/3,4` (2 refs)
+**Коммит:** cd4e5e21
+
+### 8. Missing Service Indices - Shopping (4 ссылки) ✅
+**Проблема:** Ссылки на несуществующие services/5,6,7 в shopping-lists module
+
+**Исправления:**
+- `t_d_shopping_list_history`: services/5 → services/0 (shopping_list_service)
+- `t_d_shopping_list_item_history`: services/6 → services/1 (shopping_list_item_service)
+- `t_d_store_history`: services/7 → services/2 (store_service)
+- `t_d_product_group_history`: services/6 → services/3 (product_group_service)
+
+**Коммит:** a7a72dbd
+
+### 9. Missing Service Indices - Budget (1 ссылка) ✅
+**Проблема:** Ссылка на несуществующий services/3 в budget-management module
+
+**Исправление:**
+- `t_d_article_history`: services/3 → services/0 (article_service)
+
+**Коммит:** a7a72dbd
+
+## Оставшиеся категории (16 ссылок)
+
+### 1. Missing Service Indices (~10 ссылок)
+- `budget-management.yaml#/module/services/4` (1 ref) - вероятно financial_center или cost_center history
 - `financial-centers.yaml#/module/services/2` (1 ref)
 - `cost-centers.yaml#/module/services/1` (1 ref)
 - `realtime.yaml#/module/services/0` (1 ref)
-- Другие модули (~7 refs)
+- Другие модули (~6 refs)
 
-### 3. Missing Sections (~6 ссылок)
+### 2. Missing Sections (~6 ссылок)
 - `realtime.yaml#/critical_constraint` (1 ref)
 - `offline.yaml#/indexeddb` (1 ref)
 - Другие секции (~4 refs)
 
 ## Следующие шаги
 
-1. **Добавить shopping tables** в history.yaml и facts.yaml (4 refs)
-2. **Исправить/добавить missing service indices** во всех модулях (~15 refs)
-3. **Добавить missing sections** или удалить broken ссылки (~6 refs)
-4. **Запустить финальную валидацию** и обновить validation-report.md
-5. **Создать финальный коммит** со всеми исправлениями
+1. **Исправить оставшиеся service indices** (~10 refs)
+2. **Добавить/исправить missing sections** (~6 refs)
+3. **Запустить финальную валидацию** и обновить validation-report.md
+4. **Создать финальный коммит** со всеми исправлениями
 
 ## Коммиты
 
 - `6eaf64ce`: Phase 4-5 completion (metadata + new docs)
 - `ca14be80`: Fix 21 broken references (WebAuthn, aggregation, transfers, 2FA, notifications)
 - `b741b435`: Fix 4 broken references (import dimension tables)
+- `cd4e5e21`: Add shopping tables documentation (t_f_shopping_list_item, t_d_product_group_history)
+- `a7a72dbd`: Fix 5 missing service indices (shopping + budget management)
 
 ## Статистика
 
-**Исправлено файлов:** 7
-- `endpoints/webauthn.yaml`
+**Исправлено файлов:** 9
+- `endpoints/webauthn.yaml` (7 refs)
 - `database/support.yaml` (+3 tables, 1 rename)
-- `database/dimensions.yaml`
-- `database/facts.yaml`
-- `database/indexes.yaml`
-- `endpoints/import.yaml`
-- `functionality/csv-import.yaml`
+- `database/dimensions.yaml` (1 ref)
+- `database/facts.yaml` (2 refs + 1 new table)
+- `database/indexes.yaml` (1 ref)
+- `endpoints/import.yaml` (2 refs)
+- `functionality/csv-import.yaml` (2 refs)
+- `database/history.yaml` (5 service indices + 1 new table)
 
-**Добавлено таблиц:** 3
+**Добавлено таблиц:** 5
 - `t_agg_financial_center_balance_monthly` (aggregation)
 - `t_scheduled_reminder` (notifications)
 - `t_push_subscription` (notifications)
+- `t_f_shopping_list_item` (shopping facts)
+- `t_d_product_group_history` (product group history)
 
 **Переименовано таблиц:** 1
 - `t_two_factor_session` → `t_2fa_session`
+
+**Исправлено service индексов:** 9
+- Shopping history tables: 4 refs (services/5,6,7 → services/0,1,2,3)
+- Budget management: 1 ref (services/3 → services/0)
+- Transfer logic: 3 refs (services/0 → transfer_logic или endpoints)
+- WebAuthn: 10 refs (services/8 → services/7)
+
+**Новые строки документации:** ~590
+- facts.yaml: +130 lines (t_f_shopping_list_item)
+- history.yaml: +110 lines (t_d_product_group_history)
+- support.yaml: +250 lines (3 tables)
+- validation docs: +100 lines
