@@ -282,7 +282,6 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -324,7 +323,6 @@ sync_mirror() {
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -395,7 +393,6 @@ sync_update() {
     local changed_files_raw
     changed_files_raw=$(rsync -avnc --itemize-changes \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -435,7 +432,6 @@ sync_update() {
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -666,11 +662,9 @@ sync_clean() {
     # Step 5: Copy everything from repository (except .env and directories we already handled)
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
     # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
-    # CRITICAL: VERSION excluded (preserve version bumped by --version option)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -1258,18 +1252,35 @@ sync_code_to_deploy() {
             ;;
     esac
 
-    # Initialize VERSION from repository only if not exists in DEPLOY_DIR
-    # This ensures version bumps (--version patch) persist across deployments
-    # VERSION is excluded from rsync to prevent overwriting bumped versions
-    if [[ ! -f "$DEPLOY_DIR/VERSION" ]]; then
+    # VERSION synchronization logic (v9.0+ Registry-First)
+    #
+    # Registry-First Mode (v9.0+):
+    #   - GitHub Actions builds images with VERSION tag from git
+    #   - Server must sync VERSION from git to pull correct images
+    #   - VERSION bump (--version TYPE) happens BEFORE rsync in version.sh
+    #
+    # Logic:
+    #   1. If --version TYPE or --set-version specified → skip sync (already bumped in version.sh)
+    #   2. Otherwise → ALWAYS sync from git repo (match CI/CD VERSION)
+    if [[ -n "${VERSION_BUMP_TYPE:-}" || -n "${VERSION_SET:-}" ]]; then
+        # Version will be bumped by version.sh - preserve current VERSION
+        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION" 2>/dev/null || echo 'not set')"
+        info "Reason: --version or --set-version specified"
+    else
+        # No version bump requested - sync from git repo (registry-first mode)
         if [[ -f "$repo_dir/VERSION" ]]; then
-            cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
-            info "VERSION initialized from repository: $(cat "$DEPLOY_DIR/VERSION")"
+            local repo_version=$(cat "$repo_dir/VERSION")
+            local current_version=$(cat "$DEPLOY_DIR/VERSION" 2>/dev/null || echo "not set")
+
+            if [[ "$repo_version" != "$current_version" ]]; then
+                cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
+                info "VERSION synchronized from git: $current_version → $repo_version"
+            else
+                info "VERSION already in sync: $repo_version"
+            fi
         else
             warning "VERSION file not found in repository"
         fi
-    else
-        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION")"
     fi
 
     # Log synchronization

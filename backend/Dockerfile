@@ -88,6 +88,9 @@ COPY --chown=appuser:appuser backend/ $APP_HOME/backend/
 # ВАЖНО: Копируем frontend ИЗ FRONTEND-BUILDER (с собранными assets)
 COPY --from=frontend-builder --chown=appuser:appuser /build/frontend/ $APP_HOME/frontend/
 
+# Копируем scripts (для create_admin_user.py и других утилит)
+COPY --from=frontend-builder --chown=appuser:appuser /build/scripts/ $APP_HOME/scripts/
+
 # Копируем Service Worker и Manifest
 # Note: sw.min.js is required, .gz is optional (may be created with wrong path by compression plugin)
 COPY --from=frontend-builder --chown=appuser:appuser /build/sw.min.js $APP_HOME/sw.min.js

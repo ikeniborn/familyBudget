@@ -94,8 +94,9 @@ jobs:
 
       - name: Cache busting
         run: |
-          # Генерация cache version из git hash
-          CACHE_VERSION=$(git rev-parse --short HEAD)
+          # Генерация cache version в формате v{YYYYMMDD_HHMM}
+          # Формат требуется Service Worker для валидации версии
+          CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
           echo "Generated cache version: $CACHE_VERSION"
 

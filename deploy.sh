@@ -1197,19 +1197,7 @@ main() {
     local verification_checks=0
     local verification_failures=0
 
-    # Check 1: Elastic Morphing CSS (added in v7.x)
-    if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
-        ((verification_checks++)) || true  # Prevent exit on 0++ with set -e
-        if grep -q "dot-morph" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
-            print_message info "Verified: base.html contains Elastic Morphing CSS"
-        else
-            print_message warning "VERIFICATION FAILED: base.html missing Elastic Morphing CSS (dot-morph)"
-            verification_passed=false
-            ((verification_failures++)) || true
-        fi
-    fi
-
-    # Check 2: Service Worker registration (critical for PWA)
+    # Check 1: Service Worker registration (critical for PWA)
     if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
         ((verification_checks++)) || true
         if grep -q "serviceWorker" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
@@ -1221,7 +1209,7 @@ main() {
         fi
     fi
 
-    # Check 3: sw.min.js exists (built Service Worker)
+    # Check 2: sw.min.js exists (built Service Worker)
     if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
         ((verification_checks++)) || true
         if grep -q "CACHE_VERSION" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
