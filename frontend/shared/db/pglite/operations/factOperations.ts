@@ -248,3 +248,198 @@ export async function getPendingOperations(
     };
   }) as LocalPendingOperation[];
 }
+
+/**
+ * Bulk insert facts from server (incremental sync - created)
+ *
+ * Uses srv-{id} prefix for temp_id to avoid UUID conflicts with offline creates.
+ * Uses UPSERT (ON CONFLICT DO UPDATE) to handle duplicate syncs.
+ *
+ * @param db - PGlite instance
+ * @param facts - Array of server facts (must have id)
+ */
+export async function bulkInsertFacts(
+  db: PGlite,
+  facts: Array<Omit<LocalBudgetFact, 'temp_id'> & { id: number }>
+): Promise<void> {
+  if (facts.length === 0) {
+    logger.debug('[PGLITE] No facts to bulk insert');
+    return;
+  }
+
+  logger.info('[PGLITE] Bulk inserting facts', { count: facts.length });
+
+  // Use transaction for atomicity
+  await db.query('BEGIN');
+
+  try {
+    for (const fact of facts) {
+      const temp_id = `srv-${fact.id}`; // Server fact prefix
+
+      await db.query(`
+        INSERT INTO local_budget_facts (
+          id, temp_id, user_id, article_id, financial_center_id, cost_center_id,
+          date, amount, record_type, comment,
+          transfer_group_id, is_transfer,
+          sync_status, sync_hash, content_hash,
+          created_at, updated_at, synced_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'synced', $13, $14, $15, $16, NOW())
+        ON CONFLICT (temp_id) DO UPDATE SET
+          id = EXCLUDED.id,
+          user_id = EXCLUDED.user_id,
+          article_id = EXCLUDED.article_id,
+          financial_center_id = EXCLUDED.financial_center_id,
+          cost_center_id = EXCLUDED.cost_center_id,
+          date = EXCLUDED.date,
+          amount = EXCLUDED.amount,
+          record_type = EXCLUDED.record_type,
+          comment = EXCLUDED.comment,
+          transfer_group_id = EXCLUDED.transfer_group_id,
+          is_transfer = EXCLUDED.is_transfer,
+          sync_status = 'synced',
+          sync_hash = EXCLUDED.sync_hash,
+          content_hash = EXCLUDED.content_hash,
+          updated_at = EXCLUDED.updated_at,
+          synced_at = NOW()
+      `, [
+        fact.id,
+        temp_id,
+        fact.user_id,
+        fact.article_id,
+        fact.financial_center_id,
+        fact.cost_center_id,
+        fact.date,
+        fact.amount,
+        fact.record_type,
+        fact.comment,
+        fact.transfer_group_id,
+        fact.is_transfer,
+        fact.sync_hash,
+        fact.content_hash,
+        fact.created_at,
+        fact.updated_at
+      ]);
+    }
+
+    await db.query('COMMIT');
+    logger.info('[PGLITE] Bulk insert completed', { count: facts.length });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    logger.error('[PGLITE] Bulk insert failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk update facts from server (incremental sync - updated)
+ *
+ * Updates all fields except temp_id (stable identifier).
+ * Only updates facts with srv-{id} prefix (server-synced facts).
+ *
+ * @param db - PGlite instance
+ * @param facts - Array of server facts (must have id)
+ */
+export async function bulkUpdateFacts(
+  db: PGlite,
+  facts: Array<Omit<LocalBudgetFact, 'temp_id'> & { id: number }>
+): Promise<void> {
+  if (facts.length === 0) {
+    logger.debug('[PGLITE] No facts to bulk update');
+    return;
+  }
+
+  logger.info('[PGLITE] Bulk updating facts', { count: facts.length });
+
+  await db.query('BEGIN');
+
+  try {
+    for (const fact of facts) {
+      const temp_id = `srv-${fact.id}`;
+
+      await db.query(`
+        UPDATE local_budget_facts
+        SET
+          user_id = $1,
+          article_id = $2,
+          financial_center_id = $3,
+          cost_center_id = $4,
+          date = $5,
+          amount = $6,
+          record_type = $7,
+          comment = $8,
+          transfer_group_id = $9,
+          is_transfer = $10,
+          sync_status = 'synced',
+          sync_hash = $11,
+          content_hash = $12,
+          updated_at = $13,
+          synced_at = NOW()
+        WHERE temp_id = $14
+      `, [
+        fact.user_id,
+        fact.article_id,
+        fact.financial_center_id,
+        fact.cost_center_id,
+        fact.date,
+        fact.amount,
+        fact.record_type,
+        fact.comment,
+        fact.transfer_group_id,
+        fact.is_transfer,
+        fact.sync_hash,
+        fact.content_hash,
+        fact.updated_at,
+        temp_id
+      ]);
+    }
+
+    await db.query('COMMIT');
+    logger.info('[PGLITE] Bulk update completed', { count: facts.length });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    logger.error('[PGLITE] Bulk update failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Bulk soft delete facts (incremental sync - deleted)
+ *
+ * Sets sync_status='deleted' instead of physical deletion.
+ * Preserves data for offline conflict resolution.
+ *
+ * @param db - PGlite instance
+ * @param factIds - Array of server fact IDs to delete
+ */
+export async function bulkSoftDeleteFacts(
+  db: PGlite,
+  factIds: number[]
+): Promise<void> {
+  if (factIds.length === 0) {
+    logger.debug('[PGLITE] No facts to bulk soft delete');
+    return;
+  }
+
+  logger.info('[PGLITE] Bulk soft deleting facts', { count: factIds.length });
+
+  await db.query('BEGIN');
+
+  try {
+    for (const factId of factIds) {
+      const temp_id = `srv-${factId}`;
+
+      await db.query(`
+        UPDATE local_budget_facts
+        SET sync_status = 'deleted', synced_at = NOW()
+        WHERE temp_id = $1
+      `, [temp_id]);
+    }
+
+    await db.query('COMMIT');
+    logger.info('[PGLITE] Bulk soft delete completed', { count: factIds.length });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    logger.error('[PGLITE] Bulk soft delete failed', error);
+    throw error;
+  }
+}

@@ -13,7 +13,7 @@ export interface LocalBudgetFact {
 
   // Foreign keys
   article_id: number;
-  financial_center_id: number;
+  financial_center_id: number | null;  // nullable for plans without financial center
   cost_center_id: number | null;
 
   // Transaction data

@@ -52,7 +52,10 @@ from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.core.dependencies import get_current_user
 from backend.app.services.jwt import create_ws_token, decode_ws_token
-from backend.app.api.v1.endpoints.sync_handlers import handle_sync_initial
+from backend.app.api.v1.endpoints.sync_handlers import (
+    handle_sync_initial,
+    handle_sync_incremental_request,
+)
 
 # Security constants
 MAX_CONNECTIONS_PER_USER = 10  # Max WebSocket connections per user
@@ -619,6 +622,34 @@ async def budget_websocket_endpoint(
                         async with get_session_context() as session:
                             sync_data = await handle_sync_initial(session, user_id)
                             await ws_manager.send_to_connection(connection_id, "sync_initial", sync_data)
+
+                    elif msg_type == "sync_incremental":
+                        # PGlite incremental sync request
+                        await ws_manager.update_activity(connection_id)
+
+                        # Extract data from message
+                        msg_data = msg.get("data", {})
+                        last_sync_timestamp_str = msg_data.get("last_sync_timestamp")
+
+                        if not last_sync_timestamp_str:
+                            logger.warning(f"[SYNC] Missing last_sync_timestamp in sync_incremental from user {user_id}")
+                            continue
+
+                        # Parse ISO 8601 timestamp
+                        try:
+                            last_sync_timestamp = datetime.fromisoformat(last_sync_timestamp_str.replace('Z', '+00:00'))
+                        except ValueError as e:
+                            logger.warning(f"[SYNC] Invalid timestamp format in sync_incremental: {e}")
+                            continue
+
+                        logger.info(
+                            f"[SYNC] Received sync_incremental request from user {user_id}, "
+                            f"since {last_sync_timestamp.isoformat()}"
+                        )
+
+                        async with get_session_context() as session:
+                            delta_data = await handle_sync_incremental_request(session, user_id, last_sync_timestamp)
+                            await ws_manager.send_to_connection(connection_id, "sync_incremental", delta_data)
 
                     else:
                         logger.debug(f"Budget WS unknown message type: {msg_type}")

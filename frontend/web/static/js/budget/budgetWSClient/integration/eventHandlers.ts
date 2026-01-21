@@ -20,8 +20,9 @@ import type {
   ItemDeletedEvent,
   ItemCompletedEvent,
   SyncInitialResponse,
+  SyncIncrementalResponse,
 } from '../types/events';
-import { handleSyncInitial } from './syncHandler';
+import { handleSyncInitial, handleSyncIncremental } from './syncHandler';
 
 /**
  * Handle fact_created event
@@ -178,6 +179,11 @@ export function dispatchEvent(eventType: string, eventData: unknown): void {
     case 'sync_initial':
       handleSyncInitial((eventData as SyncInitialResponse).data).catch(err => {
         console.error('[SYNC] Failed to handle sync_initial', err);
+      });
+      break;
+    case 'sync_incremental':
+      handleSyncIncremental((eventData as SyncIncrementalResponse).data).catch(err => {
+        console.error('[SYNC] Failed to handle sync_incremental', err);
       });
       break;
     default:

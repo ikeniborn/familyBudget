@@ -25,7 +25,10 @@ import {
 import {
   createFact,
   queryFacts,
-  getPendingOperations
+  getPendingOperations,
+  bulkInsertFacts,
+  bulkUpdateFacts,
+  bulkSoftDeleteFacts
 } from './operations/factOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
 import type { IPGliteConfig } from './types/dependencies';
@@ -294,6 +297,46 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await getPendingOperations(db);
+  }
+
+  /**
+   * Bulk insert facts from server (incremental sync - created)
+   *
+   * @param facts - Array of server facts (must have id)
+   */
+  async bulkInsertFacts(
+    facts: Array<Omit<LocalBudgetFact, 'temp_id'> & { id: number }>
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await bulkInsertFacts(db, facts);
+  }
+
+  /**
+   * Bulk update facts from server (incremental sync - updated)
+   *
+   * @param facts - Array of server facts (must have id)
+   */
+  async bulkUpdateFacts(
+    facts: Array<Omit<LocalBudgetFact, 'temp_id'> & { id: number }>
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await bulkUpdateFacts(db, facts);
+  }
+
+  /**
+   * Bulk soft delete facts (incremental sync - deleted)
+   *
+   * @param factIds - Array of server fact IDs to delete
+   */
+  async bulkSoftDeleteFacts(factIds: number[]): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await bulkSoftDeleteFacts(db, factIds);
   }
 
   // === Sync Metadata Methods ===

@@ -227,3 +227,61 @@ export interface SyncInitialResponse {
     total_records: number;
   };
 }
+
+// ============================================================================
+// PGlite Incremental Sync Events
+// ============================================================================
+
+export interface SyncIncrementalRequest {
+  event: 'sync_incremental';
+  data: {
+    user_id: number;
+    last_sync_timestamp: string; // ISO 8601 timestamp
+  };
+}
+
+export interface SyncIncrementalResponse {
+  event: 'sync_incremental';
+  data: {
+    created: Array<{
+      id: number;
+      user_id: number;
+      article_id: number;
+      financial_center_id: number | null;
+      cost_center_id: number | null;
+      date: string; // YYYY-MM-DD (renamed from fact_date)
+      amount: number;
+      comment: string | null; // renamed from description
+      record_type: 'fact' | 'plan';
+      transfer_group_id: string | null; // renamed from transfer_id
+      is_transfer: boolean; // added
+      recurring_plan_id: number | null;
+      is_offline_sync: boolean;
+      content_hash: string | null;
+      sync_hash: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+    updated: Array<{
+      id: number;
+      user_id: number;
+      article_id: number;
+      financial_center_id: number | null;
+      cost_center_id: number | null;
+      date: string; // YYYY-MM-DD
+      amount: number;
+      comment: string | null;
+      record_type: 'fact' | 'plan';
+      transfer_group_id: string | null;
+      is_transfer: boolean;
+      recurring_plan_id: number | null;
+      is_offline_sync: boolean;
+      content_hash: string | null;
+      sync_hash: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+    deleted: number[]; // Array of fact IDs
+    sync_timestamp: string; // Server timestamp for next sync
+  };
+}

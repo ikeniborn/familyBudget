@@ -4,7 +4,8 @@
  */
 
 import { getPGliteManager } from '@db/pglite';
-import type { SyncInitialResponse } from '../types/events';
+import { getPGliteFeatureFlags } from '@db/pglite/features/featureFlags';
+import type { SyncInitialResponse, SyncIncrementalResponse } from '../types/events';
 
 // Type declaration for global debugLog
 declare const debugLog: (...args: any[]) => void;
@@ -118,4 +119,242 @@ export function requestInitialSync(userId: number): void {
 
   debugLog('[SYNC] Requesting initial sync', request);
   (window as any).budgetWSClient.send(request);
+}
+
+// ============================================================================
+// Incremental Sync (task-007)
+// ============================================================================
+
+/**
+ * Handle sync_incremental response from backend
+ *
+ * @param data - Delta updates (created, updated, deleted facts)
+ */
+export async function handleSyncIncremental(data: SyncIncrementalResponse['data']): Promise<void> {
+  const pglite = getPGliteManager();
+
+  if (!pglite.isReady()) {
+    debugLog('[SYNC] PGlite not initialized');
+    return;
+  }
+
+  try {
+    debugLog('[SYNC] Starting incremental sync', {
+      created: data.created.length,
+      updated: data.updated.length,
+      deleted: data.deleted.length,
+      sync_timestamp: data.sync_timestamp
+    });
+
+    // Convert date strings to Date objects and add sync fields
+    const created = data.created.map(f => ({
+      ...f,
+      sync_status: 'synced' as const,  // Server facts are always synced
+      synced_at: new Date(),             // Current time
+      created_at: new Date(f.created_at),
+      updated_at: new Date(f.updated_at)
+    }));
+
+    const updated = data.updated.map(f => ({
+      ...f,
+      sync_status: 'synced' as const,
+      synced_at: new Date(),
+      created_at: new Date(f.created_at),
+      updated_at: new Date(f.updated_at)
+    }));
+
+    // Apply bulk operations
+    if (created.length > 0) {
+      await pglite.bulkInsertFacts(created);
+    }
+
+    if (updated.length > 0) {
+      await pglite.bulkUpdateFacts(updated);
+    }
+
+    if (data.deleted.length > 0) {
+      await pglite.bulkSoftDeleteFacts(data.deleted);
+    }
+
+    // Update sync metadata with new timestamp
+    await pglite.updateSyncMetadata('budget_facts', {
+      last_sync_timestamp: new Date(data.sync_timestamp),
+      sync_version: 1,
+      total_records: created.length + updated.length // Approximate
+    });
+
+    debugLog('[SYNC] Incremental sync completed successfully');
+
+    // Dispatch CustomEvent for UI updates
+    const event = new CustomEvent('pglite:sync:complete', {
+      detail: {
+        created: data.created.length,
+        updated: data.updated.length,
+        deleted: data.deleted.length,
+        timestamp: data.sync_timestamp
+      }
+    });
+    window.dispatchEvent(event);
+
+    // Invalidate DataLayer cache (if exists)
+    if ((window as any).BudgetApp?.dataLayer?.invalidateCache) {
+      (window as any).BudgetApp.dataLayer.invalidateCache();
+      debugLog('[SYNC] DataLayer cache invalidated');
+    }
+  } catch (error) {
+    debugLog('[SYNC] Incremental sync failed', error);
+    throw error;
+  }
+}
+
+/**
+ * Request incremental sync from backend
+ *
+ * @param userId - User ID for sync
+ */
+export async function requestIncrementalSync(userId: number): Promise<void> {
+  const pglite = getPGliteManager();
+
+  if (!pglite.isReady()) {
+    debugLog('[SYNC] PGlite not initialized');
+    return;
+  }
+
+  if (!(window as any).budgetWSClient) {
+    debugLog('[SYNC] budgetWSClient not initialized');
+    return;
+  }
+
+  // Get last sync timestamp from metadata
+  const syncMeta = await pglite.getSyncMetadata('budget_facts');
+  const lastSyncTimestamp = syncMeta?.last_sync_timestamp
+    ? new Date(syncMeta.last_sync_timestamp).toISOString()
+    : new Date(0).toISOString(); // Epoch if never synced
+
+  const request = {
+    event: 'sync_incremental',
+    data: {
+      user_id: userId,
+      last_sync_timestamp: lastSyncTimestamp
+    }
+  };
+
+  debugLog('[SYNC] Requesting incremental sync', request);
+  (window as any).budgetWSClient.send(request);
+}
+
+/**
+ * SyncHandler class for auto-synchronization
+ */
+export class SyncHandler {
+  private userId: number;
+  private syncInProgress = false;
+  private autoSyncTimer: number | null = null;
+
+  constructor(userId: number) {
+    this.userId = userId;
+  }
+
+  /**
+   * Perform incremental sync (manual or auto)
+   */
+  async performIncrementalSync(): Promise<void> {
+    if (this.syncInProgress) {
+      debugLog('[SYNC] Sync already in progress, skipping');
+      return;
+    }
+
+    this.syncInProgress = true;
+
+    try {
+      await requestIncrementalSync(this.userId);
+    } catch (error) {
+      debugLog('[SYNC] Incremental sync failed', error);
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Start auto-sync with configurable interval
+   */
+  startAutoSync(): void {
+    const flags = getPGliteFeatureFlags();
+
+    if (this.autoSyncTimer !== null) {
+      debugLog('[SYNC] Auto-sync already running');
+      return;
+    }
+
+    debugLog('[SYNC] Starting auto-sync', {
+      interval: flags.autoSyncInterval
+    });
+
+    // Perform initial sync
+    void this.performIncrementalSync();
+
+    // Setup periodic sync
+    this.autoSyncTimer = window.setInterval(() => {
+      void this.performIncrementalSync();
+    }, flags.autoSyncInterval);
+  }
+
+  /**
+   * Stop auto-sync
+   */
+  stopAutoSync(): void {
+    if (this.autoSyncTimer === null) {
+      debugLog('[SYNC] Auto-sync not running');
+      return;
+    }
+
+    debugLog('[SYNC] Stopping auto-sync');
+    window.clearInterval(this.autoSyncTimer);
+    this.autoSyncTimer = null;
+  }
+
+  /**
+   * Check if auto-sync is running
+   */
+  isAutoSyncActive(): boolean {
+    return this.autoSyncTimer !== null;
+  }
+}
+
+// Global SyncHandler instance (to be initialized after login)
+let syncHandlerInstance: SyncHandler | null = null;
+
+/**
+ * Initialize SyncHandler for logged-in user
+ *
+ * @param userId - User ID
+ */
+export function initSyncHandler(userId: number): void {
+  if (syncHandlerInstance) {
+    debugLog('[SYNC] SyncHandler already initialized, stopping old instance');
+    syncHandlerInstance.stopAutoSync();
+  }
+
+  syncHandlerInstance = new SyncHandler(userId);
+  syncHandlerInstance.startAutoSync();
+
+  debugLog('[SYNC] SyncHandler initialized', { userId });
+}
+
+/**
+ * Get global SyncHandler instance
+ */
+export function getSyncHandler(): SyncHandler | null {
+  return syncHandlerInstance;
+}
+
+/**
+ * Destroy SyncHandler instance (on logout)
+ */
+export function destroySyncHandler(): void {
+  if (syncHandlerInstance) {
+    syncHandlerInstance.stopAutoSync();
+    syncHandlerInstance = null;
+    debugLog('[SYNC] SyncHandler destroyed');
+  }
 }
