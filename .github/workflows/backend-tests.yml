@@ -3,10 +3,7 @@ name: Backend Tests
 on:
   push:
     branches:
-      - main
-      - test
-      - 'feature/**'
-      - 'fix/**'
+      - 'dev/**'
     paths:
       - 'backend/**'
       - 'bot/**'
@@ -15,7 +12,7 @@ on:
       - '.github/workflows/backend-tests.yml'
   pull_request:
     branches:
-      - main
+      - prod
       - test
     paths:
       - 'backend/**'

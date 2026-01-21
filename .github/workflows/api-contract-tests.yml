@@ -3,10 +3,7 @@ name: API Contract Tests
 on:
   push:
     branches:
-      - main
-      - test
-      - 'feature/**'
-      - 'fix/**'
+      - 'dev/**'
     paths:
       - 'backend/app/api/**'
       - 'backend/app/models/**'
@@ -14,7 +11,7 @@ on:
       - '.github/workflows/api-contract-tests.yml'
   pull_request:
     branches:
-      - main
+      - prod
       - test
 
 permissions:

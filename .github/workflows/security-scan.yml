@@ -3,10 +3,7 @@ name: Security Scan
 on:
   push:
     branches:
-      - main
-      - test
-      - 'feature/**'
-      - 'fix/**'
+      - 'dev/**'
     paths:
       - 'backend/**'
       - 'frontend/**'
@@ -17,7 +14,7 @@ on:
       - '.github/workflows/security-scan.yml'
   pull_request:
     branches:
-      - main
+      - prod
       - test
     paths:
       - 'backend/**'
