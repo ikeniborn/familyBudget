@@ -172,6 +172,7 @@ Deployment scripts automatically run `npm run build:vendor` to ensure all minifi
 **Notifications (v6.4.0+):** Independent Web Push + Telegram control. See `/docs/architecture/notifications.md`
 **Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. See `listsManager.ts:3207`
 **Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
+**PGlite Pruning (task-010):** Automatic data cleanup with retention window (30-365 days). Automatic weekly pruning (Chrome/Edge 80+) or manual cleanup (all browsers). See `/docs/architecture/pglite-pruning-compatibility.md`
 
 ## Development Workflow
 

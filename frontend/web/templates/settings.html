@@ -72,6 +72,74 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Pruning Settings (task-010) -->
+                    <div class="card bg-base-200">
+                        <div class="card-body p-4">
+                            <div class="font-semibold mb-3">🗑️ Автоматическая очистка данных</div>
+
+                            <!-- Enable Auto-Pruning Toggle -->
+                            <div class="form-control mb-4">
+                                <label class="label cursor-pointer">
+                                    <span class="label-text">
+                                        <span class="font-medium">Включить автоочистку</span>
+                                        <p class="text-sm opacity-70">Еженедельное удаление старых данных (Chrome/Edge)</p>
+                                    </span>
+                                    <input type="checkbox" id="enableAutoPruningCheckbox" class="toggle toggle-sm toggle-primary" />
+                                </label>
+                            </div>
+
+                            <!-- Retention Controls (shown when enabled) -->
+                            <div id="pruningControls" class="hidden">
+                                <!-- Retention Window Slider -->
+                                <div class="form-control mb-4">
+                                    <label class="label">
+                                        <span class="label-text font-medium">Окно хранения</span>
+                                        <span class="label-text-alt" id="pruningRetentionValue">90 дней</span>
+                                    </label>
+                                    <input type="range" min="30" max="365" value="90" id="pruningRetentionSlider" class="range range-sm range-warning" step="30" />
+                                    <div class="w-full flex justify-between text-xs px-2 opacity-60">
+                                        <span>1 мес</span>
+                                        <span>3 мес</span>
+                                        <span>6 мес</span>
+                                        <span>1 год</span>
+                                    </div>
+                                    <p class="text-sm opacity-70 mt-1">Хранить синхронизированные данные (должно быть ≥ окна данных)</p>
+                                </div>
+
+                                <!-- Last Pruned Info -->
+                                <div class="alert alert-info mb-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <div class="text-sm">
+                                        <div>Последняя очистка: <span id="lastPrunedAt">Никогда</span></div>
+                                        <div>Всего удалено: <span id="totalPruned">0</span> записей</div>
+                                    </div>
+                                </div>
+
+                                <!-- Manual Cleanup Button -->
+                                <button type="button" class="btn btn-sm btn-warning w-full" id="manualPruneBtn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Очистить старые данные сейчас
+                                </button>
+                            </div>
+
+                            <!-- Browser Compatibility Warning -->
+                            <div id="pruningBrowserWarning" class="alert alert-warning mt-4 hidden">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <div class="text-sm">
+                                    <div class="font-semibold mb-1">Автоматическая очистка недоступна</div>
+                                    <div>Требуется Chrome 80+, Edge 80+ или Opera 67+.</div>
+                                    <div class="mt-1">Ручная очистка работает во всех браузерах.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Status Badge -->
@@ -91,7 +159,7 @@
 
 {% block extra_scripts %}
 <script type="module">
-import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled } from '/static/db/pglite.min.js';
+import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } from '/static/db/pglite.min.js';
 import { openPGliteDiagnostic } from '/static/js/modules/uiComponents/modals.min.js';
 
 // Initialize settings from localStorage
@@ -148,6 +216,174 @@ document.addEventListener('DOMContentLoaded', () => {
     openDiagnosticBtn.addEventListener('click', () => {
         openPGliteDiagnostic();
     });
+
+    // === Pruning Controls (task-010) ===
+
+    const enableAutoPruningCheckbox = document.getElementById('enableAutoPruningCheckbox');
+    const pruningControls = document.getElementById('pruningControls');
+    const pruningRetentionSlider = document.getElementById('pruningRetentionSlider');
+    const pruningRetentionValue = document.getElementById('pruningRetentionValue');
+    const manualPruneBtn = document.getElementById('manualPruneBtn');
+    const lastPrunedAt = document.getElementById('lastPrunedAt');
+    const totalPruned = document.getElementById('totalPruned');
+    const pruningBrowserWarning = document.getElementById('pruningBrowserWarning');
+
+    // Check browser compatibility
+    const supportsPeriodicSync = 'periodicSync' in navigator.serviceWorker;
+    if (!supportsPeriodicSync) {
+        pruningBrowserWarning.classList.remove('hidden');
+    }
+
+    // Load current state
+    const enableAutoPruning = localStorage.getItem('pgliteEnableAutoPruning') === 'true';
+    enableAutoPruningCheckbox.checked = enableAutoPruning;
+
+    if (enableAutoPruning) {
+        pruningControls.classList.remove('hidden');
+    }
+
+    const pruningRetention = parseInt(localStorage.getItem('pgliteRetentionDays') || '90');
+    pruningRetentionSlider.value = pruningRetention.toString();
+    pruningRetentionValue.textContent = `${pruningRetention} дней`;
+
+    // Handle auto-pruning toggle
+    enableAutoPruningCheckbox.addEventListener('change', async (e) => {
+        const enabled = e.target.checked;
+
+        localStorage.setItem('pgliteEnableAutoPruning', enabled ? 'true' : 'false');
+
+        if (enabled) {
+            pruningControls.classList.remove('hidden');
+
+            // Register periodic sync (Chrome/Edge only)
+            if (supportsPeriodicSync) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.periodicSync.register('weekly-pruning', {
+                        minInterval: 7 * 24 * 60 * 60 * 1000 // 7 days
+                    });
+                    if (window.showToast) {
+                        window.showToast('Автоматическая очистка включена (еженедельно)', 'success');
+                    }
+                } catch (error) {
+                    console.error('[PRUNING] Failed to register periodic sync:', error);
+                    if (window.showToast) {
+                        window.showToast('Не удалось включить автоматическую очистку', 'error');
+                    }
+                }
+            } else {
+                if (window.showToast) {
+                    window.showToast('Автоматическая очистка включена (только вручную в этом браузере)', 'warning');
+                }
+            }
+        } else {
+            pruningControls.classList.add('hidden');
+
+            // Unregister periodic sync
+            if (supportsPeriodicSync) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    const tags = await registration.periodicSync.getTags();
+                    if (tags.includes('weekly-pruning')) {
+                        await registration.periodicSync.unregister('weekly-pruning');
+                    }
+                    if (window.showToast) {
+                        window.showToast('Автоматическая очистка отключена', 'info');
+                    }
+                } catch (error) {
+                    console.error('[PRUNING] Failed to unregister periodic sync:', error);
+                }
+            }
+        }
+    });
+
+    // Handle retention slider
+    pruningRetentionSlider.addEventListener('input', (e) => {
+        const days = parseInt(e.target.value);
+        pruningRetentionValue.textContent = `${days} дней`;
+    });
+
+    pruningRetentionSlider.addEventListener('change', (e) => {
+        const days = parseInt(e.target.value);
+
+        // Validate retention >= factsWindow
+        const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
+        if (days < factsWindow) {
+            if (window.showToast) {
+                window.showToast(`Окно хранения (${days}) должно быть ≥ окна данных (${factsWindow})`, 'error');
+            }
+            pruningRetentionSlider.value = factsWindow.toString();
+            pruningRetentionValue.textContent = `${factsWindow} дней`;
+            return;
+        }
+
+        localStorage.setItem('pgliteRetentionDays', days.toString());
+        if (window.showToast) {
+            window.showToast(`Окно хранения обновлено до ${days} дней`, 'success');
+        }
+    });
+
+    // Handle manual pruning button
+    manualPruneBtn.addEventListener('click', async () => {
+        // Confirmation
+        const confirmed = confirm(
+            'Очистить старые синхронизированные данные?\n\n' +
+            `Будут безвозвратно удалены транзакции старше ${pruningRetentionSlider.value} дней.\n\n` +
+            'Несинхронизированные/конфликтные записи НЕ будут удалены.'
+        );
+
+        if (!confirmed) return;
+
+        try {
+            manualPruneBtn.disabled = true;
+            manualPruneBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Очистка...';
+
+            const pglite = getPGliteManager();
+            const result = await pglite.pruneFacts();
+
+            if (window.showToast) {
+                window.showToast(
+                    `Очистка завершена!\n` +
+                    `Удалено ${result.deletedCount} старых записей\n` +
+                    `Сохранено ${(result.dbSizeBefore - result.dbSizeAfter).toFixed(0)} КБ`,
+                    'success',
+                    8000
+                );
+            }
+
+            // Update stats
+            await loadPruningStats();
+
+        } catch (error) {
+            console.error('[PRUNING] Manual cleanup failed', error);
+            if (window.showToast) {
+                window.showToast(`Ошибка очистки: ${error.message}`, 'error');
+            }
+        } finally {
+            manualPruneBtn.disabled = false;
+            manualPruneBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg> Очистить старые данные сейчас';
+        }
+    });
+
+    // Load pruning stats
+    async function loadPruningStats() {
+        try {
+            const pglite = getPGliteManager();
+            const stats = await pglite.getPruningStats();
+
+            if (stats.lastPrunedAt) {
+                lastPrunedAt.textContent = new Date(stats.lastPrunedAt).toLocaleString('ru-RU');
+            }
+            totalPruned.textContent = stats.totalPruned.toLocaleString();
+        } catch (error) {
+            console.warn('[PRUNING] Failed to load stats', error);
+        }
+    }
+
+    // Load stats on page load (only if PGlite enabled)
+    if (isEnabled) {
+        loadPruningStats();
+    }
 });
 </script>
 {% endblock %}

@@ -32,6 +32,13 @@ import {
   confirmPendingOperation,
   retryPendingOperation
 } from './operations/factOperations';
+import {
+  pruneOldFacts,
+  getPruningStats as getPruningStatsInternal,
+  calculatePotentialPruning as calculatePotentialPruningInternal,
+  type PruningResult,
+  type PruningStats
+} from './operations/pruningOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
 import type { IPGliteConfig } from './types/dependencies';
 import type {
@@ -46,6 +53,8 @@ import type {
 } from './types/models';
 import type { CountResult, SizeResult } from './types/pglite';
 import { logger } from './utils/logger';
+import { ConflictManager, type ServerBudgetFact, type ConflictMetrics } from './ConflictManager';
+import { getPGliteFeatureFlags } from './features/featureFlags';
 
 /**
  * Diagnostic data interface
@@ -65,6 +74,11 @@ export interface DiagnosticData {
     avgQueryTimeMs: number;
     totalQueries: number;
   };
+  pruningStats?: {
+    lastPrunedAt: string;
+    totalPruned: number;
+    nextPruneEstimate: string;  // "in 7 days" or "Never"
+  };
 }
 
 /**
@@ -75,6 +89,9 @@ export class PGliteManager {
   // Performance tracking
   private queryTimes: number[] = [];
   private readonly MAX_QUERY_TIMES = 100;
+
+  // Conflict management (task-009)
+  private conflictManager: ConflictManager | null = null;
 
   /**
    * Track query execution time
@@ -102,6 +119,9 @@ export class PGliteManager {
 
       // Run migrations
       const migrationsApplied = await runMigrations(db);
+
+      // Initialize conflict manager (task-009)
+      this.conflictManager = new ConflictManager(db);
 
       updateState({ isInitialized: true });
 
@@ -470,6 +490,190 @@ export class PGliteManager {
     await bulkInsertHierarchy(db, hierarchy, onProgress);
   }
 
+  // === Sync Methods (task-009) ===
+
+  /**
+   * Handle incremental sync with conflict resolution
+   * Task-009: Conflict Resolution LWW
+   *
+   * @param serverChanges - Server changes (created, updated, deleted)
+   * @returns Sync result with applied/conflict/error counts
+   */
+  async handleSyncIncremental(serverChanges: {
+    created: ServerBudgetFact[];
+    updated: ServerBudgetFact[];
+    deleted: number[];
+  }): Promise<{
+    applied: number;
+    conflicts: number;
+    errors: number;
+  }> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+    if (!this.conflictManager) throw new Error('[PGLITE] ConflictManager not initialized');
+
+    // Check feature flag
+    const featureFlags = getPGliteFeatureFlags();
+    const enableConflictResolution = featureFlags.enableConflictResolution;
+
+    logger.info('[PGLITE_SYNC] Starting incremental sync', {
+      created: serverChanges.created.length,
+      updated: serverChanges.updated.length,
+      deleted: serverChanges.deleted.length,
+      conflictResolution: enableConflictResolution
+    });
+
+    try {
+      // Step 1-3: Detect and resolve conflicts (if enabled)
+      const conflicts = enableConflictResolution
+        ? await this.detectAndResolveConflicts(serverChanges, db)
+        : [];
+
+      if (!enableConflictResolution) {
+        logger.info('[PGLITE_SYNC] Conflict resolution disabled, applying all server changes');
+      }
+
+      // Step 4: Apply non-conflicting changes
+      const conflictIds = new Set(conflicts.map(c => c.entityId));
+
+      const nonConflictingCreated = enableConflictResolution
+        ? serverChanges.created.filter(r => !conflictIds.has(r.id as number))
+        : serverChanges.created;
+
+      const nonConflictingUpdated = enableConflictResolution
+        ? serverChanges.updated.filter(r => !conflictIds.has(r.id as number))
+        : serverChanges.updated;
+
+      await this.bulkInsertFacts(nonConflictingCreated);
+      await this.bulkUpdateFacts(nonConflictingUpdated);
+
+      // Step 5: Handle deletions
+      if (serverChanges.deleted.length > 0) {
+        await this.bulkSoftDeleteFacts(serverChanges.deleted);
+      }
+
+      const totalApplied =
+        nonConflictingCreated.length +
+        nonConflictingUpdated.length +
+        serverChanges.deleted.length;
+
+      logger.info('[PGLITE_SYNC] Incremental sync completed', {
+        applied: totalApplied,
+        conflicts: conflicts.length,
+        errors: 0
+      });
+
+      return {
+        applied: totalApplied,
+        conflicts: conflicts.length,
+        errors: 0
+      };
+    } catch (error) {
+      logger.error('[PGLITE_SYNC] Incremental sync failed', error);
+      return {
+        applied: 0,
+        conflicts: 0,
+        errors: 1
+      };
+    }
+  }
+
+  /**
+   * Get conflict metrics for diagnostic UI
+   * Task-009: Conflict Resolution LWW
+   *
+   * @returns Conflict metrics
+   */
+  async getConflictMetrics(): Promise<ConflictMetrics> {
+    if (!this.conflictManager) {
+      throw new Error('[PGLITE] ConflictManager not initialized');
+    }
+
+    return this.conflictManager.getConflictMetrics();
+  }
+
+  /**
+   * Detect and resolve conflicts between local and server records.
+   * Helper method to reduce nesting in handleSyncIncremental.
+   *
+   * @param serverChanges - Server changes
+   * @param db - Database instance
+   * @returns Array of detected conflicts
+   */
+  private async detectAndResolveConflicts(
+    serverChanges: {
+      created: ServerBudgetFact[];
+      updated: ServerBudgetFact[];
+      deleted: number[];
+    },
+    db: PGlite
+  ): Promise<any[]> {
+    if (!this.conflictManager) {
+      return [];
+    }
+
+    // Step 1: Fetch local records for conflict check
+    const allServerRecords = [...serverChanges.created, ...serverChanges.updated];
+    const serverIds = allServerRecords
+      .filter(r => r.id !== null)
+      .map(r => r.id as number);
+
+    const localRecords = await this.fetchLocalRecordsForConflictCheck(db, serverIds);
+
+    // Step 2: Detect conflicts
+    const conflicts = await this.conflictManager.detectConflicts(
+      localRecords,
+      allServerRecords
+    );
+
+    // Step 3: Resolve conflicts
+    await this.resolveConflicts(conflicts);
+
+    return conflicts;
+  }
+
+  /**
+   * Fetch local records for conflict check.
+   * Helper method to reduce nesting.
+   *
+   * @param db - Database instance
+   * @param serverIds - Server IDs to fetch
+   * @returns Local budget facts
+   */
+  private async fetchLocalRecordsForConflictCheck(
+    db: PGlite,
+    serverIds: number[]
+  ): Promise<LocalBudgetFact[]> {
+    if (serverIds.length === 0) {
+      return [];
+    }
+
+    const result = await db.query(`
+      SELECT * FROM local_budget_facts
+      WHERE id = ANY($1) AND sync_status != 'deleted'
+    `, [serverIds]);
+
+    return result.rows as LocalBudgetFact[];
+  }
+
+  /**
+   * Resolve all conflicts using ConflictManager.
+   * Helper method to reduce nesting.
+   *
+   * @param conflicts - Detected conflicts
+   */
+  private async resolveConflicts(conflicts: any[]): Promise<void> {
+    if (!this.conflictManager) {
+      return;
+    }
+
+    for (const conflict of conflicts) {
+      const resolution = this.conflictManager.resolveLWW(conflict);
+      await this.conflictManager.logConflict(conflict, resolution);
+      await this.conflictManager.applyResolution(conflict, resolution);
+    }
+  }
+
   // === Diagnostic Methods ===
 
   /**
@@ -526,6 +730,21 @@ export class PGliteManager {
       const endTime = performance.now();
       this.trackQueryTime(endTime - startTime);
 
+      // Get pruning stats (task-010)
+      let pruningStats;
+      try {
+        const stats = await this.getPruningStats();
+        const flags = getPGliteFeatureFlags();
+
+        pruningStats = {
+          lastPrunedAt: stats.lastPrunedAt || 'Never',
+          totalPruned: stats.totalPruned,
+          nextPruneEstimate: flags.enableAutoPruning ? 'in 7 days' : 'Never'
+        };
+      } catch (error) {
+        logger.warn('[DIAGNOSTIC] Failed to get pruning stats', error);
+      }
+
       return {
         isEnabled: true,
         isInitialized: this.isReady(),
@@ -543,11 +762,52 @@ export class PGliteManager {
           avgQueryTimeMs: Math.round(avgQueryTime * 100) / 100, // 2 decimal places
           totalQueries: this.queryTimes.length,
         },
+        pruningStats
       };
     } catch (error) {
       logger.error('Failed to get diagnostic data', error);
       throw new Error('[PGLITE] Failed to get diagnostic data');
     }
+  }
+
+  // === Pruning Methods (task-010) ===
+
+  /**
+   * Prune old synced facts beyond retention window
+   *
+   * @param retentionDays - Override default retention (optional)
+   * @returns Pruning result with deleted count and DB size metrics
+   */
+  async pruneFacts(retentionDays?: number): Promise<PruningResult> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await pruneOldFacts(db, retentionDays);
+  }
+
+  /**
+   * Get pruning statistics for diagnostic UI
+   *
+   * @returns Pruning stats (last pruned, total pruned)
+   */
+  async getPruningStats(): Promise<PruningStats> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await getPruningStatsInternal(db);
+  }
+
+  /**
+   * Calculate potential pruning impact (dry-run)
+   *
+   * @param retentionDays - Retention window to test
+   * @returns Number of records that would be deleted
+   */
+  async calculatePotentialPruning(retentionDays: number): Promise<number> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await calculatePotentialPruningInternal(db, retentionDays);
   }
 }
 
