@@ -1,6 +1,6 @@
 """add_position_to_shopping_list_items
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: akhmi26ypiar
 Revises: 4c87e46b1cd8
 Create Date: 2026-01-22 15:00:00.000000
 
@@ -24,7 +24,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a1b2c3d4e5f6'
+revision: str = 'akhmi26ypiar'
 down_revision: Union[str, None] = '4c87e46b1cd8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
