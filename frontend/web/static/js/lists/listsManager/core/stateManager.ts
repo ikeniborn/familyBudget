@@ -46,6 +46,7 @@ declare global {
 function convertShoppingList(local: LocalShoppingList): ShoppingList {
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
+    temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
     name: local.name,
     is_active: local.is_active,
     created_at: local.created_at.toISOString(),
@@ -62,6 +63,7 @@ function convertShoppingListItem(local: LocalShoppingListItem, listId: number): 
   return {
     id: local.id || 0,
     list_id: listId,
+    temp_id: local.temp_id,         // Preserve PGlite temp_id for write operations (task-015 Phase 4)
     product_name: local.product_name,
     quantity: local.quantity,
     unit: local.unit,

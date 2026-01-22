@@ -57,6 +57,15 @@ import {
   type SyncProgressCallback
 } from './operations/shoppingSync';
 import {
+  queryRecurringPlans,
+  type RecurringPlanFilters
+} from './operations/recurringOperations';
+import {
+  syncRecurringPlans,
+  needsRecurringPlansSync,
+  type SyncProgressCallback as RecurringSyncProgressCallback
+} from './operations/recurringSync';
+import {
   pruneOldFacts,
   getPruningStats as getPruningStatsInternal,
   calculatePotentialPruning as calculatePotentialPruningInternal,
@@ -73,6 +82,7 @@ import type {
   LocalSyncMetadata,
   LocalBudgetFact,
   LocalPendingOperation,
+  LocalRecurringPlan,
   FactFilters,
   LocalShoppingList,
   LocalShoppingListItem,
@@ -1153,6 +1163,95 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await retryPendingShoppingOperation(db, tempId, error);
+  }
+
+  // === Recurring Plans Methods (task-015) ===
+
+  /**
+   * Query recurring plans with filters
+   *
+   * Recurring plans are read-only reference data cached locally.
+   * Write operations (create/update/delete) go directly to API.
+   *
+   * **Use case:** Load recurring plans for UI display
+   *
+   * **Example:**
+   * ```typescript
+   * const activePlans = await pgliteManager.queryRecurringPlans({
+   *   user_id: 1,
+   *   is_active: true
+   * });
+   * ```
+   *
+   * @param filters - Optional filters (user_id, article_id, is_active, etc.)
+   * @returns Array of recurring plans
+   * @throws Error if database not initialized
+   * @see {@link RecurringPlanFilters} for available filters
+   */
+  async queryRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryRecurringPlans(db, filters);
+  }
+
+  /**
+   * Sync recurring plans from server (full sync)
+   *
+   * Downloads all recurring plans and bulk inserts into PGlite.
+   * Uses UPSERT to handle duplicate syncs.
+   *
+   * **Use case:** Initial sync or periodic refresh (recommended: 24 hours)
+   *
+   * **Example:**
+   * ```typescript
+   * const response = await fetch('/api/v1/recurring-plans');
+   * const plans = await response.json();
+   * await pgliteManager.syncRecurringPlans(plans, (progress) => {
+   *   debugLog(`${progress.phase}: ${progress.message}`);
+   * });
+   * ```
+   *
+   * @param plans - Recurring plans from server
+   * @param onProgress - Optional progress callback for UI updates
+   * @throws Error if database not initialized
+   */
+  async syncRecurringPlans(
+    plans: LocalRecurringPlan[],
+    onProgress?: RecurringSyncProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await syncRecurringPlans(db, plans, onProgress);
+  }
+
+  /**
+   * Check if recurring plans need sync
+   *
+   * Returns true if:
+   * - No sync metadata exists
+   * - Last sync was more than 24 hours ago
+   * - Total records count is 0
+   *
+   * **Use case:** Decide whether to trigger background sync
+   *
+   * **Example:**
+   * ```typescript
+   * if (await pgliteManager.needsRecurringPlansSync()) {
+   *   const plans = await fetchRecurringPlans();
+   *   await pgliteManager.syncRecurringPlans(plans);
+   * }
+   * ```
+   *
+   * @returns True if sync needed
+   * @throws Error if database not initialized
+   */
+  async needsRecurringPlansSync(): Promise<boolean> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await needsRecurringPlansSync(db);
   }
 
   // === Pruning Methods (task-010) ===

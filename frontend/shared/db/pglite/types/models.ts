@@ -78,6 +78,9 @@ export type {
   FactFilters
 } from './fact';
 
+// Phase 4: Recurring Plans Filters (re-export from operations)
+export type { RecurringPlanFilters } from '../operations/recurringOperations';
+
 // Phase 3: Shopping Lists (re-export from shopping.ts)
 export type {
   LocalStore,

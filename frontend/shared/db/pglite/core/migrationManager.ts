@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 import v1ReferenceData from '../schemas/v1_referenceData.sql?raw';
 import v2Transactional from '../schemas/v2_transactional.sql?raw';
 import v3Shopping from '../schemas/v3_shopping.sql?raw';
+import v4RecurringPlans from '../schemas/v4_recurringPlans.sql?raw';
 
 /**
  * Migration definition
@@ -39,6 +40,11 @@ const MIGRATIONS: Migration[] = [
     version: 3,
     name: 'Shopping Lists (Stores, Product Groups, Lists, Items)',
     sql: v3Shopping
+  },
+  {
+    version: 4,
+    name: 'Recurring Plans Optimization (Performance Indexes)',
+    sql: v4RecurringPlans
   }
 ];
 
