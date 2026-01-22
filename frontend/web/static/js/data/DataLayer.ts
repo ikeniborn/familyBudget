@@ -32,6 +32,7 @@ import type {
   LocalCostCenter,
   LocalArticleHierarchy
 } from '@db/pglite';
+import { factsManager } from '../dashboard/features/factsManager';
 
 /**
  * Article filters for getArticles()
@@ -339,6 +340,20 @@ export class DataLayer {
 
     const data = await response.json();
     return data.items || [];
+  }
+
+  // =============================================================================
+  // Dashboard Analytics (task-011)
+  // =============================================================================
+
+  /**
+   * Get dashboard data (PGlite-first with API fallback)
+   * Used for future features requiring dashboard analytics
+   *
+   * @returns Dashboard data (recent facts, quick stats, account balances)
+   */
+  async getDashboardData() {
+    return await factsManager.initDashboard();
   }
 
   // =============================================================================

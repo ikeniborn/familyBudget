@@ -75,6 +75,9 @@ export type {
   SyncResults,
 } from './types/dashboard.d';
 
+// Analytics types (task-011)
+export type { QuickStats, AccountBalance, RecentFact } from './types/analytics';
+
 // ============================================================================
 // Feature Exports
 // ============================================================================
@@ -214,6 +217,9 @@ export {
   refreshDashboardWidgets,
   registerWSEventHandlers,
 } from './integration';
+
+// Facts Manager (task-011: Dashboard Query Optimization)
+export { factsManager } from './features/factsManager';
 
 // ============================================================================
 // Window Exports (for backward compatibility)
