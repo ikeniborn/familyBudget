@@ -13,6 +13,7 @@ import type {
   ConflictType,
   ResolutionStrategy,
   FieldDiff,
+  FieldValue,
 } from './types/conflicts';
 import {
   SHOPPING_LIST_FIELDS,
@@ -21,6 +22,11 @@ import {
 import { logger } from './utils/logger';
 
 const LOG_PREFIX = '[SHOPPING_CONFLICT]';
+
+/**
+ * Floating point comparison epsilon for number equality
+ */
+const FLOAT_EPSILON = 0.001;
 
 /**
  * ShoppingConflictManager class
@@ -164,8 +170,8 @@ export class ShoppingConflictManager {
     server: LocalShoppingList
   ): FieldDiff[] {
     return SHOPPING_LIST_FIELDS.map(field => {
-      const localValue = local[field.fieldName];
-      const serverValue = server[field.fieldName];
+      const localValue = local[field.fieldName] as FieldValue;
+      const serverValue = server[field.fieldName] as FieldValue;
 
       return {
         fieldName: field.fieldName as string,
@@ -191,8 +197,8 @@ export class ShoppingConflictManager {
     server: LocalShoppingListItem
   ): FieldDiff[] {
     return SHOPPING_LIST_ITEM_FIELDS.map(field => {
-      const localValue = local[field.fieldName];
-      const serverValue = server[field.fieldName];
+      const localValue = local[field.fieldName] as FieldValue;
+      const serverValue = server[field.fieldName] as FieldValue;
 
       return {
         fieldName: field.fieldName as string,
@@ -213,21 +219,21 @@ export class ShoppingConflictManager {
    * @param dataType - Data type for proper comparison
    * @returns True if values are equal
    */
-  private valuesEqual(a: any, b: any, dataType: string): boolean {
+  private valuesEqual(a: FieldValue, b: FieldValue, dataType: string): boolean {
     // Null equality
     if (a === null && b === null) return true;
     if (a === null || b === null) return false;
 
     // Date comparison
     if (dataType === 'date') {
-      const dateA = a instanceof Date ? a : new Date(a);
-      const dateB = b instanceof Date ? b : new Date(b);
+      const dateA = a instanceof Date ? a : new Date(a as string | number);
+      const dateB = b instanceof Date ? b : new Date(b as string | number);
       return dateA.getTime() === dateB.getTime();
     }
 
     // Number comparison (handle float precision)
     if (dataType === 'number' && typeof a === 'number' && typeof b === 'number') {
-      return Math.abs(a - b) < 0.001;
+      return Math.abs(a - b) < FLOAT_EPSILON;
     }
 
     // String/boolean/reference comparison

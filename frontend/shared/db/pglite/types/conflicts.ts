@@ -38,6 +38,11 @@ export type ConflictEntityType = 'shopping_list' | 'shopping_list_item';
 export type FieldDataType = 'string' | 'number' | 'boolean' | 'date' | 'reference';
 
 /**
+ * Union type for field values based on FieldDataType
+ */
+export type FieldValue = string | number | boolean | Date | null;
+
+/**
  * Represents a difference in a single field between local and server versions
  */
 export interface FieldDiff {
@@ -48,10 +53,10 @@ export interface FieldDiff {
   fieldLabel: string;
 
   /** Value from local (client) version */
-  localValue: any;
+  localValue: FieldValue;
 
   /** Value from server version */
-  serverValue: any;
+  serverValue: FieldValue;
 
   /** Data type for proper rendering */
   dataType: FieldDataType;

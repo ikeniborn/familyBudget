@@ -244,7 +244,9 @@ describe('ShoppingConflictManager', () => {
         VALUES (1, 'temp-1', 1, 'Local Name', 'Local desc', true, 'pending', 'local-hash', 'local-content', NOW())
       `);
 
-      const localList = (await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1'])).rows[0] as LocalShoppingList;
+      const listResult = await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1']);
+      expect(listResult.rows.length).toBeGreaterThan(0);
+      const localList = listResult.rows[0] as LocalShoppingList;
 
       const serverList: LocalShoppingList = {
         ...localList,
@@ -261,6 +263,7 @@ describe('ShoppingConflictManager', () => {
 
       // Verify update
       const result = await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1']);
+      expect(result.rows.length).toBeGreaterThan(0);
       const updated = result.rows[0] as LocalShoppingList;
 
       expect(updated.name).toBe('Server Name');
@@ -275,7 +278,9 @@ describe('ShoppingConflictManager', () => {
         VALUES (1, 'temp-1', 1, 'Local Name', 'Local desc', true, 'pending', 'local-hash', 'local-content', NOW())
       `);
 
-      const localList = (await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1'])).rows[0] as LocalShoppingList;
+      const listResult = await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1']);
+      expect(listResult.rows.length).toBeGreaterThan(0);
+      const localList = listResult.rows[0] as LocalShoppingList;
       const serverList: LocalShoppingList = { ...localList, name: 'Server Name', sync_hash: 'server-hash' };
 
       const conflict = await manager.detectListConflict(localList, serverList);
@@ -296,7 +301,9 @@ describe('ShoppingConflictManager', () => {
         VALUES (1, 'temp-1', 1, 'Local Name', 'Local desc', true, 'pending', 'local-hash', 'local-content', NOW())
       `);
 
-      const localList = (await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1'])).rows[0] as LocalShoppingList;
+      const listResult = await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1']);
+      expect(listResult.rows.length).toBeGreaterThan(0);
+      const localList = listResult.rows[0] as LocalShoppingList;
       const serverList: LocalShoppingList = { ...localList, name: 'Server Name', sync_hash: 'server-hash' };
 
       const conflict = await manager.detectListConflict(localList, serverList);
@@ -304,10 +311,12 @@ describe('ShoppingConflictManager', () => {
 
       // Verify sync_status remains pending
       const result = await db.query('SELECT * FROM local_shopping_lists WHERE temp_id = $1', ['temp-1']);
+      expect(result.rows.length).toBeGreaterThan(0);
       expect((result.rows[0] as LocalShoppingList).sync_status).toBe('pending');
 
       // Verify log entry
       const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
+      expect(logs.rows.length).toBeGreaterThan(0);
       expect((logs.rows[0] as any).resolution).toBe('client');
     });
   });

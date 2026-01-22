@@ -14,6 +14,7 @@ import type {
   ShoppingConflictDetection,
   ResolutionStrategy,
   FieldDiff,
+  FieldValue,
 } from '../../../../../../shared/db/pglite/types/conflicts';
 
 /**
@@ -95,12 +96,18 @@ export class ConflictResolutionModal extends BaseModal {
     const alert = document.createElement('div');
     alert.className = 'alert alert-warning';
 
-    const icon = document.createElement('svg');
-    icon.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    // Create SVG icon using DOM API (secure)
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     icon.setAttribute('fill', 'none');
     icon.setAttribute('viewBox', '0 0 24 24');
-    icon.className = 'stroke-current shrink-0 w-6 h-6';
-    icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+    icon.setAttribute('class', 'stroke-current shrink-0 w-6 h-6');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('d', 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z');
+    icon.appendChild(path);
     alert.appendChild(icon);
 
     const text = document.createElement('span');
@@ -213,7 +220,7 @@ export class ConflictResolutionModal extends BaseModal {
   /**
    * Render field value based on data type
    */
-  private renderFieldValue(field: FieldDiff, value: any): HTMLElement {
+  private renderFieldValue(field: FieldDiff, value: FieldValue): HTMLElement {
     const valueEl = document.createElement('div');
     valueEl.className = 'text-sm';
 
@@ -228,8 +235,8 @@ export class ConflictResolutionModal extends BaseModal {
     switch (field.dataType) {
       case 'boolean':
         const badge = document.createElement('span');
-        badge.className = value ? 'badge badge-success' : 'badge badge-ghost';
-        badge.textContent = value ? 'Да' : 'Нет';
+        badge.className = typeof value === 'boolean' && value ? 'badge badge-success' : 'badge badge-ghost';
+        badge.textContent = typeof value === 'boolean' && value ? 'Да' : 'Нет';
         valueEl.appendChild(badge);
         break;
 
@@ -238,13 +245,15 @@ export class ConflictResolutionModal extends BaseModal {
         break;
 
       case 'date':
-        valueEl.textContent = this.formatTimestamp(new Date(value));
+        const dateValue = value instanceof Date ? value : new Date(value as string | number);
+        valueEl.textContent = this.formatTimestamp(dateValue);
         break;
 
       case 'reference':
         // Show ID (could be enhanced to show name via lookup)
-        valueEl.textContent = `ID: ${value}`;
-        if (value === null || value === 0) {
+        const refValue = typeof value === 'number' ? value : 0;
+        valueEl.textContent = `ID: ${refValue}`;
+        if (refValue === 0) {
           valueEl.className += ' text-base-content/50 italic';
           valueEl.textContent = '(не выбрано)';
         }
@@ -252,11 +261,12 @@ export class ConflictResolutionModal extends BaseModal {
 
       case 'string':
       default:
-        valueEl.textContent = String(value);
+        const strValue = String(value);
+        valueEl.textContent = strValue;
         // Truncate long strings
-        if (valueEl.textContent.length > 100) {
-          valueEl.textContent = valueEl.textContent.substring(0, 97) + '...';
-          valueEl.title = String(value); // Full text in tooltip
+        if (strValue.length > 100) {
+          valueEl.textContent = strValue.substring(0, 97) + '...';
+          valueEl.title = strValue; // Full text in tooltip
         }
         break;
     }
@@ -275,7 +285,7 @@ export class ConflictResolutionModal extends BaseModal {
     const serverBtn = document.createElement('button');
     serverBtn.type = 'button';
     serverBtn.className = 'btn btn-success';
-    serverBtn.innerHTML = '🌐 Использовать версию сервера';
+    serverBtn.textContent = '🌐 Использовать версию сервера';
     serverBtn.addEventListener('click', () => this.handleResolve('server'));
     actions.appendChild(serverBtn);
 
@@ -283,7 +293,7 @@ export class ConflictResolutionModal extends BaseModal {
     const clientBtn = document.createElement('button');
     clientBtn.type = 'button';
     clientBtn.className = 'btn btn-primary';
-    clientBtn.innerHTML = '💻 Сохранить мою версию';
+    clientBtn.textContent = '💻 Сохранить мою версию';
     clientBtn.addEventListener('click', () => this.handleResolve('client'));
     actions.appendChild(clientBtn);
 
@@ -292,7 +302,7 @@ export class ConflictResolutionModal extends BaseModal {
     mergeBtn.type = 'button';
     mergeBtn.className = 'btn btn-warning';
     mergeBtn.disabled = true;
-    mergeBtn.innerHTML = '🔀 Объединить (скоро)';
+    mergeBtn.textContent = '🔀 Объединить (скоро)';
     mergeBtn.title = 'Функция будет доступна в следующей версии';
     actions.appendChild(mergeBtn);
 
@@ -381,7 +391,17 @@ export class ConflictResolutionModal extends BaseModal {
     const button = dialog.querySelector<HTMLButtonElement>(`.${className}`);
 
     if (button) {
-      button.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Применение...';
+      // Clear existing content
+      button.textContent = '';
+
+      // Create loading spinner
+      const spinner = document.createElement('span');
+      spinner.className = 'loading loading-spinner loading-sm';
+      button.appendChild(spinner);
+
+      // Add loading text
+      const text = document.createTextNode(' Применение...');
+      button.appendChild(text);
     }
   }
 
@@ -394,12 +414,12 @@ export class ConflictResolutionModal extends BaseModal {
 
     const serverBtn = dialog.querySelector<HTMLButtonElement>('.btn-success');
     if (serverBtn) {
-      serverBtn.innerHTML = '🌐 Использовать версию сервера';
+      serverBtn.textContent = '🌐 Использовать версию сервера';
     }
 
     const clientBtn = dialog.querySelector<HTMLButtonElement>('.btn-primary');
     if (clientBtn) {
-      clientBtn.innerHTML = '💻 Сохранить мою версию';
+      clientBtn.textContent = '💻 Сохранить мою версию';
     }
   }
 
