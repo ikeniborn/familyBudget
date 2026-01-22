@@ -159,6 +159,7 @@ export const SHOPPING_LIST_ITEM_FIELDS: ShoppingListItemFieldMetadata[] = [
   { fieldName: 'comment', fieldLabel: 'Комментарий', dataType: 'string', compareInDiff: true },
   { fieldName: 'position', fieldLabel: 'Позиция', dataType: 'number', compareInDiff: false },
   { fieldName: 'is_completed', fieldLabel: 'Куплено', dataType: 'boolean', compareInDiff: true },
+  { fieldName: 'completed_at', fieldLabel: 'Дата покупки', dataType: 'date', compareInDiff: true },
   { fieldName: 'store_id', fieldLabel: 'Магазин', dataType: 'reference', compareInDiff: true },
   { fieldName: 'product_group_id', fieldLabel: 'Категория', dataType: 'reference', compareInDiff: true },
   { fieldName: 'updated_at', fieldLabel: 'Дата изменения', dataType: 'date', compareInDiff: true },

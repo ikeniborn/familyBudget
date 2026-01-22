@@ -89,8 +89,8 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount, sync_hash FROM local_budget_facts WHERE id = 1'
       );
-      const updatedRow = updated.rows[0] as { amount: number; sync_hash: string };
-      expect(updatedRow.amount).toBe(150); // Server value
+      const updatedRow = updated.rows[0] as { amount: string | number; sync_hash: string };
+      expect(Number(updatedRow.amount)).toBe(150); // Server value (NUMERIC returns as string)
       expect(updatedRow.sync_hash).toBe('new_hash'); // Server hash
 
       // Verify conflict logged
@@ -104,8 +104,8 @@ describe('Conflict Resolution Integration', () => {
       const localVersion = JSON.parse(conflictRow.local_version);
       const serverVersion = JSON.parse(conflictRow.server_version);
 
-      expect(localVersion.amount).toBe(100);
-      expect(serverVersion.amount).toBe(150);
+      expect(Number(localVersion.amount)).toBe(100);
+      expect(Number(serverVersion.amount)).toBe(150);
     });
   });
 
@@ -168,8 +168,8 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount, sync_status FROM local_budget_facts WHERE id = 1'
       );
-      const updatedRow = updated.rows[0] as { amount: number; sync_status: string };
-      expect(updatedRow.amount).toBe(200); // Client value
+      const updatedRow = updated.rows[0] as { amount: string | number; sync_status: string };
+      expect(Number(updatedRow.amount)).toBe(200); // Client value (NUMERIC returns as string)
       expect(updatedRow.sync_status).toBe('pending'); // Marked for re-upload
 
       // Verify conflict logged
@@ -326,19 +326,19 @@ describe('Conflict Resolution Integration', () => {
       const facts = await db.query(
         'SELECT id, amount, sync_status FROM local_budget_facts ORDER BY id'
       );
-      type FactRow = { id: number; amount: number; sync_status: string };
+      type FactRow = { id: number; amount: string | number; sync_status: string };
       const factsRows = facts.rows as FactRow[];
 
       // Record 1: Server wins (150)
-      expect(factsRows[0].amount).toBe(150);
+      expect(Number(factsRows[0].amount)).toBe(150);
       expect(factsRows[0].sync_status).toBe('synced');
 
       // Record 2: Client wins (200)
-      expect(factsRows[1].amount).toBe(200);
+      expect(Number(factsRows[1].amount)).toBe(200);
       expect(factsRows[1].sync_status).toBe('pending'); // Marked for re-upload
 
       // Record 3: Server wins (350)
-      expect(factsRows[2].amount).toBe(350);
+      expect(Number(factsRows[2].amount)).toBe(350);
       expect(factsRows[2].sync_status).toBe('synced');
 
       // Verify conflicts logged
@@ -417,8 +417,8 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount FROM local_budget_facts WHERE id = 1'
       );
-      const updatedRow = updated.rows[0] as { amount: number };
-      expect(updatedRow.amount).toBe(150); // Server value
+      const updatedRow = updated.rows[0] as { amount: string | number };
+      expect(Number(updatedRow.amount)).toBe(150); // Server value (NUMERIC returns as string)
 
       // Verify no conflicts logged
       const conflicts = await db.query(

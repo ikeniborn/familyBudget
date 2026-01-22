@@ -31,7 +31,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Create old pending fact (200 days ago) - should KEEP
@@ -39,7 +39,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 200, 'expense', 'pending', 'hash2')
+        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 200, 'fact', 'pending', 'hash2')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Create recent synced fact (10 days ago) - should KEEP
@@ -49,7 +49,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('recent-synced', 1, 1, 1, 1, $1, 300, 'expense', 'synced', 'hash3')
+        ) VALUES ('recent-synced', 1, 1, 1, 1, $1, 300, 'fact', 'synced', 'hash3')
       `, [recentDate.toISOString().split('T')[0]]);
 
       // Prune with 90-day retention
@@ -73,7 +73,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 100, 'expense', 'pending', 'hash1')
+        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 100, 'fact', 'pending', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Prune with 30-day retention
@@ -95,7 +95,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-conflicted', 1, 1, 1, 1, $1, 100, 'expense', 'conflicted', 'hash1')
+        ) VALUES ('old-conflicted', 1, 1, 1, 1, $1, 100, 'fact', 'conflicted', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Prune with 30-day retention
@@ -117,7 +117,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Prune
@@ -139,7 +139,7 @@ describe('pruningOperations', () => {
           INSERT INTO local_budget_facts (
             temp_id, user_id, article_id, financial_center_id, cost_center_id,
             date, amount, record_type, sync_status, content_hash
-          ) VALUES ($1, 1, 1, 1, 1, $2, 100, 'expense', 'synced', $3)
+          ) VALUES ($1, 1, 1, 1, 1, $2, 100, 'fact', 'synced', $3)
         `, [`old-${i}`, oldDate.toISOString().split('T')[0], `hash-${i}`]);
       }
 
@@ -170,7 +170,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('old-synced', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       await pruneOldFacts(db, 90);
@@ -189,7 +189,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-1', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('old-1', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [oldDate1.toISOString().split('T')[0]]);
 
       await pruneOldFacts(db, 90);
@@ -201,7 +201,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-2', 1, 1, 1, 1, $1, 200, 'expense', 'synced', 'hash2')
+        ) VALUES ('old-2', 1, 1, 1, 1, $1, 200, 'fact', 'synced', 'hash2')
       `, [oldDate1.toISOString().split('T')[0]]);
 
       await pruneOldFacts(db, 90);
@@ -226,7 +226,7 @@ describe('pruningOperations', () => {
           INSERT INTO local_budget_facts (
             temp_id, user_id, article_id, financial_center_id, cost_center_id,
             date, amount, record_type, sync_status, content_hash
-          ) VALUES ($1, 1, 1, 1, 1, $2, 100, 'expense', 'synced', $3)
+          ) VALUES ($1, 1, 1, 1, 1, $2, 100, 'fact', 'synced', $3)
         `, [`old-${i}`, oldDate.toISOString().split('T')[0], `hash-${i}`]);
       }
 
@@ -238,7 +238,7 @@ describe('pruningOperations', () => {
           INSERT INTO local_budget_facts (
             temp_id, user_id, article_id, financial_center_id, cost_center_id,
             date, amount, record_type, sync_status, content_hash
-          ) VALUES ($1, 1, 1, 1, 1, $2, 200, 'expense', 'synced', $3)
+          ) VALUES ($1, 1, 1, 1, 1, $2, 200, 'fact', 'synced', $3)
         `, [`recent-${i}`, recentDate.toISOString().split('T')[0], `hash-recent-${i}`]);
       }
 
@@ -255,7 +255,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 100, 'expense', 'pending', 'hash1')
+        ) VALUES ('old-pending', 1, 1, 1, 1, $1, 100, 'fact', 'pending', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Calculate potential pruning
@@ -280,7 +280,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('recent', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('recent', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [recentDate.toISOString().split('T')[0]]);
 
       // Prune with 90-day retention
@@ -300,7 +300,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('recent', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('recent', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [recentDate.toISOString().split('T')[0]]);
 
       // Calculate with 30-day retention
@@ -341,7 +341,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('very-old', 1, 1, 1, 1, $1, 100, 'expense', 'synced', 'hash1')
+        ) VALUES ('very-old', 1, 1, 1, 1, $1, 100, 'fact', 'synced', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Prune with maximum retention (365 days)

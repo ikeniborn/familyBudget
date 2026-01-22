@@ -358,12 +358,16 @@ describe('ConflictManager', () => {
       expect(logRow.resolution).toBe('server');
       expect(logRow.resolved_at).not.toBeNull();
 
-      // Check JSONB versions
-      const localVersion = JSON.parse(logRow.local_version);
-      const serverVersion = JSON.parse(logRow.server_version);
+      // Check JSONB versions (PGlite returns JSONB as parsed object)
+      const localVersion = typeof logRow.local_version === 'string'
+        ? JSON.parse(logRow.local_version)
+        : logRow.local_version;
+      const serverVersion = typeof logRow.server_version === 'string'
+        ? JSON.parse(logRow.server_version)
+        : logRow.server_version;
 
-      expect(localVersion.amount).toBe(100);
-      expect(serverVersion.amount).toBe(150);
+      expect(Number(localVersion.amount)).toBe(100);
+      expect(Number(serverVersion.amount)).toBe(150);
     });
   });
 
