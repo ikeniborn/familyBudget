@@ -109,6 +109,8 @@ export interface FactFilters {
   financial_center_id?: number;
   cost_center_id?: number;
   record_type?: 'fact' | 'plan';
+  article_type?: 'expense' | 'income' | 'debit' | 'credit';  // For filtering by article type
+  search?: string;      // Search by description (trigram)
   sync_status?: 'synced' | 'pending' | 'conflict' | 'deleted';
   date_from?: string;   // YYYY-MM-DD
   date_to?: string;     // YYYY-MM-DD

@@ -142,6 +142,15 @@ function buildFactsQuery(
     params.push(filters.date_to);
   }
 
+  // Search filter (ILIKE on comment)
+  if (filters?.search !== undefined && filters.search.trim() !== '') {
+    query += ` AND comment ILIKE $${paramIndex++}`;
+    params.push(`%${filters.search}%`);
+  }
+
+  // Note: article_type filter requires JOIN with local_articles - not implemented in PGlite
+  // Clients should filter by article_type post-query if needed
+
   // Ordering and limit
   query += ` ORDER BY date DESC LIMIT ${MAX_FACTS_QUERY_LIMIT}`;
 

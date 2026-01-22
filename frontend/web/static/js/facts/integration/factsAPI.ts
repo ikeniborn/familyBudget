@@ -9,7 +9,10 @@
 
 import type { BudgetFact, OfflineFactResponse, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
 import { buildFilterQuery } from '../operations/filterOperations';
+import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
+import { dataLayer } from '../../data/DataLayer';
+import type { FactFilters, LocalBudgetFact } from '@db/pglite';
 
 // ============================================================================
 // Types
@@ -24,60 +27,112 @@ interface CreateTransferData {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Build FactFilters from current filter state
+ * Converts UI filters to PGlite-compatible format
+ */
+function buildFactFilters(): FactFilters {
+    const filters = getFilters();
+
+    const factFilters: FactFilters = {
+        record_type: 'fact' // Always filter by facts (not plans)
+    };
+
+    // Add optional filters
+    if (filters.user_id) factFilters.user_id = filters.user_id;
+    if (filters.article_id) factFilters.article_id = filters.article_id;
+    if (filters.article_type) factFilters.article_type = filters.article_type;
+    if (filters.date_from) factFilters.date_from = filters.date_from;
+    if (filters.date_to) factFilters.date_to = filters.date_to;
+    if (filters.financial_center_id) factFilters.financial_center_id = filters.financial_center_id;
+    if (filters.cost_center_id) factFilters.cost_center_id = filters.cost_center_id;
+    if (filters.search) factFilters.search = filters.search;
+
+    return factFilters;
+}
+
+/**
+ * Convert LocalBudgetFact to BudgetFact
+ * Note: Names (article_name, financial_center_name, etc.) are not available in PGlite
+ * TODO: Add client-side join with reference data in future
+ */
+function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
+    return {
+        id: local.id || 0,
+        fact_date: local.date, // Already YYYY-MM-DD
+        article_id: local.article_id,
+        article_name: '', // TODO: Client-side join with local_articles
+        article_type: 'expense', // TODO: Client-side join with local_articles
+        financial_center_id: local.financial_center_id || 0,
+        financial_center_name: '', // TODO: Client-side join with local_financial_centers
+        cost_center_id: local.cost_center_id,
+        cost_center_name: null, // TODO: Client-side join with local_cost_centers
+        amount: Number(local.amount),
+        description: local.comment,
+        user_id: local.user_id,
+        user_name: '', // TODO: Add user name lookup
+        record_type: 'spend', // Default mapping from 'fact'
+        created_at: local.created_at.toISOString(),
+        updated_at: local.updated_at.toISOString()
+    };
+}
+
+// ============================================================================
 // Load Facts
 // ============================================================================
 
 /**
- * Load facts from API with current filters and pagination
+ * Load facts (PGlite-first with API fallback)
+ * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadFacts(): Promise<LoadFactsResponse> {
-    const params = buildFilterQuery();
+    try {
+        // Build filters for PGlite
+        const factFilters = buildFactFilters();
 
-    // Add pagination
-    params.append('limit', String(getLimit()));
-    params.append('offset', String(getOffset()));
+        // Load all facts via DataLayer (PGlite-first + API fallback)
+        const localFacts = await dataLayer.getFacts(factFilters);
 
-    const response = await fetch(`/api/v1/facts?${params}`, {
-        credentials: 'include'
-    });
+        // Convert to UI types
+        const allFacts = localFacts.map(convertBudgetFact);
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to load facts: HTTP ${response.status} - ${errorText}`);
+        // Client-side pagination
+        const limit = getLimit();
+        const offset = getOffset();
+        const facts = allFacts.slice(offset, offset + limit);
+
+        return {
+            facts,
+            total: allFacts.length,
+            page: Math.floor(offset / limit),
+            page_size: limit
+        };
+    } catch (error) {
+        console.error('[FACTS_API] Error loading facts:', error);
+        throw new Error(`Failed to load facts: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const data = await response.json();
-
-    return {
-        facts: data.facts || [],
-        total: data.total || 0,
-        page: Math.floor(getOffset() / getLimit()),
-        page_size: getLimit()
-    };
 }
 
 /**
- * Load facts count (without pagination)
- * Uses separate endpoint for better performance
+ * Load facts count (PGlite-first with API fallback)
+ * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadFactsCount(): Promise<number> {
-    const params = buildFilterQuery();
+    try {
+        // Build filters for PGlite
+        const factFilters = buildFactFilters();
 
-    // Remove pagination params
-    params.delete('limit');
-    params.delete('offset');
+        // Get count via DataLayer (PGlite-first + API fallback)
+        const total = await dataLayer.getFactsCount(factFilters);
 
-    const response = await fetch(`/api/v1/facts/count?${params}`, {
-        credentials: 'include'
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to load facts count: HTTP ${response.status} - ${errorText}`);
+        return total;
+    } catch (error) {
+        console.error('[FACTS_API] Error loading facts count:', error);
+        throw new Error(`Failed to load facts count: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const data = await response.json();
-    return data.total;
 }
 
 /**
