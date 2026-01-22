@@ -7,12 +7,13 @@
  * Extracted from: frontend/web/templates/facts.html (lines 1304-2161)
  */
 
-import type { BudgetFact, OfflineFactResponse, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
+import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 import { dataLayer } from '../../data/DataLayer';
 import type { FactFilters, LocalBudgetFact } from '@db/pglite';
+import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
 
 // ============================================================================
 // Types
@@ -62,6 +63,7 @@ function buildFactFilters(): FactFilters {
 function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
     return {
         id: local.id || 0,
+        temp_id: local.temp_id,    // Preserve PGlite temp_id for write operations (task-015 Phase 4.4)
         fact_date: local.date, // Already YYYY-MM-DD
         article_id: local.article_id,
         article_name: '', // TODO: Client-side join with local_articles
@@ -184,35 +186,79 @@ export async function getFact(factId: number): Promise<BudgetFact> {
 
 /**
  * Create new fact
- * Supports offline mode via window.offlineManager if available
+ * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
-    // Use OfflineManager if available (offline support)
-    if ((window as any).offlineManager) {
-        const result = await (window as any).offlineManager.createFact(data);
+    const pglite = getPGliteManager();
 
-        if (result._offline) {
-            // Return result with offline flag (logged elsewhere)
-            return { ...result, _offline: true } as OfflineFactResponse;
+    try {
+        // PGlite-first strategy
+        if (isPGliteEnabled() && pglite.isReady()) {
+            // Get user ID
+            const userId = (window as any).offlineManager
+                ? await (window as any).offlineManager.getCurrentUserId()
+                : null;
+
+            if (!userId) {
+                throw new Error('User ID not available');
+            }
+
+            // Map CreateFactData to LocalBudgetFact format
+            const temp_id = await pglite.createFact({
+                user_id: userId,
+                article_id: data.article_id,
+                financial_center_id: data.financial_center_id,
+                cost_center_id: data.cost_center_id || null,
+                date: data.fact_date,
+                amount: data.amount,
+                record_type: data.record_type,
+                comment: data.description,
+                transfer_group_id: null,
+                is_transfer: false,
+                sync_hash: null
+            });
+
+
+            // Return placeholder BudgetFact (UI will reload from PGlite)
+            return {
+                id: 0,
+                temp_id,
+                fact_date: data.fact_date,
+                article_id: data.article_id,
+                article_name: '',
+                article_type: data.fact_type,
+                financial_center_id: data.financial_center_id,
+                financial_center_name: '',
+                cost_center_id: data.cost_center_id || null,
+                cost_center_name: null,
+                amount: data.amount,
+                description: data.description,
+                user_id: userId,
+                user_name: '',
+                record_type: 'spend',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
         }
 
-        return result;
+        // Fallback to direct API
+        const response = await fetch('/api/v1/facts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('[FACTS_API] Error creating fact:', error);
+        throw error;
     }
-
-    // Fallback to direct fetch if OfflineManager not available
-    const response = await fetch('/api/v1/facts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || `HTTP error! status: ${response.status}`);
-    }
-
-    return await response.json();
 }
 
 // ============================================================================
@@ -220,50 +266,119 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
 // ============================================================================
 
 /**
- * Update existing fact
+ * Helper: Find fact temp_id by server ID
  */
-export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const response = await fetch(`/api/v1/facts/${factId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(data)
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-
-        // Parse validation errors for better UX
-        let errorMsg = 'Ошибка сохранения';
-
-        // Handle custom error format: {detail: {message: "...", errors: [...]}}
-        if (error.detail && typeof error.detail === 'object') {
-            if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
-                // Custom validation error format
-                errorMsg = error.detail.errors
-                    .map((e: any) => e.message || e.msg || 'Unknown error')
-                    .join('; ');
-            } else if (typeof error.detail.message === 'string') {
-                errorMsg = error.detail.message;
-            } else if (typeof error.detail === 'string') {
-                errorMsg = error.detail;
-            } else if (Array.isArray(error.detail)) {
-                // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
-                errorMsg = error.detail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
-            } else {
-                // Fallback: stringify unknown object
-                errorMsg = JSON.stringify(error.detail);
-            }
-        } else if (typeof error.detail === 'string') {
-            errorMsg = error.detail;
-        } else {
-            errorMsg = `HTTP error! status: ${response.status}`;
-        }
-
-        throw new Error(errorMsg);
+async function findFactTempId(factId: number): Promise<string | null> {
+    const pglite = getPGliteManager();
+    if (!isPGliteEnabled() || !pglite.isReady()) {
+        return null;
     }
 
-    return await response.json();
+    try {
+        const facts = await pglite.queryFacts({});
+        const fact = facts.find(f => f.id === factId);
+        return fact?.temp_id || null;
+    } catch (error) {
+        console.error('[FACTS_API] Error finding fact temp_id:', error);
+        return null;
+    }
+}
+
+/**
+ * Update existing fact
+ * PGlite-first with API fallback (task-015 Phase 4.4)
+ */
+export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
+    const pglite = getPGliteManager();
+
+    try {
+        // PGlite-first strategy
+        if (isPGliteEnabled() && pglite.isReady()) {
+            // Find fact temp_id by server ID
+            const temp_id = await findFactTempId(factId);
+            if (!temp_id) {
+                throw new Error('Fact temp_id not found, cannot update via PGlite');
+            }
+
+            // Update in PGlite (auto-adds to pending queue)
+            await pglite.updateFact(temp_id, {
+                date: data.fact_date,
+                amount: data.amount,
+                article_id: data.article_id,
+                financial_center_id: data.financial_center_id,
+                cost_center_id: data.cost_center_id || null,
+                comment: data.description
+            });
+
+
+            // Return placeholder (UI will reload from PGlite)
+            return {
+                id: factId,
+                temp_id,
+                fact_date: data.fact_date,
+                article_id: data.article_id,
+                article_name: '',
+                article_type: 'expense',
+                financial_center_id: data.financial_center_id,
+                financial_center_name: '',
+                cost_center_id: data.cost_center_id || null,
+                cost_center_name: null,
+                amount: data.amount,
+                description: data.description,
+                user_id: 0,
+                user_name: '',
+                record_type: 'spend',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+        }
+
+        // Fallback to direct API
+        const response = await fetch(`/api/v1/facts/${factId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Parse validation errors for better UX
+            let errorMsg = 'Ошибка сохранения';
+
+            // Handle custom error format: {detail: {message: "...", errors: [...]}}
+            if (error.detail && typeof error.detail === 'object') {
+                if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+                    // Custom validation error format
+                    errorMsg = error.detail.errors
+                        .map((e: any) => e.message || e.msg || 'Unknown error')
+                        .join('; ');
+                } else if (typeof error.detail.message === 'string') {
+                    errorMsg = error.detail.message;
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
+                    errorMsg = error.detail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else {
+                    // Fallback: stringify unknown object
+                    errorMsg = JSON.stringify(error.detail);
+                }
+            } else if (typeof error.detail === 'string') {
+                errorMsg = error.detail;
+            } else {
+                errorMsg = `HTTP error! status: ${response.status}`;
+            }
+
+            throw new Error(errorMsg);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('[FACTS_API] Error updating fact:', error);
+        throw error;
+    }
 }
 
 // ============================================================================
@@ -272,16 +387,39 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
 
 /**
  * Delete single fact
+ * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const response = await fetch(`/api/v1/facts/${factId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-    });
+    const pglite = getPGliteManager();
 
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    try {
+        // PGlite-first strategy
+        if (isPGliteEnabled() && pglite.isReady()) {
+            // Find fact temp_id by server ID
+            const temp_id = await findFactTempId(factId);
+            if (!temp_id) {
+                throw new Error('Fact temp_id not found, cannot delete via PGlite');
+            }
+
+            // Delete in PGlite (soft delete, adds to pending queue)
+            await pglite.deleteFact(temp_id);
+            return;
+        }
+
+        // Fallback to direct API
+        const response = await fetch(`/api/v1/facts/${factId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+    } catch (error) {
+        console.error('[FACTS_API] Error deleting fact:', error);
+        throw error;
     }
 }
 

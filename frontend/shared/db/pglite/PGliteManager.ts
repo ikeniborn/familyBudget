@@ -24,6 +24,8 @@ import {
 } from './operations/bulkOperations';
 import {
   createFact,
+  updateFact,
+  deleteFact,
   queryFacts,
   getPendingOperations,
   bulkInsertFacts,
@@ -337,6 +339,34 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await createFact(db, fact);
+  }
+
+  /**
+   * Update budget fact
+   *
+   * @param temp_id - Fact temp_id
+   * @param updates - Partial fact data to update
+   */
+  async updateFact(
+    temp_id: string,
+    updates: Partial<Pick<LocalBudgetFact, 'date' | 'amount' | 'article_id' | 'financial_center_id' | 'cost_center_id' | 'comment'>>
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await updateFact(db, temp_id, updates);
+  }
+
+  /**
+   * Delete budget fact (soft delete)
+   *
+   * @param temp_id - Fact temp_id
+   */
+  async deleteFact(temp_id: string): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await deleteFact(db, temp_id);
   }
 
   /**
