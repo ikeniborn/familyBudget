@@ -19,9 +19,9 @@
     ]
   },
   "nginx": {
-    "version": "9.0.3",
-    "hash": "af000a6e",
-    "lastModified": "2026-01-21T09:58:25Z",
+    "version": "10.0.2",
+    "hash": "242e9848",
+    "lastModified": "2026-01-22T21:49:05Z",
     "paths": [
       "nginx/"
     ]
