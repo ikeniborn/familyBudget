@@ -2,12 +2,7 @@
 # This configuration is used AFTER SSL certificate is obtained.
 # Includes: HTTPS server, HTTP→HTTPS redirect, all application routes
 # Variable: {{DOMAIN}}
-
-# Upstream backend
-upstream backend {
-    server backend:8000;
-    keepalive 32;
-}
+# Note: Upstream backend defined in upstream.conf.template
 
 # HTTPS Server - Port 443
 server {

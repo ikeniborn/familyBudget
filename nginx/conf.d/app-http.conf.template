@@ -2,12 +2,7 @@
 # This configuration is used BEFORE SSL certificate is obtained.
 # Purpose: Serve HTTP traffic and ACME challenges for Let's Encrypt
 # Variable: {{DOMAIN}}
-
-# Upstream backend
-upstream backend {
-    server backend:8000;
-    keepalive 32;
-}
+# Note: Upstream backend defined in upstream.conf.template
 
 # HTTP Server - Port 80
 # Serves initial content and ACME challenges for SSL certificate acquisition

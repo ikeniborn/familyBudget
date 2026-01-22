@@ -1,0 +1,8 @@
+# Family Budget - Upstream Backend Definition
+# This file defines the backend upstream once to avoid duplication
+# Used by both HTTP and HTTPS configurations
+
+upstream backend {
+    server backend:8000;
+    keepalive 32;
+}

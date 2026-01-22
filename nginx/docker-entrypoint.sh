@@ -12,6 +12,12 @@ fi
 
 echo "Processing nginx templates with DOMAIN=$DOMAIN"
 
+# Process upstream configuration (shared by both HTTP and HTTPS)
+if [ -f /etc/nginx/conf.d/upstream.conf.template ]; then
+    echo "  Processing: upstream.conf.template -> upstream.conf"
+    sed "s|{{DOMAIN}}|$DOMAIN|g" /etc/nginx/conf.d/upstream.conf.template > /etc/nginx/conf.d/upstream.conf
+fi
+
 # Check if SSL certificate exists
 SSL_CERT="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"
 if [ -f "$SSL_CERT" ]; then
