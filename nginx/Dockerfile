@@ -5,6 +5,10 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY conf.d/ /etc/nginx/conf.d/
 
+# Копируем entrypoint скрипт для обработки templates
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # Создаем директории для логов и cache
 RUN mkdir -p /var/log/nginx /var/cache/nginx && \
     chown -R nginx:nginx /var/log/nginx /var/cache/nginx
@@ -15,4 +19,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 EXPOSE 80 443
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

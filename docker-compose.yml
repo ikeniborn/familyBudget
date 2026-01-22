@@ -306,6 +306,8 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      - DOMAIN=${DOMAIN}
     volumes:
       - nginx_cache:/var/cache/nginx
       - ./logs/nginx:/var/log/nginx
