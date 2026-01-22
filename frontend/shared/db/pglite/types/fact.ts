@@ -27,7 +27,7 @@ export interface LocalBudgetFact {
   is_transfer: boolean;
 
   // Sync tracking
-  sync_status: 'synced' | 'pending' | 'conflict';
+  sync_status: 'synced' | 'pending' | 'conflict' | 'deleted';
   sync_hash: string | null;   // MD5 hash for conflict detection
   content_hash: string | null; // Content hash for deduplication
 
@@ -109,7 +109,7 @@ export interface FactFilters {
   financial_center_id?: number;
   cost_center_id?: number;
   record_type?: 'fact' | 'plan';
-  sync_status?: 'synced' | 'pending' | 'conflict';
+  sync_status?: 'synced' | 'pending' | 'conflict' | 'deleted';
   date_from?: string;   // YYYY-MM-DD
   date_to?: string;     // YYYY-MM-DD
 }

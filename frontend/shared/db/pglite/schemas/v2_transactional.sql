@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS local_budget_facts (
   is_transfer BOOLEAN DEFAULT false,
 
   -- Sync tracking
-  sync_status TEXT NOT NULL CHECK (sync_status IN ('synced', 'pending', 'conflict')) DEFAULT 'synced',
+  sync_status TEXT NOT NULL CHECK (sync_status IN ('synced', 'pending', 'conflict', 'deleted')) DEFAULT 'synced',
   sync_hash TEXT,                   -- MD5 hash for conflict detection
   content_hash TEXT,                -- Content hash for deduplication
 
