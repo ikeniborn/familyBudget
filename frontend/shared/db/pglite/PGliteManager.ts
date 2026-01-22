@@ -1035,7 +1035,7 @@ export class PGliteManager {
     const { db } = getState();
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
-    return await applyDeltaSync(db, delta, onProgress);
+    return await applyDeltaSync(db, delta, undefined, onProgress);
   }
 
   /**

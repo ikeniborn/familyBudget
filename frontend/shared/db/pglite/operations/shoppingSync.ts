@@ -17,6 +17,8 @@ import type {
   LocalShoppingListItem,
   LocalPendingOperation
 } from '../types/models';
+import type { ShoppingConflictDetection } from '../types/conflicts';
+import { ShoppingConflictManager } from '../ShoppingConflictManager';
 import { logger } from '../utils/logger';
 
 // ========================================
@@ -265,6 +267,7 @@ async function bulkInsertProductGroupHierarchy(
 export async function applyDeltaSync(
   db: PGlite,
   delta: ShoppingDeltaSyncResponse,
+  onConflict?: (conflict: ShoppingConflictDetection) => Promise<void>,
   onProgress?: SyncProgressCallback
 ): Promise<number> {
   logger.info('[SHOPPING_SYNC] Applying delta sync', {
@@ -286,7 +289,7 @@ export async function applyDeltaSync(
 
   // Apply all changes in logical groups
   await applyCreatedRecords(db, delta.created);
-  const conflictsCount = await applyUpdatedRecords(db, delta.updated);
+  const conflictsCount = await applyUpdatedRecords(db, delta.updated, onConflict);
   await applyDeletedRecords(db, delta.deleted);
 
   logger.info('[SHOPPING_SYNC] Delta sync complete', { conflictsCount });
@@ -311,16 +314,20 @@ async function applyCreatedRecords(db: PGlite, created: { lists: LocalShoppingLi
  * Apply updated records (lists and items) with conflict detection
  * @returns Number of conflicts detected
  */
-async function applyUpdatedRecords(db: PGlite, updated: { lists: LocalShoppingList[], items: LocalShoppingListItem[] }): Promise<number> {
+async function applyUpdatedRecords(
+  db: PGlite,
+  updated: { lists: LocalShoppingList[], items: LocalShoppingListItem[] },
+  onConflict?: (conflict: ShoppingConflictDetection) => Promise<void>
+): Promise<number> {
   let conflictsCount = 0;
 
   for (const list of updated.lists) {
-    const hasConflict = await applyUpdatedList(db, list);
+    const hasConflict = await applyUpdatedList(db, list, onConflict);
     if (hasConflict) conflictsCount++;
   }
 
   for (const item of updated.items) {
-    const hasConflict = await applyUpdatedItem(db, item);
+    const hasConflict = await applyUpdatedItem(db, item, onConflict);
     if (hasConflict) conflictsCount++;
   }
 
@@ -434,7 +441,11 @@ async function applyCreatedItem(db: PGlite, item: LocalShoppingListItem): Promis
  *
  * @returns true if conflict detected
  */
-async function applyUpdatedList(db: PGlite, serverList: LocalShoppingList): Promise<boolean> {
+async function applyUpdatedList(
+  db: PGlite,
+  serverList: LocalShoppingList,
+  onConflict?: (conflict: ShoppingConflictDetection) => Promise<void>
+): Promise<boolean> {
   // Fetch local version
   const result = await db.query(
     'SELECT * FROM local_shopping_lists WHERE id = $1',
@@ -451,29 +462,47 @@ async function applyUpdatedList(db: PGlite, serverList: LocalShoppingList): Prom
 
   // Check for conflict (local has pending changes)
   if (localList.sync_status === 'pending') {
-    // Conflict detected - compare timestamps (LWW)
+    // Detect conflict via ShoppingConflictManager
+    const conflictManager = new ShoppingConflictManager(db);
+    const conflict = await conflictManager.detectListConflict(localList, serverList);
+
+    if (conflict && onConflict) {
+      // Trigger manual resolution UI
+      await onConflict(conflict);
+      return true; // Conflict detected, awaiting user resolution
+    }
+
+    // FALLBACK: Existing LWW logic if no onConflict callback
     const serverTime = new Date(serverList.updated_at).getTime();
     const localTime = new Date(localList.updated_at).getTime();
 
     if (serverTime > localTime) {
       // Server wins - apply server changes
-      logger.info('[CONFLICT] Server wins for list', { id: serverList.id });
-      await db.query(`
-        UPDATE local_shopping_lists
-        SET name = $2, description = $3, is_active = $4,
-            sync_status = 'synced', updated_at = $5, synced_at = NOW()
-        WHERE id = $1
-      `, [
-        serverList.id,
-        serverList.name,
-        serverList.description,
-        serverList.is_active,
-        serverList.updated_at
-      ]);
+      logger.info('[CONFLICT] Server wins for list (LWW fallback)', { id: serverList.id });
+      if (conflict) {
+        await conflictManager.applyServerResolution(conflict);
+      } else {
+        // Manual update (old code path)
+        await db.query(`
+          UPDATE local_shopping_lists
+          SET name = $2, description = $3, is_active = $4,
+              sync_status = 'synced', updated_at = $5, synced_at = NOW()
+          WHERE id = $1
+        `, [
+          serverList.id,
+          serverList.name,
+          serverList.description,
+          serverList.is_active,
+          serverList.updated_at
+        ]);
+      }
       return true; // Conflict resolved (server wins)
     } else {
       // Local wins - keep pending status
-      logger.info('[CONFLICT] Local wins for list', { id: serverList.id });
+      logger.info('[CONFLICT] Local wins for list (LWW fallback)', { id: serverList.id });
+      if (conflict) {
+        await conflictManager.applyClientResolution(conflict);
+      }
       return true; // Conflict resolved (local wins)
     }
   }
@@ -502,7 +531,11 @@ async function applyUpdatedList(db: PGlite, serverList: LocalShoppingList): Prom
  *
  * @returns true if conflict detected
  */
-async function applyUpdatedItem(db: PGlite, serverItem: LocalShoppingListItem): Promise<boolean> {
+async function applyUpdatedItem(
+  db: PGlite,
+  serverItem: LocalShoppingListItem,
+  onConflict?: (conflict: ShoppingConflictDetection) => Promise<void>
+): Promise<boolean> {
   // Fetch local version
   const result = await db.query(
     'SELECT * FROM local_shopping_list_items WHERE id = $1',
@@ -519,34 +552,52 @@ async function applyUpdatedItem(db: PGlite, serverItem: LocalShoppingListItem): 
 
   // Check for conflict (local has pending changes)
   if (localItem.sync_status === 'pending') {
-    // Conflict detected - compare timestamps (LWW)
+    // Detect conflict via ShoppingConflictManager
+    const conflictManager = new ShoppingConflictManager(db);
+    const conflict = await conflictManager.detectItemConflict(localItem, serverItem);
+
+    if (conflict && onConflict) {
+      // Trigger manual resolution UI
+      await onConflict(conflict);
+      return true; // Conflict detected, awaiting user resolution
+    }
+
+    // FALLBACK: Existing LWW logic if no onConflict callback
     const serverTime = new Date(serverItem.updated_at).getTime();
     const localTime = new Date(localItem.updated_at).getTime();
 
     if (serverTime > localTime) {
       // Server wins - apply server changes
-      logger.info('[CONFLICT] Server wins for item', { id: serverItem.id });
-      await db.query(`
-        UPDATE local_shopping_list_items
-        SET product_name = $2, quantity = $3, unit = $4, comment = $5,
-            is_completed = $6, completed_at = $7, version = $8,
-            sync_status = 'synced', updated_at = $9, synced_at = NOW()
-        WHERE id = $1
-      `, [
-        serverItem.id,
-        serverItem.product_name,
-        serverItem.quantity,
-        serverItem.unit,
-        serverItem.comment,
-        serverItem.is_completed,
-        serverItem.completed_at,
-        serverItem.version,
-        serverItem.updated_at
-      ]);
+      logger.info('[CONFLICT] Server wins for item (LWW fallback)', { id: serverItem.id });
+      if (conflict) {
+        await conflictManager.applyServerResolution(conflict);
+      } else {
+        // Manual update (old code path)
+        await db.query(`
+          UPDATE local_shopping_list_items
+          SET product_name = $2, quantity = $3, unit = $4, comment = $5,
+              is_completed = $6, completed_at = $7, version = $8,
+              sync_status = 'synced', updated_at = $9, synced_at = NOW()
+          WHERE id = $1
+        `, [
+          serverItem.id,
+          serverItem.product_name,
+          serverItem.quantity,
+          serverItem.unit,
+          serverItem.comment,
+          serverItem.is_completed,
+          serverItem.completed_at,
+          serverItem.version,
+          serverItem.updated_at
+        ]);
+      }
       return true; // Conflict resolved (server wins)
     } else {
       // Local wins - keep pending status
-      logger.info('[CONFLICT] Local wins for item', { id: serverItem.id });
+      logger.info('[CONFLICT] Local wins for item (LWW fallback)', { id: serverItem.id });
+      if (conflict) {
+        await conflictManager.applyClientResolution(conflict);
+      }
       return true; // Conflict resolved (local wins)
     }
   }
