@@ -18,6 +18,7 @@ import { BaseModal } from './BaseModal';
 import { getPGliteManager } from '@db/pglite';
 import type { DiagnosticData } from '@db/pglite';
 import type { ConflictMetrics } from '@db/pglite/ConflictManager';
+import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
 
 export class PGliteDiagnosticModal extends BaseModal {
   private diagnosticContainer: HTMLDivElement | null = null;
@@ -187,6 +188,8 @@ export class PGliteDiagnosticModal extends BaseModal {
         </div>
       </div>
 
+      ${this.renderAPIReductionBreakdown()}
+
       ${this.renderPruningMetrics(data)}
 
       ${this.renderConflictMetrics()}
@@ -258,6 +261,112 @@ export class PGliteDiagnosticModal extends BaseModal {
               <div class="stat-value text-sm">${stats.nextPruneEstimate}</div>
               <div class="stat-desc text-xs">
                 ${stats.nextPruneEstimate === 'Never' ? 'Auto-pruning disabled' : 'Automatic'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render API calls reduction breakdown (task-015 Phase 5)
+   */
+  private renderAPIReductionBreakdown(): string {
+    try {
+      const stats = performanceMonitor.getDetailedStats();
+
+      // Only show if there are tracked calls
+      if (stats.api.count === 0 && stats.pglite.count === 0) {
+        return '';
+      }
+
+      return `
+        <!-- API Calls Reduction (task-015 Phase 5) -->
+        <div class="card bg-base-100 border border-base-300">
+          <div class="card-body p-4">
+            <h4 class="font-semibold mb-3">📉 API Calls Reduction</h4>
+
+            <!-- Summary -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div class="stat bg-base-200 rounded-lg p-3">
+                <div class="stat-title text-xs">Reduction</div>
+                <div class="stat-value text-lg text-success">${stats.reductionPercent.toFixed(1)}%</div>
+                <div class="stat-desc text-xs">Target: ≥80%</div>
+              </div>
+              <div class="stat bg-base-200 rounded-lg p-3">
+                <div class="stat-title text-xs">API Calls Saved</div>
+                <div class="stat-value text-lg text-primary">${stats.apiCallsReduced.toLocaleString()}</div>
+                <div class="stat-desc text-xs">Served from PGlite</div>
+              </div>
+              <div class="stat bg-base-200 rounded-lg p-3">
+                <div class="stat-title text-xs">Bandwidth Saved</div>
+                <div class="stat-value text-lg text-secondary">${stats.totalBandwidthSaved.toFixed(1)} KB</div>
+                <div class="stat-desc text-xs">~5KB per API call</div>
+              </div>
+              <div class="stat bg-base-200 rounded-lg p-3">
+                <div class="stat-title text-xs">Speedup</div>
+                <div class="stat-value text-lg text-accent">${stats.speedupFactor.toFixed(1)}×</div>
+                <div class="stat-desc text-xs">PGlite vs API</div>
+              </div>
+            </div>
+
+            <!-- Module Breakdown -->
+            <div class="divider text-xs">Breakdown by Module</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              ${this.renderModuleBreakdownCard('Shopping Lists', stats.breakdown.shoppingLists, 'shopping-bag')}
+              ${this.renderModuleBreakdownCard('Facts', stats.breakdown.facts, 'receipt')}
+              ${this.renderModuleBreakdownCard('Recurring Plans', stats.breakdown.recurringPlans, 'calendar')}
+              ${this.renderModuleBreakdownCard('Dashboard', stats.breakdown.dashboard, 'chart-bar')}
+            </div>
+          </div>
+        </div>
+      `;
+    } catch (error) {
+      // Silently skip if performance monitor not available
+      return '';
+    }
+  }
+
+  /**
+   * Render individual module breakdown card
+   */
+  private renderModuleBreakdownCard(name: string, breakdown: { pglite: number; api: number; reductionPercent: number }, icon: string): string {
+    const total = breakdown.pglite + breakdown.api;
+
+    // Skip if no calls for this module
+    if (total === 0) {
+      return '';
+    }
+
+    // Determine badge color based on reduction percentage
+    let badgeClass = 'badge-success'; // Green for ≥80%
+    if (breakdown.reductionPercent < 50) {
+      badgeClass = 'badge-error'; // Red for <50%
+    } else if (breakdown.reductionPercent < 80) {
+      badgeClass = 'badge-warning'; // Yellow for 50-80%
+    }
+
+    return `
+      <div class="card bg-base-200 border border-base-300">
+        <div class="card-body p-3">
+          <h5 class="text-sm font-semibold flex items-center gap-2">
+            <span class="opacity-70">${icon === 'shopping-bag' ? '🛒' : icon === 'receipt' ? '💰' : icon === 'calendar' ? '📅' : '📊'}</span>
+            ${name}
+          </h5>
+          <div class="grid grid-cols-3 gap-2 mt-2">
+            <div class="text-center">
+              <div class="text-xs opacity-70">PGlite</div>
+              <div class="text-lg font-bold text-primary">${breakdown.pglite}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-xs opacity-70">API</div>
+              <div class="text-lg font-bold text-warning">${breakdown.api}</div>
+            </div>
+            <div class="text-center">
+              <div class="text-xs opacity-70">Reduction</div>
+              <div class="text-sm font-bold">
+                <span class="badge ${badgeClass} badge-sm">${breakdown.reductionPercent.toFixed(0)}%</span>
               </div>
             </div>
           </div>
