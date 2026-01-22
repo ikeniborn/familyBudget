@@ -1,20 +1,8 @@
 name: Security Scan
 
 on:
-  push:
-    branches:
-      - 'dev/**'
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'bot/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'requirements.txt'
-      - '.github/workflows/security-scan.yml'
   pull_request:
     branches:
-      - prod
       - test
     paths:
       - 'backend/**'
@@ -23,6 +11,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'requirements.txt'
+      - '.github/workflows/security-scan.yml'
   schedule:
     # Run daily at 3 AM UTC
     - cron: '0 3 * * *'

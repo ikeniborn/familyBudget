@@ -1,24 +1,15 @@
 name: Backend Tests
 
 on:
-  push:
-    branches:
-      - 'dev/**'
-    paths:
-      - 'backend/**'
-      - 'bot/**'
-      - 'pytest.ini'
-      - 'requirements.txt'
-      - '.github/workflows/backend-tests.yml'
   pull_request:
     branches:
-      - prod
       - test
     paths:
       - 'backend/**'
       - 'bot/**'
       - 'pytest.ini'
       - 'requirements.txt'
+      - '.github/workflows/backend-tests.yml'
 
 permissions:
   contents: read
