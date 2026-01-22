@@ -17,7 +17,68 @@ import type { QuickStats, AccountBalance, RecentFact } from '../types/analytics'
 
 declare const debugLog: (...args: any[]) => void;
 
+/**
+ * PGlite query result types
+ */
+interface FactRow {
+  id: number;
+  temp_id: string | null;
+  user_id: number;
+  article_id: number;
+  article_name: string;
+  article_type: 'income' | 'expense' | 'credit' | 'debit';
+  financial_center_id: number | null;
+  financial_center_name: string | null;
+  cost_center_id: number | null;
+  cost_center_name: string | null;
+  fact_date: string;
+  amount: string | number;
+  record_type: 'fact' | 'plan';
+  comment: string | null;
+  transfer_group_id: string | null;
+  is_transfer: boolean;
+  sync_status: 'synced' | 'pending' | 'conflict' | 'deleted';
+  created_at: string;
+  updated_at: string;
+}
+
+interface AggregationRow {
+  type: 'income' | 'expense' | 'credit' | 'debit';
+  total: string | number;
+}
+
+interface BalanceRow {
+  fc_id: number;
+  balance: string | number;
+}
+
+interface FinancialCenterRow {
+  id: number;
+  name: string;
+  type: string;
+  currency: string;
+}
+
 class DashboardFactsManager {
+  /**
+   * Safely parse numeric value from PGlite query result
+   * @param value - Number or string from query result
+   * @returns Parsed float number
+   */
+  private parseNumeric(value: string | number): number {
+    return typeof value === 'number' ? value : parseFloat(value);
+  }
+
+  /**
+   * Get start of current month (cached for performance)
+   * @returns Date object set to first day of current month
+   */
+  private getMonthStart(): Date {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    return monthStart;
+  }
 
   /**
    * Load recent facts (last N transactions)
@@ -98,8 +159,7 @@ class DashboardFactsManager {
     if (isPGliteEnabled() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const monthStart = new Date();
-        monthStart.setDate(1);
+        const monthStart = this.getMonthStart();
         const monthStartStr = monthStart.toISOString().split('T')[0];
 
         // Query 1: Today's facts
@@ -184,8 +244,7 @@ class DashboardFactsManager {
     if (isPGliteEnabled() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const monthStart = new Date();
-        monthStart.setDate(1);
+        const monthStart = this.getMonthStart();
         const monthStartStr = monthStart.toISOString().split('T')[0];
 
         // Query 1: Opening balances (ALL transactions before current month)
@@ -292,7 +351,12 @@ class DashboardFactsManager {
   // Private Helper Methods
   // ============================================================================
 
-  private mapRecentFacts(rows: any[]): RecentFact[] {
+  /**
+   * Map PGlite query results to RecentFact objects
+   * @param rows - Raw query results from local_budget_facts
+   * @returns Array of typed RecentFact objects
+   */
+  private mapRecentFacts(rows: FactRow[]): RecentFact[] {
     return rows.map((row) => ({
       id: row.id,
       tempId: row.temp_id,
@@ -305,7 +369,7 @@ class DashboardFactsManager {
       costCenterId: row.cost_center_id,
       costCenterName: row.cost_center_name,
       factDate: row.fact_date,
-      amount: parseFloat(row.amount),
+      amount: this.parseNumeric(row.amount),
       recordType: row.record_type,
       comment: row.comment,
       transferGroupId: row.transfer_group_id,
@@ -316,7 +380,18 @@ class DashboardFactsManager {
     }));
   }
 
-  private mapQuickStats(todayRows: any[], monthRows: any[], monthPlanRows: any[]): QuickStats {
+  /**
+   * Map aggregation results to QuickStats object
+   * @param todayRows - Today's aggregations by article type
+   * @param monthRows - Current month's aggregations by article type
+   * @param monthPlanRows - Current month's plan aggregations by article type
+   * @returns QuickStats object with calculated plan execution percentages
+   */
+  private mapQuickStats(
+    todayRows: AggregationRow[],
+    monthRows: AggregationRow[],
+    monthPlanRows: AggregationRow[]
+  ): QuickStats {
     const today = this.aggregateByType(todayRows);
     const month = this.aggregateByType(monthRows);
     const monthPlan = this.aggregateByType(monthPlanRows);
@@ -326,15 +401,30 @@ class DashboardFactsManager {
       month,
       monthPlan,
       planExecution: {
-        incomePct: monthPlan.income > 0 ? (month.income / monthPlan.income) * 100 : 0,
-        expensePct: monthPlan.expense > 0 ? (month.expense / monthPlan.expense) * 100 : 0,
-        creditPct: monthPlan.credit > 0 ? (month.credit / monthPlan.credit) * 100 : 0,
-        debitPct: monthPlan.debit > 0 ? (month.debit / monthPlan.debit) * 100 : 0,
+        incomePct:
+          monthPlan.income > 0 && month.income >= 0
+            ? (month.income / monthPlan.income) * 100
+            : 0,
+        expensePct:
+          monthPlan.expense > 0 && month.expense >= 0
+            ? (month.expense / monthPlan.expense) * 100
+            : 0,
+        creditPct:
+          monthPlan.credit > 0 && month.credit >= 0
+            ? (month.credit / monthPlan.credit) * 100
+            : 0,
+        debitPct:
+          monthPlan.debit > 0 && month.debit >= 0 ? (month.debit / monthPlan.debit) * 100 : 0,
       },
     };
   }
 
-  private aggregateByType(rows: any[]): {
+  /**
+   * Aggregate query results by article type
+   * @param rows - Query results with type and total columns
+   * @returns Object with income, expense, credit, debit totals
+   */
+  private aggregateByType(rows: AggregationRow[]): {
     income: number;
     expense: number;
     credit: number;
@@ -343,19 +433,26 @@ class DashboardFactsManager {
     const result = { income: 0, expense: 0, credit: 0, debit: 0 };
     for (const row of rows) {
       if (row.type in result) {
-        result[row.type as keyof typeof result] = parseFloat(row.total);
+        result[row.type as keyof typeof result] = this.parseNumeric(row.total);
       }
     }
     return result;
   }
 
+  /**
+   * Calculate account balances from opening and movement data
+   * @param fcs - Financial centers list
+   * @param openingRows - Opening balances (before current month)
+   * @param movementRows - Month movements (current month to today)
+   * @returns Array of account balances with opening/current/movement
+   */
   private mapAccountBalances(
-    fcs: any[],
-    openingRows: any[],
-    movementRows: any[]
+    fcs: FinancialCenterRow[],
+    openingRows: BalanceRow[],
+    movementRows: BalanceRow[]
   ): AccountBalance[] {
-    const opening = new Map(openingRows.map((r) => [r.fc_id, parseFloat(r.balance)]));
-    const movement = new Map(movementRows.map((r) => [r.fc_id, parseFloat(r.balance)]));
+    const opening = new Map(openingRows.map((r) => [r.fc_id, this.parseNumeric(r.balance)]));
+    const movement = new Map(movementRows.map((r) => [r.fc_id, this.parseNumeric(r.balance)]));
 
     return fcs.map((fc) => {
       const openingBalance = opening.get(fc.id) || 0;
@@ -381,13 +478,13 @@ class DashboardFactsManager {
 
   private async fetchRecentFactsFromAPI(_limit: number): Promise<RecentFact[]> {
     // TODO: Implement API fallback
-    console.warn('[DASHBOARD] API fallback not implemented for recent facts');
+    debugLog('[DASHBOARD] API fallback not implemented for recent facts');
     return [];
   }
 
   private async fetchQuickStatsFromAPI(): Promise<QuickStats> {
     // TODO: Implement API fallback
-    console.warn('[DASHBOARD] API fallback not implemented for quick stats');
+    debugLog('[DASHBOARD] API fallback not implemented for quick stats');
     return {
       today: { income: 0, expense: 0, credit: 0, debit: 0 },
       month: { income: 0, expense: 0, credit: 0, debit: 0 },
@@ -398,7 +495,7 @@ class DashboardFactsManager {
 
   private async fetchAccountBalancesFromAPI(): Promise<AccountBalance[]> {
     // TODO: Implement API fallback
-    console.warn('[DASHBOARD] API fallback not implemented for account balances');
+    debugLog('[DASHBOARD] API fallback not implemented for account balances');
     return [];
   }
 }

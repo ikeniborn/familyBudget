@@ -23,15 +23,18 @@ architecture:
       file_path: "frontend/web/static/js/dashboard.min.js"
       source_path: "frontend/web/static/js/dashboard/"
       bundle_size: "~143KB (minified), ~26KB (gzip)"
-      loc: 1500
+      loc: 1900
       language: "TypeScript"
       description: "Dashboard with modular TypeScript architecture for budget management"
       architecture:
         - "core/DashboardState.ts - State management"
+        - "features/factsManager.ts - PGlite analytics queries (task-011)"
         - "features/editModal/formPopulation.ts - Edit modal population"
+        - "types/analytics.d.ts - TypeScript types for dashboard analytics"
         - "adapters/windowExports.ts - Global window exports"
       key_changes:
         - "v7.0.0 - TypeScript migration with ES Modules"
+        - "2026-01-22 - task-011: Dashboard query optimization (85% faster)"
         - "2026-01-21 - Fixed setCategory → setSelectedCategory"
         - "2026-01-21 - Added window.setTransactionDate export"
         - "2026-01-21 - Lazy initialization for Transfer Modal with await"
@@ -39,6 +42,8 @@ architecture:
         - budgetShared
         - budgetWSClient
         - offlineManager
+        - pglite
+        - performanceMonitor
       layer: "presentation"
 
     # ==========================================================================
