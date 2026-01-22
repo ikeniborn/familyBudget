@@ -40,25 +40,46 @@ pull_from_registry() {
         fi
     fi
 
-    # Determine image tag
-    local image_tag
-    image_tag=$(determine_image_tag)
-    if [[ $? -ne 0 ]]; then
-        error "Failed to determine image tag"
-        return 1
-    fi
-
     info "Pulling Docker images from registry..."
     info "Registry: $REGISTRY_URL/$REGISTRY_OWNER"
-    info "Tag: $image_tag"
     echo ""
+
+    # Check if IMAGE_VERSIONS.json exists (contains individual versions per service)
+    local image_versions_file="$DEPLOY_DIR/IMAGE_VERSIONS.json"
+    local use_image_versions=false
+    if [[ -f "$image_versions_file" ]]; then
+        use_image_versions=true
+        info "Using IMAGE_VERSIONS.json for per-service versioning"
+    else
+        warning "IMAGE_VERSIONS.json not found, falling back to single VERSION"
+    fi
 
     # Pull images for each service
     local pull_failed=false
     for service in "${services[@]}"; do
+        # Determine image tag for this service
+        local image_tag
+        if [[ "$use_image_versions" == "true" ]]; then
+            # Read version from IMAGE_VERSIONS.json for this service
+            image_tag=$(jq -r ".${service}.version // empty" "$image_versions_file" 2>/dev/null)
+            if [[ -z "$image_tag" ]]; then
+                warning "$service not found in IMAGE_VERSIONS.json, using fallback"
+                image_tag=$(determine_image_tag)
+            fi
+        else
+            # Fallback to single version from VERSION file
+            image_tag=$(determine_image_tag)
+        fi
+
+        if [[ $? -ne 0 || -z "$image_tag" ]]; then
+            error "Failed to determine image tag for $service"
+            pull_failed=true
+            continue
+        fi
+
         local image_name="$REGISTRY_URL/$REGISTRY_OWNER/familybudget-$service:$image_tag"
 
-        info "Pulling $service image..."
+        info "Pulling $service image (version: $image_tag)..."
         if docker pull "$image_name" >> "$LOG_FILE" 2>&1; then
             success "$service image pulled successfully"
 
@@ -158,25 +179,46 @@ validate_registry_images() {
         fi
     fi
 
-    # Determine image tag
-    local image_tag
-    image_tag=$(determine_image_tag)
-    if [[ $? -ne 0 ]]; then
-        error "Failed to determine image tag"
-        return 1
-    fi
-
     info "Validating registry images..."
     info "Registry: $REGISTRY_URL/$REGISTRY_OWNER"
-    info "Tag: $image_tag"
     echo ""
+
+    # Check if IMAGE_VERSIONS.json exists (contains individual versions per service)
+    local image_versions_file="$DEPLOY_DIR/IMAGE_VERSIONS.json"
+    local use_image_versions=false
+    if [[ -f "$image_versions_file" ]]; then
+        use_image_versions=true
+        info "Using IMAGE_VERSIONS.json for per-service versioning"
+    else
+        warning "IMAGE_VERSIONS.json not found, falling back to single VERSION"
+    fi
 
     # Check each service image
     local validation_failed=false
     for service in "${services[@]}"; do
+        # Determine image tag for this service
+        local image_tag
+        if [[ "$use_image_versions" == "true" ]]; then
+            # Read version from IMAGE_VERSIONS.json for this service
+            image_tag=$(jq -r ".${service}.version // empty" "$image_versions_file" 2>/dev/null)
+            if [[ -z "$image_tag" ]]; then
+                warning "$service not found in IMAGE_VERSIONS.json, using fallback"
+                image_tag=$(determine_image_tag)
+            fi
+        else
+            # Fallback to single version from VERSION file
+            image_tag=$(determine_image_tag)
+        fi
+
+        if [[ $? -ne 0 || -z "$image_tag" ]]; then
+            error "Failed to determine image tag for $service"
+            validation_failed=true
+            continue
+        fi
+
         local image_name="$REGISTRY_URL/$REGISTRY_OWNER/familybudget-$service:$image_tag"
 
-        info "Checking $service image: $image_name"
+        info "Checking $service image (version: $image_tag): $image_name"
 
         # Use docker manifest inspect to check if image exists without pulling
         if docker manifest inspect "$image_name" > /dev/null 2>&1; then
@@ -194,7 +236,7 @@ validate_registry_images() {
         info "Possible solutions:"
         info "  1. Push images to registry using CI/CD workflow"
         info "  2. Build images locally without --use-registry flag"
-        info "  3. Specify different tag with USER_IMAGE_TAG environment variable"
+        info "  3. Check IMAGE_VERSIONS.json for correct per-service versions"
         return 1
     fi
 
