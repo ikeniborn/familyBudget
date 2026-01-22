@@ -8,6 +8,8 @@
  */
 
 import type { User, Article, FinancialCenter, CostCenter, ArticleTreeNode } from '../types/models';
+import { dataLayer } from '../../data/DataLayer';
+import { getCurrentUserId } from '../../offline/offlineManager/utils/userHelpers';
 
 // ============================================================================
 // Load Users
@@ -40,21 +42,11 @@ export async function loadUsers(): Promise<User[]> {
  * Load all articles (categories)
  */
 export async function loadArticles(): Promise<Article[]> {
-    const response = await fetch('/api/v1/articles', {
-        credentials: 'include'
-    });
-
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    // Validate response format
-    const articles = Array.isArray(data) ? data : (data.articles || []);
+    // Use DataLayer (PGlite-first with API fallback)
+    const articles = await dataLayer.getArticles() as unknown as Article[];
 
     if (!Array.isArray(articles)) {
-        console.error('Invalid API response format:', data);
+        console.error('Invalid response format:', articles);
         throw new Error('Expected array of articles');
     }
 
@@ -69,16 +61,11 @@ export async function loadArticles(): Promise<Article[]> {
  * Load all financial centers (accounts)
  */
 export async function loadFinancialCenters(): Promise<FinancialCenter[]> {
-    const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
-        credentials: 'include'
-    });
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.financial_centers || [];
+    // Use DataLayer (PGlite-first with API fallback)
+    return await dataLayer.getFinancialCenters(userId, true) as unknown as FinancialCenter[];
 }
 
 // ============================================================================
@@ -89,16 +76,11 @@ export async function loadFinancialCenters(): Promise<FinancialCenter[]> {
  * Load all cost centers
  */
 export async function loadCostCenters(): Promise<CostCenter[]> {
-    const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
-        credentials: 'include'
-    });
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.cost_centers || [];
+    // Use DataLayer (PGlite-first with API fallback)
+    return await dataLayer.getCostCenters(userId, null, true) as unknown as CostCenter[];
 }
 
 /**

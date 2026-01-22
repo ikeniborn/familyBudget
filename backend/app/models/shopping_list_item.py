@@ -163,6 +163,11 @@ class ShoppingListItem(SQLModel, table=True):
         default=None,
         description="Optional comment or notes (e.g., 'buy on sale', 'specific brand')"
     )
+    position: Optional[int] = Field(
+        default=None,
+        nullable=True,
+        description="Position in list for ordering (auto-assigned if null)"
+    )
 
     # Completion status
     is_completed: bool = Field(

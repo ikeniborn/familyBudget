@@ -10,6 +10,8 @@ import {
   setTransactionCategoryTreeSelect,
 } from '../../core/DashboardState';
 import type { Category, CostCenter } from '../../types/dashboard.d';
+import { dataLayer } from '../../../data/DataLayer';
+import { getCurrentUserId } from '../../../offline/offlineManager/utils/userHelpers';
 
 
 
@@ -90,24 +92,14 @@ function loadFactHintsForCategory(category: Category | null): void {
  */
 export async function loadFinancialCenters(): Promise<void> {
   try {
-    const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
-    if (!response.ok) {
-      // Graceful degradation for 401 Unauthorized (user not authenticated)
-      if (response.status === 401) {
-        debugLog('[loadFinancialCenters] User not authenticated - accounts not loaded');
-        return;  // Silent fail - don't show error toast
-      }
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-      console.warn('Failed to fetch accounts: HTTP', response.status);
-      showToast('Не удалось загрузить список счетов', 'error');
-      return;
-    }
-
-    const data = await response.json();
-    const centers = data.financial_centers || [];
+    // Use DataLayer (PGlite-first with API fallback)
+    const centers = await dataLayer.getFinancialCenters(userId, true);
 
     if (centers.length === 0) {
-      console.warn('No accounts returned from API');
+      console.warn('No accounts returned');
       showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
       return;
     }
@@ -237,15 +229,11 @@ function setupFinancialCenterListeners(): void {
  */
 export async function loadCostCenters(): Promise<void> {
   try {
-    const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
-    if (!response.ok) {
-      console.warn('Failed to fetch cost centers: HTTP', response.status);
-      debugLog('Cost centers not loaded - this is optional');
-      return;
-    }
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-    const data = await response.json();
-    const centers: CostCenter[] = data.cost_centers || [];
+    // Use DataLayer (PGlite-first with API fallback)
+    const centers: CostCenter[] = await dataLayer.getCostCenters(userId, null, true);
 
     // Save to state for filtering
     updateState({ allCostCenters: centers });
@@ -328,34 +316,25 @@ export async function filterCostCenterDropdown(formSelector: string, financialCe
     return;
   }
 
-  // Fetch filtered cost centers from API
+  // Fetch filtered cost centers using DataLayer
   try {
-    const response = await fetch(
-      `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
-      { credentials: 'include' }
-    );
-    if (response.ok) {
-      const data = await response.json();
-      const filteredCenters: CostCenter[] = data.cost_centers || [];
-      filteredCenters.forEach(cc => {
-        const option = document.createElement('option');
-        option.value = String(cc.id);
-        option.textContent = cc.name;
-        select.appendChild(option);
-      });
-      // Restore previous selection if still available
-      if (currentValue) {
-        const exists = filteredCenters.some(cc => String(cc.id) === currentValue);
-        if (exists) select.value = currentValue;
-      }
-    } else {
-      // Fallback to showing all
-      allCostCenters.forEach(cc => {
-        const option = document.createElement('option');
-        option.value = String(cc.id);
-        option.textContent = cc.name;
-        select.appendChild(option);
-      });
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
+
+    // Use DataLayer (PGlite-first with API fallback)
+    const filteredCenters: CostCenter[] = await dataLayer.getCostCenters(userId, financialCenterId, true);
+
+    filteredCenters.forEach(cc => {
+      const option = document.createElement('option');
+      option.value = String(cc.id);
+      option.textContent = cc.name;
+      select.appendChild(option);
+    });
+
+    // Restore previous selection if still available
+    if (currentValue) {
+      const exists = filteredCenters.some(cc => String(cc.id) === currentValue);
+      if (exists) select.value = currentValue;
     }
   } catch (error) {
     // Don't log as error in offline mode - this is expected behavior

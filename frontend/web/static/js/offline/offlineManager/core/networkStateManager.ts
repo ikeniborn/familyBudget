@@ -50,6 +50,26 @@ export async function handleNetworkStatusChange(
     // Sync pending items
     const syncResults = await syncAll();
 
+    // Task-008: Upload pending PGlite operations
+    try {
+      const { getUploadHandler } = await import(
+        '../../../budget/budgetWSClient/integration/uploadHandler'
+      );
+      const uploadHandler = getUploadHandler();
+
+      if (uploadHandler) {
+        const uploadResult = await uploadHandler.performUpload();
+        if (uploadResult.uploaded > 0) {
+          showToastDebounced(
+            `Загружено: ${uploadResult.uploaded} операций`,
+            'success'
+          );
+        }
+      }
+    } catch (error) {
+      // Silent fail - error already logged in uploadHandler
+    }
+
     // Show combined toast with sync results
     if (syncResults.syncedCount > 0) {
       showToastDebounced(

@@ -56,6 +56,7 @@ from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
 from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
 from backend.app.api.v1.endpoints.staging import router as staging_router
 from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
+from backend.app.api.v1.endpoints.sync import router as sync_router
 
 __all__ = [
     "auth_router",
@@ -80,6 +81,7 @@ __all__ = [
     "shopping_lists_router",
     "staging_router",
     "stores_router",
+    "sync_router",
     "transfers_router",
     "users_router",
     "webauthn_router",

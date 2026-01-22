@@ -167,6 +167,13 @@ export interface APIListResponse<T> {
 }
 
 // ============================================================================
+// Imports
+// ============================================================================
+
+import { dataLayer } from '../data/DataLayer';
+import { getCurrentUserId } from '../offline/offlineManager/utils/userHelpers';
+
+// ============================================================================
 // Data Loading Functions
 // ============================================================================
 
@@ -201,15 +208,8 @@ export async function loadUsers(): Promise<User[]> {
  */
 export async function loadArticles(): Promise<Article[]> {
   try {
-    const response = await fetch('/api/v1/articles');
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const articles = data.articles || [];
-
+    // Use DataLayer (PGlite-first with API fallback)
+    const articles = await dataLayer.getArticles() as unknown as Article[];
     return articles;
   } catch (error) {
     console.error('[PlanHelpers] Error loading articles:', error);
@@ -220,25 +220,18 @@ export async function loadArticles(): Promise<Article[]> {
 /**
  * Load financial centers (accounts) from API
  * @param includeGlobal - Include global financial centers (default: true)
- * @param limit - Maximum number of records to fetch (default: 1000)
  * @returns Promise with array of financial centers
  * @throws Error if API request fails
  */
 export async function loadFinancialCenters(
-  includeGlobal: boolean = true,
-  limit: number = 1000
+  includeGlobal: boolean = true
 ): Promise<FinancialCenter[]> {
   try {
-    const url = `/api/v1/financial-centers?limit=${limit}&include_global=${includeGlobal}`;
-    const response = await fetch(url);
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const centers = data.financial_centers || [];
-
+    // Use DataLayer (PGlite-first with API fallback)
+    const centers = await dataLayer.getFinancialCenters(userId, includeGlobal) as unknown as FinancialCenter[];
     return centers;
   } catch (error) {
     console.error('[PlanHelpers] Error loading financial centers:', error);
@@ -249,24 +242,18 @@ export async function loadFinancialCenters(
 /**
  * Load cost centers from API
  * @param includeGlobal - Include global cost centers (default: true)
- * @param limit - Maximum number of records to fetch (default: 1000)
  * @returns Promise with array of cost centers
  * @throws Error if API request fails
  */
 export async function loadCostCenters(
-  includeGlobal: boolean = true,
-  limit: number = 1000
+  includeGlobal: boolean = true
 ): Promise<CostCenter[]> {
   try {
-    const url = `/api/v1/cost-centers?limit=${limit}&include_global=${includeGlobal}`;
-    const response = await fetch(url);
+    // Get user ID for data layer queries
+    const userId = await getCurrentUserId();
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const centers = data.cost_centers || [];
+    // Use DataLayer (PGlite-first with API fallback)
+    const centers = await dataLayer.getCostCenters(userId, null, includeGlobal) as unknown as CostCenter[];
 
     return centers;
   } catch (error) {

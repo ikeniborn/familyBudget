@@ -183,6 +183,128 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// === Periodic Sync for Data Pruning (task-010) ===
+
+const PRUNING_TAG = 'weekly-pruning';
+const PRUNING_MAX_RETRIES = 3;
+const PRUNING_RETRY_DELAY = 5000; // 5 seconds
+
+// Periodic sync event handler
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === PRUNING_TAG) {
+    event.waitUntil(performPruning());
+  }
+});
+
+/**
+ * Perform automatic data pruning with retry logic
+ * Only executes if enableAutoPruning flag is enabled
+ */
+async function performPruning() {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= PRUNING_MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[PRUNING_SW] Attempt ${attempt}/${PRUNING_MAX_RETRIES}`);
+
+      // Check if auto-pruning enabled (read from localStorage via clients API)
+      const clients = await self.clients.matchAll({ type: 'window' });
+      if (clients.length === 0) {
+        console.log('[PRUNING_SW] No active clients, skipping');
+        return;
+      }
+
+      // Get flag from first client's localStorage via message
+      const client = clients[0];
+      const response = await sendMessageToClient(client, {
+        type: 'GET_PRUNING_FLAG'
+      });
+
+      if (!response || !response.enableAutoPruning) {
+        console.log('[PRUNING_SW] Auto-pruning disabled, skipping');
+        return;
+      }
+
+      // Send message to client to execute pruning
+      const pruneResponse = await sendMessageToClient(client, {
+        type: 'EXECUTE_PRUNING'
+      });
+
+      if (pruneResponse && pruneResponse.success) {
+        const result = pruneResponse.result;
+
+        console.log('[PRUNING_SW] Completed successfully', result);
+
+        // Show notification if significant cleanup
+        if (result.deletedCount > 0) {
+          await self.registration.showNotification('PGlite Cleanup', {
+            body: `Removed ${result.deletedCount} old transactions (${(result.dbSizeBefore - result.dbSizeAfter).toFixed(0)} KB saved)`,
+            icon: '/static/icons/icon-192.png',
+            badge: '/static/icons/icon-192.png'
+          });
+        }
+
+        // Success - exit retry loop
+        return;
+      } else {
+        throw new Error(pruneResponse?.error || 'Unknown error');
+      }
+    } catch (error) {
+      lastError = error;
+      console.error(`[PRUNING_SW] Attempt ${attempt} failed:`, error);
+
+      // If not last attempt, wait before retrying (exponential backoff)
+      if (attempt < PRUNING_MAX_RETRIES) {
+        const delay = PRUNING_RETRY_DELAY * Math.pow(2, attempt - 1); // 5s, 10s, 20s
+        console.log(`[PRUNING_SW] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // All retries exhausted - show error notification
+  console.error('[PRUNING_SW] All retries exhausted', lastError);
+  await self.registration.showNotification('PGlite Cleanup Error', {
+    body: 'Failed to clean up old data after 3 attempts. Please try manual cleanup in Settings.',
+    icon: '/static/icons/icon-192.png',
+    badge: '/static/icons/icon-192.png',
+    tag: 'pruning-error'
+  });
+}
+
+/**
+ * Send message to client and wait for response with timeout
+ * @param {Client} client - Service Worker client
+ * @param {object} message - Message to send
+ * @param {number} timeout - Timeout in milliseconds (default: 10s)
+ * @returns {Promise} Response from client
+ */
+async function sendMessageToClient(client, message, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const messageChannel = new MessageChannel();
+
+    // Setup timeout
+    const timeoutId = setTimeout(() => {
+      messageChannel.port1.close();
+      reject(new Error(`Message timeout after ${timeout}ms for type: ${message.type}`));
+    }, timeout);
+
+    messageChannel.port1.onmessage = (event) => {
+      clearTimeout(timeoutId);
+      messageChannel.port1.close();
+      resolve(event.data);
+    };
+
+    try {
+      client.postMessage(message, [messageChannel.port2]);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      messageChannel.port1.close();
+      reject(error);
+    }
+  });
+}
+
 // Fetch event - стратегия кеширования
 self.addEventListener('fetch', (event) => {
   const { request } = event;

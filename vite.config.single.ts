@@ -87,12 +87,20 @@ export default defineConfig({
         [entryName]: resolve(__dirname, entryInput)
       },
 
+      // External dependencies (modules that should NOT be bundled)
+      // PGlite is built separately and loaded via <script> tag as window.PGlite
+      external: entryName !== 'pglite' ? ['@db/pglite'] : [],
+
       output: {
         format: 'iife',
         name: globalName,
         entryFileNames: '[name].js', // [name] = entryName из input object key
         generatedCode: {
           constBindings: true
+        },
+        // Map external modules to global variables
+        globals: {
+          '@db/pglite': 'PGlite'
         }
       }
     }
@@ -129,7 +137,8 @@ export default defineConfig({
       '@web': resolve(__dirname, 'frontend/web/static/js'),
       '@webapp': resolve(__dirname, 'frontend/webapp/static/js'),
       '@shared': resolve(__dirname, 'frontend/shared/static/js'),
-      '@components': resolve(__dirname, 'frontend/web/static/js/modules/uiComponents')
+      '@components': resolve(__dirname, 'frontend/web/static/js/modules/uiComponents'),
+      '@db': resolve(__dirname, 'frontend/shared/db')
     }
   },
 
