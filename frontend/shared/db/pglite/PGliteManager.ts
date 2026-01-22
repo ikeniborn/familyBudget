@@ -33,6 +33,30 @@ import {
   retryPendingOperation
 } from './operations/factOperations';
 import {
+  createShoppingList,
+  updateShoppingList,
+  deleteShoppingList,
+  queryShoppingLists,
+  addItemToList,
+  updateItem,
+  deleteItem,
+  toggleItemCompleted,
+  queryShoppingListItems,
+  queryStores,
+  queryProductGroups,
+  queryProductGroupHierarchy
+} from './operations/shoppingOperations';
+import {
+  syncReferenceData,
+  applyDeltaSync,
+  getPendingShoppingOperations,
+  confirmPendingShoppingOperation,
+  retryPendingShoppingOperation,
+  type ShoppingReferenceData,
+  type ShoppingDeltaSyncResponse,
+  type SyncProgressCallback
+} from './operations/shoppingSync';
+import {
   pruneOldFacts,
   getPruningStats as getPruningStatsInternal,
   calculatePotentialPruning as calculatePotentialPruningInternal,
@@ -49,7 +73,16 @@ import type {
   LocalSyncMetadata,
   LocalBudgetFact,
   LocalPendingOperation,
-  FactFilters
+  FactFilters,
+  LocalShoppingList,
+  LocalShoppingListItem,
+  LocalStore,
+  LocalProductGroup,
+  LocalProductGroupHierarchy,
+  ShoppingListFilters,
+  ShoppingListItemFilters,
+  StoreFilters,
+  ProductGroupFilters
 } from './types/models';
 import type { CountResult, SizeResult } from './types/pglite';
 import { logger } from './utils/logger';
@@ -768,6 +801,358 @@ export class PGliteManager {
       logger.error('Failed to get diagnostic data', error);
       throw new Error('[PGLITE] Failed to get diagnostic data');
     }
+  }
+
+  // === Shopping List Methods (task-012) ===
+
+  /**
+   * Create shopping list (offline-first)
+   *
+   * @param list - Shopping list data
+   * @returns temp_id (UUID)
+   */
+  async createShoppingList(
+    list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'sync_hash' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
+  ): Promise<string> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await createShoppingList(db, list);
+  }
+
+  /**
+   * Update shopping list
+   *
+   * @param temp_id - List temp_id
+   * @param updates - Fields to update
+   */
+  async updateShoppingList(
+    temp_id: string,
+    updates: Partial<Pick<LocalShoppingList, 'name' | 'description' | 'is_active'>>
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await updateShoppingList(db, temp_id, updates);
+  }
+
+  /**
+   * Delete shopping list (CASCADE soft delete items)
+   *
+   * @param temp_id - List temp_id
+   */
+  async deleteShoppingList(temp_id: string): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await deleteShoppingList(db, temp_id);
+  }
+
+  /**
+   * Query shopping lists with filters
+   *
+   * @param filters - Optional filters
+   * @returns Array of shopping lists
+   */
+  async queryShoppingLists(filters?: ShoppingListFilters): Promise<LocalShoppingList[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryShoppingLists(db, filters);
+  }
+
+  /**
+   * Add item to shopping list (offline-first)
+   *
+   * @param item - Shopping list item data
+   * @returns temp_id (UUID)
+   */
+  async addItemToList(
+    item: Omit<LocalShoppingListItem, 'id' | 'temp_id' | 'sync_status' | 'sync_hash' | 'content_hash' | 'version' | 'deleted_at' | 'last_modified_by' | 'created_at' | 'updated_at' | 'synced_at' | 'is_completed' | 'completed_at'>
+  ): Promise<string> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await addItemToList(db, item);
+  }
+
+  /**
+   * Update shopping list item
+   *
+   * @param temp_id - Item temp_id
+   * @param updates - Fields to update
+   */
+  async updateItem(
+    temp_id: string,
+    updates: Partial<Pick<LocalShoppingListItem, 'product_name' | 'quantity' | 'unit' | 'comment' | 'store_id' | 'product_group_id'>>
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await updateItem(db, temp_id, updates);
+  }
+
+  /**
+   * Delete shopping list item (soft delete)
+   *
+   * @param temp_id - Item temp_id
+   */
+  async deleteItem(temp_id: string): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await deleteItem(db, temp_id);
+  }
+
+  /**
+   * Toggle item completion status
+   *
+   * @param temp_id - Item temp_id
+   * @param is_completed - New completion status
+   */
+  async toggleItemCompleted(temp_id: string, is_completed: boolean): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await toggleItemCompleted(db, temp_id, is_completed);
+  }
+
+  /**
+   * Query shopping list items with filters
+   *
+   * @param filters - Optional filters
+   * @returns Array of shopping list items
+   */
+  async queryShoppingListItems(filters?: ShoppingListItemFilters): Promise<LocalShoppingListItem[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryShoppingListItems(db, filters);
+  }
+
+  /**
+   * Query stores (reference data)
+   *
+   * @param filters - Optional filters
+   * @returns Array of stores
+   */
+  async queryStores(filters?: StoreFilters): Promise<LocalStore[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryStores(db, filters);
+  }
+
+  /**
+   * Query product groups (reference data)
+   *
+   * @param filters - Optional filters
+   * @returns Array of product groups
+   */
+  async queryProductGroups(filters?: ProductGroupFilters): Promise<LocalProductGroup[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryProductGroups(db, filters);
+  }
+
+  /**
+   * Query product group hierarchy (descendants of a product group)
+   *
+   * @param product_group_id - Ancestor product group ID
+   * @returns Array of hierarchy records
+   */
+  async queryProductGroupHierarchy(product_group_id: number): Promise<LocalProductGroupHierarchy[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await queryProductGroupHierarchy(db, product_group_id);
+  }
+
+  // === Shopping List Sync Methods (task-012) ===
+
+  /**
+   * Sync reference data from server (initial sync)
+   *
+   * Downloads stores, product groups, and hierarchy from server
+   * and bulk inserts into PGlite. Reference data is read-only on client.
+   *
+   * **Use case:** First-time sync or periodic full refresh
+   *
+   * **Example:**
+   * ```typescript
+   * const response = await fetch('/api/v1/sync/shopping-reference');
+   * const referenceData = await response.json();
+   * await pgliteManager.syncShoppingReferenceData(referenceData, (progress) => {
+   *   debugLog(`${progress.phase}: ${progress.message}`);
+   * });
+   * ```
+   *
+   * @param referenceData - Reference data from server (stores, product_groups, hierarchy)
+   * @param onProgress - Optional progress callback for UI updates
+   * @throws Error if database not initialized
+   * @see {@link ShoppingReferenceData} for data structure
+   */
+  async syncShoppingReferenceData(
+    referenceData: ShoppingReferenceData,
+    onProgress?: SyncProgressCallback
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await syncReferenceData(db, referenceData, onProgress);
+  }
+
+  /**
+   * Apply delta sync changes to PGlite (incremental sync)
+   *
+   * Handles created, updated, and deleted records with LWW conflict resolution.
+   * Compares server and local timestamps to resolve conflicts.
+   *
+   * **Use case:** Background sync after initial load
+   *
+   * **Example:**
+   * ```typescript
+   * const lastSync = await pgliteManager.getSyncMetadata('shopping_lists');
+   * const response = await fetch(
+   *   `/api/v1/sync/shopping-lists/delta?since=${lastSync.last_sync_timestamp}`
+   * );
+   * const delta = await response.json();
+   * const conflicts = await pgliteManager.applyShoppingDeltaSync(delta);
+   * debugLog(`Applied changes with ${conflicts} conflicts`);
+   * ```
+   *
+   * @param delta - Delta sync response from server (created/updated/deleted)
+   * @param onProgress - Optional progress callback for UI updates
+   * @returns Number of conflicts detected (resolved via LWW strategy)
+   * @throws Error if database not initialized
+   * @see {@link ShoppingDeltaSyncResponse} for data structure
+   */
+  async applyShoppingDeltaSync(
+    delta: ShoppingDeltaSyncResponse,
+    onProgress?: SyncProgressCallback
+  ): Promise<number> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await applyDeltaSync(db, delta, onProgress);
+  }
+
+  /**
+   * Get pending shopping operations ready for upload
+   *
+   * Retrieves all pending shopping list and item operations
+   * that haven't exceeded max retry attempts (default: 3).
+   *
+   * **Use case:** Upload offline changes to server
+   *
+   * **Example:**
+   * ```typescript
+   * const pending = await pgliteManager.getPendingShoppingOperations();
+   * for (const batch of chunk(pending, 100)) {
+   *   const response = await fetch('/api/v1/shopping-list-items/sync/batch', {
+   *     method: 'POST',
+   *     body: JSON.stringify({ operations: batch })
+   *   });
+   *   const result = await response.json();
+   *   // Confirm successful operations
+   *   for (const res of result.results) {
+   *     if (res.status === 'success') {
+   *       await pgliteManager.confirmPendingShoppingOperation(
+   *         res.temp_id, res.server_id, 'shopping_list_item'
+   *       );
+   *     }
+   *   }
+   * }
+   * ```
+   *
+   * @returns Array of pending operations (shopping_list and shopping_list_item)
+   * @throws Error if database not initialized
+   * @see {@link LocalPendingOperation} for operation structure
+   */
+  async getPendingShoppingOperations(): Promise<LocalPendingOperation[]> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await getPendingShoppingOperations(db);
+  }
+
+  /**
+   * Confirm successful upload of pending shopping operation
+   *
+   * Updates local record with server-assigned ID and marks as synced.
+   * Removes operation from pending queue.
+   *
+   * **Use case:** After successful server upload
+   *
+   * **Example:**
+   * ```typescript
+   * // After successful POST /api/v1/shopping-lists
+   * const response = await fetch('/api/v1/shopping-lists', {
+   *   method: 'POST',
+   *   body: JSON.stringify({ temp_id: 'uuid-123', name: 'My List' })
+   * });
+   * const result = await response.json();
+   * await pgliteManager.confirmPendingShoppingOperation(
+   *   'uuid-123',
+   *   result.id,
+   *   'shopping_list'
+   * );
+   * ```
+   *
+   * @param tempId - Client-generated temp_id (UUID)
+   * @param serverId - Server-assigned ID from response
+   * @param entityType - Entity type ('shopping_list' or 'shopping_list_item')
+   * @throws Error if database not initialized
+   */
+  async confirmPendingShoppingOperation(
+    tempId: string,
+    serverId: number,
+    entityType: 'shopping_list' | 'shopping_list_item'
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await confirmPendingShoppingOperation(db, tempId, serverId, entityType);
+  }
+
+  /**
+   * Retry failed pending shopping operation
+   *
+   * Increments attempts counter and updates error message.
+   * Operation will be retried on next sync if attempts < max_attempts.
+   *
+   * **Use case:** After upload failure (network error, validation error)
+   *
+   * **Example:**
+   * ```typescript
+   * try {
+   *   const response = await fetch('/api/v1/shopping-lists', {
+   *     method: 'POST',
+   *     body: JSON.stringify({ temp_id: 'uuid-123', name: 'My List' })
+   *   });
+   *   // ... confirm success
+   * } catch (error) {
+   *   // Retry later
+   *   await pgliteManager.retryPendingShoppingOperation(
+   *     'uuid-123',
+   *     error.message
+   *   );
+   * }
+   * ```
+   *
+   * @param tempId - Client-generated temp_id (UUID)
+   * @param error - Error message from server or network
+   * @throws Error if database not initialized
+   */
+  async retryPendingShoppingOperation(
+    tempId: string,
+    error: string
+  ): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await retryPendingShoppingOperation(db, tempId, error);
   }
 
   // === Pruning Methods (task-010) ===

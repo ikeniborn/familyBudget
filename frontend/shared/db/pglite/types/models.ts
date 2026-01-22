@@ -77,3 +77,16 @@ export type {
   LocalRecurringPlan,
   FactFilters
 } from './fact';
+
+// Phase 3: Shopping Lists (re-export from shopping.ts)
+export type {
+  LocalStore,
+  LocalProductGroup,
+  LocalProductGroupHierarchy,
+  LocalShoppingList,
+  LocalShoppingListItem,
+  ShoppingListFilters,
+  ShoppingListItemFilters,
+  StoreFilters,
+  ProductGroupFilters
+} from './shopping';

@@ -10,6 +10,7 @@ import { logger } from '../utils/logger';
 // Import schema SQL files as strings
 import v1ReferenceData from '../schemas/v1_referenceData.sql?raw';
 import v2Transactional from '../schemas/v2_transactional.sql?raw';
+import v3Shopping from '../schemas/v3_shopping.sql?raw';
 
 /**
  * Migration definition
@@ -33,6 +34,11 @@ const MIGRATIONS: Migration[] = [
     version: 2,
     name: 'Transactional Data (Budget Facts, Pending Operations, Sync Conflicts)',
     sql: v2Transactional
+  },
+  {
+    version: 3,
+    name: 'Shopping Lists (Stores, Product Groups, Lists, Items)',
+    sql: v3Shopping
   }
 ];
 
