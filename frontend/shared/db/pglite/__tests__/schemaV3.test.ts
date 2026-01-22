@@ -25,7 +25,8 @@ describe('PGlite Schema V3 Migration', () => {
 
   it('should apply schema v3 migration', async () => {
     const version = await manager.getSchemaVersion();
-    expect(version).toBe(3);
+    // PGliteManager always migrates to latest version (currently v4)
+    expect(version).toBe(4);
   });
 
   it('should create all v3 tables', async () => {
