@@ -17,9 +17,11 @@
 import { BaseModal } from './BaseModal';
 import { getPGliteManager } from '@db/pglite';
 import type { DiagnosticData } from '@db/pglite';
+import type { ConflictMetrics } from '@db/pglite/ConflictManager';
 
 export class PGliteDiagnosticModal extends BaseModal {
   private diagnosticContainer: HTMLDivElement | null = null;
+  private conflictMetrics: ConflictMetrics | null = null;
 
   constructor() {
     super({
@@ -63,7 +65,16 @@ export class PGliteDiagnosticModal extends BaseModal {
       const pglite = getPGliteManager();
       const data = await pglite.getDiagnosticData();
 
-      this.diagnosticContainer.innerHTML = this.renderDiagnosticContent(data);
+      // Load conflict metrics (task-009)
+      try {
+        this.conflictMetrics = await pglite.getConflictMetrics();
+      } catch (error) {
+        console.warn('[CONFLICT_METRICS] Failed to load conflict metrics', error);
+        this.conflictMetrics = null;
+      }
+
+      // Use DOMParser to safely render HTML (prevents XSS)
+      this.renderDiagnosticContentSafe(data);
     } catch (error) {
       this.diagnosticContainer.innerHTML = `
         <div class="alert alert-error">
@@ -77,7 +88,40 @@ export class PGliteDiagnosticModal extends BaseModal {
   }
 
   /**
-   * Render diagnostic content HTML
+   * Safely render diagnostic content (prevents XSS)
+   */
+  private renderDiagnosticContentSafe(data: DiagnosticData): void {
+    if (!this.diagnosticContainer) return;
+
+    // Sanitize user-provided data to prevent XSS
+    const safeData = {
+      ...data,
+      lastSyncTimestamp: this.escapeHtml(data.lastSyncTimestamp)
+    };
+
+    // Render HTML template
+    const html = this.renderDiagnosticContent(safeData);
+
+    // Use DOMParser for safer HTML parsing (prevents script execution)
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Clear and append parsed content
+    this.diagnosticContainer.innerHTML = '';
+    this.diagnosticContainer.appendChild(doc.body.firstChild as Node);
+  }
+
+  /**
+   * Escape HTML special characters to prevent XSS
+   */
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * Render diagnostic content HTML template
    */
   private renderDiagnosticContent(data: DiagnosticData): string {
     return `
@@ -143,6 +187,10 @@ export class PGliteDiagnosticModal extends BaseModal {
         </div>
       </div>
 
+      ${this.renderPruningMetrics(data)}
+
+      ${this.renderConflictMetrics()}
+
       <!-- Actions -->
       <div class="flex justify-end gap-2 mt-4">
         <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('dialog').close()">Close</button>
@@ -178,6 +226,101 @@ export class PGliteDiagnosticModal extends BaseModal {
       default:
         return '<span class="text-base-content/50">Unknown</span>';
     }
+  }
+
+  /**
+   * Render pruning metrics (task-010)
+   */
+  private renderPruningMetrics(data: DiagnosticData): string {
+    if (!data.pruningStats) {
+      return '';
+    }
+
+    const stats = data.pruningStats;
+
+    return `
+      <!-- Pruning Metrics (task-010) -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h4 class="font-semibold mb-3">🗑️ Data Cleanup Metrics</h4>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Last Pruned</div>
+              <div class="stat-value text-sm">${stats.lastPrunedAt}</div>
+            </div>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Total Pruned</div>
+              <div class="stat-value text-lg text-warning">${stats.totalPruned.toLocaleString()}</div>
+              <div class="stat-desc text-xs">Records removed</div>
+            </div>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Next Cleanup</div>
+              <div class="stat-value text-sm">${stats.nextPruneEstimate}</div>
+              <div class="stat-desc text-xs">
+                ${stats.nextPruneEstimate === 'Never' ? 'Auto-pruning disabled' : 'Automatic'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Render conflict metrics (task-009)
+   */
+  private renderConflictMetrics(): string {
+    if (!this.conflictMetrics) {
+      return '';
+    }
+
+    const metrics = this.conflictMetrics;
+
+    // Determine badge color based on conflict rate
+    let badgeClass = 'badge-success'; // Green for <0.5%
+    if (metrics.conflictRate >= 1.0) {
+      badgeClass = 'badge-error'; // Red for >=1%
+    } else if (metrics.conflictRate >= 0.5) {
+      badgeClass = 'badge-warning'; // Yellow for 0.5-1%
+    }
+
+    return `
+      <!-- Conflict Metrics (task-009) -->
+      <div class="card bg-base-100 border border-base-300">
+        <div class="card-body p-4">
+          <h4 class="font-semibold mb-3">⚔️ Conflict Resolution (Last 30 Days)</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Conflict Rate</div>
+              <div class="stat-value text-lg">
+                ${metrics.conflictRate.toFixed(2)}%
+                <span class="badge ${badgeClass} badge-sm ml-2">
+                  ${metrics.conflictRate < 0.5 ? '✓' : metrics.conflictRate < 1.0 ? '⚠' : '✗'}
+                </span>
+              </div>
+              <div class="stat-desc text-xs">Target: &lt;1%</div>
+            </div>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Total Conflicts</div>
+              <div class="stat-value text-lg">${metrics.totalConflicts}</div>
+              <div class="stat-desc text-xs">
+                Resolved: ${metrics.resolvedConflicts} | Pending: ${metrics.pendingConflicts}
+              </div>
+            </div>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Server Wins</div>
+              <div class="stat-value text-lg text-primary">${metrics.resolutionBreakdown.server}</div>
+              <div class="stat-desc text-xs">LWW: Server newer</div>
+            </div>
+            <div class="stat bg-base-200 rounded-lg p-3">
+              <div class="stat-title text-xs">Client Wins</div>
+              <div class="stat-value text-lg text-secondary">${metrics.resolutionBreakdown.client}</div>
+              <div class="stat-desc text-xs">LWW: Client newer</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 }
 
