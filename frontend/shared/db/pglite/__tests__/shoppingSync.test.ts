@@ -215,6 +215,7 @@ describe('Shopping Sync Integration', () => {
               quantity: 2,
               unit: 'bottles',
               comment: null,
+              position: null,
               is_completed: false,
               completed_at: null,
               sync_status: 'synced',
@@ -276,7 +277,8 @@ describe('Shopping Sync Integration', () => {
         product_name: 'Bread',
         quantity: 1,
         unit: 'loaf',
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Simulate server assigning IDs (confirm pending)
@@ -303,6 +305,7 @@ describe('Shopping Sync Integration', () => {
               quantity: 3,
               unit: 'loaves',
               comment: 'Changed quantity',
+              position: null,
               is_completed: true,
               completed_at: new Date('2026-01-20T14:00:00Z'),
               sync_status: 'synced',
@@ -370,6 +373,7 @@ describe('Shopping Sync Integration', () => {
               quantity: 1,
               unit: null,
               comment: null,
+              position: null,
               is_completed: false,
               completed_at: null,
               sync_status: 'synced',
@@ -444,7 +448,8 @@ describe('Shopping Sync Integration', () => {
         product_name: 'Original',
         quantity: 1,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Confirm pending (assign server IDs)
@@ -475,6 +480,7 @@ describe('Shopping Sync Integration', () => {
               quantity: 10,
               unit: null,
               comment: 'Server won',
+              position: null,
               is_completed: false,
               completed_at: null,
               sync_status: 'synced',
@@ -560,7 +566,8 @@ describe('Shopping Sync Integration', () => {
         product_name: 'Offline Item 1',
         quantity: 1,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       await manager.addItemToList({
@@ -571,7 +578,8 @@ describe('Shopping Sync Integration', () => {
         product_name: 'Offline Item 2',
         quantity: 2,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Get pending operations
@@ -598,7 +606,8 @@ describe('Shopping Sync Integration', () => {
         product_name: 'Test Item',
         quantity: 1,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Verify pending operations exist

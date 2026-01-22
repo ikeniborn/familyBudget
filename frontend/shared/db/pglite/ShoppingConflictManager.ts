@@ -397,17 +397,18 @@ export class ShoppingConflictManager {
         quantity = $7,
         unit = $8,
         comment = $9,
-        is_completed = $10,
-        completed_at = $11::timestamp,
-        sync_status = $12,
-        sync_hash = $13,
-        content_hash = $14,
-        version = $15,
-        deleted_at = $16::timestamp,
-        last_modified_by = $17,
-        updated_at = $18::timestamp,
-        synced_at = $19::timestamp
-      WHERE temp_id = $20
+        position = $10,
+        is_completed = $11,
+        completed_at = $12::timestamp,
+        sync_status = $13,
+        sync_hash = $14,
+        content_hash = $15,
+        version = $16,
+        deleted_at = $17::timestamp,
+        last_modified_by = $18,
+        updated_at = $19::timestamp,
+        synced_at = $20::timestamp
+      WHERE temp_id = $21
     `, [
       server.id,
       server.creator_id,
@@ -418,6 +419,7 @@ export class ShoppingConflictManager {
       server.quantity,
       server.unit,
       server.comment,
+      server.position,
       server.is_completed,
       server.completed_at,
       'synced', // Mark as synced after applying server version
@@ -430,6 +432,194 @@ export class ShoppingConflictManager {
       new Date(), // Set synced_at to now
       conflict.tempId,
     ]);
+  }
+
+  // ========================================
+  // MERGE RESOLUTION (Task-014)
+  // ========================================
+
+  /**
+   * Apply merge resolution - smart merge with OR logic for is_completed, MAX for quantity
+   *
+   * @param conflict - Conflict detection result
+   */
+  async applyMergeResolution(conflict: ShoppingConflictDetection): Promise<void> {
+    try {
+      if (conflict.entityType === 'shopping_list') {
+        await this.applyMergeResolutionForList(conflict);
+      } else {
+        await this.applyMergeResolutionForItem(conflict);
+      }
+
+      // Log resolution
+      await this.logResolution(conflict, 'merge');
+
+      logger.info(`${LOG_PREFIX} Applied merge resolution`, {
+        entityType: conflict.entityType,
+        temp_id: conflict.tempId,
+      });
+    } catch (error) {
+      logger.error(`${LOG_PREFIX} Failed to apply merge resolution`, { error });
+      throw error;
+    }
+  }
+
+  /**
+   * Apply merge resolution for shopping list - LWW (Last-Write-Wins)
+   *
+   * @param conflict - Conflict detection result
+   */
+  private async applyMergeResolutionForList(
+    conflict: ShoppingConflictDetection
+  ): Promise<void> {
+    const local = conflict.localRecord as LocalShoppingList;
+    const server = conflict.serverRecord as LocalShoppingList;
+
+    // LWW: Use server if server.updated_at > local.updated_at
+    const serverWins = new Date(server.updated_at) > new Date(local.updated_at);
+
+    if (serverWins) {
+      // Server wins - apply server version
+      await this.applyServerResolutionForList(conflict);
+    } else {
+      // Client wins - mark as pending for re-upload
+      await this.db.query(`
+        UPDATE local_shopping_lists
+        SET sync_status = $1
+        WHERE temp_id = $2
+      `, ['pending', conflict.tempId]);
+    }
+  }
+
+  /**
+   * Apply merge resolution for shopping list item - Smart field merge
+   *
+   * Merge strategy:
+   * - is_completed: OR logic (true if either version completed)
+   * - quantity: MAX value (higher quantity wins)
+   * - position: Server is source of truth
+   * - completed_at: Earliest timestamp if is_completed = true
+   * - Other fields: Server wins
+   *
+   * @param conflict - Conflict detection result
+   */
+  private async applyMergeResolutionForItem(
+    conflict: ShoppingConflictDetection
+  ): Promise<void> {
+    const local = conflict.localRecord as LocalShoppingListItem;
+    const server = conflict.serverRecord as LocalShoppingListItem;
+
+    // Smart merge logic
+    const mergedIsCompleted = local.is_completed || server.is_completed;
+    const mergedQuantity = this.mergeQuantity(local.quantity, server.quantity);
+    const mergedCompletedAt = this.mergeCompletedAt(local, server, mergedIsCompleted);
+
+    await this.db.query(`
+      UPDATE local_shopping_list_items SET
+        id = $1,
+        creator_id = $2,
+        shopping_list_temp_id = $3,
+        store_id = $4,
+        product_group_id = $5,
+        product_name = $6,
+        quantity = $7,
+        unit = $8,
+        comment = $9,
+        position = $10,
+        is_completed = $11,
+        completed_at = $12::timestamp,
+        sync_status = $13,
+        sync_hash = $14,
+        content_hash = $15,
+        version = $16,
+        deleted_at = $17::timestamp,
+        last_modified_by = $18,
+        updated_at = $19::timestamp,
+        synced_at = $20::timestamp
+      WHERE temp_id = $21
+    `, [
+      server.id,                    // Identity: server wins
+      server.creator_id,            // Identity: server wins
+      server.shopping_list_temp_id, // Reference: server wins
+      server.store_id,              // Reference: server wins
+      server.product_group_id,      // Reference: server wins
+      server.product_name,          // Business: server wins
+      mergedQuantity,               // Smart merge: MAX
+      server.unit,                  // Business: server wins
+      server.comment,               // Business: server wins
+      server.position,              // Ordering: server wins (source of truth)
+      mergedIsCompleted,            // Smart merge: OR
+      mergedCompletedAt,            // Smart merge: earliest timestamp
+      'synced',                     // Mark as synced after merge
+      server.sync_hash,             // Sync: use server hash
+      server.content_hash,          // Sync: use server hash
+      server.version,               // Sync: use server version
+      server.deleted_at,            // Soft delete: server wins
+      server.last_modified_by,      // Audit: server wins
+      server.updated_at,            // Timestamp: server wins
+      new Date(),                   // Set synced_at to now
+      conflict.tempId,
+    ]);
+  }
+
+  /**
+   * Merge quantity using MAX logic
+   * Null is treated as 0 for comparison
+   *
+   * @param localQty - Local quantity
+   * @param serverQty - Server quantity
+   * @returns Maximum quantity
+   */
+  private mergeQuantity(
+    localQty: number | null,
+    serverQty: number | null
+  ): number | null {
+    // If both null, return null
+    if (localQty === null && serverQty === null) {
+      return null;
+    }
+
+    // Treat null as 0 for comparison
+    const local = localQty ?? 0;
+    const server = serverQty ?? 0;
+
+    return Math.max(local, server);
+  }
+
+  /**
+   * Merge completed_at using OR logic with earliest timestamp
+   * If either version is completed, use earliest completed_at
+   *
+   * @param local - Local record
+   * @param server - Server record
+   * @param mergedIsCompleted - Merged is_completed value
+   * @returns Merged completed_at timestamp
+   */
+  private mergeCompletedAt(
+    local: LocalShoppingListItem,
+    server: LocalShoppingListItem,
+    mergedIsCompleted: boolean
+  ): Date | null {
+    // If merged is not completed, return null
+    if (!mergedIsCompleted) {
+      return null;
+    }
+
+    // If merged is completed, use earliest completed_at
+    const localCompletedAt = local.completed_at ? new Date(local.completed_at) : null;
+    const serverCompletedAt = server.completed_at ? new Date(server.completed_at) : null;
+
+    // If both have completed_at, use earliest
+    if (localCompletedAt && serverCompletedAt) {
+      return localCompletedAt < serverCompletedAt ? localCompletedAt : serverCompletedAt;
+    }
+
+    // If only one has completed_at, use it
+    if (localCompletedAt) return localCompletedAt;
+    if (serverCompletedAt) return serverCompletedAt;
+
+    // If neither has completed_at (shouldn't happen if is_completed=true), use current time
+    return new Date();
   }
 
   // ========================================

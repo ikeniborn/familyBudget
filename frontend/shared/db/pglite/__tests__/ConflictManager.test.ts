@@ -353,13 +353,14 @@ describe('ConflictManager', () => {
       const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE entity_id = 1');
 
       expect(logs.rows).toHaveLength(1);
-      expect(logs.rows[0].entity_type).toBe('budget_fact');
-      expect(logs.rows[0].resolution).toBe('server');
-      expect(logs.rows[0].resolved_at).not.toBeNull();
+      const logRow = logs.rows[0] as { entity_type: string; resolution: string; resolved_at: Date | null; local_version: string; server_version: string };
+      expect(logRow.entity_type).toBe('budget_fact');
+      expect(logRow.resolution).toBe('server');
+      expect(logRow.resolved_at).not.toBeNull();
 
       // Check JSONB versions
-      const localVersion = JSON.parse(logs.rows[0].local_version);
-      const serverVersion = JSON.parse(logs.rows[0].server_version);
+      const localVersion = JSON.parse(logRow.local_version);
+      const serverVersion = JSON.parse(logRow.server_version);
 
       expect(localVersion.amount).toBe(100);
       expect(serverVersion.amount).toBe(150);

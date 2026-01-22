@@ -159,7 +159,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Milk',
         quantity: 2,
         unit: 'bottles',
-        comment: 'Low fat'
+        comment: 'Low fat',
+        position: null
       });
 
       expect(itemId).toBeDefined();
@@ -182,7 +183,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Original Product',
         quantity: 1,
         unit: 'piece',
-        comment: null
+        comment: null,
+        position: null
       });
 
       await manager.updateItem(itemId, {
@@ -207,7 +209,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'To be deleted',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       await manager.deleteItem(itemId);
@@ -237,7 +240,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Task Item',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Mark as completed
@@ -265,7 +269,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Item 1',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       const item2Id = await manager.addItemToList({
@@ -276,7 +281,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Item 2',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Mark item 2 as completed
@@ -313,7 +319,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'First Item',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Small delay to ensure different timestamps
@@ -327,7 +334,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Second Item',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -340,7 +348,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Third Item',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Query items
@@ -394,7 +403,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Item 1',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       await manager.addItemToList({
@@ -405,7 +415,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Item 2',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       await manager.addItemToList({
@@ -416,7 +427,8 @@ describe('PGlite Shopping Operations', () => {
         product_name: 'Item 3',
         quantity: null,
         unit: null,
-        comment: null
+        comment: null,
+        position: null
       });
 
       // Verify items exist

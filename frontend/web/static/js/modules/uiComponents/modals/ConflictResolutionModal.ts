@@ -297,13 +297,12 @@ export class ConflictResolutionModal extends BaseModal {
     clientBtn.addEventListener('click', () => this.handleResolve('client'));
     actions.appendChild(clientBtn);
 
-    // Merge button (disabled, for Phase 2)
+    // Merge button (Task-014: Enabled for smart merge)
     const mergeBtn = document.createElement('button');
     mergeBtn.type = 'button';
     mergeBtn.className = 'btn btn-warning';
-    mergeBtn.disabled = true;
-    mergeBtn.textContent = '🔀 Объединить (скоро)';
-    mergeBtn.title = 'Функция будет доступна в следующей версии';
+    mergeBtn.textContent = '🔀 Объединить изменения';
+    mergeBtn.addEventListener('click', () => this.handleResolve('merge'));
     actions.appendChild(mergeBtn);
 
     // Cancel button
@@ -387,7 +386,11 @@ export class ConflictResolutionModal extends BaseModal {
     const dialog = this.getElement();
     if (!dialog) return;
 
-    const className = strategy === 'server' ? 'btn-success' : 'btn-primary';
+    const className = strategy === 'server'
+      ? 'btn-success'
+      : strategy === 'client'
+      ? 'btn-primary'
+      : 'btn-warning'; // merge strategy
     const button = dialog.querySelector<HTMLButtonElement>(`.${className}`);
 
     if (button) {
@@ -420,6 +423,11 @@ export class ConflictResolutionModal extends BaseModal {
     const clientBtn = dialog.querySelector<HTMLButtonElement>('.btn-primary');
     if (clientBtn) {
       clientBtn.textContent = '💻 Сохранить мою версию';
+    }
+
+    const mergeBtn = dialog.querySelector<HTMLButtonElement>('.btn-warning');
+    if (mergeBtn) {
+      mergeBtn.textContent = '🔀 Объединить изменения';
     }
   }
 

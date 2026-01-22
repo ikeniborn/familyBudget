@@ -91,6 +91,8 @@ export interface LocalShoppingListItem {
   quantity: number | null;
   unit: string | null;
   comment: string | null;
+  /** Position in list for ordering (auto-assigned if null) */
+  position: number | null;
 
   // Completion status
   is_completed: boolean;

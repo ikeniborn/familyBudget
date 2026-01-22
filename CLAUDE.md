@@ -164,6 +164,24 @@ Use `/tmp/download-vendor.sh` for batch downloading vendor files from CDN with r
 **Pre-Deploy Validation:**
 Deployment scripts automatically run `npm run build:vendor` to ensure all minified files are up-to-date.
 
+### 11. Shopping Lists Conflict Resolution (task-014)
+
+**Merge Strategy:**
+- **is_completed:** OR logic (true if either version completed)
+- **quantity:** MAX value (higher quantity wins)
+- **position:** Server is source of truth (auto-assigned on create)
+- **Other fields:** Server wins
+
+**Position Field:**
+- Auto-assigned on creation: MAX(position) + 1
+- Preserved on deletion (no reordering)
+- Sorting: ORDER BY position ASC
+
+**See:**
+- `frontend/shared/db/pglite/ShoppingConflictManager.ts:339-450` for merge implementation
+- `frontend/shared/db/pglite/operations/shoppingOperations.ts:266-314` for auto-assign
+- `/docs/architecture/pglite-conflict-resolution.md` for complete guide
+
 ## Important Features
 
 **Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`

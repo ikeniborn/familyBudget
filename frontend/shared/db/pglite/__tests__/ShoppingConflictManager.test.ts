@@ -46,6 +46,7 @@ describe('ShoppingConflictManager', () => {
         quantity NUMERIC(10,3),
         unit TEXT,
         comment TEXT,
+        position INTEGER,
         is_completed BOOLEAN DEFAULT false,
         completed_at TIMESTAMP,
         sync_status TEXT DEFAULT 'synced',
@@ -172,6 +173,7 @@ describe('ShoppingConflictManager', () => {
         quantity: 2,
         unit: 'pcs',
         comment: 'Local comment',
+        position: 1,
         is_completed: false,
         completed_at: null,
         sync_status: 'pending',
@@ -318,6 +320,289 @@ describe('ShoppingConflictManager', () => {
       const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
       expect(logs.rows.length).toBeGreaterThan(0);
       expect((logs.rows[0] as any).resolution).toBe('client');
+    });
+  });
+
+  describe('applyMergeResolution - Items (Task-014)', () => {
+    it('should merge is_completed using OR (both true)', async () => {
+      // Insert local item
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, unit, comment, position,
+          is_completed, completed_at, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 2, 'bottles', 'local', 1,
+                  true, '2024-01-01T10:00:00Z', 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        is_completed: true,
+        completed_at: new Date('2024-01-01T11:00:00Z'),
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(merged.is_completed).toBe(true); // OR: true || true = true
+      expect(merged.sync_status).toBe('synced');
+    });
+
+    it('should merge is_completed using OR (local true, server false)', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, position, is_completed, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 2, 1, true, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        is_completed: false,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(merged.is_completed).toBe(true); // OR: true || false = true
+    });
+
+    it('should merge is_completed using OR (both false)', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, position, is_completed, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 2, 1, false, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        is_completed: false,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(merged.is_completed).toBe(false); // OR: false || false = false
+    });
+
+    it('should merge quantity using MAX', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, position, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 2, 1, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        quantity: 5,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(Number(merged.quantity)).toBe(5); // MAX(2, 5) = 5
+    });
+
+    it('should handle null quantities in MAX merge', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, position, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', NULL, 1, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        quantity: 3,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(Number(merged.quantity)).toBe(3); // MAX(null, 3) = 3
+    });
+
+    it('should use server position (source of truth)', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, position, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 10, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        position: 5,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(merged.position).toBe(5); // Server wins
+    });
+
+    it('should merge completed_at with earliest timestamp', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, position, is_completed, completed_at, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 1, true, '2024-01-01T09:00:00Z', 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        is_completed: true,
+        completed_at: new Date('2024-01-01T11:00:00Z'),
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const result = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const merged = result.rows[0] as LocalShoppingListItem;
+      expect(new Date(merged.completed_at!).toISOString()).toBe('2024-01-01T09:00:00.000Z'); // Earliest
+    });
+
+    it('should log merge resolution to conflicts table', async () => {
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, quantity, position, sync_status, version, updated_at
+        ) VALUES (1, 'temp-1', 1, 'list-1', 1, 1, 'Milk', 2, 1, 'pending', 1, NOW())
+      `);
+
+      const localResult = await db.query('SELECT * FROM local_shopping_list_items WHERE temp_id = $1', ['temp-1']);
+      const localItem = localResult.rows[0] as LocalShoppingListItem;
+
+      const serverItem: LocalShoppingListItem = {
+        ...localItem,
+        quantity: 5,
+        sync_hash: 'server-hash'
+      };
+
+      const conflict = await manager.detectItemConflict(localItem, serverItem);
+      await manager.applyMergeResolution(conflict!);
+
+      const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
+      expect(logs.rows.length).toBeGreaterThan(0);
+      expect((logs.rows[0] as any).resolution).toBe('merge');
+    });
+  });
+
+  describe('Position Auto-Assignment (Task-014)', () => {
+    it('should auto-assign position on item creation', async () => {
+      // Create 3 items
+      for (let i = 1; i <= 3; i++) {
+        // Simulate auto-assign logic from shoppingOperations.ts
+        const maxPosResult = await db.query(`
+          SELECT COALESCE(MAX(position), 0) as max_pos
+          FROM local_shopping_list_items
+          WHERE shopping_list_temp_id = $1
+        `, ['list-1']);
+
+        const newPosition = ((maxPosResult.rows[0] as { max_pos: number }).max_pos || 0) + 1;
+
+        await db.query(`
+          INSERT INTO local_shopping_list_items (
+            id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+            product_name, position, sync_status, version, updated_at
+          ) VALUES ($1, $2, 1, 'list-1', 1, 1, $3, $4, 'synced', 1, NOW())
+        `, [i, `temp-${i}`, `Item ${i}`, newPosition]);
+      }
+
+      // Verify positions
+      const result = await db.query(`
+        SELECT position FROM local_shopping_list_items
+        WHERE shopping_list_temp_id = 'list-1'
+        ORDER BY position
+      `);
+
+      expect((result.rows as Array<{ position: number }>).map(r => r.position)).toEqual([1, 2, 3]);
+    });
+
+    it('should handle gaps after deletion', async () => {
+      // Create items 1, 2, 3
+      for (let i = 1; i <= 3; i++) {
+        const maxPosResult = await db.query(`
+          SELECT COALESCE(MAX(position), 0) as max_pos
+          FROM local_shopping_list_items
+          WHERE shopping_list_temp_id = $1 AND deleted_at IS NULL
+        `, ['list-1']);
+
+        const newPosition = ((maxPosResult.rows[0] as { max_pos: number }).max_pos || 0) + 1;
+
+        await db.query(`
+          INSERT INTO local_shopping_list_items (
+            id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+            product_name, position, sync_status, version, updated_at
+          ) VALUES ($1, $2, 1, 'list-1', 1, 1, $3, $4, 'synced', 1, NOW())
+        `, [i, `temp-${i}`, `Item ${i}`, newPosition]);
+      }
+
+      // Delete item 2
+      await db.query(`UPDATE local_shopping_list_items SET deleted_at = NOW() WHERE temp_id = 'temp-2'`);
+
+      // Create new item (should get position 4, not 2)
+      const maxPosResult = await db.query(`
+        SELECT COALESCE(MAX(position), 0) as max_pos
+        FROM local_shopping_list_items
+        WHERE shopping_list_temp_id = $1 AND deleted_at IS NULL
+      `, ['list-1']);
+
+      const newPosition = ((maxPosResult.rows[0] as { max_pos: number }).max_pos || 0) + 1;
+
+      await db.query(`
+        INSERT INTO local_shopping_list_items (
+          id, temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
+          product_name, position, sync_status, version, updated_at
+        ) VALUES (4, 'temp-4', 1, 'list-1', 1, 1, 'Item 4', $1, 'synced', 1, NOW())
+      `, [newPosition]);
+
+      // Verify new position is 4 (gaps preserved)
+      const result = await db.query(`SELECT position FROM local_shopping_list_items WHERE temp_id = 'temp-4'`);
+      expect((result.rows[0] as { position: number }).position).toBe(4);
     });
   });
 });

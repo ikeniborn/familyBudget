@@ -76,6 +76,12 @@ class ShoppingListItemCreate(BaseModel):
         examples=["buy on sale", "specific brand", None]
     )
 
+    position: Optional[int] = Field(
+        default=None,
+        description="Position in list for ordering (auto-assigned if null)",
+        examples=[1, 2, 3, None]
+    )
+
     is_completed: bool = Field(
         default=False,
         description="Completion flag (True = marked as bought, False = still needed)",
@@ -151,6 +157,12 @@ class ShoppingListItemUpdate(BaseModel):
         default=None,
         description="Optional comment or notes",
         examples=["updated comment"]
+    )
+
+    position: Optional[int] = Field(
+        default=None,
+        description="Position in list for ordering",
+        examples=[5]
     )
 
     is_completed: Optional[bool] = Field(
@@ -230,6 +242,12 @@ class ShoppingListItemResponse(BaseModel):
         examples=["buy on sale", None]
     )
 
+    position: Optional[int] = Field(
+        default=None,
+        description="Position in list for ordering",
+        examples=[1, None]
+    )
+
     is_completed: bool = Field(
         description="Completion flag (True = marked as bought)",
         examples=[False]
@@ -289,6 +307,7 @@ class ShoppingListItemResponse(BaseModel):
                 "quantity": 2.5,
                 "unit": "bottles",
                 "comment": "buy on sale",
+                "position": 1,
                 "is_completed": False,
                 "completed_at": None,
                 "sync_status": "synced",
@@ -435,6 +454,7 @@ class SyncItemCreate(BaseModel):
     quantity: Optional[Decimal] = Field(default=None)
     unit: Optional[str] = Field(default=None, max_length=50)
     comment: Optional[str] = Field(default=None)
+    position: Optional[int] = Field(default=None, description="Position in list")
     is_completed: bool = Field(default=False)
     completed_at: Optional[datetime] = Field(default=None)
 
@@ -459,6 +479,7 @@ class SyncItemUpdate(BaseModel):
     quantity: Optional[Decimal] = Field(default=None)
     unit: Optional[str] = Field(default=None, max_length=50)
     comment: Optional[str] = Field(default=None)
+    position: Optional[int] = Field(default=None)
     is_completed: Optional[bool] = Field(default=None)
     completed_at: Optional[datetime] = Field(default=None)
 

@@ -61,7 +61,8 @@ describe('pruningOperations', () => {
       // Verify correct records remain
       const remaining = await db.query('SELECT temp_id FROM local_budget_facts ORDER BY temp_id');
       expect(remaining.rows.length).toBe(2);
-      expect(remaining.rows.map((r: { temp_id: string }) => r.temp_id)).toEqual(['old-pending', 'recent-synced']);
+      const remainingRows = remaining.rows as Array<{ temp_id: string }>;
+      expect(remainingRows.map(r => r.temp_id)).toEqual(['old-pending', 'recent-synced']);
     });
 
     it('should never delete pending operations', async () => {

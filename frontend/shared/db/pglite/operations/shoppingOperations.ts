@@ -272,14 +272,25 @@ export async function addItemToList(
 
   logger.debug('[SHOPPING] Adding item', { temp_id, item });
 
+  // Auto-assign position (Task-014: position-based ordering)
+  const maxPosResult = await db.query(`
+    SELECT COALESCE(MAX(position), 0) as max_pos
+    FROM local_shopping_list_items
+    WHERE shopping_list_temp_id = $1 AND deleted_at IS NULL
+  `, [item.shopping_list_temp_id]);
+
+  const newPosition = ((maxPosResult.rows[0] as { max_pos: number }).max_pos || 0) + 1;
+
+  logger.debug('[SHOPPING] Auto-assigned position', { temp_id, position: newPosition });
+
   // Insert item
   await db.query(`
     INSERT INTO local_shopping_list_items (
       temp_id, creator_id, shopping_list_temp_id, store_id, product_group_id,
-      product_name, quantity, unit, comment,
+      product_name, quantity, unit, comment, position,
       is_completed, sync_status, content_hash, version,
       created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, 'pending', $10, 1, NOW(), NOW())
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, 'pending', $11, 1, NOW(), NOW())
   `, [
     temp_id,
     item.creator_id,
@@ -290,6 +301,7 @@ export async function addItemToList(
     item.quantity,
     item.unit,
     item.comment,
+    newPosition,
     content_hash
   ]);
 

@@ -12,6 +12,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import type { ShoppingConflictDetection, ResolutionStrategy } from '../../../../../../shared/db/pglite/types/conflicts';
 import { ShoppingConflictManager } from '../../../../../../shared/db/pglite/ShoppingConflictManager';
 import { ConflictResolutionModal } from '../../../modules/uiComponents/modals/ConflictResolutionModal';
+import { logger } from '../../../../../../shared/db/pglite/utils/logger';
 
 /**
  * ConflictQueue class
@@ -27,7 +28,7 @@ class ConflictQueue {
    */
   enqueue(conflict: ShoppingConflictDetection, db: PGlite): void {
     this.queue.push({ conflict, db });
-    console.log(`[CONFLICT_QUEUE] Enqueued conflict (queue size: ${this.queue.length})`);
+    logger.debug(`[CONFLICT_QUEUE] Enqueued conflict (queue size: ${this.queue.length})`);
 
     // Start processing if not already processing
     if (!this.isProcessing) {
@@ -44,7 +45,7 @@ class ConflictQueue {
     }
 
     if (this.queue.length === 0) {
-      console.log('[CONFLICT_QUEUE] Queue empty');
+      logger.debug('[CONFLICT_QUEUE] Queue empty');
       return;
     }
 
@@ -52,7 +53,7 @@ class ConflictQueue {
 
     while (this.queue.length > 0) {
       const item = this.queue.shift()!; // Get first item (FIFO)
-      console.log(`[CONFLICT_QUEUE] Processing conflict (${this.queue.length} remaining)`, {
+      logger.debug(`[CONFLICT_QUEUE] Processing conflict (${this.queue.length} remaining)`, {
         entityType: item.conflict.entityType,
         temp_id: item.conflict.tempId,
       });
@@ -67,7 +68,7 @@ class ConflictQueue {
     }
 
     this.isProcessing = false;
-    console.log('[CONFLICT_QUEUE] All conflicts processed');
+    logger.debug('[CONFLICT_QUEUE] All conflicts processed');
   }
 
   /**
@@ -90,7 +91,7 @@ class ConflictQueue {
         },
         onCancel: () => {
           // User cancelled - log but don't block queue
-          console.log('[CONFLICT_QUEUE] User cancelled conflict resolution', {
+          logger.debug('[CONFLICT_QUEUE] User cancelled conflict resolution', {
             temp_id: conflict.tempId,
           });
           resolve(); // Resolve anyway to allow processing of next conflict
@@ -120,7 +121,7 @@ class ConflictQueue {
   ): Promise<void> {
     const conflictManager = new ShoppingConflictManager(db);
 
-    console.log('[CONFLICT_QUEUE] Applying resolution', {
+    logger.debug('[CONFLICT_QUEUE] Applying resolution', {
       temp_id: conflict.tempId,
       strategy,
     });
@@ -130,13 +131,13 @@ class ConflictQueue {
     } else if (strategy === 'client') {
       await conflictManager.applyClientResolution(conflict);
     } else if (strategy === 'merge') {
-      // Phase 2: Merge strategy not implemented yet
-      throw new Error('Merge strategy not implemented (Phase 2)');
+      // Task-014: Smart merge with OR logic for is_completed, MAX for quantity
+      await conflictManager.applyMergeResolution(conflict);
     } else {
       throw new Error(`Unknown resolution strategy: ${strategy}`);
     }
 
-    console.log('[CONFLICT_QUEUE] Resolution applied successfully', {
+    logger.debug('[CONFLICT_QUEUE] Resolution applied successfully', {
       temp_id: conflict.tempId,
       strategy,
     });
@@ -180,7 +181,7 @@ const conflictQueue = new ConflictQueue();
  * @param db - PGlite database instance
  */
 export async function handleShoppingConflict(conflict: ShoppingConflictDetection, db: PGlite): Promise<void> {
-  console.log('[SHOPPING_CONFLICT] Handling conflict', {
+  logger.debug('[SHOPPING_CONFLICT] Handling conflict', {
     entityType: conflict.entityType,
     temp_id: conflict.tempId,
     conflictType: conflict.conflictType,

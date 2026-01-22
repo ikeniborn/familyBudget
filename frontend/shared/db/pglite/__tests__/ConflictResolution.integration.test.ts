@@ -89,18 +89,20 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount, sync_hash FROM local_budget_facts WHERE id = 1'
       );
-      expect(updated.rows[0].amount).toBe(150); // Server value
-      expect(updated.rows[0].sync_hash).toBe('new_hash'); // Server hash
+      const updatedRow = updated.rows[0] as { amount: number; sync_hash: string };
+      expect(updatedRow.amount).toBe(150); // Server value
+      expect(updatedRow.sync_hash).toBe('new_hash'); // Server hash
 
       // Verify conflict logged
       const conflicts = await db.query(
         'SELECT * FROM local_sync_conflicts WHERE entity_id = 1'
       );
       expect(conflicts.rows).toHaveLength(1);
-      expect(conflicts.rows[0].resolution).toBe('server');
+      const conflictRow = conflicts.rows[0] as { resolution: string; local_version: string; server_version: string };
+      expect(conflictRow.resolution).toBe('server');
 
-      const localVersion = JSON.parse(conflicts.rows[0].local_version);
-      const serverVersion = JSON.parse(conflicts.rows[0].server_version);
+      const localVersion = JSON.parse(conflictRow.local_version);
+      const serverVersion = JSON.parse(conflictRow.server_version);
 
       expect(localVersion.amount).toBe(100);
       expect(serverVersion.amount).toBe(150);
@@ -166,15 +168,17 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount, sync_status FROM local_budget_facts WHERE id = 1'
       );
-      expect(updated.rows[0].amount).toBe(200); // Client value
-      expect(updated.rows[0].sync_status).toBe('pending'); // Marked for re-upload
+      const updatedRow = updated.rows[0] as { amount: number; sync_status: string };
+      expect(updatedRow.amount).toBe(200); // Client value
+      expect(updatedRow.sync_status).toBe('pending'); // Marked for re-upload
 
       // Verify conflict logged
       const conflicts = await db.query(
         'SELECT * FROM local_sync_conflicts WHERE entity_id = 1'
       );
       expect(conflicts.rows).toHaveLength(1);
-      expect(conflicts.rows[0].resolution).toBe('client');
+      const conflictRow = conflicts.rows[0] as { resolution: string };
+      expect(conflictRow.resolution).toBe('client');
     });
   });
 
@@ -220,7 +224,8 @@ describe('Conflict Resolution Integration', () => {
       // Verify record created
       const facts = await db.query('SELECT * FROM local_budget_facts WHERE id = 1');
       expect(facts.rows).toHaveLength(1);
-      expect(facts.rows[0].amount).toBe(100);
+      const factRow = facts.rows[0] as { amount: number };
+      expect(factRow.amount).toBe(100);
     });
   });
 
@@ -321,27 +326,31 @@ describe('Conflict Resolution Integration', () => {
       const facts = await db.query(
         'SELECT id, amount, sync_status FROM local_budget_facts ORDER BY id'
       );
+      type FactRow = { id: number; amount: number; sync_status: string };
+      const factsRows = facts.rows as FactRow[];
 
       // Record 1: Server wins (150)
-      expect(facts.rows[0].amount).toBe(150);
-      expect(facts.rows[0].sync_status).toBe('synced');
+      expect(factsRows[0].amount).toBe(150);
+      expect(factsRows[0].sync_status).toBe('synced');
 
       // Record 2: Client wins (200)
-      expect(facts.rows[1].amount).toBe(200);
-      expect(facts.rows[1].sync_status).toBe('pending'); // Marked for re-upload
+      expect(factsRows[1].amount).toBe(200);
+      expect(factsRows[1].sync_status).toBe('pending'); // Marked for re-upload
 
       // Record 3: Server wins (350)
-      expect(facts.rows[2].amount).toBe(350);
-      expect(facts.rows[2].sync_status).toBe('synced');
+      expect(factsRows[2].amount).toBe(350);
+      expect(factsRows[2].sync_status).toBe('synced');
 
       // Verify conflicts logged
       const conflicts = await db.query(
         'SELECT entity_id, resolution FROM local_sync_conflicts ORDER BY entity_id'
       );
-      expect(conflicts.rows).toHaveLength(3);
-      expect(conflicts.rows[0].resolution).toBe('server'); // Record 1
-      expect(conflicts.rows[1].resolution).toBe('client'); // Record 2
-      expect(conflicts.rows[2].resolution).toBe('server'); // Record 3
+      type ConflictRow = { entity_id: number; resolution: string };
+      const conflictRows = conflicts.rows as ConflictRow[];
+      expect(conflictRows).toHaveLength(3);
+      expect(conflictRows[0].resolution).toBe('server'); // Record 1
+      expect(conflictRows[1].resolution).toBe('client'); // Record 2
+      expect(conflictRows[2].resolution).toBe('server'); // Record 3
     });
   });
 
@@ -408,7 +417,8 @@ describe('Conflict Resolution Integration', () => {
       const updated = await db.query(
         'SELECT amount FROM local_budget_facts WHERE id = 1'
       );
-      expect(updated.rows[0].amount).toBe(150); // Server value
+      const updatedRow = updated.rows[0] as { amount: number };
+      expect(updatedRow.amount).toBe(150); // Server value
 
       // Verify no conflicts logged
       const conflicts = await db.query(

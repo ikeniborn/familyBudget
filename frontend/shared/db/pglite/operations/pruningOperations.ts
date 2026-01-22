@@ -112,7 +112,8 @@ export async function getPruningStats(db: PGlite): Promise<PruningStats> {
     return { lastPrunedAt: null, totalPruned: 0 };
   }
 
-  const metadata = result.rows[0].metadata as PruningMetadata;
+  const row = result.rows[0] as { metadata: unknown };
+  const metadata = row.metadata as PruningMetadata;
 
   return {
     lastPrunedAt: metadata.last_pruned_at || null,

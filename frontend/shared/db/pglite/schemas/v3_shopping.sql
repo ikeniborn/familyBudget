@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS local_shopping_list_items (
   quantity NUMERIC(10, 3),
   unit TEXT,
   comment TEXT,
+  position INTEGER,
 
   -- Completion status
   is_completed BOOLEAN DEFAULT false,
@@ -148,3 +149,7 @@ CREATE INDEX IF NOT EXISTS idx_shopping_list_items_sync_status
   ON local_shopping_list_items(sync_status);
 CREATE INDEX IF NOT EXISTS idx_shopping_list_items_deleted
   ON local_shopping_list_items(deleted_at) WHERE deleted_at IS NULL;
+
+-- Position ordering index
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_position
+  ON local_shopping_list_items(shopping_list_temp_id, position);
