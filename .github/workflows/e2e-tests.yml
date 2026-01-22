@@ -1,19 +1,15 @@
 name: E2E Tests
 
 on:
-  push:
+  pull_request:
     branches:
-      - 'dev/**'
+      - test
     paths:
       - 'frontend/**'
       - 'backend/**'
       - 'tests/e2e/**'
       - 'playwright.config.ts'
       - '.github/workflows/e2e-tests.yml'
-  pull_request:
-    branches:
-      - prod
-      - test
   workflow_dispatch:
     inputs:
       browser:

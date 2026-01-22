@@ -1,21 +1,14 @@
 name: Frontend Tests
 
 on:
-  push:
-    branches: ['dev/**']
+  pull_request:
+    branches: [test]
     paths:
       - 'frontend/**'
       - 'package.json'
       - 'package-lock.json'
       - 'vitest.config.ts'
       - '.github/workflows/frontend-tests.yml'
-  pull_request:
-    branches: [prod, test]
-    paths:
-      - 'frontend/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vitest.config.ts'
 
 jobs:
   type-check:
