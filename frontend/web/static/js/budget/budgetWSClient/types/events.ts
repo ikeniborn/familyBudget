@@ -285,3 +285,52 @@ export interface SyncIncrementalResponse {
     sync_timestamp: string; // Server timestamp for next sync
   };
 }
+
+// ============================================================================
+// Task-008: Client Upload Events
+// ============================================================================
+
+/**
+ * Client → Server: Upload pending operations
+ */
+export interface SyncClientChangesRequest {
+  event: 'sync_client_changes';
+  data: {
+    user_id: number;
+    operations: Array<{
+      temp_id: string;                    // UUID v4 for creates
+      operation: 'create' | 'update' | 'delete';
+      entity_type: string;                // 'fact' | 'plan' (future)
+      payload: Record<string, unknown>;   // Operation data (JSONB)
+      content_hash: string;               // SHA-256 for deduplication
+    }>;
+  };
+}
+
+/**
+ * Server → Client: Upload response with temp_id → server_id mapping
+ */
+export interface SyncClientChangesResponse {
+  event: 'sync_client_changes_response';
+  data: {
+    results: Array<{
+      temp_id: string;                    // Client's temp_id
+      server_id: number | null;           // Server-assigned ID (null on error)
+      status: 'success' | 'error' | 'conflict';
+      error?: string;                     // Error message (if status != success)
+    }>;
+    total_processed: number;              // Total operations in batch
+    success_count: number;                // Successfully processed
+    error_count: number;                  // Failed operations
+  };
+}
+
+/**
+ * Upload result summary (internal)
+ */
+export interface UploadResult {
+  success: boolean;
+  uploaded: number;
+  failed: number;
+  remaining: number;  // Still in queue
+}

@@ -55,6 +55,7 @@ from backend.app.services.jwt import create_ws_token, decode_ws_token
 from backend.app.api.v1.endpoints.sync_handlers import (
     handle_sync_initial,
     handle_sync_incremental_request,
+    handle_sync_client_changes,
 )
 
 # Security constants
@@ -650,6 +651,28 @@ async def budget_websocket_endpoint(
                         async with get_session_context() as session:
                             delta_data = await handle_sync_incremental_request(session, user_id, last_sync_timestamp)
                             await ws_manager.send_to_connection(connection_id, "sync_incremental", delta_data)
+
+                    elif msg_type == "sync_client_changes":
+                        # Client upload request (task-008)
+                        await ws_manager.update_activity(connection_id)
+
+                        msg_data = msg.get("data", {})
+                        operations = msg_data.get("operations", [])
+
+                        logger.info(
+                            f"[SYNC] Received client upload from user {user_id}, "
+                            f"{len(operations)} operations"
+                        )
+
+                        async with get_session_context() as session:
+                            upload_result = await handle_sync_client_changes(
+                                session, user_id, operations
+                            )
+                            await ws_manager.send_to_connection(
+                                connection_id,
+                                "sync_client_changes_response",
+                                upload_result
+                            )
 
                     else:
                         logger.debug(f"Budget WS unknown message type: {msg_type}")

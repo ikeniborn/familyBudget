@@ -28,7 +28,9 @@ import {
   getPendingOperations,
   bulkInsertFacts,
   bulkUpdateFacts,
-  bulkSoftDeleteFacts
+  bulkSoftDeleteFacts,
+  confirmPendingOperation,
+  retryPendingOperation
 } from './operations/factOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
 import type { IPGliteConfig } from './types/dependencies';
@@ -337,6 +339,34 @@ export class PGliteManager {
     if (!db) throw new Error('[PGLITE] Database not initialized');
 
     return await bulkSoftDeleteFacts(db, factIds);
+  }
+
+  /**
+   * Confirm pending operation after successful server upload
+   * Task-008: Client upload changes
+   *
+   * @param tempId - Client-generated temp_id (UUID)
+   * @param serverId - Server-assigned ID
+   */
+  async confirmPendingOperation(tempId: string, serverId: number): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await confirmPendingOperation(db, tempId, serverId);
+  }
+
+  /**
+   * Retry pending operation after upload failure
+   * Task-008: Client upload changes
+   *
+   * @param tempId - Client-generated temp_id (UUID)
+   * @param error - Error message from server
+   */
+  async retryPendingOperation(tempId: string, error: string): Promise<void> {
+    const { db } = getState();
+    if (!db) throw new Error('[PGLITE] Database not initialized');
+
+    return await retryPendingOperation(db, tempId, error);
   }
 
   // === Sync Metadata Methods ===

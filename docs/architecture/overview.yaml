@@ -98,10 +98,17 @@ architecture:
       name: "WebSocket Client"
       type: "realtime-module"
       file_path: "frontend/web/static/js/budget/budgetWSClient.min.js"
-      bundle_size: "~69KB (minified), ~13KB (gzip)"
-      loc: 1200
-      language: "JavaScript"
-      description: "WebSocket client for real-time updates with Long Polling fallback"
+      source_path: "frontend/web/static/js/budget/budgetWSClient/"
+      bundle_size: "~75KB (minified), ~14KB (gzip)"
+      loc: 1450
+      language: "TypeScript"
+      description: "WebSocket client for real-time updates with PGlite sync protocol"
+      architecture:
+        - "core/connectionManager.ts - WebSocket connection lifecycle"
+        - "integration/syncHandler.ts - Handle sync_initial and sync_incremental"
+        - "integration/uploadHandler.ts - Client upload with retry logic (task-008)"
+        - "integration/eventHandlers.ts - Event dispatch and routing"
+        - "types/events.ts - TypeScript event interfaces"
       events:
         - fact_created
         - fact_updated
@@ -110,9 +117,22 @@ architecture:
         - transfer_deleted
         - article_created
         - article_updated
+        - sync_initial
+        - sync_incremental
+        - sync_client_changes_response
+      key_features:
+        - "WebSocket with Long Polling fallback"
+        - "PGlite sync protocol (initial, incremental, upload)"
+        - "Batch upload (max 100 operations)"
+        - "Retry logic with attempts counter"
+        - "Progress tracking via CustomEvents"
+        - "Auto-upload on network reconnect"
       dependencies:
         - network (NetworkDetector)
+        - pglite (PGliteManager)
       layer: "integration"
+      version: "2.0.0"
+      status: "Production (task-008 complete)"
 
     # ==========================================================================
     # OFFLINE MANAGER
@@ -160,15 +180,56 @@ architecture:
         - "@electric-sql/pglite@0.2.0"
       dependencies: []
       layer: "infrastructure"
-      version: "1.3.0"
-      status: "Phase 1: Reference Data (task-001 to task-004 complete)"
+      version: "2.0.0"
+      status: "Phase 2: Transactions (task-001 to task-008 complete)"
       key_features:
-        - "WebSocket sync protocol (initial sync)"
+        - "WebSocket sync protocol (initial + incremental + client upload)"
+        - "Offline fact creation with temp_id tracking"
+        - "Client-to-server upload with retry logic"
+        - "Content hash deduplication"
         - "Feature flags (localStorage-based)"
         - "Performance tracking (last 100 queries)"
         - "Diagnostic UI integration"
         - "Schema migrations with versioning"
         - "Bulk operations with progress callbacks"
+
+    # ==========================================================================
+    # PGLITE SYNC API (Backend)
+    # ==========================================================================
+    - id: "sync_api"
+      name: "PGlite Sync API"
+      type: "backend-api"
+      file_path: "backend/app/api/v1/endpoints/sync_handlers.py"
+      loc: 680
+      language: "Python"
+      description: "Backend WebSocket handlers for PGlite synchronization protocol"
+      architecture:
+        - "handle_sync_initial() - Initial reference data sync (articles, FCs, CCs)"
+        - "handle_sync_incremental_request() - Delta updates (created/updated/deleted facts)"
+        - "handle_sync_client_changes() - Client upload operations with deduplication"
+        - "_handle_create_fact() - Create fact with content_hash deduplication"
+        - "_handle_update_fact() - Update fact with partial updates"
+        - "_handle_delete_fact() - Delete fact with history tracking"
+      endpoints:
+        - "sync_initial - Send all reference data to client"
+        - "sync_incremental - Send delta updates since last_sync_timestamp"
+        - "sync_client_changes - Process client pending operations (create/update/delete)"
+      security:
+        - "JWT authentication required"
+        - "Parameterized SQL queries (no SQL injection)"
+        - "Content hash deduplication (prevents duplicate creates)"
+        - "Transaction rollback on commit failure"
+      dependencies:
+        - database (BudgetFact, BudgetFactHistory models)
+        - websocket_manager (send_to_connection)
+      layer: "application"
+      version: "2.0.0"
+      status: "Production (task-008 complete)"
+      key_features:
+        - "Batch processing (max 100 operations per request)"
+        - "Per-operation error handling"
+        - "History table tracking for deletes"
+        - "Offline-sync flag for client-created facts"
 
     # ==========================================================================
     # PGLITE DIAGNOSTIC MODAL

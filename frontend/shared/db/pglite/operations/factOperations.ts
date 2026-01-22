@@ -443,3 +443,91 @@ export async function bulkSoftDeleteFacts(
     throw error;
   }
 }
+
+/**
+ * Confirm pending operation after successful server upload
+ * - Updates local_budget_facts: id = serverId, sync_status = 'synced'
+ * - Deletes from local_pending_operations
+ *
+ * Task-008: Client upload changes
+ *
+ * @param db - PGlite database instance
+ * @param tempId - Client-generated temp_id (UUID)
+ * @param serverId - Server-assigned ID
+ */
+export async function confirmPendingOperation(
+  db: PGlite,
+  tempId: string,
+  serverId: number
+): Promise<void> {
+  logger.debug('[PGLITE] Confirming pending operation', { tempId, serverId });
+
+  await db.query('BEGIN');
+
+  try {
+    // 1. Update fact with server ID
+    await db.query(`
+      UPDATE local_budget_facts
+      SET id = $1,
+          sync_status = 'synced',
+          synced_at = NOW()
+      WHERE temp_id = $2
+    `, [serverId, tempId]);
+
+    // 2. Remove from pending operations
+    await db.query(`
+      DELETE FROM local_pending_operations
+      WHERE temp_id = $1
+    `, [tempId]);
+
+    await db.query('COMMIT');
+    logger.info('[PGLITE] Pending operation confirmed', { tempId, serverId });
+  } catch (error) {
+    await db.query('ROLLBACK');
+    logger.error('[PGLITE] Failed to confirm pending operation', error);
+    throw error;
+  }
+}
+
+/**
+ * Retry pending operation after upload failure
+ * - Increments attempts counter
+ * - Stores last error message
+ * - Does NOT delete operation (allows retry)
+ *
+ * Task-008: Client upload changes
+ *
+ * @param db - PGlite database instance
+ * @param tempId - Client-generated temp_id (UUID)
+ * @param error - Error message from server
+ */
+export async function retryPendingOperation(
+  db: PGlite,
+  tempId: string,
+  error: string
+): Promise<void> {
+  logger.debug('[PGLITE] Retrying pending operation', { tempId, error });
+
+  await db.query(`
+    UPDATE local_pending_operations
+    SET attempts = attempts + 1,
+        last_error = $1,
+        updated_at = NOW()
+    WHERE temp_id = $2
+  `, [error, tempId]);
+
+  // Check if max attempts reached
+  const result = await db.query(`
+    SELECT attempts, max_attempts FROM local_pending_operations
+    WHERE temp_id = $1
+  `, [tempId]);
+
+  if (result.rows.length > 0) {
+    const row = result.rows[0] as { attempts: number; max_attempts: number };
+    if (row.attempts >= row.max_attempts) {
+      logger.error('[PGLITE] Max attempts reached for pending operation', { tempId, attempts: row.attempts });
+    } else {
+      logger.info('[PGLITE] Pending operation retry scheduled', { tempId, attempts: row.attempts, maxAttempts: row.max_attempts });
+    }
+  }
+}
