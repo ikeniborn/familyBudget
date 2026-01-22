@@ -15,7 +15,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: ghcr.io/ikeniborn/familybudget-postgresql:${VERSION:-6.6.0}
+    image: familybudget-postgresql:latest
     container_name: familybudget-postgres
     # Restart policy: "always" ensures PostgreSQL starts even after manual stop or Docker daemon restart
     # Unlike "unless-stopped", "always" will restart the container after Docker daemon restarts,
@@ -88,7 +88,7 @@ services:
 
   # Redis (Caching & WebSocket Sync)
   redis:
-    image: ghcr.io/ikeniborn/familybudget-redis:${VERSION:-6.6.0}
+    image: familybudget-redis:latest
     container_name: familybudget-redis
     # Restart policy: "always" ensures Redis is always available for caching
     restart: always
@@ -124,7 +124,7 @@ services:
 
   # Backend Application (FastAPI + HTMX)
   backend:
-    image: ghcr.io/ikeniborn/familybudget-backend:${VERSION:-6.6.0}
+    image: familybudget-backend:latest
     container_name: familybudget-backend
     # Restart policy: "always" ensures backend is always available after Docker daemon restarts
     # Critical service - entire application depends on backend (API, auth, business logic)
@@ -249,7 +249,7 @@ services:
 
   # Telegram Bot (Optional - can run in same container as backend)
   bot:
-    image: ghcr.io/ikeniborn/familybudget-bot:${VERSION:-6.6.0}
+    image: familybudget-bot:latest
     container_name: familybudget-bot
     # Restart policy: "always" ensures Telegram bot is always available for users
     # Critical service - primary user interface for Telegram users (polling mode requires 24/7 uptime)
@@ -298,7 +298,7 @@ services:
 
   # Nginx Reverse Proxy (Optional)
   nginx:
-    image: ghcr.io/ikeniborn/familybudget-nginx:${VERSION:-6.6.0}
+    image: familybudget-nginx:latest
     container_name: familybudget-nginx
     # Restart policy: "always" ensures nginx (entry point for all HTTPS traffic) is always available
     # CRITICAL service - without nginx, application is completely inaccessible from internet
