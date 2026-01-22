@@ -3,6 +3,8 @@
  * Reference Data (stores, product groups) + Transactional Data (lists, items)
  */
 
+import type { ShoppingConflictDetection } from './conflicts';
+
 // ========================================
 // REFERENCE DATA (Read-Only from Server)
 // ========================================
@@ -66,6 +68,9 @@ export interface LocalShoppingList {
   created_at: Date;
   updated_at: Date;
   synced_at: Date | null;
+
+  // Conflict resolution (populated when sync detects conflict)
+  conflict_data?: ShoppingConflictDetection;
 }
 
 /**
@@ -105,6 +110,9 @@ export interface LocalShoppingListItem {
   created_at: Date;
   updated_at: Date;
   synced_at: Date | null;
+
+  // Conflict resolution (populated when sync detects conflict)
+  conflict_data?: ShoppingConflictDetection;
 }
 
 // ========================================
