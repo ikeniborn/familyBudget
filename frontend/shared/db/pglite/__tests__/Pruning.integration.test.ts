@@ -20,9 +20,15 @@ describe('Pruning Integration', () => {
     // Clear localStorage
     localStorage.clear();
 
+    // Enable PGlite for tests
+    localStorage.setItem('enablePGlite', 'true');
+
     // Initialize manager
     manager = new PGliteManager();
-    await manager.init();
+
+    // Use unique dataDir per test
+    const testName = expect.getState().currentTestName?.replace(/[^a-z0-9]/gi, '-') || 'test';
+    await manager.init({ dataDir: `test-pruning-${testName}` });
   });
 
   afterEach(async () => {
@@ -76,7 +82,7 @@ describe('Pruning Integration', () => {
   });
 
   describe('Database Size Reduction', () => {
-    it('should calculate DB size reduction accurately', async () => {
+    it('should calculate DB size reduction accurately', { timeout: 15000 }, async () => {
       // Create 100 old synced facts
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 200);

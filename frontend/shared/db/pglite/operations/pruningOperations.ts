@@ -184,13 +184,13 @@ async function updatePruningMetadata(
 ): Promise<void> {
   await db.query(`
     INSERT INTO local_sync_metadata (entity_type, metadata, last_sync_timestamp, updated_at)
-    VALUES ('pruning', $1, NOW(), NOW())
+    VALUES ('pruning', $1::jsonb, NOW(), NOW())
     ON CONFLICT (entity_type) DO UPDATE SET
       metadata = jsonb_set(
         COALESCE(local_sync_metadata.metadata, '{}'::jsonb),
         '{total_pruned}',
         (COALESCE((local_sync_metadata.metadata->>'total_pruned')::int, 0) + $2)::text::jsonb
-      ) || jsonb_build_object('last_pruned_at', $3),
+      ) || jsonb_build_object('last_pruned_at', $3::text),
       last_sync_timestamp = EXCLUDED.last_sync_timestamp,
       updated_at = NOW()
   `, [

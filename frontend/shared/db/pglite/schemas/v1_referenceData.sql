@@ -58,7 +58,9 @@ CREATE TABLE IF NOT EXISTS local_sync_metadata (
   entity_type TEXT PRIMARY KEY,
   last_sync_timestamp TIMESTAMP,
   sync_version INTEGER DEFAULT 1,
-  total_records INTEGER DEFAULT 0
+  total_records INTEGER DEFAULT 0,
+  metadata JSONB,
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Indexes for performance
