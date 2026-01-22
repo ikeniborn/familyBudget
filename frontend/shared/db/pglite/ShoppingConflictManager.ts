@@ -33,6 +33,7 @@ const FLOAT_EPSILON = 0.001;
  * Handles conflict detection, diff computation, resolution, and logging for Shopping Lists
  */
 export class ShoppingConflictManager {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(private db: PGlite) {}
 
   // ========================================

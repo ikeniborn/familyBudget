@@ -98,7 +98,7 @@ import type {
 } from './types/models';
 import type { CountResult, SizeResult } from './types/pglite';
 import { logger } from './utils/logger';
-import { ConflictManager, type ServerBudgetFact, type ConflictMetrics } from './ConflictManager';
+import { ConflictManager, type ServerBudgetFact, type ConflictMetrics, type ConflictDetection } from './ConflictManager';
 import { getPGliteFeatureFlags } from './features/featureFlags';
 
 /**
@@ -680,7 +680,7 @@ export class PGliteManager {
       deleted: number[];
     },
     db: PGlite
-  ): Promise<any[]> {
+  ): Promise<ConflictDetection[]> {
     if (!this.conflictManager) {
       return [];
     }
@@ -735,7 +735,7 @@ export class PGliteManager {
    *
    * @param conflicts - Detected conflicts
    */
-  private async resolveConflicts(conflicts: any[]): Promise<void> {
+  private async resolveConflicts(conflicts: ConflictDetection[]): Promise<void> {
     if (!this.conflictManager) {
       return;
     }

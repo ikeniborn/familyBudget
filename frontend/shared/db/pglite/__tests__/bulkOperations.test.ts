@@ -92,10 +92,10 @@ describe('Bulk Operations', () => {
 
       await bulkInsertArticles(db, articles);
 
-      const result = await db.query('SELECT * FROM local_articles ORDER BY id');
+      const result = await db.query<{ name: string }>('SELECT * FROM local_articles ORDER BY id');
       expect(result.rows).toHaveLength(2);
-      expect((result.rows[0] as any).name).toBe('Income');
-      expect((result.rows[1] as any).name).toBe('Salary');
+      expect(result.rows[0].name).toBe('Income');
+      expect(result.rows[1].name).toBe('Salary');
     });
 
     it('should handle empty array', async () => {

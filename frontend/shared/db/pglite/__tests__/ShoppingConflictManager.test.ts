@@ -289,10 +289,10 @@ describe('ShoppingConflictManager', () => {
       await manager.applyServerResolution(conflict!);
 
       // Verify log entry
-      const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
+      const logs = await db.query<{ entity_type: string; resolution: string }>('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
       expect(logs.rows.length).toBe(1);
-      expect((logs.rows[0] as any).entity_type).toBe('shopping_list');
-      expect((logs.rows[0] as any).resolution).toBe('server');
+      expect(logs.rows[0].entity_type).toBe('shopping_list');
+      expect(logs.rows[0].resolution).toBe('server');
     });
   });
 
@@ -317,9 +317,9 @@ describe('ShoppingConflictManager', () => {
       expect((result.rows[0] as LocalShoppingList).sync_status).toBe('pending');
 
       // Verify log entry
-      const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
+      const logs = await db.query<{ resolution: string }>('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
       expect(logs.rows.length).toBeGreaterThan(0);
-      expect((logs.rows[0] as any).resolution).toBe('client');
+      expect(logs.rows[0].resolution).toBe('client');
     });
   });
 
@@ -533,9 +533,9 @@ describe('ShoppingConflictManager', () => {
       const conflict = await manager.detectItemConflict(localItem, serverItem);
       await manager.applyMergeResolution(conflict!);
 
-      const logs = await db.query('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
+      const logs = await db.query<{ resolution: string }>('SELECT * FROM local_sync_conflicts WHERE temp_id = $1', ['temp-1']);
       expect(logs.rows.length).toBeGreaterThan(0);
-      expect((logs.rows[0] as any).resolution).toBe('merge');
+      expect(logs.rows[0].resolution).toBe('merge');
     });
   });
 
