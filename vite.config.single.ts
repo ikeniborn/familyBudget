@@ -102,9 +102,9 @@ export default defineConfig({
       external: entryName !== 'pglite' ? ['@db/pglite'] : [],
 
       output: {
-        // PGlite uses ES format to support both ES module imports and window.PGlite
-        // Other modules use IIFE format
-        format: entryName === 'pglite' ? 'es' : 'iife',
+        // All modules use IIFE format for synchronous window global creation
+        // PGlite uses dynamic import() inside IIFE for lazy loading
+        format: 'iife',
         name: globalName,
         entryFileNames: '[name].js', // [name] = entryName из input object key
         generatedCode: {
@@ -113,18 +113,9 @@ export default defineConfig({
         // Map external modules to global variables (only for IIFE modules)
         globals: {
           '@db/pglite': 'PGlite'
-        },
-        // Manual chunks для PGlite - вынос @electric-sql/pglite в отдельный chunk
-        manualChunks: entryName === 'pglite' ? (id) => {
-          // Вынести @electric-sql/pglite в отдельный chunk
-          if (id.includes('node_modules/@electric-sql/pglite')) {
-            return 'pglite-core';
-          }
-          // Вынести WASM runtime в отдельный chunk
-          if (id.includes('postgres.wasm') || id.includes('postgres.data')) {
-            return 'pglite-wasm';
-          }
-        } : undefined
+        }
+        // Note: manualChunks not supported for IIFE format
+        // PGlite uses dynamic import() for lazy loading instead
       }
     }
   },

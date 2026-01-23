@@ -158,12 +158,12 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script type="module">
-import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } from '/shared/db/pglite.min.js';
-import { openPGliteDiagnostic } from '/static/js/modules/uiComponents/modals.min.js';
+<script>
+// Use window.PGlite global (IIFE format)
+const { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } = window.PGlite;
 
 // Initialize settings from localStorage
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const enableCheckbox = document.getElementById('enablePGliteCheckbox');
     const factsWindowSlider = document.getElementById('factsWindowSlider');
     const factsWindowValue = document.getElementById('factsWindowValue');
@@ -173,13 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const openDiagnosticBtn = document.getElementById('openPGliteDiagnostic');
 
     // Load current state (async)
-    isPGliteEnabled().then(isEnabled => {
-        enableCheckbox.checked = isEnabled;
+    const isEnabled = await isPGliteEnabled();
+    enableCheckbox.checked = isEnabled;
 
-        if (isEnabled) {
-            pgliteSettings.classList.remove('hidden');
-        }
-    });
+    if (isEnabled) {
+        pgliteSettings.classList.remove('hidden');
+    }
 
     const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
     factsWindowSlider.value = factsWindow.toString();
@@ -339,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
             manualPruneBtn.disabled = true;
             manualPruneBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Очистка...';
 
-            const pglite = getPGliteManager();
+            const pglite = await getPGliteManager();
             const result = await pglite.pruneFacts();
 
             if (window.showToast) {
@@ -369,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load pruning stats
     async function loadPruningStats() {
         try {
-            const pglite = getPGliteManager();
+            const pglite = await getPGliteManager();
             const stats = await pglite.getPruningStats();
 
             if (stats.lastPrunedAt) {
