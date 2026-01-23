@@ -15,7 +15,7 @@
 services:
   # PostgreSQL Database
   postgres:
-    image: familybudget-postgresql:latest
+    image: ghcr.io/ikeniborn/familybudget-postgresql:${POSTGRESQL_VERSION:-latest}
     container_name: familybudget-postgres
     # Restart policy: "always" ensures PostgreSQL starts even after manual stop or Docker daemon restart
     # Unlike "unless-stopped", "always" will restart the container after Docker daemon restarts,
@@ -88,7 +88,7 @@ services:
 
   # Redis (Caching & WebSocket Sync)
   redis:
-    image: familybudget-redis:latest
+    image: ghcr.io/ikeniborn/familybudget-redis:${REDIS_VERSION:-latest}
     container_name: familybudget-redis
     # Restart policy: "always" ensures Redis is always available for caching
     restart: always
@@ -124,7 +124,7 @@ services:
 
   # Backend Application (FastAPI + HTMX)
   backend:
-    image: familybudget-backend:latest
+    image: ghcr.io/ikeniborn/familybudget-backend:${BACKEND_VERSION:-latest}
     container_name: familybudget-backend
     # Restart policy: "always" ensures backend is always available after Docker daemon restarts
     # Critical service - entire application depends on backend (API, auth, business logic)
@@ -249,7 +249,7 @@ services:
 
   # Telegram Bot (Optional - can run in same container as backend)
   bot:
-    image: familybudget-bot:latest
+    image: ghcr.io/ikeniborn/familybudget-bot:${BOT_VERSION:-latest}
     container_name: familybudget-bot
     # Restart policy: "always" ensures Telegram bot is always available for users
     # Critical service - primary user interface for Telegram users (polling mode requires 24/7 uptime)
@@ -298,7 +298,7 @@ services:
 
   # Nginx Reverse Proxy (Optional)
   nginx:
-    image: familybudget-nginx:latest
+    image: ghcr.io/ikeniborn/familybudget-nginx:${NGINX_VERSION:-latest}
     container_name: familybudget-nginx
     # Restart policy: "always" ensures nginx (entry point for all HTTPS traffic) is always available
     # CRITICAL service - without nginx, application is completely inaccessible from internet
