@@ -1,6 +1,12 @@
 /**
- * PGlite Integration Module
- * Barrel export for public API
+ * PGlite Integration Module v1.3.0
+ * Public API - Barrel export for public API
+ *
+ * Offline-first local database powered by @electric-sql/pglite
+ * Собирается в IIFE формат для использования через window.PGlite
+ *
+ * @version 1.3.0
+ * @date 2026-01-23
  */
 
 // Main Manager
