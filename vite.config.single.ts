@@ -103,7 +103,18 @@ export default defineConfig({
         // Map external modules to global variables (only for IIFE modules)
         globals: {
           '@db/pglite': 'PGlite'
-        }
+        },
+        // Manual chunks для PGlite - вынос @electric-sql/pglite в отдельный chunk
+        manualChunks: entryName === 'pglite' ? (id) => {
+          // Вынести @electric-sql/pglite в отдельный chunk
+          if (id.includes('node_modules/@electric-sql/pglite')) {
+            return 'pglite-core';
+          }
+          // Вынести WASM runtime в отдельный chunk
+          if (id.includes('postgres.wasm') || id.includes('postgres.data')) {
+            return 'pglite-wasm';
+          }
+        } : undefined
       }
     }
   },

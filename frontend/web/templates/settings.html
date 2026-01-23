@@ -172,23 +172,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const pgliteStatusText = document.getElementById('pgliteStatusText');
     const openDiagnosticBtn = document.getElementById('openPGliteDiagnostic');
 
-    // Load current state
-    const isEnabled = isPGliteEnabled();
-    enableCheckbox.checked = isEnabled;
+    // Load current state (async)
+    isPGliteEnabled().then(isEnabled => {
+        enableCheckbox.checked = isEnabled;
 
-    if (isEnabled) {
-        pgliteSettings.classList.remove('hidden');
-    }
+        if (isEnabled) {
+            pgliteSettings.classList.remove('hidden');
+        }
+    });
 
     const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
     factsWindowSlider.value = factsWindow.toString();
     factsWindowValue.textContent = factsWindow.toString();
 
     // Handle enable/disable toggle
-    enableCheckbox.addEventListener('change', (e) => {
+    enableCheckbox.addEventListener('change', async (e) => {
         const enabled = e.target.checked;
 
-        setPGliteEnabled(enabled);
+        await setPGliteEnabled(enabled);
 
         // Show/hide settings
         if (enabled) {
@@ -207,9 +208,9 @@ document.addEventListener('DOMContentLoaded', () => {
         factsWindowValue.textContent = e.target.value;
     });
 
-    factsWindowSlider.addEventListener('change', (e) => {
+    factsWindowSlider.addEventListener('change', async (e) => {
         const days = parseInt(e.target.value);
-        setPGliteFactsWindow(days);
+        await setPGliteFactsWindow(days);
     });
 
     // Handle diagnostic button
