@@ -2532,11 +2532,7 @@ async function showEditModal(factId) {
             } catch (error) {
                 console.error('[EDIT_MODAL] Error loading recurring plan:', error);
                 if (recurringInfoDiv) {
-                    recurringInfoDiv.innerHTML = `
-                        <div class="alert alert-error">
-                            <span>❌ Ошибка: ${error.message}</span>
-                        </div>
-                    `;
+                    showSafeAlert(recurringInfoDiv, `❌ Ошибка: ${error.message}`, 'alert-error');
                 }
             }
         })();
@@ -4836,11 +4832,7 @@ async function loadRecurringPlans() {
 
     } catch (error) {
         console.error('[RECURRING_LIST] Error loading recurring plans:', error);
-        container.innerHTML = `
-            <div class="alert alert-error">
-                <span>❌ Ошибка загрузки регламентных платежей: ${error.message}</span>
-            </div>
-        `;
+        showSafeAlert(container, `❌ Ошибка загрузки регламентных платежей: ${error.message}`, 'alert-error');
     }
 }
 

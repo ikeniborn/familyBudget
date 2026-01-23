@@ -558,9 +558,16 @@ async def batch_delete_recurring_plans(
             failed.append({"plan_id": plan_id, "error": error_msg})
         except Exception as e:
             # Unexpected errors
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(f"[BULK_DELETE] Unexpected error for plan_id={plan_id}: {e}", exc_info=True)
-            failed.append({"plan_id": plan_id, "error": error_msg})
+            # Log full error для debugging (только в логах, не для клиента)
+            logger.error(
+                f"[BULK_DELETE] Unexpected error for plan_id={plan_id}",
+                exc_info=True  # OK для внутренних логов
+            )
+            # Generic message для клиента (БЕЗ технических деталей)
+            failed.append({
+                "plan_id": plan_id,
+                "error": "An unexpected error occurred. Please try again later."
+            })
 
     logger.info(
         f"[BULK_DELETE] Batch delete completed: deleted={deleted_count}, failed={len(failed)}"

@@ -361,7 +361,13 @@ async function loadArticles() {
         renderArticlesTable(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки категорий: ${error.message}</span></div>`;
+        container.innerHTML = ''; // очистить
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-error';
+        const span = document.createElement('span');
+        span.textContent = `❌ Ошибка загрузки категорий: ${error.message}`;
+        alertDiv.appendChild(span);
+        container.appendChild(alertDiv);
     }
 }
 

@@ -374,15 +374,13 @@ export function renderShoppingListCards(): void {
     const completedItems = list.completed_items || 0;
     const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
-    // Escape name for use in onclick attribute
-    const escapedName = escapeHtml(list.name).replace(/'/g, "\\'");
-
     return `
-      <div class="shopping-list-card" onclick="window.listsManager.showDetailView(${list.id})">
+      <div class="shopping-list-card" data-list-id="${list.id}">
         <div class="flex justify-between items-start mb-2">
           <div class="card-title flex-1">${escapeHtml(list.name)}</div>
-          <button class="btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
-                  onclick="event.stopPropagation(); openDeleteListModal(${list.id}, '${escapedName}');"
+          <button class="btn-delete-list btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
+                  data-list-id="${list.id}"
+                  data-list-name="${escapeHtml(list.name)}"
                   title="Удалить список"
                   aria-label="Удалить список ${escapeHtml(list.name)}"
                   style="transform: scale(1.25);">
@@ -403,6 +401,33 @@ export function renderShoppingListCards(): void {
       </div>
     `;
   }).join('');
+
+  // Добавить event listeners после рендеринга (безопасно, нет inline handlers)
+  grid.querySelectorAll('.shopping-list-card').forEach(card => {
+    card.addEventListener('click', (e: Event) => {
+      // Игнорировать клики по кнопке удаления
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('.btn-delete-list')) {
+        const htmlCard = card as HTMLElement;
+        const listId = htmlCard.dataset.listId;
+        if (listId && window.listsManager) {
+          window.listsManager.showDetailView(parseInt(listId, 10));
+        }
+      }
+    });
+  });
+
+  grid.querySelectorAll('.btn-delete-list').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      const htmlBtn = btn as HTMLElement;
+      const listId = htmlBtn.dataset.listId;
+      const listName = htmlBtn.dataset.listName; // уже экранировано через escapeHtml
+      if (listId && listName) {
+        openDeleteListModal(parseInt(listId, 10), listName);
+      }
+    });
+  });
 }
 
 /**

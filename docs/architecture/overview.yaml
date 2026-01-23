@@ -237,6 +237,101 @@ architecture:
         - "Offline-sync flag for client-created facts"
 
     # ==========================================================================
+    # LOGGING UTILITIES (Backend Core)
+    # ==========================================================================
+    - id: "logging_utils"
+      name: "Logging Utilities"
+      type: "core-utility"
+      file_path: "backend/app/core/logging_utils.py"
+      loc: 45
+      language: "Python"
+      description: "Security-focused logging helpers for PII protection"
+      functions:
+        - "hash_email_for_logging(email: str) -> str - SHA256 hash first 8 chars"
+      security:
+        - "PII protection (email addresses never logged in plain text)"
+        - "Consistent hashing (lowercase normalization)"
+        - "GDPR compliance (no personal data in logs)"
+      usage_examples:
+        - "logger.info(f'Login: email_hash={hash_email_for_logging(email)}')"
+      dependencies: []
+      layer: "core"
+      version: "1.0.0"
+      status: "Production (security fix 2026-01-23)"
+      key_features:
+        - "8-character SHA256 hash (sufficient entropy for user distinction)"
+        - "Case-insensitive (email normalization)"
+        - "Zero external dependencies (stdlib only)"
+
+    # ==========================================================================
+    # AUTHENTICATION ENDPOINTS (Backend API)
+    # ==========================================================================
+    - id: "auth_endpoints"
+      name: "Authentication Endpoints"
+      type: "backend-api"
+      file_path: "backend/app/api/v1/endpoints/auth.py"
+      loc: 2000
+      language: "Python"
+      description: "JWT + OAuth authentication with PII-safe logging and WebAuthn support"
+      endpoints:
+        - "POST /auth/telegram - Telegram OAuth login"
+        - "POST /auth/login - Email/password login with 2FA"
+        - "POST /auth/refresh - JWT token refresh"
+        - "POST /auth/logout - Token revocation"
+        - "POST /auth/webauthn/authenticate/verify - Biometric login"
+        - "GET /auth/methods - Check available auth methods for user"
+      security:
+        - "PII-safe logging (uses hash_email_for_logging)"
+        - "JWT access tokens (7-day expiry)"
+        - "JWT refresh tokens (30-day expiry with rotation)"
+        - "Admin bypass for 2FA (emergency access)"
+        - "WebAuthn passwordless authentication"
+      dependencies:
+        - logging_utils
+        - password_service
+        - jwt_service
+        - two_factor_session_service
+      layer: "application"
+      version: "6.5.0"
+      status: "Production (security improvements 2026-01-23)"
+      key_features:
+        - "Multi-factor authentication (TOTP + backup codes)"
+        - "Generic error messages (no stack trace exposure)"
+        - "Email hash logging (6 locations updated)"
+
+    # ==========================================================================
+    # RECURRING PLANS ENDPOINTS (Backend API)
+    # ==========================================================================
+    - id: "recurring_plans_endpoints"
+      name: "Recurring Plans Endpoints"
+      type: "backend-api"
+      file_path: "backend/app/api/v1/endpoints/recurring_plans.py"
+      loc: 600
+      language: "Python"
+      description: "Recurring payment management with bulk operations and generic error handling"
+      endpoints:
+        - "GET /api/v1/recurring-plans - List plans with pagination"
+        - "POST /api/v1/recurring-plans - Create new plan"
+        - "PUT /api/v1/recurring-plans/{id} - Update plan"
+        - "DELETE /api/v1/recurring-plans/{id} - Delete plan"
+        - "POST /api/v1/recurring-plans/bulk-delete - Bulk delete with rollback"
+      security:
+        - "Generic error messages for client (no technical details)"
+        - "Full error logging for debugging (exc_info=True in logs only)"
+        - "Bulk operation validation (max limits)"
+      dependencies:
+        - database (RecurringPlan model)
+        - cache_service
+        - websocket_manager
+      layer: "application"
+      version: "1.0.0"
+      status: "Production (security fix 2026-01-23)"
+      key_features:
+        - "MMDD encoding for yearly frequency"
+        - "Bulk delete with atomic rollback"
+        - "WebSocket broadcast for updates"
+
+    # ==========================================================================
     # PGLITE DIAGNOSTIC MODAL
     # ==========================================================================
     - id: "pgliteDiagnosticModal"
