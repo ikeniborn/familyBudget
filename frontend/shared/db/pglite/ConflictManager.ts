@@ -121,7 +121,22 @@ export class ConflictManager {
         let serverUpdatedAt: Date;
 
         try {
-          localUpdatedAt = new Date(localRecord.updated_at);
+          // Parse both dates consistently for LWW comparison
+          // Convert local timestamp to UTC-interpreted ISO string
+          // Note: PGlite may return Date or string depending on insert method
+          const localUpdatedAtRaw = localRecord.updated_at as Date | string;
+          let localDateStr: string;
+          if (typeof localUpdatedAtRaw === 'string') {
+            // '2026-01-22 12:00:00' → '2026-01-22T12:00:00Z' (treat as UTC)
+            localDateStr = localUpdatedAtRaw.replace(' ', 'T') + 'Z';
+          } else if (localUpdatedAtRaw instanceof Date) {
+            // Date object → ISO string (already UTC)
+            localDateStr = localUpdatedAtRaw.toISOString();
+          } else {
+            throw new Error(`Invalid local date type: ${typeof localUpdatedAtRaw}`);
+          }
+
+          localUpdatedAt = new Date(localDateStr);
           serverUpdatedAt = new Date(serverRecord.updated_at);
 
           // Validate dates are valid
@@ -360,8 +375,8 @@ export class ConflictManager {
       const result = await this.db.query(`
         SELECT
           COUNT(*) as total_conflicts,
-          COUNT(CASE WHEN resolution IS NOT NULL THEN 1 END) as resolved_conflicts,
-          COUNT(CASE WHEN resolution IS NULL OR resolution = 'pending' THEN 1 END) as pending_conflicts,
+          COUNT(CASE WHEN resolved_at IS NOT NULL THEN 1 END) as resolved_conflicts,
+          COUNT(CASE WHEN resolved_at IS NULL THEN 1 END) as pending_conflicts,
           COUNT(CASE WHEN resolution = 'server' THEN 1 END) as server_wins,
           COUNT(CASE WHEN resolution = 'client' THEN 1 END) as client_wins,
           COUNT(CASE WHEN resolution = 'merged' THEN 1 END) as merged_wins,

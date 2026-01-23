@@ -501,8 +501,6 @@ export async function bulkUpdateFacts(
 
   try {
     for (const fact of facts) {
-      const temp_id = `srv-${fact.id}`;
-
       await db.query(`
         UPDATE local_budget_facts
         SET
@@ -521,7 +519,7 @@ export async function bulkUpdateFacts(
           content_hash = $12,
           updated_at = $13,
           synced_at = NOW()
-        WHERE temp_id = $14
+        WHERE id = $14
       `, [
         fact.user_id,
         fact.article_id,
@@ -536,7 +534,7 @@ export async function bulkUpdateFacts(
         fact.sync_hash,
         fact.content_hash,
         fact.updated_at,
-        temp_id
+        fact.id
       ]);
     }
 

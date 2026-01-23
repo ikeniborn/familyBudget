@@ -47,7 +47,7 @@ describe('Conflict Resolution Integration', () => {
           '2026-01-22', 100, 'fact', NULL,
           NULL, false,
           'synced', 'old_hash', NULL,
-          '2026-01-22 10:00:00', '2026-01-22 10:00:00'
+          '2026-01-22T10:00:00Z'::timestamptz, '2026-01-22T10:00:00Z'::timestamptz
         )
       `);
 
@@ -98,11 +98,12 @@ describe('Conflict Resolution Integration', () => {
         'SELECT * FROM local_sync_conflicts WHERE entity_id = 1'
       );
       expect(conflicts.rows).toHaveLength(1);
-      const conflictRow = conflicts.rows[0] as { resolution: string; local_version: string; server_version: string };
+      const conflictRow = conflicts.rows[0] as { resolution: string; local_version: { amount: number | string }; server_version: { amount: number | string } };
       expect(conflictRow.resolution).toBe('server');
 
-      const localVersion = JSON.parse(conflictRow.local_version);
-      const serverVersion = JSON.parse(conflictRow.server_version);
+      // JSONB returns as JavaScript object, not string
+      const localVersion = conflictRow.local_version;
+      const serverVersion = conflictRow.server_version;
 
       expect(Number(localVersion.amount)).toBe(100);
       expect(Number(serverVersion.amount)).toBe(150);
@@ -115,7 +116,9 @@ describe('Conflict Resolution Integration', () => {
       if (!db) throw new Error('Database not initialized');
 
       // Setup: Create local record (newer)
-      await db.exec(`
+      // Use parameterized query with Date objects to ensure correct UTC handling
+      const localUpdatedAt = new Date('2026-01-22T12:00:00Z');
+      await db.query(`
         INSERT INTO local_budget_facts (
           id, temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, comment,
@@ -123,15 +126,12 @@ describe('Conflict Resolution Integration', () => {
           sync_status, sync_hash, content_hash,
           created_at, updated_at
         ) VALUES (
-          1, 'temp-001', 1, 10, 5, NULL,
-          '2026-01-22', 200, 'fact', NULL,
-          NULL, false,
-          'synced', 'newer_hash', NULL,
-          '2026-01-22 12:00:00', '2026-01-22 12:00:00'
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
         )
-      `);
+      `, [1, 'temp-001', 1, 10, 5, null, '2026-01-22', 200, 'fact', null, null, false, 'synced', 'newer_hash', null, localUpdatedAt, localUpdatedAt]);
 
       // Simulate server change (older timestamp)
+      // Server: 08:00 UTC < Local: 09:00 UTC (12:00 MSK stored as 09:00 UTC)
       const serverChanges: ServerBudgetFact[] = [
         {
           id: 1,
@@ -148,8 +148,8 @@ describe('Conflict Resolution Integration', () => {
           sync_status: 'synced',
           sync_hash: 'old_hash',
           content_hash: null,
-          created_at: new Date('2026-01-22T10:00:00Z'),
-          updated_at: new Date('2026-01-22T11:00:00Z'), // Older!
+          created_at: new Date('2026-01-22T07:00:00Z'),
+          updated_at: new Date('2026-01-22T08:00:00Z'), // Older than local 09:00 UTC!
           synced_at: null
         }
       ];
@@ -224,8 +224,8 @@ describe('Conflict Resolution Integration', () => {
       // Verify record created
       const facts = await db.query('SELECT * FROM local_budget_facts WHERE id = 1');
       expect(facts.rows).toHaveLength(1);
-      const factRow = facts.rows[0] as { amount: number };
-      expect(factRow.amount).toBe(100);
+      const factRow = facts.rows[0] as { amount: number | string };
+      expect(Number(factRow.amount)).toBe(100); // NUMERIC returns as string
     });
   });
 
@@ -243,9 +243,9 @@ describe('Conflict Resolution Integration', () => {
           sync_status, sync_hash, content_hash,
           created_at, updated_at
         ) VALUES
-          (1, 'temp-001', 1, 10, 5, NULL, '2026-01-22', 100, 'fact', NULL, NULL, false, 'synced', 'hash_1_old', NULL, '2026-01-22 10:00:00', '2026-01-22 10:00:00'),
-          (2, 'temp-002', 1, 10, 5, NULL, '2026-01-22', 200, 'fact', NULL, NULL, false, 'synced', 'hash_2_old', NULL, '2026-01-22 12:00:00', '2026-01-22 12:00:00'),
-          (3, 'temp-003', 1, 10, 5, NULL, '2026-01-22', 300, 'fact', NULL, NULL, false, 'synced', 'hash_3_old', NULL, '2026-01-22 10:00:00', '2026-01-22 10:00:00')
+          (1, 'temp-001', 1, 10, 5, NULL, '2026-01-22', 100, 'fact', NULL, NULL, false, 'synced', 'hash_1_old', NULL, '2026-01-22T10:00:00Z'::timestamptz, '2026-01-22T10:00:00Z'::timestamptz),
+          (2, 'temp-002', 1, 10, 5, NULL, '2026-01-22', 200, 'fact', NULL, NULL, false, 'synced', 'hash_2_old', NULL, '2026-01-22T12:00:00Z'::timestamptz, '2026-01-22T12:00:00Z'::timestamptz),
+          (3, 'temp-003', 1, 10, 5, NULL, '2026-01-22', 300, 'fact', NULL, NULL, false, 'synced', 'hash_3_old', NULL, '2026-01-22T10:00:00Z'::timestamptz, '2026-01-22T10:00:00Z'::timestamptz)
       `);
 
       // Simulate server changes
@@ -287,7 +287,7 @@ describe('Conflict Resolution Integration', () => {
           sync_hash: 'hash_2_new',
           content_hash: null,
           created_at: new Date('2026-01-22T10:00:00Z'),
-          updated_at: new Date('2026-01-22T11:00:00Z'), // Older!
+          updated_at: new Date('2026-01-22T08:00:00Z'), // Older than local 09:00 UTC!
           synced_at: null
         },
         // Record 3: Server newer (server wins)
@@ -375,7 +375,7 @@ describe('Conflict Resolution Integration', () => {
           '2026-01-22', 100, 'fact', NULL,
           NULL, false,
           'synced', 'old_hash', NULL,
-          '2026-01-22 10:00:00', '2026-01-22 10:00:00'
+          '2026-01-22T10:00:00Z'::timestamptz, '2026-01-22T10:00:00Z'::timestamptz
         )
       `);
 
@@ -442,8 +442,8 @@ describe('Conflict Resolution Integration', () => {
           sync_status, sync_hash, content_hash,
           created_at, updated_at
         ) VALUES
-          (1, 'temp-001', 1, 10, 5, NULL, '2026-01-22', 100, 'fact', NULL, NULL, false, 'synced', 'hash_1_old', NULL, '2026-01-22 10:00:00', '2026-01-22 10:00:00'),
-          (2, 'temp-002', 1, 10, 5, NULL, '2026-01-22', 200, 'fact', NULL, NULL, false, 'synced', 'hash_2_old', NULL, '2026-01-22 12:00:00', '2026-01-22 12:00:00')
+          (1, 'temp-001', 1, 10, 5, NULL, '2026-01-22', 100, 'fact', NULL, NULL, false, 'synced', 'hash_1_old', NULL, '2026-01-22T10:00:00Z'::timestamptz, '2026-01-22T10:00:00Z'::timestamptz),
+          (2, 'temp-002', 1, 10, 5, NULL, '2026-01-22', 200, 'fact', NULL, NULL, false, 'synced', 'hash_2_old', NULL, '2026-01-22T12:00:00Z'::timestamptz, '2026-01-22T12:00:00Z'::timestamptz)
       `);
 
       // Simulate server changes
@@ -483,7 +483,7 @@ describe('Conflict Resolution Integration', () => {
           sync_hash: 'hash_2_new',
           content_hash: null,
           created_at: new Date('2026-01-22T10:00:00Z'),
-          updated_at: new Date('2026-01-22T11:00:00Z'),
+          updated_at: new Date('2026-01-22T08:00:00Z'), // Older than local 09:00 UTC!
           synced_at: null
         }
       ];
