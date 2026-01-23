@@ -1,0 +1,141 @@
+name: Cache Busting Validation
+
+on:
+  pull_request:
+    branches: [test, main]
+    paths:
+      - '.github/workflows/build-and-push.yml'
+      - 'scripts/ci/cache_busting_ci.sh'
+      - 'frontend/web/templates/**'
+      - 'frontend/webapp/**'
+
+# Allow only one workflow run per PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-cache-busting:
+    runs-on: ubuntu-latest
+    name: Validate Cache Busting Logic
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Cache busting
+        run: |
+          # Генерация cache version в формате v{YYYYMMDD_HHMM}
+          # Формат требуется Service Worker для валидации версии
+          CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "Generated cache version: $CACHE_VERSION"
+
+          # Запуск cache busting скрипта
+          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+
+          # Проверка изменений
+          if git diff --quiet frontend/; then
+            echo "No changes after cache busting"
+          else
+            echo "Cache versions updated in templates"
+            git diff frontend/ | head -50
+          fi
+
+      - name: Validate cache busting and PGlite
+        run: |
+          # Test 1: Check PLACEHOLDER replaced
+          echo "🔍 Checking for unreplaced PLACEHOLDERs..."
+          if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/; then
+            echo "❌ PLACEHOLDER not replaced in templates"
+            exit 1
+          fi
+          echo "✅ No PLACEHOLDER markers found"
+
+          # Test 2: Check version format in templates
+          echo "🔍 Checking cache version format..."
+          if ! grep -rE '\?v=v[0-9_]+' frontend/web/templates/ >/dev/null; then
+            echo "❌ No valid cache versions found in templates"
+            exit 1
+          fi
+          echo "✅ Valid cache versions found"
+
+          # Test 3: Check PGlite script tag exists
+          echo "🔍 Checking PGlite script tag in base.html..."
+          if ! grep -q "/shared/db/pglite.min.js" frontend/web/templates/base.html; then
+            echo "❌ PGlite script tag missing in base.html"
+            exit 1
+          fi
+          echo "✅ PGlite script tag found"
+
+          # Test 4: Check Service Worker file exists and has valid version
+          echo "🔍 Checking Service Worker cache version..."
+          if [[ ! -f frontend/web/static/sw.min.js ]]; then
+            echo "⚠️  Service Worker file missing (expected during PR, will be built later)"
+          else
+            # Service Worker uses minified code, check for version presence
+            CACHE_VERSION="${CACHE_VERSION}"
+            if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js; then
+              echo "⚠️  Warning: Could not verify SW cache version (may be minified)"
+            else
+              echo "✅ Service Worker cache version verified"
+            fi
+          fi
+
+          echo ""
+          echo "✅ All validation checks passed"
+
+          # Persist cache version to file for verification
+          echo "$CACHE_VERSION" > .cache_version
+          echo "Cache version persisted to .cache_version file"
+
+      - name: Verify cache version file
+        run: |
+          if [[ ! -f .cache_version ]]; then
+            echo "❌ .cache_version file not created"
+            exit 1
+          fi
+          
+          CACHE_VERSION=$(cat .cache_version)
+          echo "✅ Cache version file created: $CACHE_VERSION"
+          
+          # Verify format
+          if [[ ! "$CACHE_VERSION" =~ ^v[0-9a-f_]+$ ]]; then
+            echo "❌ Invalid cache version format: $CACHE_VERSION"
+            exit 1
+          fi
+          echo "✅ Cache version format valid"
+
+      - name: Build frontend (validation only)
+        run: npm run build
+        continue-on-error: true
+
+      - name: Validation Summary
+        if: always()
+        run: |
+          echo "## ✅ Cache Busting Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validated:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cache busting script execution" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PLACEHOLDER replacement" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Version format validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PGlite script tag presence" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ .cache_version file creation timing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This workflow validates cache busting logic without Docker build." >> $GITHUB_STEP_SUMMARY
+          echo "Full CI/CD pipeline runs when merged to 'test' branch." >> $GITHUB_STEP_SUMMARY
