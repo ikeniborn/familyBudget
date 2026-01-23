@@ -159,7 +159,6 @@
 
 {% block extra_scripts %}
 <script type="module">
-import { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } from '/shared/db/pglite.min.js';
 import { openPGliteDiagnostic } from '/static/js/modules/uiComponents/modals.min.js';
 
 // Initialize settings from localStorage
@@ -171,6 +170,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const pgliteStatus = document.getElementById('pgliteStatus');
     const pgliteStatusText = document.getElementById('pgliteStatusText');
     const openDiagnosticBtn = document.getElementById('openPGliteDiagnostic');
+
+    // Access PGlite from window global (loaded via <script> tag in base.html)
+    const { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } = window.PGlite;
 
     // Load current state
     const isEnabled = isPGliteEnabled();
