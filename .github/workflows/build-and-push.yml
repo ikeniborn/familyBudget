@@ -100,10 +100,6 @@ jobs:
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
           echo "Generated cache version: $CACHE_VERSION"
 
-          # Persist cache version to file for docker-build job
-          echo "$CACHE_VERSION" > .cache_version
-          echo "Cache version persisted to .cache_version file"
-
           # Запуск cache busting скрипта
           bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
 
@@ -115,14 +111,11 @@ jobs:
             git diff frontend/ | head -50
           fi
 
-      - name: Build frontend
-        run: npm run build
-
       - name: Validate cache busting and PGlite
         run: |
           # Test 1: Check PLACEHOLDER replaced
           echo "🔍 Checking for unreplaced PLACEHOLDERs..."
-          if grep -r "\?v=PLACEHOLDER" frontend/web/templates/ frontend/webapp/; then
+          if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/; then
             echo "❌ PLACEHOLDER not replaced in templates"
             exit 1
           fi
@@ -130,7 +123,7 @@ jobs:
 
           # Test 2: Check version format in templates
           echo "🔍 Checking cache version format..."
-          if ! grep -r "\?v=v[0-9_]\+" frontend/web/templates/ >/dev/null; then
+          if ! grep -rE '\?v=v[0-9_]+' frontend/web/templates/ >/dev/null; then
             echo "❌ No valid cache versions found in templates"
             exit 1
           fi
@@ -144,11 +137,16 @@ jobs:
           fi
           echo "✅ PGlite script tag found"
 
-          # Test 4: Check sw.js has valid version
+          # Test 4: Check Service Worker file exists and has valid version
           echo "🔍 Checking Service Worker cache version..."
-          CACHE_VERSION=$(cat .cache_version)
+          if [[ ! -f frontend/web/static/sw.min.js ]]; then
+            echo "❌ Service Worker file missing: sw.min.js"
+            exit 1
+          fi
+
           # Service Worker uses minified code, check for version presence
-          if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js 2>/dev/null; then
+          CACHE_VERSION="${CACHE_VERSION}"
+          if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js; then
             echo "⚠️  Warning: Could not verify SW cache version (may be minified)"
             # Don't fail - version might be in minified format
           else
@@ -157,6 +155,13 @@ jobs:
 
           echo ""
           echo "✅ All validation checks passed"
+
+          # Persist cache version to file for docker-build job (after successful validation)
+          echo "$CACHE_VERSION" > .cache_version
+          echo "Cache version persisted to .cache_version file"
+
+      - name: Build frontend
+        run: npm run build
 
       - name: Check for changes
         id: changes

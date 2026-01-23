@@ -6,6 +6,14 @@ set -e
 # Принимаем cache version как параметр
 CACHE_VERSION="${1:?Usage: cache_busting_ci.sh <version>}"
 
+# Валидация формата версии (v{YYYYMMDD_HHMM} или v{hash})
+# Разрешает: цифры, hex символы (a-f), подчёркивания
+if [[ ! "$CACHE_VERSION" =~ ^v[0-9a-f_]+$ ]]; then
+    echo "❌ Invalid version format: $CACHE_VERSION"
+    echo "   Expected: v{YYYYMMDD_HHMM} (e.g., v20260123_1530) or v{hash} (e.g., v1234abcd)"
+    exit 1
+fi
+
 echo "🔄 Updating cache versions to: ${CACHE_VERSION}"
 
 # Список файлов для обновления (скопировано из scripts/lib/cache_busting.sh:31-59)
