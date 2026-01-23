@@ -95,7 +95,7 @@ describe('pruningOperations', () => {
         INSERT INTO local_budget_facts (
           temp_id, user_id, article_id, financial_center_id, cost_center_id,
           date, amount, record_type, sync_status, content_hash
-        ) VALUES ('old-conflicted', 1, 1, 1, 1, $1, 100, 'fact', 'conflicted', 'hash1')
+        ) VALUES ('old-conflicted', 1, 1, 1, 1, $1, 100, 'fact', 'conflict', 'hash1')
       `, [oldDate.toISOString().split('T')[0]]);
 
       // Prune with 30-day retention

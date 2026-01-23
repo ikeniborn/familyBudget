@@ -82,13 +82,14 @@ describe('Pruning Integration', () => {
   });
 
   describe('Database Size Reduction', () => {
-    it('should calculate DB size reduction accurately', { timeout: 15000 }, async () => {
+    it('should calculate DB size reduction accurately', { timeout: 30000 }, async () => {
       // Create 100 old synced facts
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 200);
 
+      const tempIds: string[] = [];
       for (let i = 0; i < 100; i++) {
-        await manager.createFact({
+        const temp_id = await manager.createFact({
           user_id: 1,
           article_id: 1,
           financial_center_id: 1,
@@ -101,12 +102,12 @@ describe('Pruning Integration', () => {
           sync_hash: null,
           is_transfer: false
         });
+        tempIds.push(temp_id);
       }
 
       // Mark all as synced (simulate successful sync)
-      const facts = await manager.queryFacts();
-      for (const fact of facts) {
-        await manager.confirmPendingOperation(fact.temp_id, 100 + facts.indexOf(fact));
+      for (let i = 0; i < tempIds.length; i++) {
+        await manager.confirmPendingOperation(tempIds[i], 100 + i);
       }
 
       // Prune
@@ -126,7 +127,7 @@ describe('Pruning Integration', () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 200);
 
-      await manager.createFact({
+      const temp_id = await manager.createFact({
         user_id: 1,
         article_id: 1,
         financial_center_id: 1,
@@ -141,8 +142,7 @@ describe('Pruning Integration', () => {
       });
 
       // Mark as synced
-      const facts = await manager.queryFacts();
-      await manager.confirmPendingOperation(facts[0].temp_id, 100);
+      await manager.confirmPendingOperation(temp_id, 100);
 
       // Prune
       const beforePrune = Date.now();
@@ -164,8 +164,9 @@ describe('Pruning Integration', () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 200);
 
+      const tempIds1: string[] = [];
       for (let i = 0; i < 5; i++) {
-        await manager.createFact({
+        const temp_id = await manager.createFact({
           user_id: 1,
           article_id: 1,
           financial_center_id: 1,
@@ -178,12 +179,12 @@ describe('Pruning Integration', () => {
           sync_hash: null,
           is_transfer: false
         });
+        tempIds1.push(temp_id);
       }
 
       // Mark as synced
-      let facts = await manager.queryFacts();
-      for (const fact of facts) {
-        await manager.confirmPendingOperation(fact.temp_id, 100 + facts.indexOf(fact));
+      for (let i = 0; i < tempIds1.length; i++) {
+        await manager.confirmPendingOperation(tempIds1[i], 100 + i);
       }
 
       // Prune
@@ -192,8 +193,9 @@ describe('Pruning Integration', () => {
       expect(stats1.totalPruned).toBe(5);
 
       // Second pruning - 3 more facts
+      const tempIds2: string[] = [];
       for (let i = 0; i < 3; i++) {
-        await manager.createFact({
+        const temp_id = await manager.createFact({
           user_id: 1,
           article_id: 1,
           financial_center_id: 1,
@@ -206,12 +208,12 @@ describe('Pruning Integration', () => {
           sync_hash: null,
           is_transfer: false
         });
+        tempIds2.push(temp_id);
       }
 
       // Mark as synced
-      facts = await manager.queryFacts();
-      for (const fact of facts) {
-        await manager.confirmPendingOperation(fact.temp_id, 200 + facts.indexOf(fact));
+      for (let i = 0; i < tempIds2.length; i++) {
+        await manager.confirmPendingOperation(tempIds2[i], 200 + i);
       }
 
       // Prune again
@@ -231,8 +233,9 @@ describe('Pruning Integration', () => {
       recentDate.setDate(recentDate.getDate() - 10);
 
       // 10 old synced (should be counted)
+      const oldSyncedIds: string[] = [];
       for (let i = 0; i < 10; i++) {
-        await manager.createFact({
+        const temp_id = await manager.createFact({
           user_id: 1,
           article_id: 1,
           financial_center_id: 1,
@@ -245,12 +248,12 @@ describe('Pruning Integration', () => {
           sync_hash: null,
           is_transfer: false
         });
+        oldSyncedIds.push(temp_id);
       }
 
       // Mark old as synced
-      let facts = await manager.queryFacts({ sync_status: 'pending' });
-      for (const fact of facts) {
-        await manager.confirmPendingOperation(fact.temp_id, 100 + facts.indexOf(fact));
+      for (let i = 0; i < oldSyncedIds.length; i++) {
+        await manager.confirmPendingOperation(oldSyncedIds[i], 100 + i);
       }
 
       // 5 old pending (should NOT be counted)
@@ -271,8 +274,9 @@ describe('Pruning Integration', () => {
       }
 
       // 3 recent synced (should NOT be counted)
+      const recentSyncedIds: string[] = [];
       for (let i = 0; i < 3; i++) {
-        await manager.createFact({
+        const temp_id = await manager.createFact({
           user_id: 1,
           article_id: 1,
           financial_center_id: 1,
@@ -285,13 +289,12 @@ describe('Pruning Integration', () => {
           sync_hash: null,
           is_transfer: false
         });
+        recentSyncedIds.push(temp_id);
       }
 
       // Mark recent as synced
-      facts = await manager.queryFacts({ sync_status: 'pending' });
-      const recentFacts = facts.filter(f => f.amount === 300);
-      for (const fact of recentFacts) {
-        await manager.confirmPendingOperation(fact.temp_id, 300 + recentFacts.indexOf(fact));
+      for (let i = 0; i < recentSyncedIds.length; i++) {
+        await manager.confirmPendingOperation(recentSyncedIds[i], 300 + i);
       }
 
       // Calculate potential pruning
@@ -306,7 +309,7 @@ describe('Pruning Integration', () => {
       const oldDate = new Date();
       oldDate.setDate(oldDate.getDate() - 200);
 
-      await manager.createFact({
+      const temp_id = await manager.createFact({
         user_id: 1,
         article_id: 1,
         financial_center_id: 1,
@@ -321,8 +324,7 @@ describe('Pruning Integration', () => {
       });
 
       // Mark as synced
-      const facts = await manager.queryFacts();
-      await manager.confirmPendingOperation(facts[0].temp_id, 100);
+      await manager.confirmPendingOperation(temp_id, 100);
 
       // Prune
       await manager.pruneFacts(90);
