@@ -58,6 +58,27 @@ jobs:
             git diff frontend/ | head -50
           fi
 
+      - name: Verify cache version file
+        run: |
+          if [[ ! -f .cache_version ]]; then
+            echo "❌ .cache_version file not created"
+            exit 1
+          fi
+
+          CACHE_VERSION=$(cat .cache_version)
+          echo "✅ Cache version file created: $CACHE_VERSION"
+
+          # Verify format
+          if [[ ! "$CACHE_VERSION" =~ ^v[0-9a-f_]+$ ]]; then
+            echo "❌ Invalid cache version format: $CACHE_VERSION"
+            exit 1
+          fi
+          echo "✅ Cache version format valid"
+
+      - name: Build frontend (validation only)
+        run: npm run build
+        continue-on-error: true
+
       - name: Validate cache busting and PGlite
         run: |
           # Read cache version from file
@@ -91,7 +112,7 @@ jobs:
           # Test 4: Check Service Worker file exists and has valid version
           echo "🔍 Checking Service Worker cache version..."
           if [[ ! -f frontend/web/static/sw.min.js ]]; then
-            echo "⚠️  Service Worker file missing (expected during PR, will be built later)"
+            echo "⚠️  Service Worker file missing (will be built in Docker)"
           else
             # Service Worker uses minified code, check for version presence
             if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js; then
@@ -103,27 +124,6 @@ jobs:
 
           echo ""
           echo "✅ All validation checks passed"
-
-      - name: Verify cache version file
-        run: |
-          if [[ ! -f .cache_version ]]; then
-            echo "❌ .cache_version file not created"
-            exit 1
-          fi
-          
-          CACHE_VERSION=$(cat .cache_version)
-          echo "✅ Cache version file created: $CACHE_VERSION"
-          
-          # Verify format
-          if [[ ! "$CACHE_VERSION" =~ ^v[0-9a-f_]+$ ]]; then
-            echo "❌ Invalid cache version format: $CACHE_VERSION"
-            exit 1
-          fi
-          echo "✅ Cache version format valid"
-
-      - name: Build frontend (validation only)
-        run: npm run build
-        continue-on-error: true
 
       - name: Validation Summary
         if: always()

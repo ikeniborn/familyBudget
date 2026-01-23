@@ -111,6 +111,9 @@ jobs:
             git diff frontend/ | head -50
           fi
 
+      - name: Build frontend
+        run: npm run build
+
       - name: Validate cache busting and PGlite
         run: |
           # Test 1: Check PLACEHOLDER replaced
@@ -159,9 +162,6 @@ jobs:
           # Persist cache version to file for docker-build job (after successful validation)
           echo "$CACHE_VERSION" > .cache_version
           echo "Cache version persisted to .cache_version file"
-
-      - name: Build frontend
-        run: npm run build
 
       - name: Check for changes
         id: changes
