@@ -279,7 +279,7 @@ const builds = [
   {
     name: 'sw',
     input: 'sw.js',
-    output: 'sw.min.js',
+    output: 'frontend/web/static/sw.min.js',
     globalName: 'ServiceWorker',
     isServiceWorker: true
   }
