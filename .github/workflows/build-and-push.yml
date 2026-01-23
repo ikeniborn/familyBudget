@@ -159,9 +159,11 @@ jobs:
           echo ""
           echo "✅ All validation checks passed"
 
-          # Persist cache version to file for docker-build job (after successful validation)
+      - name: Persist cache version
+        run: |
           echo "$CACHE_VERSION" > .cache_version
-          echo "Cache version persisted to .cache_version file"
+          echo "Cache version persisted: $(cat .cache_version)"
+          ls -la .cache_version
 
       - name: Upload cache version artifact
         uses: actions/upload-artifact@v4
