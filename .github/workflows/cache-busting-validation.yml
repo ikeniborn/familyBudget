@@ -35,12 +35,17 @@ jobs:
         run: npm ci
 
       - name: Cache busting
+        id: cache_bust
         run: |
           # Генерация cache version в формате v{YYYYMMDD_HHMM}
           # Формат требуется Service Worker для валидации версии
           CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "cache_version=$CACHE_VERSION" >> $GITHUB_OUTPUT
           echo "Generated cache version: $CACHE_VERSION"
+
+          # Persist to file immediately for next steps
+          echo "$CACHE_VERSION" > .cache_version
 
           # Запуск cache busting скрипта
           bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
@@ -55,6 +60,10 @@ jobs:
 
       - name: Validate cache busting and PGlite
         run: |
+          # Read cache version from file
+          CACHE_VERSION=$(cat .cache_version)
+          echo "Using cache version: $CACHE_VERSION"
+
           # Test 1: Check PLACEHOLDER replaced
           echo "🔍 Checking for unreplaced PLACEHOLDERs..."
           if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/; then
@@ -85,7 +94,6 @@ jobs:
             echo "⚠️  Service Worker file missing (expected during PR, will be built later)"
           else
             # Service Worker uses minified code, check for version presence
-            CACHE_VERSION="${CACHE_VERSION}"
             if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js; then
               echo "⚠️  Warning: Could not verify SW cache version (may be minified)"
             else
@@ -95,10 +103,6 @@ jobs:
 
           echo ""
           echo "✅ All validation checks passed"
-
-          # Persist cache version to file for verification
-          echo "$CACHE_VERSION" > .cache_version
-          echo "Cache version persisted to .cache_version file"
 
       - name: Verify cache version file
         run: |
