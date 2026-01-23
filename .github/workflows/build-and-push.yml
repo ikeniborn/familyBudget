@@ -76,6 +76,8 @@ jobs:
     if: |
       needs.check-version.outputs.version_changed == 'true' ||
       github.event_name == 'workflow_dispatch'
+    outputs:
+      cache_version: ${{ steps.cache_bust.outputs.cache_version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,11 +95,13 @@ jobs:
         run: npm ci
 
       - name: Cache busting
+        id: cache_bust
         run: |
           # Генерация cache version в формате v{YYYYMMDD_HHMM}
           # Формат требуется Service Worker для валидации версии
           CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "cache_version=$CACHE_VERSION" >> $GITHUB_OUTPUT
           echo "Generated cache version: $CACHE_VERSION"
 
           # Запуск cache busting скрипта
@@ -158,19 +162,6 @@ jobs:
 
           echo ""
           echo "✅ All validation checks passed"
-
-      - name: Persist cache version
-        run: |
-          echo "$CACHE_VERSION" > .cache_version
-          echo "Cache version persisted: $(cat .cache_version)"
-          ls -la .cache_version
-
-      - name: Upload cache version artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cache-version
-          path: .cache_version
-          retention-days: 1
 
       - name: Check for changes
         id: changes
@@ -281,7 +272,7 @@ jobs:
 
   # Job 3: Build and Push Docker Images
   build-push:
-    needs: quality-checks
+    needs: [frontend-build, quality-checks]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -302,11 +293,6 @@ jobs:
       - name: Pull latest changes
         run: git pull origin ${{ github.ref_name }}
 
-      - name: Download cache version artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: cache-version
-
       - name: Read VERSION
         id: version
         run: |
@@ -316,11 +302,10 @@ jobs:
 
       - name: Set cache and image versions
         run: |
-          # Frontend/SW use timestamp for cache invalidation
-          if [[ -f .cache_version ]]; then
-            CACHE_VERSION=$(cat .cache_version)
-          else
-            echo "❌ Cache version file missing - frontend build failed"
+          # Frontend/SW use timestamp for cache invalidation (from frontend-build job output)
+          CACHE_VERSION="${{ needs.frontend-build.outputs.cache_version }}"
+          if [[ -z "$CACHE_VERSION" ]]; then
+            echo "❌ Cache version missing from frontend-build job output"
             exit 1
           fi
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
