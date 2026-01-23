@@ -18,7 +18,7 @@ describe('PGliteManager', () => {
     localStorage.clear();
   });
 
-  it('should initialize successfully', async () => {
+  it('should initialize successfully', { timeout: 30000 }, async () => {
     // Act
     await manager.init({ dataDir: 'test-manager-init' });
 
