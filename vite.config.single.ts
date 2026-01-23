@@ -20,16 +20,18 @@ function postBuildCopy() {
   return {
     name: 'post-build-copy-single',
     async writeBundle() {
-      const { readFileSync, writeFileSync, existsSync } = require('fs');
-      const { basename } = require('path');
+      const { readFileSync, writeFileSync, existsSync, readdirSync, statSync, cpSync } = require('fs');
+      const { basename, join } = require('path');
 
       try {
         const src = `.vite-build/${entryName}.js`;
         const srcMap = `.vite-build/${entryName}.js.map`;
         const srcGz = `.vite-build/${entryName}.js.gz`;
+        const srcAssets = '.vite-build/assets';
         const dest = entryOutput;
         const destMap = `${dest}.map`;
         const destGz = `${dest}.gz`;
+        const destAssets = join(dirname(dest), 'assets');
 
         // Проверить что source файл существует (Vite должен был его создать)
         if (!existsSync(src)) {
@@ -61,6 +63,14 @@ function postBuildCopy() {
         // Копировать gzip файл если существует (создается compression plugin)
         if (existsSync(srcGz)) {
           copyFileSync(srcGz, destGz);
+        }
+
+        // Копировать assets директорию для ES module chunks (PGlite lazy loading)
+        if (existsSync(srcAssets) && statSync(srcAssets).isDirectory()) {
+          mkdirSync(destAssets, { recursive: true });
+
+          // Копировать все файлы из assets/
+          cpSync(srcAssets, destAssets, { recursive: true });
         }
 
         // Silent copy - только ошибки логируются
