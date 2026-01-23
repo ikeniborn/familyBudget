@@ -203,8 +203,10 @@ frontend/web/static/css/vendor/*.min.css
 frontend/shared/static/css/*.min.css
 frontend/**/static/js/**/*.min.js
 frontend/**/static/js/**/*.min.js.map
-# PGlite lazy-loaded chunks (built by Vite)
+# PGlite lazy-loaded chunks and bundles (built by Vite in CI/CD)
 frontend/shared/db/assets/
+frontend/shared/db/*.min.js
+frontend/shared/db/*.min.js.map
 # Service Worker minified (generated during deploy)
 sw.min.js
 sw.min.js.map
