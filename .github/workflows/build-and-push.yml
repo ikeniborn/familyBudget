@@ -163,6 +163,13 @@ jobs:
           echo "$CACHE_VERSION" > .cache_version
           echo "Cache version persisted to .cache_version file"
 
+      - name: Upload cache version artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-version
+          path: .cache_version
+          retention-days: 1
+
       - name: Check for changes
         id: changes
         run: |
@@ -292,6 +299,11 @@ jobs:
       # Re-pull to get committed frontend assets
       - name: Pull latest changes
         run: git pull origin ${{ github.ref_name }}
+
+      - name: Download cache version artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: cache-version
 
       - name: Read VERSION
         id: version
