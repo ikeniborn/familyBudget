@@ -92,13 +92,15 @@ export default defineConfig({
       external: entryName !== 'pglite' ? ['@db/pglite'] : [],
 
       output: {
-        format: 'iife',
+        // PGlite uses ES format to support both ES module imports and window.PGlite
+        // Other modules use IIFE format
+        format: entryName === 'pglite' ? 'es' : 'iife',
         name: globalName,
         entryFileNames: '[name].js', // [name] = entryName из input object key
         generatedCode: {
           constBindings: true
         },
-        // Map external modules to global variables
+        // Map external modules to global variables (only for IIFE modules)
         globals: {
           '@db/pglite': 'PGlite'
         }

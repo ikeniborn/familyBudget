@@ -27,7 +27,7 @@ const builds = [
   // === PGlite WASM Database (loaded after network, before other modules) ===
   {
     name: 'pglite',
-    input: 'frontend/shared/db/pglite/index.ts',
+    input: 'frontend/shared/db/pglite/index.iife.ts',
     output: 'frontend/shared/db/pglite.min.js',
     globalName: 'PGlite'
   },
