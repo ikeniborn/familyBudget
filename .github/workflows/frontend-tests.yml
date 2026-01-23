@@ -10,6 +10,9 @@ on:
       - 'vitest.config.ts'
       - '.github/workflows/frontend-tests.yml'
 
+permissions:
+  contents: read  # Для checkout и git операций
+
 jobs:
   type-check:
     name: TypeScript Type Check

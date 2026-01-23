@@ -25,6 +25,7 @@ from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
+from backend.app.core.logging_utils import hash_email_for_logging
 from backend.app.middleware.rate_limiter import limiter
 from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.models.refresh_token import RefreshToken
@@ -987,7 +988,7 @@ async def login_email(
 
     if user is None:
         logger.warning(
-            f"[AUTH_EMAIL] Failed login attempt: email={data.email}, "
+            f"[AUTH_EMAIL] Failed login attempt: email_hash={hash_email_for_logging(data.email)}, "
             f"reason=invalid_credentials, "
             f"ip={request.client.host if request.client else 'unknown'}"
         )
@@ -1000,7 +1001,8 @@ async def login_email(
     if not user.is_active:
         logger.warning(
             f"[AUTH_EMAIL] Inactive user login attempt: user_id={user.id}, "
-            f"email={data.email}, ip={request.client.host if request.client else 'unknown'}"
+            f"email_hash={hash_email_for_logging(data.email)}, "
+            f"ip={request.client.host if request.client else 'unknown'}"
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1013,7 +1015,7 @@ async def login_email(
     if user.is_admin:
         logger.info(
             f"[AUTH_EMAIL] Admin login bypass: user_id={user.id}, "
-            f"email={data.email}, bypassing 2FA requirement, "
+            f"bypassing 2FA requirement, "
             f"ip={request.client.host if request.client else 'unknown'}"
         )
 
@@ -1103,7 +1105,7 @@ async def login_email(
 
     logger.info(
         f"[AUTH_EMAIL] Regular user login: user_id={user.id}, "
-        f"email={data.email}, 2FA required"
+        f"2FA required"
     )
 
     # Step 3: Create 2FA session (5-min TTL)
@@ -1898,7 +1900,7 @@ async def check_auth_methods(
     session: AsyncSession = Depends(get_session),
 ) -> AuthMethodsResponse:
     """Check available authentication methods for user."""
-    logger.info(f"[AUTH_METHODS] Checking methods for identifier: {identifier}")
+    logger.info(f"[AUTH_METHODS] Checking methods for identifier_hash: {hash_email_for_logging(identifier)}")
 
     # Try to find user by email first
     user = await get_user_by_email(session, identifier)
@@ -1910,7 +1912,7 @@ async def check_auth_methods(
         user = result.first()
 
     if user is None:
-        logger.warning(f"[AUTH_METHODS] User not found: {identifier}")
+        logger.warning(f"[AUTH_METHODS] User not found: identifier_hash={hash_email_for_logging(identifier)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"

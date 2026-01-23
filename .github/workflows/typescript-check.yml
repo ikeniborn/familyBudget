@@ -12,6 +12,9 @@ on:
       - '!docs/**'
       - '!**.md'
 
+permissions:
+  contents: read  # Для checkout
+
 jobs:
   type-check:
     name: TypeScript Type Check

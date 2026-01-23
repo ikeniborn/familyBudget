@@ -154,7 +154,13 @@ async function loadCenters() {
         renderCentersTable(centersData);
     } catch (error) {
         console.error('Error loading accounts:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки счетов: ${error.message}</span></div>`;
+        container.innerHTML = ''; // очистить
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-error';
+        const span = document.createElement('span');
+        span.textContent = `❌ Ошибка загрузки счетов: ${error.message}`;
+        alertDiv.appendChild(span);
+        container.appendChild(alertDiv);
     }
 }
 

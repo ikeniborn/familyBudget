@@ -1914,7 +1914,14 @@ async function loadCsvPreview() {
                 data.delimiter;
 
             renderCsvPreview();
-            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`;
+            // Безопасное создание элементов через DOM API
+            statusEl.innerHTML = ''; // очистить
+            const successSpan = document.createElement('span');
+            successSpan.className = 'text-success';
+            successSpan.textContent = '✓';
+            statusEl.appendChild(successSpan);
+            const textNode = document.createTextNode(` ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`);
+            statusEl.appendChild(textNode);
         } else {
             // Use /preview endpoint for specific delimiter
             response = await fetch(
@@ -1933,12 +1940,24 @@ async function loadCsvPreview() {
             csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
 
             renderCsvPreview();
-            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
+            // Безопасное создание элементов через DOM API
+            statusEl.innerHTML = ''; // очистить
+            const successSpan = document.createElement('span');
+            successSpan.className = 'text-success';
+            successSpan.textContent = '✓';
+            statusEl.appendChild(successSpan);
+            const textNode = document.createTextNode(` ${data.headers.length} колонок, ${data.total_rows} строк`);
+            statusEl.appendChild(textNode);
         }
 
     } catch (error) {
         console.error('Preview error:', error);
-        statusEl.innerHTML = `<span class="text-error">✗ Ошибка: ${error.message}</span>`;
+        // Безопасное создание элементов через DOM API
+        statusEl.innerHTML = ''; // очистить
+        const errorSpan = document.createElement('span');
+        errorSpan.className = 'text-error';
+        errorSpan.textContent = `✗ Ошибка: ${error.message}`;
+        statusEl.appendChild(errorSpan);
     }
 }
 

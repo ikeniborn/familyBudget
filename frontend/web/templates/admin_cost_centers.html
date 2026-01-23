@@ -178,7 +178,13 @@ async function loadCenters() {
         renderCentersTable(centersData);
     } catch (error) {
         console.error('Error loading cost centers:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки МЗ: ${error.message}</span></div>`;
+        container.innerHTML = ''; // очистить
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-error';
+        const span = document.createElement('span');
+        span.textContent = `❌ Ошибка загрузки МВЗ: ${error.message}`;
+        alertDiv.appendChild(span);
+        container.appendChild(alertDiv);
     }
 }
 

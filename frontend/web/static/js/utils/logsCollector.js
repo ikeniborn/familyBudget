@@ -61,7 +61,17 @@ class LogsCollector {
      * @private
      */
     _generateSessionId() {
-        return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+        const timestamp = Date.now().toString(36);
+
+        // Используем crypto.getRandomValues() вместо Math.random()
+        const randomBytes = new Uint8Array(8);
+        crypto.getRandomValues(randomBytes);
+        const randomPart = Array.from(randomBytes)
+            .map(byte => byte.toString(36))
+            .join('')
+            .substring(0, 13);
+
+        return `${timestamp}-${randomPart}`;
     }
 
     /**

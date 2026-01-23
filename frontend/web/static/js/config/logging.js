@@ -82,8 +82,9 @@
         environment: {
             hostname: hostname,
             isProduction: isProduction,
-            isDevelopment: isDevelopment,
-            userAgent: navigator.userAgent
+            isDevelopment: isDevelopment
+            // НЕ включаем userAgent в глобальный конфиг (fingerprinting risk)
+            // userAgent может быть получен отдельно при необходимости
         }
     };
 
