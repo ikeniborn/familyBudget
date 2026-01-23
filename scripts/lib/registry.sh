@@ -268,7 +268,11 @@ generate_env_from_image_versions() {
 
     # Copy existing .env, removing old version variables
     if [[ -f "$env_file" ]]; then
-        grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=' "$env_file" > "$temp_env" || true
+        # Filter out version variables (exit code 1 if no matches is OK)
+        if ! grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=' "$env_file" > "$temp_env" 2>/dev/null; then
+            # File contains only version variables or is empty - create empty temp
+            : > "$temp_env"
+        fi
     else
         touch "$temp_env"
     fi
@@ -330,6 +334,11 @@ display_deployment_versions() {
         local version=$(jq -r ".${service}.version" "$image_versions_file" 2>/dev/null)
         local hash=$(jq -r ".${service}.hash" "$image_versions_file" 2>/dev/null)
         local modified=$(jq -r ".${service}.lastModified" "$image_versions_file" 2>/dev/null | cut -d'T' -f1)
+
+        # Truncate hash to 10 characters for formatting
+        if [[ ${#hash} -gt 10 ]]; then
+            hash="${hash:0:10}"
+        fi
 
         printf "  %-12s %-10s %-10s %-20s\n" "$service" "$version" "$hash" "$modified"
         ((count++))

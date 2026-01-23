@@ -647,6 +647,11 @@ confirm_deployment_versions() {
         local hash=$(echo "$versions_json" | jq -r ".${service}.hash // \"N/A\"" 2>/dev/null)
         local modified=$(echo "$versions_json" | jq -r ".${service}.lastModified // \"N/A\"" 2>/dev/null)
 
+        # Truncate hash to 10 characters for formatting
+        if [[ "$hash" != "N/A" && ${#hash} -gt 10 ]]; then
+            hash="${hash:0:10}"
+        fi
+
         # Truncate timestamp to date only
         if [[ "$modified" != "N/A" ]]; then
             modified=$(echo "$modified" | cut -d'T' -f1)
