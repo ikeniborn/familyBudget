@@ -394,8 +394,8 @@
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
 
-    <!-- PGlite Bundle (for offline mode) - MUST load before modules that import it -->
-    <script src="/shared/db/pglite.min.js?v=PLACEHOLDER"></script>
+    <!-- PGlite Bundle (for offline mode) - ES Module with lazy loading -->
+    <script type="module" src="/shared/db/pglite.min.js?v=PLACEHOLDER"></script>
 
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
