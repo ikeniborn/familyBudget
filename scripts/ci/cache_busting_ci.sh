@@ -49,9 +49,10 @@ for file in "${files[@]}"; do
 
     # Perl regex замена (из cache_busting.sh:84-87)
     # Обновляет ?v=PLACEHOLDER или ?v=<старая-версия> на ?v=<новая-версия>
+    # Pattern v[0-9_]+ matches timestamp format (v20260123_1530) and hex format (v12345678)
     perl -i.bak -pe "
-        s{(\\/(?:webapp|web|static|shared)\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9a-f]+)}{\$1\$2?v=${CACHE_VERSION}}g;
-        s{(\\/(?:webapp|web|static|shared)\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9a-f]+)}{\$1\$2?v=${CACHE_VERSION}}g;
+        s{(\\/(?:webapp|web|static|shared)\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|v[0-9_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
+        s{(\\/(?:webapp|web|static|shared)\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|v[0-9_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
     " "$file"
 
     if [[ $? -eq 0 ]]; then

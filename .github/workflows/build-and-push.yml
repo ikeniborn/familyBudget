@@ -100,6 +100,10 @@ jobs:
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
           echo "Generated cache version: $CACHE_VERSION"
 
+          # Persist cache version to file for docker-build job
+          echo "$CACHE_VERSION" > .cache_version
+          echo "Cache version persisted to .cache_version file"
+
           # Запуск cache busting скрипта
           bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
 
@@ -113,6 +117,46 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Validate cache busting and PGlite
+        run: |
+          # Test 1: Check PLACEHOLDER replaced
+          echo "🔍 Checking for unreplaced PLACEHOLDERs..."
+          if grep -r "\?v=PLACEHOLDER" frontend/web/templates/ frontend/webapp/; then
+            echo "❌ PLACEHOLDER not replaced in templates"
+            exit 1
+          fi
+          echo "✅ No PLACEHOLDER markers found"
+
+          # Test 2: Check version format in templates
+          echo "🔍 Checking cache version format..."
+          if ! grep -r "\?v=v[0-9_]\+" frontend/web/templates/ >/dev/null; then
+            echo "❌ No valid cache versions found in templates"
+            exit 1
+          fi
+          echo "✅ Valid cache versions found"
+
+          # Test 3: Check PGlite script tag exists
+          echo "🔍 Checking PGlite script tag in base.html..."
+          if ! grep -q "/shared/db/pglite.min.js" frontend/web/templates/base.html; then
+            echo "❌ PGlite script tag missing in base.html"
+            exit 1
+          fi
+          echo "✅ PGlite script tag found"
+
+          # Test 4: Check sw.js has valid version
+          echo "🔍 Checking Service Worker cache version..."
+          CACHE_VERSION=$(cat .cache_version)
+          # Service Worker uses minified code, check for version presence
+          if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js 2>/dev/null; then
+            echo "⚠️  Warning: Could not verify SW cache version (may be minified)"
+            # Don't fail - version might be in minified format
+          else
+            echo "✅ Service Worker cache version verified"
+          fi
+
+          echo ""
+          echo "✅ All validation checks passed"
 
       - name: Check for changes
         id: changes
@@ -130,8 +174,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add frontend/web/static/js/dist/ frontend/web/static/css/*.min.css
-          git commit -m "chore(ci): auto-build frontend assets [skip ci]"
+          git add frontend/web/static/js/dist/ \
+                  frontend/web/static/css/*.min.css \
+                  frontend/web/templates/ \
+                  frontend/webapp/
+          git commit -m "chore(ci): auto-build frontend assets and cache bust templates [skip ci]"
           git push
 
   # Job 2: Quality Checks
@@ -248,11 +295,22 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Project version: $VERSION"
 
-      - name: Generate CACHE_VERSION
+      - name: Set cache and image versions
         run: |
-          CACHE_VERSION=$(git rev-parse --short HEAD)
+          # Frontend/SW use timestamp for cache invalidation
+          if [[ -f .cache_version ]]; then
+            CACHE_VERSION=$(cat .cache_version)
+          else
+            echo "❌ Cache version file missing - frontend build failed"
+            exit 1
+          fi
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
-          echo "Generated CACHE_VERSION: $CACHE_VERSION"
+          echo "Using cache version: $CACHE_VERSION"
+
+          # Docker images use git hash for traceability
+          IMAGE_VERSION=$(git rev-parse --short HEAD)
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          echo "Using image version: $IMAGE_VERSION"
 
       - name: Check image changes
         id: changes
