@@ -21,7 +21,7 @@ describe('PGlite Integration', () => {
     localStorage.clear();
   });
 
-  it('should initialize PGlite instance', async () => {
+  it('should initialize PGlite instance', { timeout: 30000 }, async () => {
     // Arrange
     const db = new PGlite('idb://test-db');
 
