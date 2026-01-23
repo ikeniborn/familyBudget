@@ -214,6 +214,18 @@ let customDateFrom = null;
 let customDateTo = null;
 let rangePicker = null;
 
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
 // New filters (v5.1.3)
 let currentCFOId = null;  // null = all centers
 let currentCategoryIds = [];  // [] = all categories
@@ -1561,8 +1573,8 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
             <div class="modal-content max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
                 <div class="modal-header">
-                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Детализация: ${periodLabel}</h2>
-                    <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
+                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Детализация: ${escapeHtml(periodLabel)}</h2>
+                    <span class="modal-close" id="waterfall-modal-close">&times;</span>
                 </div>
                 <div class="modal-body">
                     <p>Выберите категорию для просмотра детализации:</p>
@@ -1586,11 +1598,13 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
 
         modalHtml += `
             <tr>
-                <td><strong>${cat.name}</strong></td>
+                <td><strong>${escapeHtml(cat.name)}</strong></td>
                 <td><span style="color: ${typeColor}">${typeLabel}</span></td>
                 <td>${amountFormatted} ₽</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
+                    <button class="btn-waterfall-select btn-primary btn-small"
+                            data-category-id="${cat.id}"
+                            data-category-name="${escapeHtml(cat.name)}">
                         Смотреть
                     </button>
                 </td>
@@ -1604,7 +1618,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Отмена</button>
+                    <button type="button" class="btn-secondary" id="waterfall-modal-cancel">Отмена</button>
                 </div>
             </div>
         </div>
@@ -1613,8 +1627,35 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
     // Insert modal into DOM
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    // Close modal on outside click
+    // Get modal element
     const modal = document.getElementById('waterfall-drilldown-modal');
+
+    // Add event listeners (безопасно, нет inline handlers)
+    // Close button
+    const closeBtn = document.getElementById('waterfall-modal-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeWaterfallDrilldownModal);
+    }
+
+    // Cancel button
+    const cancelBtn = document.getElementById('waterfall-modal-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeWaterfallDrilldownModal);
+    }
+
+    // Category selection buttons
+    const selectBtns = modal.querySelectorAll('.btn-waterfall-select');
+    selectBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const categoryId = btn.dataset.categoryId;
+            const categoryName = btn.dataset.categoryName;
+            if (categoryId && categoryName) {
+                selectWaterfallArticle(parseInt(categoryId, 10), categoryName);
+            }
+        });
+    });
+
+    // Close modal on outside click
     window.onclick = function(event) {
         if (event.target === modal) {
             closeWaterfallDrilldownModal();

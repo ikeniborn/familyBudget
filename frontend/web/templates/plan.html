@@ -2532,16 +2532,7 @@ async function showEditModal(factId) {
             } catch (error) {
                 console.error('[EDIT_MODAL] Error loading recurring plan:', error);
                 if (recurringInfoDiv) {
-                    // Создать элементы безопасно через DOM API
-                    recurringInfoDiv.innerHTML = ''; // очистить
-                    const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-error';
-
-                    const span = document.createElement('span');
-                    span.textContent = `❌ Ошибка: ${error.message}`; // textContent безопасен
-
-                    alertDiv.appendChild(span);
-                    recurringInfoDiv.appendChild(alertDiv);
+                    showSafeAlert(recurringInfoDiv, `❌ Ошибка: ${error.message}`, 'alert-error');
                 }
             }
         })();
@@ -4841,16 +4832,7 @@ async function loadRecurringPlans() {
 
     } catch (error) {
         console.error('[RECURRING_LIST] Error loading recurring plans:', error);
-        // Создать элементы безопасно через DOM API
-        container.innerHTML = ''; // очистить
-        const alertDiv = document.createElement('div');
-        alertDiv.className = 'alert alert-error';
-
-        const span = document.createElement('span');
-        span.textContent = `❌ Ошибка загрузки регламентных платежей: ${error.message}`;
-
-        alertDiv.appendChild(span);
-        container.appendChild(alertDiv);
+        showSafeAlert(container, `❌ Ошибка загрузки регламентных платежей: ${error.message}`, 'alert-error');
     }
 }
 
