@@ -603,6 +603,95 @@ EOF
     cat "$summary_file"
 }
 
+# Display and confirm deployment versions from IMAGE_VERSIONS.json
+# Returns: 0 if confirmed, 1 if declined/error
+confirm_deployment_versions() {
+    local image_versions_file="${REMOTE_DEPLOY_DIR}/IMAGE_VERSIONS.json"
+
+    log INFO "========================================="
+    log INFO "Version Confirmation"
+    log INFO "========================================="
+
+    # Check existence via SSH
+    if ! ssh -o ConnectTimeout=10 "${SSH_HOST}" "test -f '${image_versions_file}'" 2>/dev/null; then
+        log ERROR "IMAGE_VERSIONS.json not found: ${image_versions_file}"
+        log ERROR "Cannot proceed without version information"
+        log ERROR ""
+        log ERROR "Troubleshooting:"
+        log ERROR "  1. Git pull did not run successfully"
+        log ERROR "  2. GitHub Actions did not update IMAGE_VERSIONS.json"
+        log ERROR "  3. Repository is not synchronized"
+        return 1
+    fi
+
+    # Fetch and validate JSON
+    local versions_json
+    versions_json=$(ssh -o ConnectTimeout=10 "${SSH_HOST}" "cat '${image_versions_file}'" 2>/dev/null)
+    if ! echo "$versions_json" | jq empty 2>/dev/null; then
+        log ERROR "IMAGE_VERSIONS.json is corrupted (invalid JSON)"
+        return 1
+    fi
+
+    # Display table header
+    log INFO "Docker images to be deployed:"
+    echo ""
+    printf "${BLUE}%-12s %-10s %-10s %-20s${NC}\n" "Service" "Version" "Hash" "Last Modified"
+    printf "%-12s %-10s %-10s %-20s\n" "-------" "-------" "----" "-------------"
+
+    # Parse and display each service
+    local services=("backend" "bot" "nginx" "redis" "postgresql")
+    local valid_count=0
+
+    for service in "${services[@]}"; do
+        local version=$(echo "$versions_json" | jq -r ".${service}.version // \"N/A\"" 2>/dev/null)
+        local hash=$(echo "$versions_json" | jq -r ".${service}.hash // \"N/A\"" 2>/dev/null)
+        local modified=$(echo "$versions_json" | jq -r ".${service}.lastModified // \"N/A\"" 2>/dev/null)
+
+        # Truncate timestamp to date only
+        if [[ "$modified" != "N/A" ]]; then
+            modified=$(echo "$modified" | cut -d'T' -f1)
+        fi
+
+        # Color based on validity
+        if [[ "$version" != "N/A" ]]; then
+            printf "${GREEN}%-12s %-10s %-10s %-20s${NC}\n" "$service" "$version" "$hash" "$modified"
+            ((valid_count++))
+        else
+            printf "${YELLOW}%-12s %-10s %-10s %-20s${NC}\n" "$service" "MISSING" "-" "-"
+        fi
+    done
+
+    echo ""
+
+    # Verify at least one service has version
+    if [[ $valid_count -eq 0 ]]; then
+        log ERROR "No valid versions found in IMAGE_VERSIONS.json"
+        return 1
+    fi
+
+    log INFO "Services to deploy: ${valid_count}/5"
+    log INFO "Source: ${image_versions_file}"
+    echo ""
+
+    # Non-interactive mode (stdin not terminal)
+    if [[ ! -t 0 ]]; then
+        log INFO "Non-interactive mode: auto-confirming deployment"
+        return 0
+    fi
+
+    # Interactive confirmation
+    read -p "${YELLOW}Deploy these versions to budget-test? [Y/n]: ${NC}" -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Yy]?$ ]]; then
+        log SUCCESS "Deployment confirmed by user"
+        return 0
+    else
+        log WARNING "Deployment cancelled by user"
+        return 1
+    fi
+}
+
 # Обертка для деплоя с проверками (используется в retry_deploy_with_backoff)
 run_deploy() {
     log INFO "Выполнение деплоя с проверками..."
@@ -673,6 +762,14 @@ main() {
         generate_summary "FAILED" 0
         exit 1
     fi
+
+    # Шаг 3.5: Confirm deployment versions (NEW v9.0+)
+    if ! confirm_deployment_versions; then
+        log ERROR "Deployment cancelled - version confirmation declined"
+        generate_summary "CANCELLED" 0
+        exit 1
+    fi
+    echo ""
 
     # Шаг 4: Деплой с автоматическим recovery
     # Проверка наличия recovery-strategies (v2.0.0)

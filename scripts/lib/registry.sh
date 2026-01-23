@@ -81,15 +81,8 @@ pull_from_registry() {
 
         info "Pulling $service image (version: $image_tag)..."
         if docker pull "$image_name" >> "$LOG_FILE" 2>&1; then
-            success "$service image pulled successfully"
-
-            # Tag image for docker-compose compatibility
-            # Docker Compose expects image name without registry/owner prefix
-            if docker tag "$image_name" "familybudget-$service:latest" >> "$LOG_FILE" 2>&1; then
-                debug "Tagged $image_name as familybudget-$service:latest"
-            else
-                warning "Failed to tag image for docker-compose"
-            fi
+            success "$service image pulled successfully (version: $image_tag)"
+            # Перетегирование УДАЛЕНО - docker-compose использует ghcr.io образы напрямую
         else
             error "Failed to pull $service image: $image_name"
             pull_failed=true
@@ -242,6 +235,136 @@ validate_registry_images() {
 
     success "All required images exist in registry"
     return 0
+}
+
+# Generate .env file from IMAGE_VERSIONS.json for docker-compose
+# Returns: 0 on success, 1 on error
+generate_env_from_image_versions() {
+    local image_versions_file="$DEPLOY_DIR/IMAGE_VERSIONS.json"
+    local env_file="$DEPLOY_DIR/.env"
+
+    if [[ ! -f "$image_versions_file" ]]; then
+        error "IMAGE_VERSIONS.json not found: $image_versions_file"
+        return 1
+    fi
+
+    if ! jq empty "$image_versions_file" 2>/dev/null; then
+        error "IMAGE_VERSIONS.json is corrupted (invalid JSON)"
+        return 1
+    fi
+
+    info "Generating .env file from IMAGE_VERSIONS.json..."
+
+    # Read versions for each service
+    local backend_ver=$(jq -r '.backend.version // "latest"' "$image_versions_file")
+    local bot_ver=$(jq -r '.bot.version // "latest"' "$image_versions_file")
+    local nginx_ver=$(jq -r '.nginx.version // "latest"' "$image_versions_file")
+    local redis_ver=$(jq -r '.redis.version // "latest"' "$image_versions_file")
+    local postgresql_ver=$(jq -r '.postgresql.version // "latest"' "$image_versions_file")
+
+    # Append to .env (or update if exists)
+    # Use temp file for atomic update
+    local temp_env="${env_file}.tmp"
+
+    # Copy existing .env, removing old version variables
+    if [[ -f "$env_file" ]]; then
+        grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=' "$env_file" > "$temp_env" || true
+    else
+        touch "$temp_env"
+    fi
+
+    # Append version variables
+    {
+        echo ""
+        echo "# Image versions (auto-generated from IMAGE_VERSIONS.json)"
+        echo "# Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "BACKEND_VERSION=${backend_ver}"
+        echo "BOT_VERSION=${bot_ver}"
+        echo "NGINX_VERSION=${nginx_ver}"
+        echo "REDIS_VERSION=${redis_ver}"
+        echo "POSTGRESQL_VERSION=${postgresql_ver}"
+    } >> "$temp_env"
+
+    # Atomic move
+    mv "$temp_env" "$env_file"
+    chmod 600 "$env_file"  # Protect sensitive data
+
+    success "Generated .env with versions:"
+    info "  BACKEND_VERSION=${backend_ver}"
+    info "  BOT_VERSION=${bot_ver}"
+    info "  NGINX_VERSION=${nginx_ver}"
+    info "  REDIS_VERSION=${redis_ver}"
+    info "  POSTGRESQL_VERSION=${postgresql_ver}"
+    echo ""
+
+    return 0
+}
+
+# Display deployment versions from IMAGE_VERSIONS.json
+# Returns: 0 on success, 1 on error
+display_deployment_versions() {
+    local image_versions_file="$DEPLOY_DIR/IMAGE_VERSIONS.json"
+
+    if [[ ! -f "$image_versions_file" ]]; then
+        error "IMAGE_VERSIONS.json not found: $image_versions_file"
+        return 1
+    fi
+
+    if ! jq empty "$image_versions_file" 2>/dev/null; then
+        error "IMAGE_VERSIONS.json is corrupted (invalid JSON)"
+        return 1
+    fi
+
+    info "Deployment Versions Summary:"
+    echo ""
+
+    # Table header
+    printf "  %-12s %-10s %-10s %-20s\n" "Service" "Version" "Hash" "Last Modified"
+    printf "  %-12s %-10s %-10s %-20s\n" "$(printf '%.0s-' {1..12})" "$(printf '%.0s-' {1..10})" "$(printf '%.0s-' {1..10})" "$(printf '%.0s-' {1..20})"
+
+    # Read services dynamically from JSON
+    local services=$(jq -r 'keys[]' "$image_versions_file" 2>/dev/null)
+    local count=0
+
+    while IFS= read -r service; do
+        local version=$(jq -r ".${service}.version" "$image_versions_file" 2>/dev/null)
+        local hash=$(jq -r ".${service}.hash" "$image_versions_file" 2>/dev/null)
+        local modified=$(jq -r ".${service}.lastModified" "$image_versions_file" 2>/dev/null | cut -d'T' -f1)
+
+        printf "  %-12s %-10s %-10s %-20s\n" "$service" "$version" "$hash" "$modified"
+        ((count++))
+    done <<< "$services"
+
+    echo ""
+    info "Total services: $count"
+    echo ""
+
+    return 0
+}
+
+# Confirm deployment versions interactively
+# Returns: 0 if confirmed, 1 if declined
+confirm_deployment_versions() {
+    display_deployment_versions || return 1
+
+    # Non-interactive mode
+    if [[ ! -t 0 ]]; then
+        info "Non-interactive mode: auto-confirming versions"
+        return 0
+    fi
+
+    # Interactive prompt
+    echo ""
+    read -p "Deploy these versions? [Y/n]: " -r
+    echo ""
+
+    if [[ $REPLY =~ ^[Yy]?$ ]]; then
+        success "Deployment versions confirmed"
+        return 0
+    else
+        warning "Deployment cancelled by user"
+        return 1
+    fi
 }
 
 # Log deployment to history file

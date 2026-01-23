@@ -37,38 +37,35 @@ user-invocable: true
 - "Сделай деплой на test"
 - "Проверь изменения на тестовом сервере"
 
-## Использование версионирования (v7.0+)
+## Registry-First Versioning (v9.0+)
 
-**Базовый деплой (БЕЗ изменения версии):**
-```bash
-./deploy-test.sh
-```
+**КРИТИЧЕСКИ ВАЖНО:** VERSION должен обновляться ВРУЧНУЮ перед git push:
 
-**С версионированием:**
-```bash
-# Bug fixes (patch: 6.6.0 → 6.6.1)
-./deploy-test.sh --version patch
+**Workflow:**
+1. Обновить VERSION локально (в репозитории):
+   ```bash
+   cd ~/familyBudget
+   echo "10.0.5" > VERSION
+   git add VERSION
+   git commit -m "chore: bump version to 10.0.5"
+   git push origin test
+   ```
 
-# New features (minor: 6.6.0 → 6.7.0)
-./deploy-test.sh --version minor
+2. GitHub Actions автоматически (~5 минут):
+   - Собирает измененные Docker образы
+   - Обновляет IMAGE_VERSIONS.json
+   - Пушит образы в ghcr.io
 
-# Breaking changes (major: 6.6.0 → 7.0.0)
-./deploy-test.sh --version major
-```
+3. Деплой с подтверждением версий:
+   ```bash
+   ./deploy-test.sh
+   # → Показывает таблицу версий из IMAGE_VERSIONS.json
+   # → Запрашивает: "Deploy these versions? [Y/n]"
+   # → Пулит образы из ghcr.io
+   # → docker compose up -d
+   ```
 
-**Дополнительные опции:**
-```bash
-# С автоисправлением и версионированием
-./deploy-test.sh --auto-fix --version patch
-
-# С подробными логами
-./deploy-test.sh --verbose --version minor
-
-# Dry-run (показать что будет сделано)
-./deploy-test.sh --dry-run --version patch
-```
-
-**ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
+**ВАЖНО:** Навык deploy-test НЕ меняет версии автоматически.
 
 ## Registry-Only Architecture (v9.0+)
 
@@ -80,12 +77,17 @@ user-invocable: true
 - ✅ 5 кастомных образов: backend, bot, nginx, redis, postgresql
 - ✅ Frontend embedded в backend Docker image
 - ✅ Автоматическая очистка старых images (7 дней retention)
+- ✅ IMAGE_VERSIONS.json содержит версию для каждого сервиса
+- ✅ Автоматический вывод версий перед деплоем
+- ✅ Интерактивное подтверждение обязательно
+- ✅ Non-interactive режим авто-подтверждает (для CI/CD)
 
 **Преимущества:**
 - ✅ **Быстрый деплой:** 2-3 мин (vs 5-7 мин build mode)
 - ✅ **Консистентность:** те же образы что в CI/CD
 - ✅ **Безопасность:** нет npm/Node.js на production сервере
 - ✅ **Надежность:** проверенные образы из CI/CD pipeline
+- ✅ **Прозрачность:** видимость версий в мониторинге (docker ps)
 
 **Workflow:**
 ```bash
@@ -230,53 +232,17 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 
 Этот skill выполняет следующие шаги автоматически:
 
-### Шаг 0: Интерактивный выбор опций деплоя
+## Интерактивное подтверждение (v9.0+)
 
-Перед началом деплоя Claude запрашивает параметры через AskUserQuestion.
+**УДАЛЕНО:** Выбор типа версии (patch/minor/major) - версии меняются вручную
 
-**Условие показа диалога:**
-- Показать диалог если пользователь НЕ указал явно параметры в запросе
-- Пропустить диалог если параметры указаны явно (например: "деплой с версией minor", "deploy --version patch --force-build")
-
-**Примеры явного указания параметров:**
-- "задеплой с версией patch" → версия=patch, показать только вопрос про доп. опции
-- "деплой --version minor --force-build" → версия=minor, force-build=да, пропустить диалог
-- "деплой на тест" → показать полный диалог
-- "обновить на budget-test" → показать полный диалог
-
-**AskUserQuestion - Вопрос 1: Тип версии**
-```json
-{
-  "question": "Какой тип версии использовать для деплоя?",
-  "header": "Version",
-  "options": [
-    {"label": "patch (Recommended)", "description": "Bug fixes: 6.6.0 → 6.6.1"},
-    {"label": "minor", "description": "New features: 6.6.0 → 6.7.0"},
-    {"label": "major", "description": "Breaking changes: 6.6.0 → 7.0.0"},
-    {"label": "none", "description": "Без изменения версии"}
-  ],
-  "multiSelect": false
-}
-```
-
-**AskUserQuestion - Вопрос 2: Дополнительные опции**
-```json
-{
-  "question": "Какие дополнительные опции применить?",
-  "header": "Options",
-  "options": [
-    {"label": "Стандартный деплой (Recommended)", "description": "Автоматическое восстановление включено (v2.0)"},
-    {"label": "--use-registry", "description": "Pull pre-built images из ghcr.io (v8.0+, faster deploy)"},
-    {"label": "--force-build", "description": "Принудительная пересборка frontend"},
-    {"label": "--verbose", "description": "Детальный вывод всех операций"},
-    {"label": "--dry-run", "description": "Показать план без выполнения"},
-    {"label": "--skip-local-validation", "description": "Пропустить предварительную проверку кода"},
-    {"label": "--no-auto-commit", "description": "Не коммитить исправления автоматически"},
-    {"label": "--max-retries 5", "description": "Увеличить попытки до 5 (default: 3)"}
-  ],
-  "multiSelect": true
-}
-```
+**НОВЫЙ WORKFLOW:**
+1. Git pull загружает IMAGE_VERSIONS.json
+2. Вывод таблицы версий с метаданными
+3. Промпт: "Deploy these versions to budget-test? [Y/n]"
+4. Если Y: продолжить деплой
+5. Если N: немедленно отменить деплой
+6. Non-interactive mode (pipe/redirect): авто-подтверждение
 
 **Опции автоматического восстановления (v2.0.0):**
 - `--max-retries N` - максимум попыток деплоя (default: 3)
