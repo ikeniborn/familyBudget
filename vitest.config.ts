@@ -34,7 +34,9 @@ export default defineConfig({
         '**/dist/',
         '**/vendor/',
         'backend/',
-        'bot/'
+        'bot/',
+        // Lazy loading wrappers (IIFE entry points)
+        '**/index.iife.ts'
       ],
       include: [
         'frontend/web/static/js/**/*.ts',
