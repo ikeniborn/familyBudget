@@ -752,6 +752,81 @@ If success → Commit proceeds
 
 ---
 
+## Cache Busting с VERSION файла (v10.0+)
+
+### Источник версии
+
+- **Старый способ (до v10.0)**: Timestamp `v$(date -u +%Y%m%d_%H%M)` → `v20260124_1530`
+- **Новый способ (v10.0+)**: Semantic version из `/VERSION` файла → `10.0.23`
+
+### Требования
+
+1. **Manual bump VERSION**: Перед каждой сборкой VERSION должен быть обновлен вручную
+2. **Формат**: Semantic versioning (X.Y.Z), например `10.0.23`
+3. **Уникальность**: Каждая сборка требует уникальной версии
+
+### Workflow
+
+1. Разработчик обновляет VERSION файл: `echo "10.0.24" > VERSION`
+2. Commit: `git commit -m "chore: bump version to 10.0.24"`
+3. Push: GitHub Actions читает VERSION и применяет cache busting
+4. Все статические файлы получают `?v=10.0.24` query parameter
+
+**Пример применения в HTML:**
+```html
+<!-- До cache busting -->
+<script src="/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+<!-- После cache busting (v10.0.23) -->
+<script src="/static/js/app.min.js?v=10.0.23"></script>
+```
+
+### Валидация
+
+- GitHub Actions проверяет формат VERSION (regex: `^[0-9]+\.[0-9]+\.[0-9]+$`)
+- Если формат невалиден → build fails с ошибкой
+- Backward compatibility: Поддержка старого формата `v{timestamp}` сохранена
+
+**Validation в CI (.github/workflows/build-and-push.yml:103-119):**
+```yaml
+- name: Cache busting
+  run: |
+    # Чтение версии из VERSION файла
+    if [[ ! -f VERSION ]]; then
+      echo "❌ VERSION file not found"
+      exit 1
+    fi
+
+    CACHE_VERSION=$(cat VERSION | tr -d '[:space:]')
+
+    # Валидация semantic versioning (X.Y.Z)
+    if [[ ! "$CACHE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "❌ Invalid VERSION format: $CACHE_VERSION"
+      exit 1
+    fi
+
+    bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+```
+
+### Миграция
+
+Проект поддерживает оба формата во время переходного периода:
+- **Semantic versioning**: `10.0.23` (рекомендуется)
+- **Legacy timestamp**: `v20260124_1530` (deprecated)
+
+**Обратная совместимость:** Regex patterns в `scripts/ci/cache_busting_ci.sh` и `scripts/lib/cache_busting.sh` поддерживают оба формата для плавной миграции.
+
+### Применяется к файлам
+
+Cache busting обновляет `?v=` query parameters в:
+- **34 HTML template файла** (frontend/web/templates/, frontend/webapp/)
+- **Service Worker** (CACHE_VERSION constant)
+- **All CSS/JS imports** в шаблонах
+
+**См. также:** `/docs/architecture/versioning.md` - Полная стратегия версионирования
+
+---
+
 ## Related Documentation
 
 - `/docs/architecture/typescript-integration.md` - TypeScript hybrid approach

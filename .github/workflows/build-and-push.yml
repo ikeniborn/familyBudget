@@ -98,12 +98,24 @@ jobs:
       - name: Cache busting
         id: cache_bust
         run: |
-          # Генерация cache version в формате v{YYYYMMDD_HHMM}
-          # Формат требуется Service Worker для валидации версии
-          CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
+          # Чтение версии из VERSION файла
+          if [[ ! -f VERSION ]]; then
+            echo "❌ VERSION file not found"
+            exit 1
+          fi
+
+          CACHE_VERSION=$(cat VERSION | tr -d '[:space:]')
+
+          # Валидация semantic versioning (X.Y.Z)
+          if [[ ! "$CACHE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid VERSION format: $CACHE_VERSION"
+            echo "   Expected: X.Y.Z (e.g., 10.0.23)"
+            exit 1
+          fi
+
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
           echo "cache_version=$CACHE_VERSION" >> $GITHUB_OUTPUT
-          echo "Generated cache version: $CACHE_VERSION"
+          echo "Cache version from VERSION file: $CACHE_VERSION"
 
           # Запуск cache busting скрипта
           bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
@@ -131,7 +143,8 @@ jobs:
 
           # Test 2: Check version format in templates
           echo "🔍 Checking cache version format..."
-          if ! grep -rE '\?v=v[0-9_]+' frontend/web/templates/ >/dev/null; then
+          # Support both semantic versioning (X.Y.Z) and legacy format (v{timestamp})
+          if ! grep -rE '\?v=([0-9]+\.[0-9]+\.[0-9]+|v[0-9_]+)' frontend/web/templates/ >/dev/null; then
             echo "❌ No valid cache versions found in templates"
             exit 1
           fi

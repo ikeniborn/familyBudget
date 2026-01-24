@@ -65,12 +65,19 @@ on:
 **Steps**:
 1. Checkout code с полной историей (fetch-depth: 0)
 2. Setup Node.js 18 с npm cache
-3. **Cache busting** (НОВОЕ в v9.0):
+3. **Cache busting** (v10.0+: читает из VERSION файла):
    ```bash
-   CACHE_VERSION=$(git rev-parse --short HEAD)
+   # v10.0+: Semantic versioning из VERSION файла
+   CACHE_VERSION=$(cat VERSION | tr -d '[:space:]')
    bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
-   # Обновляет ?v=PLACEHOLDER → ?v=abc1234 в HTML templates
+   # Обновляет ?v=PLACEHOLDER → ?v=10.0.23 в HTML templates
+
+   # Legacy (до v10.0): git hash
+   # CACHE_VERSION=$(git rev-parse --short HEAD)
    ```
+   **Important:** VERSION файл должен быть обновлен вручную перед сборкой.
+   Это обеспечивает строгий контроль версионирования и предсказуемость.
+
 4. Install dependencies (`npm ci`)
 5. Build frontend (`npm run build:prod`)
 6. Check for changes (git diff)
