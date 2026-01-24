@@ -96,17 +96,17 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
     <!-- Tailwind CSS + DaisyUI -->
-    <link rel="stylesheet" href="/static/css/tailwind-daisyui.min.css?v=10.0.29">
+    <link rel="stylesheet" href="/static/css/tailwind-daisyui.min.css?v=10.0.30">
 
     <!-- DaisyUI Overrides - centralized fixes for DaisyUI conflicts -->
     <!-- Must load AFTER DaisyUI but BEFORE custom.css -->
-    <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=10.0.29">
+    <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=10.0.30">
 
     <!-- Custom Styles (FAB Toolbar, Safe-Area, etc.) -->
-    <link rel="stylesheet" href="/static/css/custom.min.css?v=10.0.29">
+    <link rel="stylesheet" href="/static/css/custom.min.css?v=10.0.30">
 
     <!-- Loading Dots Animation (Navigation Progress) -->
-    <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=10.0.29">
+    <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=10.0.30">
 
     <!-- Inline Custom Styles -->
     <style>
@@ -387,47 +387,47 @@
     </style>
 
     <!-- Choices.js -->
-    <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=10.0.29">
-    <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=10.0.29">
+    <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=10.0.30">
+    <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=10.0.30">
     <!-- NOTE: modal-dropdowns-fix.css consolidated into daisyui-overrides.css (Section 3) -->
 
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
 
     <!-- PGlite Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
-    <script src="/shared/db/pglite.min.js?v=10.0.29"></script>
+    <script src="/shared/db/pglite.min.js?v=10.0.30"></script>
 
     <!-- Debug Logger (conditional logging for development) -->
-    <script src="/shared/static/js/debugLog.min.js?v=10.0.29"></script>
+    <script src="/shared/static/js/debugLog.min.js?v=10.0.30"></script>
 
     <!-- Centralized Logger (must load early for all pages) -->
-    <script src="/static/js/config/logging.js?v=10.0.29"></script>
-    <script src="/static/js/utils/logger.min.js?v=10.0.29"></script>
+    <script src="/static/js/config/logging.js?v=10.0.30"></script>
+    <script src="/static/js/utils/logger.min.js?v=10.0.30"></script>
 
     <!-- Modal Keyboard Adapter (v6.6.0) - Automatic modal positioning for mobile/PWA -->
-    <script src="/static/js/utils/modalKeyboardAdapter.min.js?v=10.0.29"></script>
+    <script src="/static/js/utils/modalKeyboardAdapter.min.js?v=10.0.30"></script>
 
     <!-- Delete Button Utils (for JS-generated delete buttons) -->
-    <script src="/static/js/utils/deleteButtonUtils.js?v=10.0.29"></script>
+    <script src="/static/js/utils/deleteButtonUtils.js?v=10.0.30"></script>
 
     <!-- HTMX -->
-    <script src="/static/js/vendor/htmx.min.js?v=10.0.29"></script>
+    <script src="/static/js/vendor/htmx.min.js?v=10.0.30"></script>
 
     <!-- Choices.js JS -->
-    <script src="/static/js/vendor/choices.min.js?v=10.0.29"></script>
+    <script src="/static/js/vendor/choices.min.js?v=10.0.30"></script>
 
     <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
-    <script src="/static/js/offline/idb.min.js?v=10.0.29"></script>
+    <script src="/static/js/offline/idb.min.js?v=10.0.30"></script>
     <!-- Network Detection Module v3.0.0 (modular TypeScript, ZERO dependencies) -->
-    <script src="/static/js/network.min.js?v=10.0.29"></script>
-    <script src="/static/js/offline/offlineManager.min.js?v=10.0.29"></script>
-    <script src="/static/js/offline/conflictResolver.min.js?v=10.0.29"></script>
+    <script src="/static/js/network.min.js?v=10.0.30"></script>
+    <script src="/static/js/offline/offlineManager.min.js?v=10.0.30"></script>
+    <script src="/static/js/offline/conflictResolver.min.js?v=10.0.30"></script>
 
     {% if user %}
     <!-- Auth-required scripts (только для авторизованных) -->
-    <script src="/static/js/offline/pushManager.min.js?v=10.0.29"></script>
-    <script src="/static/js/budget/budgetWSClient.min.js?v=10.0.29"></script>
-    <script src="/static/js/budget/incrementalUpdates.min.js?v=10.0.29"></script>
+    <script src="/static/js/offline/pushManager.min.js?v=10.0.30"></script>
+    <script src="/static/js/budget/budgetWSClient.min.js?v=10.0.30"></script>
+    <script src="/static/js/budget/incrementalUpdates.min.js?v=10.0.30"></script>
     {% endif %}
 
     <!-- ECharts (for analytics pages) -->
@@ -658,13 +658,13 @@
 
     <!-- Debug logging utility (must load BEFORE budgetShared) -->
     {% if user %}
-    <script src="/shared/static/js/debugLog.js?v=10.0.29"></script>
+    <script src="/shared/static/js/debugLog.js?v=10.0.30"></script>
 
     <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
-    <script src="/shared/static/js/budgetShared.min.js?v=10.0.29"></script>
+    <script src="/shared/static/js/budgetShared.min.js?v=10.0.30"></script>
 
     <!-- ✅ FIX 4: Shared reminder utilities -->
-    <script src="/shared/static/js/reminders.js?v=10.0.29"></script>
+    <script src="/shared/static/js/reminders.js?v=10.0.30"></script>
 
     <!-- User data for LogsCollector -->
     <script>
@@ -677,7 +677,7 @@
     </script>
 
     <!-- Logs Collector for Admin Logs Page -->
-    <script src="/static/js/utils/logsCollector.min.js?v=10.0.29"></script>
+    <script src="/static/js/utils/logsCollector.min.js?v=10.0.30"></script>
     <script>
         // Initialize LogsCollector (singleton)
         if (typeof LogsCollector !== 'undefined') {
@@ -1309,10 +1309,10 @@
     {% endif %}
 
     <!-- Navigation Progress Bar -->
-    <script src="/static/js/navigationProgress.min.js?v=10.0.29"></script>
+    <script src="/static/js/navigationProgress.min.js?v=10.0.30"></script>
 
     <!-- Web Workers (Phase 1: Core Infrastructure) -->
-    <script src="/static/js/workers/core/workerWrapper.min.js?v=10.0.29"></script>
+    <script src="/static/js/workers/core/workerWrapper.min.js?v=10.0.30"></script>
 
     <!-- WebSocket Diagnostics Modal (for debugging) -->
     <dialog id="ws-diagnostics-modal" class="modal">
@@ -1344,6 +1344,6 @@
     </dialog>
 
     <!-- WebAuthn Onboarding -->
-    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=10.0.29"></script>
+    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=10.0.30"></script>
 </body>
 </html>
