@@ -18,6 +18,15 @@ declare function setSubmitLoading(loading: boolean): void;
  * Shows skeleton during data loading for better perceived performance.
  * Migrated from: transfer.js openTransferModal() (lines 922-975)
  */
+/**
+ * Open transfer modal with skeleton loader.
+ *
+ * Shows skeleton during data loading for better perceived performance.
+ * Uses DaisyUI modal-open class (not HTML Dialog API).
+ * Caches FROM/TO category trees and financial centers.
+ *
+ * @returns Promise that resolves when modal is ready
+ */
 export async function openTransferModal(): Promise<void> {
   const modal = document.getElementById('transfer_modal');
   const skeleton = document.getElementById('transfer_modal-loading-skeleton');

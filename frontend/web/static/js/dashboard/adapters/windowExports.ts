@@ -12,6 +12,7 @@
 
 import { defineReactiveProperties, initializeStateFromGlobals } from '../core/stateManager';
 import { getState, isCacheValid } from '../core/DashboardState';
+import { showModalWithSkeleton } from '../utils/modalHelpers';
 
 
 
@@ -252,57 +253,31 @@ function recurringDeleteResolve(choice: string | null): void {
 
 /**
  * Open add transaction modal with skeleton loader.
+ *
  * Shows skeleton during data loading for better perceived performance.
+ * Uses shared showModalWithSkeleton() helper for consistent UX.
+ *
+ * @returns Promise that resolves when modal is ready
  */
 async function openAddTransactionModal(): Promise<void> {
-  const modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
-  const skeleton = document.getElementById('modal_add_transaction-loading-skeleton');
-  const formFields = document.getElementById('modal_add_transaction-form-fields');
-
-  if (!modal) {
-    debugLog('[Dashboard] modal_add_transaction not found');
-    return;
-  }
-
-  // Open modal immediately for perceived performance
-  modal.showModal();
-
-  // Check if data is already cached
   const state = getState();
-  const hasCachedData =
-    state.transactionCategoryTreeSelect !== null &&
-    isCacheValid(state.dropdownCache.categories) &&
-    isCacheValid(state.dropdownCache.financialCenters);
 
-  if (hasCachedData) {
-    // Data cached - show form immediately without skeleton
-    if (skeleton) skeleton.classList.add('hidden');
-    if (formFields) formFields.classList.remove('hidden');
-    await loadTransactionCategoriesImpl(); // Update widget
-  } else {
-    // No cache - show skeleton during loading
-    if (skeleton) skeleton.classList.remove('hidden');
-    if (formFields) formFields.classList.add('hidden');
-
-    try {
-      // Load data in parallel
+  await showModalWithSkeleton(
+    'modal_add_transaction',
+    // Check cache
+    () =>
+      state.transactionCategoryTreeSelect !== null &&
+      isCacheValid(state.dropdownCache.categories) &&
+      isCacheValid(state.dropdownCache.financialCenters),
+    // Load data
+    async () => {
       await Promise.all([
         loadTransactionCategoriesImpl(),
         loadFinancialCentersImpl(),
         loadCostCentersImpl()
       ]);
-
-      // Hide skeleton, show form
-      if (skeleton) skeleton.classList.add('hidden');
-      if (formFields) formFields.classList.remove('hidden');
-    } catch (error) {
-      console.error('[Dashboard] Failed to load transaction data:', error);
-      modal.close();
-      if (typeof showToast === 'function') {
-        showToast('Ошибка загрузки данных', 'error');
-      }
     }
-  }
+  );
 }
 
 /**

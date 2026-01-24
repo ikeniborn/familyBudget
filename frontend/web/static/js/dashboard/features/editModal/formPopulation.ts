@@ -199,6 +199,17 @@ export function initEditCategoryTreeSelect(
  * Open edit modal for pending (offline) record with skeleton loader.
  * Shows skeleton during data loading for better perceived performance.
  */
+/**
+ * Open edit modal for pending (offline) record.
+ *
+ * Loads record from IndexedDB and populates form for editing.
+ * Handles offline mode gracefully (shows cached dropdowns if API unavailable).
+ * Always shows skeleton during data loading.
+ *
+ * @param itemId - IndexedDB record ID
+ * @param entity - Record type ('fact' or 'plan')
+ * @returns Promise that resolves when modal is ready
+ */
 export async function openEditPendingRecord(itemId: number, entity: string): Promise<void> {
   const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
   const skeleton = document.getElementById('edit-loading-skeleton');
@@ -314,6 +325,17 @@ export async function openEditPendingRecord(itemId: number, entity: string): Pro
 /**
  * Open edit modal for online fact/plan record with skeleton loader.
  * Shows skeleton during data loading for better perceived performance.
+ */
+/**
+ * Open edit modal for online record (fact or plan).
+ *
+ * Fetches record data from API, loads dropdowns, and populates form for editing.
+ * Handles reminders for plan records.
+ * Always shows skeleton during data loading.
+ *
+ * @param recordType - Type of record ('fact' or 'plan')
+ * @param recordId - Database record ID
+ * @returns Promise that resolves when modal is ready
  */
 export async function openEditModal(recordType: 'fact' | 'plan', recordId: number): Promise<void> {
   const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
