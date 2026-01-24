@@ -364,23 +364,51 @@
     async loadDiagnosticData() {
       if (!this.diagnosticContainer) return;
       try {
-        const pglite$1 = await pglite.getPGliteManager();
-        const maxWaitMs = 1e4;
+        const pglite$1 = pglite.getPGliteManager();
+        console.log("[DIAGNOSTIC] Got PGliteManager instance");
+        const maxWaitMs = 3e4;
         const startTime = Date.now();
+        let attempts = 0;
         while (!pglite$1.isReady() && Date.now() - startTime < maxWaitMs) {
+          attempts++;
+          if (attempts % 10 === 0) {
+            try {
+              const diagnosticData = await pglite$1.getDiagnosticData();
+              console.log("[DIAGNOSTIC] Waiting for PGlite...", {
+                attempt: attempts,
+                elapsed: Date.now() - startTime,
+                isInitialized: diagnosticData.isInitialized,
+                syncStatus: diagnosticData.syncStatus,
+                isReady: pglite$1.isReady()
+              });
+            } catch (e) {
+              console.log("[DIAGNOSTIC] Cannot get diagnostic data yet, still initializing...");
+            }
+          }
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
         if (!pglite$1.isReady()) {
+          let finalStatus;
+          try {
+            finalStatus = await pglite$1.getDiagnosticData();
+          } catch (e) {
+            finalStatus = { error: String(e) };
+          }
+          console.error("[DIAGNOSTIC] PGlite not ready after timeout", {
+            elapsed: Date.now() - startTime,
+            finalStatus
+          });
           this.diagnosticContainer.innerHTML = `
-          <div class="alert alert-warning">
+          <div class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>PGlite еще инициализируется. Пожалуйста, подождите...</span>
+            <span>PGlite не удалось инициализировать за 30 секунд. Проверьте консоль браузера для деталей.</span>
           </div>
         `;
           return;
         }
+        console.log("[DIAGNOSTIC] PGlite is ready, loading diagnostic data");
         const data = await pglite$1.getDiagnosticData();
         try {
           this.conflictMetrics = await pglite$1.getConflictMetrics();
