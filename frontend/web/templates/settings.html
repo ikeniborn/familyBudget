@@ -380,19 +380,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load pruning stats
     async function loadPruningStats() {
         try {
-            const pglite = await getPGliteManager();
+            const pglite = getPGliteManager();
+            console.log('[PRUNING] Got PGliteManager instance');
 
             // Wait for PGlite initialization (with timeout)
-            const maxWaitMs = 10000; // 10 seconds
+            const maxWaitMs = 30000; // 30 seconds (increased from 10)
             const startTime = Date.now();
+            let attempts = 0;
             while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
+                attempts++;
+                if (attempts % 10 === 0) {
+                    // Log every 2 seconds (10 * 200ms)
+                    const diagnosticData = await pglite.getDiagnosticData();
+                    console.log('[PRUNING] Waiting for PGlite...', {
+                        attempt: attempts,
+                        elapsed: Date.now() - startTime,
+                        isInitialized: diagnosticData.isInitialized,
+                        syncStatus: diagnosticData.syncStatus,
+                        isReady: pglite.isReady()
+                    });
+                }
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
 
             if (!pglite.isReady()) {
-                console.warn('[PRUNING] PGlite not ready after timeout, skipping stats load');
+                const finalDiagnostic = await pglite.getDiagnosticData();
+                console.error('[PRUNING] PGlite not ready after timeout', {
+                    elapsed: Date.now() - startTime,
+                    finalStatus: finalDiagnostic
+                });
                 return;
             }
+
+            console.log('[PRUNING] PGlite is ready, loading stats');
 
             const stats = await pglite.getPruningStats();
 
