@@ -364,7 +364,7 @@
     async loadDiagnosticData() {
       if (!this.diagnosticContainer) return;
       try {
-        const pglite$1 = pglite.getPGliteManager();
+        const pglite$1 = await pglite.getPGliteManager();
         console.log("[DIAGNOSTIC] Got PGliteManager instance");
         const maxWaitMs = 3e4;
         const startTime = Date.now();
