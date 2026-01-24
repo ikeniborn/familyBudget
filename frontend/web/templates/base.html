@@ -502,6 +502,52 @@
                 </button>
             </div>
 
+            <!-- PGlite Status Indicator (visual-only, no interaction) -->
+            <div id="pglite-indicator-wrapper"
+                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
+                 data-tip="Локальная БД (PGlite)">
+                <div class="btn btn-ghost btn-circle btn-sm sm:btn-md pointer-events-none">
+                    <!-- Active State: Green (default) -->
+                    <svg id="pglite-icon-active"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6 text-success"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
+                    </svg>
+
+                    <!-- Syncing State: Blue + Pulse -->
+                    <svg id="pglite-icon-syncing"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6 text-info pglite-pulse hidden"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
+                    </svg>
+
+                    <!-- Error State: Red -->
+                    <svg id="pglite-icon-error"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6 text-error hidden"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
+                    </svg>
+                </div>
+            </div>
+
             <!-- Push Bell Button (visual indicator with navigation to settings) -->
             <div id="push-bell-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center">
                 <button id="push-bell-btn"
