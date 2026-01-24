@@ -12,6 +12,7 @@ on:
       - 'redis/**'
       - 'postgres/**'
       - 'frontend/**'
+      - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/build-and-push.yml'
