@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="0;url={{ target_url }}">
+    <title>Redirecting...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <p>Перенаправление...</p>
+    </div>
+    <script>
+        // CRITICAL: Выполняется ДО навигации на target_url
+        // Этот скрипт гарантирует что PGlite флаг установлен ПЕРЕД загрузкой dashboard.min.js
+
+        console.log('[AUTH_REDIRECT] Initializing redirect flow...');
+
+        // Auto-enable PGlite for first-time users (only if not already set)
+        if (localStorage.getItem('enablePGlite') === null) {
+            localStorage.setItem('enablePGlite', 'true');
+            console.log('[AUTH_REDIRECT] ✅ PGlite auto-enabled for new user');
+        } else {
+            console.log('[AUTH_REDIRECT] PGlite already configured:', localStorage.getItem('enablePGlite'));
+        }
+
+        // Set just_logged_in flag for WebAuthn onboarding
+        sessionStorage.setItem('just_logged_in', 'true');
+        console.log('[AUTH_REDIRECT] Session flag set: just_logged_in=true');
+
+        // Redirect to target URL
+        console.log('[AUTH_REDIRECT] Redirecting to:', '{{ target_url }}');
+        window.location.href = '{{ target_url }}';
+    </script>
+</body>
+</html>

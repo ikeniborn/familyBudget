@@ -238,12 +238,12 @@ async function handleVerify(e) {
         clearInterval(timerInterval);
 
         showToast('Вход выполнен успешно!', 'success');
-        sessionStorage.setItem('just_logged_in', 'true');
-        // Auto-enable PGlite for first-time users
+        // CRITICAL: Auto-enable PGlite FIRST (before redirect)
         if (localStorage.getItem('enablePGlite') === null) {
             localStorage.setItem('enablePGlite', 'true');
             console.log('[AUTH] PGlite auto-enabled for new user (2FA)');
         }
+        sessionStorage.setItem('just_logged_in', 'true');
         setTimeout(() => {
             window.location.href = '/';
         }, 1000);

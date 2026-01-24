@@ -167,7 +167,7 @@ async def telegram_login_page(request: Request) -> HTMLResponse:
 
 @router.get(
     "/telegram-callback",
-    response_class=RedirectResponse,
+    response_class=HTMLResponse,
     summary="Telegram Widget Callback",
     description="""
     Handle callback from Telegram Login Widget.
@@ -211,7 +211,7 @@ async def telegram_callback(
     request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
-) -> RedirectResponse:
+) -> HTMLResponse:
     """
     Handle Telegram Login Widget callback.
 
@@ -223,7 +223,7 @@ async def telegram_callback(
         session: Async database session
 
     Returns:
-        RedirectResponse: Redirect to dashboard on success
+        HTMLResponse: Redirect template to dashboard on success
 
     Raises:
         HTTPException: 401 if hash validation fails
@@ -354,8 +354,13 @@ async def telegram_callback(
     session.add(db_refresh_token)
     await session.commit()
 
-    # Step 7: Create redirect response to dashboard with login flag for WebAuthn onboarding
-    redirect = RedirectResponse(url="/?just_logged_in=true", status_code=status.HTTP_303_SEE_OTHER)
+    # Step 7: Create redirect template response to enable PGlite BEFORE dashboard loads
+    # This prevents race condition where PGlite tries to init before localStorage flag is set
+    from backend.app.main import templates
+    response = templates.TemplateResponse("auth_redirect.html", {
+        "request": request,
+        "target_url": "/"
+    })
 
     # Step 7.5: Determine secure cookie flag based on environment
     # In production with SSL, cookies should be secure=True (HTTPS only)
@@ -363,7 +368,7 @@ async def telegram_callback(
     secure_cookie = settings.APP_ENV == "production" and settings.SSL_TYPE != "none"
 
     # Step 8: Set JWT access token in httpOnly cookie
-    redirect.set_cookie(
+    response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
@@ -373,7 +378,7 @@ async def telegram_callback(
     )
 
     # Step 9: Set JWT refresh token in httpOnly cookie
-    redirect.set_cookie(
+    response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
@@ -382,7 +387,7 @@ async def telegram_callback(
         max_age=60 * 60 * 24 * 30,  # 30 days in seconds
     )
 
-    return redirect
+    return response
 
 
 @router.post(
