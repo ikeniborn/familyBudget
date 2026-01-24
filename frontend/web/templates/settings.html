@@ -381,6 +381,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadPruningStats() {
         try {
             const pglite = await getPGliteManager();
+
+            // Wait for PGlite initialization (with timeout)
+            const maxWaitMs = 10000; // 10 seconds
+            const startTime = Date.now();
+            while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+
+            if (!pglite.isReady()) {
+                console.warn('[PRUNING] PGlite not ready after timeout, skipping stats load');
+                return;
+            }
+
             const stats = await pglite.getPruningStats();
 
             if (stats.lastPrunedAt) {
