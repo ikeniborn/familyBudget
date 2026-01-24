@@ -167,7 +167,7 @@ jobs:
       - name: Check for changes
         id: changes
         run: |
-          if [[ -n $(git status --porcelain frontend/web/static/js/dist frontend/web/static/css) ]]; then
+          if [[ -n $(git status --porcelain frontend/web/static/js/dist frontend/web/static/css frontend/web/templates frontend/webapp) ]]; then
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Frontend build artifacts changed"
           else
