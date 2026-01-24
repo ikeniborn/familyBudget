@@ -213,7 +213,10 @@ sw.min.js.map
 sw.min.js.gz
 
 # Vite bundle files and sourcemaps (build artifacts)
+# These files are built in CI/CD and embedded in Docker images
+frontend/**/static/**/*.bundle.js
 frontend/**/static/**/*.bundle.js.map
+*.bundle.js
 *.bundle.js.map
 
 # Standalone utility scripts (not built by Vite) - TRACKED в git
