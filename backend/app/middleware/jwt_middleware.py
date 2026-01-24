@@ -80,6 +80,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/static/",  # Static files (CSS, JS, images)
         "/shared/",  # Shared static files (JS modules, CSS)
         "/webapp/",  # Web Apps static files (HTML, JS, CSS)
+        "/assets/",  # PGlite WASM files (WebAssembly for offline database)
     ]
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
