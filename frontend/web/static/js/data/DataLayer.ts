@@ -242,7 +242,9 @@ export class DataLayer {
     }
 
     const data = await response.json();
-    return data.items || [];
+    // Backend returns FinancialCenterListResponse { financial_centers: [...] }
+    // Support both formats for backward compatibility
+    return data.financial_centers || data.items || [];
   }
 
   // =============================================================================
