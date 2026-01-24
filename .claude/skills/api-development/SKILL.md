@@ -1,9 +1,9 @@
 ---
 name: API Development
 description: Автоматизация создания REST API endpoints для проекта Family Budget
-version: 3.0.0
+version: 3.1.0
 author: Family Budget Team
-tags: [api, fastapi, rest, crud, scd-type-2, shared-budget]
+tags: [api, fastapi, rest, crud, scd-type-2, shared-budget, toon-optimized]
 dependencies: [db-management]
 architecture_refs:
   - $ref: ../../docs/architecture/database/dimensions.yaml
@@ -15,7 +15,7 @@ architecture_refs:
 user-invocable: false
 ---
 
-# API Development Skill
+# API Development Skill v3.1.0
 
 Автоматизация создания REST API endpoints с поддержкой SCD Type 2, Shared Family Budget и JWT аутентификации.
 
@@ -139,3 +139,88 @@ tests/integration/test_{model_name}_api.py    # Integration tests
 - Change Checklist: [$ref](../../docs/architecture/guides/change-checklist.yaml#/checklists/add_endpoint)
 - Endpoint Examples: [$ref](../../docs/architecture/endpoints/_index.yaml)
 - API Documentation: `docs/api/API_DOCUMENTATION.md`
+
+## TOON Optimization (v3.1+)
+
+**Экономия токенов** при хранении CRUD operations с использованием TOON формата:
+
+**Hybrid Output Format:**
+```json
+{
+  "crud_operations": [
+    {
+      "operation": "create",
+      "http_method": "POST",
+      "path": "/{model}s",
+      "status_code": 201,
+      "requires_auth": true,
+      "permission": "admin_only_dimensions",
+      "request_body": "CreateSchema",
+      "response_body": "ModelResponse",
+      "scd_type2": false,
+      "description": "Create new record (admin only for dimensions)"
+    },
+    ...
+  ],
+  "toon": {
+    "crud_operations_toon": "crud_operations[10]{operation,http_method,path,status_code,requires_auth,permission,request_body,response_body,scd_type2,description}:\n  create,POST,/{model}s,201,true,admin_only_dimensions,CreateSchema,ModelResponse,false,Create new record (admin only for dimensions)\n  ...",
+    "token_savings": "61.3%",
+    "size_comparison": {
+      "json_tokens": 909,
+      "toon_tokens": 352,
+      "saved_tokens": 557
+    }
+  }
+}
+```
+
+**Преимущества TOON:**
+- ✅ **61.3% экономия токенов** (557 tokens saved)
+- ✅ **100% backward compatible** (JSON array untouched)
+- ✅ **Lossless conversion** (round-trip tested)
+- ✅ **Human-readable** CRUD operations table
+
+**CRUD Operations Coverage:**
+- Basic CRUD: create, read, list, update, delete
+- SCD Type 2 specific: list_current, list_history
+- Batch operations: batch_create, batch_delete
+- Search: search records by query parameters
+
+**Configuration:**
+- Location: `.claude/skills/api-development/config/crud-operations.json`
+- Version: 3.1.0
+- Format: Hybrid JSON + TOON
+- Testing: `node config/test-toon-hybrid.mjs`
+
+## Changelog
+
+### v3.1.0 (2026-01-24)
+**TOON Optimization:**
+- ✅ **Hybrid Output Format**: crud-operations.json includes TOON representations alongside JSON
+- ✅ **Token Savings**: 557 tokens (61.3%) reduction in CRUD operation configuration
+- ✅ **Lossless Conversion**: Round-trip tested for data integrity
+- ✅ **Backward Compatibility**: JSON array remains unchanged, TOON is additive
+
+**CRUD Operations Enhancements:**
+- Extracted 10 CRUD operation templates to config/crud-operations.json
+- Standardized operation structure (operation, http_method, path, status_code, requires_auth, permission, request_body, response_body, scd_type2, description)
+- Replaced null values with empty strings for TOON compatibility
+
+**Operation Coverage:**
+- Basic CRUD: create (POST), read (GET), list (GET), update (PUT), delete (DELETE)
+- SCD Type 2: list_current (GET /current), list_history (GET /{id}/history)
+- Batch operations: batch_create (POST /batch), batch_delete (DELETE /batch)
+- Search: search (GET /search)
+
+**Configuration:**
+- `config/crud-operations.json` v3.1.0 with TOON metadata
+- Token savings: 557 tokens (61.3% reduction)
+- Testing: Round-trip validation ensures lossless conversion
+
+### v3.0.0 (Initial)
+**Core Features:**
+- FastAPI endpoint templates for CRUD operations
+- SCD Type 2 versioning patterns
+- Shared Family Budget model (no user_id filtering)
+- Pydantic schema generation
+- SQLAlchemy model integration

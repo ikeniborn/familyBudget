@@ -87,42 +87,59 @@
     {
       "pattern": "No space left on device",
       "category": "disk_space",
-      "manual_action": "Free up disk space:\n  docker system prune -a\n  docker volume prune\n  Check /opt/budget/logs/ for large files",
+      "manual_action": "Free up disk space: docker system prune -a; docker volume prune; Check /opt/budget/logs/ for large files",
       "severity": "critical",
       "description": "Disk space exhausted"
     },
     {
       "pattern": "Permission denied.*sudo",
       "category": "sudo_permissions",
-      "manual_action": "Check sudo permissions:\n  visudo -c\n  Verify user is in sudoers\n  Check /etc/sudoers.d/ files",
+      "manual_action": "Check sudo permissions: visudo -c; Verify user is in sudoers; Check /etc/sudoers.d/ files",
       "severity": "critical",
       "description": "Sudo permission errors"
     },
     {
       "pattern": "Permission denied.*\\.git",
       "category": "git_permissions",
-      "manual_action": "Fix git repository permissions:\n  sudo chown -R $(whoami):$(whoami) /opt/budget\n  chmod -R 755 /opt/budget/.git",
+      "manual_action": "Fix git repository permissions: sudo chown -R $(whoami):$(whoami) /opt/budget; chmod -R 755 /opt/budget/.git",
       "severity": "high",
       "description": "Git repository permission errors"
     },
     {
       "pattern": "fatal: Could not read from remote repository",
       "category": "git_auth",
-      "manual_action": "Check SSH key authentication:\n  ssh -T git@github.com\n  ssh-add -l\n  Verify deploy key permissions",
+      "manual_action": "Check SSH key authentication: ssh -T git@github.com; ssh-add -l; Verify deploy key permissions",
       "severity": "critical",
       "description": "Git authentication failures"
     },
     {
       "pattern": "CONFLICT.*Merge conflict",
       "category": "merge_conflict",
-      "manual_action": "Resolve merge conflicts manually:\n  git status\n  Edit conflicted files\n  git add <resolved files>\n  git commit",
+      "manual_action": "Resolve merge conflicts manually: git status; Edit conflicted files; git add <resolved files>; git commit",
       "severity": "high",
       "description": "Git merge conflicts"
     }
   ],
   "metadata": {
-    "version": "2.0.0",
-    "last_updated": "2026-01-20",
-    "description": "Error pattern classification for deploy-test auto-recovery"
+    "version": "9.1.0",
+    "last_updated": "2026-01-24",
+    "description": "Error pattern classification for deploy-test auto-recovery with TOON optimization"
+  },
+  "toon": {
+    "fixable_locally_toon": "fixable_locally[5]{pattern,category,fix_command,severity,retry_delay,description}:\n  TypeScript error TS[0-9]+:,typescript,npm run type-check && npm run build,medium,5,TypeScript compilation errors\n  SyntaxError: .* in .*\\.py,python_syntax,black {file} && flake8 {file},high,10,Python syntax errors\n  npm ERR! Missing dependencies,npm_deps,npm ci,medium,5,Missing npm dependencies\n  ModuleNotFoundError: No module named,python_deps,pip install -r requirements.txt,medium,10,Missing Python dependencies\n  error: pathspec '.*' did not match any file,git_pathspec,git reset HEAD && git add -A,low,5,Git pathspec errors",
+    "fixable_remotely_toon": "fixable_remotely[5]{pattern,category,fix_command,severity,retry_delay,description}:\n  container .* unhealthy,container_health,docker compose restart {service},medium,30,Unhealthy Docker containers\n  Database connection refused,db_connection,docker compose restart postgres && sleep 10,high,30,Database connection failures\n  redis.*Connection refused,redis_connection,docker compose restart redis && sleep 5,medium,20,Redis connection failures\n  port.*already allocated,port_conflict,docker compose down && docker compose up -d,medium,15,Port allocation conflicts\n  network.*not found,network_missing,docker compose down && docker compose up -d,medium,20,Docker network not found",
+    "not_fixable_toon": "not_fixable[5]{pattern,category,manual_action,severity,description}:\n  No space left on device,disk_space,Free up disk space: docker system prune -a; docker volume prune; Check /opt/budget/logs/ for large files,critical,Disk space exhausted\n  Permission denied.*sudo,sudo_permissions,Check sudo permissions: visudo -c; Verify user is in sudoers; Check /etc/sudoers.d/ files,critical,Sudo permission errors\n  Permission denied.*\\.git,git_permissions,Fix git repository permissions: sudo chown -R $(whoami):$(whoami) /opt/budget; chmod -R 755 /opt/budget/.git,high,Git repository permission errors\n  fatal: Could not read from remote repository,git_auth,Check SSH key authentication: ssh -T git@github.com; ssh-add -l; Verify deploy key permissions,critical,Git authentication failures\n  CONFLICT.*Merge conflict,merge_conflict,Resolve merge conflicts manually: git status; Edit conflicted files; git add <resolved files>; git commit,high,Git merge conflicts",
+    "token_savings": {
+      "fixable_locally": "50.8%",
+      "fixable_remotely": "49.1%",
+      "not_fixable": "36.2%",
+      "total": "44.9%"
+    },
+    "size_comparison": {
+      "json_tokens": 1034,
+      "toon_tokens": 570,
+      "saved_tokens": 464,
+      "saved_percent": "44.9%"
+    }
   }
 }

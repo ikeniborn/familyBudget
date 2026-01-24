@@ -1,0 +1,91 @@
+{
+  "conversation_states": [
+    {
+      "name": "SELECT_ARTICLE",
+      "order": 1,
+      "prompt": "Шаг 1/4: Выберите статью бюджета",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "article_exists",
+      "next_state": "ENTER_AMOUNT",
+      "description": "User selects budget article from inline keyboard"
+    },
+    {
+      "name": "ENTER_AMOUNT",
+      "order": 2,
+      "prompt": "Шаг 2/4: Введите сумму транзакции",
+      "handler_type": "MessageHandler(TEXT)",
+      "validation": "validate_amount",
+      "next_state": "ENTER_DATE",
+      "description": "User enters transaction amount (positive decimal)"
+    },
+    {
+      "name": "ENTER_DATE",
+      "order": 3,
+      "prompt": "Шаг 3/4: Введите дату (DD.MM.YYYY) или /skip для текущей",
+      "handler_type": "MessageHandler(TEXT)",
+      "validation": "validate_date_or_skip",
+      "next_state": "CONFIRM",
+      "description": "User enters transaction date or skips to use current date"
+    },
+    {
+      "name": "CONFIRM",
+      "order": 4,
+      "prompt": "Шаг 4/4: Подтвердите транзакцию",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "confirm_or_cancel",
+      "next_state": "ConversationHandler.END",
+      "description": "User confirms or cancels transaction"
+    },
+    {
+      "name": "SELECT_TRANSACTION",
+      "order": 1,
+      "prompt": "Шаг 1/3: Выберите транзакцию для редактирования",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "transaction_exists",
+      "next_state": "EDIT_ACTION",
+      "description": "User selects transaction from list (edit flow)"
+    },
+    {
+      "name": "EDIT_ACTION",
+      "order": 2,
+      "prompt": "Шаг 2/3: Выберите действие (Изменить/Удалить)",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "action_is_valid",
+      "next_state": "EDIT_FIELD",
+      "description": "User chooses to edit or delete transaction"
+    },
+    {
+      "name": "EDIT_FIELD",
+      "order": 3,
+      "prompt": "Шаг 3/3: Выберите поле для изменения",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "field_is_valid",
+      "next_state": "ENTER_NEW_VALUE",
+      "description": "User selects which field to edit (amount, date, article)"
+    },
+    {
+      "name": "ENTER_NEW_VALUE",
+      "order": 4,
+      "prompt": "Введите новое значение",
+      "handler_type": "MessageHandler(TEXT)",
+      "validation": "validate_field_value",
+      "next_state": "ConversationHandler.END",
+      "description": "User enters new value for selected field"
+    }
+  ],
+  "metadata": {
+    "version": "2.1.0",
+    "last_updated": "2026-01-24",
+    "description": "Conversation states for Telegram bot ConversationHandler with TOON optimization"
+  },
+  "toon": {
+    "conversation_states_toon": "conversation_states[8]{name,order,prompt,handler_type,validation,next_state,description}:\n  SELECT_ARTICLE,1,Шаг 1/4: Выберите статью бюджета,CallbackQueryHandler,article_exists,ENTER_AMOUNT,User selects budget article from inline keyboard\n  ENTER_AMOUNT,2,Шаг 2/4: Введите сумму транзакции,MessageHandler(TEXT),validate_amount,ENTER_DATE,User enters transaction amount (positive decimal)\n  ENTER_DATE,3,Шаг 3/4: Введите дату (DD.MM.YYYY) или /skip для текущей,MessageHandler(TEXT),validate_date_or_skip,CONFIRM,User enters transaction date or skips to use current date\n  CONFIRM,4,Шаг 4/4: Подтвердите транзакцию,CallbackQueryHandler,confirm_or_cancel,ConversationHandler.END,User confirms or cancels transaction\n  SELECT_TRANSACTION,1,Шаг 1/3: Выберите транзакцию для редактирования,CallbackQueryHandler,transaction_exists,EDIT_ACTION,User selects transaction from list (edit flow)\n  EDIT_ACTION,2,Шаг 2/3: Выберите действие (Изменить/Удалить),CallbackQueryHandler,action_is_valid,EDIT_FIELD,User chooses to edit or delete transaction\n  EDIT_FIELD,3,Шаг 3/3: Выберите поле для изменения,CallbackQueryHandler,field_is_valid,ENTER_NEW_VALUE,\"User selects which field to edit (amount, date, article)\"\n  ENTER_NEW_VALUE,4,Введите новое значение,MessageHandler(TEXT),validate_field_value,ConversationHandler.END,User enters new value for selected field",
+    "token_savings": "46.5%",
+    "size_comparison": {
+      "json_tokens": 637,
+      "toon_tokens": 341,
+      "saved_tokens": 296,
+      "saved_percent": "46.5%"
+    }
+  }
+}

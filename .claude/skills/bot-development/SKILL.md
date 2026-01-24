@@ -1,14 +1,14 @@
 ---
 name: Telegram Bot Development
 description: Автоматизация создания Telegram bot команд и handlers
-version: 2.0.0
+version: 2.1.0
 author: Family Budget Team
-tags: [telegram, bot, python-telegram-bot, conversationhandler, webapp]
+tags: [telegram, bot, python-telegram-bot, conversationhandler, webapp, toon-optimized]
 dependencies: [api-development]
 user-invocable: false
 ---
 
-# Telegram Bot Development Skill
+# Telegram Bot Development Skill v2.1.0
 
 Автоматизация создания новых команд, conversation handlers и Telegram Web Apps для проекта Family Budget.
 
@@ -75,6 +75,53 @@ bot/
 - Vanilla JS ES6+ (~190KB bundle)
 - Telegram Web Apps SDK
 - BudgetShared.js module (DateFormatter, CalendarWidget, ChoicesCategoryTree)
+
+## TOON Optimization (v2.1+)
+
+**Экономия токенов** при хранении conversation states с использованием TOON формата:
+
+**Hybrid Output Format:**
+```json
+{
+  "conversation_states": [
+    {
+      "name": "SELECT_ARTICLE",
+      "order": 1,
+      "prompt": "Шаг 1/4: Выберите статью бюджета",
+      "handler_type": "CallbackQueryHandler",
+      "validation": "article_exists",
+      "next_state": "ENTER_AMOUNT",
+      "description": "User selects budget article from inline keyboard"
+    },
+    ...
+  ],
+  "toon": {
+    "conversation_states_toon": "conversation_states[8]{name,order,prompt,handler_type,validation,next_state,description}:\n  SELECT_ARTICLE,1,Шаг 1/4: Выберите статью бюджета,CallbackQueryHandler,article_exists,ENTER_AMOUNT,User selects budget article from inline keyboard\n  ...",
+    "token_savings": "46.5%",
+    "size_comparison": {
+      "json_tokens": 637,
+      "toon_tokens": 341,
+      "saved_tokens": 296
+    }
+  }
+}
+```
+
+**Преимущества TOON:**
+- ✅ **46.5% экономия токенов** (296 tokens saved)
+- ✅ **100% backward compatible** (JSON array untouched)
+- ✅ **Lossless conversion** (round-trip tested)
+- ✅ **Human-readable** state machine format
+
+**Conversation States Coverage:**
+- Add transaction flow: SELECT_ARTICLE → ENTER_AMOUNT → ENTER_DATE → CONFIRM
+- Edit transaction flow: SELECT_TRANSACTION → EDIT_ACTION → EDIT_FIELD → ENTER_NEW_VALUE
+
+**Configuration:**
+- Location: `.claude/skills/bot-development/config/conversation-states.json`
+- Version: 2.1.0
+- Format: Hybrid JSON + TOON
+- Testing: `node config/test-toon-hybrid.mjs`
 
 ## Шаблон простой команды
 
@@ -453,3 +500,34 @@ A: Добавь `conversation_timeout=300` в ConversationHandler
 
 **Q: Как интегрировать Telegram Web Apps?**
 A: Setup Menu Button с WebAppInfo URL + используй Telegram.WebApp.initDataUnsafe для auth
+
+## Changelog
+
+### v2.1.0 (2026-01-24)
+**TOON Optimization:**
+- ✅ **Hybrid Output Format**: conversation-states.json includes TOON representations alongside JSON
+- ✅ **Token Savings**: 296 tokens (46.5%) reduction in conversation state configuration
+- ✅ **Lossless Conversion**: Round-trip tested for data integrity
+- ✅ **Backward Compatibility**: JSON array remains unchanged, TOON is additive
+
+**Conversation States Enhancements:**
+- Extracted 8 conversation states to config/conversation-states.json
+- Standardized state structure (name, order, prompt, handler_type, validation, next_state, description)
+- Added token savings metadata for transparency
+
+**State Coverage:**
+- Add transaction flow (4 states): SELECT_ARTICLE, ENTER_AMOUNT, ENTER_DATE, CONFIRM
+- Edit transaction flow (4 states): SELECT_TRANSACTION, EDIT_ACTION, EDIT_FIELD, ENTER_NEW_VALUE
+
+**Configuration:**
+- `config/conversation-states.json` v2.1.0 with TOON metadata
+- Token savings: 296 tokens (46.5% reduction)
+- Testing: Round-trip validation ensures lossless conversion
+
+### v2.0.0 (Initial)
+**Core Features:**
+- ConversationHandler templates for multi-step commands
+- Telegram Web Apps integration (8 HTML forms)
+- API client integration with backend
+- SessionManager for JWT tokens
+- Input validation utilities

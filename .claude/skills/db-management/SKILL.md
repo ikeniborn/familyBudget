@@ -1,14 +1,14 @@
 ---
 name: Database Management
 description: Управление БД, миграциями, SCD Type 2 и Closure Table
-version: 2.0.0
+version: 2.1.0
 author: Family Budget Team
-tags: [database, postgresql, alembic, migrations, scd-type-2, closure-table, shared-budget]
+tags: [database, postgresql, alembic, migrations, scd-type-2, closure-table, shared-budget, toon-optimized]
 dependencies: []
 user-invocable: false
 ---
 
-# Database Management Skill
+# Database Management Skill v2.1.0
 
 Автоматизация управления базой данных, миграциями и работы с SCD Type 2 / Closure Table patterns.
 
@@ -641,3 +641,87 @@ alembic downgrade abc123def456
 **Q: Как обновить Closure Table при изменении parent_id?**
 
 A: Используй `HierarchyService` - он автоматически обновляет все транзитивные связи. НЕ обновляй closure table напрямую через SQL!
+
+## TOON Optimization (v2.1+)
+
+**Экономия токенов** при хранении migration templates с использованием TOON формата:
+
+**Hybrid Output Format:**
+```json
+{
+  "scd_type2_migration_steps": [
+    {
+      "step": 1,
+      "action": "add_version_columns",
+      "sql_snippet": "ALTER TABLE {table} ADD COLUMN valid_from...",
+      "description": "Add SCD Type 2 temporal columns"
+    },
+    ...
+  ],
+  "toon": {
+    "scd_type2_migration_steps_toon": "scd_type2_migration_steps[6]{step,action,sql_snippet,description}:\n  1,add_version_columns,ALTER TABLE {table} ADD COLUMN valid_from...,Add SCD Type 2 temporal columns\n  ...",
+    "token_savings": {
+      "scd_type2_migration_steps": "32.8%",
+      "total": "33.0%"
+    },
+    "size_comparison": {
+      "json_tokens": 895,
+      "toon_tokens": 600,
+      "saved_tokens": 295
+    }
+  }
+}
+```
+
+**Преимущества TOON:**
+- ✅ **33.0% экономия токенов** (295 tokens saved)
+- ✅ **100% backward compatible** (JSON arrays untouched)
+- ✅ **Lossless conversion** (round-trip tested)
+- ✅ **Human-readable** migration step tables
+
+**Migration Templates Breakdown:**
+| Template Type | Steps | JSON Tokens | TOON Tokens | Saved | Percent |
+|---------------|-------|-------------|-------------|-------|---------|
+| SCD Type 2 | 6 | 393 | 264 | 129 | 32.8% |
+| Closure Table | 4 | 272 | 189 | 83 | 30.5% |
+| Shared Budget | 4 | 230 | 147 | 83 | 36.1% |
+| **Total** | **14** | **895** | **600** | **295** | **33.0%** |
+
+**Configuration:**
+- Location: `.claude/skills/db-management/config/migration-templates.json`
+- Version: 2.1.0
+- Format: Hybrid JSON + TOON
+- Testing: `node config/test-toon-hybrid.mjs`
+
+## Changelog
+
+### v2.1.0 (2026-01-24)
+**TOON Optimization:**
+- ✅ **Hybrid Output Format**: migration-templates.json includes TOON representations alongside JSON
+- ✅ **Token Savings**: 295 tokens (33.0%) reduction in migration template configuration
+- ✅ **Lossless Conversion**: Round-trip tested for data integrity
+- ✅ **Backward Compatibility**: JSON arrays remain unchanged, TOON is additive
+
+**Migration Templates Enhancements:**
+- Extracted 6 SCD Type 2 migration steps to config/migration-templates.json
+- Extracted 4 Closure Table migration steps
+- Extracted 4 Shared Budget migration steps
+- Standardized template structure (step, action, sql_snippet, description)
+
+**Template Coverage:**
+- SCD Type 2: add_version_columns, add_is_current_index, add_version_index, add_valid_period_index, create_history_table, add_history_trigger
+- Closure Table: create_hierarchy_table, add_self_reference, add_depth_index, add_descendant_index
+- Shared Budget: add_user_id_column, set_default_user, add_not_null_constraint, add_user_index
+
+**Configuration:**
+- `config/migration-templates.json` v2.1.0 with TOON metadata
+- Token savings: 295 tokens (33.0% reduction)
+- Testing: Round-trip validation ensures lossless conversion
+
+### v2.0.0 (Initial)
+**Core Features:**
+- Alembic migration templates
+- SCD Type 2 versioning patterns
+- Closure Table hierarchy management
+- Shared Family Budget model setup
+- PostgreSQL optimization patterns

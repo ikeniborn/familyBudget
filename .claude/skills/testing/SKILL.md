@@ -1,14 +1,14 @@
 ---
 name: testing-quality-assurance
 description: Автоматизация тестирования и проверки качества кода
-version: 2.0.0
+version: 2.1.0
 author: Family Budget Team
-tags: [testing, pytest, quality, coverage, linting, shared-budget]
+tags: [testing, pytest, quality, coverage, linting, shared-budget, toon-optimized]
 dependencies: [api-development]
 user-invocable: false
 ---
 
-# Testing & Quality Assurance Skill
+# Testing & Quality Assurance Skill v2.1.0
 
 Автоматизация создания тестов и проверки качества кода для проекта Family Budget.
 
@@ -712,3 +712,90 @@ A: Проверяй что:
 **Q: Нужно ли тестировать каждый endpoint?**
 
 A: Да! Минимум: success case, 401 unauthorized, 404 not found, user isolation.
+
+## TOON Optimization (v2.1+)
+
+**Экономия токенов** при хранении test templates с использованием TOON формата:
+
+**Hybrid Output Format:**
+```json
+{
+  "unit_test_templates": [
+    {
+      "test_name": "test_create_{model}_success",
+      "http_method": "POST",
+      "endpoint": "/api/v1/{model}s",
+      "expected_status": 201,
+      "validates": "name|user_id|is_current|id|created_at",
+      "description": "Test successful creation with valid payload"
+    },
+    ...
+  ],
+  "toon": {
+    "unit_test_templates_toon": "unit_test_templates[9]{test_name,http_method,endpoint,expected_status,validates,description}:\n  test_create_{model}_success,POST,/api/v1/{model}s,201,name|user_id|is_current|id|created_at,Test successful creation with valid payload\n  ...",
+    "token_savings": {
+      "unit_test_templates": "50.6%",
+      "total": "47.9%"
+    },
+    "size_comparison": {
+      "json_tokens": 1050,
+      "toon_tokens": 547,
+      "saved_tokens": 503
+    }
+  }
+}
+```
+
+**Преимущества TOON:**
+- ✅ **47.9% экономия токенов** (503 tokens saved)
+- ✅ **100% backward compatible** (JSON arrays untouched)
+- ✅ **Lossless conversion** (round-trip tested)
+- ✅ **Human-readable** test templates
+
+**Test Templates Breakdown:**
+| Template Type | JSON Tokens | TOON Tokens | Saved | Percent |
+|---------------|-------------|-------------|-------|---------|
+| unit_test_templates (9) | 614 | 303 | 311 | 50.6% |
+| integration_test_templates (3) | 232 | 154 | 78 | 33.6% |
+| fixture_templates (5) | 203 | 89 | 114 | 56.2% |
+| **Total** | **1050** | **547** | **503** | **47.9%** |
+
+**Configuration:**
+- Location: `.claude/skills/testing/config/test-templates.json`
+- Version: 2.1.0
+- Format: Hybrid JSON + TOON
+- Testing: `node config/test-toon-hybrid.mjs`
+
+## Changelog
+
+### v2.1.0 (2026-01-24)
+**TOON Optimization:**
+- ✅ **Hybrid Output Format**: test-templates.json includes TOON representations alongside JSON
+- ✅ **Token Savings**: 503 tokens (47.9%) reduction in test template configuration
+- ✅ **Lossless Conversion**: Round-trip tested for data integrity
+- ✅ **Backward Compatibility**: JSON arrays remain unchanged, TOON is additive
+
+**Test Templates Enhancements:**
+- Extracted 9 unit test templates to config/test-templates.json
+- Extracted 3 integration test templates
+- Extracted 5 fixture templates
+- Standardized template structure (test_name, http_method, endpoint, expected_status, validates, description)
+- Converted array fields to pipe-delimited strings for TOON compatibility
+
+**Template Coverage:**
+- Unit tests: CRUD operations (create, get, update, delete, list), auth, validation
+- Integration tests: auth flow, article hierarchy, SCD Type 2 versioning
+- Fixtures: test_user, test_user_token, test_article, client, session
+
+**Configuration:**
+- `config/test-templates.json` v2.1.0 with TOON metadata
+- Token savings: 503 tokens (47.9% reduction)
+- Testing: Round-trip validation ensures lossless conversion
+
+### v2.0.0 (Initial)
+**Core Features:**
+- pytest templates for unit/integration/e2e tests
+- httpx.AsyncClient for API testing
+- pytest-cov for coverage reports
+- ruff, black, mypy for code quality
+- Shared Family Budget test patterns
