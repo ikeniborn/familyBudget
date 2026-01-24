@@ -1,0 +1,197 @@
+{#
+    PGlite Indicator Manager Module
+    Visual status indicator for PGlite database in navbar.
+
+    CRITICAL: Load AFTER offline-manager-init.html
+
+    Functions:
+        - updatePGliteIndicator(state): Update UI state
+        - showPGliteIndicator(): Show indicator
+        - hidePGliteIndicator(): Hide indicator
+        - initPGliteIndicator(): Initialize on page load
+        - onPGliteSyncStart/Complete/Error(): Sync hooks
+
+    States:
+        - 'active': Green (PGlite enabled, idle)
+        - 'syncing': Blue pulse (sync in progress)
+        - 'error': Red (sync error, auto-recover after 5s)
+#}
+{% if user %}
+<script>
+    // ============================================================================
+    // PGlite Indicator State Management
+    // ============================================================================
+
+    /**
+     * Update PGlite indicator visual state
+     * @param {string} state - 'active' | 'syncing' | 'error'
+     */
+    function updatePGliteIndicator(state) {
+        const iconActive = document.getElementById('pglite-icon-active');
+        const iconSyncing = document.getElementById('pglite-icon-syncing');
+        const iconError = document.getElementById('pglite-icon-error');
+
+        if (!iconActive || !iconSyncing || !iconError) {
+            console.warn('[PGLITE_INDICATOR] Icons not found');
+            return;
+        }
+
+        // Hide all states
+        iconActive.classList.add('hidden');
+        iconSyncing.classList.add('hidden');
+        iconError.classList.add('hidden');
+
+        // Show target state
+        switch (state) {
+            case 'syncing':
+                iconSyncing.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: syncing (pulse)');
+                break;
+            case 'error':
+                iconError.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: error');
+                break;
+            case 'active':
+            default:
+                iconActive.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: active');
+                break;
+        }
+    }
+
+    /**
+     * Show PGlite indicator wrapper (when PGlite enabled)
+     */
+    function showPGliteIndicator() {
+        const wrapper = document.getElementById('pglite-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.remove('hidden');
+            console.debug('[PGLITE_INDICATOR] Indicator shown');
+        }
+    }
+
+    /**
+     * Hide PGlite indicator wrapper (when PGlite disabled)
+     */
+    function hidePGliteIndicator() {
+        const wrapper = document.getElementById('pglite-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.add('hidden');
+            console.debug('[PGLITE_INDICATOR] Indicator hidden');
+        }
+    }
+
+    /**
+     * Initialize indicator based on localStorage.enablePGlite
+     */
+    async function initPGliteIndicator() {
+        try {
+            const isPGliteEnabled = localStorage.getItem('enablePGlite') === 'true';
+
+            if (isPGliteEnabled) {
+                showPGliteIndicator();
+
+                // Check initial connection status from PGliteState
+                if (window.PGliteManager) {
+                    const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
+                    const state = getState();
+
+                    // Map connectionStatus to indicator state
+                    if (state.connectionStatus === 'error') {
+                        updatePGliteIndicator('error');
+                    } else if (state.connectionStatus === 'connecting') {
+                        updatePGliteIndicator('syncing');
+                    } else {
+                        updatePGliteIndicator('active');
+                    }
+                } else {
+                    // PGliteManager not loaded yet, default active
+                    updatePGliteIndicator('active');
+                }
+            } else {
+                hidePGliteIndicator();
+            }
+        } catch (error) {
+            console.error('[PGLITE_INDICATOR] Init error:', error);
+            hidePGliteIndicator();
+        }
+    }
+
+    /**
+     * Sync event handlers (called from sync operations)
+     */
+    function onPGliteSyncStart() {
+        if (localStorage.getItem('enablePGlite') === 'true') {
+            updatePGliteIndicator('syncing');
+        }
+    }
+
+    function onPGliteSyncComplete() {
+        if (localStorage.getItem('enablePGlite') === 'true') {
+            updatePGliteIndicator('active');
+        }
+    }
+
+    function onPGliteSyncError(error) {
+        console.error('[PGLITE_INDICATOR] Sync error:', error);
+        if (localStorage.getItem('enablePGlite') === 'true') {
+            updatePGliteIndicator('error');
+
+            // Auto-recover to active after 5 seconds
+            setTimeout(() => {
+                updatePGliteIndicator('active');
+            }, 5000);
+        }
+    }
+
+    /**
+     * Listen for settings changes (enablePGlite toggle)
+     */
+    window.addEventListener('storage', (event) => {
+        if (event.key === 'enablePGlite') {
+            initPGliteIndicator();
+        }
+    });
+
+    /**
+     * Polling: Check PGliteState every 2 seconds
+     * Fallback for state updates not caught by event hooks
+     */
+    setInterval(async () => {
+        if (localStorage.getItem('enablePGlite') === 'true' && window.PGliteManager) {
+            try {
+                const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
+                const state = getState();
+
+                // Sync state transitions
+                if (state.connectionStatus === 'error') {
+                    updatePGliteIndicator('error');
+                } else if (state.connectionStatus === 'connecting') {
+                    updatePGliteIndicator('syncing');
+                } else if (state.connectionStatus === 'connected') {
+                    updatePGliteIndicator('active');
+                }
+            } catch (error) {
+                // Silent failure (PGliteManager not ready)
+            }
+        }
+    }, 2000);
+
+    // Initialize on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', () => {
+        initPGliteIndicator();
+    });
+
+    // Export global API for sync operations
+    window.pgliteIndicator = {
+        update: updatePGliteIndicator,
+        show: showPGliteIndicator,
+        hide: hidePGliteIndicator,
+        onSyncStart: onPGliteSyncStart,
+        onSyncComplete: onPGliteSyncComplete,
+        onSyncError: onPGliteSyncError
+    };
+
+    console.debug('[PGLITE_INDICATOR] Manager initialized');
+</script>
+{% endif %}

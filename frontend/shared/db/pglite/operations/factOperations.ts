@@ -28,53 +28,65 @@ export async function createFact(
   db: PGlite,
   fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
 ): Promise<string> {
-  const temp_id = generateUUID();
-  const content_hash = await calculateContentHash(fact as Record<string, unknown>);
+  // Trigger sync start indicator
+  window.pgliteIndicator?.onSyncStart();
 
-  logger.debug('[PGLITE] Creating fact', { temp_id, fact });
+  try {
+    const temp_id = generateUUID();
+    const content_hash = await calculateContentHash(fact as Record<string, unknown>);
 
-  // Insert fact
-  await db.query(`
-    INSERT INTO local_budget_facts (
-      temp_id, user_id, article_id, financial_center_id, cost_center_id,
-      date, amount, record_type, comment,
-      transfer_group_id, is_transfer,
-      sync_status, content_hash,
-      created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, NOW(), NOW())
-  `, [
-    temp_id,
-    fact.user_id,
-    fact.article_id,
-    fact.financial_center_id,
-    fact.cost_center_id,
-    fact.date,
-    fact.amount,
-    fact.record_type,
-    fact.comment,
-    fact.transfer_group_id,
-    fact.is_transfer,
-    content_hash
-  ]);
+    logger.debug('[PGLITE] Creating fact', { temp_id, fact });
 
-  // Add to pending operations queue
-  await addPendingOperation(db, {
-    operation: 'create',
-    entity_type: 'fact',
-    temp_id,
-    server_id: null,
-    payload: fact as Record<string, unknown>,
-    attempts: 0,
-    max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
-    last_error: null,
-    content_hash,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as LocalPendingOperation);
+    // Insert fact
+    await db.query(`
+      INSERT INTO local_budget_facts (
+        temp_id, user_id, article_id, financial_center_id, cost_center_id,
+        date, amount, record_type, comment,
+        transfer_group_id, is_transfer,
+        sync_status, content_hash,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', $12, NOW(), NOW())
+    `, [
+      temp_id,
+      fact.user_id,
+      fact.article_id,
+      fact.financial_center_id,
+      fact.cost_center_id,
+      fact.date,
+      fact.amount,
+      fact.record_type,
+      fact.comment,
+      fact.transfer_group_id,
+      fact.is_transfer,
+      content_hash
+    ]);
 
-  logger.info('[PGLITE] Fact created', { temp_id });
+    // Add to pending operations queue
+    await addPendingOperation(db, {
+      operation: 'create',
+      entity_type: 'fact',
+      temp_id,
+      server_id: null,
+      payload: fact as Record<string, unknown>,
+      attempts: 0,
+      max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
+      last_error: null,
+      content_hash,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as LocalPendingOperation);
 
-  return temp_id;
+    logger.info('[PGLITE] Fact created', { temp_id });
+
+    // Sync complete
+    window.pgliteIndicator?.onSyncComplete();
+
+    return temp_id;
+  } catch (error) {
+    logger.error('[PGLITE] Fact create error:', error);
+    window.pgliteIndicator?.onSyncError(error as Error);
+    throw error;
+  }
 }
 
 /**
@@ -89,81 +101,94 @@ export async function updateFact(
   temp_id: string,
   updates: Partial<Pick<LocalBudgetFact, 'date' | 'amount' | 'article_id' | 'financial_center_id' | 'cost_center_id' | 'comment'>>
 ): Promise<void> {
-  logger.debug('[PGLITE] Updating fact', { temp_id, updates });
+  // Trigger sync start indicator
+  window.pgliteIndicator?.onSyncStart();
 
-  // Get existing fact to check if it exists
-  const result = await db.query(`
-    SELECT * FROM local_budget_facts WHERE temp_id = $1
-  `, [temp_id]);
+  try {
+    logger.debug('[PGLITE] Updating fact', { temp_id, updates });
 
-  if (result.rows.length === 0) {
-    throw new Error(`Fact not found: ${temp_id}`);
+    // Get existing fact to check if it exists
+    const result = await db.query(`
+      SELECT * FROM local_budget_facts WHERE temp_id = $1
+    `, [temp_id]);
+
+    if (result.rows.length === 0) {
+      throw new Error(`Fact not found: ${temp_id}`);
+    }
+
+    const fact = result.rows[0] as LocalBudgetFact;
+
+    // Build dynamic UPDATE query
+    const setClauses: string[] = [];
+    const params: unknown[] = [temp_id]; // $1 is temp_id
+    let paramIndex = 2;
+
+    if (updates.date !== undefined) {
+      setClauses.push(`date = $${paramIndex++}`);
+      params.push(updates.date);
+    }
+    if (updates.amount !== undefined) {
+      setClauses.push(`amount = $${paramIndex++}`);
+      params.push(updates.amount);
+    }
+    if (updates.article_id !== undefined) {
+      setClauses.push(`article_id = $${paramIndex++}`);
+      params.push(updates.article_id);
+    }
+    if (updates.financial_center_id !== undefined) {
+      setClauses.push(`financial_center_id = $${paramIndex++}`);
+      params.push(updates.financial_center_id);
+    }
+    if (updates.cost_center_id !== undefined) {
+      setClauses.push(`cost_center_id = $${paramIndex++}`);
+      params.push(updates.cost_center_id);
+    }
+    if (updates.comment !== undefined) {
+      setClauses.push(`comment = $${paramIndex++}`);
+      params.push(updates.comment);
+    }
+
+    if (setClauses.length === 0) {
+      logger.warn('[PGLITE] No fields to update', { temp_id });
+      window.pgliteIndicator?.onSyncComplete();
+      return;
+    }
+
+    // Update fact
+    setClauses.push('sync_status = \'pending\'');
+    setClauses.push('updated_at = NOW()');
+
+    await db.query(`
+      UPDATE local_budget_facts
+      SET ${setClauses.join(', ')}
+      WHERE temp_id = $1
+    `, params);
+
+    // Add to pending operations queue
+    const content_hash = await calculateContentHash(updates as Record<string, unknown>);
+    await addPendingOperation(db, {
+      operation: 'update',
+      entity_type: 'fact',
+      temp_id,
+      server_id: fact.id,
+      payload: updates as Record<string, unknown>,
+      attempts: 0,
+      max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
+      last_error: null,
+      content_hash,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as LocalPendingOperation);
+
+    logger.info('[PGLITE] Fact updated', { temp_id });
+
+    // Sync complete
+    window.pgliteIndicator?.onSyncComplete();
+  } catch (error) {
+    logger.error('[PGLITE] Fact update error:', error);
+    window.pgliteIndicator?.onSyncError(error as Error);
+    throw error;
   }
-
-  const fact = result.rows[0] as LocalBudgetFact;
-
-  // Build dynamic UPDATE query
-  const setClauses: string[] = [];
-  const params: unknown[] = [temp_id]; // $1 is temp_id
-  let paramIndex = 2;
-
-  if (updates.date !== undefined) {
-    setClauses.push(`date = $${paramIndex++}`);
-    params.push(updates.date);
-  }
-  if (updates.amount !== undefined) {
-    setClauses.push(`amount = $${paramIndex++}`);
-    params.push(updates.amount);
-  }
-  if (updates.article_id !== undefined) {
-    setClauses.push(`article_id = $${paramIndex++}`);
-    params.push(updates.article_id);
-  }
-  if (updates.financial_center_id !== undefined) {
-    setClauses.push(`financial_center_id = $${paramIndex++}`);
-    params.push(updates.financial_center_id);
-  }
-  if (updates.cost_center_id !== undefined) {
-    setClauses.push(`cost_center_id = $${paramIndex++}`);
-    params.push(updates.cost_center_id);
-  }
-  if (updates.comment !== undefined) {
-    setClauses.push(`comment = $${paramIndex++}`);
-    params.push(updates.comment);
-  }
-
-  if (setClauses.length === 0) {
-    logger.warn('[PGLITE] No fields to update', { temp_id });
-    return;
-  }
-
-  // Update fact
-  setClauses.push('sync_status = \'pending\'');
-  setClauses.push('updated_at = NOW()');
-
-  await db.query(`
-    UPDATE local_budget_facts
-    SET ${setClauses.join(', ')}
-    WHERE temp_id = $1
-  `, params);
-
-  // Add to pending operations queue
-  const content_hash = await calculateContentHash(updates as Record<string, unknown>);
-  await addPendingOperation(db, {
-    operation: 'update',
-    entity_type: 'fact',
-    temp_id,
-    server_id: fact.id,
-    payload: updates as Record<string, unknown>,
-    attempts: 0,
-    max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
-    last_error: null,
-    content_hash,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as LocalPendingOperation);
-
-  logger.info('[PGLITE] Fact updated', { temp_id });
 }
 
 /**
@@ -176,43 +201,55 @@ export async function deleteFact(
   db: PGlite,
   temp_id: string
 ): Promise<void> {
-  logger.debug('[PGLITE] Deleting fact', { temp_id });
+  // Trigger sync start indicator
+  window.pgliteIndicator?.onSyncStart();
 
-  // Get existing fact to check if it exists
-  const result = await db.query(`
-    SELECT * FROM local_budget_facts WHERE temp_id = $1
-  `, [temp_id]);
+  try {
+    logger.debug('[PGLITE] Deleting fact', { temp_id });
 
-  if (result.rows.length === 0) {
-    throw new Error(`Fact not found: ${temp_id}`);
+    // Get existing fact to check if it exists
+    const result = await db.query(`
+      SELECT * FROM local_budget_facts WHERE temp_id = $1
+    `, [temp_id]);
+
+    if (result.rows.length === 0) {
+      throw new Error(`Fact not found: ${temp_id}`);
+    }
+
+    const fact = result.rows[0] as LocalBudgetFact;
+
+    // Soft delete (mark as deleted, don't physically remove)
+    await db.query(`
+      UPDATE local_budget_facts
+      SET sync_status = 'deleted', updated_at = NOW()
+      WHERE temp_id = $1
+    `, [temp_id]);
+
+    // Add to pending operations queue
+    const content_hash = await calculateContentHash({ temp_id });
+    await addPendingOperation(db, {
+      operation: 'delete',
+      entity_type: 'fact',
+      temp_id,
+      server_id: fact.id,
+      payload: { temp_id } as Record<string, unknown>,
+      attempts: 0,
+      max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
+      last_error: null,
+      content_hash,
+      created_at: new Date(),
+      updated_at: new Date()
+    } as LocalPendingOperation);
+
+    logger.info('[PGLITE] Fact deleted', { temp_id });
+
+    // Sync complete
+    window.pgliteIndicator?.onSyncComplete();
+  } catch (error) {
+    logger.error('[PGLITE] Fact delete error:', error);
+    window.pgliteIndicator?.onSyncError(error as Error);
+    throw error;
   }
-
-  const fact = result.rows[0] as LocalBudgetFact;
-
-  // Soft delete (mark as deleted, don't physically remove)
-  await db.query(`
-    UPDATE local_budget_facts
-    SET sync_status = 'deleted', updated_at = NOW()
-    WHERE temp_id = $1
-  `, [temp_id]);
-
-  // Add to pending operations queue
-  const content_hash = await calculateContentHash({ temp_id });
-  await addPendingOperation(db, {
-    operation: 'delete',
-    entity_type: 'fact',
-    temp_id,
-    server_id: fact.id,
-    payload: { temp_id } as Record<string, unknown>,
-    attempts: 0,
-    max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
-    last_error: null,
-    content_hash,
-    created_at: new Date(),
-    updated_at: new Date()
-  } as LocalPendingOperation);
-
-  logger.info('[PGLITE] Fact deleted', { temp_id });
 }
 
 /**

@@ -988,6 +988,7 @@
     <!-- Offline Manager Initialization (only for authenticated users) -->
     {% if user %}
     {% include 'scripts/offline-manager-init.html' %}
+    {% include 'scripts/pglite-indicator-manager.html' %}
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
     {% endif %}

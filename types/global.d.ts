@@ -134,6 +134,16 @@ interface Window {
 
   // Utility functions
   showToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+
+  // PGlite Indicator Manager
+  pgliteIndicator?: {
+    update: (state: 'active' | 'syncing' | 'error') => void;
+    show: () => void;
+    hide: () => void;
+    onSyncStart: () => void;
+    onSyncComplete: () => void;
+    onSyncError: (error: Error) => void;
+  };
 }
 
 /**

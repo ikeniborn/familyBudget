@@ -107,43 +107,55 @@ export async function syncReferenceData(
   referenceData: ShoppingReferenceData,
   onProgress?: SyncProgressCallback
 ): Promise<void> {
-  logger.info('[SHOPPING_SYNC] Starting reference data sync', {
-    stores: referenceData.stores.length,
-    product_groups: referenceData.product_groups.length,
-    hierarchy: referenceData.product_group_hierarchy.length
-  });
+  // Trigger sync start indicator
+  window.pgliteIndicator?.onSyncStart();
 
-  onProgress?.({
-    phase: 'reference',
-    message: 'Syncing stores...',
-    current: 0,
-    total: referenceData.stores.length
-  });
+  try {
+    logger.info('[SHOPPING_SYNC] Starting reference data sync', {
+      stores: referenceData.stores.length,
+      product_groups: referenceData.product_groups.length,
+      hierarchy: referenceData.product_group_hierarchy.length
+    });
 
-  // Bulk insert stores
-  await bulkInsertStores(db, referenceData.stores);
+    onProgress?.({
+      phase: 'reference',
+      message: 'Syncing stores...',
+      current: 0,
+      total: referenceData.stores.length
+    });
 
-  onProgress?.({
-    phase: 'reference',
-    message: 'Syncing product groups...',
-    current: referenceData.stores.length,
-    total: referenceData.stores.length + referenceData.product_groups.length
-  });
+    // Bulk insert stores
+    await bulkInsertStores(db, referenceData.stores);
 
-  // Bulk insert product groups
-  await bulkInsertProductGroups(db, referenceData.product_groups);
+    onProgress?.({
+      phase: 'reference',
+      message: 'Syncing product groups...',
+      current: referenceData.stores.length,
+      total: referenceData.stores.length + referenceData.product_groups.length
+    });
 
-  onProgress?.({
-    phase: 'reference',
-    message: 'Syncing hierarchy...',
-    current: referenceData.stores.length + referenceData.product_groups.length,
-    total: referenceData.stores.length + referenceData.product_groups.length + referenceData.product_group_hierarchy.length
-  });
+    // Bulk insert product groups
+    await bulkInsertProductGroups(db, referenceData.product_groups);
 
-  // Bulk insert hierarchy
-  await bulkInsertProductGroupHierarchy(db, referenceData.product_group_hierarchy);
+    onProgress?.({
+      phase: 'reference',
+      message: 'Syncing hierarchy...',
+      current: referenceData.stores.length + referenceData.product_groups.length,
+      total: referenceData.stores.length + referenceData.product_groups.length + referenceData.product_group_hierarchy.length
+    });
 
-  logger.info('[SHOPPING_SYNC] Reference data sync complete');
+    // Bulk insert hierarchy
+    await bulkInsertProductGroupHierarchy(db, referenceData.product_group_hierarchy);
+
+    logger.info('[SHOPPING_SYNC] Reference data sync complete');
+
+    // Sync complete
+    window.pgliteIndicator?.onSyncComplete();
+  } catch (error) {
+    logger.error('[SHOPPING_SYNC] Reference data sync error:', error);
+    window.pgliteIndicator?.onSyncError(error as Error);
+    throw error;
+  }
 }
 
 /**
@@ -270,31 +282,43 @@ export async function applyDeltaSync(
   onConflict?: (conflict: ShoppingConflictDetection) => Promise<void>,
   onProgress?: SyncProgressCallback
 ): Promise<number> {
-  logger.info('[SHOPPING_SYNC] Applying delta sync', {
-    created_lists: delta.created.lists.length,
-    created_items: delta.created.items.length,
-    updated_lists: delta.updated.lists.length,
-    updated_items: delta.updated.items.length,
-    deleted_lists: delta.deleted.list_ids.length,
-    deleted_items: delta.deleted.item_ids.length
-  });
+  // Trigger sync start indicator
+  window.pgliteIndicator?.onSyncStart();
 
-  onProgress?.({
-    phase: 'delta',
-    message: 'Applying server changes...',
-    current: 0,
-    total: delta.created.lists.length + delta.created.items.length +
-           delta.updated.lists.length + delta.updated.items.length
-  });
+  try {
+    logger.info('[SHOPPING_SYNC] Applying delta sync', {
+      created_lists: delta.created.lists.length,
+      created_items: delta.created.items.length,
+      updated_lists: delta.updated.lists.length,
+      updated_items: delta.updated.items.length,
+      deleted_lists: delta.deleted.list_ids.length,
+      deleted_items: delta.deleted.item_ids.length
+    });
 
-  // Apply all changes in logical groups
-  await applyCreatedRecords(db, delta.created);
-  const conflictsCount = await applyUpdatedRecords(db, delta.updated, onConflict);
-  await applyDeletedRecords(db, delta.deleted);
+    onProgress?.({
+      phase: 'delta',
+      message: 'Applying server changes...',
+      current: 0,
+      total: delta.created.lists.length + delta.created.items.length +
+             delta.updated.lists.length + delta.updated.items.length
+    });
 
-  logger.info('[SHOPPING_SYNC] Delta sync complete', { conflictsCount });
+    // Apply all changes in logical groups
+    await applyCreatedRecords(db, delta.created);
+    const conflictsCount = await applyUpdatedRecords(db, delta.updated, onConflict);
+    await applyDeletedRecords(db, delta.deleted);
 
-  return conflictsCount;
+    logger.info('[SHOPPING_SYNC] Delta sync complete', { conflictsCount });
+
+    // Sync complete
+    window.pgliteIndicator?.onSyncComplete();
+
+    return conflictsCount;
+  } catch (error) {
+    logger.error('[SHOPPING_SYNC] Delta sync error:', error);
+    window.pgliteIndicator?.onSyncError(error as Error);
+    throw error;
+  }
 }
 
 /**

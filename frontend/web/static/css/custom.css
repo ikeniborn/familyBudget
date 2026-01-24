@@ -850,3 +850,34 @@ html.offline-mode .save-btn:hover {
         visibility: hidden !important;
     }
 }
+
+/* ============================================== */
+/* PGlite Indicator Pulse Animation              */
+/* ============================================== */
+
+/**
+ * Pulse animation for PGlite syncing state
+ * GPU-accelerated with transform + opacity
+ */
+@keyframes pglite-pulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+.pglite-pulse {
+    animation: pglite-pulse 1.5s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+    .pglite-pulse {
+        animation: none;
+        opacity: 1;
+    }
+}
