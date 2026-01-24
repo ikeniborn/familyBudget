@@ -380,7 +380,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load pruning stats
     async function loadPruningStats() {
         try {
-            const pglite = getPGliteManager();
+            // getPGliteManager() returns Promise due to window.PGlite Proxy
+            const pglite = await getPGliteManager();
             console.log('[PRUNING] Got PGliteManager instance');
 
             // Wait for PGlite initialization (with timeout)

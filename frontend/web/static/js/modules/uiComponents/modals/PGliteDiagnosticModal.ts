@@ -63,7 +63,8 @@ export class PGliteDiagnosticModal extends BaseModal {
     if (!this.diagnosticContainer) return;
 
     try {
-      const pglite = getPGliteManager();
+      // getPGliteManager() returns Promise due to window.PGlite Proxy
+      const pglite = await getPGliteManager();
       console.log('[DIAGNOSTIC] Got PGliteManager instance');
 
       // Wait for PGlite initialization (with timeout)

@@ -99,9 +99,23 @@ export type * from './types/pglite';
 // Create lightweight proxy object для window.PGlite
 // Методы загрузят core library при первом вызове
 if (typeof window !== 'undefined') {
-  (window as any).PGlite = new Proxy({}, {
-    get(_target, prop) {
-      // Synchronous getters возвращают Promise
+  (window as any).PGlite = new Proxy({
+    // Pre-populate synchronous methods (available immediately)
+    isPGliteEnabled,
+    setPGliteEnabled,
+    setPGliteFactsWindow,
+    getPGliteManager: async () => {
+      const module = await loadPGliteCore();
+      return module.getPGliteManager();
+    }
+  }, {
+    get(target, prop) {
+      // If property exists in target, return it directly
+      if (prop in target) {
+        return (target as any)[prop];
+      }
+
+      // Otherwise, load core and return the property
       return async (...args: any[]) => {
         const module = await loadPGliteCore();
         const fn = (module as any)[prop];
