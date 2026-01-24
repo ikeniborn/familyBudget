@@ -51,19 +51,41 @@ export async function getPGliteManager() {
   return module.getPGliteManager();
 }
 
-export async function setPGliteEnabled(enabled: boolean) {
-  const module = await loadPGliteCore();
-  return module.setPGliteEnabled(enabled);
+/**
+ * Synchronous feature flag getters/setters
+ * These access localStorage directly without loading PGlite core
+ */
+export function isPGliteEnabled(): boolean {
+  return localStorage.getItem('enablePGlite') === 'true';
 }
 
-export async function isPGliteEnabled() {
-  const module = await loadPGliteCore();
-  return module.isPGliteEnabled();
+export function setPGliteEnabled(enabled: boolean): void {
+  localStorage.setItem('enablePGlite', enabled ? 'true' : 'false');
+
+  // Show notification via global showToast (from base.html)
+  if (typeof window !== 'undefined' && (window as any).showToast) {
+    const message = enabled
+      ? 'PGlite включен. Обновите страницу для инициализации offline режима.'
+      : 'PGlite отключен. Обновите страницу для online-only режима.';
+
+    (window as any).showToast(message, 'info');
+  }
 }
 
-export async function setPGliteFactsWindow(days: number) {
-  const module = await loadPGliteCore();
-  return module.setPGliteFactsWindow(days);
+export function setPGliteFactsWindow(days: number): void {
+  const MIN_FACTS_WINDOW_DAYS = 30;
+  const MAX_FACTS_WINDOW_DAYS = 365;
+
+  if (days < MIN_FACTS_WINDOW_DAYS || days > MAX_FACTS_WINDOW_DAYS) {
+    throw new Error(`Facts window must be between ${MIN_FACTS_WINDOW_DAYS} and ${MAX_FACTS_WINDOW_DAYS} days`);
+  }
+
+  localStorage.setItem('pgliteFactsWindow', days.toString());
+
+  // No reload needed, will apply on next sync
+  if (typeof window !== 'undefined' && (window as any).showToast) {
+    (window as any).showToast(`Facts window обновлен до ${days} дней`, 'success');
+  }
 }
 
 // Re-export types (no runtime overhead)

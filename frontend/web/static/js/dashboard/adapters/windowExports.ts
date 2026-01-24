@@ -13,6 +13,7 @@
 import { defineReactiveProperties, initializeStateFromGlobals } from '../core/stateManager';
 import { getState, isCacheValid } from '../core/DashboardState';
 import { showModalWithSkeleton } from '../utils/modalHelpers';
+import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
 
 
 
@@ -102,6 +103,18 @@ import type { Category } from '../types/dashboard.d';
 async function init(): Promise<void> {
   // Initialize state from existing globals
   initializeStateFromGlobals();
+
+  // Initialize PGlite early (non-blocking)
+  if (isPGliteEnabled()) {
+    Promise.resolve(getPGliteManager()).then(async (manager: any) => {
+      if (!manager.isReady()) {
+        await manager.init();
+        debugLog('[Dashboard] PGlite initialized');
+      }
+    }).catch((err: Error) => {
+      console.error('[Dashboard] Failed to initialize PGlite:', err);
+    });
+  }
 
   // Define reactive properties on window
   defineReactiveProperties();

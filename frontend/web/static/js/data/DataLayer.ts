@@ -61,7 +61,33 @@ export interface ArticleFilters {
  * Provides unified API for reference data with PGlite-first, API-fallback strategy
  */
 export class DataLayer {
-  private pglite = getPGliteManager();
+  private pglite: any | null = null;
+  private pglitePromise: Promise<any> | null = null;
+
+  /**
+   * Lazy initialize PGlite manager
+   * Handles both sync and async getPGliteManager() implementations
+   */
+  private async getPGlite(): Promise<any> {
+    if (this.pglite) {
+      return this.pglite;
+    }
+
+    if (this.pglitePromise) {
+      return this.pglitePromise;
+    }
+
+    this.pglitePromise = Promise.resolve(getPGliteManager()).then(async (manager) => {
+      // Initialize PGlite on first access
+      if (!manager.isReady()) {
+        await manager.init();
+      }
+      this.pglite = manager;
+      return manager;
+    });
+
+    return this.pglitePromise;
+  }
 
   // =============================================================================
   // Articles
@@ -78,11 +104,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryArticles(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getArticles', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryArticles(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getArticles', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -161,11 +190,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryFinancialCenters(userId, true); // only active
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryFinancialCenters(userId, true); // only active
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -234,15 +266,18 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryFilteredCostCenters(
-          userId,
-          financialCenterId,
-          true // only active
-        );
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getCostCenters', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryFilteredCostCenters(
+            userId,
+            financialCenterId,
+            true // only active
+          );
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getCostCenters', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -310,11 +345,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryArticleHierarchy(articleId);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getArticleHierarchy', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryArticleHierarchy(articleId);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getArticleHierarchy', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -369,11 +407,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryShoppingLists(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getShoppingLists', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryShoppingLists(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getShoppingLists', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -440,14 +481,17 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryShoppingListItems({
-          ...filters,
-          shopping_list_temp_id: listTempId
-        });
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getShoppingListItems', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryShoppingListItems({
+            ...filters,
+            shopping_list_temp_id: listTempId
+          });
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getShoppingListItems', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -518,11 +562,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryStores(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getStores', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryStores(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getStores', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -582,11 +629,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryProductGroups(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getProductGroups', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryProductGroups(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getProductGroups', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -657,11 +707,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryFacts(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getFacts', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryFacts(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getFacts', duration);
+          return result;
+        }
       }
 
       // Fallback to API
@@ -739,12 +792,15 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const facts = await this.pglite.queryFacts(filters);
-        const count = facts.length;
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getFactsCount', duration);
-        return count;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const facts = await pglite.queryFacts(filters);
+          const count = facts.length;
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getFactsCount', duration);
+          return count;
+        }
       }
 
       // Fallback to API
@@ -825,11 +881,14 @@ export class DataLayer {
 
     try {
       // PGlite-first strategy
-      if (isPGliteEnabled() && this.pglite.isReady()) {
-        const result = await this.pglite.queryRecurringPlans(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getRecurringPlans', duration);
-        return result;
+      if (isPGliteEnabled()) {
+        const pglite = await this.getPGlite();
+        if (pglite.isReady()) {
+          const result = await pglite.queryRecurringPlans(filters);
+          const duration = performance.now() - startTime;
+          performanceMonitor.trackPGliteCall('getRecurringPlans', duration);
+          return result;
+        }
       }
 
       // Fallback to API

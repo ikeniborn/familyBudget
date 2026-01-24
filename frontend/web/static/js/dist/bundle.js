@@ -576,7 +576,28 @@
   const factsManager = new DashboardFactsManager();
   class DataLayer {
     constructor() {
-      this.pglite = pglite.getPGliteManager();
+      this.pglite = null;
+      this.pglitePromise = null;
+    }
+    /**
+     * Lazy initialize PGlite manager
+     * Handles both sync and async getPGliteManager() implementations
+     */
+    async getPGlite() {
+      if (this.pglite) {
+        return this.pglite;
+      }
+      if (this.pglitePromise) {
+        return this.pglitePromise;
+      }
+      this.pglitePromise = Promise.resolve(pglite.getPGliteManager()).then(async (manager) => {
+        if (!manager.isReady()) {
+          await manager.init();
+        }
+        this.pglite = manager;
+        return manager;
+      });
+      return this.pglitePromise;
     }
     // =============================================================================
     // Articles
@@ -590,11 +611,14 @@
     async getArticles(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryArticles(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getArticles", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryArticles(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getArticles", duration2);
+            return result2;
+          }
         }
         const result = await this.getArticlesFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -657,11 +681,14 @@
     async getFinancialCenters(userId, includeGlobal = true) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryFinancialCenters(userId, true);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getFinancialCenters", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryFinancialCenters(userId, true);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getFinancialCenters", duration2);
+            return result2;
+          }
         }
         const result = await this.getFinancialCentersFromAPI(includeGlobal);
         const duration = performance.now() - startTime;
@@ -712,16 +739,19 @@
     async getCostCenters(userId, financialCenterId = null, includeGlobal = true) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryFilteredCostCenters(
-            userId,
-            financialCenterId,
-            true
-            // only active
-          );
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getCostCenters", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryFilteredCostCenters(
+              userId,
+              financialCenterId,
+              true
+              // only active
+            );
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getCostCenters", duration2);
+            return result2;
+          }
         }
         const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
         const duration = performance.now() - startTime;
@@ -774,11 +804,14 @@
     async getArticleHierarchy(articleId) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryArticleHierarchy(articleId);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getArticleHierarchy", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryArticleHierarchy(articleId);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getArticleHierarchy", duration2);
+            return result2;
+          }
         }
         const result = await this.getArticleHierarchyFromAPI(articleId);
         const duration = performance.now() - startTime;
@@ -822,11 +855,14 @@
     async getShoppingLists(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryShoppingLists(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getShoppingLists", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryShoppingLists(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getShoppingLists", duration2);
+            return result2;
+          }
         }
         const result = await this.getShoppingListsFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -878,14 +914,17 @@
     async getShoppingListItems(listTempId, filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryShoppingListItems({
-            ...filters,
-            shopping_list_temp_id: listTempId
-          });
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getShoppingListItems", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryShoppingListItems({
+              ...filters,
+              shopping_list_temp_id: listTempId
+            });
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getShoppingListItems", duration2);
+            return result2;
+          }
         }
         const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
         const duration = performance.now() - startTime;
@@ -941,11 +980,14 @@
     async getStores(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryStores(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getStores", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryStores(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getStores", duration2);
+            return result2;
+          }
         }
         const result = await this.getStoresFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -993,11 +1035,14 @@
     async getProductGroups(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryProductGroups(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getProductGroups", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryProductGroups(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getProductGroups", duration2);
+            return result2;
+          }
         }
         const result = await this.getProductGroupsFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -1055,11 +1100,14 @@
     async getFacts(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryFacts(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getFacts", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryFacts(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getFacts", duration2);
+            return result2;
+          }
         }
         const result = await this.getFactsFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -1125,12 +1173,15 @@
     async getFactsCount(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const facts = await this.pglite.queryFacts(filters);
-          const count2 = facts.length;
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getFactsCount", duration2);
-          return count2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const facts = await pglite2.queryFacts(filters);
+            const count2 = facts.length;
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getFactsCount", duration2);
+            return count2;
+          }
         }
         const count = await this.getFactsCountFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -1198,11 +1249,14 @@
     async getRecurringPlans(filters) {
       const startTime = performance.now();
       try {
-        if (pglite.isPGliteEnabled() && this.pglite.isReady()) {
-          const result2 = await this.pglite.queryRecurringPlans(filters);
-          const duration2 = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall("getRecurringPlans", duration2);
-          return result2;
+        if (pglite.isPGliteEnabled()) {
+          const pglite2 = await this.getPGlite();
+          if (pglite2.isReady()) {
+            const result2 = await pglite2.queryRecurringPlans(filters);
+            const duration2 = performance.now() - startTime;
+            performanceMonitor.trackPGliteCall("getRecurringPlans", duration2);
+            return result2;
+          }
         }
         const result = await this.getRecurringPlansFromAPI(filters);
         const duration = performance.now() - startTime;
