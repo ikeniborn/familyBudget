@@ -158,9 +158,18 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Performance Monitor (required by PGliteDiagnosticModal) -->
+<script src="/static/js/monitoring/PerformanceMonitor.min.js?v=PLACEHOLDER"></script>
+
+<!-- UI Components Bundle (includes PGliteDiagnosticModal) -->
+<script src="/static/js/dist/components.bundle.js?v=PLACEHOLDER"></script>
+
 <script>
 // Use window.PGlite global (IIFE format)
 const { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } = window.PGlite;
+
+// Create global alias for openPGliteDiagnostic
+const openPGliteDiagnostic = window.UIComponents.openPGliteDiagnostic;
 
 // Initialize settings from localStorage
 document.addEventListener('DOMContentLoaded', async () => {

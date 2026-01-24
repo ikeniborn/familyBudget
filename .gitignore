@@ -238,6 +238,7 @@ docker-compose.override.yml
 .env
 .env.test
 .env.local
+.envrc
 
 # Allow example environment files
 !.env.dev
