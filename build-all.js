@@ -240,7 +240,7 @@ const builds = [
   },
   {
     name: 'components',
-    input: 'frontend/web/static/js/modules/uiComponents/index.ts',
+    input: 'frontend/web/static/js/modules/uiComponents/index.iife.ts',
     output: 'frontend/web/static/js/dist/components.bundle.js',
     globalName: 'UIComponents'
   },
