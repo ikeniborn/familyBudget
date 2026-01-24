@@ -34,6 +34,7 @@
     "test:coverage": "vitest run --coverage",
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
+    "restore-placeholders": "bash scripts/restore-placeholders.sh",
     "prepare": "husky install"
   },
   "repository": {
