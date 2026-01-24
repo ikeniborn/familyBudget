@@ -56,6 +56,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/admin_product_groups.html"
         "${repo_dir}/frontend/web/templates/2fa_setup.html"
         "${repo_dir}/frontend/web/templates/2fa_setup_login.html"
+        "${repo_dir}/frontend/web/templates/settings.html"
     )
 
     local updated_count=0
