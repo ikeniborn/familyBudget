@@ -1351,6 +1351,11 @@
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('just_logged_in') === 'true') {
                 sessionStorage.setItem('just_logged_in', 'true');
+                // Auto-enable PGlite for first-time users (Telegram OAuth)
+                if (localStorage.getItem('enablePGlite') === null) {
+                    localStorage.setItem('enablePGlite', 'true');
+                    console.log('[AUTH] PGlite auto-enabled for new user (Telegram)');
+                }
                 // Clean URL (remove query parameter)
                 const url = new URL(window.location.href);
                 url.searchParams.delete('just_logged_in');

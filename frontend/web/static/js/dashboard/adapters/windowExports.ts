@@ -104,16 +104,33 @@ async function init(): Promise<void> {
   // Initialize state from existing globals
   initializeStateFromGlobals();
 
-  // Initialize PGlite early (non-blocking)
+  // Initialize PGlite early (BLOCKING)
   if (isPGliteEnabled()) {
-    Promise.resolve(getPGliteManager()).then(async (manager: any) => {
+    try {
+      const manager = await getPGliteManager();
+
       if (!manager.isReady()) {
+        const justLoggedIn = sessionStorage.getItem('just_logged_in');
+
+        // Show initialization notification for first-time users
+        if (justLoggedIn) {
+          debugLog('[Dashboard] First login detected - initializing PGlite (blocking)...');
+          if (window.showToast) {
+            window.showToast('Инициализация offline режима...', 'info');
+          }
+        }
+
+        // BLOCKING await - ensures PGlite ready before modal opens
         await manager.init();
-        debugLog('[Dashboard] PGlite initialized');
+        debugLog('[Dashboard] PGlite initialized successfully');
       }
-    }).catch((err: Error) => {
+    } catch (err) {
       console.error('[Dashboard] Failed to initialize PGlite:', err);
-    });
+      // Non-fatal: continue with API-only mode
+      if (window.showToast) {
+        window.showToast('Offline режим недоступен. Работа в online режиме.', 'warning');
+      }
+    }
   }
 
   // Define reactive properties on window

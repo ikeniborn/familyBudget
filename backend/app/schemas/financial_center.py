@@ -223,3 +223,8 @@ class FinancialCenterListResponse(BaseModel):
         description="Number of financial centers skipped",
         examples=[0]
     )
+
+    @property
+    def items(self) -> list[FinancialCenterResponse]:
+        """Alias for backward compatibility with frontend DataLayer"""
+        return self.financial_centers
