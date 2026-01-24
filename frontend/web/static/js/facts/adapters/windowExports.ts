@@ -80,14 +80,20 @@ export function setupWindowExports(): void {
 /**
  * Open create transaction modal
  */
-function openCreateModal(): void {
-    openAddTransactionModal();
+async function openCreateModal(): Promise<void> {
+    return openAddTransactionModal();
 }
 
 /**
  * Open add transaction modal
  */
-function openAddTransactionModal(): void {
+async function openAddTransactionModal(): Promise<void> {
+    // Delegate to Dashboard module if available (has skeleton loader)
+    if (window.Dashboard?.openAddTransactionModal) {
+        return window.Dashboard.openAddTransactionModal();
+    }
+
+    // Fallback: simple modal open without skeleton
     const modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
     if (modal?.showModal) {
         // Set default date to today
@@ -101,7 +107,13 @@ function openAddTransactionModal(): void {
 /**
  * Open transfer modal
  */
-function openFactTransferModal(): void {
+async function openFactTransferModal(): Promise<void> {
+    // Delegate to openFactTransferModal if available (has skeleton loader)
+    if (window.openFactTransferModal && window.openFactTransferModal !== openFactTransferModal) {
+        return window.openFactTransferModal();
+    }
+
+    // Fallback: simple modal open without skeleton
     const modal = document.getElementById('modal_add_transfer') as HTMLDialogElement | null;
     if (modal?.showModal) {
         modal.showModal();

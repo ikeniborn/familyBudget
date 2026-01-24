@@ -4,6 +4,22 @@
         <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📝 Добавить план</h2>
 
         <form id="form_{{ modal_id }}" class="space-y-2">
+            <!-- Skeleton Loading State (hidden by default) -->
+            <div id="{{ modal_id }}-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div> <!-- Период -->
+                <div class="skeleton h-12 w-full"></div> <!-- Счет -->
+                <div class="skeleton h-10 w-full"></div> <!-- Тип операции -->
+                <div class="skeleton h-12 w-full"></div> <!-- Категория -->
+                <div class="skeleton h-12 w-full"></div> <!-- Место затрат -->
+                <div class="skeleton h-12 w-full"></div> <!-- Сумма -->
+                <div class="skeleton h-20 w-full"></div> <!-- Описание -->
+                <div class="skeleton h-12 w-full"></div> <!-- Режим плана -->
+                <div class="skeleton h-32 w-full"></div> <!-- Recurring fields -->
+                <div class="skeleton h-24 w-full"></div> <!-- Reminder settings -->
+            </div>
+
+            <!-- Actual Form Fields (wrapped for toggling) -->
+            <div id="{{ modal_id }}-form-fields">
             <!-- Период (месяц) -->
             <div class="form-control">
                 <label class="label py-1">
@@ -306,6 +322,8 @@
                     </p>
                 </div>
             </div>
+            </div>
+            <!-- End of form fields wrapper -->
 
             <div class="modal-action mt-3">
                 <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">

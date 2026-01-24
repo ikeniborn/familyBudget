@@ -9,6 +9,21 @@
         </h2>
 
         <form id="form_transfer" class="space-y-2">
+            <!-- Skeleton Loading State (hidden by default) -->
+            <div id="transfer_modal-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div> <!-- Дата/Период -->
+                <div class="skeleton h-4 w-1/3"></div> <!-- FROM заголовок -->
+                <div class="skeleton h-12 w-full"></div> <!-- FROM: Счет -->
+                <div class="skeleton h-12 w-full"></div> <!-- FROM: Категория -->
+                <div class="skeleton h-4 w-1/3"></div> <!-- TO заголовок -->
+                <div class="skeleton h-12 w-full"></div> <!-- TO: Счет -->
+                <div class="skeleton h-12 w-full"></div> <!-- TO: Категория -->
+                <div class="skeleton h-12 w-full"></div> <!-- Сумма -->
+                <div class="skeleton h-20 w-full"></div> <!-- Описание -->
+            </div>
+
+            <!-- Actual Form Fields (wrapped for toggling) -->
+            <div id="transfer_modal-form-fields">
             <!-- Hidden field for record_type (fact or plan) -->
             <input type="hidden" name="record_type" id="transfer_record_type" value="fact" />
 
@@ -179,6 +194,8 @@
                     rows="1"
                 ></textarea>
             </div>
+            </div>
+            <!-- End of form fields wrapper -->
 
             <!-- Actions -->
             <div class="modal-action mt-3">

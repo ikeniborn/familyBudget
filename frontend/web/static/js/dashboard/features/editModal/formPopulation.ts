@@ -196,9 +196,19 @@ export function initEditCategoryTreeSelect(
 // ============================================================================
 
 /**
- * Open edit modal for pending (offline) record.
+ * Open edit modal for pending (offline) record with skeleton loader.
+ * Shows skeleton during data loading for better perceived performance.
  */
 export async function openEditPendingRecord(itemId: number, entity: string): Promise<void> {
+  const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+  const skeleton = document.getElementById('edit-loading-skeleton');
+  const formFields = document.getElementById('edit-form-fields');
+
+  if (!modal) {
+    console.error('[openEditPendingRecord] Modal not found');
+    return;
+  }
+
   try {
     if (!window.offlineManager) {
       showToast('OfflineManager не доступен', 'error');
@@ -219,6 +229,11 @@ export async function openEditPendingRecord(itemId: number, entity: string): Pro
 
     // Set mode (show/hide reminder section)
     setEditModalMode(recordType);
+
+    // Open modal immediately with skeleton
+    modal.showModal();
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
 
     // Get data for loading selects
     const data = item.data || {};
@@ -276,11 +291,18 @@ export async function openEditPendingRecord(itemId: number, entity: string): Pro
     // Setup category type button handlers
     setupEditCategoryTypeButtons();
 
-    // Open modal
-    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-    modal?.showModal();
+    // Hide skeleton, show form
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
+
+    // Modal already opened above (with skeleton)
   } catch (error) {
     console.error('[openEditPendingRecord] Error:', error);
+
+    // Close modal on error
+    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+    modal?.close();
+
     showToast('Ошибка открытия записи: ' + (error as Error).message, 'error');
   }
 }
@@ -290,14 +312,29 @@ export async function openEditPendingRecord(itemId: number, entity: string): Pro
 // ============================================================================
 
 /**
- * Open edit modal for online fact/plan record.
+ * Open edit modal for online fact/plan record with skeleton loader.
+ * Shows skeleton during data loading for better perceived performance.
  */
 export async function openEditModal(recordType: 'fact' | 'plan', recordId: number): Promise<void> {
+  const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+  const skeleton = document.getElementById('edit-loading-skeleton');
+  const formFields = document.getElementById('edit-form-fields');
+
+  if (!modal) {
+    console.error('[openEditModal] Modal not found');
+    return;
+  }
+
   try {
     currentEditingPendingId = null;
 
     // Set mode
     setEditModalMode(recordType);
+
+    // Open modal immediately with skeleton
+    modal.showModal();
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
 
     // Load data
     const endpoint = recordType === 'fact' ? `/api/v1/facts/${recordId}` : `/api/v1/plans/${recordId}`;
@@ -315,6 +352,10 @@ export async function openEditModal(recordType: 'fact' | 'plan', recordId: numbe
       loadEditFinancialCenters(data.financial_center_id),
       loadEditCostCenters(data.cost_center_id),
     ]);
+
+    // Hide skeleton, show form
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
 
     // Fill basic fields
     const editIdEl = document.getElementById('edit-id') as HTMLInputElement | null;
@@ -378,11 +419,14 @@ export async function openEditModal(recordType: 'fact' | 'plan', recordId: numbe
       }
     }
 
-    // Open modal
-    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-    modal?.showModal();
+    // Modal already opened above (with skeleton)
   } catch (error) {
     console.error('[openEditModal] Error:', error);
+
+    // Close modal on error
+    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+    modal?.close();
+
     showToast('Ошибка открытия записи: ' + (error as Error).message, 'error');
   }
 }

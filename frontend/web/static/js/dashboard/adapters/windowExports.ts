@@ -11,10 +11,12 @@
  */
 
 import { defineReactiveProperties, initializeStateFromGlobals } from '../core/stateManager';
+import { getState, isCacheValid } from '../core/DashboardState';
 
 
 
 declare const debugLog: (...args: any[]) => void;
+declare const showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
 // Pending Records imports (Phase 2)
 import {
   loadPendingRecords as loadPendingRecordsImpl,
@@ -249,17 +251,57 @@ function recurringDeleteResolve(choice: string | null): void {
 }
 
 /**
- * Open add transaction modal.
- * Opens the #modal_add_transaction dialog.
+ * Open add transaction modal with skeleton loader.
+ * Shows skeleton during data loading for better perceived performance.
  */
-function openAddTransactionModal(): void {
+async function openAddTransactionModal(): Promise<void> {
   const modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
-  if (modal) {
-    modal.showModal();
-    // Load categories when modal opens
-    loadTransactionCategoriesImpl();
-  } else {
+  const skeleton = document.getElementById('modal_add_transaction-loading-skeleton');
+  const formFields = document.getElementById('modal_add_transaction-form-fields');
+
+  if (!modal) {
     debugLog('[Dashboard] modal_add_transaction not found');
+    return;
+  }
+
+  // Open modal immediately for perceived performance
+  modal.showModal();
+
+  // Check if data is already cached
+  const state = getState();
+  const hasCachedData =
+    state.transactionCategoryTreeSelect !== null &&
+    isCacheValid(state.dropdownCache.categories) &&
+    isCacheValid(state.dropdownCache.financialCenters);
+
+  if (hasCachedData) {
+    // Data cached - show form immediately without skeleton
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
+    await loadTransactionCategoriesImpl(); // Update widget
+  } else {
+    // No cache - show skeleton during loading
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+
+    try {
+      // Load data in parallel
+      await Promise.all([
+        loadTransactionCategoriesImpl(),
+        loadFinancialCentersImpl(),
+        loadCostCentersImpl()
+      ]);
+
+      // Hide skeleton, show form
+      if (skeleton) skeleton.classList.add('hidden');
+      if (formFields) formFields.classList.remove('hidden');
+    } catch (error) {
+      console.error('[Dashboard] Failed to load transaction data:', error);
+      modal.close();
+      if (typeof showToast === 'function') {
+        showToast('Ошибка загрузки данных', 'error');
+      }
+    }
   }
 }
 
@@ -357,7 +399,7 @@ async function loadPlanCategories(): Promise<void> {
   return loadPlanCategoriesImpl();
 }
 
-function openAddPlanModal(): void {
+async function openAddPlanModal(): Promise<void> {
   return openAddPlanModalImpl();
 }
 

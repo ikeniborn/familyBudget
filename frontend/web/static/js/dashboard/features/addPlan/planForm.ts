@@ -4,8 +4,9 @@
  * Handles form submission, validation, and save operations for plans.
  */
 
-import { getState, setPlanCategoryTreeSelect } from '../../core/DashboardState';
+import { getState, setPlanCategoryTreeSelect, isCacheValid } from '../../core/DashboardState';
 import { loadPendingRecords } from '../pendingRecords';
+import { loadFinancialCenters, loadCostCenters } from '../addTransaction/categoryLoader';
 import { loadPlanHints } from './planHints';
 import { setupPlanPeriodButtons } from './periodButtons';
 import { prefillReminderDateTime, togglePlanMode } from './reminderSettings';
@@ -14,6 +15,7 @@ import type { PlanFormData, Category } from '../../types/dashboard.d';
 
 
 declare const debugLog: (...args: any[]) => void;
+declare const showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
 // ============================================================================
 // Category Loading
 // ============================================================================
@@ -201,10 +203,19 @@ export async function savePlanOffline(button: HTMLElement): Promise<void> {
 // ============================================================================
 
 /**
- * Open Add Plan modal with pre-filled reminder date/time
+ * Open Add Plan modal with skeleton loader and pre-filled reminder date/time
+ * Shows skeleton during data loading for better perceived performance
  */
-export function openAddPlanModal(): void {
+export async function openAddPlanModal(): Promise<void> {
   const modalId = 'modal_add_plan';
+  const modal = document.getElementById(modalId) as HTMLDialogElement | null;
+  const skeleton = document.getElementById('modal_add_plan-loading-skeleton');
+  const formFields = document.getElementById('modal_add_plan-form-fields');
+
+  if (!modal) {
+    console.error('[openAddPlanModal] Modal not found');
+    return;
+  }
 
   // Reset button state
   const form = document.getElementById('form_modal_add_plan') as HTMLFormElement | null;
@@ -214,26 +225,74 @@ export function openAddPlanModal(): void {
     delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
   }
 
-  // Re-initialize period buttons to set default plan_month value
-  setupPlanPeriodButtons();
+  // Open modal immediately for perceived performance
+  modal.showModal();
 
-  // Pre-fill reminder date and time before opening
-  prefillReminderDateTime(modalId);
-
-  // CRITICAL: Reset FC filter state and clear selection for create modals
+  // Check if data is already cached
   const state = getState();
-  if (state.planCategoryTreeSelect) {
-    state.planCategoryTreeSelect.options.financialCenterId = null;
-    state.planCategoryTreeSelect.clearSelection();
-    debugLog('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
-  }
+  const hasCachedData =
+    state.planCategoryTreeSelect !== null &&
+    isCacheValid(state.dropdownCache.categories) &&
+    isCacheValid(state.dropdownCache.financialCenters);
 
-  // Open the modal
-  const modal = document.getElementById(modalId) as HTMLDialogElement | null;
-  if (modal?.showModal) {
-    modal.showModal();
+  if (hasCachedData) {
+    // Data cached - show form immediately without skeleton
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
 
-    // Initialize plan mode on modal open
+    // Setup UI components (synchronous operations)
+    setupPlanPeriodButtons();
+    prefillReminderDateTime(modalId);
+
+    // CRITICAL: Reset FC filter state and clear selection for create modals
+    if (state.planCategoryTreeSelect) {
+      state.planCategoryTreeSelect.options.financialCenterId = null;
+      state.planCategoryTreeSelect.clearSelection();
+      debugLog('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
+    }
+
+    // Initialize plan mode
     togglePlanMode(modalId);
+
+    // Update categories widget (async but doesn't block UI)
+    loadPlanCategories();
+  } else {
+    // No cache - show skeleton during loading
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+
+    try {
+      // Setup UI components that don't require data
+      setupPlanPeriodButtons();
+      prefillReminderDateTime(modalId);
+
+      // Load data in parallel
+      await Promise.all([
+        loadPlanCategories(),
+        loadFinancialCenters(),
+        loadCostCenters()
+      ]);
+
+      // Hide skeleton, show form
+      if (skeleton) skeleton.classList.add('hidden');
+      if (formFields) formFields.classList.remove('hidden');
+
+      // CRITICAL: Reset FC filter state after loading
+      const updatedState = getState();
+      if (updatedState.planCategoryTreeSelect) {
+        updatedState.planCategoryTreeSelect.options.financialCenterId = null;
+        updatedState.planCategoryTreeSelect.clearSelection();
+        debugLog('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
+      }
+
+      // Initialize plan mode
+      togglePlanMode(modalId);
+    } catch (error) {
+      console.error('[openAddPlanModal] Failed to load data:', error);
+      modal.close();
+      if (typeof showToast === 'function') {
+        showToast('Ошибка загрузки данных', 'error');
+      }
+    }
   }
 }

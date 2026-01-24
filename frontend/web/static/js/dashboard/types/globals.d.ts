@@ -226,7 +226,7 @@ declare global {
 
     // Add plan
     loadPlanCategories?: () => Promise<void>;
-    openAddPlanModal?: () => void;
+    openAddPlanModal?: () => Promise<void>;
     savePlan?: (button: HTMLElement) => void;
     togglePlanMode?: (modalId: string) => void;
     toggleReminderSettings?: (modalId: string) => void;
@@ -265,8 +265,8 @@ declare global {
     openEditFromDashboard?: (factId: number) => Promise<void>;
     deleteRecordFromDashboard?: (factId: number) => Promise<void>;
     recurringDeleteResolve?: (choice: string | null) => void;
-    openAddTransactionModal?: () => void;
-    openFactTransferModal?: () => void;
+    openAddTransactionModal?: () => Promise<void>;
+    openFactTransferModal?: () => Promise<void>;
 
     // Facts module shared functions (used by both dashboard and facts)
     updateBatchDeleteButton?: () => void;
@@ -315,7 +315,7 @@ export interface DashboardExports {
 
   // Add plan (Phase 3)
   loadPlanCategories(): Promise<void>;
-  openAddPlanModal(): void;
+  openAddPlanModal(): Promise<void>;
   savePlan(button: HTMLElement): void;
   savePlanOffline(button: HTMLElement): Promise<void>;
   loadPlanHints(category?: Category | null): Promise<void>;
@@ -354,8 +354,8 @@ export interface DashboardExports {
   openEditFromDashboard(factId: number): Promise<void>;
   deleteRecordFromDashboard(factId: number): Promise<void>;
   recurringDeleteResolve(choice: string | null): void;
-  openAddTransactionModal(): void;
-  openFactTransferModal(): void;
+  openAddTransactionModal(): Promise<void>;
+  openFactTransferModal(): Promise<void>;
 }
 
 export {};
