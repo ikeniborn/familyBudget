@@ -364,7 +364,7 @@
     async loadDiagnosticData() {
       if (!this.diagnosticContainer) return;
       try {
-        const pglite$1 = pglite.getPGliteManager();
+        const pglite$1 = await pglite.getPGliteManager();
         const data = await pglite$1.getDiagnosticData();
         try {
           this.conflictMetrics = await pglite$1.getConflictMetrics();

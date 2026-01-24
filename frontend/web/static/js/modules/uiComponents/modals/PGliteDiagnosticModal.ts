@@ -63,7 +63,7 @@ export class PGliteDiagnosticModal extends BaseModal {
     if (!this.diagnosticContainer) return;
 
     try {
-      const pglite = getPGliteManager();
+      const pglite = await getPGliteManager();
       const data = await pglite.getDiagnosticData();
 
       // Load conflict metrics (task-009)
