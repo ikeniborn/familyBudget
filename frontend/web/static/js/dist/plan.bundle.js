@@ -669,7 +669,7 @@
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
-      return data.items || [];
+      return data.financial_centers || data.items || [];
     }
     // =============================================================================
     // Cost Centers
