@@ -148,7 +148,7 @@ async function loadTransferTabData(): Promise<void> {
           mode: 'create',
           onCategoryChange: (category: any) => {
             debugLog('[ModalFact Transfer] FROM category changed:', category);
-            // TODO: Load transfer hints
+            loadFactTransferHints('from');
           }
         }
       );
@@ -162,7 +162,7 @@ async function loadTransferTabData(): Promise<void> {
           mode: 'create',
           onCategoryChange: (category: any) => {
             debugLog('[ModalFact Transfer] TO category changed:', category);
-            // TODO: Load transfer hints
+            loadFactTransferHints('to');
           }
         }
       );
@@ -174,15 +174,155 @@ async function loadTransferTabData(): Promise<void> {
         factTransferToCategoryTree: toCategoryTree
       });
 
+      // 6. Setup FC change listeners for transfer hints
+      setupTransferFCListeners();
+
       debugLog('[ModalFact] Transfer CategoryTreeSelect instances created');
     } else {
-      console.warn('[ModalFact] BudgetShared.ChoicesCategoryTree not available');
+      debugLog('[ModalFact] BudgetShared.ChoicesCategoryTree not available');
     }
 
     debugLog('[ModalFact] Transfer data loaded');
   } catch (error) {
-    console.error('[ModalFact] Error loading transfer data:', error);
+    debugLog('[ModalFact] Error loading transfer data:', error);
   }
+}
+
+/**
+ * Setup FC change listeners for transfer tab hints
+ */
+function setupTransferFCListeners(): void {
+  const fromFcSelect = document.querySelector('#modal_fact-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement;
+  const toFcSelect = document.querySelector('#modal_fact-tab-transfer select[name="to_financial_center_id"]') as HTMLSelectElement;
+
+  if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
+    fromFcSelect.addEventListener('change', () => {
+      loadFactTransferHints('from');
+    });
+    fromFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
+    toFcSelect.addEventListener('change', () => {
+      loadFactTransferHints('to');
+    });
+    toFcSelect.dataset.listenerAttached = 'true';
+  }
+}
+
+/**
+ * Load fact transfer hints for FROM or TO direction
+ */
+async function loadFactTransferHints(direction: 'from' | 'to'): Promise<void> {
+  const state = getState();
+  const tree = direction === 'from' ? state.factTransferFromCategoryTree : state.factTransferToCategoryTree;
+  const fcSelect = document.querySelector<HTMLSelectElement>(
+    direction === 'from'
+      ? '#modal_fact-tab-transfer select[name="from_financial_center_id"]'
+      : '#modal_fact-tab-transfer select[name="to_financial_center_id"]'
+  );
+
+  const categoryId = tree?.getSelectedCategory()?.id;
+  const fcId = fcSelect?.value ? parseInt(fcSelect.value) : null;
+
+  // Update hint buttons to loading or empty state
+  updateTransferFactHintButtons(direction, !categoryId || !fcId ? null : { loading: true });
+
+  if (!categoryId || !fcId) {
+    return;
+  }
+
+  // Fetch hints from API
+  try {
+    const dateInput = document.querySelector<HTMLInputElement>('#modal_fact-tab-transfer input[name="transfer_date"]');
+    let factDate = dateInput?.value || '';
+
+    // Convert DD.MM.YYYY to YYYY-MM-DD
+    if (factDate) {
+      const parts = factDate.split('.');
+      if (parts.length === 3) {
+        factDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      }
+    } else {
+      // Use today's date if not set
+      const today = new Date();
+      factDate = formatDateYYYYMMDD(today);
+    }
+
+    const articleType = direction === 'from' ? 'expense' : 'income';
+    const url = `/api/v1/hints/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    updateTransferFactHintButtons(direction, data);
+
+    debugLog('[ModalFact] Transfer hints loaded for', direction, data);
+  } catch (error) {
+    debugLog('[ModalFact] Error loading transfer hints:', error);
+    updateTransferFactHintButtons(direction, null);
+  }
+}
+
+/**
+ * Update transfer fact hint buttons
+ */
+function updateTransferFactHintButtons(direction: 'from' | 'to', data: any | null): void {
+  const planBtn = document.getElementById(
+    direction === 'from' ? 'from-hint-period-plan' : 'to-hint-period-plan'
+  );
+  const factBtn = document.getElementById(
+    direction === 'from' ? 'from-hint-period-fact' : 'to-hint-period-fact'
+  );
+
+  if (!planBtn || !factBtn) {
+    debugLog('[ModalFact] Hint buttons not found for', direction);
+    return;
+  }
+
+  if (data?.loading) {
+    planBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+    factBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  if (!data) {
+    planBtn.textContent = 'План мес: --';
+    factBtn.textContent = 'Факт мес: --';
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  // Display values (display-only, not clickable for fact hints)
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+
+  planBtn.textContent = `План мес: ${formatCurrency(data.period_plan_sum || 0)}`;
+  factBtn.textContent = `Факт мес: ${formatCurrency(data.period_fact_sum || 0)}`;
+  planBtn.classList.remove('btn-disabled');
+  factBtn.classList.remove('btn-disabled');
+  planBtn.classList.add('btn-ghost', 'text-info');
+  factBtn.classList.add('btn-ghost', 'text-success');
+}
+
+/**
+ * Format date as YYYY-MM-DD for API
+ */
+function formatDateYYYYMMDD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**

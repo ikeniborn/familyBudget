@@ -149,7 +149,7 @@ async function loadTransferTabData(): Promise<void> {
           mode: 'create',
           onCategoryChange: (category: any) => {
             debugLog('[ModalPlan Transfer] FROM category changed:', category);
-            // TODO: Load transfer plan hints
+            loadPlanTransferHints('from');
           }
         }
       );
@@ -163,7 +163,7 @@ async function loadTransferTabData(): Promise<void> {
           mode: 'create',
           onCategoryChange: (category: any) => {
             debugLog('[ModalPlan Transfer] TO category changed:', category);
-            // TODO: Load transfer plan hints
+            loadPlanTransferHints('to');
           }
         }
       );
@@ -175,15 +175,163 @@ async function loadTransferTabData(): Promise<void> {
         planTransferToCategoryTree: toCategoryTree
       });
 
+      // 6. Setup FC change listeners for transfer hints
+      setupTransferFCListeners();
+
       debugLog('[ModalPlan] Transfer CategoryTreeSelect instances created');
     } else {
-      console.warn('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
+      debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
     }
 
     debugLog('[ModalPlan] Transfer data loaded');
   } catch (error) {
-    console.error('[ModalPlan] Error loading transfer data:', error);
+    debugLog('[ModalPlan] Error loading transfer data:', error);
   }
+}
+
+/**
+ * Setup FC change listeners for transfer tab hints
+ */
+function setupTransferFCListeners(): void {
+  const fromFcSelect = document.querySelector('#modal_plan-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement;
+  const toFcSelect = document.querySelector('#modal_plan-tab-transfer select[name="to_financial_center_id"]') as HTMLSelectElement;
+
+  if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
+    fromFcSelect.addEventListener('change', () => {
+      loadPlanTransferHints('from');
+    });
+    fromFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
+    toFcSelect.addEventListener('change', () => {
+      loadPlanTransferHints('to');
+    });
+    toFcSelect.dataset.listenerAttached = 'true';
+  }
+}
+
+/**
+ * Load plan transfer hints for FROM or TO direction
+ */
+async function loadPlanTransferHints(direction: 'from' | 'to'): Promise<void> {
+  const state = getState();
+  const tree = direction === 'from' ? state.planTransferFromCategoryTree : state.planTransferToCategoryTree;
+  const fcSelect = document.querySelector<HTMLSelectElement>(
+    direction === 'from'
+      ? '#modal_plan-tab-transfer select[name="from_financial_center_id"]'
+      : '#modal_plan-tab-transfer select[name="to_financial_center_id"]'
+  );
+
+  const categoryId = tree?.getSelectedCategory()?.id;
+  const fcId = fcSelect?.value ? parseInt(fcSelect.value) : null;
+
+  // Update hint buttons to loading or empty state
+  updateTransferPlanHintButtons(direction, !categoryId || !fcId ? null : { loading: true });
+
+  if (!categoryId || !fcId) {
+    return;
+  }
+
+  // Fetch hints from API
+  try {
+    const periodInput = document.querySelector<HTMLInputElement>('#modal_plan-tab-transfer input[name="transfer_period"]');
+    let period = periodInput?.value || '';
+
+    // Convert YYYY-MM format or use current period
+    if (!period || period.length < 7) {
+      const today = new Date();
+      period = formatPeriodYYYYMM(today);
+    }
+
+    const articleType = direction === 'from' ? 'expense' : 'income';
+    const url = `/api/v1/hints/plan-hints?period=${period}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    updateTransferPlanHintButtons(direction, data);
+
+    debugLog('[ModalPlan] Transfer hints loaded for', direction, data);
+  } catch (error) {
+    debugLog('[ModalPlan] Error loading transfer hints:', error);
+    updateTransferPlanHintButtons(direction, null);
+  }
+}
+
+/**
+ * Update transfer plan hint buttons
+ */
+function updateTransferPlanHintButtons(direction: 'from' | 'to', data: any | null): void {
+  const planBtn = document.getElementById(
+    direction === 'from' ? 'from-hint-prev-plan' : 'to-hint-prev-plan'
+  );
+  const factBtn = document.getElementById(
+    direction === 'from' ? 'from-hint-prev-fact' : 'to-hint-prev-fact'
+  );
+
+  if (!planBtn || !factBtn) {
+    debugLog('[ModalPlan] Hint buttons not found for', direction);
+    return;
+  }
+
+  if (data?.loading) {
+    planBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+    factBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  if (!data) {
+    planBtn.textContent = 'План пред.мес: --';
+    factBtn.textContent = 'Факт пред.мес: --';
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  // Display values with click handlers (clickable for plan hints)
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('ru-RU', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+
+  planBtn.textContent = `План пред.мес: ${formatCurrency(data.prev_period_plan_sum || 0)}`;
+  factBtn.textContent = `Факт пред.мес: ${formatCurrency(data.prev_period_fact_sum || 0)}`;
+  planBtn.classList.remove('btn-disabled');
+  factBtn.classList.remove('btn-disabled');
+  planBtn.classList.add('btn-ghost', 'text-info');
+  factBtn.classList.add('btn-ghost', 'text-success');
+
+  // Add click handlers to populate amount field
+  const amountInput = document.querySelector<HTMLInputElement>('#modal_plan-tab-transfer input[name="amount"]');
+
+  if (amountInput) {
+    planBtn.onclick = () => {
+      amountInput.value = String(data.prev_period_plan_sum || 0);
+      amountInput.focus();
+    };
+
+    factBtn.onclick = () => {
+      amountInput.value = String(data.prev_period_fact_sum || 0);
+      amountInput.focus();
+    };
+  }
+}
+
+/**
+ * Format date as YYYY-MM for plan API
+ */
+function formatPeriodYYYYMM(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 /**
@@ -195,7 +343,7 @@ export async function openModalPlan(): Promise<void> {
   const modal = document.getElementById(modalId) as HTMLDialogElement;
 
   if (!modal) {
-    console.error('[ModalPlan] Modal not found');
+    debugLog('[ModalPlan] Modal not found');
     return;
   }
 
@@ -222,7 +370,7 @@ export async function openModalPlan(): Promise<void> {
     switchTab('transaction');
 
   } catch (error) {
-    console.error('[ModalPlan] Error loading data:', error);
+    debugLog('[ModalPlan] Error loading data:', error);
     hideSkeleton();
   }
 }
