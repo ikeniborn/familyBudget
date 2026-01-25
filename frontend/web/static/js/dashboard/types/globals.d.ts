@@ -237,6 +237,7 @@ declare global {
     resetRecurringSettings?: (modalId: string) => void;
     updateFrequencyFields?: (modalId: string) => void;
     updateDurationFields?: (modalId: string) => void;
+    updateYearlyFrequencyValue?: (modalId: string) => void;
     updateRecurringPreview?: (modalId: string) => void;
     collectRecurringSettings?: (modalId: string) => RecurringSettings | null;
 
@@ -344,6 +345,7 @@ export interface DashboardExports {
   resetRecurringSettings(modalId: string): void;
   updateFrequencyFields(modalId: string): void;
   updateDurationFields(modalId: string): void;
+  updateYearlyFrequencyValue(modalId: string): void;
   updateRecurringPreview(modalId: string): void;
   collectRecurringSettings(modalId: string): RecurringSettings | null;
 

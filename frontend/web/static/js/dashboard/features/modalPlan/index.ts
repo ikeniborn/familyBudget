@@ -8,6 +8,7 @@
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
+import { setupRecurringListeners } from './recurringSettings';
 
 declare const debugLog: (...args: any[]) => void;
 
@@ -362,6 +363,9 @@ export async function openModalPlan(): Promise<void> {
       loadTransactionTabData(),
       loadTransferTabData()
     ]);
+
+    // Setup recurring settings listeners
+    setupRecurringListeners('modal_plan');
 
     // Hide skeleton
     hideSkeleton();

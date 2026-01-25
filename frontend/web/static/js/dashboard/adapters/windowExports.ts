@@ -97,6 +97,13 @@ import {
   savePlanModal as savePlanModalImpl,
 } from '../features/modalPlan/saveOperations';
 
+import {
+  togglePlanMode as togglePlanModeNewImpl,
+  updateFrequencyFields as updateFrequencyFieldsNewImpl,
+  updateYearlyFrequencyValue as updateYearlyFrequencyValueNewImpl,
+  updateDurationFields as updateDurationFieldsNewImpl,
+} from '../features/modalPlan/recurringSettings';
+
 // FAB Context Modal import (v9.0 Simplified FAB)
 import {
   openContextModal as openContextModalImpl,
@@ -498,6 +505,10 @@ async function loadPlanHints(category: Category | null = null): Promise<void> {
 }
 
 function togglePlanMode(modalId: string): void {
+  // Use new implementation for modal_plan, old for legacy modals
+  if (modalId === 'modal_plan') {
+    return togglePlanModeNewImpl(modalId);
+  }
   return togglePlanModeImpl(modalId);
 }
 
@@ -530,15 +541,31 @@ function resetRecurringSettings(modalId: string): void {
 }
 
 function updateFrequencyFields(modalId: string): void {
+  // Use new implementation for modal_plan
+  if (modalId === 'modal_plan') {
+    return updateFrequencyFieldsNewImpl(modalId);
+  }
   return updateFrequencyFieldsImpl(modalId);
 }
 
 function updateDurationFields(modalId: string): void {
+  // Use new implementation for modal_plan
+  if (modalId === 'modal_plan') {
+    return updateDurationFieldsNewImpl(modalId);
+  }
   return updateDurationFieldsImpl(modalId);
 }
 
 function updateRecurringPreview(modalId: string): void {
   return updateRecurringPreviewImpl(modalId);
+}
+
+// New function for modal_plan (yearly frequency value update)
+function updateYearlyFrequencyValue(modalId: string): void {
+  if (modalId === 'modal_plan') {
+    return updateYearlyFrequencyValueNewImpl(modalId);
+  }
+  // No legacy implementation, do nothing
 }
 
 function collectRecurringSettings(modalId: string): ReturnType<typeof collectRecurringSettingsImpl> {
@@ -641,6 +668,7 @@ export const dashboardExports: DashboardExports = {
   resetRecurringSettings,
   updateFrequencyFields,
   updateDurationFields,
+  updateYearlyFrequencyValue,
   updateRecurringPreview,
   collectRecurringSettings,
 
@@ -712,6 +740,7 @@ export function initWindowExports(): void {
   window.resetRecurringSettings = resetRecurringSettings;
   window.updateFrequencyFields = updateFrequencyFields;
   window.updateDurationFields = updateDurationFields;
+  window.updateYearlyFrequencyValue = updateYearlyFrequencyValue;
   window.updateRecurringPreview = updateRecurringPreview;
   window.collectRecurringSettings = collectRecurringSettings;
 
