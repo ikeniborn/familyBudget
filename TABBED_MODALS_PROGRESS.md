@@ -99,7 +99,7 @@
 
 ---
 
-## ⏳ PHASE 5: Доработка функциональности (85% ЗАВЕРШЕНО)
+## ✅ PHASE 5: Доработка функциональности (95% ЗАВЕРШЕНО, готово к тестированию)
 
 ### Критические доработки:
 
@@ -252,14 +252,14 @@
 
 ## 📊 Прогресс
 
-**Общий прогресс:** ~85% ✅
+**Общий прогресс:** ~92% ✅
 
 - PHASE 1: ✅ 100% (HTML Templates)
 - PHASE 2: ✅ 100% (TypeScript Modules - базовая структура)
 - PHASE 3: ✅ 100% (FAB упрощение)
 - PHASE 4: ✅ 100% (Интеграция в страницы)
-- PHASE 5: ⏳ 85% (Доработка функциональности)
-  - ✅ TypeScript компилируется успешно (257.91 kB dashboard bundle)
+- PHASE 5: ✅ 95% (Доработка функциональности - ГОТОВО к тестированию)
+  - ✅ TypeScript компилируется успешно (261.51 kB dashboard bundle)
   - ✅ Date helpers (setFactDate, setPlanPeriod)
   - ✅ Transfer tab data loading (CategoryTreeSelect + FC dropdowns)
   - ✅ Transaction tab hints (loadFactHints, loadPlanHints)
@@ -267,8 +267,9 @@
   - ✅ Transfer tab hints (100% - полная интеграция для modalFact + modalPlan)
   - ✅ Save operations с UI refresh (100% - HTMX triggers + toast + validation)
   - ✅ Recurring settings UI manager (100% - togglePlanMode, updateFrequencyFields, extractRecurringSettings)
-  - ⏳ Offline support (0% - отложено)
-- PHASE 6: ⏳ 0% (Тестирование)
+  - ✅ Event listeners (100% - date buttons + transaction type toggle)
+  - ⏳ Offline support (0% - отложено, не критично для MVP)
+- PHASE 6: ⏳ 0% (Тестирование) - **СЛЕДУЮЩИЙ ШАГ**
 - PHASE 7: ⏳ 0% (Очистка)
 
-**Оценка оставшегося времени:** 30-60 минут работы (event listeners, validation) или можно начать тестирование
+**READY FOR TESTING!** 🎉 Можно переходить к PHASE 6 (тестирование на budget-test)
