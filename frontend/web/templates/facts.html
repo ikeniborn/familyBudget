@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% from "components/modal_transaction.html" import transaction_modal %}
 {% from "components/modal_edit_fact.html" import edit_fact_modal %}
 {% from "components/modal_confirm.html" import confirm_modal %}
 
@@ -205,9 +204,6 @@
 
 <!-- Edit Fact Modal -->
 {{ edit_fact_modal('edit-modal') }}
-
-<!-- Transfer Modal -->
-{% include "components/modal_transfer.html" %}
 
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}

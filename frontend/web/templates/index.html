@@ -1,11 +1,9 @@
 {% extends "base.html" %}
-{% from "components/modal_transaction.html" import transaction_modal %}
-{% from "components/modal_plan.html" import plan_modal %}
 {% from "components/modal_edit_plan.html" import edit_plan_modal %}
 
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_fact.html" import modal_fact %}
-{% from "components/modal_plan_new.html" import modal_plan as modal_plan_new %}
+{% from "components/modal_plan.html" import modal_plan %}
 
 {% block content %}
 <div class="space-y-6">
@@ -246,12 +244,9 @@
 <!-- Dashboard JavaScript is now loaded from dashboard.min.js module above -->
 <!-- The module auto-initializes and exports functions to window.Dashboard -->
 
-<!-- Include Transfer Modal -->
-{% include "components/modal_transfer.html" %}
-
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
-{{ modal_plan_new('modal_plan') }}
+{{ modal_plan('modal_plan') }}
 
 {% endif %}
 {% endblock %}
