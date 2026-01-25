@@ -6,8 +6,7 @@
 
 import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 import { extractRecurringSettings, extractReminderSettings } from './recurringSettings';
-
-declare const debugLog: (...args: any[]) => void;
+import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
 
 /**
  * Save plan transaction
@@ -27,11 +26,9 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
     planData = {
       record_type: formData.get('plan_type'), // expense/income
       plan_month: formData.get('plan_month'), // YYYY-MM (start month)
-      financial_center_id: parseInt(formData.get('financial_center_id') as string),
-      article_id: parseInt(formData.get('article_id') as string),
-      cost_center_id: formData.get('cost_center_id')
-        ? parseInt(formData.get('cost_center_id') as string)
-        : null,
+      financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
+      article_id: parseIntOrNull(formData.get('article_id'))!,
+      cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
       amount: parseFloat(formData.get('amount') as string),
       description: formData.get('description') || null,
       // Recurring settings
@@ -49,11 +46,9 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
     planData = {
       record_type: formData.get('plan_type'), // expense/income
       plan_month: formData.get('plan_month'), // YYYY-MM
-      financial_center_id: parseInt(formData.get('financial_center_id') as string),
-      article_id: parseInt(formData.get('article_id') as string),
-      cost_center_id: formData.get('cost_center_id')
-        ? parseInt(formData.get('cost_center_id') as string)
-        : null,
+      financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
+      article_id: parseIntOrNull(formData.get('article_id'))!,
+      cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
       amount: parseFloat(formData.get('amount') as string),
       description: formData.get('description') || null,
       // One-time plan settings
@@ -70,22 +65,8 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
     }
   }
 
-  debugLog('[SavePlanModal] Saving plan transaction:', planData);
-
   // POST /api/v1/recurring-plans
-  const response = await fetch('/api/v1/recurring-plans', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(planData)
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorText}`);
-  }
-
-  const result = await response.json();
-  debugLog('[SavePlanModal] Plan saved:', result);
+  await postAPI('/api/v1/recurring-plans', planData, 'SavePlanModal');
 
   // Update UI
   await refreshUIAfterPlanSave();
