@@ -47,6 +47,92 @@ architecture:
       layer: "presentation"
 
     # ==========================================================================
+    # MODAL FACT MODULE (TypeScript ES Modules) - NEW in v9.0
+    # ==========================================================================
+    - id: "modalFact"
+      name: "Modal Fact Module"
+      type: "frontend-feature"
+      source_path: "frontend/web/static/js/dashboard/features/modalFact/"
+      bundle_size: "~15KB (part of dashboard bundle)"
+      loc: 450
+      language: "TypeScript"
+      description: "Tabbed modal for facts with transaction and transfer tabs"
+      architecture:
+        - "index.ts - Main orchestrator with skeleton loader"
+        - "tabManager.ts - Tab switching with FormData cache"
+        - "saveOperations.ts - API save (facts + transfers)"
+        - "typeToggle.ts - Expense/income switcher with CategoryTree update"
+        - "dateHelpers.ts - Date utilities (setFactDate, setFactTransferDate)"
+      features:
+        - "2 tabs: Transaction (expense/income) + Transfer (from/to)"
+        - "FormData caching when switching tabs"
+        - "Integration with ChoicesCategoryTree"
+        - "Fact hints loading (plan/fact месяц)"
+        - "Skeleton loader for better UX"
+      key_changes:
+        - "2026-01-25 - v9.0: Tabbed modals implementation (PHASE 1-5)"
+        - "Replaces: modal_transaction.html + modal_transfer.html"
+      dependencies:
+        - budgetShared (ChoicesCategoryTree)
+        - dashboard (DashboardState, skeleton utils)
+      layer: "presentation"
+
+    # ==========================================================================
+    # MODAL PLAN MODULE (TypeScript ES Modules) - NEW in v9.0
+    # ==========================================================================
+    - id: "modalPlan"
+      name: "Modal Plan Module"
+      type: "frontend-feature"
+      source_path: "frontend/web/static/js/dashboard/features/modalPlan/"
+      bundle_size: "~20KB (part of dashboard bundle)"
+      loc: 650
+      language: "TypeScript"
+      description: "Tabbed modal for plans with transaction, transfer, and recurring settings"
+      architecture:
+        - "index.ts - Main orchestrator with skeleton loader"
+        - "tabManager.ts - Tab switching with FormData cache"
+        - "saveOperations.ts - API save (plans + recurring + transfers)"
+        - "typeToggle.ts - Expense/income switcher with CategoryTree update"
+        - "dateHelpers.ts - Date utilities (setPlanPeriod, setPlanTransferDate)"
+        - "recurringSettings.ts - Recurring plan UI manager (monthly/quarterly/yearly)"
+      features:
+        - "2 tabs: Transaction (expense/income) + Transfer (from/to)"
+        - "3 plan modes: regular, recurring, reminder"
+        - "Recurring settings: frequency, duration, preview"
+        - "MMDD encoding for yearly frequency"
+        - "Plan hints loading (план/факт пред.мес)"
+      key_changes:
+        - "2026-01-25 - v9.0: Tabbed modals implementation (PHASE 1-5)"
+        - "Replaces: modal_plan.html (old) + recurring settings inline JS"
+      dependencies:
+        - budgetShared (ChoicesCategoryTree)
+        - dashboard (DashboardState, skeleton utils)
+      layer: "presentation"
+
+    # ==========================================================================
+    # FAB CONTEXT MODAL (TypeScript ES Modules) - NEW in v9.0
+    # ==========================================================================
+    - id: "fab.contextModal"
+      name: "FAB Context Modal Opener"
+      type: "frontend-utility"
+      file_path: "frontend/web/static/js/dashboard/features/fab/contextModal.ts"
+      bundle_size: "~2KB (part of dashboard bundle)"
+      loc: 50
+      language: "TypeScript"
+      description: "Opens appropriate modal based on current page context"
+      features:
+        - "Page context mapping: / → modal_fact, /facts → modal_fact, /plan → modal_plan"
+        - "Simplified FAB (no speed dial menu)"
+        - "Single universal + button on all pages"
+      key_changes:
+        - "2026-01-25 - v9.0: FAB simplification (PHASE 3)"
+        - "Replaces: toggleDesktopFAB, toggleMobileFAB, speed dial menu"
+      dependencies:
+        - modalFact (openModalFact)
+        - modalPlan (openModalPlan)
+      layer: "presentation"
+
+    # ==========================================================================
     # TRANSFERS MODULE (TypeScript ES Modules)
     # ==========================================================================
     - id: "transfers"

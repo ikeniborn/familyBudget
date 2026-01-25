@@ -9,13 +9,32 @@ import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
+import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
 
 /**
+ * Cache entry with timestamp and TTL
+ */
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl?: number;
+}
+
+/**
+ * Transfer hints data structure
+ */
+interface TransferHintsData {
+  loading?: boolean;
+  period_plan_sum?: number;
+  period_fact_sum?: number;
+}
+
+/**
  * Check if dropdown caches are valid
  */
-function isCacheValid(cache: any): boolean {
+function isCacheValid<T>(cache: CacheEntry<T> | null): boolean {
   if (!cache || !cache.timestamp) return false;
   const age = Date.now() - cache.timestamp;
   return age < (cache.ttl || 5 * 60 * 1000); // 5 min default TTL
@@ -147,7 +166,7 @@ async function loadTransferTabData(): Promise<void> {
           type: 'expense', // FROM is always expense (debit)
           showLeafOnly: true,
           mode: 'create',
-          onCategoryChange: (category: any) => {
+          onCategoryChange: (category: Category) => {
             debugLog('[ModalFact Transfer] FROM category changed:', category);
             loadFactTransferHints('from');
           }
@@ -161,7 +180,7 @@ async function loadTransferTabData(): Promise<void> {
           type: 'income', // TO is always income (credit)
           showLeafOnly: true,
           mode: 'create',
-          onCategoryChange: (category: any) => {
+          onCategoryChange: (category: Category) => {
             debugLog('[ModalFact Transfer] TO category changed:', category);
             loadFactTransferHints('to');
           }
@@ -272,7 +291,7 @@ async function loadFactTransferHints(direction: 'from' | 'to'): Promise<void> {
 /**
  * Update transfer fact hint buttons
  */
-function updateTransferFactHintButtons(direction: 'from' | 'to', data: any | null): void {
+function updateTransferFactHintButtons(direction: 'from' | 'to', data: TransferHintsData | null): void {
   const planBtn = document.getElementById(
     direction === 'from' ? 'from-hint-period-plan' : 'to-hint-period-plan'
   );
@@ -286,8 +305,14 @@ function updateTransferFactHintButtons(direction: 'from' | 'to', data: any | nul
   }
 
   if (data?.loading) {
-    planBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
-    factBtn.innerHTML = `<span class="loading loading-spinner loading-xs"></span>`;
+    // Create loading spinner elements (DOM manipulation for CSP compliance)
+    const planSpinner = document.createElement('span');
+    planSpinner.className = 'loading loading-spinner loading-xs';
+    const factSpinner = document.createElement('span');
+    factSpinner.className = 'loading loading-spinner loading-xs';
+
+    planBtn.replaceChildren(planSpinner);
+    factBtn.replaceChildren(factSpinner);
     planBtn.classList.add('btn-disabled');
     factBtn.classList.add('btn-disabled');
     return;
