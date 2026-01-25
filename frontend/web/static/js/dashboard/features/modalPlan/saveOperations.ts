@@ -8,40 +8,9 @@
 import { closeModalPlan } from './index';
 import { getCurrentTab } from './tabManager';
 import { extractRecurringSettings, extractReminderSettings } from './recurringSettings';
+import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 
 declare const debugLog: (...args: any[]) => void;
-declare const htmx: any;
-
-/**
- * Refresh UI components after save
- */
-async function refreshUIAfterSave(): Promise<void> {
-  debugLog('[SavePlanModal] Refreshing UI components...');
-
-  try {
-    // Refresh quick stats (index.html)
-    const quickStatsEl = document.getElementById('quick-stats-container');
-    if (quickStatsEl && typeof htmx !== 'undefined') {
-      htmx.trigger(quickStatsEl, 'load');
-    }
-
-    // Refresh account balances (index.html)
-    const accountBalancesEl = document.getElementById('account-balances-container');
-    if (accountBalancesEl && typeof htmx !== 'undefined') {
-      htmx.trigger(accountBalancesEl, 'load');
-    }
-
-    // Reload plan table if on plan.html page
-    if (typeof (window as any).reloadPlans === 'function') {
-      await (window as any).reloadPlans();
-    }
-
-    debugLog('[SavePlanModal] UI refresh completed');
-  } catch (error) {
-    debugLog('[SavePlanModal] Error refreshing UI:', error);
-    // Non-critical error, don't throw
-  }
-}
 
 /**
  * Set button loading state
@@ -136,7 +105,7 @@ async function savePlanTransaction(form: HTMLFormElement): Promise<void> {
   debugLog('[SavePlanModal] Plan saved:', result);
 
   // Update UI
-  await refreshUIAfterSave();
+  await refreshUIAfterPlanSave();
 }
 
 /**
@@ -179,7 +148,7 @@ async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
   debugLog('[SavePlanModal] Plan transfer saved:', result);
 
   // Update UI
-  await refreshUIAfterSave();
+  await refreshUIAfterPlanSave();
 }
 
 /**

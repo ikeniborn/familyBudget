@@ -7,46 +7,9 @@
 
 import { closeModalFact } from './index';
 import { getCurrentTab } from './tabManager';
+import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 
 declare const debugLog: (...args: any[]) => void;
-declare const htmx: any;
-
-/**
- * Refresh UI components after save
- */
-async function refreshUIAfterSave(): Promise<void> {
-  debugLog('[SaveFactModal] Refreshing UI components...');
-
-  try {
-    // Refresh quick stats (index.html)
-    const quickStatsEl = document.getElementById('quick-stats-container');
-    if (quickStatsEl && typeof htmx !== 'undefined') {
-      htmx.trigger(quickStatsEl, 'load');
-    }
-
-    // Refresh account balances (index.html)
-    const accountBalancesEl = document.getElementById('account-balances-container');
-    if (accountBalancesEl && typeof htmx !== 'undefined') {
-      htmx.trigger(accountBalancesEl, 'load');
-    }
-
-    // Refresh recent transactions (index.html)
-    const recentTransactionsEl = document.getElementById('recent-transactions-container');
-    if (recentTransactionsEl && typeof htmx !== 'undefined') {
-      htmx.trigger(recentTransactionsEl, 'load');
-    }
-
-    // Reload facts table if on facts.html page
-    if (typeof (window as any).reloadFacts === 'function') {
-      await (window as any).reloadFacts();
-    }
-
-    debugLog('[SaveFactModal] UI refresh completed');
-  } catch (error) {
-    debugLog('[SaveFactModal] Error refreshing UI:', error);
-    // Non-critical error, don't throw
-  }
-}
 
 /**
  * Set button loading state
@@ -99,7 +62,7 @@ async function saveFactTransaction(form: HTMLFormElement): Promise<void> {
   debugLog('[SaveFactModal] Transaction saved:', result);
 
   // Update UI
-  await refreshUIAfterSave();
+  await refreshUIAfterFactSave();
 }
 
 /**
@@ -142,7 +105,7 @@ async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
   debugLog('[SaveFactModal] Transfer saved:', result);
 
   // Update UI
-  await refreshUIAfterSave();
+  await refreshUIAfterFactSave();
 }
 
 /**
