@@ -34,7 +34,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Job 0: Check VERSION changes
+  # ============================================================================
+  # Job 1: Check VERSION file changes
+  # ============================================================================
   check-version:
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
@@ -70,7 +72,9 @@ jobs:
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
-  # Job 1: Sync version files (package.json, package-lock.json)
+  # ============================================================================
+  # Job 2: Synchronize version files (package.json, package-lock.json)
+  # ============================================================================
   sync-version:
     needs: check-version
     runs-on: ubuntu-latest
@@ -118,8 +122,10 @@ jobs:
             echo "ℹ️ No changes needed (files already in sync)"
           fi
 
-  # Job 2: Frontend Build
-  frontend-build:
+  # ============================================================================
+  # Job 3: Build services (frontend: cache busting, minification, validation)
+  # ============================================================================
+  service-build:
     needs: [check-version, sync-version]
     runs-on: ubuntu-latest
     if: |
@@ -231,9 +237,11 @@ jobs:
       # Build artifacts (dist/, *.min.css) are also excluded per registry-first architecture
       # All built files exist only in Docker images, not in git
 
-  # Job 3: Quality Checks
+  # ============================================================================
+  # Job 4: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
+  # ============================================================================
   quality-checks:
-    needs: frontend-build
+    needs: service-build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -315,9 +323,11 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
-  # Job 4: Build and Push Docker Images
-  build-push:
-    needs: [frontend-build, quality-checks]
+  # ============================================================================
+  # Job 5: Build and push Docker images to GitHub Container Registry
+  # ============================================================================
+  image-build-push:
+    needs: [service-build, quality-checks]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -347,10 +357,10 @@ jobs:
 
       - name: Set cache and image versions
         run: |
-          # Frontend/SW use timestamp for cache invalidation (from frontend-build job output)
-          CACHE_VERSION="${{ needs.frontend-build.outputs.cache_version }}"
+          # Frontend/SW use VERSION for cache invalidation (from service-build job output)
+          CACHE_VERSION="${{ needs.service-build.outputs.cache_version }}"
           if [[ -z "$CACHE_VERSION" ]]; then
-            echo "❌ Cache version missing from frontend-build job output"
+            echo "❌ Cache version missing from service-build job output"
             exit 1
           fi
           echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
@@ -558,77 +568,65 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Job 3.5: Update IMAGE_VERSIONS.json для собранных образов
-  update-versions:
-    needs: build-push
-    runs-on: ubuntu-latest
-    if: |
-      needs.build-push.outputs.backend_built == 'true' ||
-      needs.build-push.outputs.bot_built == 'true' ||
-      needs.build-push.outputs.nginx_built == 'true' ||
-      needs.build-push.outputs.redis_built == 'true' ||
-      needs.build-push.outputs.postgresql_built == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Pull latest changes
-        run: git pull origin ${{ github.ref_name }}
-
-      - name: Read VERSION
-        id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Install jq
+      # ========================================================================
+      # Update IMAGE_VERSIONS.json with newly built image tags
+      # ========================================================================
+      - name: Install jq for IMAGE_VERSIONS.json update
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Update backend version
-        if: needs.build-push.outputs.backend_built == 'true'
+      - name: Update backend version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.backend == 'true'
         run: bash scripts/ci/update_image_version.sh backend "${{ steps.version.outputs.VERSION }}"
 
-      - name: Update bot version
-        if: needs.build-push.outputs.bot_built == 'true'
+      - name: Update bot version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.bot == 'true'
         run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
 
-      - name: Update nginx version
-        if: needs.build-push.outputs.nginx_built == 'true'
+      - name: Update nginx version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.nginx == 'true'
         run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
 
-      - name: Update redis version
-        if: needs.build-push.outputs.redis_built == 'true'
+      - name: Update redis version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.redis == 'true'
         run: bash scripts/ci/update_image_version.sh redis "${{ steps.version.outputs.VERSION }}"
 
-      - name: Update postgresql version
-        if: needs.build-push.outputs.postgresql_built == 'true'
+      - name: Update postgresql version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.postgresql == 'true'
         run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
 
-      - name: Check for changes
-        id: changes
-        run: |
-          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "IMAGE_VERSIONS.json has been updated:"
-            git diff IMAGE_VERSIONS.json
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "No changes to IMAGE_VERSIONS.json"
-          fi
-
       - name: Commit IMAGE_VERSIONS.json
-        if: steps.changes.outputs.changed == 'true'
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add IMAGE_VERSIONS.json
-          git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
-          git push
 
-  # Job 5: Security Scan
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
+            echo "IMAGE_VERSIONS.json has been updated:"
+            git diff IMAGE_VERSIONS.json
+            git add IMAGE_VERSIONS.json
+            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+            git push
+            echo "✅ IMAGE_VERSIONS.json committed and pushed"
+          else
+            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
+          fi
+
+  # ============================================================================
+  # Job 6: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
+  # ============================================================================
   security-scan:
-    needs: [build-push, update-versions]
+    needs: image-build-push
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -652,7 +650,7 @@ jobs:
           echo "Using image tag: $TAG"
 
       - name: Run Trivy scanner (backend)
-        if: needs.build-push.outputs.backend_built == 'true'
+        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }}
@@ -661,7 +659,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results (backend)
-        if: needs.build-push.outputs.backend_built == 'true'
+        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-backend.sarif'
@@ -669,7 +667,7 @@ jobs:
         continue-on-error: true
 
       - name: Run Trivy scanner (bot)
-        if: needs.build-push.outputs.bot_built == 'true'
+        if: needs.image-build-push.outputs.bot_built == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }}
@@ -678,16 +676,18 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results (bot)
-        if: needs.build-push.outputs.bot_built == 'true'
+        if: needs.image-build-push.outputs.bot_built == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-bot.sarif'
           category: 'bot-image'
         continue-on-error: true
 
-  # Job 6: Summary
+  # ============================================================================
+  # Job 7: Pipeline summary (version, commit, job statuses, Docker image tags)
+  # ============================================================================
   summary:
-    needs: [check-version, frontend-build, quality-checks, build-push, update-versions, security-scan]
+    needs: [check-version, service-build, quality-checks, image-build-push, security-scan]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -707,9 +707,9 @@ jobs:
           echo "**Branch/Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Build: ${{ needs.frontend-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Quality Checks: ${{ needs.quality-checks.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build & Push: ${{ needs.build-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
