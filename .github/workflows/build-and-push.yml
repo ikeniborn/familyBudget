@@ -34,10 +34,79 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Job 0: Check VERSION changes
-  check-version:
+  # Job 0: Sync version files (package.json, package-lock.json)
+  sync-version:
     runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
+    # Skip if commit already has [skip ci] to prevent loops
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+
+      - name: Read VERSION file
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current VERSION: $VERSION"
+
+      - name: Check if VERSION changed
+        id: check
+        run: |
+          if git diff HEAD~1 HEAD -- VERSION | grep -q "^[+-][0-9]"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✓ VERSION changed in this push"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "⚠ VERSION not changed, skipping sync"
+          fi
+
+      - name: Setup Node.js
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Update package.json and package-lock.json
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Updating package.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+          echo "Updating package-lock.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
+          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
+          rm package-lock.json.tmp
+
+      - name: Commit version sync
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          if [[ -n $(git status --porcelain package.json package-lock.json) ]]; then
+            git add package.json package-lock.json
+            git commit -m "chore: auto-sync package.json and package-lock.json to version $VERSION [skip ci]"
+            git push
+            echo "✅ Version files synchronized to $VERSION"
+          else
+            echo "ℹ️ No changes needed (files already in sync)"
+          fi
+
+  # Job 1: Check VERSION changes
+  check-version:
+    needs: sync-version
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
+      (github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false)
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
       current_version: ${{ steps.read.outputs.VERSION }}
@@ -70,7 +139,7 @@ jobs:
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
-  # Job 1: Frontend Build
+  # Job 2: Frontend Build
   frontend-build:
     needs: check-version
     runs-on: ubuntu-latest
@@ -182,7 +251,7 @@ jobs:
       # Build artifacts (dist/, *.min.css) are also excluded per registry-first architecture
       # All built files exist only in Docker images, not in git
 
-  # Job 2: Quality Checks
+  # Job 3: Quality Checks
   quality-checks:
     needs: frontend-build
     runs-on: ubuntu-latest
@@ -266,7 +335,7 @@ jobs:
           fail_ci_if_error: false
         continue-on-error: true
 
-  # Job 3: Build and Push Docker Images
+  # Job 4: Build and Push Docker Images
   build-push:
     needs: [frontend-build, quality-checks]
     runs-on: ubuntu-latest
@@ -577,7 +646,7 @@ jobs:
           git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
           git push
 
-  # Job 4: Security Scan
+  # Job 5: Security Scan
   security-scan:
     needs: [build-push, update-versions]
     runs-on: ubuntu-latest
@@ -636,7 +705,7 @@ jobs:
           category: 'bot-image'
         continue-on-error: true
 
-  # Job 5: Summary
+  # Job 6: Summary
   summary:
     needs: [check-version, frontend-build, quality-checks, build-push, update-versions, security-scan]
     runs-on: ubuntu-latest
