@@ -96,6 +96,9 @@ COPY --from=frontend-builder --chown=appuser:appuser /build/scripts/ $APP_HOME/s
 COPY --from=frontend-builder --chown=appuser:appuser /build/frontend/web/static/sw.min.js $APP_HOME/sw.min.js
 COPY --from=frontend-builder --chown=appuser:appuser /build/manifest.json $APP_HOME/manifest.json
 
+# Копируем VERSION файл (используется backend для health endpoint)
+COPY --from=frontend-builder --chown=appuser:appuser /build/VERSION $APP_HOME/VERSION
+
 # Создаем директории
 RUN mkdir -p $APP_HOME/logs $APP_HOME/uploads $APP_HOME/uploads/temp && \
     chown -R appuser:appuser $APP_HOME/logs $APP_HOME/uploads
