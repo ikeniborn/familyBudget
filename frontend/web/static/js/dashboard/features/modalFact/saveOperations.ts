@@ -9,14 +9,43 @@ import { closeModalFact } from './index';
 import { getCurrentTab } from './tabManager';
 
 declare const debugLog: (...args: any[]) => void;
+declare const htmx: any;
 
 /**
- * Show toast notification
+ * Refresh UI components after save
  */
-function showToast(message: string, type: 'success' | 'error'): void {
-  // TODO: Implement toast notification
-  // For now, use console
-  debugLog(`[Toast ${type}] ${message}`);
+async function refreshUIAfterSave(): Promise<void> {
+  debugLog('[SaveFactModal] Refreshing UI components...');
+
+  try {
+    // Refresh quick stats (index.html)
+    const quickStatsEl = document.getElementById('quick-stats-container');
+    if (quickStatsEl && typeof htmx !== 'undefined') {
+      htmx.trigger(quickStatsEl, 'load');
+    }
+
+    // Refresh account balances (index.html)
+    const accountBalancesEl = document.getElementById('account-balances-container');
+    if (accountBalancesEl && typeof htmx !== 'undefined') {
+      htmx.trigger(accountBalancesEl, 'load');
+    }
+
+    // Refresh recent transactions (index.html)
+    const recentTransactionsEl = document.getElementById('recent-transactions-container');
+    if (recentTransactionsEl && typeof htmx !== 'undefined') {
+      htmx.trigger(recentTransactionsEl, 'load');
+    }
+
+    // Reload facts table if on facts.html page
+    if (typeof (window as any).reloadFacts === 'function') {
+      await (window as any).reloadFacts();
+    }
+
+    debugLog('[SaveFactModal] UI refresh completed');
+  } catch (error) {
+    debugLog('[SaveFactModal] Error refreshing UI:', error);
+    // Non-critical error, don't throw
+  }
 }
 
 /**
@@ -69,8 +98,8 @@ async function saveFactTransaction(form: HTMLFormElement): Promise<void> {
   const result = await response.json();
   debugLog('[SaveFactModal] Transaction saved:', result);
 
-  // TODO: Update UI (recent transactions, quick stats)
-  // Import and call existing functions from factsManager
+  // Update UI
+  await refreshUIAfterSave();
 }
 
 /**
@@ -112,7 +141,8 @@ async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
   const result = await response.json();
   debugLog('[SaveFactModal] Transfer saved:', result);
 
-  // TODO: Update UI
+  // Update UI
+  await refreshUIAfterSave();
 }
 
 /**
@@ -125,7 +155,7 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
   const form = document.getElementById('form_modal_fact') as HTMLFormElement;
 
   if (!form) {
-    console.error('[SaveFactModal] Form not found');
+    debugLog('[SaveFactModal] Form not found');
     return;
   }
 
@@ -152,11 +182,15 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
     closeModalFact();
 
     // Show success toast
-    showToast('Факт сохранён', 'success');
+    if (typeof (window as any).showToast === 'function') {
+      (window as any).showToast('Факт сохранён', 'success');
+    }
 
   } catch (error) {
-    console.error('[SaveFactModal] Error:', error);
-    showToast('Ошибка сохранения', 'error');
+    debugLog('[SaveFactModal] Error:', error);
+    if (typeof (window as any).showToast === 'function') {
+      (window as any).showToast('Ошибка сохранения', 'error');
+    }
   } finally {
     setButtonLoading(button, false);
   }
