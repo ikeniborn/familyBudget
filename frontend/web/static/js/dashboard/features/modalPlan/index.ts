@@ -80,6 +80,10 @@ async function loadTransactionTabData(): Promise<void> {
   } else {
     debugLog('[ModalPlan] Using cached transaction data');
   }
+
+  // Hints are already integrated in loadTransactionCategories callback (from addTransaction module)
+  // The existing transactionCategoryTreeSelect/planCategoryTreeSelect handles it
+  // No additional setup needed
 }
 
 /**

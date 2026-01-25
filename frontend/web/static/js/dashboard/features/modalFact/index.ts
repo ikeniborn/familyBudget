@@ -80,6 +80,9 @@ async function loadTransactionTabData(): Promise<void> {
   } else {
     debugLog('[ModalFact] Using cached transaction data');
   }
+
+  // Hints are already integrated in loadTransactionCategories callback
+  // No additional setup needed
 }
 
 /**
