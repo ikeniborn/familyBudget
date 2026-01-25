@@ -881,3 +881,106 @@ html.offline-mode .save-btn:hover {
         opacity: 1;
     }
 }
+
+/* ============================================== */
+/* Tabbed Modals Styling                         */
+/* ============================================== */
+
+/**
+ * Tab styling for modal_fact and modal_plan
+ * DaisyUI tabs-boxed with enhanced visuals
+ */
+.modal .tabs-boxed {
+    background-color: hsl(var(--b2));
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+}
+
+.modal .tabs-boxed .tab {
+    flex: 1;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-height: 2.5rem; /* 40px - accessible touch target */
+}
+
+.modal .tabs-boxed .tab:checked {
+    background-color: hsl(var(--p));
+    color: hsl(var(--pc));
+}
+
+/**
+ * Tab content fade-in animation
+ * GPU-accelerated with transform + opacity
+ */
+.tab-content {
+    animation: tabFadeIn 0.2s ease-in;
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+@keyframes tabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .tab-content {
+        animation: none;
+    }
+}
+
+/* ============================================== */
+/* Simplified FAB (No Speed Dial)                */
+/* ============================================== */
+
+/**
+ * Single universal FAB button
+ * Replaces speed dial menu (v9.0+)
+ */
+.fab-wrapper {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 998;
+}
+
+@media (min-width: 1024px) {
+    .fab-wrapper {
+        right: 2rem;
+        bottom: 2rem;
+    }
+}
+
+.fab-button {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: hsl(var(--p));
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+}
+
+@media (min-width: 1280px) {
+    .fab-button {
+        width: 64px;
+        height: 64px;
+    }
+}

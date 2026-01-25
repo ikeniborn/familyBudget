@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% from "components/modal_transaction.html" import transaction_modal %}
 {% from "components/modal_edit_fact.html" import edit_fact_modal %}
 {% from "components/modal_confirm.html" import confirm_modal %}
+
+{# v9.0 Tabbed Modals #}
+{% from "components/modal_fact.html" import modal_fact %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -203,8 +205,9 @@
 <!-- Edit Fact Modal -->
 {{ edit_fact_modal('edit-modal') }}
 
-<!-- Transfer Modal -->
-{% include "components/modal_transfer.html" %}
+<!-- v9.0 Tabbed Modals -->
+{{ modal_fact('modal_fact') }}
+
 {% endblock %}
 
 {% block extra_styles %}

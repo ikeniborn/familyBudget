@@ -41,12 +41,11 @@ import {
   setupTransactionTypeButtons as setupTransactionTypeButtonsImpl,
 } from '../features/addTransaction';
 
-// Add Plan imports (Phase 3)
+// Add Plan imports (Phase 3) - kept for backward compatibility with legacy inline JavaScript
 import {
   loadPlanCategories as loadPlanCategoriesImpl,
   savePlan as savePlanImpl,
   savePlanOffline as savePlanOfflineImpl,
-  openAddPlanModal as openAddPlanModalImpl,
   loadPlanHints as loadPlanHintsImpl,
   setupPlanPeriodButtons as setupPlanPeriodButtonsImpl,
   setupPlanTypeButtons as setupPlanTypeButtonsImpl,
@@ -76,6 +75,38 @@ import {
   handleRecurringDeleteChoice as handleRecurringDeleteChoiceImpl,
   setupEditCategoryTypeButtons as setupEditCategoryTypeButtonsImpl,
 } from '../features/editModal';
+
+// Modal Fact imports (v9.0 Tabbed Modals)
+import {
+  openModalFact as openModalFactImpl,
+  closeModalFact as closeModalFactImpl,
+} from '../features/modalFact';
+
+import {
+  saveFactModal as saveFactModalImpl,
+} from '../features/modalFact/saveOperations';
+
+// Modal Plan imports (v9.0 Tabbed Modals)
+import {
+  openModalPlan as openModalPlanImpl,
+  closeModalPlan as closeModalPlanImpl,
+} from '../features/modalPlan';
+
+import {
+  savePlanModal as savePlanModalImpl,
+} from '../features/modalPlan/saveOperations';
+
+import {
+  togglePlanMode as togglePlanModeNewImpl,
+  updateFrequencyFields as updateFrequencyFieldsNewImpl,
+  updateYearlyFrequencyValue as updateYearlyFrequencyValueNewImpl,
+  updateDurationFields as updateDurationFieldsNewImpl,
+} from '../features/modalPlan/recurringSettings';
+
+// FAB Context Modal import (v9.0 Simplified FAB)
+import {
+  openContextModal as openContextModalImpl,
+} from '../features/fab/contextModal';
 
 // UI imports (Phase 5)
 import {
@@ -310,6 +341,58 @@ async function openAddTransactionModal(): Promise<void> {
   );
 }
 
+// ============================================================================
+// Modal Fact (v9.0 Tabbed Modals)
+// ============================================================================
+
+function openModalFact(): void {
+  // Fire-and-forget async call
+  openModalFactImpl().catch(error => {
+    console.error('[Dashboard] openModalFact error:', error);
+  });
+}
+
+function closeModalFact(): void {
+  return closeModalFactImpl();
+}
+
+function saveFactModal(button: HTMLElement): void {
+  // Fire-and-forget async call
+  saveFactModalImpl(button).catch(error => {
+    console.error('[Dashboard] saveFactModal error:', error);
+  });
+}
+
+// ============================================================================
+// Modal Plan (v9.0 Tabbed Modals)
+// ============================================================================
+
+function openModalPlan(): void {
+  // Fire-and-forget async call
+  openModalPlanImpl().catch(error => {
+    console.error('[Dashboard] openModalPlan error:', error);
+  });
+}
+
+function closeModalPlan(): void {
+  return closeModalPlanImpl();
+}
+
+function savePlanModal(button: HTMLElement): void {
+  // Fire-and-forget async call
+  savePlanModalImpl(button).catch(error => {
+    console.error('[Dashboard] savePlanModal error:', error);
+  });
+}
+
+// ============================================================================
+// FAB Context Modal (v9.0 Simplified FAB)
+// ============================================================================
+
+function openContextModal(): void {
+  return openContextModalImpl();
+}
+
 /**
  * Open fact transfer modal.
  * Delegates to transfers module openTransferModal.
@@ -404,10 +487,6 @@ async function loadPlanCategories(): Promise<void> {
   return loadPlanCategoriesImpl();
 }
 
-async function openAddPlanModal(): Promise<void> {
-  return openAddPlanModalImpl();
-}
-
 function savePlan(button: HTMLElement): void {
   return savePlanImpl(button);
 }
@@ -421,6 +500,10 @@ async function loadPlanHints(category: Category | null = null): Promise<void> {
 }
 
 function togglePlanMode(modalId: string): void {
+  // Use new implementation for modal_plan, old for legacy modals
+  if (modalId === 'modal_plan') {
+    return togglePlanModeNewImpl(modalId);
+  }
   return togglePlanModeImpl(modalId);
 }
 
@@ -453,15 +536,31 @@ function resetRecurringSettings(modalId: string): void {
 }
 
 function updateFrequencyFields(modalId: string): void {
+  // Use new implementation for modal_plan
+  if (modalId === 'modal_plan') {
+    return updateFrequencyFieldsNewImpl(modalId);
+  }
   return updateFrequencyFieldsImpl(modalId);
 }
 
 function updateDurationFields(modalId: string): void {
+  // Use new implementation for modal_plan
+  if (modalId === 'modal_plan') {
+    return updateDurationFieldsNewImpl(modalId);
+  }
   return updateDurationFieldsImpl(modalId);
 }
 
 function updateRecurringPreview(modalId: string): void {
   return updateRecurringPreviewImpl(modalId);
+}
+
+// New function for modal_plan (yearly frequency value update)
+function updateYearlyFrequencyValue(modalId: string): void {
+  if (modalId === 'modal_plan') {
+    return updateYearlyFrequencyValueNewImpl(modalId);
+  }
+  // No legacy implementation, do nothing
 }
 
 function collectRecurringSettings(modalId: string): ReturnType<typeof collectRecurringSettingsImpl> {
@@ -548,9 +647,8 @@ export const dashboardExports: DashboardExports = {
   filterCostCenterDropdown,
   loadFactHints,
 
-  // Add plan (Phase 3 - IMPLEMENTED)
+  // Add plan (Phase 3 - IMPLEMENTED, kept for backward compatibility)
   loadPlanCategories,
-  openAddPlanModal,
   savePlan,
   savePlanOffline,
   loadPlanHints,
@@ -564,6 +662,7 @@ export const dashboardExports: DashboardExports = {
   resetRecurringSettings,
   updateFrequencyFields,
   updateDurationFields,
+  updateYearlyFrequencyValue,
   updateRecurringPreview,
   collectRecurringSettings,
 
@@ -587,6 +686,17 @@ export const dashboardExports: DashboardExports = {
   recurringDeleteResolve,
   openAddTransactionModal,
   openFactTransferModal,
+
+  // Tabbed Modals (v9.0)
+  openModalFact,
+  closeModalFact,
+  saveFactModal,
+  openModalPlan,
+  closeModalPlan,
+  savePlanModal,
+
+  // Simplified FAB (v9.0)
+  openContextModal,
 };
 
 /**
@@ -613,7 +723,6 @@ export function initWindowExports(): void {
 
   // Expose add plan functions globally for onclick handlers
   window.loadPlanCategories = loadPlanCategories;
-  window.openAddPlanModal = openAddPlanModal;
   window.savePlan = savePlan;
   window.togglePlanMode = togglePlanMode;
   window.toggleReminderSettings = toggleReminderSettings;
@@ -624,6 +733,7 @@ export function initWindowExports(): void {
   window.resetRecurringSettings = resetRecurringSettings;
   window.updateFrequencyFields = updateFrequencyFields;
   window.updateDurationFields = updateDurationFields;
+  window.updateYearlyFrequencyValue = updateYearlyFrequencyValue;
   window.updateRecurringPreview = updateRecurringPreview;
   window.collectRecurringSettings = collectRecurringSettings;
 
@@ -658,6 +768,17 @@ export function initWindowExports(): void {
   window.recurringDeleteResolve = recurringDeleteResolve;
   window.openAddTransactionModal = openAddTransactionModal;
   window.openFactTransferModal = openFactTransferModal;
+
+  // Expose tabbed modals functions globally (v9.0)
+  window.openModalFact = openModalFact;
+  window.closeModalFact = closeModalFact;
+  window.saveFactModal = saveFactModal;
+  window.openModalPlan = openModalPlan;
+  window.closeModalPlan = closeModalPlan;
+  window.savePlanModal = savePlanModal;
+
+  // Expose simplified FAB function globally (v9.0)
+  window.openContextModal = openContextModal;
 
   debugLog('[Dashboard] Window exports initialized');
 }

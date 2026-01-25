@@ -226,7 +226,6 @@ declare global {
 
     // Add plan
     loadPlanCategories?: () => Promise<void>;
-    openAddPlanModal?: () => Promise<void>;
     savePlan?: (button: HTMLElement) => void;
     togglePlanMode?: (modalId: string) => void;
     toggleReminderSettings?: (modalId: string) => void;
@@ -237,6 +236,7 @@ declare global {
     resetRecurringSettings?: (modalId: string) => void;
     updateFrequencyFields?: (modalId: string) => void;
     updateDurationFields?: (modalId: string) => void;
+    updateYearlyFrequencyValue?: (modalId: string) => void;
     updateRecurringPreview?: (modalId: string) => void;
     collectRecurringSettings?: (modalId: string) => RecurringSettings | null;
 
@@ -267,6 +267,17 @@ declare global {
     recurringDeleteResolve?: (choice: string | null) => void;
     openAddTransactionModal?: () => Promise<void>;
     openFactTransferModal?: () => Promise<void>;
+
+    // Tabbed Modals (v9.0)
+    openModalFact?: () => void;
+    closeModalFact?: () => void;
+    saveFactModal?: (button: HTMLElement) => void;
+    openModalPlan?: () => void;
+    closeModalPlan?: () => void;
+    savePlanModal?: (button: HTMLElement) => void;
+
+    // Simplified FAB (v9.0)
+    openContextModal?: () => void;
 
     // Facts module shared functions (used by both dashboard and facts)
     updateBatchDeleteButton?: () => void;
@@ -313,9 +324,8 @@ export interface DashboardExports {
   filterCostCenterDropdown(formSelectorOrFcId: string | number | null, financialCenterId?: number | null): Promise<void>;
   loadFactHints(category?: Category | null): Promise<void>;
 
-  // Add plan (Phase 3)
+  // Add plan (Phase 3) - kept for backward compatibility
   loadPlanCategories(): Promise<void>;
-  openAddPlanModal(): Promise<void>;
   savePlan(button: HTMLElement): void;
   savePlanOffline(button: HTMLElement): Promise<void>;
   loadPlanHints(category?: Category | null): Promise<void>;
@@ -333,6 +343,7 @@ export interface DashboardExports {
   resetRecurringSettings(modalId: string): void;
   updateFrequencyFields(modalId: string): void;
   updateDurationFields(modalId: string): void;
+  updateYearlyFrequencyValue(modalId: string): void;
   updateRecurringPreview(modalId: string): void;
   collectRecurringSettings(modalId: string): RecurringSettings | null;
 
@@ -356,6 +367,17 @@ export interface DashboardExports {
   recurringDeleteResolve(choice: string | null): void;
   openAddTransactionModal(): Promise<void>;
   openFactTransferModal(): Promise<void>;
+
+  // Tabbed Modals (v9.0)
+  openModalFact(): void;
+  closeModalFact(): void;
+  saveFactModal(button: HTMLElement): void;
+  openModalPlan(): void;
+  closeModalPlan(): void;
+  savePlanModal(button: HTMLElement): void;
+
+  // Simplified FAB (v9.0)
+  openContextModal(): void;
 }
 
 export {};

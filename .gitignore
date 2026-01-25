@@ -201,6 +201,10 @@ sql/*.pyc
 frontend/web/static/css/*.min.css
 frontend/web/static/css/vendor/*.min.css
 frontend/shared/static/css/*.min.css
+
+# Tailwind generated unminified CSS (intermediate build artifact)
+# This file is generated from tailwind.input.css and then minified to tailwind-daisyui.min.css
+frontend/web/static/css/tailwind-daisyui.css
 frontend/**/static/js/**/*.min.js
 frontend/**/static/js/**/*.min.js.map
 # PGlite lazy-loaded chunks and bundles (built by Vite in CI/CD)
@@ -218,10 +222,6 @@ frontend/**/static/**/*.bundle.js
 frontend/**/static/**/*.bundle.js.map
 *.bundle.js
 *.bundle.js.map
-
-# Standalone utility scripts (not built by Vite) - TRACKED в git
-# Эти файлы минифицируются вручную и должны быть в git
-!frontend/**/static/js/admin-facts-common.min.js
 
 # =============================================================================
 # Docker & Infrastructure
