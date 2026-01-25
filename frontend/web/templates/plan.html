@@ -887,75 +887,7 @@ function setupTransferPeriodButtons() {
     });
 }
 
-function openPlanTransferModal() {
-    // Reset button state
-    const form = document.getElementById('form_transfer');
-    const submitBtn = form?.querySelector('.save-btn');
-    if (submitBtn) {
-        submitBtn.disabled = false;
-        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
-    }
-
-    // Set transfer record type to plan
-    if (typeof setTransferRecordType === 'function') {
-        setTransferRecordType('plan');
-    }
-
-    // CRITICAL: Reset FC filter state and clear selection for create modals
-    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
-        fromCategoryTree.options.financialCenterId = null;
-        fromCategoryTree.clearSelection();
-        console.log('[MODAL_CREATE] Plan transfer (plan.html): FROM category reset and cleared');
-    }
-    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
-        toCategoryTree.options.financialCenterId = null;
-        toCategoryTree.clearSelection();
-        console.log('[MODAL_CREATE] Plan transfer (plan.html): TO category reset and cleared');
-    }
-
-    // Update modal title to indicate plan transfer
-    const modalTitle = document.querySelector('#transfer_modal h3');
-    if (modalTitle) {
-        modalTitle.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-            Плановый перевод
-        `;
-    }
-
-    // Show the modal
-    const modal = document.querySelector('#transfer_modal');
-    if (modal) {
-        // Set default date to first day of selected month
-        const selectedMonth = document.querySelector('input[name="month"]')?.value || new Date().toISOString().slice(0, 7);
-        const defaultDate = selectedMonth + '-01';
-        const dateInput = document.querySelector('#transfer_date');
-        if (dateInput && typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
-            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(defaultDate);
-        }
-
-        modal.showModal();
-
-        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
-        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
-        if (!modal.dataset.backdropHandlerAdded) {
-            modal.addEventListener('click', (e) => {
-                // Close only if click is OUTSIDE modal-box
-                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
-                const modalBox = modal.querySelector('.modal-box');
-                if (modalBox && !modalBox.contains(e.target)) {
-                    modal.close();
-                }
-            });
-            modal.dataset.backdropHandlerAdded = 'true';
-        }
-    }
-}
-// Ensure function is globally accessible for onclick handlers
-window.openPlanTransferModal = openPlanTransferModal;
-
-// ==================== Plan Hints (for modal_add_plan) ====================
+// ==================== Plan Hints (for modal_plan) ====================
 
 // Debounce state for plan hints
 let planHintsTimeout = null;
@@ -1285,17 +1217,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
-
-    // Retry initialization when opening create modal (if not initialized in loadArticles)
-    const createModalButton = document.querySelector('button[onclick="openAddPlanModal()"]');
-    if (createModalButton) {
-        createModalButton.addEventListener('click', function() {
-            // Retry initialization if categories failed to load initially
-            if (!createCategoryTreeSelect) {
-                initializeCreateModalCategories();
-            }
-        });
-    }
 });
 
 // Load users for filter dropdown
@@ -3815,8 +3736,8 @@ async function createTransfer(event) {
         return;
     }
 
-    // Get record_type from hidden field (set by openPlanTransferModal)
-    const recordType = formData.get('record_type') || 'plan'; // Default to 'plan' for plan.html
+    // Get record_type from hidden field (defaults to 'plan' for plan.html)
+    const recordType = formData.get('record_type') || 'plan';
 
     // Determine transfer date based on record_type
     let transferDate;
@@ -4053,57 +3974,6 @@ function prefillReminderDateTime(modalId) {
         minuteSelect.value = time.minute;
     }
 }
-
-/**
- * Open Add Plan modal with pre-filled reminder date/time.
- */
-function openAddPlanModal() {
-    const modalId = 'modal_add_plan';
-
-    // Reset button state
-    const form = document.getElementById('form_modal_add_plan');
-    const submitBtn = form?.querySelector('.save-btn');
-    if (submitBtn) {
-        submitBtn.disabled = false;
-        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
-    }
-
-    // CRITICAL: Reset FC filter state and clear selection for create modals
-    if (typeof createCategoryTreeSelect !== 'undefined' && createCategoryTreeSelect) {
-        createCategoryTreeSelect.options.financialCenterId = null;
-        createCategoryTreeSelect.clearSelection();
-        console.log('[MODAL_CREATE] Plan modal: FC reset and selection cleared');
-    }
-
-    // Pre-fill reminder date and time before opening
-    prefillReminderDateTime(modalId);
-
-    // Open the modal
-    const modal = document.getElementById(modalId);
-    if (modal && modal.showModal) {
-        modal.showModal();
-
-        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
-        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
-        if (!modal.dataset.backdropHandlerAdded) {
-            modal.addEventListener('click', (e) => {
-                // Close only if click is OUTSIDE modal-box
-                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
-                const modalBox = modal.querySelector('.modal-box');
-                if (modalBox && !modalBox.contains(e.target)) {
-                    modal.close();
-                }
-            });
-            modal.dataset.backdropHandlerAdded = 'true';
-        }
-
-        // ✅ FIX: Initialize plan mode on modal open
-        // Without this, form validation fails until user manually changes plan mode
-        togglePlanMode(modalId);
-    }
-}
-// Ensure function is globally accessible for onclick handlers
-window.openAddPlanModal = openAddPlanModal;
 
 // Toggle reminder settings visibility (for create modal)
 function toggleReminderSettings(modalId) {

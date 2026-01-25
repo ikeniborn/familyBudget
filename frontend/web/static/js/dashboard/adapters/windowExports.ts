@@ -41,12 +41,11 @@ import {
   setupTransactionTypeButtons as setupTransactionTypeButtonsImpl,
 } from '../features/addTransaction';
 
-// Add Plan imports (Phase 3)
+// Add Plan imports (Phase 3) - kept for backward compatibility with legacy inline JavaScript
 import {
   loadPlanCategories as loadPlanCategoriesImpl,
   savePlan as savePlanImpl,
   savePlanOffline as savePlanOfflineImpl,
-  openAddPlanModal as openAddPlanModalImpl,
   loadPlanHints as loadPlanHintsImpl,
   setupPlanPeriodButtons as setupPlanPeriodButtonsImpl,
   setupPlanTypeButtons as setupPlanTypeButtonsImpl,
@@ -488,10 +487,6 @@ async function loadPlanCategories(): Promise<void> {
   return loadPlanCategoriesImpl();
 }
 
-async function openAddPlanModal(): Promise<void> {
-  return openAddPlanModalImpl();
-}
-
 function savePlan(button: HTMLElement): void {
   return savePlanImpl(button);
 }
@@ -652,9 +647,8 @@ export const dashboardExports: DashboardExports = {
   filterCostCenterDropdown,
   loadFactHints,
 
-  // Add plan (Phase 3 - IMPLEMENTED)
+  // Add plan (Phase 3 - IMPLEMENTED, kept for backward compatibility)
   loadPlanCategories,
-  openAddPlanModal,
   savePlan,
   savePlanOffline,
   loadPlanHints,
@@ -729,7 +723,6 @@ export function initWindowExports(): void {
 
   // Expose add plan functions globally for onclick handlers
   window.loadPlanCategories = loadPlanCategories;
-  window.openAddPlanModal = openAddPlanModal;
   window.savePlan = savePlan;
   window.togglePlanMode = togglePlanMode;
   window.toggleReminderSettings = toggleReminderSettings;

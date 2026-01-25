@@ -226,7 +226,6 @@ declare global {
 
     // Add plan
     loadPlanCategories?: () => Promise<void>;
-    openAddPlanModal?: () => Promise<void>;
     savePlan?: (button: HTMLElement) => void;
     togglePlanMode?: (modalId: string) => void;
     toggleReminderSettings?: (modalId: string) => void;
@@ -325,9 +324,8 @@ export interface DashboardExports {
   filterCostCenterDropdown(formSelectorOrFcId: string | number | null, financialCenterId?: number | null): Promise<void>;
   loadFactHints(category?: Category | null): Promise<void>;
 
-  // Add plan (Phase 3)
+  // Add plan (Phase 3) - kept for backward compatibility
   loadPlanCategories(): Promise<void>;
-  openAddPlanModal(): Promise<void>;
   savePlan(button: HTMLElement): void;
   savePlanOffline(button: HTMLElement): Promise<void>;
   loadPlanHints(category?: Category | null): Promise<void>;
