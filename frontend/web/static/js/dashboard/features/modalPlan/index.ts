@@ -9,6 +9,7 @@ import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
+import { setupPlanTypeToggle } from './typeToggle';
 
 declare const debugLog: (...args: any[]) => void;
 
@@ -366,6 +367,9 @@ export async function openModalPlan(): Promise<void> {
 
     // Setup recurring settings listeners
     setupRecurringListeners('modal_plan');
+
+    // Setup plan type toggle listeners
+    setupPlanTypeToggle();
 
     // Hide skeleton
     hideSkeleton();

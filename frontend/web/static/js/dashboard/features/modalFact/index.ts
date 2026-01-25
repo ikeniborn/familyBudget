@@ -8,6 +8,7 @@
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
+import { setupTransactionTypeToggle } from './typeToggle';
 
 declare const debugLog: (...args: any[]) => void;
 
@@ -356,6 +357,9 @@ export async function openModalFact(): Promise<void> {
 
     // Hide skeleton
     hideSkeleton();
+
+    // Setup transaction type toggle listeners
+    setupTransactionTypeToggle();
 
     // Reset to transaction tab (default)
     switchTab('transaction');
