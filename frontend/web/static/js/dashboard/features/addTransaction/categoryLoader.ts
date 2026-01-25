@@ -27,14 +27,14 @@ declare const debugLog: (...args: any[]) => void;
 export async function loadTransactionCategories(): Promise<void> {
   try {
     // Check if select element exists (defense in depth)
-    const selectElement = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+    const selectElement = document.querySelector('#modal_fact-tab-transaction select[name="article_id"]');
     if (!selectElement) {
       debugLog('[loadTransactionCategories] Select element not found - skipping initialization');
       return;
     }
 
     // Get current transaction type
-    const typeInput = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked') as HTMLInputElement | null;
+    const typeInput = document.querySelector('#modal_fact-tab-transaction input[name="record_type"]:checked') as HTMLInputElement | null;
     const transactionType = typeInput?.value || 'expense';
 
     const state = getState();
@@ -45,7 +45,7 @@ export async function loadTransactionCategories(): Promise<void> {
     } else if (window.BudgetShared?.ChoicesCategoryTree) {
       // Initialize CategoryTreeSelect for transaction form
       const newInstance = new window.BudgetShared.ChoicesCategoryTree(
-        '#form_modal_add_transaction select[name="article_id"]',
+        '#modal_fact-tab-transaction select[name="article_id"]',
         {
           type: transactionType,
           showLeafOnly: true,
@@ -66,7 +66,7 @@ export async function loadTransactionCategories(): Promise<void> {
       setTransactionCategoryTreeSelect(newInstance);
     }
 
-    debugLog('[index.html] Transaction categories loaded');
+    debugLog('[loadTransactionCategories] Transaction categories loaded');
   } catch (error) {
     console.error('Failed to load transaction categories:', error);
     showToast('Ошибка при загрузке категорий транзакций', 'error');
@@ -89,8 +89,9 @@ function loadFactHintsForCategory(category: Category | null): void {
 
 /**
  * Load financial centers (accounts) for transaction form
+ * @param targetSelectors - Optional array of CSS selectors for financial center dropdowns
  */
-export async function loadFinancialCenters(): Promise<void> {
+export async function loadFinancialCenters(targetSelectors?: string[]): Promise<void> {
   try {
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
@@ -104,18 +105,24 @@ export async function loadFinancialCenters(): Promise<void> {
       return;
     }
 
-    // Populate select in both forms
-    const selects = [
-      document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]'),
-      document.querySelector('#form_modal_add_plan select[name="financial_center_id"]'),
+    // Use provided selectors or default to new tab-based selectors
+    const selectors = targetSelectors || [
+      '#modal_fact-tab-transaction select[name="financial_center_id"]',
+      '#modal_plan-tab-transaction select[name="financial_center_id"]',
     ];
 
-    selects.forEach(select => {
-      if (!select) return;
+    // Populate each select
+    selectors.forEach(selector => {
+      const select = document.querySelector(selector) as HTMLSelectElement | null;
+
+      if (!select) {
+        debugLog(`[loadFinancialCenters] Selector not found: ${selector}`);
+        return;
+      }
 
       // Clear except first option
-      while ((select as HTMLSelectElement).options.length > 1) {
-        (select as HTMLSelectElement).remove(1);
+      while (select.options.length > 1) {
+        select.remove(1);
       }
 
       // Add accounts
@@ -125,6 +132,8 @@ export async function loadFinancialCenters(): Promise<void> {
         option.textContent = fc.name;
         select.appendChild(option);
       });
+
+      debugLog(`[loadFinancialCenters] Populated: ${selector} (${centers.length} accounts)`);
     });
 
     // Add change listeners to filter categories AND cost centers when account changes
@@ -140,7 +149,7 @@ export async function loadFinancialCenters(): Promise<void> {
  * Set up change listeners for financial center selects
  */
 function setupFinancialCenterListeners(): void {
-  const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
+  const transactionFcSelect = document.querySelector('#modal_fact-tab-transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
 
   if (transactionFcSelect && !transactionFcSelect.dataset.listenerAttached) {
     transactionFcSelect.addEventListener('change', async (e) => {
@@ -165,7 +174,7 @@ function setupFinancialCenterListeners(): void {
       }
 
       // Filter cost centers by selected FC
-      await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
+      await filterCostCenterDropdown('#modal_fact-tab-transaction', fcId);
 
       // Small delay to allow DOM to settle (mobile browser optimization)
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -180,7 +189,7 @@ function setupFinancialCenterListeners(): void {
     transactionFcSelect.dataset.listenerAttached = 'true';
   }
 
-  const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]') as HTMLSelectElement | null;
+  const planFcSelect = document.querySelector('#modal_plan-tab-transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
 
   if (planFcSelect && !planFcSelect.dataset.listenerAttached) {
     planFcSelect.addEventListener('change', async (e) => {
@@ -204,7 +213,7 @@ function setupFinancialCenterListeners(): void {
       }
 
       // Filter cost centers by selected FC
-      await filterCostCenterDropdown('#form_modal_add_plan', fcId);
+      await filterCostCenterDropdown('#modal_plan-tab-transaction', fcId);
 
       // Small delay to allow DOM to settle
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -243,10 +252,10 @@ export async function loadCostCenters(): Promise<void> {
       return;
     }
 
-    // Populate select in both forms
+    // Populate select in both forms (new tab-based selectors)
     const selects = [
-      document.querySelector('#form_modal_add_transaction select[name="cost_center_id"]'),
-      document.querySelector('#form_modal_add_plan select[name="cost_center_id"]'),
+      document.querySelector('#modal_fact-tab-transaction select[name="cost_center_id"]'),
+      document.querySelector('#modal_plan-tab-transaction select[name="cost_center_id"]'),
     ];
 
     selects.forEach(select => {

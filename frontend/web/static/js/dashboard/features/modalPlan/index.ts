@@ -97,6 +97,13 @@ async function loadTransactionTabData(): Promise<void> {
       loadCostCenters()
     ]);
 
+    // Validate critical selects are populated
+    const fcSelect = document.querySelector('#modal_plan-tab-transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
+    if (!fcSelect || fcSelect.options.length <= 1) {
+      console.error('[ModalPlan] Financial center select not populated');
+      showToast('Ошибка загрузки счетов. Обновите страницу.', 'error');
+    }
+
     debugLog('[ModalPlan] Transaction data loaded');
   } else {
     debugLog('[ModalPlan] Using cached transaction data');
@@ -123,44 +130,14 @@ async function loadTransferTabData(): Promise<void> {
   debugLog('[ModalPlan] Loading transfer data...');
 
   try {
-    // 1. Load financial centers (reuse from addTransaction)
+    // 1. Load financial centers using centralized function
     const { loadFinancialCenters } = await import('../addTransaction/categoryLoader');
-    await loadFinancialCenters();
+    await loadFinancialCenters([
+      '#modal_plan-tab-transfer select[name="from_financial_center_id"]',
+      '#modal_plan-tab-transfer select[name="to_financial_center_id"]'
+    ]);
 
-    // 2. Populate FROM/TO financial center dropdowns
-    const userId = await (await import('../../../offline/offlineManager/utils/userHelpers')).getCurrentUserId();
-    const { dataLayer } = await import('../../../data/DataLayer');
-    const centers = await dataLayer.getFinancialCenters(userId, true);
-
-    // Populate FROM select
-    const fromFcSelect = document.querySelector('#modal_plan-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement;
-    if (fromFcSelect) {
-      while (fromFcSelect.options.length > 1) {
-        fromFcSelect.remove(1);
-      }
-      centers.forEach((fc: { id: number; name: string }) => {
-        const option = document.createElement('option');
-        option.value = String(fc.id);
-        option.textContent = fc.name;
-        fromFcSelect.appendChild(option);
-      });
-    }
-
-    // Populate TO select
-    const toFcSelect = document.querySelector('#modal_plan-tab-transfer select[name="to_financial_center_id"]') as HTMLSelectElement;
-    if (toFcSelect) {
-      while (toFcSelect.options.length > 1) {
-        toFcSelect.remove(1);
-      }
-      centers.forEach((fc: { id: number; name: string }) => {
-        const option = document.createElement('option');
-        option.value = String(fc.id);
-        option.textContent = fc.name;
-        toFcSelect.appendChild(option);
-      });
-    }
-
-    // 3. Initialize ChoicesCategoryTree for FROM (debit/expense)
+    // 2. Initialize ChoicesCategoryTree for FROM (debit/expense)
     if ((window as any).BudgetShared?.ChoicesCategoryTree) {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="from_article_id"]',
@@ -175,7 +152,7 @@ async function loadTransferTabData(): Promise<void> {
         }
       );
 
-      // 4. Initialize ChoicesCategoryTree for TO (credit/income)
+      // 3. Initialize ChoicesCategoryTree for TO (credit/income)
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="to_article_id"]',
         {
@@ -189,14 +166,14 @@ async function loadTransferTabData(): Promise<void> {
         }
       );
 
-      // 5. Save instances to state
+      // 4. Save instances to state
       const { updateState } = await import('../../core/DashboardState');
       updateState({
         planTransferFromCategoryTree: fromCategoryTree,
         planTransferToCategoryTree: toCategoryTree
       });
 
-      // 6. Setup FC change listeners for transfer hints
+      // 5. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
       debugLog('[ModalPlan] Transfer CategoryTreeSelect instances created');

@@ -182,6 +182,40 @@ Deployment scripts automatically run `npm run build:vendor` to ensure all minifi
 - `frontend/shared/db/pglite/operations/shoppingOperations.ts:266-314` for auto-assign
 - `/docs/architecture/pglite-conflict-resolution.md` for complete guide
 
+### 12. Modal Tab Architecture (v10.x+)
+
+**Tab-Based Modals:**
+- `modal_fact` (Фактические транзакции): Transaction tab + Transfer tab
+- `modal_plan` (Планируемые транзакции): Transaction tab + Transfer tab
+
+**Financial Centers Loading:**
+Use centralized `loadFinancialCenters(targetSelectors?)` with explicit selectors:
+```typescript
+// Transaction tabs (default)
+await loadFinancialCenters();
+
+// Transfer tabs (explicit)
+await loadFinancialCenters([
+  '#modal_fact-tab-transfer select[name="from_financial_center_id"]',
+  '#modal_fact-tab-transfer select[name="to_financial_center_id"]'
+]);
+```
+
+**⚠️ Legacy Selectors (Deprecated):**
+- `#form_modal_add_transaction` → `#modal_fact-tab-transaction`
+- `#form_modal_add_plan` → `#modal_plan-tab-transaction`
+
+**Validation:**
+Always validate critical selects after loading:
+```typescript
+const fcSelect = document.querySelector('#modal_fact-tab-transaction select[name="financial_center_id"]');
+if (!fcSelect || fcSelect.options.length <= 1) {
+  console.error('Financial center select not populated');
+}
+```
+
+**See:** `/docs/architecture/frontend/modal-architecture.md` for complete guide
+
 ## Important Features
 
 **Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`
