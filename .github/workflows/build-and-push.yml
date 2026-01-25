@@ -430,6 +430,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Run cache busting before Docker build
+        run: |
+          echo "Running cache busting with version: $CACHE_VERSION"
+          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+
+          # Verify templates were updated
+          if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/ 2>/dev/null; then
+            echo "❌ PLACEHOLDER still found after cache busting"
+            exit 1
+          fi
+          echo "✅ Cache busting completed - templates ready for Docker build"
+
       - name: Build and push backend
         if: steps.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v5
