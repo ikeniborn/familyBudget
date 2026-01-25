@@ -1,0 +1,92 @@
+/**
+ * Save transaction operation for modal plan
+ *
+ * @module modalPlan/saveTransaction
+ */
+
+import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
+import { extractRecurringSettings, extractReminderSettings } from './recurringSettings';
+
+declare const debugLog: (...args: any[]) => void;
+
+/**
+ * Save plan transaction
+ */
+export async function savePlanTransaction(form: HTMLFormElement): Promise<void> {
+  const formData = new FormData(form);
+
+  // Extract recurring settings (if recurring mode selected)
+  const recurringSettings = extractRecurringSettings(form);
+  const reminderSettings = extractReminderSettings(form);
+
+  // Determine plan type and settings
+  let planData: any;
+
+  if (recurringSettings) {
+    // Recurring plan
+    planData = {
+      record_type: formData.get('plan_type'), // expense/income
+      plan_month: formData.get('plan_month'), // YYYY-MM (start month)
+      financial_center_id: parseInt(formData.get('financial_center_id') as string),
+      article_id: parseInt(formData.get('article_id') as string),
+      cost_center_id: formData.get('cost_center_id')
+        ? parseInt(formData.get('cost_center_id') as string)
+        : null,
+      amount: parseFloat(formData.get('amount') as string),
+      description: formData.get('description') || null,
+      // Recurring settings
+      frequency_type: recurringSettings.frequency_type,
+      frequency_value: recurringSettings.frequency_value,
+      months_count: recurringSettings.months_count,
+      start_month: formData.get('plan_month'), // YYYY-MM
+      is_active: recurringSettings.is_active,
+      // Reminder (optional)
+      enable_reminder: recurringSettings.enable_reminder,
+      reminder_time: recurringSettings.reminder_time
+    };
+  } else {
+    // One-time plan (regular or reminder mode)
+    planData = {
+      record_type: formData.get('plan_type'), // expense/income
+      plan_month: formData.get('plan_month'), // YYYY-MM
+      financial_center_id: parseInt(formData.get('financial_center_id') as string),
+      article_id: parseInt(formData.get('article_id') as string),
+      cost_center_id: formData.get('cost_center_id')
+        ? parseInt(formData.get('cost_center_id') as string)
+        : null,
+      amount: parseFloat(formData.get('amount') as string),
+      description: formData.get('description') || null,
+      // One-time plan settings
+      frequency_type: 'monthly',
+      frequency_value: null,
+      months_count: 1,
+      start_month: formData.get('plan_month'), // YYYY-MM
+      is_active: true
+    };
+
+    // Add reminder if reminder mode
+    if (reminderSettings) {
+      planData.reminder_datetime = reminderSettings.reminder_datetime;
+    }
+  }
+
+  debugLog('[SavePlanModal] Saving plan transaction:', planData);
+
+  // POST /api/v1/recurring-plans
+  const response = await fetch('/api/v1/recurring-plans', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(planData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP ${response.status}: ${errorText}`);
+  }
+
+  const result = await response.json();
+  debugLog('[SavePlanModal] Plan saved:', result);
+
+  // Update UI
+  await refreshUIAfterPlanSave();
+}
