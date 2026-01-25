@@ -14,9 +14,9 @@ All minified files are properly excluded from git and generated during Docker bu
 
 **Key Findings:**
 - ✅ .gitignore patterns correct for all minified files
-- ✅ Only 1 tracked minified file (admin-facts-common.min.js - intentional exception)
+- ✅ NO tracked minified files (all minified files excluded from git)
 - ✅ Vendor source files tracked, minified versions generated on build
-- ✅ Complete minification pipeline in Docker build (CSS + Vendor + TypeScript)
+- ✅ Complete minification pipeline in Docker build (CSS + Vendor + TypeScript + Standalone)
 
 ---
 
@@ -162,36 +162,6 @@ sw.min.js.gz
 ```
 ✓ frontend/web/static/sw.min.js (24KB)
 ```
-
----
-
-## Tracked Minified File (Intentional Exception)
-
-### admin-facts-common.min.js
-
-**Exception Pattern:**
-```gitignore
-# Line 226-228
-# Standalone utility scripts (not built by Vite) - TRACKED в git
-# Эти файлы минифицируются вручную и должны быть в git
-!frontend/**/static/js/admin-facts-common.min.js
-```
-
-**File Details:**
-```
-Source:    frontend/web/static/js/admin-facts-common.js (2.2 KB)
-Minified:  frontend/web/static/js/admin-facts-common.min.js (787 bytes)
-Tracked:   ✓ Yes (intentional)
-Why:       Standalone utility script, minified manually
-Usage:     Admin pages (not part of main build pipeline)
-```
-
-**Rationale:**
-This is a standalone utility that:
-- Is not processed by Vite/build-all.js
-- Is minified manually (not part of automated build)
-- Is used directly in admin HTML templates
-- Must be tracked to avoid breaking admin pages
 
 ---
 
@@ -367,13 +337,10 @@ done | grep "NOT IGNORED"
 ### Check Tracked Minified Files
 
 ```bash
-git ls-files | grep -E "\.min\.(css|js)$" | grep -v vendor
+git ls-files | grep -E "\.min\.(css|js)$"
 ```
 
-**Expected Result:**
-```
-frontend/web/static/js/admin-facts-common.min.js
-```
+**Expected Result:** No output (all minified files excluded from git)
 
 ---
 
@@ -457,11 +424,13 @@ ls -lh frontend/web/static/js/vendor/
    - CSS: 5 files (tailwind, custom, overrides, choices, loading-dots)
    - JS: 40+ files (dashboard, facts, transfers, workers, utils, etc.)
    - Vendor: 5 files (choices, echarts, htmx, qr-creator)
+   - Standalone: 1 file (admin-facts-common)
    - PGlite: 1 file (pglite.min.js)
    - Service Worker: 1 file (sw.min.js)
 
 2. **Source files tracked in git:**
    - Vendor source files: 5 files (choices.js, echarts.js, htmx.js, qr-creator.js, choices.css)
+   - Standalone source files: 1 file (admin-facts-common.js)
    - TypeScript source files: 100+ files (all .ts files)
    - CSS source files: 5 files (tailwind.input.css, custom.css, etc.)
 
@@ -469,11 +438,12 @@ ls -lh frontend/web/static/js/vendor/
    - Stage 2 (frontend-builder): Runs `npm run build:prod`
    - CSS minification: PostCSS + cssnano
    - JS minification: Vite (Rollup + Terser)
-   - Vendor minification: Terser (parallel execution)
+   - Vendor minification: Terser (parallel execution via scripts/minify-vendor.js)
+   - Standalone minification: Terser (via scripts/minify-vendor.js)
 
-4. **Exception properly documented:**
-   - admin-facts-common.min.js tracked (intentional)
-   - Clear comment in .gitignore explaining why
+4. **Zero exceptions:**
+   - NO minified files tracked in git
+   - ALL minification happens during Docker build
 
 ---
 
@@ -500,7 +470,7 @@ ls -lh frontend/web/static/js/vendor/
 3. **Add Pre-Commit Hook:**
    ```bash
    # .husky/pre-commit
-   if git diff --cached --name-only | grep -E "\.min\.(css|js)$" | grep -v admin-facts-common; then
+   if git diff --cached --name-only | grep -E "\.min\.(css|js)$"; then
      echo "ERROR: Minified files should not be committed"
      exit 1
    fi
@@ -514,4 +484,4 @@ ls -lh frontend/web/static/js/vendor/
 **Date:** 2026-01-25
 **Files Checked:** 50+ minified files
 **Issues Found:** 0
-**Exceptions:** 1 (admin-facts-common.min.js - intentional)
+**Exceptions:** 0 (all minification during Docker build)

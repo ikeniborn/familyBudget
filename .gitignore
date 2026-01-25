@@ -223,10 +223,6 @@ frontend/**/static/**/*.bundle.js.map
 *.bundle.js
 *.bundle.js.map
 
-# Standalone utility scripts (not built by Vite) - TRACKED в git
-# Эти файлы минифицируются вручную и должны быть в git
-!frontend/**/static/js/admin-facts-common.min.js
-
 # =============================================================================
 # Docker & Infrastructure
 # =============================================================================
