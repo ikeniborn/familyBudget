@@ -99,7 +99,7 @@
 
 ---
 
-## ⏳ PHASE 5: Доработка функциональности (75% ЗАВЕРШЕНО)
+## ⏳ PHASE 5: Доработка функциональности (85% ЗАВЕРШЕНО)
 
 ### Критические доработки:
 
@@ -128,7 +128,7 @@
 - ✅ Реализовано сохранение плана (one-time plan через recurring-plans API)
 - ✅ Реализовано сохранение transfer плана
 - ✅ Добавлено обновление UI (HTMX triggers + reloadPlans)
-- ⏳ Full recurring/reminder support (UI готов, backend работает, нужна доработка интеграции)
+- ✅ Full recurring/reminder support (recurring settings UI manager полностью интегрирован)
 
 **Общие доработки:**
 - ⏳ Choices.js integration для категорий
@@ -252,23 +252,23 @@
 
 ## 📊 Прогресс
 
-**Общий прогресс:** ~83% ✅
+**Общий прогресс:** ~85% ✅
 
 - PHASE 1: ✅ 100% (HTML Templates)
 - PHASE 2: ✅ 100% (TypeScript Modules - базовая структура)
 - PHASE 3: ✅ 100% (FAB упрощение)
 - PHASE 4: ✅ 100% (Интеграция в страницы)
-- PHASE 5: ⏳ 75% (Доработка функциональности)
-  - ✅ TypeScript компилируется успешно (244.15 kB)
+- PHASE 5: ⏳ 85% (Доработка функциональности)
+  - ✅ TypeScript компилируется успешно (257.91 kB dashboard bundle)
   - ✅ Date helpers (setFactDate, setPlanPeriod)
   - ✅ Transfer tab data loading (CategoryTreeSelect + FC dropdowns)
   - ✅ Transaction tab hints (loadFactHints, loadPlanHints)
   - ✅ Choices.js уже работает (transactionCategoryTreeSelect, planCategoryTreeSelect)
   - ✅ Transfer tab hints (100% - полная интеграция для modalFact + modalPlan)
   - ✅ Save operations с UI refresh (100% - HTMX triggers + toast + validation)
+  - ✅ Recurring settings UI manager (100% - togglePlanMode, updateFrequencyFields, extractRecurringSettings)
   - ⏳ Offline support (0% - отложено)
-  - ⏳ Full recurring settings (0% - базовая one-time plan работает)
 - PHASE 6: ⏳ 0% (Тестирование)
 - PHASE 7: ⏳ 0% (Очистка)
 
-**Оценка оставшегося времени:** 1-2 часа работы (или можно начать тестирование)
+**Оценка оставшегося времени:** 30-60 минут работы (event listeners, validation) или можно начать тестирование

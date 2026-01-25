@@ -261,7 +261,7 @@ window.openContextModal()
 
 ## 📊 Статистика PHASE 5
 
-**Прогресс:** 75% ✅
+**Прогресс:** 85% ✅
 
 **Выполнено:**
 - ✅ TypeScript compilation (100%)
@@ -270,16 +270,16 @@ window.openContextModal()
 - ✅ Transaction tab hints (100%)
 - ✅ Transfer tab hints (100%)
 - ✅ Save operations с UI refresh (100%)
+- ✅ Plan recurring settings (100%)
 
 **В процессе:**
 - ⏳ Choices.js integration для transaction tab (0%, transfer tab уже использует)
 - ⏳ Offline support (0%)
 - ⏳ Calendar widgets (0%)
-- ⏳ Plan recurring settings (0%)
 - ⏳ Event listeners (40% - date buttons done)
 - ⏳ Validation (0%)
 
-**Оценка времени до завершения PHASE 5:** 1-2 часа
+**Оценка времени до завершения PHASE 5:** 30-60 минут
 
 ---
 
