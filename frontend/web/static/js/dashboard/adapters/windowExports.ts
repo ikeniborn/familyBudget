@@ -77,6 +77,31 @@ import {
   setupEditCategoryTypeButtons as setupEditCategoryTypeButtonsImpl,
 } from '../features/editModal';
 
+// Modal Fact imports (v9.0 Tabbed Modals)
+import {
+  openModalFact as openModalFactImpl,
+  closeModalFact as closeModalFactImpl,
+} from '../features/modalFact';
+
+import {
+  saveFactModal as saveFactModalImpl,
+} from '../features/modalFact/saveOperations';
+
+// Modal Plan imports (v9.0 Tabbed Modals)
+import {
+  openModalPlan as openModalPlanImpl,
+  closeModalPlan as closeModalPlanImpl,
+} from '../features/modalPlan';
+
+import {
+  savePlanModal as savePlanModalImpl,
+} from '../features/modalPlan/saveOperations';
+
+// FAB Context Modal import (v9.0 Simplified FAB)
+import {
+  openContextModal as openContextModalImpl,
+} from '../features/fab/contextModal';
+
 // UI imports (Phase 5)
 import {
   toggleQuickStats as toggleQuickStatsImpl,
@@ -308,6 +333,58 @@ async function openAddTransactionModal(): Promise<void> {
       ]);
     }
   );
+}
+
+// ============================================================================
+// Modal Fact (v9.0 Tabbed Modals)
+// ============================================================================
+
+function openModalFact(): void {
+  // Fire-and-forget async call
+  openModalFactImpl().catch(error => {
+    console.error('[Dashboard] openModalFact error:', error);
+  });
+}
+
+function closeModalFact(): void {
+  return closeModalFactImpl();
+}
+
+function saveFactModal(button: HTMLElement): void {
+  // Fire-and-forget async call
+  saveFactModalImpl(button).catch(error => {
+    console.error('[Dashboard] saveFactModal error:', error);
+  });
+}
+
+// ============================================================================
+// Modal Plan (v9.0 Tabbed Modals)
+// ============================================================================
+
+function openModalPlan(): void {
+  // Fire-and-forget async call
+  openModalPlanImpl().catch(error => {
+    console.error('[Dashboard] openModalPlan error:', error);
+  });
+}
+
+function closeModalPlan(): void {
+  return closeModalPlanImpl();
+}
+
+function savePlanModal(button: HTMLElement): void {
+  // Fire-and-forget async call
+  savePlanModalImpl(button).catch(error => {
+    console.error('[Dashboard] savePlanModal error:', error);
+  });
+}
+
+// ============================================================================
+// FAB Context Modal (v9.0 Simplified FAB)
+// ============================================================================
+
+function openContextModal(): void {
+  return openContextModalImpl();
 }
 
 /**
@@ -587,6 +664,17 @@ export const dashboardExports: DashboardExports = {
   recurringDeleteResolve,
   openAddTransactionModal,
   openFactTransferModal,
+
+  // Tabbed Modals (v9.0)
+  openModalFact,
+  closeModalFact,
+  saveFactModal,
+  openModalPlan,
+  closeModalPlan,
+  savePlanModal,
+
+  // Simplified FAB (v9.0)
+  openContextModal,
 };
 
 /**
@@ -658,6 +746,17 @@ export function initWindowExports(): void {
   window.recurringDeleteResolve = recurringDeleteResolve;
   window.openAddTransactionModal = openAddTransactionModal;
   window.openFactTransferModal = openFactTransferModal;
+
+  // Expose tabbed modals functions globally (v9.0)
+  window.openModalFact = openModalFact;
+  window.closeModalFact = closeModalFact;
+  window.saveFactModal = saveFactModal;
+  window.openModalPlan = openModalPlan;
+  window.closeModalPlan = closeModalPlan;
+  window.savePlanModal = savePlanModal;
+
+  // Expose simplified FAB function globally (v9.0)
+  window.openContextModal = openContextModal;
 
   debugLog('[Dashboard] Window exports initialized');
 }

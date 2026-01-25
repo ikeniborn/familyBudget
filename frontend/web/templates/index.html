@@ -3,6 +3,10 @@
 {% from "components/modal_plan.html" import plan_modal %}
 {% from "components/modal_edit_plan.html" import edit_plan_modal %}
 
+{# v9.0 Tabbed Modals #}
+{% from "components/modal_fact.html" import modal_fact %}
+{% from "components/modal_plan_new.html" import modal_plan as modal_plan_new %}
+
 {% block content %}
 <div class="space-y-6">
     {% if user %}
@@ -244,6 +248,10 @@
 
 <!-- Include Transfer Modal -->
 {% include "components/modal_transfer.html" %}
+
+<!-- v9.0 Tabbed Modals -->
+{{ modal_fact('modal_fact') }}
+{{ modal_plan_new('modal_plan') }}
 
 {% endif %}
 {% endblock %}

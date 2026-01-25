@@ -32,6 +32,12 @@ export interface DashboardState {
   planCategoryTreeSelect: CategoryTreeSelectInstance | null;
   editCategoryTreeSelect: CategoryTreeSelectInstance | null;
 
+  // Transfer tab widget instances (for modal_fact and modal_plan)
+  factTransferFromCategoryTree: CategoryTreeSelectInstance | null;
+  factTransferToCategoryTree: CategoryTreeSelectInstance | null;
+  planTransferFromCategoryTree: CategoryTreeSelectInstance | null;
+  planTransferToCategoryTree: CategoryTreeSelectInstance | null;
+
   // Calendar widget instances
   editDateCalendar: CalendarWidgetInstance | null;
   editReminderCalendar: CalendarWidgetInstance | null;
@@ -77,6 +83,12 @@ function createDefaultState(): DashboardState {
     transactionCategoryTreeSelect: null,
     planCategoryTreeSelect: null,
     editCategoryTreeSelect: null,
+
+    // Transfer tab widget instances
+    factTransferFromCategoryTree: null,
+    factTransferToCategoryTree: null,
+    planTransferFromCategoryTree: null,
+    planTransferToCategoryTree: null,
 
     // Calendar widget instances
     editDateCalendar: null,

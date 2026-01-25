@@ -268,6 +268,17 @@ declare global {
     openAddTransactionModal?: () => Promise<void>;
     openFactTransferModal?: () => Promise<void>;
 
+    // Tabbed Modals (v9.0)
+    openModalFact?: () => void;
+    closeModalFact?: () => void;
+    saveFactModal?: (button: HTMLElement) => void;
+    openModalPlan?: () => void;
+    closeModalPlan?: () => void;
+    savePlanModal?: (button: HTMLElement) => void;
+
+    // Simplified FAB (v9.0)
+    openContextModal?: () => void;
+
     // Facts module shared functions (used by both dashboard and facts)
     updateBatchDeleteButton?: () => void;
     updateFact?: (event: Event) => Promise<void>;
@@ -356,6 +367,17 @@ export interface DashboardExports {
   recurringDeleteResolve(choice: string | null): void;
   openAddTransactionModal(): Promise<void>;
   openFactTransferModal(): Promise<void>;
+
+  // Tabbed Modals (v9.0)
+  openModalFact(): void;
+  closeModalFact(): void;
+  saveFactModal(button: HTMLElement): void;
+  openModalPlan(): void;
+  closeModalPlan(): void;
+  savePlanModal(button: HTMLElement): void;
+
+  // Simplified FAB (v9.0)
+  openContextModal(): void;
 }
 
 export {};

@@ -8,6 +8,9 @@
 {% from "components/plan/analytics_section.html" import analytics_section %}
 {% from "components/plan/pagination.html" import pagination_controls %}
 
+{# v9.0 Tabbed Modals #}
+{% from "components/modal_plan_new.html" import modal_plan as modal_plan_new %}
+
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
@@ -120,6 +123,9 @@
 
 <!-- Transfer Modal -->
 {% include "components/modal_transfer.html" %}
+
+<!-- v9.0 Tabbed Modals -->
+{{ modal_plan_new('modal_plan') }}
 
 <!-- Edit Plan Modal -->
 {{ edit_plan_modal('edit-modal') }}
