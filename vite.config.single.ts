@@ -136,8 +136,8 @@ export default defineConfig({
     // MUST run AFTER compression to copy .gz files
     postBuildCopy(),
 
-    // Bundle analyzer только для некоторых bundles
-    production && (entryName === 'budgetShared' || entryName === 'components') && visualizer({
+    // Bundle analyzer для анализа размера
+    production && (entryName === 'budgetShared' || entryName === 'components' || entryName === 'dashboard') && visualizer({
       filename: `./dist/bundle-stats-${entryName}.html`,
       open: false,
       gzipSize: true,
