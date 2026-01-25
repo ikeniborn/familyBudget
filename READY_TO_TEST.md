@@ -1,6 +1,6 @@
 # Готово к базовому тестированию ✅
 
-## 🎉 Что сделано (80% завершено)
+## 🎉 Что сделано (83% завершено)
 
 ### ✅ PHASE 1-4: Полностью готово
 - HTML templates с вкладками (modal_fact, modal_plan)
@@ -8,7 +8,7 @@
 - FAB упрощён до 1 кнопки
 - Интеграция в index.html, facts.html, plan.html
 
-### ✅ PHASE 5: Частично готово (65%)
+### ✅ PHASE 5: Частично готово (75%)
 - TypeScript компилируется **БЕЗ ОШИБОК** ✅
 - Date helpers (quick date buttons работают)
 - **Transfer tab data loading** ✅
@@ -19,12 +19,19 @@
   - loadFactHints автоматически вызывается при изменении категории
   - loadPlanHints автоматически вызывается при изменении категории
   - Отображение "План мес" и "Факт мес"
-- **Transfer tab hints** ✅ NEW
+- **Transfer tab hints** ✅
   - Полная интеграция для modal_fact (display-only кнопки)
   - Полная интеграция для modal_plan (кликабельные кнопки)
   - API integration с fact-hints и plan-hints endpoints
   - Loading states, error handling, currency formatting
-- Базовая структура save operations
+- **Save operations с UI refresh** ✅ NEW
+  - POST /api/v1/facts (fact transactions)
+  - POST /api/v1/admin/transfers (fact/plan transfers)
+  - POST /api/v1/recurring-plans (plan transactions - one-time)
+  - HTMX auto-refresh (quick stats, account balances, recent transactions)
+  - Toast notifications (success/error)
+  - Button loading states
+  - Error handling
 
 ---
 
@@ -179,12 +186,22 @@ git pull
   - "План мес" и "Факт мес" для modal_fact
   - "План пред. мес" и "Факт пред. мес" для modal_plan
   - Автоматическая загрузка при изменении категории
-- **Transfer tab hints** ✅ NEW
+- **Transfer tab hints** ✅
   - modal_fact: display-only кнопки (План мес, Факт мес)
   - modal_plan: кликабельные кнопки (План пред.мес, Факт пред.мес)
   - Автоматическая загрузка при изменении категории/счёта
   - Loading states, error handling, currency formatting
   - Click handlers заполняют поле суммы (только для plan)
+- **Save operations** ✅ NEW
+  - Сохранение фактов (расходы/доходы)
+  - Сохранение переводов (факт)
+  - Сохранение планов (one-time)
+  - Сохранение переводов (план)
+  - UI auto-refresh после сохранения (HTMX)
+  - Toast notifications
+  - Button loading states
+  - Form validation
+  - Error handling
 
 ---
 

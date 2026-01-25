@@ -99,7 +99,7 @@
 
 ---
 
-## ⏳ PHASE 5: Доработка функциональности (65% ЗАВЕРШЕНО)
+## ⏳ PHASE 5: Доработка функциональности (75% ЗАВЕРШЕНО)
 
 ### Критические доработки:
 
@@ -112,11 +112,11 @@
 - ✅ Transfer hints (полная интеграция с API, display-only кнопки)
 
 **modalFact/saveOperations.ts:**
-- ⏳ Реализовать обновление UI после сохранения
-  - Refresh recent transactions
-  - Refresh quick stats
-- ⏳ Добавить реальный toast (сейчас console.log)
-- ⏳ Добавить offline save support
+- ✅ Реализовано обновление UI после сохранения
+  - HTMX triggers для quick stats, account balances, recent transactions
+  - reloadFacts() для facts.html
+- ✅ Добавлен реальный toast (window.showToast)
+- ⏳ Добавить offline save support (отложено)
 
 **modalPlan/index.ts:**
 - ✅ Реализовать загрузку данных для обеих вкладок (transaction + transfer)
@@ -125,9 +125,10 @@
 - ✅ Transfer hints (полная интеграция с API, кликабельные кнопки заполняют сумму)
 
 **modalPlan/saveOperations.ts:**
-- ⏳ Реализовать сохранение плана (recurring/reminder support)
-- ⏳ Реализовать сохранение transfer плана
-- ⏳ Добавить обновление UI
+- ✅ Реализовано сохранение плана (one-time plan через recurring-plans API)
+- ✅ Реализовано сохранение transfer плана
+- ✅ Добавлено обновление UI (HTMX triggers + reloadPlans)
+- ⏳ Full recurring/reminder support (UI готов, backend работает, нужна доработка интеграции)
 
 **Общие доработки:**
 - ⏳ Choices.js integration для категорий
@@ -251,21 +252,23 @@
 
 ## 📊 Прогресс
 
-**Общий прогресс:** ~80% ✅
+**Общий прогресс:** ~83% ✅
 
 - PHASE 1: ✅ 100% (HTML Templates)
 - PHASE 2: ✅ 100% (TypeScript Modules - базовая структура)
 - PHASE 3: ✅ 100% (FAB упрощение)
 - PHASE 4: ✅ 100% (Интеграция в страницы)
-- PHASE 5: ⏳ 65% (Доработка функциональности)
-  - ✅ TypeScript компилируется успешно (240.03 kB)
+- PHASE 5: ⏳ 75% (Доработка функциональности)
+  - ✅ TypeScript компилируется успешно (244.15 kB)
   - ✅ Date helpers (setFactDate, setPlanPeriod)
   - ✅ Transfer tab data loading (CategoryTreeSelect + FC dropdowns)
   - ✅ Transaction tab hints (loadFactHints, loadPlanHints)
   - ✅ Choices.js уже работает (transactionCategoryTreeSelect, planCategoryTreeSelect)
   - ✅ Transfer tab hints (100% - полная интеграция для modalFact + modalPlan)
-  - ⏳ Save operations с UI refresh (20%)
+  - ✅ Save operations с UI refresh (100% - HTMX triggers + toast + validation)
+  - ⏳ Offline support (0% - отложено)
+  - ⏳ Full recurring settings (0% - базовая one-time plan работает)
 - PHASE 6: ⏳ 0% (Тестирование)
 - PHASE 7: ⏳ 0% (Очистка)
 
-**Оценка оставшегося времени:** 2-4 часа работы
+**Оценка оставшегося времени:** 1-2 часа работы (или можно начать тестирование)
