@@ -223,6 +223,10 @@ frontend/**/static/**/*.bundle.js.map
 *.bundle.js
 *.bundle.js.map
 
+# Vite build output directories
+frontend/web/static/js/dist/
+frontend/webapp/static/js/dist/
+
 # =============================================================================
 # Docker & Infrastructure
 # =============================================================================
