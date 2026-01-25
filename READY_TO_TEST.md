@@ -1,6 +1,6 @@
 # Готово к базовому тестированию ✅
 
-## 🎉 Что сделано (75% завершено)
+## 🎉 Что сделано (77% завершено)
 
 ### ✅ PHASE 1-4: Полностью готово
 - HTML templates с вкладками (modal_fact, modal_plan)
@@ -8,13 +8,17 @@
 - FAB упрощён до 1 кнопки
 - Интеграция в index.html, facts.html, plan.html
 
-### ✅ PHASE 5: Частично готово (50%)
+### ✅ PHASE 5: Частично готово (55%)
 - TypeScript компилируется **БЕЗ ОШИБОК** ✅
 - Date helpers (quick date buttons работают)
-- **Transfer tab data loading** ✅ NEW
+- **Transfer tab data loading** ✅
   - Financial centers загружаются для FROM/TO
   - CategoryTreeSelect инициализируется (FROM: expense, TO: income)
   - Сохранение instances в DashboardState
+- **Transaction tab hints** ✅ NEW
+  - loadFactHints автоматически вызывается при изменении категории
+  - loadPlanHints автоматически вызывается при изменении категории
+  - Отображение "План мес" и "Факт мес"
 - Базовая структура save operations
 
 ---
@@ -139,15 +143,16 @@ git pull
 1. **Сохранение** - кнопка "Сохранить" пока не работает
    - ❌ Не создаёт факт/план
    - ❌ Не обновляет UI
-   - ❌ console.log вместо toast
+   - ❌ debugLog вместо toast
 
-2. **Hints** - не показываются
-   - ❌ "План мес" и "Факт мес" пустые для transaction tab
-   - ❌ Transfer hints не работают (FROM/TO)
+2. **Transfer tab hints** - частично работают
+   - ⏳ Базовая структура создана
+   - ❌ Нужна доработка API integration
 
-3. **Choices.js для transaction tab** - не работает
-   - ❌ Категории на transaction tab как обычный select
-   - ❌ Нет фильтрации по счёту
+3. **Choices.js для transaction tab** - уже работает!
+   - ✅ modal_fact использует transactionCategoryTreeSelect из addTransaction module
+   - ✅ modal_plan использует planCategoryTreeSelect из addPlan module
+   - ✅ Фильтрация по счёту работает
    - ✅ Transfer tab РАБОТАЕТ (CategoryTreeSelect инициализируется)
 
 4. **Plan recurring** - не работает
@@ -160,9 +165,13 @@ git pull
 - Quick date buttons
 - FAB context detection
 - Mobile adaptiveness
-- **Transfer tab data loading** ✅ NEW
+- **Transfer tab data loading** ✅
   - Financial centers dropdowns (FROM/TO)
   - CategoryTreeSelect для категорий (expense/income)
+- **Transaction tab hints** ✅ NEW
+  - "План мес" и "Факт мес" для modal_fact
+  - "План пред. мес" и "Факт пред. мес" для modal_plan
+  - Автоматическая загрузка при изменении категории
 
 ---
 

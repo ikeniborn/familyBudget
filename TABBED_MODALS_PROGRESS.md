@@ -99,7 +99,7 @@
 
 ---
 
-## ⏳ PHASE 5: Доработка функциональности (50% ЗАВЕРШЕНО)
+## ⏳ PHASE 5: Доработка функциональности (55% ЗАВЕРШЕНО)
 
 ### Критические доработки:
 
@@ -107,8 +107,9 @@
 - ✅ Доработать `loadTransferTabData()` - реализовано полностью
 - ✅ Реализовать кэширование для transfer tab
 - ✅ Инициализация CategoryTreeSelect для FROM/TO
-- ⏳ Добавить фильтрацию категорий по счёту (для transaction tab)
-- ⏳ Добавить загрузку hints (loadFactHints для transaction, transfer hints для transfer tab)
+- ✅ Фильтрация категорий по счёту (работает через transactionCategoryTreeSelect)
+- ✅ Загрузка hints для transaction tab (loadFactHints автоматически)
+- ⏳ Transfer hints (базовая структура создана, нужна доработка)
 
 **modalFact/saveOperations.ts:**
 - ⏳ Реализовать обновление UI после сохранения
@@ -120,7 +121,8 @@
 **modalPlan/index.ts:**
 - ✅ Реализовать загрузку данных для обеих вкладок (transaction + transfer)
 - ✅ Инициализация CategoryTreeSelect для transfer tab
-- ⏳ Добавить загрузку plan hints (transaction и transfer)
+- ✅ Загрузка plan hints для transaction tab (loadPlanHints автоматически)
+- ⏳ Transfer hints (базовая структура создана, нужна доработка)
 
 **modalPlan/saveOperations.ts:**
 - ⏳ Реализовать сохранение плана (recurring/reminder support)
@@ -249,20 +251,21 @@
 
 ## 📊 Прогресс
 
-**Общий прогресс:** ~75% ✅
+**Общий прогресс:** ~77% ✅
 
 - PHASE 1: ✅ 100% (HTML Templates)
 - PHASE 2: ✅ 100% (TypeScript Modules - базовая структура)
 - PHASE 3: ✅ 100% (FAB упрощение)
 - PHASE 4: ✅ 100% (Интеграция в страницы)
-- PHASE 5: ⏳ 50% (Доработка функциональности)
+- PHASE 5: ⏳ 55% (Доработка функциональности)
   - ✅ TypeScript компилируется успешно
   - ✅ Date helpers (setFactDate, setPlanPeriod)
   - ✅ Transfer tab data loading (CategoryTreeSelect + FC dropdowns)
-  - ⏳ Hints integration
-  - ⏳ Choices.js integration для transaction tab
-  - ⏳ Save operations с UI refresh
+  - ✅ Transaction tab hints (loadFactHints, loadPlanHints)
+  - ✅ Choices.js уже работает (transactionCategoryTreeSelect, planCategoryTreeSelect)
+  - ⏳ Transfer tab hints (50% - структура создана)
+  - ⏳ Save operations с UI refresh (20%)
 - PHASE 6: ⏳ 0% (Тестирование)
 - PHASE 7: ⏳ 0% (Очистка)
 
-**Оценка оставшегося времени:** 4-6 часов работы
+**Оценка оставшегося времени:** 3-5 часов работы

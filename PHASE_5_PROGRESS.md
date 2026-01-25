@@ -36,10 +36,10 @@ Build time: 36.56s
 
 ---
 
-## ⏳ В процессе (50% PHASE 5)
+## ⏳ В процессе (55% PHASE 5)
 
 ### 3. Transfer Tab Data Loading ✅
-**Статус:** Реализовано
+**Статус:** Реализовано полностью
 
 **Что сделано:**
 - ✅ `modalFact/index.ts` - Полная реализация `loadTransferTabData()`
@@ -83,18 +83,19 @@ dashboard.js  231.10 kB │ gzip: 38.14 kB (+14 kB от предыдущей в�
 ```
 
 ### 4. Hints Integration
-**Статус:** Не начато
+**Статус:** Частично реализовано
 
-**Что нужно:**
-```typescript
-// modalFact/index.ts
-// Import loadFactHints from addTransaction module
-// Call on category change
+**Transaction Tab Hints:** ✅ Работает
+- modal_fact: Использует `loadFactHints` из `addTransaction/factHints.ts`
+- modal_plan: Использует `loadPlanHints` из `addPlan/planHints.ts`
+- Callback встроен в CategoryTreeSelect при создании
+- Автоматически вызывается при изменении категории
+- Отображает "План мес" и "Факт мес" для выбранной категории+счёт
 
-// modalPlan/index.ts
-// Import loadPlanHints from addPlan module
-// Call on category change
-```
+**Transfer Tab Hints:** ⏳ В процессе
+- Базовая структура создана (`loadFactTransferHints`, `updateTransferFactHintButtons`)
+- FC change listeners setup
+- Нужна доработка API integration и тестирование
 
 ### 5. Choices.js Integration
 **Статус:** Не начато
@@ -250,15 +251,16 @@ window.openContextModal()
 
 ## 📊 Статистика PHASE 5
 
-**Прогресс:** 50% ✅
+**Прогресс:** 55% ✅
 
 **Выполнено:**
 - ✅ TypeScript compilation (100%)
 - ✅ Date helpers (100%)
 - ✅ Transfer tab data loading (100%)
+- ✅ Transaction tab hints (100%)
 
 **В процессе:**
-- ⏳ Hints integration (0%)
+- ⏳ Transfer tab hints (50% - структура создана, нужна доработка)
 - ⏳ Choices.js integration для transaction tab (0%, transfer tab уже использует)
 - ⏳ Save operations с UI refresh (20% - базовая структура)
 - ⏳ Offline support (0%)
@@ -267,7 +269,7 @@ window.openContextModal()
 - ⏳ Event listeners (40% - date buttons done)
 - ⏳ Validation (0%)
 
-**Оценка времени до завершения PHASE 5:** 4-6 часов
+**Оценка времени до завершения PHASE 5:** 3-5 часов
 
 ---
 
