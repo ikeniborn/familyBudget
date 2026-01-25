@@ -34,79 +34,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Job 0: Sync version files (package.json, package-lock.json)
-  sync-version:
-    runs-on: ubuntu-latest
-    # Skip if commit already has [skip ci] to prevent loops
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 2
-
-      - name: Read VERSION file
-        id: version
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current VERSION: $VERSION"
-
-      - name: Check if VERSION changed
-        id: check
-        run: |
-          if git diff HEAD~1 HEAD -- VERSION | grep -q "^[+-][0-9]"; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "✓ VERSION changed in this push"
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "⚠ VERSION not changed, skipping sync"
-          fi
-
-      - name: Setup Node.js
-        if: steps.check.outputs.changed == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Update package.json and package-lock.json
-        if: steps.check.outputs.changed == 'true'
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          echo "Updating package.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
-
-          echo "Updating package-lock.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
-          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
-          rm package-lock.json.tmp
-
-      - name: Commit version sync
-        if: steps.check.outputs.changed == 'true'
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          if [[ -n $(git status --porcelain package.json package-lock.json) ]]; then
-            git add package.json package-lock.json
-            git commit -m "chore: auto-sync package.json and package-lock.json to version $VERSION [skip ci]"
-            git push
-            echo "✅ Version files synchronized to $VERSION"
-          else
-            echo "ℹ️ No changes needed (files already in sync)"
-          fi
-
-  # Job 1: Check VERSION changes
+  # Job 0: Check VERSION changes
   check-version:
-    needs: sync-version
     runs-on: ubuntu-latest
-    if: |
-      always() &&
-      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
-      (github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false)
+    if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
       current_version: ${{ steps.read.outputs.VERSION }}
@@ -139,13 +70,62 @@ jobs:
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
-  # Job 2: Frontend Build
-  frontend-build:
+  # Job 1: Sync version files (package.json, package-lock.json)
+  sync-version:
     needs: check-version
     runs-on: ubuntu-latest
+    # Skip if commit already has [skip ci] to prevent loops
+    # Only run if VERSION changed
     if: |
-      needs.check-version.outputs.version_changed == 'true' ||
-      github.event_name == 'workflow_dispatch'
+      !contains(github.event.head_commit.message, '[skip ci]') &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Update package.json and package-lock.json
+        run: |
+          VERSION="${{ needs.check-version.outputs.current_version }}"
+          echo "Updating package.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+          echo "Updating package-lock.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
+          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
+          rm package-lock.json.tmp
+
+      - name: Commit version sync
+        run: |
+          VERSION="${{ needs.check-version.outputs.current_version }}"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          if [[ -n $(git status --porcelain package.json package-lock.json) ]]; then
+            git add package.json package-lock.json
+            git commit -m "chore: auto-sync package.json and package-lock.json to version $VERSION [skip ci]"
+            git push
+            echo "✅ Version files synchronized to $VERSION"
+          else
+            echo "ℹ️ No changes needed (files already in sync)"
+          fi
+
+  # Job 2: Frontend Build
+  frontend-build:
+    needs: [check-version, sync-version]
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
     outputs:
       cache_version: ${{ steps.cache_bust.outputs.cache_version }}
     steps:
