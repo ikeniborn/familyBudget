@@ -6,30 +6,37 @@
  * - API endpoints: Network First
  * - HTML страницы: Network First
  *
- * Версионирование (v6.8.0+):
+ * Версионирование (v10.0+):
  * - CACHE_VERSION: Автоматически обновляется при каждом деплое
- * - Использует ЕДИНУЮ версию со всеми JS/CSS файлами (v{YYYYMMDD_HHMM})
- * - PLACEHOLDER заменяется в minify.sh через generate_cache_version()
+ * - Формат: Semantic versioning X.Y.Z (e.g., 10.0.38) - matches VERSION file
+ * - PLACEHOLDER заменяется в CI/CD через scripts/ci/cache_busting_ci.sh
  * - Изменение версии → браузер автоматически обнаруживает обновление SW
- * - Deployment: npm run minify:js → версия инжектится автоматически
+ * - Deployment: GitHub Actions → версия инжектится из VERSION file
+ * - Legacy format v{YYYYMMDD_HHMM} также поддерживается для обратной совместимости
  */
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// Cache version - автоматически заменяется при минификации
-// Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
-// IMPORTANT: minify.sh replaces PLACEHOLDER with actual version BEFORE terser minification
+// Cache version - автоматически заменяется в CI/CD через cache busting
+// Формат: X.Y.Z semantic versioning (совпадает с VERSION file)
+// IMPORTANT: scripts/ci/cache_busting_ci.sh replaces PLACEHOLDER during build
+// Legacy format v{YYYYMMDD_HHMM} также поддерживается
 const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Validation: warn if PLACEHOLDER wasn't replaced (build script error)
-// Check if version starts with 'v' and has proper format (v20260121_0438)
-// PLACEHOLDER (11 chars) doesn't match this pattern
-if (CACHE_VERSION.length === 11 || !CACHE_VERSION.startsWith('v')) {
+// Supported formats:
+// - Semantic versioning: X.Y.Z (e.g., 10.0.38)
+// - Legacy timestamp: v{YYYYMMDD_HHMM} (e.g., v20260121_0438)
+// PLACEHOLDER (11 chars) is invalid
+const isSemanticVersion = /^\d+\.\d+\.\d+$/.test(CACHE_VERSION);
+const isLegacyVersion = /^v\d{8}_\d{4}$/.test(CACHE_VERSION);
+
+if (!isSemanticVersion && !isLegacyVersion) {
   console.error('[SW] CRITICAL: Cache version not properly set - build script failed!');
   console.error('[SW] Service Worker will NOT work correctly');
-  console.error('[SW] Expected format: v{YYYYMMDD_HHMM}, got:', CACHE_VERSION);
+  console.error('[SW] Expected format: X.Y.Z or v{YYYYMMDD_HHMM}, got:', CACHE_VERSION);
 }
 
 // Критическая статика БЕЗ версий (для precaching в install event)
