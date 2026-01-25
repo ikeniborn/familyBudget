@@ -99,7 +99,7 @@
 
 ---
 
-## ⏳ PHASE 5: Доработка функциональности (55% ЗАВЕРШЕНО)
+## ⏳ PHASE 5: Доработка функциональности (65% ЗАВЕРШЕНО)
 
 ### Критические доработки:
 
@@ -109,7 +109,7 @@
 - ✅ Инициализация CategoryTreeSelect для FROM/TO
 - ✅ Фильтрация категорий по счёту (работает через transactionCategoryTreeSelect)
 - ✅ Загрузка hints для transaction tab (loadFactHints автоматически)
-- ⏳ Transfer hints (базовая структура создана, нужна доработка)
+- ✅ Transfer hints (полная интеграция с API, display-only кнопки)
 
 **modalFact/saveOperations.ts:**
 - ⏳ Реализовать обновление UI после сохранения
@@ -122,7 +122,7 @@
 - ✅ Реализовать загрузку данных для обеих вкладок (transaction + transfer)
 - ✅ Инициализация CategoryTreeSelect для transfer tab
 - ✅ Загрузка plan hints для transaction tab (loadPlanHints автоматически)
-- ⏳ Transfer hints (базовая структура создана, нужна доработка)
+- ✅ Transfer hints (полная интеграция с API, кликабельные кнопки заполняют сумму)
 
 **modalPlan/saveOperations.ts:**
 - ⏳ Реализовать сохранение плана (recurring/reminder support)
@@ -251,21 +251,21 @@
 
 ## 📊 Прогресс
 
-**Общий прогресс:** ~77% ✅
+**Общий прогресс:** ~80% ✅
 
 - PHASE 1: ✅ 100% (HTML Templates)
 - PHASE 2: ✅ 100% (TypeScript Modules - базовая структура)
 - PHASE 3: ✅ 100% (FAB упрощение)
 - PHASE 4: ✅ 100% (Интеграция в страницы)
-- PHASE 5: ⏳ 55% (Доработка функциональности)
-  - ✅ TypeScript компилируется успешно
+- PHASE 5: ⏳ 65% (Доработка функциональности)
+  - ✅ TypeScript компилируется успешно (240.03 kB)
   - ✅ Date helpers (setFactDate, setPlanPeriod)
   - ✅ Transfer tab data loading (CategoryTreeSelect + FC dropdowns)
   - ✅ Transaction tab hints (loadFactHints, loadPlanHints)
   - ✅ Choices.js уже работает (transactionCategoryTreeSelect, planCategoryTreeSelect)
-  - ⏳ Transfer tab hints (50% - структура создана)
+  - ✅ Transfer tab hints (100% - полная интеграция для modalFact + modalPlan)
   - ⏳ Save operations с UI refresh (20%)
 - PHASE 6: ⏳ 0% (Тестирование)
 - PHASE 7: ⏳ 0% (Очистка)
 
-**Оценка оставшегося времени:** 3-5 часов работы
+**Оценка оставшегося времени:** 2-4 часа работы

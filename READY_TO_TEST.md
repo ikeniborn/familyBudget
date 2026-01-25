@@ -1,6 +1,6 @@
 # Готово к базовому тестированию ✅
 
-## 🎉 Что сделано (77% завершено)
+## 🎉 Что сделано (80% завершено)
 
 ### ✅ PHASE 1-4: Полностью готово
 - HTML templates с вкладками (modal_fact, modal_plan)
@@ -8,17 +8,22 @@
 - FAB упрощён до 1 кнопки
 - Интеграция в index.html, facts.html, plan.html
 
-### ✅ PHASE 5: Частично готово (55%)
+### ✅ PHASE 5: Частично готово (65%)
 - TypeScript компилируется **БЕЗ ОШИБОК** ✅
 - Date helpers (quick date buttons работают)
 - **Transfer tab data loading** ✅
   - Financial centers загружаются для FROM/TO
   - CategoryTreeSelect инициализируется (FROM: expense, TO: income)
   - Сохранение instances в DashboardState
-- **Transaction tab hints** ✅ NEW
+- **Transaction tab hints** ✅
   - loadFactHints автоматически вызывается при изменении категории
   - loadPlanHints автоматически вызывается при изменении категории
   - Отображение "План мес" и "Факт мес"
+- **Transfer tab hints** ✅ NEW
+  - Полная интеграция для modal_fact (display-only кнопки)
+  - Полная интеграция для modal_plan (кликабельные кнопки)
+  - API integration с fact-hints и plan-hints endpoints
+  - Loading states, error handling, currency formatting
 - Базовая структура save operations
 
 ---
@@ -145,9 +150,11 @@ git pull
    - ❌ Не обновляет UI
    - ❌ debugLog вместо toast
 
-2. **Transfer tab hints** - частично работают
-   - ⏳ Базовая структура создана
-   - ❌ Нужна доработка API integration
+2. **Transfer tab hints** - РАБОТАЮТ ✅
+   - ✅ modal_fact: display-only кнопки показывают План мес/Факт мес
+   - ✅ modal_plan: кликабельные кнопки заполняют сумму
+   - ✅ API integration (fact-hints, plan-hints)
+   - ✅ Loading states, error handling
 
 3. **Choices.js для transaction tab** - уже работает!
    - ✅ modal_fact использует transactionCategoryTreeSelect из addTransaction module
@@ -168,10 +175,16 @@ git pull
 - **Transfer tab data loading** ✅
   - Financial centers dropdowns (FROM/TO)
   - CategoryTreeSelect для категорий (expense/income)
-- **Transaction tab hints** ✅ NEW
+- **Transaction tab hints** ✅
   - "План мес" и "Факт мес" для modal_fact
   - "План пред. мес" и "Факт пред. мес" для modal_plan
   - Автоматическая загрузка при изменении категории
+- **Transfer tab hints** ✅ NEW
+  - modal_fact: display-only кнопки (План мес, Факт мес)
+  - modal_plan: кликабельные кнопки (План пред.мес, Факт пред.мес)
+  - Автоматическая загрузка при изменении категории/счёта
+  - Loading states, error handling, currency formatting
+  - Click handlers заполняют поле суммы (только для plan)
 
 ---
 

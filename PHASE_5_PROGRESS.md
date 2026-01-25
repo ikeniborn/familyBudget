@@ -36,7 +36,7 @@ Build time: 36.56s
 
 ---
 
-## ⏳ В процессе (55% PHASE 5)
+## ⏳ В процессе (65% PHASE 5)
 
 ### 3. Transfer Tab Data Loading ✅
 **Статус:** Реализовано полностью
@@ -79,11 +79,11 @@ async function loadTransferTabData(): Promise<void> {
 
 **TypeScript компиляция:**
 ```
-dashboard.js  231.10 kB │ gzip: 38.14 kB (+14 kB от предыдущей версии)
+dashboard.js  240.03 kB │ gzip: 39.32 kB
 ```
 
-### 4. Hints Integration
-**Статус:** Частично реализовано
+### 4. Hints Integration ✅
+**Статус:** Полностью реализовано
 
 **Transaction Tab Hints:** ✅ Работает
 - modal_fact: Использует `loadFactHints` из `addTransaction/factHints.ts`
@@ -92,10 +92,20 @@ dashboard.js  231.10 kB │ gzip: 38.14 kB (+14 kB от предыдущей в�
 - Автоматически вызывается при изменении категории
 - Отображает "План мес" и "Факт мес" для выбранной категории+счёт
 
-**Transfer Tab Hints:** ⏳ В процессе
-- Базовая структура создана (`loadFactTransferHints`, `updateTransferFactHintButtons`)
-- FC change listeners setup
-- Нужна доработка API integration и тестирование
+**Transfer Tab Hints:** ✅ Реализовано полностью
+- **modalFact:**
+  - setupTransferFCListeners() - мониторинг FC dropdown changes
+  - loadFactTransferHints(direction) - API integration с /api/v1/hints/fact-hints
+  - updateTransferFactHintButtons() - display-only кнопки (План мес, Факт мес)
+  - formatDateYYYYMMDD() - helper для YYYY-MM-DD формата
+  - Integrated в CategoryTreeSelect callbacks (FROM/TO)
+- **modalPlan:**
+  - setupTransferFCListeners() - мониторинг FC dropdown changes
+  - loadPlanTransferHints(direction) - API integration с /api/v1/hints/plan-hints
+  - updateTransferPlanHintButtons() - CLICKABLE кнопки с click handlers
+  - formatPeriodYYYYMM() - helper для YYYY-MM формата
+  - Integrated в CategoryTreeSelect callbacks (FROM/TO)
+  - Click handlers заполняют поле суммы
 
 ### 5. Choices.js Integration
 **Статус:** Не начато
@@ -251,16 +261,16 @@ window.openContextModal()
 
 ## 📊 Статистика PHASE 5
 
-**Прогресс:** 55% ✅
+**Прогресс:** 65% ✅
 
 **Выполнено:**
 - ✅ TypeScript compilation (100%)
 - ✅ Date helpers (100%)
 - ✅ Transfer tab data loading (100%)
 - ✅ Transaction tab hints (100%)
+- ✅ Transfer tab hints (100%)
 
 **В процессе:**
-- ⏳ Transfer tab hints (50% - структура создана, нужна доработка)
 - ⏳ Choices.js integration для transaction tab (0%, transfer tab уже использует)
 - ⏳ Save operations с UI refresh (20% - базовая структура)
 - ⏳ Offline support (0%)
@@ -269,7 +279,7 @@ window.openContextModal()
 - ⏳ Event listeners (40% - date buttons done)
 - ⏳ Validation (0%)
 
-**Оценка времени до завершения PHASE 5:** 3-5 часов
+**Оценка времени до завершения PHASE 5:** 2-4 часа
 
 ---
 
