@@ -130,8 +130,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       always() &&
-      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
+      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
     outputs:
       cache_version: ${{ steps.cache_bust.outputs.cache_version }}
     steps:
