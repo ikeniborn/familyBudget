@@ -1,647 +1,121 @@
+# Deploy-Prod Skill v1.0.0
+
 ---
 name: deploy-prod
-description: Автоматизированный деплой на production сервер budget-prod с registry-only архитектурой (ОБЯЗАТЕЛЬНО тестирование на budget-test перед prod)
-version: 9.0.0
+description: Автоматизированный деплой на production сервер с обязательной валидацией и manual rollback
+version: 1.0.0
 author: Family Budget Team
-tags: [deployment, automation, production, ssh, budget-prod]
-dependencies: [monitoring]
-context: fork
+tags: [deployment, production, critical, manual-rollback, registry-first]
+dependencies: [monitoring, testing, deploy-test]
 user-invocable: true
 ---
 
-# Deploy Production Automation Skill
+## ⚠️ PRODUCTION DEPLOYMENT SKILL
 
-Автоматизирует весь процесс деплоя на production сервер budget-prod с полным анализом логов и проверкой состояния.
+**CRITICAL SAFETY REQUIREMENTS:**
+- Version must be tested >=7 days on budget-test
+- Manual rollback only (no automatic rollback)
+- Explicit user confirmation required
+- Notifications mandatory (Telegram bot)
 
-## Когда использовать этот скил
+## Когда использовать
 
-Используй этот скил когда нужно:
-- Задеплоить изменения на production сервер budget-prod
-- Обновить код на production сервере
-- Проверить работу изменений в production среде
-- Автоматически проанализировать логи после деплоя
-- Проверить состояние контейнеров после деплоя
+**User phrases:**
+- "Задеплой на production"
+- "Deploy to prod"
+- "Обнови production сервер"
 
-Скил автоматически вызывается при запросах типа:
-- "Задеплой на production сервер"
-- "Обновить код на budget-prod"
-- "Запусти deploy-prod"
-- "Сделай деплой на prod"
-- "Проверь изменения на production сервере"
+## Production-Specific Differences vs Deploy-Test
 
-## Использование версионирования (v7.0+)
+| Feature | Deploy-Test | Deploy-Prod |
+|---------|-------------|-------------|
+| **Server** | budget-test | budget-prod |
+| **User Confirmation** | Optional | ⚠️ MANDATORY (type 'PRODUCTION') |
+| **Test Duration** | None | >=7 days on budget-test |
+| **Rollback** | Auto with --rollback-on-fail | Manual only |
+| **Retry Logic** | Max 3 attempts | Max 1 attempt |
+| **Auto-fix** | Available | DISABLED |
+| **Notifications** | Optional | Mandatory |
 
+## Workflow
 
-## Registry-Only Architecture (v9.0+)
+1. **Production Warning** - Критическое предупреждение + user confirmation
+2. **Test Duration Check** - Проверка что version тестировался >=7 дней на budget-test
+3. **Pre-flight Checks** - Все 7 critical checks + 3 production-specific
+4. **Git Pull** - Update code on server
+5. **Deploy Execution** - Registry-First (pull images + docker compose up)
+6. **Verification** - Logs + containers + health checks
+7. **Notifications** - Telegram bot + monitoring alerts
 
-**BREAKING CHANGE:** Build mode удален. Все сборки происходят ТОЛЬКО в GitHub Actions CI/CD.
+## Usage
 
-**CRITICAL: Production Safety Requirements**
-- ✅ **ОБЯЗАТЕЛЬНО тестирование на budget-test** перед production deployment
-- ✅ Минимум 1 неделя стабильности на budget-test
-- ✅ Проверка всех критических функций на тесте
-- ✅ Анализ логов budget-test на ошибки
-- ✅ GitHub Actions build MUST complete successfully
-- ✅ Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
-
-**Workflow (Production-Safe):**
 ```bash
-# 1. Test на budget-test
-./deploy-test.sh --version patch
-# ... Тестирование 1 неделя ...
-# ... Мониторинг логов, метрик ...
-# ... Проверка всех функций ...
+# Production deployment (with confirmations)
+./templates/deploy-prod.sh
 
-# 2. После успешного теста → Production
-./deploy-prod.sh --sync-mode update --cleanup-mode smart
-#    - Использует ТОТ ЖЕ VERSION что на budget-test
-#    - Pull тех же образов из ghcr.io
-#    - Консистентный деплой (те же binaries)
+# Dry-run (show plan)
+./templates/deploy-prod.sh --dry-run
+
+# Verbose output
+./templates/deploy-prod.sh --verbose
 ```
 
-**Преимущества для Production:**
-- ✅ **Консистентность:** Те же образы что на test (проверены)
-- ✅ **Безопасность:** Нет сборки на production (меньше риска)
-- ✅ **Скорость:** 2-3 мин деплой (vs 5-7 мин build)
-- ✅ **Надежность:** Образы проверены через CI/CD + test сервер
+## Safety Checklist
 
-**Rollback:**
+- [ ] Version tested >=7 days on budget-test
+- [ ] All tests passing (GitHub Actions green)
+- [ ] No critical issues in budget-test
+- [ ] Backup created (automatic)
+- [ ] Manual rollback plan prepared
+- [ ] Team notified about deployment
+- [ ] Monitoring alerts configured
+
+## Rollback (Manual Only)
+
 ```bash
-# БЫСТРЫЙ откат на предыдущую версию (2-3 мин)
-echo "6.6.0" > /opt/budget/VERSION
-sudo bash deploy.sh
+# 1. SSH to production
+ssh budget-prod
 
-# Pull образов 6.6.0 из ghcr.io (проверенные)
-# Перезапуск контейнеров
+# 2. Check deployment history
+tail /opt/budget/logs/deployment-history.log
+
+# 3. Determine previous VERSION
+
+# 4. Git checkout previous commit
+cd ~/familyBudget
+git checkout <previous-commit>
+
+# 5. Deploy previous version
+sudo bash deploy.sh --use-registry --sync-mode skip --cleanup-mode smart
 ```
 
-**Requirements:**
-- ✅ Успешное тестирование на budget-test (минимум 1 неделя)
-- ✅ GitHub Actions build completed
-- ✅ Images exist in ghcr.io
-- ✅ VERSION совпадает с протестированным на budget-test
+## FAQ
 
-**Базовый деплой (БЕЗ изменения версии):**
+### Q: Почему нельзя использовать --rollback-on-fail?
+
+A: Production требует manual intervention для rollback:
+- Необходим анализ причины ошибки
+- Требуется оценка impact на пользователей
+- Нужно уведомить команду
+
+### Q: Что если version не тестировался 7 дней?
+
+A: Deployment будет заблокирован:
+```
+ERROR: Minimum test duration not met
+Required: 7 days, Actual: 3 days
+PRODUCTION DEPLOYMENT BLOCKED
+```
+
+### Q: Как проверить что version готов к production?
+
+A: Проверьте на budget-test:
 ```bash
-./deploy-prod.sh
+ssh budget-test "grep 'tag=10.0.48' /opt/budget/logs/deployment-history.log"
 ```
 
-**С версионированием:**
-```bash
-# Bug fixes (patch: 6.6.0 → 6.6.1)
-./deploy-prod.sh --version patch
-
-# New features (minor: 6.6.0 → 6.7.0)
-./deploy-prod.sh --version minor
-
-# Breaking changes (major: 6.6.0 → 7.0.0)
-./deploy-prod.sh --version major
-```
-
-**Дополнительные опции:**
-```bash
-# С автоисправлением и версионированием
-./deploy-prod.sh --auto-fix --version patch
-
-# С подробными логами
-./deploy-prod.sh --verbose --version minor
-
-# Dry-run (показать что будет сделано)
-./deploy-prod.sh --dry-run --version patch
-```
-
-**ВАЖНО:** С версии v7.0+ версия НЕ меняется автоматически. Для изменения версии используйте опцию `--version TYPE`.
-
-## Алгоритм работы
-
-Этот skill выполняет следующие шаги автоматически:
-
-### Шаг 0: Интерактивный выбор опций деплоя
-
-⚠️ **ВНИМАНИЕ: Production среда!** Все изменения немедленно влияют на реальных пользователей.
-
-Перед началом деплоя Claude запрашивает параметры через AskUserQuestion.
-
-**Условие показа диалога:**
-- Показать диалог если пользователь НЕ указал явно параметры в запросе
-- Пропустить диалог если параметры указаны явно (например: "деплой с версией minor", "deploy --version patch --force-build")
-
-**Примеры явного указания параметров:**
-- "задеплой с версией patch" → версия=patch, показать только вопрос про доп. опции
-- "деплой --version minor --force-build" → версия=minor, force-build=да, пропустить диалог
-- "деплой на прод" → показать полный диалог
-- "обновить на budget-prod" → показать полный диалог
-
-**AskUserQuestion - Вопрос 1: Тип версии**
-```json
-{
-  "question": "⚠️ PRODUCTION: Какой тип версии использовать для деплоя?",
-  "header": "Version",
-  "options": [
-    {"label": "patch (Recommended)", "description": "Bug fixes: 6.6.0 → 6.6.1"},
-    {"label": "minor", "description": "New features: 6.6.0 → 6.7.0"},
-    {"label": "major", "description": "Breaking changes: 6.6.0 → 7.0.0"},
-    {"label": "none", "description": "Без изменения версии"}
-  ],
-  "multiSelect": false
-}
-```
-
-**AskUserQuestion - Вопрос 2: Дополнительные опции**
-```json
-{
-  "question": "Какие дополнительные опции применить?",
-  "header": "Options",
-  "options": [
-    {"label": "Стандартный деплой (Recommended)", "description": "Без дополнительных опций"},
-    {"label": "--force-build", "description": "Принудительная пересборка frontend"},
-    {"label": "--verbose", "description": "Детальный вывод всех операций"},
-    {"label": "--dry-run", "description": "Показать план без выполнения"}
-  ],
-  "multiSelect": true
-}
-```
-
-**Фиксированные опции (всегда применяются):**
-- `--sync-mode update` - только обновление/добавление файлов
-- `--cleanup-mode smart` - умная очистка старых образов
-
-**Формирование итоговой команды:**
-```bash
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart [--version TYPE] [OPTIONS]"
-```
-
-### Шаг 1: Проверка SSH подключения
-```bash
-ssh budget-prod "echo 'Connection OK'"
-```
-
-**Что проверяется:**
-- SSH ключи настроены
-- Сервер доступен
-- Права доступа корректны
-
-**При ошибке:**
-- Предложить пользователю проверить SSH ключи
-- Показать команду для ручного подключения
-
-### Шаг 2: Git pull в ветке prod
-```bash
-ssh budget-prod "cd ~/familyBudget && git fetch --all && git checkout prod && git pull origin prod"
-```
-
-**Что проверяется:**
-- Ветка prod существует
-- Нет незакоммиченных изменений
-- Pull прошел успешно
-
-**При ошибке:**
-- Показать статус git
-- Предложить решение конфликтов
-- Дать команды для ручного исправления
-
-### Шаг 3: Запуск deploy.sh
-
-**Базовая команда (БЕЗ изменения версии - default v7.0+):**
-```bash
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version minor"
-```
-
-**С версионированием (v7.0+ синтаксис):**
-```bash
-# Bug fixes (patch bump: 6.6.0 → 6.6.1)
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
-
-# New features (minor bump: 6.6.0 → 6.7.0)
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version minor"
-
-# Breaking changes (major bump: 6.6.0 → 7.0.0)
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version major"
-```
-
-**Параметры:**
-- `--sync-mode update` - только обновление/добавление файлов (безопасно)
-- `--cleanup-mode smart` - умная очистка старых образов
-- `--version TYPE` - версионирование (TYPE = patch|minor|major)
-  - **ВАЖНО:** С v7.0+ версия НЕ меняется если опция не указана (explicit control)
-  - Старый `--patch` deprecated (используйте `--version patch`)
-
-**Опциональные параметры:**
-- `--force-build` - принудительная пересборка frontend (игнорирует checksums)
-- `--set-version X.Y.Z` - явное указание версии (например `--set-version 7.0.0`)
-
-**Что происходит:**
-- Синхронизация кода в /opt/budget
-- Автоматическая синхронизация VERSION → package.json (если mismatch)
-- Version bump (если указан --version TYPE)
-- Синхронизация .npm-isolated/package.json после version bump
-- Автоматическое определение необходимости пересборки frontend (checksums)
-- Пересборка Docker образов (если нужно)
-- Перезапуск контейнеров
-- Health checks
-
-**Примеры комбинаций:**
-```bash
-# Деплой без изменения версии + принудительная пересборка
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --force-build"
-
-# Patch bump + принудительная пересборка
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch --force-build"
-
-# Явная версия
-ssh budget-prod "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --set-version 7.1.0"
-```
-
-### Шаг 4: Анализ логов деплоя
-```bash
-ssh budget-prod "tail -100 /opt/budget/logs/deploy.log"
-```
-
-**Что анализируется:**
-- Успешность синхронизации
-- Ошибки при сборке образов
-- Статус запуска контейнеров
-- Health check результаты
-
-**Паттерны ошибок:**
-- `ERROR` - критические ошибки
-- `FAILED` - неудачные операции
-- `fatal` - фатальные ошибки
-- `Permission denied` - проблемы с правами
-
-### Шаг 5: Анализ логов контейнеров
-```bash
-# Backend
-ssh budget-prod "cd /opt/budget && docker compose logs backend --tail=50"
-
-# PostgreSQL
-ssh budget-prod "cd /opt/budget && docker compose logs postgres --tail=50"
-
-# Redis
-ssh budget-prod "cd /opt/budget && docker compose logs redis --tail=50"
-```
-
-**Что анализируется:**
-- Python exceptions и tracebacks
-- Database connection errors
-- Redis connection issues
-- Application startup errors
-
-**Паттерны ошибок:**
-- `Traceback` - Python исключения
-- `ERROR` - ошибки приложения
-- `Exception` - необработанные исключения
-- `ConnectionError` - проблемы с подключением
-
-### Шаг 6: Проверка статуса контейнеров
-```bash
-ssh budget-prod "cd /opt/budget && docker compose ps --format json"
-```
-
-**Что проверяется:**
-- Все контейнеры running
-- Health status = healthy
-- Нет exited или restarting контейнеров
-
-**При проблемах:**
-- Показать unhealthy контейнеры
-- Предложить перезапуск
-- Показать логи проблемных контейнеров
-
-### Шаг 7: Проверка запущенных процессов
-```bash
-ssh budget-prod "ps aux | grep -E 'deploy|docker|npm|node' | grep -v grep"
-```
-
-**Что проверяется:**
-- Нет зависших процессов деплоя
-- Нет дублирующихся процессов
-- Все процессы завершились корректно
-
-**Признаки проблем:**
-- Процессы старше 5 минут
-- Множество одинаковых процессов
-- Зависшие npm/node процессы
-
-## Обработка ошибок и автоисправление
-
-### Ошибка: SSH подключение не удается
-**Действия:**
-1. Показать пользователю ошибку
-2. Предложить проверить:
-   - `ssh-add -l` - список ключей
-   - `ssh budget-prod` - ручное подключение
-3. Дать инструкцию по настройке SSH
-
-### Ошибка: Git pull завершился с конфликтами
-**Действия:**
-1. Показать конфликтующие файлы
-2. Предложить варианты:
-   - Stash изменений на сервере
-   - Hard reset на сервере (ОСТОРОЖНО на production!)
-   - Разрешить конфликты вручную
-3. Дать команды для исправления
-
-### Ошибка: Deploy.sh завершился с ошибкой
-**Действия:**
-1. Извлечь конкретную ошибку из логов
-2. Анализировать причину:
-   - Проблемы с правами
-   - Недостаток места на диске
-   - Ошибки Docker
-   - Проблемы с сетью
-3. Предложить решение
-4. Если возможно - исправить автоматически
-
-### Ошибка: Контейнеры unhealthy
-**Автоисправление:**
-```bash
-# Перезапуск unhealthy контейнеров
-ssh budget-prod "cd /opt/budget && docker compose restart <service>"
-```
-
-**Если не помогло:**
-1. Показать логи контейнера
-2. Проверить health endpoint
-3. Предложить полный перезапуск
-4. Проверить dependencies (postgres, redis)
-
-### Ошибка: Зависшие процессы
-**Автоисправление:**
-```bash
-# Завершить зависшие процессы (только если >5 минут)
-ssh budget-prod "pkill -9 -f '<process_name>'"
-```
-
-**Осторожно:**
-- Не убивать активные процессы
-- Проверить что процесс действительно завис
-- Показать какие процессы будут завершены
-
-## Отчет после деплоя
-
-После завершения всех шагов, скил создает структурированный отчет:
-
-### ✅ Успешный деплой
-```
-========================================
-✅ Деплой на budget-prod завершен успешно
-========================================
-
-📊 Статус выполнения:
-✅ SSH подключение установлено
-✅ Git pull выполнен успешно
-✅ Deploy.sh завершен без ошибок
-✅ Логи деплоя чистые
-✅ Все контейнеры healthy
-✅ Нет зависших процессов
-
-🐳 Статус контейнеров:
-✅ backend: running (healthy)
-✅ postgres: running (healthy)
-✅ redis: running (healthy)
-
-📝 Важные логи:
-- /opt/budget/logs/deploy.log - последние 20 строк
-
-⏱️ Время деплоя: 3м 24с
-```
-
-### ⚠️ Деплой с предупреждениями
-```
-========================================
-⚠️ Деплой на budget-prod завершен с предупреждениями
-========================================
-
-📊 Статус выполнения:
-✅ SSH подключение установлено
-✅ Git pull выполнен успешно
-✅ Deploy.sh завершен без ошибок
-⚠️ Обнаружены warnings в логах backend
-✅ Все контейнеры healthy
-✅ Нет зависших процессов
-
-⚠️ Предупреждения:
-1. Backend logs (backend/app/main.py:45):
-   WARNING: Redis connection slow (234ms)
-
-2. Postgres logs:
-   WARNING: High connection count (85/100)
-
-📝 Рекомендации:
-- Проверить Redis performance
-- Мониторить connection pool
-
-⏱️ Время деплоя: 4м 12с
-```
-
-### ❌ Деплой с ошибками
-```
-========================================
-❌ Деплой на budget-prod завершился с ошибками
-========================================
-
-📊 Статус выполнения:
-✅ SSH подключение установлено
-✅ Git pull выполнен успешно
-❌ Deploy.sh завершился с ошибкой
-❌ Backend контейнер unhealthy
-✅ Нет зависших процессов
-
-❌ Критические ошибки:
-1. Deploy.sh error (код: 1):
-   Error: Failed to start backend container
-
-2. Backend container (unhealthy):
-   ERROR: Database connection refused
-   Connection to postgres:5432 failed
-
-🔧 Действия для исправления:
-1. Проверить PostgreSQL:
-   ssh budget-prod "cd /opt/budget && docker compose logs postgres"
-
-2. Проверить сетевое подключение:
-   ssh budget-prod "cd /opt/budget && docker compose exec backend ping postgres"
-
-3. Перезапустить PostgreSQL:
-   ssh budget-prod "cd /opt/budget && docker compose restart postgres"
-
-4. Повторить деплой после исправления
-
-⏱️ Время деплоя: 2м 48с (прерван)
-```
-
-## Сохранение логов
-
-Все логи автоматически сохраняются локально для анализа:
-
-```
-logs/deploy-prod/
-├── YYYYMMDD_HHMMSS/
-│   ├── 01_ssh_check.log           # SSH проверка
-│   ├── 02_git_pull.log            # Git pull вывод
-│   ├── 03_deploy.log              # Deploy.sh вывод
-│   ├── 04_deploy_server.log       # /opt/budget/logs/deploy.log
-│   ├── 05_backend_logs.log        # Backend контейнер
-│   ├── 06_postgres_logs.log       # Postgres контейнер
-│   ├── 07_redis_logs.log          # Redis контейнер
-│   ├── 08_container_status.json   # Статус контейнеров
-│   ├── 09_processes.log           # Запущенные процессы
-│   └── summary.md                 # Итоговый отчет
-```
-
-## Интеграция с другими скилами
-
-### Используются:
-- **monitoring** - анализ логов и метрик
-
-### Вызывается автоматически:
-- При фразах "задеплой на production сервер"
-- Из других скилов при деплое на production
-
-## Примеры использования
-
-### Пример 1: Простой деплой
-```
-Пользователь: "Задеплой на production сервер"
-
-Claude:
-1. Проверяю SSH подключение... ✅
-2. Выполняю git pull... ✅
-3. Запускаю deploy.sh... ✅
-4. Анализирую логи... ✅
-5. Проверяю контейнеры... ✅
-6. Проверяю процессы... ✅
-
-✅ Деплой завершен успешно! Все сервисы работают корректно.
-```
-
-### Пример 2: Деплой с ошибкой и исправлением
-```
-Пользователь: "Обновить код на budget-prod"
-
-Claude:
-1. Проверяю SSH подключение... ✅
-2. Выполняю git pull... ✅
-3. Запускаю deploy.sh... ✅
-4. Анализирую логи... ⚠️ Обнаружена ошибка
-5. Проверяю контейнеры... ❌ Backend unhealthy
-
-❌ Проблема: Backend container unhealthy
-   Причина: Database connection refused
-
-🔧 Исправляю автоматически:
-   - Перезапускаю PostgreSQL... ✅
-   - Перезапускаю Backend... ✅
-   - Проверяю health... ✅
-
-✅ Проблема исправлена! Все сервисы работают.
-```
-
-### Пример 3: Множественные проблемы
-```
-Пользователь: "Сделай деплой на prod"
-
-Claude:
-1. Проверяю SSH подключение... ✅
-2. Выполняю git pull... ❌ Конфликт
-
-⚠️ Обнаружен конфликт в файле: backend/app/config.py
-
-Предлагаю решения:
-1. Stash изменения на сервере (рекомендую)
-2. Hard reset (удалит локальные изменения - ОСТОРОЖНО на production!)
-3. Разрешить вручную
-
-Выбери вариант или я использую вариант 1?
-```
-
-## Best Practices
-
-### 1. Всегда проверяй состояние перед действиями
-- SSH подключение перед git pull
-- Git статус перед pull
-- Контейнеры перед перезапуском
-
-### 2. Детальное логирование
-- Сохраняй все выводы команд
-- Timestamp для каждого действия
-- Структурированные отчеты
-
-### 3. Безопасное исправление
-- Не убивай процессы без подтверждения
-- Не делай hard reset без предупреждения (особенно на production!)
-- Предлагай варианты вместо автоматических действий
-
-### 4. Информативная обратная связь
-- Эмодзи для визуального статуса (✅ ⚠️ ❌)
-- Прогресс выполнения в реальном времени
-- Понятные сообщения об ошибках
-- Конкретные команды для исправления
-
-## Troubleshooting
-
-Специфичные для deploy-prod проблемы:
-
-### SSH timeout
-**Причина:** Сервер недоступен или долго отвечает
-**Решение:** Увеличить timeout, проверить сеть
-
-### Git pull зависает
-**Причина:** Большой размер изменений или медленная сеть
-**Решение:** Использовать `--depth 1` для shallow pull
-
-### Deploy.sh зависает
-**Причина:** Docker операции долго выполняются
-**Решение:** Увеличить timeout, мониторить процессы
-
-## Связанные скилы
-
-- **monitoring** - мониторинг сервисов
-- **testing** - тестирование перед деплоем
-- **deploy-test** - деплой на тестовый сервер
-
-## Changelog
-
-### v9.0.0 (2026-01-21)
-**BREAKING CHANGES:**
-- ❌ **Build mode REMOVED**: Only registry mode supported
-- ❌ **`--force-build` flag REMOVED**: All builds in GitHub Actions
-- ❌ **`--use-registry` flag REMOVED**: Registry is now DEFAULT and ONLY mode
-- ✅ **Manual VERSION bump REQUIRED**: Developer must bump VERSION before push
-- ✅ **Mandatory budget-test testing**: Minimum 1 week stability required
-
-**Production Safety Improvements:**
-- Registry-first architecture eliminates build risks on production
-- Consistent images between test and prod (same binaries)
-- Fast rollback capability (2-3 min to previous VERSION)
-- Automatic cleanup of old Docker images (7 days retention)
-
-**Workflow Changes:**
-1. Test thoroughly on budget-test (1 week minimum)
-2. Verify GitHub Actions build completed
-3. Deploy same VERSION to production
-4. Automatic cleanup of old images
-
-**Removed Options:**
-- ~~`--force-build`~~ (removed in v9.0)
-- ~~`--use-registry`~~ (default behavior)
-- ~~`--image-tag TAG`~~ (VERSION file used)
-- ~~`--skip-local-validation`~~ (no local build)
-
-**Requirements:**
-- Successful testing on budget-test (1 week stability)
-- GitHub Actions build completed successfully
-- Images exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
-- VERSION matches tested version on budget-test
-
-**See also:**
-- `.github/workflows/build-and-push.yml` - CI/CD pipeline
-- `docker-compose.yml` - Registry images configuration
-- `.claude/skills/deploy-test/SKILL.md` - Test deployment guide
-
-### v1.0.0 (Initial Release)
-- Production deployment automation
-- SSH-based deployment to budget-prod
-- Container status monitoring
-- Log analysis and health checks
+## See Also
+
+- `@skill:deploy-test` - Test server deployment (recommended first)
+- `@skill:monitoring` - Post-deployment monitoring
+- `docs/architecture/deployment-troubleshooting.md` - Troubleshooting guide
