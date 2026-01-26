@@ -601,6 +601,7 @@ start_application_services() {
     info "Registry-first mode: Using pre-pulled images from ghcr.io"
     info "Starting backend/bot/nginx containers..."
     local start_result=0
+    local build_flag=""  # Registry-first mode: never use --build
 
     # Clean up any stuck or orphan containers before starting
     # This prevents "container name already in use" errors
