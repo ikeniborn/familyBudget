@@ -6,7 +6,7 @@
 # - Let's Encrypt certificate setup (via host certbot)
 # - SSL certificate verification
 #
-# Dependencies: config.sh, utils.sh, nginx.sh
+# Dependencies: config.sh, utils.sh
 #
 # Usage:
 #   source scripts/lib/ssl.sh
@@ -14,7 +14,7 @@
 #   verify_ssl
 #
 # Part of Phase 3 refactoring (SSL functions extracted from deploy.sh)
-# Nginx configuration is now managed by nginx.sh module
+# Nginx configuration is now embedded in Docker image (v9.0 registry-first)
 #
 
 # =============================================================================

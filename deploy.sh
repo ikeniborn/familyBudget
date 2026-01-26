@@ -82,7 +82,6 @@ fi
 source "$SCRIPT_DIR/scripts/lib/config.sh"      # Must be first (no dependencies)
 source "$SCRIPT_DIR/scripts/lib/utils.sh"       # Depends on config.sh
 source "$SCRIPT_DIR/scripts/lib/timeout.sh"     # Depends on config.sh, utils.sh (v6.5.5+ resilience)
-source "$SCRIPT_DIR/scripts/lib/nginx.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/validation.sh"  # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 
