@@ -71,15 +71,51 @@
         </div> <!-- .nav-container -->
     </div> <!-- .mobile-nav-wrapper -->
 
-    <!-- Simplified Universal FAB Button (shown on /, /facts, /plan) -->
+    <!-- Speed Dial FAB для главной страницы -->
     <div class="fab-wrapper" id="fab-wrapper">
+        <!-- Speed Dial меню (показывается только на /) -->
+        <div id="fab-speed-dial-menu" class="mobile-fab-menu" style="display: none;">
+            <!-- Опция 1: Добавить факт -->
+            <div class="mobile-fab-item">
+                <span class="mobile-fab-label">Добавить факт</span>
+                <button
+                    onclick="openModalFact(); closeFabMenu();"
+                    class="btn btn-circle btn-primary shadow-lg"
+                    aria-label="Добавить фактическую транзакцию"
+                    title="Добавить факт">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <!-- Document icon -->
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Опция 2: Добавить план -->
+            <div class="mobile-fab-item">
+                <span class="mobile-fab-label">Добавить план</span>
+                <button
+                    onclick="openModalPlan(); closeFabMenu();"
+                    class="btn btn-circle btn-primary shadow-lg"
+                    aria-label="Добавить плановую транзакцию"
+                    title="Добавить план">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <!-- Calendar icon -->
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Основная FAB кнопка -->
         <button
-            onclick="openContextModal()"
+            onclick="toggleFabMenu()"
             class="fab-button btn btn-circle btn-primary shadow-lg"
             id="fab-btn"
             aria-label="Добавить запись"
             title="Добавить запись">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 fab-icon-plus" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
         </button>
@@ -116,10 +152,19 @@ const FAB_PAGE_CONTEXT = {
 
         if (!context || context === 'lists') {
             // Hide FAB on /lists and unlisted pages (e.g., /analytics)
-            if (fabWrapper) fabWrapper.style.display = 'none';
+            if (fabWrapper) {
+                fabWrapper.style.display = 'none';
+                fabWrapper.style.visibility = 'hidden';
+                fabWrapper.style.pointerEvents = 'none';
+            }
         } else {
             // Show FAB on /, /facts, /plan
-            if (fabWrapper) fabWrapper.style.display = '';
+            if (fabWrapper) {
+                fabWrapper.style.display = '';
+                fabWrapper.style.visibility = 'visible';
+                fabWrapper.style.pointerEvents = 'auto';
+                fabWrapper.style.opacity = '1'; // Гарантия видимости
+            }
         }
 
         // Mobile navigation always visible (except offline mode adjustments)
@@ -197,4 +242,140 @@ const FAB_PAGE_CONTEXT = {
     });
 
 })();
+
+// ============= Speed Dial Controls =============
+
+/**
+ * Безопасный вызов openContextModal (защита от timing issues)
+ */
+function safeOpenContextModal() {
+    // Приоритет 1: Dashboard module
+    if (typeof window.Dashboard !== 'undefined' && window.Dashboard.openContextModal) {
+        try {
+            window.Dashboard.openContextModal();
+            return;
+        } catch (error) {
+            console.error('[FAB] Dashboard.openContextModal failed:', error);
+        }
+    }
+
+    // Приоритет 2: Global openContextModal
+    if (typeof window.openContextModal === 'function') {
+        try {
+            window.openContextModal();
+            return;
+        } catch (error) {
+            console.error('[FAB] window.openContextModal failed:', error);
+        }
+    }
+
+    // Fallback: Прямой вызов модальных окон
+    const currentPage = window.location.pathname;
+    if (currentPage === '/plan') {
+        if (typeof openModalPlan === 'function') {
+            openModalPlan();
+        } else {
+            console.error('[FAB] openModalPlan not available');
+            showFallbackError();
+        }
+    } else {
+        // По умолчанию - modal_fact (для / и /facts)
+        if (typeof openModalFact === 'function') {
+            openModalFact();
+        } else {
+            console.error('[FAB] openModalFact not available');
+            showFallbackError();
+        }
+    }
+}
+
+/**
+ * Показать ошибку если модальные функции недоступны
+ */
+function showFallbackError() {
+    if (typeof showToast === 'function') {
+        showToast('Функция временно недоступна. Попробуйте обновить страницу.', 'error');
+    } else {
+        alert('Функция временно недоступна. Попробуйте обновить страницу.');
+    }
+}
+
+/**
+ * Переключает Speed Dial меню (только на главной странице)
+ */
+function toggleFabMenu() {
+    const currentPage = window.location.pathname;
+    const wrapper = document.getElementById('fab-wrapper');
+    const menu = document.getElementById('fab-speed-dial-menu');
+
+    if (!wrapper || !menu) {
+        console.error('[FAB] Speed dial elements not found');
+        return;
+    }
+
+    // Speed dial только на главной странице
+    if (currentPage === '/') {
+        const isOpen = wrapper.classList.contains('open');
+
+        if (isOpen) {
+            // Закрыть меню
+            wrapper.classList.remove('open');
+            menu.style.display = 'none';
+        } else {
+            // Открыть меню
+            wrapper.classList.add('open');
+            menu.style.display = 'flex';
+        }
+    } else {
+        // На других страницах - прямой вызов модального окна
+        safeOpenContextModal();
+    }
+}
+
+/**
+ * Закрывает Speed Dial меню
+ */
+function closeFabMenu() {
+    const wrapper = document.getElementById('fab-wrapper');
+    const menu = document.getElementById('fab-speed-dial-menu');
+
+    if (wrapper && menu) {
+        wrapper.classList.remove('open');
+        menu.style.display = 'none';
+    }
+}
+
+/**
+ * Инициализация Speed Dial при загрузке страницы
+ */
+(function initSpeedDial() {
+    const currentPage = window.location.pathname;
+    const menu = document.getElementById('fab-speed-dial-menu');
+    const fabBtn = document.getElementById('fab-btn');
+
+    if (!menu || !fabBtn) return;
+
+    if (currentPage === '/') {
+        // Главная страница: Speed dial меню
+        menu.style.display = 'none'; // Изначально закрыто
+        fabBtn.setAttribute('onclick', 'toggleFabMenu()');
+    } else {
+        // /facts, /plan: прямое открытие модального окна
+        menu.style.display = 'none';
+        fabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+    }
+})();
+
+// Закрытие меню при клике вне FAB
+document.addEventListener('click', function(event) {
+    const wrapper = document.getElementById('fab-wrapper');
+    const menu = document.getElementById('fab-speed-dial-menu');
+
+    if (!wrapper || !menu) return;
+
+    // Если клик вне FAB и меню открыто - закрыть
+    if (!wrapper.contains(event.target) && wrapper.classList.contains('open')) {
+        closeFabMenu();
+    }
+});
 </script>
