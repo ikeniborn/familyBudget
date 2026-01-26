@@ -36,6 +36,7 @@ ENV PYTHONUNBUFFERED=1 \
 # Install runtime dependencies only
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
