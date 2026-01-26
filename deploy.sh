@@ -5,7 +5,7 @@
 # This script deploys the Family Budget application using Docker Compose:
 # - Validates prerequisites (Docker, .env file)
 # - Syncs code from repository to deployment directory
-# - Builds Docker images
+# - Pulls pre-built Docker images from GitHub Container Registry (ghcr.io)
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
@@ -28,8 +28,8 @@
 #   ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
 #   ./deploy.sh --clean            # Clean deployment (removes data!)
 #
-# Note: Docker images are automatically rebuilt when code changes (using --build flag).
-#       Docker uses layer cache, so rebuilds are fast when nothing changed.
+# Note: Docker images are pre-built in GitHub Actions CI/CD (registry-first v9.0+).
+#       Server only pulls ready images from ghcr.io - no local building occurs.
 #
 # Author: Family Budget Team
 # Version: 1.1.0
@@ -661,117 +661,11 @@ validate_firewall_rules() {
 }
 
 # =============================================================================
-# NPM ENVIRONMENT AUTO-REPAIR FUNCTION
+# NPM ENVIRONMENT (REMOVED IN v9.0)
 # =============================================================================
-# Validates npm environment and auto-repairs if issues detected
-# Returns: 0 on success, 1 on failure
-repair_npm_environment() {
-    local npm_isolated_dir="/opt/budget/.npm-isolated"
-    local node_modules_dir="$npm_isolated_dir/node_modules"
-    local package_lock="/opt/budget/package-lock.json"
-
-    step "npm Environment Validation"
-
-    # Check 1: .npm-isolated directory exists
-    if [[ ! -d "$npm_isolated_dir" ]]; then
-        print_message error "npm isolated directory not found: $npm_isolated_dir"
-        print_message error "This indicates install.sh was not run or npm environment was deleted"
-        print_message error ""
-        print_message error "Auto-repair: Creating isolated npm environment..."
-        echo ""
-
-        # Auto-repair: Create directory and install packages
-        mkdir -p "$npm_isolated_dir"
-        cd "$npm_isolated_dir" || return 1
-
-        # Copy package files
-        cp /opt/budget/package.json . 2>/dev/null || {
-            print_message error "package.json not found in /opt/budget"
-            return 1
-        }
-        cp -f /opt/budget/package-lock.json . 2>/dev/null || true
-
-        print_message info "Installing npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
-        if [[ -f "package-lock.json" ]]; then
-            npm_with_retry ci --prefer-offline --no-audit || {
-                print_message error "npm ci failed - trying npm install..."
-                npm_with_retry install --prefer-offline --no-audit || return 1
-            }
-        else
-            npm_with_retry install --prefer-offline --no-audit || return 1
-        fi
-
-        cd /opt/budget || return 1
-        print_message success "npm environment created successfully"
-        echo ""
-    fi
-
-    # Check 2: Run comprehensive validation
-    print_message info "Running comprehensive npm environment validation..."
-    if bash scripts/lib/check_npm_env.sh "$PWD"; then
-        print_message success "npm environment validation passed"
-        echo ""
-        return 0
-    fi
-
-    # Validation failed - attempt auto-repair
-    print_message warning "npm environment validation failed - attempting auto-repair..."
-    echo ""
-
-    # Auto-repair: Reinstall packages
-    print_message info "Reinstalling npm packages in $npm_isolated_dir..."
-    cd "$npm_isolated_dir" || return 1
-
-    # Copy latest package files
-    cp /opt/budget/package.json . 2>/dev/null || {
-        print_message error "package.json not found"
-        return 1
-    }
-    cp -f /opt/budget/package-lock.json . 2>/dev/null || true
-
-    # Remove corrupted node_modules
-    if [[ -d "node_modules" ]]; then
-        print_message info "Removing corrupted node_modules..."
-        rm -rf node_modules
-    fi
-
-    # Reinstall
-    print_message info "Installing fresh npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
-    if [[ -f "package-lock.json" ]]; then
-        npm_with_retry ci --prefer-offline --no-audit || {
-            print_message error "npm ci failed - trying npm install..."
-            npm_with_retry install --prefer-offline --no-audit || {
-                print_message error "npm install failed - cannot auto-repair"
-                cd /opt/budget || return 1
-                return 1
-            }
-        }
-    else
-        npm_with_retry install --prefer-offline --no-audit || {
-            print_message error "npm install failed - cannot auto-repair"
-            cd /opt/budget || return 1
-            return 1
-        }
-    fi
-
-    cd /opt/budget || return 1
-
-    # Verify repair
-    print_message info "Verifying npm environment after repair..."
-    if bash scripts/lib/check_npm_env.sh "$PWD"; then
-        print_message success "Auto-repair successful - npm environment validated"
-        echo ""
-        return 0
-    else
-        print_message error "Auto-repair failed - npm environment still invalid"
-        print_message error ""
-        print_message error "Manual intervention required:"
-        print_message error "  1. cd ~/familyBudget && sudo ./install.sh"
-        print_message error "  2. Or manually fix npm packages in $npm_isolated_dir"
-        print_message error ""
-        return 1
-    fi
-}
+# repair_npm_environment() removed - npm not required in registry-first mode
+# Frontend is embedded in backend Docker image (built in GitHub Actions CI/CD)
+# All builds happen in CI/CD pipeline: .github/workflows/build-and-push.yml
 
 # =============================================================================
 # CHECK GIT REPOSITORY SYNC STATUS
@@ -903,108 +797,11 @@ check_git_sync() {
 }
 
 # =============================================================================
-# VALIDATE BUILD ARTIFACTS
+# BUILD ARTIFACTS VALIDATION (REMOVED IN v9.0)
 # =============================================================================
-# Comprehensive validation of all build artifacts before saving checksums
-# This prevents deploying stale or incomplete assets (Issue #1 fix)
-validate_build_artifacts() {
-    local validation_failed=false
-
-    info "Checking critical build artifacts..."
-    echo ""
-
-    # Critical files that MUST exist
-    local -a critical_files=(
-        "$DEPLOY_DIR/sw.min.js"
-        "$DEPLOY_DIR/sw.min.js.gz"
-        "$DEPLOY_DIR/frontend/web/static/css/tailwind-daisyui.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/custom.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/choices-tailwind.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/daisyui-overrides.min.css"
-    )
-
-    # Bundles (ES modules v7.0+, Vite-generated)
-    local -a bundle_files=(
-        "$DEPLOY_DIR/frontend/web/static/js/lists.min.js"
-        "$DEPLOY_DIR/frontend/shared/static/js/budgetShared.min.js"
-    )
-
-    # Legacy files (Terser/PostCSS-generated, not in Vite)
-    # Note: hierarchyView.js was migrated to TypeScript (HierarchyView.ts) and included in lists.min.js bundle
-    local -a legacy_files=(
-        "$DEPLOY_DIR/frontend/web/static/css/lists.min.css"
-    )
-
-    # Check critical files (must exist and non-empty)
-    for file in "${critical_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing: $(basename "$file")"
-            validation_failed=true
-        elif [[ ! -s "$file" ]]; then
-            error "❌ Empty file: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            success "✓ $(basename "$file") (${size}B)"
-        fi
-    done
-
-    # Check bundles (must exist and > 1KB)
-    for file in "${bundle_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing bundle: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            if [[ $size -lt 1024 ]]; then
-                error "❌ Bundle too small: $(basename "$file") (${size}B, expected >1KB)"
-                validation_failed=true
-            else
-                success "✓ $(basename "$file") (${size}B)"
-            fi
-        fi
-    done
-
-    # Check legacy files (must exist and non-empty)
-    for file in "${legacy_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing legacy file: $(basename "$file")"
-            validation_failed=true
-        elif [[ ! -s "$file" ]]; then
-            error "❌ Empty legacy file: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            success "✓ $(basename "$file") (${size}B)"
-        fi
-    done
-
-    # Verify PLACEHOLDER replaced in Service Worker
-    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
-            error "❌ CACHE_VERSION_PLACEHOLDER still present in sw.min.js"
-            error "   Cache busting failed - PWA will not work correctly"
-            validation_failed=true
-        else
-            # Extract version
-            local sw_version=$(grep -oE '"v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/"//g' | head -1)
-            if [[ -n "$sw_version" ]]; then
-                success "✓ Service Worker version: $sw_version"
-            else
-                warning "⚠️  Could not extract version from sw.min.js (may be OK if format changed)"
-            fi
-        fi
-    fi
-
-    echo ""
-    if [[ "$validation_failed" == "true" ]]; then
-        error "Validation failed - see errors above"
-        return 1
-    fi
-
-    success "All build artifacts validated successfully"
-    return 0
-}
+# validate_build_artifacts() removed - artifacts embedded in Docker images
+# Validation happens in GitHub Actions CI/CD (quality-checks job)
+# See: .github/workflows/build-and-push.yml
 
 
 # Cleanup old Docker images (older than retention_days)
@@ -1165,18 +962,14 @@ main() {
     # This allows deployment to run unattended after parameter selection
     collect_deployment_parameters
 
-    # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
-    # This prevents issues if rsync accidentally deletes .npm-isolated/
-    print_message info "Pre-flight check: Verifying production npm environment..."
-    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-        local pkg_count
-        pkg_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        print_message success "Production npm environment verified: $pkg_count packages"
-    else
-        print_message warning "Production npm environment NOT found: /opt/budget/.npm-isolated/"
-        print_message warning "Run install.sh to create npm environment before first deploy"
-        print_message warning "Build process will be skipped if npm environment is missing"
+    # PRE-FLIGHT CHECK: Verify Docker prerequisites
+    print_message info "Pre-flight check: Verifying Docker environment..."
+    if ! docker ps > /dev/null 2>&1; then
+        error "Docker daemon not running"
+        error "Start Docker: sudo systemctl start docker"
+        exit 1
     fi
+    success "Docker daemon running"
     echo ""
 
     # CHECK: Ensure repository is synchronized with remote
@@ -1262,28 +1055,11 @@ main() {
     fi
     echo ""
 
-    # CRITICAL: Sync package.json to .npm-isolated if changed
-    # - After sync_code_to_deploy: package.json is up-to-date in /opt/budget
-    # - Before npm build: .npm-isolated/package.json must match root package.json
-    # - Install new dependencies if package.json changed
-    if [[ -f "$DEPLOY_DIR/.npm-isolated/package.json" && -f "$DEPLOY_DIR/package.json" ]]; then
-        if ! diff -q "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json" >/dev/null 2>&1; then
-            print_message info "package.json changed - syncing to .npm-isolated"
-            cp "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json"
-
-            # Install new dependencies in isolated environment
-            print_message info "Installing new npm dependencies..."
-            cd "$DEPLOY_DIR/.npm-isolated" || error "Failed to enter .npm-isolated directory"
-            if npm install --no-save 2>&1; then
-                print_message success "npm dependencies updated successfully"
-            else
-                print_message warning "npm install failed - build may fail"
-            fi
-            cd "$DEPLOY_DIR" || error "Failed to return to deploy directory"
-        else
-            print_message info "package.json unchanged - skipping .npm-isolated sync"
-        fi
-    fi
+    # =============================================================================
+    # NPM DEPENDENCIES SYNC (REMOVED IN v9.0)
+    # =============================================================================
+    # .npm-isolated npm install removed - not needed in registry-first mode
+    # Dependencies are installed during Docker image build in GitHub Actions CI/CD
     echo ""
 
     # Analyze sync changes for smart restart decisions
@@ -1437,11 +1213,10 @@ main() {
     echo ""
 
 
-    # REMOVED: Duplicate PLACEHOLDER check block (Issue #1 fix)
-    # The comprehensive validate_build_artifacts() function (added above) already
-    # validates Service Worker PLACEHOLDER replacement. This section was redundant
-    # and happened AFTER checksums were saved (wrong timing).
-    # See validate_build_artifacts() at line ~887 for the new validation logic.
+    # REMOVED: Build artifacts validation (v9.0 registry-first)
+    # validate_build_artifacts() function was removed - artifacts are validated in CI/CD
+    # (GitHub Actions quality-checks job) and embedded in Docker images.
+    # No validation needed on server during deployment.
 
     # LATE checks (after code sync): docker-compose.yml, directories
     check_prerequisites_late

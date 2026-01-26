@@ -723,6 +723,87 @@ services:
 
 ---
 
+### Критическое изменение v9.0
+
+**Docker Compose НЕ собирает образы на сервере**
+
+**docker-compose.yml** (v9.0):
+```yaml
+services:
+  backend:
+    image: ghcr.io/ikeniborn/familybudget-backend:${BACKEND_VERSION:-latest}
+    # НЕТ секции build: - образы только из registry
+
+  bot:
+    image: ghcr.io/ikeniborn/familybudget-bot:${BOT_VERSION:-latest}
+    # НЕТ секции build:
+
+  nginx:
+    image: ghcr.io/ikeniborn/familybudget-nginx:${NGINX_VERSION:-latest}
+    # НЕТ секции build:
+```
+
+**Откуда берутся образы:**
+
+**1. CI/CD сборка** (GitHub Actions):
+- Multi-stage Dockerfile для каждого сервиса
+- Frontend embedded в backend образ
+- Push в ghcr.io с семантическими версиями
+
+**2. Server pull** (deploy.sh):
+- Чтение IMAGE_VERSIONS.json
+- `docker pull ghcr.io/ikeniborn/familybudget-*:VERSION`
+- `docker compose up -d` (без --build!)
+
+---
+
+### Multi-Stage Builds (в CI/CD)
+
+**backend/Dockerfile** (пример):
+```dockerfile
+# Stage 1: python-builder (~300 MB, отбрасывается)
+FROM python:3.11-slim as python-builder
+WORKDIR /opt/venv
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: frontend-builder (~500 MB, отбрасывается)
+FROM node:18-alpine as frontend-builder
+WORKDIR /build
+COPY package*.json ./
+RUN npm ci
+COPY frontend/ ./frontend/
+RUN npm run build:prod
+
+# Stage 3: runtime (~500 MB, FINAL IMAGE)
+FROM python:3.11-slim
+COPY --from=python-builder /opt/venv /opt/venv
+COPY --from=frontend-builder /build/frontend/web/static /app/frontend/web/static
+COPY backend/ /app/backend/
+```
+
+**Результат**:
+- Финальный образ: ~500 MB (только runtime dependencies)
+- Отброшено: ~800 MB (build tools, npm, компиляторы)
+- На сервер приходит ТОЛЬКО финальный образ
+
+---
+
+### Что НЕ требуется на сервере
+
+**Dependencies:**
+- ❌ Node.js
+- ❌ npm
+- ❌ Python build tools (gcc, make)
+- ❌ Build essentials
+- ❌ Любые компиляторы
+
+**Requirements:**
+- ✅ Только Docker + Docker Compose
+- ✅ ghcr.io access (GitHub Container Registry)
+
+---
+
 ### Development Mode (docker-compose.dev.yml)
 
 **File**: `docker-compose.dev.yml` (override)

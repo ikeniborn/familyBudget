@@ -517,6 +517,137 @@ docker compose up -d --force-recreate backend bot nginx redis postgres
 
 ---
 
+### Server Deployment Process (v9.0+ Registry-First)
+
+#### Критические изменения v9.0
+
+**Что НЕ происходит на сервере:**
+- ❌ NO npm/Node.js (не требуется для production)
+- ❌ NO локальные builds (frontend, Docker)
+- ❌ NO валидация артефактов на сервере
+- ❌ NO кэшбастинг (выполнен в CI)
+
+**Что происходит на сервере:**
+- ✅ ТОЛЬКО pull from ghcr.io
+- ✅ Запуск Docker контейнеров
+- ✅ Миграции БД
+- ✅ Health checks
+- ✅ Cleanup старых образов
+
+---
+
+#### Deployment Flow (Step-by-Step)
+
+**Команда**:
+```bash
+cd ~/familyBudget
+git pull origin test
+sudo bash deploy.sh --sync-mode update --cleanup-mode smart
+```
+
+**Что происходит:**
+
+**1. Чтение IMAGE_VERSIONS.json**
+- Файл содержит версии каждого сервиса
+- Генерируется автоматически в CI/CD
+- Пример:
+  ```json
+  {
+    "backend": { "version": "6.6.0", "digest": "sha256:..." },
+    "bot": { "version": "6.6.0", "digest": "sha256:..." },
+    "nginx": { "version": "6.6.0", "digest": "sha256:..." },
+    "redis": { "version": "6.6.0", "digest": "sha256:..." },
+    "postgresql": { "version": "6.6.0", "digest": "sha256:..." }
+  }
+  ```
+
+**2. Pull Docker Images from ghcr.io**
+```bash
+# Автоматически pull'ятся 5 образов
+docker pull ghcr.io/ikeniborn/familybudget-backend:6.6.0
+docker pull ghcr.io/ikeniborn/familybudget-bot:6.6.0
+docker pull ghcr.io/ikeniborn/familybudget-nginx:6.6.0
+docker pull ghcr.io/ikeniborn/familybudget-redis:6.6.0
+docker pull ghcr.io/ikeniborn/familybudget-postgresql:6.6.0
+```
+
+**3. Генерация .env**
+- Версии из IMAGE_VERSIONS.json → .env переменные
+- Пример .env:
+  ```bash
+  BACKEND_VERSION=6.6.0
+  BOT_VERSION=6.6.0
+  NGINX_VERSION=6.6.0
+  REDIS_VERSION=6.6.0
+  POSTGRESQL_VERSION=6.6.0
+  ```
+
+**4. Phased Startup**
+- **Phase 1**: PostgreSQL only
+  - `docker compose up -d postgres`
+  - Wait for healthy status (30s timeout)
+- **Phase 1.2**: Redis only
+  - `docker compose up -d redis`
+  - Wait for healthy status (10s timeout)
+- **Phase 1.5**: Backend only
+  - `docker compose up -d backend`
+  - Wait for healthy status (60s timeout)
+- **Migration**: Alembic upgrade head
+  - Runs in backend container
+  - SQL DDL/DML changes applied
+- **Phase 2**: Bot + Nginx
+  - `docker compose up -d bot nginx`
+  - Final health checks
+
+**5. Health Checks**
+- Verify all containers healthy
+- Test backend health endpoint: `GET /health`
+- Verify Service Worker version in HTML
+- Log deployment success
+
+**6. Cleanup**
+- Remove old images (>7 days retention)
+- Cleanup dangling images
+- Log cleanup history
+
+**Время деплоя**: ВСЕГДА 2-3 минуты (только pull + startup)
+
+---
+
+#### Что НЕ требуется на сервере (v9.0)
+
+**Dependencies:**
+- ❌ Node.js
+- ❌ npm
+- ❌ Python build tools (gcc, make)
+- ❌ Build essentials
+- ❌ Любые компиляторы
+
+**Requirements:**
+- ✅ Docker 20.10+
+- ✅ Docker Compose v2
+- ✅ Git (для git pull)
+- ✅ ghcr.io access (GitHub Container Registry)
+
+---
+
+#### Legacy Functions Removed (v9.0)
+
+**deploy.sh**:
+- `repair_npm_environment()` - npm не требуется
+- `validate_build_artifacts()` - артефакты в Docker образах
+- npm install sync блок - зависимости в образах
+- Pre-flight npm checks - заменено на Docker daemon check
+
+**scripts/lib/services.sh**:
+- `--build` flag logic - локальная сборка удалена
+- Build strategy блок - всегда registry mode
+- Registry mode check - registry mode единственный вариант
+
+**Total removed**: ~345 строк legacy кода
+
+---
+
 ## Workflow Execution Times
 
 | Job | Approx Duration (v9.0) |

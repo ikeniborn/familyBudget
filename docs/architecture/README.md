@@ -86,6 +86,43 @@ Use these files to understand component relationships when planning changes or o
 
 ---
 
+### 2026-01-26: deploy.sh Registry-First Refactoring (v9.0)
+
+**Изменения**:
+- ❌ Удалена функция `repair_npm_environment()` - npm не требуется на production
+- ❌ Удалена функция `validate_build_artifacts()` - артефакты в Docker образах
+- ❌ Удалена синхронизация package.json и npm install на сервере
+- ❌ Удалена логика локальной сборки Docker образов (--build flag)
+- ✅ Обновлены комментарии - убраны упоминания о build mode
+- ✅ Документация обновлена для Registry-First архитектуры
+
+**Граф зависимостей (Server Deployment)**:
+
+СТАРЫЙ (v8.x):
+```
+git pull → npm install → npm build → docker build → docker up → migrations
+```
+
+НОВЫЙ (v9.0):
+```
+git pull → docker pull (ghcr.io) → docker up → migrations
+```
+
+**Время деплоя**:
+- v8.x: 5-7 минут (с build)
+- v9.0: 2-3 минуты (только pull)
+
+**Файлы**:
+- `deploy.sh` - удалено ~240 строк legacy кода
+- `scripts/lib/services.sh` - упрощена логика docker compose
+- 4 файла документации обновлены
+
+**См. также**:
+- docs/architecture/ci-cd-build-deploy.md (Server Deployment Process)
+- docs/architecture/guides/deployment-troubleshooting.md (Registry-First Troubleshooting)
+
+---
+
 ### 2026-01-19: Base Template Modular Decomposition (v7.x)
 - **Change:** Декомпозиция base.html на модульные компоненты
 - **Problem:**

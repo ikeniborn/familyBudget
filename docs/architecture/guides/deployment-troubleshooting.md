@@ -661,6 +661,112 @@ The `validate_build_artifacts()` function checks:
 
 ---
 
+## Troubleshooting Registry-First Deployments (v9.0+)
+
+### Ошибка: "npm: command not found"
+
+**Причина**: Legacy код пытается запустить npm на сервере
+
+**Решение**:
+1. Проверить версию deploy.sh: `grep "v9.0" deploy.sh`
+2. Если v8.x, обновить до v9.0: `git pull origin test`
+3. npm НЕ требуется на production сервере
+
+**Проверка**:
+```bash
+# deploy.sh НЕ ДОЛЖЕН вызывать npm
+grep -n "npm install" deploy.sh
+# Ожидаемый вывод: нет совпадений (или только комментарии)
+```
+
+---
+
+### Ошибка: "validate_build_artifacts failed"
+
+**Причина**: Legacy функция проверяет локальные файлы на хосте
+
+**Решение**:
+1. Проверить что функция удалена: `grep -A5 "validate_build_artifacts()" deploy.sh`
+2. Артефакты (sw.min.js, bundles) находятся ВНУТРИ Docker образа
+3. Валидация происходит в CI/CD (quality-checks job)
+
+**Проверка**:
+```bash
+# Образ содержит frontend
+docker exec familybudget-backend ls -la /app/frontend/web/static/js/
+# Ожидаемый вывод: sw.min.js, bundles/*, vendor/*
+```
+
+---
+
+### Ошибка: "Frontend build failed"
+
+**Причина**: Сервер пытается собрать frontend локально
+
+**Решение**:
+1. Frontend собирается в GitHub Actions (service-build job)
+2. Проверить IMAGE_VERSIONS.json существует: `cat ~/familyBudget/IMAGE_VERSIONS.json`
+3. Если файл отсутствует, выполнить: `git pull origin test`
+
+**Проверка**:
+```bash
+# CI/CD создает IMAGE_VERSIONS.json
+cat IMAGE_VERSIONS.json | jq '.backend.version'
+# Ожидаемый вывод: "6.6.0" (или текущая версия)
+```
+
+---
+
+### Ошибка: "Docker image not found in registry"
+
+**Причина**: Образ не был собран в CI/CD или не push'нут в ghcr.io
+
+**Решение**:
+1. Проверить GitHub Actions workflow: https://github.com/ikeniborn/familyBudget/actions
+2. Найти последний успешный build-and-push run
+3. Проверить что все 5 образов push'нуты
+4. Проверить VERSION файл: `cat VERSION`
+
+**Проверка**:
+```bash
+# Проверить наличие образа в registry
+docker pull ghcr.io/ikeniborn/familybudget-backend:$(cat VERSION)
+# Ожидаемый вывод: Status: Downloaded newer image
+```
+
+---
+
+### Миграция v8.x → v9.0
+
+**Если у вас остались legacy функции**:
+
+**1. Backup текущего deploy.sh**:
+```bash
+cp deploy.sh deploy.sh.v8.backup
+```
+
+**2. Pull latest version**:
+```bash
+git pull origin test
+```
+
+**3. Verify v9.0**:
+```bash
+# Проверить что legacy функции удалены
+grep "repair_npm_environment" deploy.sh
+# Ожидаемый вывод: только комментарий "REMOVED IN v9.0"
+```
+
+**4. Test deployment**:
+```bash
+sudo bash deploy.sh --sync-mode update --cleanup-mode smart
+# Ожидаемое время: 2-3 минуты
+```
+
+**Breaking changes**: ОТСУТСТВУЮТ (полная обратная совместимость)
+
+---
+
 ## Related Issues
 
 ### PostgreSQL Health Check Timeout
