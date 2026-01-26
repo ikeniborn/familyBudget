@@ -501,6 +501,10 @@ jobs:
           fi
           echo "✅ Cache busting completed - templates ready for Docker build"
 
+      - name: Set build date
+        id: build-date
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
       - name: Build and push backend
         if: steps.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v5
@@ -516,6 +520,8 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
             CACHE_VERSION=${{ env.CACHE_VERSION }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.build-date.outputs.date }}
 
       - name: Build and push bot
         if: steps.changes.outputs.bot == 'true'
@@ -531,6 +537,8 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.build-date.outputs.date }}
 
       - name: Build and push nginx
         if: steps.changes.outputs.nginx == 'true'
@@ -656,7 +664,20 @@ jobs:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }}
           format: 'sarif'
           output: 'trivy-backend.sarif'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          vuln-type: 'os,library'
+          exit-code: '0'
+
+      - name: Generate vulnerability summary (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        run: |
+          echo "## 🔒 Security Scan: Backend" >> $GITHUB_STEP_SUMMARY
+          docker run --rm aquasec/trivy:latest image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
+            >> $GITHUB_STEP_SUMMARY || true
+        continue-on-error: true
 
       - name: Upload Trivy results (backend)
         if: needs.image-build-push.outputs.backend_built == 'true'
@@ -673,7 +694,20 @@ jobs:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }}
           format: 'sarif'
           output: 'trivy-bot.sarif'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          vuln-type: 'os,library'
+          exit-code: '0'
+
+      - name: Generate vulnerability summary (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        run: |
+          echo "## 🔒 Security Scan: Bot" >> $GITHUB_STEP_SUMMARY
+          docker run --rm aquasec/trivy:latest image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
+            >> $GITHUB_STEP_SUMMARY || true
+        continue-on-error: true
 
       - name: Upload Trivy results (bot)
         if: needs.image-build-push.outputs.bot_built == 'true'
