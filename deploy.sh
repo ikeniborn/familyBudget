@@ -99,7 +99,6 @@ source "$SCRIPT_DIR/scripts/lib/sync.sh"        # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
-source "$SCRIPT_DIR/scripts/lib/version.sh"     # Depends on config.sh, utils.sh (version management)
 source "$SCRIPT_DIR/scripts/lib/registry.sh"    # Depends on config.sh, utils.sh (container registry integration)
 
 # =============================================================================

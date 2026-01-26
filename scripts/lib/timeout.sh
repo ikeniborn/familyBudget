@@ -209,30 +209,6 @@ apt_with_retry() {
 }
 
 # =============================================================================
-# NPM WRAPPER FUNCTIONS
-# =============================================================================
-
-# npm wrapper with retry and timeout
-# Args:
-#   $@: npm command and arguments
-# Examples:
-#   npm_with_retry ci
-#   npm_with_retry install
-npm_with_retry() {
-    local args=("$@")
-    local description="npm ${args[*]}"
-
-    execute_with_retry "$TIMEOUT_NPM_INSTALL" "$MAX_RETRY_ATTEMPTS" "$description" npm "${args[@]}"
-    local exit_code=$?
-
-    if [[ $exit_code -ne 0 ]] && command -v suggest_fix_npm_install &>/dev/null; then
-        suggest_fix_npm_install
-    fi
-
-    return "$exit_code"
-}
-
-# =============================================================================
 # CURL WRAPPER FUNCTIONS
 # =============================================================================
 
