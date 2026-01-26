@@ -243,6 +243,7 @@ jobs:
   quality-checks:
     needs: service-build
     runs-on: ubuntu-latest
+    if: always() && (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -329,6 +330,7 @@ jobs:
   image-build-push:
     needs: [service-build, quality-checks]
     runs-on: ubuntu-latest
+    if: always() && needs.service-build.result == 'success'
     permissions:
       contents: write  # Changed from read to write for git push
       packages: write
