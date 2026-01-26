@@ -126,6 +126,46 @@ if (!fcSelect || fcSelect.options.length <= 1) {
 4. **Setup FC change listeners** для transfer hints
 5. **Save instances to state**
 
+## Loading Sequence Best Practices
+
+### Critical Dependencies
+
+При загрузке данных для modal табов необходимо соблюдать правильную последовательность:
+
+1. **Загружать критические зависимости ПЕРВЫМИ** (например, financial centers)
+2. **Валидировать сразу после** критических загрузок (fail-fast pattern)
+3. **Загружать независимые данные параллельно** (например, categories, cost centers)
+
+**Пример правильной последовательности:**
+```typescript
+async function loadTransactionTabData(): Promise<void> {
+  // Загрузить FC первыми (критическая зависимость)
+  await loadFinancialCenters();
+
+  // Валидировать СРАЗУ после загрузки (fail-fast)
+  const fcSelect = document.querySelector('select[name="financial_center_id"]');
+  if (!fcSelect || fcSelect.options.length <= 1) {
+    throw new Error('Failed to load financial centers');
+  }
+
+  // Загрузить остальное параллельно (безопасно - независимые операции)
+  await Promise.all([
+    loadTransactionCategories(),
+    loadCostCenters()
+  ]);
+}
+```
+
+**Почему это важно:**
+- ✅ Гарантирует правильный порядок выполнения
+- ✅ Fails fast если критические данные недоступны
+- ✅ Сохраняет параллельность для независимых операций
+- ✅ Предотвращает race conditions при загрузке
+
+**Применяется в:**
+- `modalFact/index.ts:loadTransactionTabData()` (lines 75-113)
+- `modalPlan/index.ts:loadTransactionTabData()` (lines 76-115)
+
 ## Hints System
 
 ### Transaction Hints

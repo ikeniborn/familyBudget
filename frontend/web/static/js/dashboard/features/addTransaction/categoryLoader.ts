@@ -100,16 +100,21 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
     const centers = await dataLayer.getFinancialCenters(userId, true);
 
     if (centers.length === 0) {
-      console.warn('No accounts returned');
+      console.warn('[loadFinancialCenters] No accounts returned from DataLayer');
       showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
       return;
     }
+
+    debugLog(`[loadFinancialCenters] Loaded ${centers.length} financial centers from DataLayer`);
 
     // Use provided selectors or default to new tab-based selectors
     const selectors = targetSelectors || [
       '#modal_fact-tab-transaction select[name="financial_center_id"]',
       '#modal_plan-tab-transaction select[name="financial_center_id"]',
     ];
+
+    // Track populated count
+    let populatedCount = 0;
 
     // Populate each select
     selectors.forEach(selector => {
@@ -133,15 +138,19 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
         select.appendChild(option);
       });
 
+      populatedCount++;
       debugLog(`[loadFinancialCenters] Populated: ${selector} (${centers.length} accounts)`);
     });
+
+    debugLog(`[loadFinancialCenters] Successfully populated ${populatedCount}/${selectors.length} selects`);
 
     // Add change listeners to filter categories AND cost centers when account changes
     setupFinancialCenterListeners();
 
   } catch (error) {
-    console.error('Failed to load accounts:', error);
+    console.error('[loadFinancialCenters] Failed to load accounts:', error);
     showToast('Ошибка при загрузке счетов', 'error');
+    throw error;
   }
 }
 
