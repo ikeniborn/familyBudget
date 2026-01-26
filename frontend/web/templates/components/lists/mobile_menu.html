@@ -1,0 +1,86 @@
+{#
+  COMPONENT: Mobile Menu for Lists Page
+  Purpose: Bottom navigation with context-aware add button
+  Visible only on mobile (md:hidden)
+  Context: Landing → Create List, Detail → Add Item
+  Used in: lists.html (mobile_menu block)
+#}
+
+<!-- Mobile Menu for Lists Page (visible only on mobile) -->
+<div class="btm-nav md:hidden z-50" id="lists-mobile-menu">
+    <!-- Home Button -->
+    <button
+        type="button"
+        hx-get="/"
+        hx-target="body"
+        hx-swap="outerHTML"
+        hx-push-url="true"
+        onclick="navigateHomeOfflineFriendly()"
+        class="text-primary"
+        aria-label="Главная">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="btm-nav-label text-xs">Главная</span>
+    </button>
+
+    <!-- Add Button (Context-aware: Landing → Create List, Detail → Add Item) -->
+    <button
+        type="button"
+        id="mobile-add-button"
+        onclick="handleMobileAddButton()"
+        class="btn btn-ghost btn-sm flex flex-col items-center gap-0 text-primary mobile-add-button"
+        title="Добавить"
+        aria-label="Добавить">
+        <span id="mobile-add-icon" class="text-xl" style="transition: all 0.3s ease;">➕</span>
+        <span class="text-xs">Добавить</span>
+    </button>
+</div>
+
+<style>
+    /* Lists page mobile menu styling */
+    @media (max-width: 768px) {
+        #lists-mobile-menu {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4rem;
+            background: oklch(var(--b1));
+            border-top: 1px solid oklch(var(--b3));
+        }
+
+        /* Add padding to page content to prevent overlap */
+        #lists-content {
+            padding-bottom: 5rem;
+        }
+
+        /* Lower z-index when modal is open */
+        .modal-open #lists-mobile-menu {
+            z-index: 40;
+        }
+    }
+
+    /* Mobile "Add" button icon animation */
+    .mobile-add-button #mobile-add-icon {
+        transition: transform 0.3s ease, opacity 0.2s ease;
+        display: inline-block;
+    }
+
+    /* Subtle scale effect on hover (desktop only) */
+    @media (hover: hover) {
+        .mobile-add-button:hover #mobile-add-icon {
+            transform: scale(1.1);
+        }
+    }
+
+    /* Keyboard navigation focus state */
+    .mobile-add-button:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
+    }
+
+    .mobile-add-button:focus-visible #mobile-add-icon {
+        transform: scale(1.1);
+    }
+</style>

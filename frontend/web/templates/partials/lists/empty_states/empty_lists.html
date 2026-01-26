@@ -1,0 +1,17 @@
+{#
+  PARTIAL: Empty State for Landing View
+  Purpose: Displayed when no shopping lists exist
+  Uses: Shared empty_state macro
+  Used in: landing_view.html
+#}
+
+{% from "components/shared/empty_state.html" import empty_state %}
+
+{{ empty_state(
+    container_id='empty-state',
+    icon='🛒',
+    title='Нет списков покупок',
+    description='Создайте первый список, чтобы начать',
+    button_text='➕ Создать список',
+    button_onclick='openCreateListModal()'
+) }}
