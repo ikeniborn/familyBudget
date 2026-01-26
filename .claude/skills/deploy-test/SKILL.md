@@ -1,15 +1,15 @@
 ---
 name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test с registry-only архитектурой (все сборки в GitHub Actions CI/CD)
-version: 9.1.0
+description: Автоматизированный деплой на тестовый сервер budget-test с registry-first архитектурой (рекомендуется pull из ghcr.io, fallback на local build)
+version: 9.1.1
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-only, toon-optimized]
+tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-first, toon-optimized, hybrid-build]
 dependencies: [monitoring]
 context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v9.1.0
+# Deploy Test Automation Skill v9.1.1
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
 - ✅ **Registry-Only Architecture** - все сборки в GitHub Actions CI/CD (v9.0+)
@@ -38,75 +38,88 @@ user-invocable: true
 - "Сделай деплой на test"
 - "Проверь изменения на тестовом сервере"
 
-## Registry-First Versioning (v9.0+)
+## Registry-First Deployment (v9.0+)
 
-**КРИТИЧЕСКИ ВАЖНО:** VERSION должен обновляться ВРУЧНУЮ перед git push:
+**Рекомендуемый режим:** Pull pre-built images из GitHub Container Registry
 
-**Workflow:**
-1. Обновить VERSION локально (в репозитории):
+**Workflow (Registry Mode):**
+1. **Manual VERSION bump** (в локальном репозитории):
    ```bash
    cd ~/familyBudget
-   echo "10.0.5" > VERSION
-   git add VERSION
-   git commit -m "chore: bump version to 10.0.5"
+   echo "10.0.50" > VERSION
+   git add VERSION package.json package-lock.json
+   git commit -m "chore: bump version to 10.0.50"
    git push origin test
    ```
 
-2. GitHub Actions автоматически (~5 минут):
-   - Собирает измененные Docker образы
-   - Обновляет IMAGE_VERSIONS.json
-   - Пушит образы в ghcr.io
+2. **GitHub Actions CI/CD** (~5 минут):
+   - Собирает ALL 5 Docker images с embedded frontend
+   - Тегирует образы semver тегом из VERSION (10.0.50)
+   - Пушит в ghcr.io/ikeniborn/familybudget-*:10.0.50
 
-3. Деплой с подтверждением версий:
+3. **Deployment на сервере:**
    ```bash
-   ./deploy-test.sh
-   # → Показывает таблицу версий из IMAGE_VERSIONS.json
-   # → Запрашивает: "Deploy these versions? [Y/n]"
-   # → Пулит образы из ghcr.io
+   ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+   # → Читает VERSION file → 10.0.50
+   # → Пулит 5 images из ghcr.io
    # → docker compose up -d
+   # → Auto-cleanup старых images (7 days)
    ```
 
-**ВАЖНО:** Навык deploy-test НЕ меняет версии автоматически.
+**Fallback режим (Local Build):**
+Если образы недоступны в registry или нужен быстрый деплой без CI/CD:
+```bash
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
+# Builds images locally, slower but always available
+```
 
-## Registry-Only Architecture (v9.0+)
+**ВАЖНО:**
+- ✅ Навык deploy-test НЕ меняет VERSION автоматически (manual control)
+- ✅ Поддержка hybrid mode: registry (fast) + local build (fallback)
+- ✅ `--use-registry` рекомендуется для production/staging деплоев
 
-**BREAKING CHANGE:** Build mode удален. Все сборки происходят ТОЛЬКО в GitHub Actions CI/CD.
+## Registry-First Architecture (v9.0+)
+
+**Hybrid Build Strategy:** Registry pull (recommended) + Local build (fallback)
 
 **Архитектура:**
-- ✅ Весь build (минификация, cache busting, упаковка) в GitHub Actions
-- ✅ На сервере: только pull готовых Docker images из ghcr.io
-- ✅ 5 кастомных образов: backend, bot, nginx, redis, postgresql
-- ✅ Frontend embedded в backend Docker image
-- ✅ Автоматическая очистка старых images (7 дней retention)
-- ✅ IMAGE_VERSIONS.json содержит версию для каждого сервиса
-- ✅ Автоматический вывод версий перед деплоем
-- ✅ Интерактивное подтверждение обязательно
-- ✅ Non-interactive режим авто-подтверждает (для CI/CD)
+- ✅ **Registry Mode (--use-registry):** Pull pre-built images из ghcr.io
+  - Fastest deploy: 2-3 min
+  - Консистентность с CI/CD
+  - Proверенные образы из pipeline
+- ✅ **Local Build Mode:** Build images на сервере
+  - Fallback если registry недоступен
+  - Автоматическое определение изменений (checksums)
+  - `--force-build` для принудительной пересборки
+- ✅ **5 Custom Images:** backend, bot, nginx, redis, postgresql (all with embedded code)
+- ✅ **Frontend Embedded:** No bind mounts, all в Docker images
+- ✅ **Auto Cleanup:** Старые images удаляются (7 дней retention)
+- ✅ **Version Tagging:** Semver tags from VERSION file
 
-**Преимущества:**
-- ✅ **Быстрый деплой:** 2-3 мин (vs 5-7 мин build mode)
-- ✅ **Консистентность:** те же образы что в CI/CD
+**Преимущества Registry Mode:**
+- ✅ **Быстрый деплой:** 2-3 мин (vs 5-7 мин local build)
+- ✅ **Консистентность:** те же образы что в CI/CD tests
 - ✅ **Безопасность:** нет npm/Node.js на production сервере
 - ✅ **Надежность:** проверенные образы из CI/CD pipeline
 - ✅ **Прозрачность:** видимость версий в мониторинге (docker ps)
 
-**Workflow:**
+**Workflow (Registry Mode - Recommended):**
 ```bash
 # 1. Developer bumps VERSION manually
-echo "6.6.1" > VERSION
-git add VERSION
-git commit -m "chore: bump version to 6.6.1"
+echo "10.0.50" > VERSION
+git add VERSION package.json package-lock.json
+git commit -m "chore: bump version to 10.0.50"
 git push origin test
 
-# 2. GitHub Actions автоматически:
+# 2. GitHub Actions автоматически (~5 min):
 #    - Выполняет cache busting (git hash)
 #    - Собирает frontend (npm run build:prod)
 #    - Создает 5 Docker images с embedded кодом
-#    - Пушит в ghcr.io/ikeniborn/familybudget-*:6.6.1
+#    - Пушит в ghcr.io/ikeniborn/familybudget-*:10.0.50
 
 # 3. Deploy на сервере:
-./deploy.sh --sync-mode update --cleanup-mode smart --version patch
-#    - Читает VERSION file → 6.6.1
+./deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+#    - Читает VERSION file → 10.0.50
 #    - Pull 5 images из ghcr.io
 #    - docker compose up -d
 #    - Migrations
@@ -114,26 +127,41 @@ git push origin test
 #    - Cleanup old images (>7 days)
 ```
 
+**Workflow (Local Build Mode - Fallback):**
+```bash
+# Deploy with local image building
+./deploy.sh --sync-mode update --cleanup-mode smart
+#    - Builds images locally (if changes detected)
+#    - docker compose up -d
+#    - Migrations
+#    - Health checks
+```
+
 **IMPORTANT: Manual VERSION Bump Required**
 - ✅ Developer MUST bump VERSION перед push
 - ✅ GitHub Actions собирает образы с VERSION тегом
-- ✅ Server pull образы по VERSION
-- ❌ Automatic version increment removed (manual control)
+- ✅ Server может pull образы (`--use-registry`) или build локально
+- ✅ Manual version control (no automatic increments)
 
 **Rollback:**
 ```bash
-# Откат на предыдущую версию
-echo "6.6.0" > /opt/budget/VERSION
-sudo bash deploy.sh
+# Откат на предыдущую версию (registry mode)
+echo "10.0.49" > /opt/budget/VERSION
+sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
 
-# Pull образов 6.6.0 из ghcr.io
+# Pull образов 10.0.49 из ghcr.io
 # Перезапуск контейнеров
 ```
 
-**Requirements:**
+**Requirements (Registry Mode):**
 - ✅ GitHub Actions build MUST complete successfully
 - ✅ Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
 - ✅ VERSION file MUST exist in /opt/budget/
+
+**Requirements (Local Build Mode):**
+- ✅ Source code MUST be synced to /opt/budget/
+- ✅ npm/Node.js environment configured (for frontend build)
+- ✅ Docker build resources available
 
 ## TOON Optimization (v9.1+)
 
@@ -351,37 +379,46 @@ ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && gi
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
 ```
 
-**С версионированием (v7.0+ синтаксис):**
+**С версионированием (актуальный синтаксис):**
 ```bash
-# Bug fixes (patch bump: 6.6.0 → 6.6.1)
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
+# Bug fixes (patch bump: 10.0.50 → 10.0.51)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
 
-# New features (minor bump: 6.6.0 → 6.7.0)
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version minor"
+# New features (minor bump: 10.0.50 → 10.1.0)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --minor"
 
-# Breaking changes (major bump: 6.6.0 → 7.0.0)
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version major"
+# Breaking changes (major bump: 10.0.50 → 11.0.0)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --major"
+
+# Explicit version (set specific version)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version 10.1.0"
+
+# No version change (keep current VERSION)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --no-version"
 ```
 
 **Параметры:**
 - `--sync-mode update` - только обновление/добавление файлов (безопасно)
 - `--cleanup-mode smart` - умная очистка старых образов
-- `--version TYPE` - версионирование (TYPE = patch|minor|major)
-  - **ВАЖНО:** С v7.0+ версия НЕ меняется если опция не указана (explicit control)
-  - Старый `--patch` deprecated (используйте `--version patch`)
+
+**Опции версионирования:**
+- `--patch` - patch bump (X.Y.Z → X.Y.Z+1)
+- `--minor` - minor bump (X.Y.Z → X.Y+1.0) - по умолчанию
+- `--major` - major bump (X.Y.Z → X+1.0.0)
+- `--version X.Y.Z` - установить конкретную версию (например `--version 10.1.0`)
+- `--no-version` - пропустить version bump (оставить текущую версию)
 
 **Опциональные параметры:**
 - `--force-build` - принудительная пересборка frontend (игнорирует checksums)
   - Используется когда автоматическое определение изменений не сработало
   - Или для тестирования без изменения файлов
-- `--set-version X.Y.Z` - явное указание версии (например `--set-version 7.0.0`)
-- `--use-registry` - pull Docker images из ghcr.io вместо локальной сборки (v8.0+)
+- `--use-registry` - pull Docker images из ghcr.io вместо локальной сборки
   - Требует наличие образов в GitHub Container Registry
   - Ускоряет деплой (~2-3 мин вместо 5-7 мин)
-  - Автоопределение тега из git branch/VERSION/hash
-- `--image-tag TAG` - явное указание тега для registry pull (v8.0+)
+  - Автоопределение тега из VERSION file
+- `--image-tag TAG` - явное указание тега для registry pull
   - Работает только с `--use-registry`
-  - Примеры: `--image-tag test`, `--image-tag 6.6.0`, `--image-tag sha-abc1234`
+  - Примеры: `--image-tag test`, `--image-tag 10.0.50`
 
 **Что происходит:**
 - Синхронизация кода в /opt/budget
@@ -396,22 +433,22 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
 **Примеры комбинаций:**
 ```bash
 # Деплой без изменения версии + принудительная пересборка
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --force-build"
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --no-version --force-build"
 
 # Patch bump + принудительная пересборка
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch --force-build"
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch --force-build"
 
-# Явная версия
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --set-version 7.1.0"
+# Explicit version (установить конкретную версию)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version 10.1.0"
 
-# Registry mode: pull pre-built images (v8.0+)
+# Registry mode: pull pre-built images (рекомендуемый режим)
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
 
 # Registry mode с явным тегом
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag test --sync-mode update --cleanup-mode smart"
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag 10.0.50 --sync-mode update --cleanup-mode smart"
 
-# Registry mode + version bump (version bump без пересборки образов)
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --version patch --sync-mode update --cleanup-mode smart"
+# Registry mode + patch bump (pull образы из registry)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --patch --sync-mode update --cleanup-mode smart"
 ```
 
 ### Шаг 4: Анализ логов деплоя
@@ -765,6 +802,18 @@ Claude:
 
 ## Changelog
 
+### v9.1.1 (2026-01-26)
+**Documentation Corrections:**
+- ✅ **Fixed deploy.sh options**: Corrected version bump syntax (--patch/--minor/--major + --version X.Y.Z)
+- ✅ **Removed `--set-version`**: Replaced with correct `--version X.Y.Z` syntax
+- ✅ **Clarified hybrid build mode**: Registry-first (recommended) + local build (fallback available)
+- ✅ **Updated v9.0.0 changelog**: Removed incorrect claims that `--use-registry` and `--image-tag` were removed
+- ✅ **Corrected examples**: All command examples now use current deploy.sh syntax
+- ✅ **Updated workflow descriptions**: Accurate representation of registry + local build support
+
+**No Code Changes:**
+- Implementation unchanged, only documentation corrections
+
 ### v9.1.0 (2026-01-24)
 **TOON Optimization:**
 - ✅ **Hybrid Output Format**: error-patterns.json now includes TOON representations alongside JSON
@@ -788,54 +837,63 @@ Claude:
 - Token savings verified against predictions
 
 ### v9.0.0 (2026-01-21)
-**BREAKING CHANGES:**
-- ❌ **Build mode REMOVED**: Only registry mode supported
-- ❌ **`--force-build` flag REMOVED**: All builds in GitHub Actions
-- ❌ **`--use-registry` flag REMOVED**: Registry is now DEFAULT and ONLY mode
-- ✅ **Manual VERSION bump REQUIRED**: Developer must bump VERSION before push
-- ✅ **5 images pulled**: backend, bot, nginx, redis, postgresql (all custom)
-
 **Registry-First Architecture:**
-- All build (minification, cache busting, packaging) in GitHub Actions CI/CD
-- Server only pulls ready Docker images from ghcr.io
-- Frontend embedded in backend Docker image (no bind mounts)
-- Custom images for ALL services (Redis, PostgreSQL, Nginx included)
-- Only semver tags (6.6.0) - no "test", "sha-", "latest"
+- ✅ **Hybrid Build Mode**: Support both registry pull (`--use-registry`) and local build (`--force-build`)
+- ✅ **Registry Recommended**: GitHub Actions builds images → server pulls from ghcr.io (faster)
+- ✅ **Local Build Available**: Fallback option if registry unavailable or for testing
+- ✅ **5 Custom Images**: backend, bot, nginx, redis, postgresql (all with embedded code)
+- ✅ **Frontend Embedded**: No bind mounts, all code in Docker images
+- ✅ **Version Tagging**: Semver tags from VERSION file (10.0.50, 10.1.0, etc.)
+
+**Workflow (Registry Mode - Recommended):**
+1. Developer bumps VERSION manually: `echo "10.0.50" > VERSION && git commit && git push`
+2. GitHub Actions CI/CD (~5 min):
+   - Builds ALL 5 images with frontend embedded
+   - Tags with VERSION (10.0.50)
+   - Pushes to ghcr.io/ikeniborn/familybudget-*:10.0.50
+3. Server deployment:
+   - `./deploy.sh --use-registry --sync-mode update --cleanup-mode smart`
+   - Pulls images from ghcr.io by VERSION tag
+   - docker compose up -d
+   - Auto-cleanup old images (7 days retention)
+
+**Workflow (Local Build Mode - Fallback):**
+1. Developer commits code changes
+2. Server deployment:
+   - `./deploy.sh --sync-mode update --cleanup-mode smart`
+   - Builds Docker images locally with detected changes
+   - docker compose up -d
+
+**Available Options:**
+- ✅ `--use-registry` - Pull images from ghcr.io (recommended, faster)
+- ✅ `--image-tag TAG` - Specify custom image tag for registry pull
+- ✅ `--force-build` - Force local frontend rebuild (checksums bypass)
+- ✅ `--patch/--minor/--major` - Version bump options
+- ✅ `--version X.Y.Z` - Set explicit version
+- ✅ `--no-version` - Skip version bump
 
 **Automatic Cleanup:**
-- Old Docker images cleanup after deployment (7 days retention)
+- Old Docker images removed after deployment (7 days retention)
 - Saves ~7GB disk space per week (1 deploy/day scenario)
 - Running containers protected from deletion
 
-**Workflow Changes:**
-1. Developer bumps VERSION locally
-2. GitHub Actions builds ALL 5 images
-3. Server pulls images by VERSION tag
-4. docker compose up -d
-5. Automatic cleanup of old images
-
-**Removed Options:**
-- ~~`--force-build`~~ (removed in v9.0)
-- ~~`--use-registry`~~ (default behavior)
-- ~~`--image-tag TAG`~~ (VERSION file used)
-- ~~`--skip-local-validation`~~ (no local build)
-
-**New Requirements:**
+**Requirements (Registry Mode):**
 - GitHub Actions MUST complete successfully before deployment
-- VERSION file MUST be bumped manually
-- Images MUST exist in ghcr.io before deployment
+- Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
+- VERSION file MUST match available image tags
 
 **Rollback:**
 ```bash
-# Change VERSION file and redeploy
-echo "6.6.0" > /opt/budget/VERSION
-sudo bash deploy.sh
+# Change VERSION to previous version and redeploy
+echo "10.0.49" > /opt/budget/VERSION
+sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
 ```
 
 **See also:**
 - `.github/workflows/build-and-push.yml` - CI/CD pipeline
-- `docker-compose.yml` - Registry images configuration
-- `docs/architecture/ci-cd-build-deploy.md` - Updated architecture
+- `docker-compose.yml` - Image configuration
+- `docs/architecture/ci-cd-build-deploy.md` - Architecture docs
+- `docs/architecture/docker.md` - Multi-stage Dockerfiles
 
 ### v8.0.0 (2026-01-20)
 **DEPRECATED:** Build mode support removed in v9.0.0
