@@ -1,0 +1,110 @@
+{#
+    Action Button Macros
+
+    Стандартизированные кнопки действий (edit, view, etc.) для desktop таблиц.
+    Обеспечивает визуальную консистентность во всем приложении.
+
+    Использование:
+        {% from "components/macros/action_buttons.html" import edit_button_desktop, edit_icon_svg %}
+
+    Примеры:
+        Desktop table: {{ edit_button_desktop(fact.id, 'openEditFromDashboard', entity_type='fact') }}
+
+    Версия: 1.0.0
+    Дата создания: 2026-01-26
+#}
+
+{# ============================================================================ #}
+{# Desktop Table Edit Button (btn-xs, h-4 w-4 icon)                            #}
+{# ============================================================================ #}
+
+{#
+    edit_button_desktop - Кнопка редактирования для desktop таблиц
+
+    Args:
+        entity_id (int|str): ID сущности для редактирования (required)
+        edit_function (str): Имя JavaScript функции редактирования (required)
+        entity_type (str): Тип сущности для data-* attribute (default: 'entity')
+                          Примеры: 'fact', 'article', 'center', 'store'
+        title (str): Текст tooltip при hover (default: 'Редактировать')
+        extra_classes (str): Дополнительные CSS классы (default: '')
+
+    Returns:
+        HTML: <button> element с иконкой карандаша
+
+    Визуальные характеристики:
+        - Размер кнопки: btn-xs (32px - компактный для таблиц)
+        - Размер иконки: h-4 w-4 (16x16px)
+        - Цвет: btn-primary (синий DaisyUI)
+        - Видимость: hidden md:inline-flex (только desktop >= 768px)
+        - Форма: btn-square (квадрат)
+
+    Note: НЕ используем класс gap-1, так как это btn-square с одной иконкой без текста
+
+    Accessibility:
+        - title="{{ title }}" - tooltip
+        - aria-label="{{ title }} {{ entity_type }} ID {{ entity_id }}" - screen readers
+        - data-{{ entity_type }}-id="{{ entity_id }}" - testing/debugging
+
+    Event Handling:
+        - event.stopPropagation() предотвращает клик по строке таблицы
+
+    Пример:
+        {{ edit_button_desktop(42, 'openEditFromDashboard', entity_type='fact') }}
+        Результат: <button class="btn btn-xs btn-primary btn-square hidden md:inline-flex"
+                           data-fact-id="42"
+                           onclick="event.stopPropagation(); openEditFromDashboard(42)"
+                           title="Редактировать"
+                           aria-label="Редактировать fact ID 42">...</button>
+#}
+{% macro edit_button_desktop(entity_id, edit_function, entity_type='entity', title='Редактировать', extra_classes='') %}
+<button class="btn btn-xs btn-primary btn-square hidden md:inline-flex {{ extra_classes }}"
+        data-{{ entity_type }}-id="{{ entity_id }}"
+        onclick="event.stopPropagation(); {{ edit_function }}({{ entity_id }})"
+        title="{{ title }}"
+        aria-label="{{ title }} {{ entity_type }} ID {{ entity_id }}">
+    {{ edit_icon_svg('h-4 w-4') }}
+</button>
+{% endmacro %}
+
+{# ============================================================================ #}
+{# Edit Icon SVG (Переиспользуемая иконка карандаша)                           #}
+{# ============================================================================ #}
+
+{#
+    edit_icon_svg - Переиспользуемая SVG иконка карандаша (pencil/edit)
+
+    Args:
+        size_class (str): Tailwind CSS класс размера (default: 'h-4 w-4')
+                         Стандартные: 'h-4 w-4' (desktop), 'h-5 w-5' (mobile)
+        stroke_color (str): SVG stroke цвет (default: 'currentColor')
+                           Использует currentColor для наследования от родителя
+
+    Returns:
+        HTML: <svg> element с путями иконки карандаша
+
+    Дизайн иконки:
+        - Heroicons outline "pencil" icon
+        - viewBox: 0 0 24 24
+        - stroke-width: 2
+        - stroke-linecap: round
+        - stroke-linejoin: round
+
+    Использование currentColor:
+        - Иконка автоматически наследует цвет текста родителя
+        - На btn-primary кнопках: белый цвет (DaisyUI default)
+        - Позволяет менять цвет через CSS без изменения SVG
+
+    Пример:
+        {{ edit_icon_svg('h-4 w-4') }}
+        Результат: <svg class="h-4 w-4" stroke="currentColor">...</svg>
+
+        {{ edit_icon_svg('h-6 w-6', 'blue') }}
+        Результат: <svg class="h-6 w-6" stroke="blue">...</svg>
+#}
+{% macro edit_icon_svg(size_class='h-4 w-4', stroke_color='currentColor') %}
+<svg xmlns="http://www.w3.org/2000/svg" class="{{ size_class }}" fill="none" viewBox="0 0 24 24" stroke="{{ stroke_color }}">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+</svg>
+{% endmacro %}
