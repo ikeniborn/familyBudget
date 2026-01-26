@@ -22,7 +22,7 @@
  * @module data/DataLayer
  */
 
-import { getPGliteManager } from '@db/pglite';
+import { getPGliteManager, PGliteManager } from '@db/pglite';
 import { isPGliteEnabled } from '@db/pglite';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
@@ -73,8 +73,8 @@ export interface ArticleFilters {
  * Provides unified API for reference data with PGlite-first, API-fallback strategy
  */
 export class DataLayer {
-  private pglite: any | null = null;
-  private pglitePromise: Promise<any> | null = null;
+  private pglite: PGliteManager | null = null;
+  private pglitePromise: Promise<PGliteManager> | null = null;
 
   /**
    * Lazy initialize PGlite manager
