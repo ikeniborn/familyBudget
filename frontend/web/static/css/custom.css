@@ -950,14 +950,16 @@ html.offline-mode .save-btn:hover {
 .fab-wrapper {
     position: fixed;
     right: 1rem;
-    bottom: 1rem;
+    bottom: 5rem; /* Увеличено с 1rem для отступа от мобильной навигации */
     z-index: 998;
+    opacity: 1 !important; /* Гарантированная видимость */
+    visibility: visible;
 }
 
 @media (min-width: 1024px) {
     .fab-wrapper {
         right: 2rem;
-        bottom: 2rem;
+        bottom: 2rem; /* На desktop меньше отступ, т.к. нет нижней навигации */
     }
 }
 
@@ -982,5 +984,117 @@ html.offline-mode .save-btn:hover {
     .fab-button {
         width: 64px;
         height: 64px;
+    }
+}
+
+/* ============= Speed Dial Menu (для FAB wrapper) ============= */
+
+/* Контейнер меню */
+.fab-wrapper .mobile-fab-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+/* Открытое состояние меню */
+.fab-wrapper.open .mobile-fab-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+/* Элемент меню */
+.fab-wrapper .mobile-fab-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideInFab 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 0;
+}
+
+/* Задержка анимации для каскадного эффекта */
+.fab-wrapper.open .mobile-fab-item:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.fab-wrapper.open .mobile-fab-item:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+@keyframes slideInFab {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Лейбл (текстовая подсказка) */
+.fab-wrapper .mobile-fab-label {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Кнопки в Speed Dial меню */
+.fab-wrapper .mobile-fab-item .btn-circle {
+    width: 48px;
+    height: 48px;
+}
+
+/* Вращение иконки + при открытии меню */
+.fab-wrapper.open .fab-icon-plus {
+    transform: rotate(45deg);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-wrapper:not(.open) .fab-icon-plus {
+    transform: rotate(0deg);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============= Delete Button Mobile Fix ============= */
+
+/* Гарантированная видимость delete кнопки на мобильных */
+.modal-action button.btn-square.btn-error {
+    display: block !important; /* Показывать по умолчанию */
+}
+
+/* Скрыть на desktop (где есть чекбоксы) */
+@media (min-width: 768px) {
+    .modal-action button.btn-square.btn-error.md\:hidden {
+        display: none !important;
+    }
+}
+
+/* Увеличить размер кнопки на очень узких экранах */
+@media (max-width: 374px) {
+    .modal-action button.btn-square.btn-error {
+        min-width: 2.5rem !important; /* 40px вместо 32px */
+        min-height: 2.5rem !important;
+        padding: 0.5rem !important;
+    }
+
+    .modal-action button.btn-square.btn-error svg {
+        width: 1.25rem !important; /* 20px вместо 16px */
+        height: 1.25rem !important;
     }
 }
