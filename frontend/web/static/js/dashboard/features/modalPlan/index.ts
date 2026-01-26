@@ -90,19 +90,21 @@ async function loadTransactionTabData(): Promise<void> {
       '../addTransaction/categoryLoader'
     );
 
-    // Load dropdowns
-    await Promise.all([
-      loadTransactionCategories(),
-      loadFinancialCenters(),
-      loadCostCenters()
-    ]);
+    // Load financial centers FIRST (critical dependency)
+    await loadFinancialCenters();
 
-    // Validate critical selects are populated
+    // Validate IMMEDIATELY after load (fail fast)
     const fcSelect = document.querySelector('#modal_plan-tab-transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
     if (!fcSelect || fcSelect.options.length <= 1) {
-      console.error('[ModalPlan] Financial center select not populated');
-      showToast('Ошибка загрузки счетов. Обновите страницу.', 'error');
+      console.error('[ModalPlan] Financial center select not populated after load');
+      throw new Error('Failed to load financial centers');
     }
+
+    // Load categories and cost centers in parallel (safe - independent operations)
+    await Promise.all([
+      loadTransactionCategories(),
+      loadCostCenters()
+    ]);
 
     debugLog('[ModalPlan] Transaction data loaded');
   } else {
