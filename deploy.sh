@@ -1032,18 +1032,10 @@ main() {
     echo ""
 
     # VERSION MANAGEMENT (AFTER SYNC!)
-    # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
-    # 1. Reads current version from DEPLOY_DIR (copied from repo)
-    # 2. Updates VERSION, package.json, .env ONLY in /opt/budget
-    # 3. Repository files are NEVER modified - keeps git clean
-
-    # Log version management parameters for debugging
-    # Uses debug() - only visible with DEBUG=true or --verbose flag
-    debug "Version management parameters:"
-    debug "  VERSION_BUMP_TYPE: ${VERSION_BUMP_TYPE:-<not set>}"
-    debug "  VERSION_SET: ${VERSION_SET:-<not set>}"
-
-    process_version_bump
+    # Registry-first v9.0: Version management in CI/CD
+    # Server uses IMAGE_VERSIONS.json to determine which image versions to pull
+    # VERSION file is authoritative source (synced from git)
+    # No server-side version bumping - all changes committed to git first
     echo ""
 
     # NOTE: Nginx configuration regeneration removed in v9.0 (registry-first)

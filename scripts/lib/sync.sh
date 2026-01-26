@@ -677,19 +677,9 @@ analyze_sync_changes() {
         info "This is normal if code is up-to-date or sync was skipped"
 
         # CRITICAL: Check HTML templates checksum for Jinja2 cache invalidation
-        # Even when rsync detects no changes (files already synced), the backend
-        # container may have stale Jinja2 cached templates from a previous deploy.
-        # This happens when:
-        #   1. First deploy syncs files and starts backend (Jinja2 caches templates)
-        #   2. Code change is committed (e.g., CSS removed from base.html)
-        #   3. Second deploy - rsync sees files already identical → SYNC_CHANGED_FILES empty
-        #   4. Without checksum check, backend keeps running with OLD cached templates
-        #
-        # Fix: Compare templates checksum with last backend recreation
-        if needs_backend_restart_for_templates "$SCRIPT_DIR"; then
-            export NEEDS_BACKEND_RECREATE=true
-            info "✓ Backend will be recreated (HTML templates changed since last restart)"
-        fi
+        # Registry-first v9.0: Templates embedded in Docker image
+        # Backend automatically recreated when image version changes
+        # Template checksum verification not needed (handled by image tags)
 
         return 0
     fi
