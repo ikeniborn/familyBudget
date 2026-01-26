@@ -45,6 +45,18 @@ import type {
   RecurringPlanFilters
 } from '@db/pglite';
 import { factsManager } from '../dashboard/features/factsManager';
+import type {
+  ArticleListResponse,
+  FinancialCenterListResponse,
+  CostCenterListResponse,
+  StoreListResponse,
+  ShoppingListListResponse,
+  ShoppingListItemListResponse,
+  ProductGroupListResponse,
+  FactListResponse,
+  RecurringPlanListResponse,
+  ArticleHierarchyListResponse
+} from './types/api-responses';
 
 /**
  * Article filters for getArticles()
@@ -167,8 +179,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: ArticleListResponse = await response.json();
+    // Backend returns ArticleListResponse { articles: [...] }
+    return data.articles || [];
   }
 
   // =============================================================================
@@ -241,10 +254,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: FinancialCenterListResponse = await response.json();
     // Backend returns FinancialCenterListResponse { financial_centers: [...] }
-    // Support both formats for backward compatibility
-    return data.financial_centers || data.items || [];
+    return data.financial_centers || [];
   }
 
   // =============================================================================
@@ -328,8 +340,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: CostCenterListResponse = await response.json();
+    // Backend returns CostCenterListResponse { cost_centers: [...] }
+    return data.cost_centers || [];
   }
 
   // =============================================================================
@@ -390,7 +403,8 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: ArticleHierarchyListResponse = await response.json();
+    // TODO: Verify backend schema when endpoint is implemented (currently not found)
     return data.items || [];
   }
 
@@ -464,8 +478,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: ShoppingListListResponse = await response.json();
+    // Backend returns ShoppingListListResponse { shopping_lists: [...] }
+    return data.shopping_lists || [];
   }
 
   /**
@@ -549,7 +564,8 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: ShoppingListItemListResponse = await response.json();
+    // Backend returns ShoppingListItemListResponse { items: [...] } - correct!
     return data.items || [];
   }
 
@@ -616,8 +632,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: StoreListResponse = await response.json();
+    // Backend returns StoreListResponse { stores: [...] }
+    return data.stores || [];
   }
 
   /**
@@ -690,8 +707,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: ProductGroupListResponse = await response.json();
+    // Backend returns ProductGroupListResponse { product_groups: [...] }
+    return data.product_groups || [];
   }
 
   // =============================================================================
@@ -779,8 +797,9 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.items || [];
+    const data: FactListResponse = await response.json();
+    // Backend returns FactListResponse { facts: [...] }
+    return data.facts || [];
   }
 
   /**
@@ -950,7 +969,8 @@ export class DataLayer {
       throw new Error(`API request failed: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: RecurringPlanListResponse = await response.json();
+    // Backend returns RecurringPlanListResponse { items: [...] } - correct!
     return data.items || [];
   }
 
