@@ -4,24 +4,30 @@ This guide helps diagnose and resolve common deployment issues in the Family Bud
 
 ---
 
-## Network Hang During npm Installation
+## ⚠️ IMPORTANT: Registry-First Architecture (v9.0+)
 
-**Since:** v6.5.5 - Automatic recovery enabled
+**Since v9.0**, deployment uses **registry-first mode**:
+- ✅ All building happens in GitHub Actions CI/CD
+- ✅ Server only **pulls ready Docker images** from ghcr.io
+- ❌ **No npm/Node.js required** on production server
+- ❌ **No local building** (frontend, dependencies)
 
-### Symptoms
-- Deployment hangs at "Installing npm packages..."
-- No progress for 15+ minutes
-- Terminal appears frozen
-- No error messages visible
+**Old troubleshooting sections** (npm installation, build errors) are **OBSOLETE** in v9.0.
 
-### Root Cause
+See [Registry-First Migration Guide](#registry-first-migration-v90) below for updated workflows.
 
-Network issues with npm package registry (registry.npmjs.org):
-- Slow network connection
-- Packet loss / intermittent connectivity
-- npm registry temporarily unavailable
-- Corporate firewall / proxy issues
-- DNS resolution problems
+---
+
+## ~~Network Hang During npm Installation~~ (OBSOLETE in v9.0)
+
+**DEPRECATED:** This section applies to **legacy v8.x build mode only**.
+
+In **v9.0+ registry-first mode**, npm is **NOT used** on production server:
+- Frontend builds in GitHub Actions CI/CD
+- Dependencies embedded in Docker images
+- Server pulls ready images from ghcr.io
+
+**If you see npm errors in v9.0**, your deployment is misconfigured. See [Registry-First Migration](#registry-first-migration-v90).
 
 ### Automatic Recovery (v6.5.5+)
 
@@ -991,3 +997,222 @@ tail -100 /opt/budget/logs/deploy.log | grep -E "cache-version|CACHE_VERSION|own
 
 - [Architecture README - v6.5.3](../README.md#2025-12-30-cache-busting-system-fix-v2---execution-order-correction-v653) - Earlier cache busting fixes
 - [PWA Architecture](../pwa.md) - Service Worker caching strategy
+
+---
+
+## Registry-First Migration (v9.0)
+
+**Since:** v9.0.0 - Complete architecture overhaul
+
+### What Changed
+
+In **v9.0**, deployment architecture migrated from **build mode** (local building on server) to **registry-first mode** (pull ready images from GitHub Container Registry).
+
+**Before v9.0 (Build Mode):**
+```bash
+Server workflow:
+1. git pull (sync code)
+2. npm ci (install dependencies)         ← TIME CONSUMING
+3. npm run build (minify frontend)       ← TIME CONSUMING
+4. docker compose build (build images)   ← TIME CONSUMING
+5. docker compose up (start services)
+Total: 5-7 minutes
+```
+
+**After v9.0 (Registry-First):**
+```bash
+Server workflow:
+1. git pull (sync code)
+2. docker compose pull (pull images)     ← FAST (2-3 min)
+3. docker compose up (start services)
+Total: 2-3 minutes
+```
+
+**Building happens in GitHub Actions CI/CD:**
+- All builds: frontend minification, Docker image building
+- Outputs: 5 Docker images pushed to ghcr.io
+- Server: only pulls ready images
+
+### What's NOT Required on Server Anymore
+
+❌ **Removed in v9.0:**
+- npm/Node.js installation
+- Frontend build process (minification, bundling)
+- `.npm-isolated/` directory (233 packages)
+- Local Docker image building
+- Host-based nginx configuration generation
+
+✅ **Required on server:**
+- Docker + Docker Compose
+- Git (for syncing config files)
+- Configuration files (docker-compose.yml, .env, VERSION)
+
+### Common v9.0 Issues
+
+#### Issue 1: "npm: command not found" (Expected!)
+
+**Symptoms:**
+```bash
+bash: npm: command not found
+```
+
+**Cause:** npm is NO LONGER required in v9.0
+
+**Solution:** This is **EXPECTED behavior**. Server doesn't need npm anymore.
+
+**Verification:**
+```bash
+# Should NOT have npm
+which npm
+# Expected: (no output)
+
+# Should have Docker
+docker --version
+# Expected: Docker version 20.10+
+```
+
+#### Issue 2: IMAGE_VERSIONS.json Not Found
+
+**Symptoms:**
+```bash
+ERROR: IMAGE_VERSIONS.json not found in /opt/budget
+```
+
+**Cause:** File not synced from repository
+
+**Solution:**
+```bash
+# Pull latest from git
+cd ~/familyBudget
+git pull origin main
+
+# Verify file exists
+cat IMAGE_VERSIONS.json
+
+# Re-deploy
+sudo ./deploy.sh
+```
+
+**Prevention:** Always `git pull` before deploying
+
+#### Issue 3: Docker Image Not Found in Registry
+
+**Symptoms:**
+```bash
+ERROR: Failed to pull ghcr.io/ikeniborn/familybudget-backend:10.0.51
+Error response from daemon: manifest for ... not found
+```
+
+**Cause:** GitHub Actions build failed or VERSION mismatch
+
+**Solution:**
+```bash
+# 1. Check GitHub Actions status
+# Visit: https://github.com/ikeniborn/familyBudget/actions
+
+# 2. Verify VERSION file matches built images
+cat VERSION
+# Example: 10.0.51
+
+# 3. Check available tags in ghcr.io
+# Visit: https://github.com/ikeniborn/familyBudget/pkgs/container/familybudget-backend
+
+# 4. If build failed, re-trigger CI/CD:
+git commit --allow-empty -m "chore: rebuild Docker images"
+git push origin main
+
+# 5. Wait for build to complete (~5-7 min)
+# 6. Re-deploy
+sudo ./deploy.sh
+```
+
+#### Issue 4: Nginx Configuration Not Updating
+
+**Symptoms:** Nginx config changes not applied after deployment
+
+**Cause:** In v9.0, nginx config is **embedded in Docker image**
+
+**Solution:**
+```bash
+# 1. Edit templates in git repository
+cd ~/familyBudget
+vim nginx/conf.d/app-https.conf.template
+
+# 2. Commit changes
+git add nginx/conf.d/
+git commit -m "fix(nginx): update configuration"
+git push
+
+# 3. Wait for GitHub Actions to rebuild nginx image (~2-3 min)
+
+# 4. Deploy new image
+sudo ./deploy.sh
+
+# 5. Verify container restarted
+docker ps | grep nginx
+# Check "Created" time - should be recent
+```
+
+**IMPORTANT:** 
+- Editing `/opt/budget/nginx/conf.d/*.conf` on server has **NO EFFECT**
+- Configuration is processed by `docker-entrypoint.sh` inside container
+- Templates are in image, not mounted from host
+
+### Migration Checklist
+
+If upgrading from v8.x to v9.0:
+
+- [ ] Verify GitHub Actions CI/CD configured (`.github/workflows/build-and-push.yml`)
+- [ ] Check Docker images exist in ghcr.io registry
+- [ ] Remove `.npm-isolated/` from server (if exists): `rm -rf /opt/budget/.npm-isolated`
+- [ ] Remove local `node_modules/` from server: `rm -rf /opt/budget/node_modules`
+- [ ] Verify `IMAGE_VERSIONS.json` in repository
+- [ ] Update `VERSION` file before deployment
+- [ ] Pull latest code: `git pull origin main`
+- [ ] Deploy: `sudo ./deploy.sh`
+- [ ] Verify images pulled from registry (not built locally)
+- [ ] Check deployment time (should be 2-3 min, not 5-7 min)
+
+### Debugging Registry-First Deployment
+
+```bash
+# 1. Verify images available in registry
+docker pull ghcr.io/ikeniborn/familybudget-backend:$(cat VERSION)
+docker pull ghcr.io/ikeniborn/familybudget-nginx:$(cat VERSION)
+
+# 2. Check IMAGE_VERSIONS.json content
+cat IMAGE_VERSIONS.json | jq .
+
+# 3. Verify .env has correct image versions
+grep VERSION /opt/budget/.env
+
+# 4. Check Docker Compose image references
+grep "image:" docker-compose.yml
+
+# 5. View deployment logs
+tail -100 /opt/budget/logs/deploy.log
+
+# 6. Check pulled images
+docker images | grep familybudget
+
+# 7. Verify container using correct image
+docker inspect familybudget-backend | jq '.[0].Config.Image'
+```
+
+### Performance Comparison
+
+| Metric | Build Mode (v8.x) | Registry-First (v9.0) |
+|--------|-------------------|----------------------|
+| Deployment time | 5-7 min | 2-3 min |
+| Server CPU | High (npm build) | Low (pull only) |
+| Server RAM | ~2GB (build) | ~500MB (pull) |
+| Disk I/O | High (npm cache) | Low (image layers) |
+| Network usage | npm registry | ghcr.io only |
+| Server requirements | Node.js + npm | Docker only |
+| Failure points | Network, build, cache | Network (retry-able) |
+
+### See Also
+
+- [CI/CD Architecture](../ci-cd-build-deploy.md) - Complete CI/CD pipeline documentation
+- [Docker Architecture](../docker.md) - Multi-stage builds and image structure
+- [Deployment Operations](../../prd/10-deployment-operations.md) - Deployment procedures
