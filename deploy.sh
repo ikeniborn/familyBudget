@@ -228,54 +228,25 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # Functions: get_service_status, print_status
 
 # =============================================================================
-# NGINX CONFIGURATION REGENERATION
+# NGINX CONFIGURATION (REGISTRY-FIRST v9.0+)
 # =============================================================================
-
-# Regenerate nginx configuration from template with current DOMAIN
-# Select and generate appropriate nginx configuration based on SSL state
-# Uses new modular approach (nginx.sh) instead of sed-based marker manipulation
-regenerate_nginx_config() {
-    step "Configuring Nginx"
-
-    # Load .env to get current DOMAIN and DEPLOYMENT_PROFILE
-    set -a
-    if ! source "$DEPLOY_DIR/.env" 2>/dev/null; then
-        error "Failed to load .env file from $DEPLOY_DIR/.env"
-        error "Nginx configuration cannot proceed without .env"
-        return 1
-    fi
-    set +a
-
-    local deployment_profile="${DEPLOYMENT_PROFILE:-basic}"
-    local domain="${DOMAIN:-localhost}"
-
-    info "Deployment profile: $deployment_profile"
-    info "Domain: $domain"
-
-    # Skip if basic profile (nginx not used)
-    if [[ "$deployment_profile" != "full" ]]; then
-        info "Deployment profile is '$deployment_profile' - nginx not used, skipping"
-        return 0
-    fi
-
-    info "Configuring nginx for domain: $domain"
-
-    # Use new modular approach from nginx.sh
-    # This function intelligently selects HTTP or HTTPS config based on SSL state
-    if ! select_nginx_config "$domain"; then
-        error "Failed to configure nginx"
-        return 1
-    fi
-
-    # Reload nginx if container is running (applies new config without restart)
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
-        info "Reloading nginx to apply new configuration"
-        reload_nginx || warning "Failed to reload nginx (will be applied on next restart)"
-    fi
-
-    success "Nginx configured successfully"
-    return 0
-}
+# REMOVED: regenerate_nginx_config() function
+#
+# In registry-first mode, nginx configuration is embedded in Docker image:
+#   - Templates: nginx/conf.d/*.template (in git, built into image)
+#   - Runtime: docker-entrypoint.sh processes templates with DOMAIN env var
+#   - No bind mount: configuration lives inside container, not on host
+#
+# SSL certificate changes are picked up automatically:
+#   - /etc/letsencrypt bind mounted read-only
+#   - Entrypoint checks SSL cert existence and selects HTTP/HTTPS template
+#   - Container restart applies new configuration
+#
+# To change nginx config:
+#   1. Edit templates in nginx/conf.d/*.template
+#   2. Commit to git
+#   3. GitHub Actions rebuilds nginx image
+#   4. Server pulls new image and restarts container
 
 # =============================================================================
 # PWA ICONS REGENERATION
@@ -487,7 +458,7 @@ collect_deployment_parameters() {
         echo ""
         echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
         echo "      Removes files from /opt/budget not in repository"
-        echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, logs/"
+        echo "      Protected: .env, .migration_checksums, .docker_build_checksums, backups/, logs/"
         echo ""
         echo "  [2] Update only (rsync)"
         echo "      Updates existing + adds new files"
@@ -496,7 +467,7 @@ collect_deployment_parameters() {
         echo "  [3] Clean + copy (DANGEROUS!)"
         echo "      Deletes EVERYTHING (code, logs/*, backups, Docker volumes)"
         echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-        echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
+        echo "      Protected: .env, .migration_checksums, .docker_build_checksums (directories cleared)"
         echo ""
         echo "  [4] Skip synchronization"
         echo "      Deploy without updating code"
@@ -659,13 +630,6 @@ validate_firewall_rules() {
 
     return 0
 }
-
-# =============================================================================
-# NPM ENVIRONMENT (REMOVED IN v9.0)
-# =============================================================================
-# repair_npm_environment() removed - npm not required in registry-first mode
-# Frontend is embedded in backend Docker image (built in GitHub Actions CI/CD)
-# All builds happen in CI/CD pipeline: .github/workflows/build-and-push.yml
 
 # =============================================================================
 # CHECK GIT REPOSITORY SYNC STATUS
@@ -1055,13 +1019,6 @@ main() {
     fi
     echo ""
 
-    # =============================================================================
-    # NPM DEPENDENCIES SYNC (REMOVED IN v9.0)
-    # =============================================================================
-    # .npm-isolated npm install removed - not needed in registry-first mode
-    # Dependencies are installed during Docker image build in GitHub Actions CI/CD
-    echo ""
-
     # Analyze sync changes for smart restart decisions
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
@@ -1091,43 +1048,13 @@ main() {
     process_version_bump
     echo ""
 
-    # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
-    # sync_update() may delete nginx/conf.d/*.conf as "orphaned" (not in repo)
-    # This ensures nginx config is always present, even if deploy is interrupted later
-    if ! regenerate_nginx_config; then
-        error "Failed to regenerate nginx configuration"
-        error "Nginx will not start without valid configuration"
-        exit 1
-    fi
-    echo ""
+    # NOTE: Nginx configuration regeneration removed in v9.0 (registry-first)
+    # Configuration is embedded in Docker image and processed by entrypoint.sh
+    # See nginx/docker-entrypoint.sh for template processing logic
 
     # Regenerate PWA icons if trigger file exists (AFTER sync)
     # This ensures new icons are available before Service Worker cache is updated
     regenerate_pwa_icons_if_needed
-
-    # NOTE: Cache busting moved AFTER npm run build (see lines ~1110)
-    # This ensures we update sw.min.js (not sw.js) and HTML templates
-    # after all minification is complete
-
-    # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
-    print_message info "Post-sync check: Verifying npm environment preservation..."
-    if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-        print_message error "CRITICAL: Production npm environment was DELETED during sync!"
-        print_message error "This should NEVER happen with --filter='protect .npm-isolated/'"
-        print_message error ""
-        print_message error "Possible causes:"
-        print_message error "  1. rsync filter not working correctly"
-        print_message error "  2. Manual deletion of /opt/budget/.npm-isolated"
-        print_message error "  3. Filesystem corruption"
-        print_message error ""
-        print_message error "To fix: Run install.sh to recreate npm environment"
-        print_message error "  cd ~/familyBudget && sudo ./install.sh"
-        print_message error ""
-        print_message warning "Deployment will continue but build will be SKIPPED"
-    else
-        print_message success "npm environment preserved successfully"
-    fi
-    echo ""
 
     # =============================================================================
     # REGISTRY-FIRST ARCHITECTURE (v9.0.0+)
@@ -1364,8 +1291,8 @@ main() {
 
     # stop_services removed - redundant after cleanup_old_deployment
 
-    # NOTE: regenerate_nginx_config() moved earlier - runs immediately after sync_code_to_deploy()
-    # This ensures nginx config exists even if deploy is interrupted during cleanup phase
+    # NOTE: Nginx configuration removed in v9.0 (registry-first)
+    # Configuration embedded in Docker image, processed by entrypoint.sh
 
     # NOTE: PostgreSQL permissions validation removed after migration to Docker managed volume
     # Docker managed volumes handle permissions automatically

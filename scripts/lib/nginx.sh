@@ -1,14 +1,31 @@
 #!/bin/bash
 #
-# nginx.sh - Nginx Configuration Management
+# nginx.sh - Nginx Configuration Management (LEGACY - v9.0 Registry-First)
 #
-# This module manages Nginx configuration generation and lifecycle.
-# Replaces old sed-based marker manipulation with clean template-based approach.
+# ⚠️  WARNING: This module is DEPRECATED in v9.0 Registry-First architecture
 #
-# Usage:
-#   source scripts/lib/config.sh
-#   source scripts/lib/utils.sh
-#   source scripts/lib/nginx.sh
+# REASON: Nginx configuration is now embedded in Docker image:
+#   - Templates: nginx/conf.d/*.template (built into image)
+#   - Processing: docker-entrypoint.sh (inside container at startup)
+#   - No bind mount: /opt/budget/nginx/conf.d NOT mounted to container
+#
+# HOW IT WORKS IN v9.0:
+#   1. Templates copied into image during Docker build (GitHub Actions)
+#   2. Container startup: entrypoint.sh processes templates with DOMAIN env var
+#   3. SSL detection: entrypoint checks /etc/letsencrypt (bind mounted)
+#   4. Auto-selection: HTTP or HTTPS template based on cert existence
+#
+# MIGRATION NOTES:
+#   - All functions in this file generate configs on HOST filesystem
+#   - Generated configs are NOT visible to nginx container (no bind mount)
+#   - Functions kept for backward compatibility only
+#   - Do NOT use these functions in new code
+#
+# TO CHANGE NGINX CONFIG:
+#   1. Edit nginx/conf.d/*.template in git
+#   2. Commit and push to GitHub
+#   3. GitHub Actions rebuilds nginx image
+#   4. Deploy script pulls new image and restarts container
 #
 # Dependencies:
 #   - config.sh (for DEPLOY_DIR)
