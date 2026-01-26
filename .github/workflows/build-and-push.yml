@@ -330,7 +330,7 @@ jobs:
     needs: [service-build, quality-checks]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write  # Changed from read to write for git push
       packages: write
     outputs:
       backend_built: ${{ steps.changes.outputs.backend }}
