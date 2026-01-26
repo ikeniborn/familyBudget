@@ -1,7 +1,7 @@
 ---
 name: deploy-test
 description: Автоматизированный деплой на тестовый сервер budget-test с registry-first архитектурой (рекомендуется pull из ghcr.io, fallback на local build)
-version: 9.1.1
+version: 9.1.2
 author: Family Budget Team
 tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-first, toon-optimized, hybrid-build]
 dependencies: [monitoring]
@@ -9,7 +9,7 @@ context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v9.1.1
+# Deploy Test Automation Skill v9.1.2
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
 - ✅ **Registry-Only Architecture** - все сборки в GitHub Actions CI/CD (v9.0+)
@@ -284,31 +284,36 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 6. **Exponential backoff:** задержки 5s, 10s, 20s, ... (до 60s)
 7. **Критические ошибки:** немедленный ABORT с abort_on_critical=true
 
-**Новые опции v2.0.0:**
+**Встроенная логика навыка (автоматически):**
+- ✅ Максимум 3 попытки деплоя
+- ✅ Exponential backoff: 5s, 10s, 20s между попытками
+- ✅ Auto-commit исправлений в ветку test (Conventional Commits)
+- ✅ Auto-push исправлений в remote
+- ✅ Retry после каждого исправления
+
+**Примеры сценариев:**
 ```bash
-# Управление повторами
---max-retries N         # Максимум попыток (default: 3)
---retry-delay N         # Базовая задержка (default: 5s)
+# Сценарий 1: Успешный деплой с первой попытки
+1. deploy-test навык вызван
+2. SSH → git pull → deploy.sh --use-registry
+3. Все контейнеры healthy
+4. ✅ Деплой завершен
 
-# Управление проверками
---skip-local-validation # Пропустить предварительную проверку кода
---no-auto-commit        # Не коммитить исправления автоматически
---rollback-on-fail      # Откатить на предыдущую версию при ошибке
-```
+# Сценарий 2: Ошибка TypeScript, автоисправление
+1. deploy-test навык вызван
+2. SSH → git pull → deploy.sh --use-registry
+3. ❌ Build failed: TypeScript error
+4. Навык исправляет код локально
+5. git commit + push исправления
+6. Retry: deploy.sh --use-registry (попытка 2/3)
+7. ✅ Деплой завершен
 
-**Примеры использования:**
-```bash
-# Деплой с 5 попытками и задержкой 10s
-./deploy-test.sh --version patch --max-retries 5 --retry-delay 10
-
-# Без автокоммита (исправления не пушатся)
-./deploy-test.sh --version minor --no-auto-commit
-
-# Пропустить локальную проверку
-./deploy-test.sh --skip-local-validation
-
-# Комбинация опций
-./deploy-test.sh --version patch --max-retries 3 --skip-local-validation
+# Сценарий 3: Критическая ошибка (no space left)
+1. deploy-test навык вызван
+2. SSH → git pull → deploy.sh --use-registry
+3. ❌ CRITICAL: No space left on device
+4. Навык показывает инструкции для ручного исправления
+5. ❌ Деплой прерван (не исправимо автоматически)
 ```
 
 ## Алгоритм работы
@@ -327,21 +332,31 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 5. Если N: немедленно отменить деплой
 6. Non-interactive mode (pipe/redirect): авто-подтверждение
 
-**Опции автоматического восстановления (v2.0.0):**
-- `--max-retries N` - максимум попыток деплоя (default: 3)
-- `--retry-delay N` - базовая задержка между попытками (default: 5s)
-- `--skip-local-validation` - пропустить предварительную проверку кода
-- `--no-auto-commit` - не коммитить исправления автоматически
-- `--rollback-on-fail` - откатить на предыдущую версию при ошибке
+**Опции автоматического восстановления (управляются навыком, НЕ передаются в deploy.sh):**
+- Навык автоматически обнаруживает ошибки и применяет исправления
+- Retry логика встроена в навык (до 3 попыток)
+- Auto-commit исправлений в ветку test
+- Exponential backoff между попытками (5s, 10s, 20s)
 
-**Фиксированные опции (всегда применяются):**
+**Фиксированные опции (всегда применяются навыком):**
+- `--use-registry` - pull готовых образов из ghcr.io (РЕКОМЕНДУЕТСЯ)
 - `--sync-mode update` - только обновление/добавление файлов
 - `--cleanup-mode smart` - умная очистка старых образов
 
-**Формирование итоговой команды:**
+**Формирование итоговой команды (навык deploy-test):**
 ```bash
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart [--version TYPE] [OPTIONS]"
+# Registry mode (по умолчанию в deploy-test)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+
+# С дополнительными опциями (если нужно)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart [--image-tag TAG]"
 ```
+
+**ВАЖНО для deploy-test навыка:**
+- ✅ Всегда используется `--use-registry` (быстрый деплой, консистентность с CI/CD)
+- ✅ VERSION должна быть обновлена вручную ПЕРЕД вызовом навыка
+- ✅ GitHub Actions должен успешно завершить build образов
+- ❌ НЕ используются опции version bump (--patch/--minor/--major) в registry mode
 
 ### Шаг 1: Проверка SSH подключения
 ```bash
@@ -374,26 +389,36 @@ ssh budget-test "cd ~/familyBudget && git fetch --all && git checkout test && gi
 
 ### Шаг 3: Запуск deploy.sh
 
-**Базовая команда (БЕЗ изменения версии - default v7.0+):**
+**Базовая команда (Registry Mode - РЕКОМЕНДУЕТСЯ для budget-test):**
 ```bash
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version patch"
+# Pull готовых образов из ghcr.io (VERSION уже обновлена вручную)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
 ```
 
-**С версионированием (актуальный синтаксис):**
+**Registry Mode - различные сценарии:**
 ```bash
-# Bug fixes (patch bump: 10.0.50 → 10.0.51)
+# Стандартный деплой (VERSION уже bumped вручную перед push)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+
+# С явным указанием image tag
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag 10.0.50 --sync-mode update --cleanup-mode smart"
+```
+
+**Local Build Mode (FALLBACK - если registry недоступен):**
+```bash
+# Bug fixes (patch bump: 10.0.50 → 10.0.51) + local build
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch"
 
-# New features (minor bump: 10.0.50 → 10.1.0)
+# New features (minor bump: 10.0.50 → 10.1.0) + local build
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --minor"
 
-# Breaking changes (major bump: 10.0.50 → 11.0.0)
+# Breaking changes (major bump: 10.0.50 → 11.0.0) + local build
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --major"
 
-# Explicit version (set specific version)
+# Explicit version + local build
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version 10.1.0"
 
-# No version change (keep current VERSION)
+# No version change + local build (если нужно)
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --no-version"
 ```
 
@@ -420,34 +445,66 @@ ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --c
   - Работает только с `--use-registry`
   - Примеры: `--image-tag test`, `--image-tag 10.0.50`
 
-**Что происходит:**
-- Синхронизация кода в /opt/budget
-- Автоматическая синхронизация VERSION → package.json (если mismatch)
-- Version bump (если указан --version TYPE)
-- Синхронизация .npm-isolated/package.json после version bump
-- Автоматическое определение необходимости пересборки frontend (checksums)
-- Пересборка Docker образов (если нужно)
-- Перезапуск контейнеров
-- Health checks
+**Что происходит (Registry Mode - рекомендуется):**
+С опцией `--use-registry`:
+1. Синхронизация кода в /opt/budget (git pull)
+2. Чтение VERSION из файла (например: 10.0.50)
+3. **Pull готовых Docker images** из ghcr.io:
+   - `ghcr.io/ikeniborn/familybudget-backend:10.0.50`
+   - `ghcr.io/ikeniborn/familybudget-bot:10.0.50`
+   - `ghcr.io/ikeniborn/familybudget-nginx:10.0.50`
+   - И т.д.
+4. Перезапуск контейнеров (docker compose up -d)
+5. Применение миграций БД
+6. Health checks
+7. Cleanup старых images (7 дней retention)
+
+**Что происходит (Local Build Mode - fallback):**
+БЕЗ опции `--use-registry`:
+1. Синхронизация кода в /opt/budget
+2. Version bump (если указан --patch/--minor/--major)
+3. Синхронизация VERSION → package.json
+4. Автоопределение изменений frontend (checksums)
+5. **Сборка Docker images локально** (если изменения обнаружены)
+6. Перезапуск контейнеров
+7. Миграции БД
+8. Health checks
+
+**ВАЖНО:**
+- ✅ Registry mode: VERSION уже должна быть обновлена вручную ПЕРЕД деплоем
+- ✅ Local build mode: VERSION можно bump на сервере через --patch/--minor/--major
+- ⚠️ Registry mode + version bump опции: VERSION изменится, но образы НЕ будут собраны (используются старые из ghcr.io)
 
 **Примеры комбинаций:**
+
+**Registry Mode (рекомендуется для тестового сервера):**
+```bash
+# Стандартный деплой из registry (VERSION уже обновлена вручную)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
+
+# Registry с явным image tag (для отката или специфичной версии)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag 10.0.50 --sync-mode update --cleanup-mode smart"
+
+# Registry + skip sync (если код уже синхронизирован)
+ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode skip --cleanup-mode smart"
+```
+
+**Local Build Mode (fallback, если registry недоступен):**
 ```bash
 # Деплой без изменения версии + принудительная пересборка
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --no-version --force-build"
 
-# Patch bump + принудительная пересборка
+# Patch bump + local build + принудительная пересборка
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch --force-build"
 
-# Explicit version (установить конкретную версию)
+# Explicit version + local build
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --sync-mode update --cleanup-mode smart --version 10.1.0"
+```
 
-# Registry mode: pull pre-built images (рекомендуемый режим)
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
-
-# Registry mode с явным тегом
-ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --image-tag 10.0.50 --sync-mode update --cleanup-mode smart"
-
-# Registry mode + patch bump (pull образы из registry)
+**❌ НЕ РЕКОМЕНДУЕТСЯ (несовместимая комбинация):**
+```bash
+# Registry + version bump = образы не пересобираются!
+# VERSION изменится, но pull попытается загрузить старую версию из registry
 ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --patch --sync-mode update --cleanup-mode smart"
 ```
 
@@ -802,8 +859,28 @@ Claude:
 
 ## Changelog
 
+### v9.1.2 (2026-01-26)
+**Registry-First Workflow Documentation (Critical Fix):**
+- 🔥 **Шаг 3: Запуск deploy.sh**: Полностью переписан для Registry-First подхода
+- 🔥 **"Что происходит"**: Критическое исправление - разделено на Registry Mode vs Local Build Mode
+- ✅ **Registry Mode (default для deploy-test)**: Только pull готовых образов из ghcr.io, БЕЗ сборки
+- ✅ **Local Build Mode**: Сборка на сервере как fallback (если registry недоступен)
+- ✅ **Базовая команда**: Изменена с `--patch` на `--use-registry` (рекомендуемый режим)
+- ✅ **VERSION управление**: Четко указано что VERSION обновляется вручную ПЕРЕД деплоем в registry mode
+- ❌ **Удалены устаревшие опции**: `--max-retries`, `--retry-delay`, `--skip-local-validation` (не поддерживаются deploy.sh)
+- ⚠️ **Добавлено предупреждение**: Registry + version bump = несовместимая комбинация
+
+**Ключевое изменение философии:**
+- **БЫЛО (неверно)**: "deploy.sh собирает версию и пересобирает образы на сервере"
+- **СТАЛО (верно)**: "deploy.sh pull готовые образы по VERSION из ghcr.io (сборка в GitHub Actions)"
+
+**Impact:**
+- Навык теперь корректно отражает Registry-First архитектуру v9.0+
+- Пользователи поймут что VERSION должна быть обновлена вручную ПЕРЕД деплоем
+- Избежание ошибок при использовании несовместимых комбинаций опций
+
 ### v9.1.1 (2026-01-26)
-**Documentation Corrections:**
+**Documentation Corrections (Part 1 - Options):**
 - ✅ **Fixed deploy.sh options**: Corrected version bump syntax (--patch/--minor/--major + --version X.Y.Z)
 - ✅ **Removed `--set-version`**: Replaced with correct `--version X.Y.Z` syntax
 - ✅ **Clarified hybrid build mode**: Registry-first (recommended) + local build (fallback available)
@@ -811,8 +888,24 @@ Claude:
 - ✅ **Corrected examples**: All command examples now use current deploy.sh syntax
 - ✅ **Updated workflow descriptions**: Accurate representation of registry + local build support
 
+**Documentation Corrections (Part 2 - Registry-First Workflow):**
+- ✅ **Шаг 3: Запуск deploy.sh**: Полностью переписан для Registry-First архитектуры
+- ✅ **"Что происходит"**: Разделено на Registry Mode vs Local Build Mode
+- ✅ **Registry Mode (рекомендуется)**: Только pull образов из ghcr.io, БЕЗ сборки на сервере
+- ✅ **Local Build Mode**: Сборка локально как fallback (если registry недоступен)
+- ✅ **Базовая команда**: Изменена с version bump на `--use-registry` (рекомендуемый режим)
+- ✅ **Примеры команд**: Приоритет Registry Mode, Local Build как fallback
+- ✅ **Устаревшие опции**: Удалены примеры с `--max-retries`, `--skip-local-validation` (не поддерживаются deploy.sh)
+- ✅ **Важное замечание**: Registry + version bump = несовместимая комбинация (образы не пересобираются)
+
+**Ключевые изменения описания:**
+- ❌ **БЫЛО**: "Version bump если указан --version TYPE, сборка образов если нужно"
+- ✅ **СТАЛО**: "Registry mode: pull готовых образов по VERSION из ghcr.io (VERSION обновлена вручную)"
+- ❌ **БЫЛО**: Примеры с --patch/--minor/--major как базовые команды
+- ✅ **СТАЛО**: --use-registry как базовая команда, version bump только для local build fallback
+
 **No Code Changes:**
-- Implementation unchanged, only documentation corrections
+- Implementation unchanged, only documentation corrections to match actual deploy.sh behavior
 
 ### v9.1.0 (2026-01-24)
 **TOON Optimization:**
