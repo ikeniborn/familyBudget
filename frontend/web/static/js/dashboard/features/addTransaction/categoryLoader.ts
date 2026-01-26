@@ -92,20 +92,32 @@ function loadFactHintsForCategory(category: Category | null): void {
  * @param targetSelectors - Optional array of CSS selectors for financial center dropdowns
  */
 export async function loadFinancialCenters(targetSelectors?: string[]): Promise<void> {
-  try {
-    // Get user ID for data layer queries
-    const userId = await getCurrentUserId();
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 500; // Start with 500ms
 
-    // Use DataLayer (PGlite-first with API fallback)
-    const centers = await dataLayer.getFinancialCenters(userId, true);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.info(`[loadFinancialCenters] Attempt ${attempt}/${MAX_RETRIES}`);
 
-    if (centers.length === 0) {
-      console.warn('[loadFinancialCenters] No accounts returned from DataLayer');
-      showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
-      return;
-    }
+      // Get user ID for data layer queries
+      const userId = await getCurrentUserId();
 
-    debugLog(`[loadFinancialCenters] Loaded ${centers.length} financial centers from DataLayer`);
+      // Use DataLayer (PGlite-first with API fallback)
+      const centers = await dataLayer.getFinancialCenters(userId, true);
+
+      if (centers.length === 0) {
+        if (attempt < MAX_RETRIES) {
+          console.warn(`[loadFinancialCenters] Empty result on attempt ${attempt}, retrying in ${RETRY_DELAY_MS * attempt}ms...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * attempt)); // Exponential backoff
+          continue; // Retry
+        } else {
+          console.error('[loadFinancialCenters] No accounts returned after all retries');
+          showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
+          return;
+        }
+      }
+
+      console.info(`[loadFinancialCenters] ✅ Loaded ${centers.length} financial centers on attempt ${attempt}`);
 
     // Use provided selectors or default to new tab-based selectors
     const selectors = targetSelectors || [
@@ -147,11 +159,23 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
     // Add change listeners to filter categories AND cost centers when account changes
     setupFinancialCenterListeners();
 
+    // SUCCESS - exit retry loop
+    return;
+
   } catch (error) {
-    console.error('[loadFinancialCenters] Failed to load accounts:', error);
-    showToast('Ошибка при загрузке счетов', 'error');
-    throw error;
+    console.error(`[loadFinancialCenters] Attempt ${attempt} failed:`, error);
+
+    if (attempt < MAX_RETRIES) {
+      const delayMs = RETRY_DELAY_MS * attempt;
+      console.warn(`[loadFinancialCenters] Retrying in ${delayMs}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    } else {
+      console.error('[loadFinancialCenters] All retry attempts exhausted');
+      showToast('Ошибка при загрузке счетов', 'error');
+      throw error;
+    }
   }
+}
 }
 
 /**

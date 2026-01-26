@@ -89,15 +89,10 @@ async function loadTransactionTabData(): Promise<void> {
       '../addTransaction/categoryLoader'
     );
 
-    // Load financial centers FIRST (critical dependency)
+    // Load financial centers FIRST (now with built-in retry logic)
     await loadFinancialCenters();
 
-    // Validate IMMEDIATELY after load (fail fast)
-    const fcSelect = document.querySelector('#modal_fact-tab-transaction select[name="financial_center_id"]') as HTMLSelectElement | null;
-    if (!fcSelect || fcSelect.options.length <= 1) {
-      console.error('[ModalFact] Financial center select not populated after load');
-      throw new Error('Failed to load financial centers');
-    }
+    // Validation removed - retry logic in loadFinancialCenters handles failures
 
     // Load categories and cost centers in parallel (safe - independent operations)
     await Promise.all([

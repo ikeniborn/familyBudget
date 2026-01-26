@@ -382,6 +382,11 @@ html.offline-mode .save-btn:hover {
         display: none !important;
         visibility: hidden !important;
     }
+
+    /* Mobile: FAB wrapper должен быть НИЖЕ navbar */
+    .fab-wrapper {
+        z-index: 40 !important;  /* Ниже mobile nav (50) */
+    }
 }
 
 /* Desktop: Floating Action Button (≥ 1024px) */
@@ -549,9 +554,9 @@ html.offline-mode .save-btn:hover {
     border-radius: 50%;
     border: none;
 
-    /* Color */
-    background-color: oklch(var(--p));
-    color: oklch(var(--pc));
+    /* Color - force override conflicting rules */
+    background-color: oklch(var(--p)) !important;
+    color: oklch(var(--pc)) !important;
 
     /* Material Design Elevation 6 (rest state) */
     box-shadow:
@@ -583,8 +588,8 @@ html.offline-mode .save-btn:hover {
     /* Subtle scale */
     transform: scale(1.05) translateZ(0);
 
-    /* Darken slightly */
-    background-color: oklch(var(--p) / 0.9);
+    /* Darken slightly - maintain !important for consistency */
+    background-color: oklch(var(--p) / 0.9) !important;
 }
 
 .fab-button:active {

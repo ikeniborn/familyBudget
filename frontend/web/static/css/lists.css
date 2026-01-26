@@ -646,14 +646,6 @@
 /* Applies to ALL touch devices (smartphones, tablets, hybrid laptops) */
 /* regardless of screen size - prevents FAB buttons from showing on iPad, */
 /* Android tablets in landscape mode, and other large touch screens */
-@media (pointer: coarse) {
-    #lists-fab-menu,
-    #add-item-fab,
-    #create-list-fab,
-    #lists-fab-backdrop {
-        display: none !important;
-    }
-}
 
 @media (max-width: 1023px) {
     .hierarchy-store {

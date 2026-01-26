@@ -282,3 +282,38 @@ No accounts returned  ← Эта ошибка указывает на пробл
 **Utilities:**
 - `frontend/web/static/js/data/DataLayer.ts` - PGlite-first data access
 - `frontend/web/static/js/offline/offlineManager/utils/userHelpers.ts` - User ID helpers
+
+## Modal Data Loading Strategy (v10.x+)
+
+### Financial Centers Loading (Retry Pattern)
+
+**Problem:** Race condition между открытием модального окна и завершением инициализации PGlite.
+
+**Solution:**
+1. **PGlite readiness polling** - DataLayer ждёт до 5 секунд пока PGlite станет готовым
+2. **Retry logic** - categoryLoader делает до 3 попыток с exponential backoff (500мс, 1000мс)
+3. **Automatic fallback** - если PGlite не готов, используется REST API
+
+**Implementation:**
+- `DataLayer.ts:198-235` - PGlite readiness polling
+- `categoryLoader.ts:94-155` - Retry logic
+- `modalFact/index.ts:75-115` - Modal integration
+- `modalPlan/index.ts:76-117` - Modal integration
+
+**Retry sequence:**
+```
+Attempt 1: Immediate (0ms delay)
+Attempt 2: +500ms delay
+Attempt 3: +1000ms delay
+→ Fallback to API or show error
+```
+
+**Logging:**
+```
+[loadFinancialCenters] Attempt 1/3
+[DATA_LAYER] PGlite not ready, waiting...
+[DATA_LAYER] PGlite ready after wait
+[loadFinancialCenters] ✅ Loaded 5 financial centers on attempt 1
+```
+
+**См. также:** `docs/architecture/pglite-race-conditions.md` для полного описания решения race condition

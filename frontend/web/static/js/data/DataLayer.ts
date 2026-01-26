@@ -202,15 +202,38 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // PGlite-first strategy
+      // PGlite-first strategy with readiness waiting
       if (isPGliteEnabled()) {
         const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryFinancialCenters(userId, true); // only active
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
-          return result;
+
+        // NEW: Wait for PGlite readiness with timeout
+        if (!pglite.isReady()) {
+          console.info('[DATA_LAYER] PGlite not ready, waiting...');
+
+          const waitStartTime = Date.now();
+          const MAX_WAIT_MS = 5000; // 5 seconds max wait
+
+          // Poll every 100ms until ready or timeout
+          while (!pglite.isReady() && (Date.now() - waitStartTime) < MAX_WAIT_MS) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+          if (!pglite.isReady()) {
+            console.warn('[DATA_LAYER] PGlite init timeout after 5s, falling back to API');
+            const result = await this.getFinancialCentersFromAPI(includeGlobal);
+            const duration = performance.now() - startTime;
+            performanceMonitor.trackAPICall('getFinancialCenters', duration);
+            return result;
+          }
+
+          console.info('[DATA_LAYER] PGlite ready after wait');
         }
+
+        // PGlite is ready, query data
+        const result = await pglite.queryFinancialCenters(userId, true); // only active
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
+        return result;
       }
 
       // Fallback to API
