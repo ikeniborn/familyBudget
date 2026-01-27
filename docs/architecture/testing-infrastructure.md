@@ -621,8 +621,12 @@ await page.setViewportSize({ width: 1024, height: 768 });
 
 ```typescript
 import { test, expect } from '@playwright/test';
+import { login } from '../helpers/auth';
 
 test('mobile navigation', async ({ page }) => {
+  // Authenticate user (required for production URL)
+  await login(page);
+
   await page.goto('https://fbd.ikeniborn.ru/');
 
   // Set mobile viewport
@@ -633,7 +637,7 @@ test('mobile navigation', async ({ page }) => {
   expect(width).toBe(375);
 
   // Verify mobile nav visible
-  const mobileNav = page.locator('#mobile-navigation-bar');
+  const mobileNav = page.locator('.mobile-nav-wrapper');
   await expect(mobileNav).toBeVisible();
 });
 ```
@@ -642,29 +646,44 @@ test('mobile navigation', async ({ page }) => {
 
 **Prerequisites:**
 - Install Playwright browsers: `npx playwright install chromium`
-- Configure authentication (required for production URL)
+- Create `.env.test` from `.env.test.example` with test user credentials
 
 ```bash
 # Run mobile navigation test
-npx playwright test tests/e2e/webapp/test_mobile_navigation.spec.ts --headed
+npx playwright test tests/e2e/webapp/test_mobile_navigation.spec.ts
+
+# Run with visible browser
+npm run test:e2e:headed
 
 # Run with specific browser
 npx playwright test --project="Mobile Chrome"
 
 # Run all E2E tests
-npx playwright test tests/e2e/
+npm run test:e2e
 
 # Generate HTML report
-npx playwright test --reporter=html
-npx playwright show-report
+npm run test:e2e:report
 ```
 
-**Current Status:**
-- ⚠️ Tests fail on production due to authentication barrier (login page)
-- ✅ Test infrastructure ready (viewport control, selectors, assertions)
-- 🔄 Authentication setup needed (future improvement)
+**Current Status (v10.1+):**
+- ✅ **9 E2E tests passing** (mobile navigation + responsive design)
+- ✅ **Authentication configured** (email/password with multi-step flow)
+- ✅ **Test user created** (e2e-test-1@example.com)
+- ✅ **Cookie consent handling** (automatic modal dismissal)
+- ✅ **WebAuthn fallback** (password mode when biometrics available)
+- ✅ **Production URL testing** (https://fbd.ikeniborn.ru)
 
-**See:** `docs/architecture/guides/browser-testing-workarounds.md` for authentication setup examples.
+**Test Coverage:**
+- Viewport control validation (375px, 768px, 1024px, 1920px)
+- Mobile navigation visibility (< 1024px)
+- Desktop FAB visibility (≥ 1024px)
+- Breakpoint transitions
+- Navigation performance (<5s load time)
+
+**See:**
+- `docs/architecture/guides/browser-testing-workarounds.md` - Viewport workaround documentation
+- `docs/testing/e2e-test-user-setup.md` - Test user setup guide
+- `tests/e2e/README.md` - Complete E2E testing guide
 
 ### Browser Automation Limitations
 
@@ -682,18 +701,35 @@ npx playwright show-report
 
 **Current Status:**
 - ✅ Playwright installed and configured (`playwright.config.ts`)
-- ✅ Mobile navigation test implemented (`tests/e2e/webapp/test_mobile_navigation.spec.ts`)
-- 🔄 Additional E2E tests needed
+- ✅ **Mobile navigation tests implemented** (9 tests, 100% passing)
+- ✅ **Authentication infrastructure ready** (`tests/e2e/helpers/auth.ts`)
+- ✅ **Production URL testing** (https://fbd.ikeniborn.ru)
+- 🔄 Additional E2E tests needed for other features
+
+**Completed:**
+- Responsive design tests (viewport control, breakpoints)
+- Mobile navigation visibility tests
+- Desktop FAB visibility tests
+- Authentication flow (email/password, multi-step)
+- Cookie consent handling
+- WebAuthn fallback support
+
+**Next Steps:**
+- Modal responsive behavior tests
+- Form submission flows (transactions, transfers, plans)
+- Offline mode functionality
+- Shopping lists CRUD operations
+- Critical user flows (login, create transaction, view analytics)
 
 **Scope:**
-- Critical user flows
-- Multi-browser testing
+- Multi-browser testing (currently Chromium only)
 - Visual regression testing
+- Cross-browser compatibility (Firefox, WebKit)
 
 **Estimated Coverage:**
-- 10-15 E2E tests
-- Focus on happy paths
-- Cover offline scenarios
+- 25-30 E2E tests total (9 complete, 15-20 remaining)
+- Focus on happy paths and critical flows
+- Cover offline scenarios and sync operations
 
 ### Legacy Module Testing (Phase 7+)
 
