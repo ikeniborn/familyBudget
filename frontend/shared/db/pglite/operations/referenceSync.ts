@@ -66,10 +66,10 @@ async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
       const fcData = await fcRes.json();
       const ccData = await ccRes.json();
 
-      // Extract arrays from response (API returns { data: [...] })
-      const articles = articlesData.data || articlesData;
-      const financial_centers = fcData.data || fcData;
-      const cost_centers = ccData.data || ccData;
+      // Extract arrays from response (API returns { articles: [...], financial_centers: [...], cost_centers: [...] })
+      const articles = articlesData.articles || articlesData.data || articlesData;
+      const financial_centers = fcData.financial_centers || fcData.data || fcData;
+      const cost_centers = ccData.cost_centers || ccData.data || ccData;
 
       // Validate response data
       if (!Array.isArray(articles) || !Array.isArray(financial_centers) || !Array.isArray(cost_centers)) {
