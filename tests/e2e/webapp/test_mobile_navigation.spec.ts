@@ -6,10 +6,12 @@
  * - Desktop viewport (≥ 1024px): Desktop FAB visible, mobile navigation hidden
  * - Breakpoint transition behavior
  *
+ * Authentication: Uses email/password login from .env.test
  * See: docs/architecture/guides/browser-testing-workarounds.md
  */
 
 import { test, expect } from '@playwright/test';
+import { login } from '../helpers/auth';
 
 // Test URLs
 const BASE_URL = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
@@ -27,7 +29,10 @@ const MOBILE_BREAKPOINT = 1024; // px
 
 test.describe('Mobile Navigation - Responsive Design', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to app (may require authentication)
+    // Authenticate user (email/password from .env.test)
+    await login(page);
+
+    // Navigate to app
     await page.goto(BASE_URL);
 
     // Wait for page load
@@ -184,6 +189,9 @@ test.describe('Mobile Navigation - Responsive Design', () => {
 
 test.describe('Mobile Navigation - User Interactions', () => {
   test.beforeEach(async ({ page }) => {
+    // Authenticate user
+    await login(page);
+
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
     await page.setViewportSize(VIEWPORTS.mobile);
@@ -239,6 +247,9 @@ test.describe('Mobile Navigation - User Interactions', () => {
 
 test.describe('Mobile Navigation - Performance', () => {
   test('should load mobile navigation quickly', async ({ page }) => {
+    // Authenticate user
+    await login(page);
+
     // Set mobile viewport before navigation
     await page.setViewportSize(VIEWPORTS.mobile);
 
