@@ -922,6 +922,10 @@ html.offline-mode .save-btn:hover {
     animation: tabFadeIn 0.2s ease-in;
 }
 
+.tab-content:not(.hidden) {
+    display: block;
+}
+
 .tab-content.hidden {
     display: none;
 }
