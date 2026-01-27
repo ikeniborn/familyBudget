@@ -433,3 +433,7 @@ window.PlanApp = {
 };
 
 console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
+
+// FAB toolbar compatibility (v10.1.11)
+// Export openModalPlan for FAB toolbar direct access
+window.openModalPlan = PlanCRUD.openAddPlanModal;

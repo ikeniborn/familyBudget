@@ -62,6 +62,9 @@ export function setupWindowExports(): void {
     window.openAddTransactionModal = openAddTransactionModal;
     window.openFactTransferModal = openFactTransferModal;
 
+    // FAB toolbar compatibility (v10.1.11)
+    window.openModalFact = openAddTransactionModal;
+
     // Transaction operations (delegated to external modules when available)
     window.saveTransaction = saveTransaction;
     window.saveTransfer = saveTransfer;
