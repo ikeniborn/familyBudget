@@ -1,15 +1,23 @@
--- PGlite Schema v6: Remove Financial Center Type Field
--- Backend model FinancialCenter doesn't have 'type' field
--- Remove CHECK constraint and drop column from local_financial_centers
+-- PGlite Schema v6: Align Financial Centers with Backend Model
+-- Backend model FinancialCenter doesn't have 'type'/'currency' fields
+-- Add description, code, updated_at fields to match backend
 
--- Drop CHECK constraint first (if exists)
+-- Step 1: Drop old fields (type, currency)
 ALTER TABLE local_financial_centers
   DROP CONSTRAINT IF EXISTS local_financial_centers_type_check;
 
--- Drop type column
 ALTER TABLE local_financial_centers
   DROP COLUMN IF EXISTS type;
 
--- Drop currency column as well (not in backend model)
 ALTER TABLE local_financial_centers
   DROP COLUMN IF EXISTS currency;
+
+-- Step 2: Add new fields (description, code, updated_at)
+ALTER TABLE local_financial_centers
+  ADD COLUMN IF NOT EXISTS description TEXT;
+
+ALTER TABLE local_financial_centers
+  ADD COLUMN IF NOT EXISTS code TEXT;
+
+ALTER TABLE local_financial_centers
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
