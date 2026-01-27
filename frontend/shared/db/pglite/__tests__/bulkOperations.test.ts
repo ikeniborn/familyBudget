@@ -28,7 +28,7 @@ describe('Bulk Operations', () => {
         user_id INTEGER NOT NULL,
         parent_id INTEGER,
         name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
+        type TEXT NOT NULL CHECK (type IN ('income', 'expense', 'debit', 'credit')),
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -38,10 +38,11 @@ describe('Bulk Operations', () => {
         id INTEGER PRIMARY KEY,
         user_id INTEGER NOT NULL,
         name TEXT NOT NULL,
-        type TEXT NOT NULL CHECK (type IN ('account', 'wallet', 'card')),
-        currency TEXT NOT NULL,
+        description TEXT,
+        code TEXT,
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS local_cost_centers (
@@ -180,8 +181,8 @@ describe('Bulk Operations', () => {
 
       const result = await db.query('SELECT * FROM local_financial_centers ORDER BY id');
       expect(result.rows).toHaveLength(2);
-      expect((result.rows[0] as Record<string, unknown>).type).toBe('account');
-      expect((result.rows[1] as Record<string, unknown>).type).toBe('wallet');
+      expect((result.rows[0] as Record<string, unknown>).description).toBe('Primary bank account');
+      expect((result.rows[1] as Record<string, unknown>).code).toBe(null);
     });
   });
 

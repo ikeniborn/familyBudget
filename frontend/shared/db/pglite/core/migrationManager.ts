@@ -14,6 +14,7 @@ import v3Shopping from '../schemas/v3_shopping.sql?raw';
 import v4RecurringPlans from '../schemas/v4_recurringPlans.sql?raw';
 import v5ExpandArticleTypes from '../schemas/v5_expandArticleTypes.sql?raw';
 import v6RemoveFinancialCenterType from '../schemas/v6_removeFinancialCenterType.sql?raw';
+import v7AddFinancialCenterColumns from '../schemas/v7_addFinancialCenterColumns.sql?raw';
 
 /**
  * Migration definition
@@ -57,6 +58,11 @@ const MIGRATIONS: Migration[] = [
     version: 6,
     name: 'Remove Financial Center Type Field (Align with backend model)',
     sql: v6RemoveFinancialCenterType
+  },
+  {
+    version: 7,
+    name: 'Add Missing Financial Center Columns (Fix for v6 early adopters)',
+    sql: v7AddFinancialCenterColumns
   }
 ];
 

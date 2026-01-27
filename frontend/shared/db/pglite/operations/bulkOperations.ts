@@ -140,9 +140,10 @@ async function insertFinancialCentersChunk(db: PGlite, centers: LocalFinancialCe
     VALUES ${values}
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,
-      type = EXCLUDED.type,
-      currency = EXCLUDED.currency,
-      is_active = EXCLUDED.is_active
+      description = EXCLUDED.description,
+      code = EXCLUDED.code,
+      is_active = EXCLUDED.is_active,
+      updated_at = EXCLUDED.updated_at
   `, params);
 }
 
