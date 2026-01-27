@@ -64,31 +64,83 @@ export async function login(page: Page, email?: string, password?: string): Prom
   // eslint-disable-next-line no-console
   console.log(`[AUTH] Logging in as ${loginEmail}...`);
 
-  // Navigate to login page
-  await page.goto(`${env.baseUrl}/login`);
+  // Navigate to email login page (not /login which shows Telegram OAuth)
+  await page.goto(`${env.baseUrl}/login-email`);
 
-  // Wait for login form
-  await page.waitForSelector('input[name="email"], input[type="email"]', { timeout: 10000 });
+  // Step 1: Enter identifier (email)
+  await page.waitForSelector('input[name="identifier"]', { timeout: 10000 });
+  const identifierInput = page.locator('input[name="identifier"]');
+  await identifierInput.fill(loginEmail);
 
-  // Fill email
-  const emailInput = page.locator('input[name="email"], input[type="email"]').first();
-  await emailInput.fill(loginEmail);
+  // Click "Продолжить" button
+  const continueButton = page.locator('button[type="submit"]').first();
+  await continueButton.click();
 
-  // Fill password
-  const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+  // Step 2: Wait for authentication methods to appear
+  // Check if biometric button is visible (some users have WebAuthn)
+  const biometricButton = page.locator('button:has-text("Использовать пароль")');
+  const biometricVisible = await biometricButton.isVisible({ timeout: 3000 }).catch(() => false);
+
+  if (biometricVisible) {
+    // eslint-disable-next-line no-console
+    console.log('[AUTH] Biometric auth available, switching to password...');
+    // Click "Использовать пароль" button
+    await biometricButton.click();
+  }
+
+  // Step 3: Wait for password field to appear and enter password
+  await page.waitForSelector('input[name="password"]', { state: 'visible', timeout: 10000 });
+  const passwordInput = page.locator('input[name="password"]');
   await passwordInput.fill(loginPassword);
 
-  // Submit form
-  const submitButton = page.locator('button[type="submit"]').first();
-  await submitButton.click();
+  // Submit password form (use specific ID to avoid ambiguity)
+  const loginButton = page.locator('#password-login-btn');
+  await loginButton.click();
 
-  // Wait for navigation to main page (authentication successful)
+  // Wait for navigation to main page or error message
   try {
-    await page.waitForURL(env.baseUrl, { timeout: 10000 });
+    // Wait for either redirect OR error message
+    await Promise.race([
+      page.waitForURL(env.baseUrl, { timeout: 15000 }),
+      page.waitForSelector('#login-error:not(.hidden)', { timeout: 15000 }).then(() => {
+        throw new Error('Login error displayed on page');
+      })
+    ]);
+
     // eslint-disable-next-line no-console
     console.log('[AUTH] Login successful');
+
+    // Close cookie consent modal if present
+    try {
+      const acceptAllButton = page.locator('button:has-text("Принять все")');
+      const isVisible = await acceptAllButton.isVisible({ timeout: 3000 });
+      if (isVisible) {
+        // eslint-disable-next-line no-console
+        console.log('[AUTH] Closing cookie consent modal...');
+        await acceptAllButton.click();
+        // Wait for modal to disappear
+        await page.waitForSelector('button:has-text("Принять все")', { state: 'hidden', timeout: 5000 });
+        // eslint-disable-next-line no-console
+        console.log('[AUTH] Cookie modal closed');
+      }
+    } catch (e) {
+      // Cookie modal not present or already closed, continue
+    }
   } catch (error) {
-    // Check if still on login page (login failed)
+    // Check if error message is displayed
+    const errorVisible = await page.locator('#login-error:not(.hidden)').isVisible().catch(() => false);
+    if (errorVisible) {
+      const errorText = await page.locator('#login-error-text').textContent();
+      await page.screenshot({ path: 'test-results/login-failed.png' });
+
+      throw new Error(
+        `Login failed with error: ${errorText}\n` +
+        `Check credentials in .env.test and verify test user exists.\n` +
+        `Screenshot saved: test-results/login-failed.png`
+      );
+    }
+
+    // Check if still on login page (login failed without error message)
     const currentUrl = page.url();
     if (currentUrl.includes('/login')) {
       // Take screenshot for debugging
