@@ -13,6 +13,7 @@ import v2Transactional from '../schemas/v2_transactional.sql?raw';
 import v3Shopping from '../schemas/v3_shopping.sql?raw';
 import v4RecurringPlans from '../schemas/v4_recurringPlans.sql?raw';
 import v5ExpandArticleTypes from '../schemas/v5_expandArticleTypes.sql?raw';
+import v6RemoveFinancialCenterType from '../schemas/v6_removeFinancialCenterType.sql?raw';
 
 /**
  * Migration definition
@@ -51,6 +52,11 @@ const MIGRATIONS: Migration[] = [
     version: 5,
     name: 'Expand Article Types (Add debit/credit support)',
     sql: v5ExpandArticleTypes
+  },
+  {
+    version: 6,
+    name: 'Remove Financial Center Type Field (Align with backend model)',
+    sql: v6RemoveFinancialCenterType
   }
 ];
 

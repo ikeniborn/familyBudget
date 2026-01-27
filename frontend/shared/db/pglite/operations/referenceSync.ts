@@ -258,30 +258,32 @@ export async function syncReferenceData(
       for (let i = 0; i < referenceData.financial_centers.length; i += BATCH_SIZE) {
         const batch = referenceData.financial_centers.slice(i, i + BATCH_SIZE);
         const values = batch.map((_, idx) => {
-          const base = idx * 7;
-          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`;
+          const base = idx * 8;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
         }).join(', ');
 
         const params = batch.flatMap(fc => [
           fc.id,
           fc.name,
-          fc.type,
-          fc.currency,
+          fc.description,
+          fc.code,
           fc.is_active,
           fc.user_id,
-          fc.created_at
+          fc.created_at,
+          fc.updated_at
         ]);
 
         await db.query(`
           INSERT INTO local_financial_centers (
-            id, name, type, currency, is_active, user_id, created_at
+            id, name, description, code, is_active, user_id, created_at, updated_at
           ) VALUES ${values}
           ON CONFLICT (id) DO UPDATE SET
             name = EXCLUDED.name,
-            type = EXCLUDED.type,
-            currency = EXCLUDED.currency,
+            description = EXCLUDED.description,
+            code = EXCLUDED.code,
             is_active = EXCLUDED.is_active,
-            user_id = EXCLUDED.user_id
+            user_id = EXCLUDED.user_id,
+            updated_at = EXCLUDED.updated_at
         `, params);
       }
     }

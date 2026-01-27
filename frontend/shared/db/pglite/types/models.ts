@@ -20,15 +20,17 @@ export interface LocalArticle {
 
 /**
  * Financial Center (bank account, wallet, card)
+ * Matches backend model FinancialCenter (SCD Type 1)
  */
 export interface LocalFinancialCenter {
   id: number;
   user_id: number;
   name: string;
-  type: 'account' | 'wallet' | 'card';
-  currency: string;
+  description: string | null;
+  code: string | null;
   is_active: boolean;
   created_at: Date;
+  updated_at: Date;
 }
 
 /**

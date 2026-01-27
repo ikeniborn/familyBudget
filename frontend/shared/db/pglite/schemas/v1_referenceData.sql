@@ -23,14 +23,16 @@ CREATE TABLE IF NOT EXISTS local_articles (
 );
 
 -- Financial Centers (bank accounts, wallets, cards)
+-- Matches backend model FinancialCenter (SCD Type 1)
 CREATE TABLE IF NOT EXISTS local_financial_centers (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL,
   name TEXT NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('account', 'wallet', 'card')),
-  currency TEXT DEFAULT 'RUB',
+  description TEXT,
+  code TEXT,
   is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW()
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Cost Centers (projects, departments)

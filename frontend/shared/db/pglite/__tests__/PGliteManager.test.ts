@@ -54,7 +54,7 @@ describe('PGliteManager', () => {
 
     // Assert
     const version = await manager.getSchemaVersion();
-    expect(version).toBe(5); // v5 after expanding article types
+    expect(version).toBe(6); // v6 after removing financial center type field
 
     const isUpToDate = await manager.isSchemaUpToDate();
     expect(isUpToDate).toBe(true);

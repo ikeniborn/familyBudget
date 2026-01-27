@@ -51,8 +51,14 @@ export async function handleSyncInitial(data: SyncInitialResponse['data']): Prom
     }));
 
     const financialCenters = data.financial_centers.map(fc => ({
-      ...fc,
-      created_at: new Date(fc.created_at)
+      id: fc.id,
+      user_id: fc.user_id,
+      name: fc.name,
+      description: null,
+      code: null,
+      is_active: fc.is_active,
+      created_at: new Date(fc.created_at),
+      updated_at: new Date(fc.created_at)
     }));
 
     const costCenters = data.cost_centers.map(cc => ({

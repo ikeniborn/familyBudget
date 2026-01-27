@@ -120,22 +120,23 @@ export async function bulkInsertFinancialCenters(
  */
 async function insertFinancialCentersChunk(db: PGlite, centers: LocalFinancialCenter[]): Promise<void> {
   const values = centers.map((_, idx) => {
-    const offset = idx * 7; // 7 parameters
-    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`;
+    const offset = idx * 8; // 8 parameters
+    return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`;
   }).join(',');
 
   const params = centers.flatMap(c => [
     c.id,
     c.user_id,
     c.name,
-    c.type,
-    c.currency,
+    c.description,
+    c.code,
     c.is_active,
-    c.created_at
+    c.created_at,
+    c.updated_at
   ]);
 
   await db.query(`
-    INSERT INTO local_financial_centers (id, user_id, name, type, currency, is_active, created_at)
+    INSERT INTO local_financial_centers (id, user_id, name, description, code, is_active, created_at, updated_at)
     VALUES ${values}
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name,

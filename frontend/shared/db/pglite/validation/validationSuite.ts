@@ -18,9 +18,9 @@ import { logger } from '../utils/logger';
 
 /**
  * Expected schema version (должен совпадать с последней миграцией)
- * Synced with migrationManager.ts (v5: Expand Article Types)
+ * Synced with migrationManager.ts (v6: Remove Financial Center Type Field)
  */
-const EXPECTED_SCHEMA_VERSION = 5;
+const EXPECTED_SCHEMA_VERSION = 6;
 
 /**
  * Performance thresholds (milliseconds)
