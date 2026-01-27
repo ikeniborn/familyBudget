@@ -107,31 +107,38 @@ async function validateSchema(pglite: PGliteManager, errors: string[]): Promise<
  */
 async function validateReferenceData(pglite: PGliteManager, errors: string[]): Promise<boolean> {
   try {
-    // Query each reference table
-    const articles = await pglite.queryArticles();
-    const financialCenters = await pglite.queryFinancialCenters(0, true);
-    const costCenters = await pglite.queryCostCenters(0, true);
+    const db = pglite.getDatabase();
+    if (!db) throw new Error('Database not initialized');
+
+    // Query counts directly (no user_id filter needed for validation)
+    const articlesCount = await db.query('SELECT COUNT(*) as count FROM local_articles');
+    const financialCentersCount = await db.query('SELECT COUNT(*) as count FROM local_financial_centers');
+    const costCentersCount = await db.query('SELECT COUNT(*) as count FROM local_cost_centers');
+
+    const articles = parseInt((articlesCount.rows[0] as { count: string }).count);
+    const financialCenters = parseInt((financialCentersCount.rows[0] as { count: string }).count);
+    const costCenters = parseInt((costCentersCount.rows[0] as { count: string }).count);
 
     // Check minimum data loaded
-    if (articles.length === 0) {
+    if (articles === 0) {
       errors.push('No articles loaded');
       return false;
     }
 
-    if (financialCenters.length === 0) {
+    if (financialCenters === 0) {
       errors.push('No financial centers loaded');
       return false;
     }
 
-    if (costCenters.length === 0) {
+    if (costCenters === 0) {
       errors.push('No cost centers loaded');
       return false;
     }
 
     logger.info('[VALIDATION] ✅ Reference data loaded', {
-      articles: articles.length,
-      financialCenters: financialCenters.length,
-      costCenters: costCenters.length
+      articles,
+      financialCenters,
+      costCenters
     });
 
     return true;
