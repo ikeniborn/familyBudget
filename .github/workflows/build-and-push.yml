@@ -131,6 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
       (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
     outputs:
       cache_version: ${{ steps.cache_bust.outputs.cache_version }}
@@ -241,9 +242,12 @@ jobs:
   # Job 4: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
   # ============================================================================
   quality-checks:
-    needs: service-build
+    needs: [check-version, service-build]
     runs-on: ubuntu-latest
-    if: always() && (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -328,9 +332,12 @@ jobs:
   # Job 5: Build and push Docker images to GitHub Container Registry
   # ============================================================================
   image-build-push:
-    needs: [service-build, quality-checks]
+    needs: [check-version, service-build, quality-checks]
     runs-on: ubuntu-latest
-    if: always() && needs.service-build.result == 'success'
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      needs.service-build.result == 'success'
     permissions:
       contents: write  # Changed from read to write for git push
       packages: write
@@ -636,8 +643,11 @@ jobs:
   # Job 6: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
   security-scan:
-    needs: image-build-push
+    needs: [check-version, image-build-push]
     runs-on: ubuntu-latest
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       security-events: write
