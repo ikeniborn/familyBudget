@@ -125,7 +125,7 @@ describe('Bulk Operations', () => {
       await bulkInsertArticles(db, [updatedArticle]);
 
       const result = await db.query('SELECT * FROM local_articles WHERE id = 1');
-      expect((result.rows[0] as any).name).toBe('Income Updated');
+      expect((result.rows[0] as Record<string, unknown>).name).toBe('Income Updated');
     });
 
     it('should report progress', async () => {
@@ -178,8 +178,8 @@ describe('Bulk Operations', () => {
 
       const result = await db.query('SELECT * FROM local_financial_centers ORDER BY id');
       expect(result.rows).toHaveLength(2);
-      expect((result.rows[0] as any).type).toBe('account');
-      expect((result.rows[1] as any).type).toBe('wallet');
+      expect((result.rows[0] as Record<string, unknown>).type).toBe('account');
+      expect((result.rows[1] as Record<string, unknown>).type).toBe('wallet');
     });
   });
 
@@ -206,7 +206,7 @@ describe('Bulk Operations', () => {
 
       const result = await db.query('SELECT * FROM local_cost_centers ORDER BY id');
       expect(result.rows).toHaveLength(2);
-      expect((result.rows[0] as any).name).toBe('Project A');
+      expect((result.rows[0] as Record<string, unknown>).name).toBe('Project A');
     });
   });
 
@@ -222,7 +222,7 @@ describe('Bulk Operations', () => {
 
       const result = await db.query('SELECT * FROM local_article_hierarchy ORDER BY ancestor_id, descendant_id');
       expect(result.rows).toHaveLength(3);
-      expect((result.rows[1] as any).depth).toBe(1);
+      expect((result.rows[1] as Record<string, unknown>).depth).toBe(1);
     });
   });
 });

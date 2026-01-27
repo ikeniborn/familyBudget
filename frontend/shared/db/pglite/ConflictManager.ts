@@ -64,7 +64,7 @@ export interface ConflictMetrics {
  * Handles conflict detection, resolution, logging, and metrics
  */
 export class ConflictManager {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  // eslint-disable-next-line no-unused-vars
   constructor(private db: PGlite) {}
 
   /**

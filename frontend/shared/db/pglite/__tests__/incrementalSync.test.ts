@@ -228,7 +228,7 @@ describe('PGlite Incremental Sync (task-007)', () => {
         `SELECT * FROM local_budget_facts WHERE temp_id = 'srv-101'`
       );
       expect(result.rows).toHaveLength(1);
-      expect((result.rows[0] as any).sync_status).toBe('deleted');
+      expect((result.rows[0] as Record<string, unknown>).sync_status).toBe('deleted');
 
       // QueryFacts should NOT return deleted facts (filtered by sync_status != 'deleted')
       const visibleFacts = await manager.queryFacts();

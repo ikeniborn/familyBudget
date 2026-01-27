@@ -15,6 +15,7 @@
 
 // Lazy loading state
 let pgliteCoreLoaded = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let pgliteCorePromise: Promise<any> | null = null;
 
 /**
@@ -35,6 +36,7 @@ async function loadPGliteCore() {
 
     // Expose to window global after loading
     if (typeof window !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).PGlite = module;
     }
 
@@ -47,7 +49,8 @@ async function loadPGliteCore() {
 // Re-export all named exports from index.ts
 // This maintains ES module compatibility for TypeScript imports
 export async function getPGliteManager() {
-  const module = await loadPGliteCore();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const module = await loadPGliteCore() as any;
   return module.getPGliteManager();
 }
 
@@ -63,11 +66,13 @@ export function setPGliteEnabled(enabled: boolean): void {
   localStorage.setItem('enablePGlite', enabled ? 'true' : 'false');
 
   // Show notification via global showToast (from base.html)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof window !== 'undefined' && (window as any).showToast) {
     const message = enabled
       ? 'PGlite включен. Обновите страницу для инициализации offline режима.'
       : 'PGlite отключен. Обновите страницу для online-only режима.';
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).showToast(message, 'info');
   }
 }
@@ -83,7 +88,9 @@ export function setPGliteFactsWindow(days: number): void {
   localStorage.setItem('pgliteFactsWindow', days.toString());
 
   // No reload needed, will apply on next sync
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if (typeof window !== 'undefined' && (window as any).showToast) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).showToast(`Facts window обновлен до ${days} дней`, 'success');
   }
 }
@@ -99,25 +106,30 @@ export type * from './types/pglite';
 // Create lightweight proxy object для window.PGlite
 // Методы загрузят core library при первом вызове
 if (typeof window !== 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).PGlite = new Proxy({
     // Pre-populate synchronous methods (available immediately)
     isPGliteEnabled,
     setPGliteEnabled,
     setPGliteFactsWindow,
     getPGliteManager: async () => {
-      const module = await loadPGliteCore();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const module = await loadPGliteCore() as any;
       return module.getPGliteManager();
     }
   }, {
     get(target, prop) {
       // If property exists in target, return it directly
       if (prop in target) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (target as any)[prop];
       }
 
       // Otherwise, load core and return the property
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return async (...args: any[]) => {
         const module = await loadPGliteCore();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fn = (module as any)[prop];
 
         if (typeof fn === 'function') {
