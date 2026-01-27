@@ -13,7 +13,16 @@ import type { Category, CostCenter } from '../../types/dashboard.d';
 import { dataLayer } from '../../../data/DataLayer';
 import { getCurrentUserId } from '../../../offline/offlineManager/utils/userHelpers';
 
-
+/**
+ * Safe wrapper for showToast (handles case when not loaded yet)
+ */
+function safeShowToast(message: string, type: 'success' | 'error' | 'info' | 'warning', duration?: number): void {
+  if (typeof (window as any).showToast === 'function') {
+    (window as any).showToast(message, type, duration);
+  } else {
+    console.warn(`[Toast] ${type.toUpperCase()}: ${message}`);
+  }
+}
 
 declare const debugLog: (...args: any[]) => void;
 // ============================================================================
@@ -69,7 +78,7 @@ export async function loadTransactionCategories(): Promise<void> {
     debugLog('[loadTransactionCategories] Transaction categories loaded');
   } catch (error) {
     console.error('Failed to load transaction categories:', error);
-    showToast('Ошибка при загрузке категорий транзакций', 'error');
+    safeShowToast('Ошибка при загрузке категорий транзакций', 'error');
   }
 }
 
@@ -94,7 +103,9 @@ function loadFactHintsForCategory(category: Category | null): void {
 export async function loadFinancialCenters(targetSelectors?: string[]): Promise<void> {
   const MAX_RETRIES = 3;
   const RETRY_DELAY_MS = 500; // Start with 500ms
+  let centers: any[] = [];
 
+  // RETRY LOOP
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       console.info(`[loadFinancialCenters] Attempt ${attempt}/${MAX_RETRIES}`);
@@ -103,7 +114,7 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
       const userId = await getCurrentUserId();
 
       // Use DataLayer (PGlite-first with API fallback)
-      const centers = await dataLayer.getFinancialCenters(userId, true);
+      centers = await dataLayer.getFinancialCenters(userId, true);
 
       if (centers.length === 0) {
         if (attempt < MAX_RETRIES) {
@@ -112,70 +123,69 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
           continue; // Retry
         } else {
           console.error('[loadFinancialCenters] No accounts returned after all retries');
-          showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
-          return;
+          safeShowToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
+          return; // EARLY EXIT - НЕ ЗАПОЛНЯЕМ СЕЛЕКТОРЫ
         }
       }
 
+      // SUCCESS - exit retry loop
       console.info(`[loadFinancialCenters] ✅ Loaded ${centers.length} financial centers on attempt ${attempt}`);
+      break;
 
-    // Use provided selectors or default to new tab-based selectors
-    const selectors = targetSelectors || [
-      '#modal_fact-tab-transaction select[name="financial_center_id"]',
-      '#modal_plan-tab-transaction select[name="financial_center_id"]',
-    ];
+    } catch (error) {
+      console.error(`[loadFinancialCenters] Attempt ${attempt} failed:`, error);
 
-    // Track populated count
-    let populatedCount = 0;
-
-    // Populate each select
-    selectors.forEach(selector => {
-      const select = document.querySelector(selector) as HTMLSelectElement | null;
-
-      if (!select) {
-        debugLog(`[loadFinancialCenters] Selector not found: ${selector}`);
-        return;
+      if (attempt < MAX_RETRIES) {
+        const delayMs = RETRY_DELAY_MS * attempt;
+        console.warn(`[loadFinancialCenters] Retrying in ${delayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      } else {
+        console.error('[loadFinancialCenters] All retry attempts exhausted');
+        safeShowToast('Ошибка при загрузке счетов', 'error');
+        throw error;
       }
-
-      // Clear except first option
-      while (select.options.length > 1) {
-        select.remove(1);
-      }
-
-      // Add accounts
-      centers.forEach((fc: { id: number; name: string }) => {
-        const option = document.createElement('option');
-        option.value = String(fc.id);
-        option.textContent = fc.name;
-        select.appendChild(option);
-      });
-
-      populatedCount++;
-      debugLog(`[loadFinancialCenters] Populated: ${selector} (${centers.length} accounts)`);
-    });
-
-    debugLog(`[loadFinancialCenters] Successfully populated ${populatedCount}/${selectors.length} selects`);
-
-    // Add change listeners to filter categories AND cost centers when account changes
-    setupFinancialCenterListeners();
-
-    // SUCCESS - exit retry loop
-    return;
-
-  } catch (error) {
-    console.error(`[loadFinancialCenters] Attempt ${attempt} failed:`, error);
-
-    if (attempt < MAX_RETRIES) {
-      const delayMs = RETRY_DELAY_MS * attempt;
-      console.warn(`[loadFinancialCenters] Retrying in ${delayMs}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    } else {
-      console.error('[loadFinancialCenters] All retry attempts exhausted');
-      showToast('Ошибка при загрузке счетов', 'error');
-      throw error;
     }
   }
-}
+
+  // POPULATE SELECTORS (вне цикла)
+  const selectors = targetSelectors || [
+    '#modal_fact-tab-transaction select[name="financial_center_id"]',
+    '#modal_plan-tab-transaction select[name="financial_center_id"]',
+  ];
+
+  // Track populated count
+  let populatedCount = 0;
+
+  // Populate each select
+  selectors.forEach(selector => {
+    const select = document.querySelector(selector) as HTMLSelectElement | null;
+
+    if (!select) {
+      debugLog(`[loadFinancialCenters] Selector not found: ${selector}`);
+      return;
+    }
+
+    // Clear except first option
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+
+    // Add accounts
+    centers.forEach((fc: { id: number; name: string }) => {
+      const option = document.createElement('option');
+      option.value = String(fc.id);
+      option.textContent = fc.name;
+      select.appendChild(option);
+    });
+
+    populatedCount++;
+    debugLog(`[loadFinancialCenters] Populated: ${selector} (${centers.length} accounts)`);
+  });
+
+  debugLog(`[loadFinancialCenters] Successfully populated ${populatedCount}/${selectors.length} selects`);
+
+  // Add change listeners to filter categories AND cost centers when account changes
+  setupFinancialCenterListeners();
 }
 
 /**
