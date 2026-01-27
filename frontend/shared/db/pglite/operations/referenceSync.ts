@@ -46,9 +46,9 @@ async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
     try {
       // Fetch all reference data in parallel
       const [articlesRes, fcRes, ccRes] = await Promise.all([
-        fetch('/api/v1/articles'),
-        fetch('/api/v1/financial-centers'),
-        fetch('/api/v1/cost-centers')
+        fetch('/api/v1/articles', { credentials: 'include' }),
+        fetch('/api/v1/financial-centers', { credentials: 'include' }),
+        fetch('/api/v1/cost-centers', { credentials: 'include' })
       ]);
 
       // Check HTTP status codes

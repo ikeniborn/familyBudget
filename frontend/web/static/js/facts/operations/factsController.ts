@@ -679,7 +679,7 @@ export function renderFactMobileCard(fact: FactRow): string {
 
     // Format date and get short version (DD.MM)
     const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(fact.fact_date) || fact.fact_date;
-    const shortDate = dateFormatted.slice(0, 5); // DD.MM
+    const shortDate = (dateFormatted || '').slice(0, 5); // DD.MM
 
     // Format amount with color
     const amount = fact.fact_sum ?? fact.amount ?? 0;
