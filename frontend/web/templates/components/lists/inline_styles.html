@@ -1,0 +1,22 @@
+{#
+  COMPONENT: Inline Styles for Lists Page
+  Purpose: Critical CSS overrides for iOS Safari store dropdown z-index fix
+  IMPORTANT: Inline styles have highest CSS cascade priority
+  Used in: lists.html (extra_head block)
+#}
+
+<!-- CRITICAL FIX: Override base.html inline mobile modal overflow -->
+<!-- Inline styles have highest CSS cascade priority -->
+<style>
+@media (max-width: 640px) {
+    /* Override base.html overflow-y: auto for Store dropdown z-index fix */
+    #item-modal.store-dropdown-open .modal-box {
+        overflow-y: visible !important;
+        overflow-x: visible !important;
+    }
+
+    #item-modal.store-dropdown-open .form-control {
+        overflow: visible !important;
+    }
+}
+</style>

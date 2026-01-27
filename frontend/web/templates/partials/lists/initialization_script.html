@@ -1,0 +1,58 @@
+{#
+  PARTIAL: Initialization Script for Lists Page
+  Purpose: Load lists data, initialize managers, render views
+  Used in: lists.html (extra_scripts block)
+#}
+
+<script>
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+
+        // Wait for bundle to load and export functions
+        let attempts = 0;
+        while (typeof window.loadShoppingLists !== 'function' && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+
+        if (typeof window.loadShoppingLists !== 'function') {
+            throw new Error('Lists bundle failed to load after 5 seconds');
+        }
+
+        performance.mark('lists-init-start'); // Performance tracking
+
+        // Initialize Lists Manager (modular structure v7.0+)
+        await window.initializeListsManager();
+
+        // Initialize HierarchyView integration (v7.0.1)
+        window.initializeHierarchyView();
+
+        // Initialize ImportManager integration (v7.0.1)
+        window.initializeImportManager();
+
+        // Load shopping lists data from API
+        await window.loadShoppingLists();
+
+        // Render landing view with lists
+        window.showLandingView();
+
+        performance.mark('lists-init-end');
+        performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
+
+        debugLog('[Lists] Page initialized');
+    } catch (error) {
+        // УЛУЧШЕНО: Детальное логирование ошибки
+        console.error('[LISTS_INIT] === CRITICAL ERROR ===');
+        console.error('[LISTS_INIT] Error:', error);
+        console.error('[LISTS_INIT] Error name:', error.name);
+        console.error('[LISTS_INIT] Error message:', error.message);
+        console.error('[LISTS_INIT] Error stack:', error.stack);
+
+        showToast('Ошибка инициализации страницы: ' + error.message, 'error');
+    }
+});
+
+// Note: navigateHomeOfflineFriendly() is now exported from lists-bundle.ts
+// (defined in listsManager/ui/globalHelpers.ts)
+</script>

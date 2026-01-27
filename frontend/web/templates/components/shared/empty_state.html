@@ -1,0 +1,27 @@
+{#
+  SHARED COMPONENT: Empty State
+  Reusable empty state display with icon, title, description, and optional action button
+  Used across: lists.html, facts.html, plan.html
+#}
+
+{% macro empty_state(
+    container_id='empty-state',
+    icon='📦',
+    title='Нет данных',
+    description='',
+    button_text='',
+    button_onclick=''
+) %}
+<div id="{{ container_id }}" class="hidden text-center py-12">
+    <div class="text-6xl mb-4">{{ icon }}</div>
+    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">{{ title }}</h3>
+    {% if description %}
+    <p class="text-base-content/70 mb-4">{{ description }}</p>
+    {% endif %}
+    {% if button_text and button_onclick %}
+    <button class="btn btn-primary" onclick="{{ button_onclick }}">
+        {{ button_text }}
+    </button>
+    {% endif %}
+</div>
+{% endmacro %}

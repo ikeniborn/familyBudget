@@ -1,0 +1,22 @@
+{#
+  PARTIAL: Empty State for Hierarchy View
+  Purpose: Displayed when shopping list has no items (hierarchy view)
+  Note: Currently hierarchy view doesn't show empty state separately,
+        but included for consistency with table view
+  Uses: Shared empty_state macro
+  Used in: hierarchy_view.html
+#}
+
+{% from "components/shared/empty_state.html" import empty_state %}
+
+<!-- Hidden by default, can be toggled by JavaScript if needed -->
+<div class="hidden" id="hierarchy-empty-state-container">
+{{ empty_state(
+    container_id='hierarchy-empty-state',
+    icon='📝',
+    title='Список пуст',
+    description='Добавьте первый товар',
+    button_text='➕ Добавить товар',
+    button_onclick='openAddItemModal()'
+) }}
+</div>

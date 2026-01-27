@@ -1,0 +1,21 @@
+{#
+  PARTIAL: Search Field
+  Purpose: Toggleable search input for filtering items
+  Used in: detail_view.html
+#}
+
+<!-- Search Field Container (togglable) -->
+<div id="search-field-container" class="mb-3 sm:mb-4 hidden">
+    <div class="relative">
+        <input type="text"
+               id="items-search"
+               class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
+               placeholder="Поиск по товарам..."
+               oninput="handleItemsSearch(this.value)">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">🔍</span>
+        <button id="clear-search-btn"
+                class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle hidden"
+                onclick="clearItemsSearch()"
+                title="Очистить поиск">✕</button>
+    </div>
+</div>

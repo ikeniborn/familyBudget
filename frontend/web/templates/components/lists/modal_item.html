@@ -1,0 +1,146 @@
+{#
+  COMPONENT: Add/Edit Item Modal
+  Purpose: Form for adding/editing shopping list items with autocomplete
+  Critical Features:
+  - Product autocomplete dropdown (Portal pattern for iOS Safari)
+  - Store dropdown z-index fix (via .store-dropdown-open class)
+  - Duplicate warning system
+  - Delete button (edit mode only)
+  Used in: lists.html
+#}
+
+{% macro item_modal() %}
+<!-- Add/Edit Item Modal - compact on mobile -->
+<dialog id="item-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-2xl p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="item-modal-title">📝 Добавить товар</h3>
+        <form id="item-form" onsubmit="handleSaveItem(event)">
+            <input type="hidden" name="item_id" id="item-id">
+
+            <!-- Product Name - first field for quick entry (with autocomplete) -->
+            <div class="form-control mb-2 sm:mb-4 relative">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">🛒 Товар <span class="text-error">*</span></span>
+                </label>
+                 <input type="text" name="product_name" id="item-product-name"
+                       class="input input-bordered input-sm sm:input-md"
+                       placeholder="Молоко 3.2%" required
+                       autocomplete="new-password">
+                <!-- Autocomplete dropdown moved to body (Portal pattern for iOS Safari fix) -->
+            </div>
+
+            <!-- Store -->
+            <div class="form-control mb-2 sm:mb-4">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">🏪 Магазин <span class="text-error">*</span></span>
+                </label>
+                <select name="store_id" id="item-store" class="select select-bordered select-sm sm:select-md" required>
+                    <option value="">Магазин</option>
+                    <!-- Options populated dynamically via Choices.js -->
+                </select>
+            </div>
+
+            <!-- Product Group -->
+            <div class="form-control mb-2 sm:mb-4">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">📦 Группа <span class="text-error">*</span></span>
+                </label>
+                <select name="product_group_id" id="item-product-group" class="select select-bordered select-sm sm:select-md" required>
+                    <option value="">Группа</option>
+                    <!-- Options populated dynamically with hierarchy -->
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-4">
+                <!-- Quantity -->
+                <div class="form-control">
+                    <label class="label py-1">
+                        <span class="label-text font-medium text-xs sm:text-sm">📊 Кол-во</span>
+                    </label>
+                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="1" min="0" placeholder="1">
+                </div>
+
+                <!-- Unit -->
+                <div class="form-control">
+                    <label class="label py-1">
+                        <span class="label-text font-medium text-xs sm:text-sm">📏 Ед.</span>
+                    </label>
+                    <select name="unit" id="item-unit" class="select select-bordered select-sm sm:select-md">
+                        <option value="">—</option>
+                        <option value="шт">шт</option>
+                        <option value="кг">кг</option>
+                        <option value="г">г</option>
+                        <option value="л">л</option>
+                        <option value="мл">мл</option>
+                        <option value="уп">уп</option>
+                        <option value="пач">пач</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div class="form-control mb-2 sm:mb-4">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">💬 Комментарий</span>
+                </label>
+                <textarea name="comment" id="item-comment" class="textarea textarea-bordered textarea-sm sm:textarea-md" rows="1" placeholder="Опционально"></textarea>
+            </div>
+
+            <!-- Duplicate warning container (hidden by default) -->
+            <div id="duplicate-warning-container" class="hidden mb-2 sm:mb-4">
+                <div class="alert alert-warning py-2 px-3 text-xs sm:text-sm">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <div class="flex-1">
+                            <div class="font-semibold">Уже добавлено:</div>
+                            <div id="duplicate-details" class="mt-1"></div>
+                            <!-- Future quantity display (shown when user enters quantity) -->
+                            <div id="future-quantity" class="mt-1 font-bold text-success hidden">
+                                → Будет: <span id="future-quantity-value"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-action mt-3 sm:mt-4 gap-2">
+                <!-- NEW: Delete button (left position, only in edit mode) -->
+                <button type="button"
+                        class="btn btn-error btn-sm sm:btn-md hidden"
+                        id="item-modal-delete-btn"
+                        onclick="handleDeleteFromModal()"
+                        title="Удалить товар"
+                        aria-label="Удалить товар">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                    <span class="hidden sm:inline ml-1">Удалить</span>
+                </button>
+
+                <!-- Spacer -->
+                <div class="flex-1"></div>
+
+                <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeItemModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary btn-sm sm:btn-md">Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+
+    <!-- ============================================== -->
+    <!-- AUTOCOMPLETE DROPDOWN (Inside Dialog Top Layer) -->
+    <!-- ============================================== -->
+    <!-- Dropdown inside <dialog> to be in same top layer as modal -->
+    <!-- Positioned via JavaScript using getBoundingClientRect() -->
+    <div id="product-suggestions-dropdown"
+         class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
+         style="pointer-events: auto; z-index: 9999;">
+        <!-- Suggestions will be rendered here by listsManager.js -->
+    </div>
+</dialog>
+{% endmacro %}

@@ -78,11 +78,14 @@
                 </div>
             </div>
 
-            <!-- Empty State -->
-            <div id="recurring-plans-empty-state" class="hidden text-center py-8 text-base-content/60">
-                <div class="text-4xl mb-2">🔄</div>
-                <p>Нет активных регламентных платежей.</p>
-            </div>
+            <!-- Empty State (using shared macro) -->
+            {% from "components/shared/empty_state.html" import empty_state %}
+            {{ empty_state(
+                container_id='recurring-plans-empty-state',
+                icon='🔄',
+                title='Нет активных регламентных платежей',
+                description=''
+            ) }}
 
             <!-- Collapse button -->
             <div class="flex justify-end mt-4">

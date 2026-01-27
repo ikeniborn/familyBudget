@@ -1,0 +1,29 @@
+{#
+  PARTIAL: Landing View
+  Purpose: Grid of shopping list cards
+  Includes: Page header, grid container, empty state
+  Used in: lists.html (content block)
+#}
+
+<!-- ============================================== -->
+<!-- LANDING VIEW: Grid of Shopping List Cards -->
+<!-- ============================================== -->
+<div id="landing-view" class="view-state">
+    <!-- Page Header - compact on mobile -->
+    <div class="mb-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
+            <div class="flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
+                <p class="text-sm sm:text-base text-base-content/70">Управляйте списками покупок</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shopping Lists Grid -->
+    <div id="lists-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Cards will be rendered here dynamically -->
+    </div>
+
+    <!-- Empty State -->
+    {% include "partials/lists/empty_states/empty_lists.html" %}
+</div>
