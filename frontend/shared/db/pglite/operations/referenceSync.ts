@@ -31,61 +31,110 @@ export type SyncProgressCallback = (progress: {
 }) => void;
 
 /**
- * Fetch reference data from API
+ * Fetch reference data from API with retry logic
  *
+ * @param retries - Number of retry attempts (default: 3)
  * @returns Reference data (articles, financial_centers, cost_centers, hierarchy)
+ * @throws Error if all retry attempts fail
  */
-async function fetchReferenceData(): Promise<ReferenceDataResponse> {
+async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
   logger.info('[REFERENCE_SYNC] Fetching reference data from API...');
 
-  try {
-    // Fetch all reference data in parallel
-    const [articlesRes, fcRes, ccRes] = await Promise.all([
-      fetch('/api/v1/articles'),
-      fetch('/api/v1/financial-centers'),
-      fetch('/api/v1/cost-centers')
-    ]);
+  let lastError: Error | null = null;
 
-    if (!articlesRes.ok || !fcRes.ok || !ccRes.ok) {
-      throw new Error('Failed to fetch reference data from API');
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      // Fetch all reference data in parallel
+      const [articlesRes, fcRes, ccRes] = await Promise.all([
+        fetch('/api/v1/articles'),
+        fetch('/api/v1/financial-centers'),
+        fetch('/api/v1/cost-centers')
+      ]);
+
+      // Check HTTP status codes
+      if (!articlesRes.ok) {
+        throw new Error(`Failed to fetch articles: HTTP ${articlesRes.status}`);
+      }
+      if (!fcRes.ok) {
+        throw new Error(`Failed to fetch financial centers: HTTP ${fcRes.status}`);
+      }
+      if (!ccRes.ok) {
+        throw new Error(`Failed to fetch cost centers: HTTP ${ccRes.status}`);
+      }
+
+      const articlesData = await articlesRes.json();
+      const fcData = await fcRes.json();
+      const ccData = await ccRes.json();
+
+      // Extract arrays from response (API returns { data: [...] })
+      const articles = articlesData.data || articlesData;
+      const financial_centers = fcData.data || fcData;
+      const cost_centers = ccData.data || ccData;
+
+      // Validate response data
+      if (!Array.isArray(articles) || !Array.isArray(financial_centers) || !Array.isArray(cost_centers)) {
+        throw new Error('Invalid API response format: expected arrays');
+      }
+
+      // Article hierarchy is computed from articles (parent_id relationships)
+      const article_hierarchy = computeArticleHierarchy(articles);
+
+      logger.info('[REFERENCE_SYNC] Fetched reference data', {
+        articles: articles.length,
+        financial_centers: financial_centers.length,
+        cost_centers: cost_centers.length,
+        hierarchy: article_hierarchy.length
+      });
+
+      return {
+        articles,
+        financial_centers,
+        cost_centers,
+        article_hierarchy
+      };
+    } catch (error) {
+      lastError = error as Error;
+      logger.warn(`[REFERENCE_SYNC] Fetch attempt ${attempt}/${retries} failed`, error);
+
+      if (attempt < retries) {
+        // Exponential backoff: 1s, 2s, 4s
+        const delay = Math.pow(2, attempt - 1) * 1000;
+        logger.info(`[REFERENCE_SYNC] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
-
-    const articlesData = await articlesRes.json();
-    const fcData = await fcRes.json();
-    const ccData = await ccRes.json();
-
-    // Extract arrays from response (API returns { data: [...] })
-    const articles = articlesData.data || articlesData;
-    const financial_centers = fcData.data || fcData;
-    const cost_centers = ccData.data || ccData;
-
-    // Article hierarchy is computed from articles (parent_id relationships)
-    const article_hierarchy = computeArticleHierarchy(articles);
-
-    logger.info('[REFERENCE_SYNC] Fetched reference data', {
-      articles: articles.length,
-      financial_centers: financial_centers.length,
-      cost_centers: cost_centers.length,
-      hierarchy: article_hierarchy.length
-    });
-
-    return {
-      articles,
-      financial_centers,
-      cost_centers,
-      article_hierarchy
-    };
-  } catch (error) {
-    logger.error('[REFERENCE_SYNC] Failed to fetch reference data', error);
-    throw error;
   }
+
+  logger.error('[REFERENCE_SYNC] All retry attempts failed', lastError);
+  throw new Error(`Failed to fetch reference data after ${retries} attempts: ${lastError?.message}`);
 }
 
 /**
  * Compute article hierarchy (closure table) from articles
  *
+ * Builds a closure table representing all ancestor-descendant relationships
+ * in the article tree using depth-first traversal.
+ *
  * @param articles - Articles with parent_id relationships
  * @returns Article hierarchy (ancestor-descendant pairs with depth)
+ *
+ * @example
+ * Input articles:
+ *   [
+ *     { id: 1, parent_id: null, name: "Income" },      // Root
+ *     { id: 2, parent_id: 1, name: "Salary" },         // Child of Income
+ *     { id: 3, parent_id: 2, name: "Main Job" }        // Child of Salary
+ *   ]
+ *
+ * Output hierarchy:
+ *   [
+ *     { ancestor_id: 1, descendant_id: 1, depth: 0 },  // Self-reference
+ *     { ancestor_id: 1, descendant_id: 2, depth: 1 },  // Income → Salary
+ *     { ancestor_id: 1, descendant_id: 3, depth: 2 },  // Income → Main Job
+ *     { ancestor_id: 2, descendant_id: 2, depth: 0 },  // Self-reference
+ *     { ancestor_id: 2, descendant_id: 3, depth: 1 },  // Salary → Main Job
+ *     { ancestor_id: 3, descendant_id: 3, depth: 0 }   // Self-reference
+ *   ]
  */
 function computeArticleHierarchy(articles: LocalArticle[]): LocalArticleHierarchy[] {
   const hierarchy: LocalArticleHierarchy[] = [];
@@ -157,28 +206,40 @@ export async function syncReferenceData(
 
     await db.query('DELETE FROM local_articles');
 
-    for (const article of referenceData.articles) {
-      await db.query(`
-        INSERT INTO local_articles (
-          id, name, type, parent_id, is_active, user_id, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          type = EXCLUDED.type,
-          parent_id = EXCLUDED.parent_id,
-          is_active = EXCLUDED.is_active,
-          user_id = EXCLUDED.user_id,
-          updated_at = EXCLUDED.updated_at
-      `, [
-        article.id,
-        article.name,
-        article.type,
-        article.parent_id || null,
-        article.is_active,
-        article.user_id,
-        article.created_at,
-        article.updated_at
-      ]);
+    // Batch insert for better performance (avoid N queries)
+    if (referenceData.articles.length > 0) {
+      const BATCH_SIZE = 50; // Insert 50 records per query
+      for (let i = 0; i < referenceData.articles.length; i += BATCH_SIZE) {
+        const batch = referenceData.articles.slice(i, i + BATCH_SIZE);
+        const values = batch.map((_, idx) => {
+          const base = idx * 8;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+        }).join(', ');
+
+        const params = batch.flatMap(article => [
+          article.id,
+          article.name,
+          article.type,
+          article.parent_id || null,
+          article.is_active,
+          article.user_id,
+          article.created_at,
+          article.updated_at
+        ]);
+
+        await db.query(`
+          INSERT INTO local_articles (
+            id, name, type, parent_id, is_active, user_id, created_at, updated_at
+          ) VALUES ${values}
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            type = EXCLUDED.type,
+            parent_id = EXCLUDED.parent_id,
+            is_active = EXCLUDED.is_active,
+            user_id = EXCLUDED.user_id,
+            updated_at = EXCLUDED.updated_at
+        `, params);
+      }
     }
 
     // Step 3: Bulk insert financial centers
@@ -191,26 +252,38 @@ export async function syncReferenceData(
 
     await db.query('DELETE FROM local_financial_centers');
 
-    for (const fc of referenceData.financial_centers) {
-      await db.query(`
-        INSERT INTO local_financial_centers (
-          id, name, type, currency, is_active, user_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          type = EXCLUDED.type,
-          currency = EXCLUDED.currency,
-          is_active = EXCLUDED.is_active,
-          user_id = EXCLUDED.user_id
-      `, [
-        fc.id,
-        fc.name,
-        fc.type,
-        fc.currency,
-        fc.is_active,
-        fc.user_id,
-        fc.created_at
-      ]);
+    // Batch insert for better performance
+    if (referenceData.financial_centers.length > 0) {
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < referenceData.financial_centers.length; i += BATCH_SIZE) {
+        const batch = referenceData.financial_centers.slice(i, i + BATCH_SIZE);
+        const values = batch.map((_, idx) => {
+          const base = idx * 7;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7})`;
+        }).join(', ');
+
+        const params = batch.flatMap(fc => [
+          fc.id,
+          fc.name,
+          fc.type,
+          fc.currency,
+          fc.is_active,
+          fc.user_id,
+          fc.created_at
+        ]);
+
+        await db.query(`
+          INSERT INTO local_financial_centers (
+            id, name, type, currency, is_active, user_id, created_at
+          ) VALUES ${values}
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            type = EXCLUDED.type,
+            currency = EXCLUDED.currency,
+            is_active = EXCLUDED.is_active,
+            user_id = EXCLUDED.user_id
+        `, params);
+      }
     }
 
     // Step 4: Bulk insert cost centers
@@ -223,22 +296,34 @@ export async function syncReferenceData(
 
     await db.query('DELETE FROM local_cost_centers');
 
-    for (const cc of referenceData.cost_centers) {
-      await db.query(`
-        INSERT INTO local_cost_centers (
-          id, name, is_active, user_id, created_at
-        ) VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          is_active = EXCLUDED.is_active,
-          user_id = EXCLUDED.user_id
-      `, [
-        cc.id,
-        cc.name,
-        cc.is_active,
-        cc.user_id,
-        cc.created_at
-      ]);
+    // Batch insert for better performance
+    if (referenceData.cost_centers.length > 0) {
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < referenceData.cost_centers.length; i += BATCH_SIZE) {
+        const batch = referenceData.cost_centers.slice(i, i + BATCH_SIZE);
+        const values = batch.map((_, idx) => {
+          const base = idx * 5;
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+        }).join(', ');
+
+        const params = batch.flatMap(cc => [
+          cc.id,
+          cc.name,
+          cc.is_active,
+          cc.user_id,
+          cc.created_at
+        ]);
+
+        await db.query(`
+          INSERT INTO local_cost_centers (
+            id, name, is_active, user_id, created_at
+          ) VALUES ${values}
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            is_active = EXCLUDED.is_active,
+            user_id = EXCLUDED.user_id
+        `, params);
+      }
     }
 
     // Step 5: Bulk insert article hierarchy
@@ -251,18 +336,30 @@ export async function syncReferenceData(
 
     await db.query('DELETE FROM local_article_hierarchy');
 
-    for (const h of referenceData.article_hierarchy) {
-      await db.query(`
-        INSERT INTO local_article_hierarchy (
-          ancestor_id, descendant_id, depth
-        ) VALUES ($1, $2, $3)
-        ON CONFLICT (ancestor_id, descendant_id) DO UPDATE SET
-          depth = EXCLUDED.depth
-      `, [
-        h.ancestor_id,
-        h.descendant_id,
-        h.depth
-      ]);
+    // Batch insert for better performance
+    if (referenceData.article_hierarchy.length > 0) {
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < referenceData.article_hierarchy.length; i += BATCH_SIZE) {
+        const batch = referenceData.article_hierarchy.slice(i, i + BATCH_SIZE);
+        const values = batch.map((_, idx) => {
+          const base = idx * 3;
+          return `($${base + 1}, $${base + 2}, $${base + 3})`;
+        }).join(', ');
+
+        const params = batch.flatMap(h => [
+          h.ancestor_id,
+          h.descendant_id,
+          h.depth
+        ]);
+
+        await db.query(`
+          INSERT INTO local_article_hierarchy (
+            ancestor_id, descendant_id, depth
+          ) VALUES ${values}
+          ON CONFLICT (ancestor_id, descendant_id) DO UPDATE SET
+            depth = EXCLUDED.depth
+        `, params);
+      }
     }
 
     // Step 6: Update sync metadata
