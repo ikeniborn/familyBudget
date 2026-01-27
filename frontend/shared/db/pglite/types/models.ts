@@ -12,7 +12,7 @@ export interface LocalArticle {
   user_id: number;
   parent_id: number | null;
   name: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'debit' | 'credit';
   is_active: boolean;
   created_at: Date;
   updated_at: Date;

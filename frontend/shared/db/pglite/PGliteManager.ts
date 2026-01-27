@@ -248,7 +248,7 @@ export class PGliteManager {
    */
   async queryArticles(filters?: {
     user_id?: number;
-    type?: 'income' | 'expense';
+    type?: 'income' | 'expense' | 'debit' | 'credit';
     parent_id?: number | null;
     is_active?: boolean;
   }): Promise<LocalArticle[]> {

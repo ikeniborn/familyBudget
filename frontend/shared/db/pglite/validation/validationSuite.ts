@@ -18,9 +18,9 @@ import { logger } from '../utils/logger';
 
 /**
  * Expected schema version (должен совпадать с последней миграцией)
- * Synced with migrationManager.ts (v4: Recurring Plans Optimization)
+ * Synced with migrationManager.ts (v5: Expand Article Types)
  */
-const EXPECTED_SCHEMA_VERSION = 4;
+const EXPECTED_SCHEMA_VERSION = 5;
 
 /**
  * Performance thresholds (milliseconds)

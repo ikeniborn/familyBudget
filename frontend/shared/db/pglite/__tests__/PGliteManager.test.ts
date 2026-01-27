@@ -54,7 +54,7 @@ describe('PGliteManager', () => {
 
     // Assert
     const version = await manager.getSchemaVersion();
-    expect(version).toBe(4); // v4 after task-015 (recurring plans)
+    expect(version).toBe(5); // v5 after expanding article types
 
     const isUpToDate = await manager.isSchemaUpToDate();
     expect(isUpToDate).toBe(true);
