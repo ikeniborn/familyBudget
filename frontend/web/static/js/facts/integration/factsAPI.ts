@@ -77,8 +77,11 @@ function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
         user_id: local.user_id,
         user_name: '', // TODO: Add user name lookup
         record_type: 'spend', // Default mapping from 'fact'
-        created_at: local.created_at.toISOString(),
-        updated_at: local.updated_at.toISOString()
+        // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+        // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+        // TODO (task-016): Normalize LocalBudgetFact.created_at type to string at PGlite query layer
+        created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+        updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString()
     };
 }
 

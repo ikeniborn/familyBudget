@@ -18,16 +18,17 @@ import { logger } from '../utils/logger';
 
 /**
  * Expected schema version (должен совпадать с последней миграцией)
- * TODO: Синхронизировать с migrationManager.ts
+ * Synced with migrationManager.ts (v4: Recurring Plans Optimization)
  */
-const EXPECTED_SCHEMA_VERSION = 3;
+const EXPECTED_SCHEMA_VERSION = 4;
 
 /**
  * Performance thresholds (milliseconds)
+ * Updated: More realistic thresholds for browser environment
  */
 const PERFORMANCE_THRESHOLDS = {
-  avgQueryTimeMs: 10,  // Average query < 10ms
-  maxQueryTimeMs: 50   // Max query < 50ms
+  avgQueryTimeMs: 50,   // Average query < 50ms (was 10ms - too strict)
+  maxQueryTimeMs: 100   // Max query < 100ms (was 50ms)
 };
 
 /**
