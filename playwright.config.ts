@@ -29,7 +29,8 @@ export default defineConfig({
   /* Shared settings for all the projects below. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.BASE_URL || 'http://localhost:8000',
+    /* Default: production URL (aligns with project policy: no local services) */
+    baseURL: process.env.BASE_URL || 'https://fbd.ikeniborn.ru',
 
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',
@@ -69,23 +70,25 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'cd backend && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000',
-    url: 'http://localhost:8000/health',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-    env: {
-      PYTHONPATH: process.env.PYTHONPATH || process.cwd(),
-      DATABASE_URL: process.env.DATABASE_URL || '',
-      REDIS_URL: process.env.REDIS_URL || '',
-      JWT_SECRET: process.env.JWT_SECRET || '',
-      SECRET_KEY: process.env.SECRET_KEY || '',
-      TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
-      ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '',
-      API_INTERNAL_KEY: process.env.API_INTERNAL_KEY || '',
-      CORS_ORIGINS: process.env.CORS_ORIGINS || '',
-      REDIS_ENABLED: process.env.REDIS_ENABLED || 'false',
-    },
-  },
+  /* Run your local dev server before starting the tests (optional) */
+  /* Commented out to prevent local server startup - tests use production URL by default */
+  /* Uncomment and set BASE_URL=http://localhost:8000 if you need local testing */
+  // webServer: {
+  //   command: 'cd backend && uvicorn backend.app.main:app --host 0.0.0.0 --port 8000',
+  //   url: 'http://localhost:8000/health',
+  //   reuseExistingServer: !process.env.CI,
+  //   timeout: 120 * 1000,
+  //   env: {
+  //     PYTHONPATH: process.env.PYTHONPATH || process.cwd(),
+  //     DATABASE_URL: process.env.DATABASE_URL || '',
+  //     REDIS_URL: process.env.REDIS_URL || '',
+  //     JWT_SECRET: process.env.JWT_SECRET || '',
+  //     SECRET_KEY: process.env.SECRET_KEY || '',
+  //     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN || '',
+  //     ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID || '',
+  //     API_INTERNAL_KEY: process.env.API_INTERNAL_KEY || '',
+  //     CORS_ORIGINS: process.env.CORS_ORIGINS || '',
+  //     REDIS_ENABLED: process.env.REDIS_ENABLED || 'false',
+  //   },
+  // },
 });

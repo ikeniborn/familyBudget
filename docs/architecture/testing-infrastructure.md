@@ -597,12 +597,95 @@ expect(callback).toHaveBeenCalled();
 
 ---
 
+## E2E Responsive Design Testing
+
+Use Playwright for viewport control when testing responsive designs:
+
+### Viewport Sizes
+
+```typescript
+// Mobile (iPhone 12 mini)
+await page.setViewportSize({ width: 375, height: 667 });
+
+// Tablet (iPad)
+await page.setViewportSize({ width: 768, height: 1024 });
+
+// Desktop
+await page.setViewportSize({ width: 1920, height: 1080 });
+
+// Breakpoint boundary
+await page.setViewportSize({ width: 1024, height: 768 });
+```
+
+### Example Test
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('mobile navigation', async ({ page }) => {
+  await page.goto('https://fbd.ikeniborn.ru/');
+
+  // Set mobile viewport
+  await page.setViewportSize({ width: 375, height: 667 });
+
+  // Verify viewport changed
+  const width = await page.evaluate(() => window.innerWidth);
+  expect(width).toBe(375);
+
+  // Verify mobile nav visible
+  const mobileNav = page.locator('#mobile-navigation-bar');
+  await expect(mobileNav).toBeVisible();
+});
+```
+
+### Running E2E Tests
+
+**Prerequisites:**
+- Install Playwright browsers: `npx playwright install chromium`
+- Configure authentication (required for production URL)
+
+```bash
+# Run mobile navigation test
+npx playwright test tests/e2e/webapp/test_mobile_navigation.spec.ts --headed
+
+# Run with specific browser
+npx playwright test --project="Mobile Chrome"
+
+# Run all E2E tests
+npx playwright test tests/e2e/
+
+# Generate HTML report
+npx playwright test --reporter=html
+npx playwright show-report
+```
+
+**Current Status:**
+- ⚠️ Tests fail on production due to authentication barrier (login page)
+- ✅ Test infrastructure ready (viewport control, selectors, assertions)
+- 🔄 Authentication setup needed (future improvement)
+
+**See:** `docs/architecture/guides/browser-testing-workarounds.md` for authentication setup examples.
+
+### Browser Automation Limitations
+
+**❌ Do not use** Claude in Chrome extension's `resize_window` tool - it does not reliably change viewport size.
+
+**✅ Use** Playwright's `page.setViewportSize()` for reliable viewport control.
+
+**See:** `docs/architecture/guides/browser-testing-workarounds.md` for detailed workaround documentation.
+
+---
+
 ## Future Improvements
 
 ### E2E Tests (Phase 7+)
 
+**Current Status:**
+- ✅ Playwright installed and configured (`playwright.config.ts`)
+- ✅ Mobile navigation test implemented (`tests/e2e/webapp/test_mobile_navigation.spec.ts`)
+- 🔄 Additional E2E tests needed
+
 **Scope:**
-- Playwright setup
 - Critical user flows
 - Multi-browser testing
 - Visual regression testing
