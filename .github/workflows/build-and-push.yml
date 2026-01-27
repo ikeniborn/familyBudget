@@ -242,11 +242,12 @@ jobs:
   # Job 4: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
   # ============================================================================
   quality-checks:
-    needs: [check-version, service-build]
+    needs: [check-version, sync-version, service-build]
     runs-on: ubuntu-latest
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
       (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
     steps:
       - name: Checkout code
@@ -254,9 +255,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Re-pull to get committed frontend assets
+      # Re-pull to get committed frontend assets and version sync
       - name: Pull latest changes
-        run: git pull origin ${{ github.ref_name }}
+        run: |
+          # Retry pull with exponential backoff (max 3 attempts)
+          for i in 1 2 3; do
+            if git pull origin ${{ github.ref_name }}; then
+              echo "✅ Git pull successful"
+              break
+            else
+              echo "⚠️ Git pull attempt $i failed, retrying in $((i * 2))s..."
+              sleep $((i * 2))
+            fi
+          done
 
       - name: Detect merge commit from PR
         id: detect-merge
@@ -353,9 +364,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Re-pull to get committed frontend assets
+      # Re-pull to get committed frontend assets and version sync
       - name: Pull latest changes
-        run: git pull origin ${{ github.ref_name }}
+        run: |
+          # Retry pull with exponential backoff (max 3 attempts)
+          for i in 1 2 3; do
+            if git pull origin ${{ github.ref_name }}; then
+              echo "✅ Git pull successful"
+              break
+            else
+              echo "⚠️ Git pull attempt $i failed, retrying in $((i * 2))s..."
+              sleep $((i * 2))
+            fi
+          done
 
       - name: Read VERSION
         id: version
