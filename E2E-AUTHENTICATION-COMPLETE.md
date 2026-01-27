@@ -307,6 +307,8 @@ test.use({ storageState: 'auth.json' });
 1. `e87b0f68` - docs(testing): add Playwright E2E workaround for resize_window limitation
 2. `a12cd150` - feat(e2e): add authentication setup for Playwright tests
 3. `f632f322` - fix(e2e): fix authentication flow and correct responsive design selectors
+4. `4a1c1053` - docs(e2e): add complete E2E authentication implementation summary
+5. `1c949aa4` - docs(testing): update E2E testing documentation with authentication status
 
 ---
 
