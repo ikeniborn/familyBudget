@@ -5,10 +5,13 @@
 
 import { PGlite } from '@electric-sql/pglite';
 import { updateState } from './stateManager';
-import { getPGliteFeatureFlags } from '../features/featureFlags';
+import { getPGliteFeatureFlags, isPGliteEnabled, isPGliteActive } from '../features/featureFlags';
 import type { IPGliteConfig } from '../types/dependencies';
 import { PGliteInitError } from '../types/errors';
 import { logger, configureLogger } from '../utils/logger';
+import { runMigrations } from './migrationManager';
+import { runValidationSuite } from '../validation/validationSuite';
+import { getPGliteManager } from '../index';
 
 /**
  * Initialize PGlite instance with IndexedDB backend
@@ -23,7 +26,7 @@ export async function initializeDatabase(config?: IPGliteConfig): Promise<PGlite
   // Check feature flag
   if (!flags.enabled) {
     const error = new PGliteInitError('PGlite is disabled. Enable via localStorage: enablePGlite=true');
-    updateState({ lastError: error.message, connectionStatus: 'error' });
+    updateState({ lastError: error, connectionStatus: 'error' });
     throw error;
   }
 
@@ -62,7 +65,7 @@ export async function initializeDatabase(config?: IPGliteConfig): Promise<PGlite
     updateState({
       db: null,
       connectionStatus: 'error',
-      lastError: initError.message
+      lastError: initError
     });
 
     logger.error('Initialization failed', error);
@@ -90,5 +93,93 @@ export async function closeDatabase(db: PGlite): Promise<void> {
   } catch (error) {
     logger.error('Error closing database', error);
     throw error;
+  }
+}
+
+/**
+ * NEW: Background инициализация PGlite с progress tracking
+ *
+ * PHASE 3: Non-blocking initialization flow:
+ * 1. Check if allowed (enabled but not active)
+ * 2. Initialize IndexedDB
+ * 3. Run migrations
+ * 4. Initialize ConflictManager
+ * 5. Sync reference data (articles, FCs, CCs)
+ * 6. Run validation suite
+ * 7. Update state to 'ready' and show notification
+ *
+ * This function NEVER blocks UI - runs in background.
+ * User continues to work via API while PGlite initializes.
+ */
+export async function initializeDatabaseInBackground(): Promise<void> {
+  // Check if background init is allowed
+  if (!isPGliteEnabled() || isPGliteActive()) {
+    logger.info('[DB_INIT] Background init skipped', {
+      enabled: isPGliteEnabled(),
+      active: isPGliteActive()
+    });
+    return;
+  }
+
+  logger.info('[DB_INIT] Starting background initialization...');
+  updateState({ initializationStatus: 'initializing' });
+
+  try {
+    // Step 1: Initialize database
+    logger.info('[DB_INIT] Step 1/5: Initialize database');
+    const db = await initializeDatabase();
+
+    // Step 2: Run migrations
+    logger.info('[DB_INIT] Step 2/5: Run migrations');
+    const schemaVersion = await runMigrations(db);
+    logger.info('[DB_INIT] Migrations complete', { schemaVersion });
+
+    // Step 3: Initialize ConflictManager
+    logger.info('[DB_INIT] Step 3/5: Initialize ConflictManager');
+    // TODO: Import and initialize ConflictManager
+    // await initializeConflictManager();
+
+    // Step 4: Initial sync (reference data only)
+    logger.info('[DB_INIT] Step 4/5: Sync reference data');
+    // TODO: Implement syncReferenceData()
+    // await syncReferenceData();
+
+    // Step 5: Run validation suite
+    logger.info('[DB_INIT] Step 5/5: Validate readiness');
+    updateState({ initializationStatus: 'validating' });
+
+    const pgliteManager = getPGliteManager();
+    const validationResults = await runValidationSuite(pgliteManager);
+
+    if (!validationResults.allPassed) {
+      throw new Error('Validation failed: ' + JSON.stringify(validationResults.errors));
+    }
+
+    // SUCCESS: Mark as ready with validation results
+    updateState({
+      initializationStatus: 'ready',
+      isInitialized: true,
+      validationResults
+    });
+
+    logger.info('[DB_INIT] Background initialization complete', validationResults);
+
+    // TODO: Show notification (Phase 5)
+    // showPGliteReadyNotification(validationResults);
+
+  } catch (error) {
+    logger.error('[DB_INIT] Background initialization failed', error);
+    updateState({
+      initializationStatus: 'error',
+      lastError: error as Error
+    });
+
+    // Show error toast (но не блокировать UI - API работает)
+    if (typeof window !== 'undefined' && window.showToast) {
+      window.showToast(
+        'Не удалось инициализировать локальную БД. Работа продолжается через сервер.',
+        'warning'
+      );
+    }
   }
 }

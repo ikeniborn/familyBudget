@@ -52,7 +52,8 @@ export const DEFAULT_ENABLE_AUTO_PRUNING = false;
 // =============================================================================
 
 export interface PGliteFeatureFlags {
-  enabled: boolean;                  // Main toggle for PGlite
+  enabled: boolean;                  // Main toggle for PGlite (allows background init)
+  active: boolean;                   // User activated PGlite (switches from API to PGlite)
   debug: boolean;                    // Debug logging
   factsWindow: number;               // Data window in days (default: 90)
   autoSyncInterval: number;          // Auto-sync interval in ms (default: 300000 = 5 min)
@@ -83,6 +84,7 @@ export function getPGliteFeatureFlags(): PGliteFeatureFlags {
 
   return {
     enabled: localStorage.getItem('enablePGlite') === 'true',
+    active: localStorage.getItem('pgliteActive') === 'true',
     debug: isDevelopment && localStorage.getItem('pgliteDebug') !== 'false',
     factsWindow: parseInt(localStorage.getItem('pgliteFactsWindow') || DEFAULT_FACTS_WINDOW_DAYS.toString(), 10),
     autoSyncInterval: parseInt(localStorage.getItem('pgliteAutoSync') || DEFAULT_AUTO_SYNC_INTERVAL_MS.toString(), 10),
@@ -96,14 +98,26 @@ export function getPGliteFeatureFlags(): PGliteFeatureFlags {
 }
 
 /**
- * Check if PGlite is enabled
+ * Check if PGlite is enabled (allows background initialization)
  */
 export function isPGliteEnabled(): boolean {
   return localStorage.getItem('enablePGlite') === 'true';
 }
 
 /**
- * Set PGlite enabled state
+ * Check if PGlite is active (user confirmed switch from API to PGlite)
+ *
+ * IMPORTANT: This is separate from isPGliteEnabled():
+ * - enabled=true, active=false → PGlite initializes in background, API used
+ * - enabled=true, active=true → PGlite used for data queries
+ * - enabled=false → No PGlite initialization
+ */
+export function isPGliteActive(): boolean {
+  return localStorage.getItem('pgliteActive') === 'true';
+}
+
+/**
+ * Set PGlite enabled state (allows background initialization)
  *
  * @param enabled - Enable or disable PGlite
  */
@@ -117,6 +131,35 @@ export function setPGliteEnabled(enabled: boolean): void {
       : 'PGlite отключен. Обновите страницу для online-only режима.';
 
     window.showToast(message, 'info');
+  }
+}
+
+/**
+ * Set PGlite active state (user confirmed switch to local database)
+ *
+ * This triggers the opt-in switch from API-first to PGlite-first.
+ * Dispatches 'pglite:active:changed' event for UI updates.
+ *
+ * @param active - Activate or deactivate PGlite usage
+ */
+export function setPGliteActive(active: boolean): void {
+  localStorage.setItem('pgliteActive', active ? 'true' : 'false');
+
+  // Dispatch event for UI updates (indicator, settings, etc.)
+  window.dispatchEvent(new CustomEvent('pglite:active:changed', {
+    detail: { active }
+  }));
+
+  if (active) {
+    console.info('[FEATURE_FLAGS] PGlite активирован - переключение на локальную БД');
+    if (window.showToast) {
+      window.showToast('Локальная БД активирована. Запросы теперь идут через PGlite.', 'success');
+    }
+  } else {
+    console.info('[FEATURE_FLAGS] PGlite деактивирован - возврат на API');
+    if (window.showToast) {
+      window.showToast('Возврат на API. Локальная БД отключена.', 'info');
+    }
   }
 }
 

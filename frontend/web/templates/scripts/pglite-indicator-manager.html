@@ -24,14 +24,16 @@
 
     /**
      * Update PGlite indicator visual state
-     * @param {string} state - 'active' | 'syncing' | 'error'
+     * @param {string} state - 'not_started' | 'initializing' | 'validating' | 'ready' | 'active' | 'error' | 'syncing'
      */
     function updatePGliteIndicator(state) {
         const iconActive = document.getElementById('pglite-icon-active');
         const iconSyncing = document.getElementById('pglite-icon-syncing');
         const iconError = document.getElementById('pglite-icon-error');
+        const iconInitializing = document.getElementById('pglite-icon-initializing');
+        const iconReady = document.getElementById('pglite-icon-ready');
 
-        if (!iconActive || !iconSyncing || !iconError) {
+        if (!iconActive || !iconSyncing || !iconError || !iconInitializing || !iconReady) {
             console.warn('[PGLITE_INDICATOR] Icons not found');
             return;
         }
@@ -40,21 +42,49 @@
         iconActive.classList.add('hidden');
         iconSyncing.classList.add('hidden');
         iconError.classList.add('hidden');
+        iconInitializing.classList.add('hidden');
+        iconReady.classList.add('hidden');
 
         // Show target state
         switch (state) {
+            case 'not_started':
+                // PGlite не инициализируется - скрыть индикатор
+                hidePGliteIndicator();
+                break;
+            case 'initializing':
+            case 'validating':
+                // Желтый с пульсацией
+                showPGliteIndicator();
+                iconInitializing.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: initializing (yellow pulse)');
+                break;
+            case 'ready':
+                // Зеленый (готов, но не активен) - кликабельный
+                showPGliteIndicator();
+                iconReady.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: ready (click to activate)');
+                break;
+            case 'active':
+                // Зеленый active (idle)
+                showPGliteIndicator();
+                iconActive.classList.remove('hidden');
+                console.debug('[PGLITE_INDICATOR] State: active');
+                break;
             case 'syncing':
+                // Синий с пульсацией
+                showPGliteIndicator();
                 iconSyncing.classList.remove('hidden');
-                console.debug('[PGLITE_INDICATOR] State: syncing (pulse)');
+                console.debug('[PGLITE_INDICATOR] State: syncing (blue pulse)');
                 break;
             case 'error':
+                // Красный
+                showPGliteIndicator();
                 iconError.classList.remove('hidden');
                 console.debug('[PGLITE_INDICATOR] State: error');
                 break;
-            case 'active':
             default:
                 iconActive.classList.remove('hidden');
-                console.debug('[PGLITE_INDICATOR] State: active');
+                console.debug('[PGLITE_INDICATOR] State: active (default)');
                 break;
         }
     }
@@ -154,8 +184,63 @@
     });
 
     /**
+     * NEW: Listen for PGlite state changes (dispatched by updateState)
+     */
+    window.addEventListener('pglite:state:changed', async (event) => {
+        console.debug('[PGLITE_INDICATOR] State changed event', event.detail);
+        // Trigger polling refresh (will update indicator)
+        if (localStorage.getItem('enablePGlite') === 'true' && window.PGliteManager) {
+            try {
+                const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
+                const state = getState();
+                const initStatus = state.initializationStatus || 'not_started';
+                const connStatus = state.connectionStatus || 'disconnected';
+
+                // Same mapping logic as polling
+                switch (initStatus) {
+                    case 'not_started':
+                        hidePGliteIndicator();
+                        break;
+                    case 'initializing':
+                    case 'validating':
+                        updatePGliteIndicator(initStatus);
+                        break;
+                    case 'ready':
+                        updatePGliteIndicator('ready');
+                        break;
+                    case 'active':
+                        if (connStatus === 'error') {
+                            updatePGliteIndicator('error');
+                        } else if (connStatus === 'connecting' || connStatus === 'syncing') {
+                            updatePGliteIndicator('syncing');
+                        } else {
+                            updatePGliteIndicator('active');
+                        }
+                        break;
+                    case 'error':
+                        updatePGliteIndicator('error');
+                        break;
+                }
+            } catch (error) {
+                console.error('[PGLITE_INDICATOR] Error handling state change:', error);
+            }
+        }
+    });
+
+    /**
+     * NEW: Listen for PGlite activation changes (dispatched by setPGliteActive)
+     */
+    window.addEventListener('pglite:active:changed', (event) => {
+        console.debug('[PGLITE_INDICATOR] Active changed event', event.detail);
+        // Refresh indicator
+        initPGliteIndicator();
+    });
+
+    /**
      * Polling: Check PGliteState every 2 seconds
      * Fallback for state updates not caught by event hooks
+     *
+     * NEW: Maps initializationStatus to indicator states
      */
     setInterval(async () => {
         if (localStorage.getItem('enablePGlite') === 'true' && window.PGliteManager) {
@@ -163,13 +248,47 @@
                 const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
                 const state = getState();
 
-                // Sync state transitions
-                if (state.connectionStatus === 'error') {
-                    updatePGliteIndicator('error');
-                } else if (state.connectionStatus === 'connecting') {
-                    updatePGliteIndicator('syncing');
-                } else if (state.connectionStatus === 'connected') {
-                    updatePGliteIndicator('active');
+                // Map initializationStatus to indicator state
+                const initStatus = state.initializationStatus || 'not_started';
+                const connStatus = state.connectionStatus || 'disconnected';
+
+                switch (initStatus) {
+                    case 'not_started':
+                        // PGlite не инициализируется
+                        hidePGliteIndicator();
+                        break;
+                    case 'initializing':
+                    case 'validating':
+                        // Желтый с пульсацией
+                        updatePGliteIndicator(initStatus);
+                        break;
+                    case 'ready':
+                        // Зеленый (готов, но не активен)
+                        updatePGliteIndicator('ready');
+                        break;
+                    case 'active':
+                        // Активен - проверяем connectionStatus
+                        if (connStatus === 'error') {
+                            updatePGliteIndicator('error');
+                        } else if (connStatus === 'connecting' || connStatus === 'syncing') {
+                            updatePGliteIndicator('syncing');
+                        } else {
+                            updatePGliteIndicator('active');
+                        }
+                        break;
+                    case 'error':
+                        updatePGliteIndicator('error');
+                        break;
+                    default:
+                        // Fallback на connectionStatus
+                        if (connStatus === 'error') {
+                            updatePGliteIndicator('error');
+                        } else if (connStatus === 'connecting') {
+                            updatePGliteIndicator('syncing');
+                        } else if (connStatus === 'connected') {
+                            updatePGliteIndicator('active');
+                        }
+                        break;
                 }
             } catch (error) {
                 // Silent failure (PGliteManager not ready)
@@ -180,6 +299,29 @@
     // Initialize on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', () => {
         initPGliteIndicator();
+
+        // NEW: Click handler for ready state (opens notification)
+        const iconReady = document.getElementById('pglite-icon-ready');
+        if (iconReady) {
+            iconReady.addEventListener('click', async () => {
+                console.info('[PGLITE_INDICATOR] Ready icon clicked');
+
+                try {
+                    const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
+                    const state = getState();
+
+                    if (state.validationResults) {
+                        // Import and show notification
+                        const { showPGliteReadyNotification } = await import('/static/js/notifications/pgliteReadyNotification.js');
+                        showPGliteReadyNotification(state.validationResults);
+                    } else {
+                        console.warn('[PGLITE_INDICATOR] No validation results available');
+                    }
+                } catch (error) {
+                    console.error('[PGLITE_INDICATOR] Error showing notification:', error);
+                }
+            });
+        }
     });
 
     // Export global API for sync operations
