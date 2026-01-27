@@ -26,9 +26,38 @@
                         <span class="label-text">
                             <span class="font-semibold">Включить PGlite</span>
                             <p class="text-sm opacity-70">Локальная база данных для offline режима</p>
+
+                            <!-- NEW: Status indicator (показывается во время инициализации) -->
+                            <div id="pglite-settings-status" class="mt-2 hidden">
+                                <div class="alert alert-info text-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                    </svg>
+                                    <span id="pglite-settings-status-text">Инициализация в фоне...</span>
+                                </div>
+                            </div>
                         </span>
                         <input type="checkbox" id="enablePGliteCheckbox" class="toggle toggle-primary" />
                     </label>
+                </div>
+
+                <!-- NEW: Activate button (показывается когда ready) -->
+                <div id="pglite-activate-section" class="hidden">
+                    <div class="alert alert-success">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <h3 class="font-bold">Локальная БД готова к использованию!</h3>
+                            <div class="text-sm" id="pglite-activate-details">
+                                Загружено данных, производительность проверена.
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="pglite-activate-settings-btn" class="btn btn-primary mt-2 w-full">
+                        Активировать локальную БД
+                    </button>
                 </div>
 
                 <!-- PGlite Settings (shown when enabled) -->
@@ -228,6 +257,97 @@ document.addEventListener('DOMContentLoaded', async () => {
     openDiagnosticBtn.addEventListener('click', () => {
         openPGliteDiagnostic();
     });
+
+    // === NEW: PGlite Status Updates (API-First Migration) ===
+
+    const statusDiv = document.getElementById('pglite-settings-status');
+    const statusText = document.getElementById('pglite-settings-status-text');
+    const activateSection = document.getElementById('pglite-activate-section');
+    const activateBtn = document.getElementById('pglite-activate-settings-btn');
+    const activateDetails = document.getElementById('pglite-activate-details');
+
+    /**
+     * Update PGlite status in settings UI
+     */
+    async function updateSettingsPGliteStatus() {
+        if (!window.PGlite) return;
+
+        const { getState, isPGliteActive } = window.PGlite;
+        const state = getState();
+        const isActive = await isPGliteActive();
+
+        if (!state) return;
+
+        const initStatus = state.initializationStatus || 'not_started';
+
+        switch (initStatus) {
+            case 'not_started':
+                statusDiv.classList.add('hidden');
+                activateSection.classList.add('hidden');
+                break;
+
+            case 'initializing':
+                statusDiv.classList.remove('hidden');
+                statusText.textContent = 'Инициализация в фоне...';
+                activateSection.classList.add('hidden');
+                break;
+
+            case 'validating':
+                statusDiv.classList.remove('hidden');
+                statusText.textContent = 'Проверка готовности...';
+                activateSection.classList.add('hidden');
+                break;
+
+            case 'ready':
+                statusDiv.classList.add('hidden');
+                if (!isActive) {
+                    activateSection.classList.remove('hidden');
+
+                    // Update details from validation results
+                    if (state.validationResults) {
+                        const { details } = state.validationResults;
+                        activateDetails.textContent = `Загружено: ${details.articleCount} статей, ${details.financialCenterCount} счетов, ${details.costCenterCount} мест затрат. Производительность: ${details.avgQueryTimeMs.toFixed(1)}ms.`;
+                    }
+                }
+                break;
+
+            case 'active':
+                statusDiv.classList.add('hidden');
+                activateSection.classList.add('hidden');
+                break;
+
+            case 'error':
+                statusDiv.classList.remove('hidden');
+                statusDiv.querySelector('.alert').classList.replace('alert-info', 'alert-error');
+                statusText.textContent = 'Ошибка инициализации. Работа через сервер.';
+                activateSection.classList.add('hidden');
+                break;
+        }
+    }
+
+    // Handle activate button click
+    if (activateBtn) {
+        activateBtn.addEventListener('click', async () => {
+            const { setPGliteActive } = window.PGlite;
+            await setPGliteActive(true);
+
+            // Show confirmation
+            alert('Локальная БД активирована. Страница будет перезагружена.');
+
+            // Reload page
+            setTimeout(() => window.location.reload(), 500);
+        });
+    }
+
+    // Update status every second
+    setInterval(updateSettingsPGliteStatus, 1000);
+
+    // Listen to state changes
+    window.addEventListener('pglite:state:changed', updateSettingsPGliteStatus);
+    window.addEventListener('pglite:active:changed', updateSettingsPGliteStatus);
+
+    // Initial update
+    updateSettingsPGliteStatus();
 
     // === Pruning Controls (task-010) ===
 

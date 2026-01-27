@@ -545,6 +545,32 @@
                         <path stroke-linecap="round" stroke-linejoin="round"
                               d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
                     </svg>
+
+                    <!-- NEW: Initializing State: Yellow + Pulse -->
+                    <svg id="pglite-icon-initializing"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6 text-warning pglite-pulse hidden"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M12 6v6l4 2"/>
+                    </svg>
+
+                    <!-- NEW: Ready State: Green (clickable for activation) -->
+                    <svg id="pglite-icon-ready"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6 text-success cursor-pointer hidden"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M5 13l4 4L19 7"/>
+                    </svg>
                 </div>
             </div>
 
@@ -758,6 +784,26 @@
                     document.documentElement.setAttribute('data-theme', theme);
                     localStorage.setItem('theme', theme);
                 });
+            }
+        });
+
+        // NEW: PGlite Background Initialization (API-First Migration)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if PGlite enabled and not already initialized
+            const enablePGlite = localStorage.getItem('enablePGlite') === 'true';
+
+            if (enablePGlite && typeof window.PGlite !== 'undefined') {
+                console.info('[APP] Starting PGlite background initialization...');
+
+                // Start background init (non-blocking, won't block UI)
+                window.PGlite.initializeDatabaseInBackground().catch(error => {
+                    console.warn('[APP] Background PGlite init failed (non-critical):', error);
+                    // User continues working via API - no action needed
+                });
+            } else if (enablePGlite) {
+                console.warn('[APP] PGlite enabled but window.PGlite not loaded');
+            } else {
+                console.info('[APP] PGlite disabled, skipping background init');
             }
         });
 
