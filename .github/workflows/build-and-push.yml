@@ -116,6 +116,7 @@ jobs:
           if [[ -n $(git status --porcelain package.json package-lock.json) ]]; then
             git add package.json package-lock.json
             git commit -m "chore: auto-sync package.json and package-lock.json to version $VERSION [skip ci]"
+            git pull --rebase origin ${{ github.ref_name }}
             git push
             echo "✅ Version files synchronized to $VERSION"
           else

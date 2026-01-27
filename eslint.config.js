@@ -10,6 +10,7 @@ module.exports = [
       ".vite-build/**",
       "frontend/**/static/js/dist/**",
       "frontend/**/static/js/**/*.min.js",
+      "frontend/shared/db/assets/**",
       "**/*.bundle.js",
       "coverage/**",
       ".npm-isolated/**",
