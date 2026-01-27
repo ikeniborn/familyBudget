@@ -23,7 +23,7 @@ export async function initializeDatabase(config?: IPGliteConfig): Promise<PGlite
   // Check feature flag
   if (!flags.enabled) {
     const error = new PGliteInitError('PGlite is disabled. Enable via localStorage: enablePGlite=true');
-    updateState({ lastError: error.message, connectionStatus: 'error' });
+    updateState({ lastError: error, connectionStatus: 'error' });
     throw error;
   }
 
@@ -62,7 +62,7 @@ export async function initializeDatabase(config?: IPGliteConfig): Promise<PGlite
     updateState({
       db: null,
       connectionStatus: 'error',
-      lastError: initError.message
+      lastError: initError
     });
 
     logger.error('Initialization failed', error);

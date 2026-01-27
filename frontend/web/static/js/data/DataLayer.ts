@@ -23,7 +23,7 @@
  */
 
 import { getPGliteManager, PGliteManager } from '@db/pglite';
-import { isPGliteEnabled } from '@db/pglite';
+import { isPGliteActive } from '@db/pglite';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
 import type {
@@ -101,6 +101,16 @@ export class DataLayer {
     return this.pglitePromise;
   }
 
+  /**
+   * NEW: Determine whether to use PGlite or API
+   *
+   * Returns true only if user ACTIVATED PGlite (opt-in).
+   * By default (API-first), returns false.
+   */
+  private shouldUsePGlite(): boolean {
+    return isPGliteActive();
+  }
+
   // =============================================================================
   // Articles
   // =============================================================================
@@ -108,42 +118,81 @@ export class DataLayer {
   /**
    * Get articles with optional filters
    *
+   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * - By default: Use API (100% reliable)
+   * - If user activated PGlite: Use PGlite with API fallback
+   *
    * @param filters - Optional filters (user_id, type, parent_id, is_active)
    * @returns Array of articles
    */
   async getArticles(filters?: ArticleFilters): Promise<LocalArticle[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getArticles', {
+      filters,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryArticles(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getArticles', duration);
+      // API-FIRST: Use API if PGlite not activated
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getArticlesFromAPI(filters);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getArticles', duration);
+        console.info('[DATA_LAYER] API returned', {
+          count: result.length,
+          source: 'API',
+          durationMs: duration.toFixed(2)
+        });
+        return result;
+      }
+
+      // OPT-IN: User activated PGlite
+      const pglite = await this.getPGlite();
+
+      // Wait for readiness (max 5s)
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getArticlesFromAPI(filters);
+          performanceMonitor.trackAPICall('getArticles', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getArticlesFromAPI(filters);
+      // Query PGlite
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryArticles(filters);
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getArticles', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getArticles failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getArticlesFromAPI(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getArticles', duration);
-        return result;
+      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getArticlesFromAPI(filters);
+        performanceMonitor.trackAPICall('getArticles', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getArticles', duration);
+      console.info('[DATA_LAYER] PGlite returned', {
+        count: result.length,
+        source: 'PGlite',
+        durationMs: duration.toFixed(2)
+      });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getArticles', error);
+      // Graceful fallback на API при любой ошибке
+      const result = await this.getArticlesFromAPI(filters);
+      performanceMonitor.trackAPICall('getArticles', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -191,6 +240,10 @@ export class DataLayer {
   /**
    * Get financial centers for a user
    *
+   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * - By default: Use API (100% reliable)
+   * - If user activated PGlite: Use PGlite with API fallback
+   *
    * @param userId - User ID
    * @param includeGlobal - Include global centers (default: true)
    * @returns Array of financial centers
@@ -201,59 +254,72 @@ export class DataLayer {
   ): Promise<LocalFinancialCenter[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getFinancialCenters', {
+      userId,
+      includeGlobal,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy with readiness waiting
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-
-        // NEW: Wait for PGlite readiness with timeout
-        if (!pglite.isReady()) {
-          console.info('[DATA_LAYER] PGlite not ready, waiting...');
-
-          const waitStartTime = Date.now();
-          const MAX_WAIT_MS = 5000; // 5 seconds max wait
-
-          // Poll every 100ms until ready or timeout
-          while (!pglite.isReady() && (Date.now() - waitStartTime) < MAX_WAIT_MS) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-
-          if (!pglite.isReady()) {
-            console.warn('[DATA_LAYER] PGlite init timeout after 5s, falling back to API');
-            const result = await this.getFinancialCentersFromAPI(includeGlobal);
-            const duration = performance.now() - startTime;
-            performanceMonitor.trackAPICall('getFinancialCenters', duration);
-            return result;
-          }
-
-          console.info('[DATA_LAYER] PGlite ready after wait');
-        }
-
-        // PGlite is ready, query data
-        const result = await pglite.queryFinancialCenters(userId, true); // only active
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
-        return result;
-      }
-
-      // Fallback to API
-      const result = await this.getFinancialCentersFromAPI(includeGlobal);
-      const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getFinancialCenters', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getFinancialCenters failed:', error);
-
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
+      // API-FIRST: Use API if PGlite not activated
+      if (!this.shouldUsePGlite()) {
         const result = await this.getFinancialCentersFromAPI(includeGlobal);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFinancialCenters', duration);
+        console.info('[DATA_LAYER] API returned', {
+          count: result.length,
+          source: 'API',
+          durationMs: duration.toFixed(2)
+        });
         return result;
       }
 
-      throw error;
+      // OPT-IN: User activated PGlite
+      const pglite = await this.getPGlite();
+
+      // Wait for readiness (max 5s)
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getFinancialCentersFromAPI(includeGlobal);
+          performanceMonitor.trackAPICall('getFinancialCenters', performance.now() - startTime);
+          return result;
+        }
+      }
+
+      // Query PGlite
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryFinancialCenters(userId, true);
+      const duration = performance.now() - startTime;
+
+      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getFinancialCentersFromAPI(includeGlobal);
+        performanceMonitor.trackAPICall('getFinancialCenters', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
+      }
+
+      performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
+      console.info('[DATA_LAYER] PGlite returned', {
+        count: result.length,
+        source: 'PGlite',
+        durationMs: duration.toFixed(2)
+      });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getFinancialCenters', error);
+      // Graceful fallback на API при любой ошибке
+      const result = await this.getFinancialCentersFromAPI(includeGlobal);
+      performanceMonitor.trackAPICall('getFinancialCenters', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -289,6 +355,10 @@ export class DataLayer {
   /**
    * Get cost centers for a user
    *
+   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * - By default: Use API (100% reliable)
+   * - If user activated PGlite: Use PGlite with API fallback
+   *
    * @param userId - User ID
    * @param financialCenterId - Optional financial center filter (null = no filter)
    * @param includeGlobal - Include global centers (default: true)
@@ -301,40 +371,73 @@ export class DataLayer {
   ): Promise<LocalCostCenter[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getCostCenters', {
+      userId,
+      financialCenterId,
+      includeGlobal,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryFilteredCostCenters(
-            userId,
-            financialCenterId,
-            true // only active
-          );
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getCostCenters', duration);
+      // API-FIRST: Use API if PGlite not activated
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getCostCenters', duration);
+        console.info('[DATA_LAYER] API returned', {
+          count: result.length,
+          source: 'API',
+          durationMs: duration.toFixed(2)
+        });
+        return result;
+      }
+
+      // OPT-IN: User activated PGlite
+      const pglite = await this.getPGlite();
+
+      // Wait for readiness (max 5s)
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
+          performanceMonitor.trackAPICall('getCostCenters', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
+      // Query PGlite
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryFilteredCostCenters(userId, financialCenterId, true);
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getCostCenters', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getCostCenters failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getCostCenters', duration);
-        return result;
+      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
+        performanceMonitor.trackAPICall('getCostCenters', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getCostCenters', duration);
+      console.info('[DATA_LAYER] PGlite returned', {
+        count: result.length,
+        source: 'PGlite',
+        durationMs: duration.toFixed(2)
+      });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getCostCenters', error);
+      // Graceful fallback на API при любой ошибке
+      const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
+      performanceMonitor.trackAPICall('getCostCenters', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -382,35 +485,44 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryArticleHierarchy(articleId);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getArticleHierarchy', duration);
-          return result;
-        }
-      }
-
-      // Fallback to API
-      const result = await this.getArticleHierarchyFromAPI(articleId);
-      const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getArticleHierarchy', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getArticleHierarchy failed:', error);
-
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
         const result = await this.getArticleHierarchyFromAPI(articleId);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getArticleHierarchy', duration);
         return result;
       }
 
-      throw error;
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!pglite.isReady()) {
+          const result = await this.getArticleHierarchyFromAPI(articleId);
+          performanceMonitor.trackAPICall('getArticleHierarchy', performance.now() - startTime);
+          return result;
+        }
+      }
+
+      const result = await pglite.queryArticleHierarchy(articleId);
+      const duration = performance.now() - startTime;
+
+      if (result.length === 0) {
+        const apiResult = await this.getArticleHierarchyFromAPI(articleId);
+        performanceMonitor.trackAPICall('getArticleHierarchy', performance.now() - startTime);
+        return apiResult;
+      }
+
+      performanceMonitor.trackPGliteCall('getArticleHierarchy', duration);
+      return result;
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getArticleHierarchy', error);
+      const result = await this.getArticleHierarchyFromAPI(articleId);
+      performanceMonitor.trackAPICall('getArticleHierarchy', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -441,39 +553,67 @@ export class DataLayer {
    * @param filters - Optional filters (is_active, creator_id, etc.)
    * @returns Array of shopping lists
    */
+  /**
+   * Get shopping lists with filters
+   *
+   * NEW STRATEGY (API-First with Opt-In PGlite)
+   */
   async getShoppingLists(filters?: ShoppingListFilters): Promise<LocalShoppingList[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getShoppingLists', {
+      filters,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryShoppingLists(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getShoppingLists', duration);
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getShoppingListsFromAPI(filters);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getShoppingLists', duration);
+        console.info('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
+        return result;
+      }
+
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getShoppingListsFromAPI(filters);
+          performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getShoppingListsFromAPI(filters);
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryShoppingLists(filters);
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getShoppingLists', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getShoppingLists failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getShoppingListsFromAPI(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getShoppingLists', duration);
-        return result;
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getShoppingListsFromAPI(filters);
+        performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getShoppingLists', duration);
+      console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getShoppingLists', error);
+      const result = await this.getShoppingListsFromAPI(filters);
+      performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -509,9 +649,7 @@ export class DataLayer {
   /**
    * Get shopping list items with filters
    *
-   * @param listTempId - Shopping list temp_id
-   * @param filters - Optional filters
-   * @returns Array of shopping list items
+   * NEW STRATEGY (API-First with Opt-In PGlite)
    */
   async getShoppingListItems(
     listTempId: string,
@@ -519,39 +657,63 @@ export class DataLayer {
   ): Promise<LocalShoppingListItem[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getShoppingListItems', {
+      listTempId,
+      filters,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryShoppingListItems({
-            ...filters,
-            shopping_list_temp_id: listTempId
-          });
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getShoppingListItems', duration);
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getShoppingListItems', duration);
+        console.info('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
+        return result;
+      }
+
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+          performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryShoppingListItems({
+        ...filters,
+        shopping_list_temp_id: listTempId
+      });
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getShoppingListItems', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getShoppingListItems failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getShoppingListItems', duration);
-        return result;
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getShoppingListItemsFromAPI(listTempId, filters);
+        performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getShoppingListItems', duration);
+      console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getShoppingListItems', error);
+      const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+      performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -602,35 +764,44 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryStores(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getStores', duration);
-          return result;
-        }
-      }
-
-      // Fallback to API
-      const result = await this.getStoresFromAPI(filters);
-      const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getStores', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getStores failed:', error);
-
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
         const result = await this.getStoresFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getStores', duration);
         return result;
       }
 
-      throw error;
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!pglite.isReady()) {
+          const result = await this.getStoresFromAPI(filters);
+          performanceMonitor.trackAPICall('getStores', performance.now() - startTime);
+          return result;
+        }
+      }
+
+      const result = await pglite.queryStores(filters);
+      const duration = performance.now() - startTime;
+
+      if (result.length === 0) {
+        const apiResult = await this.getStoresFromAPI(filters);
+        performanceMonitor.trackAPICall('getStores', performance.now() - startTime);
+        return apiResult;
+      }
+
+      performanceMonitor.trackPGliteCall('getStores', duration);
+      return result;
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getStores', error);
+      const result = await this.getStoresFromAPI(filters);
+      performanceMonitor.trackAPICall('getStores', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -670,35 +841,44 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryProductGroups(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getProductGroups', duration);
-          return result;
-        }
-      }
-
-      // Fallback to API
-      const result = await this.getProductGroupsFromAPI(filters);
-      const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getProductGroups', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getProductGroups failed:', error);
-
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
         const result = await this.getProductGroupsFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getProductGroups', duration);
         return result;
       }
 
-      throw error;
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!pglite.isReady()) {
+          const result = await this.getProductGroupsFromAPI(filters);
+          performanceMonitor.trackAPICall('getProductGroups', performance.now() - startTime);
+          return result;
+        }
+      }
+
+      const result = await pglite.queryProductGroups(filters);
+      const duration = performance.now() - startTime;
+
+      if (result.length === 0) {
+        const apiResult = await this.getProductGroupsFromAPI(filters);
+        performanceMonitor.trackAPICall('getProductGroups', performance.now() - startTime);
+        return apiResult;
+      }
+
+      performanceMonitor.trackPGliteCall('getProductGroups', duration);
+      return result;
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getProductGroups', error);
+      const result = await this.getProductGroupsFromAPI(filters);
+      performanceMonitor.trackAPICall('getProductGroups', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -745,39 +925,67 @@ export class DataLayer {
    * @param filters - Optional filters (user_id, article_id, record_type, etc.)
    * @returns Array of budget facts
    */
+  /**
+   * Get budget facts with filters
+   *
+   * NEW STRATEGY (API-First with Opt-In PGlite)
+   */
   async getFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getFacts', {
+      filters,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryFacts(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getFacts', duration);
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getFactsFromAPI(filters);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getFacts', duration);
+        console.info('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
+        return result;
+      }
+
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getFactsFromAPI(filters);
+          performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getFactsFromAPI(filters);
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryFacts(filters);
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getFacts', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getFacts failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getFactsFromAPI(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getFacts', duration);
-        return result;
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getFactsFromAPI(filters);
+        performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getFacts', duration);
+      console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getFacts', error);
+      const result = await this.getFactsFromAPI(filters);
+      performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
+      return result;
     }
   }
 
@@ -835,36 +1043,45 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const facts = await pglite.queryFacts(filters);
-          const count = facts.length;
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getFactsCount', duration);
-          return count;
-        }
-      }
-
-      // Fallback to API
-      const count = await this.getFactsCountFromAPI(filters);
-      const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getFactsCount', duration);
-      return count;
-    } catch (error) {
-      console.error('[DATA_LAYER] getFactsCount failed:', error);
-
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
         const count = await this.getFactsCountFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFactsCount', duration);
         return count;
       }
 
-      throw error;
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!pglite.isReady()) {
+          const count = await this.getFactsCountFromAPI(filters);
+          performanceMonitor.trackAPICall('getFactsCount', performance.now() - startTime);
+          return count;
+        }
+      }
+
+      const facts = await pglite.queryFacts(filters);
+      const count = facts.length;
+      const duration = performance.now() - startTime;
+
+      if (count === 0) {
+        const apiCount = await this.getFactsCountFromAPI(filters);
+        performanceMonitor.trackAPICall('getFactsCount', performance.now() - startTime);
+        return apiCount;
+      }
+
+      performanceMonitor.trackPGliteCall('getFactsCount', duration);
+      return count;
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getFactsCount', error);
+      const count = await this.getFactsCountFromAPI(filters);
+      performanceMonitor.trackAPICall('getFactsCount', performance.now() - startTime);
+      return count;
     }
   }
 
@@ -920,39 +1137,67 @@ export class DataLayer {
    * @param filters - Optional filters (user_id, is_active, etc.)
    * @returns Array of recurring plans
    */
+  /**
+   * Get recurring plans with filters
+   *
+   * NEW STRATEGY (API-First with Opt-In PGlite)
+   */
   async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const startTime = performance.now();
 
+    console.info('[DATA_LAYER] getRecurringPlans', {
+      filters,
+      usePGlite: this.shouldUsePGlite()
+    });
+
     try {
-      // PGlite-first strategy
-      if (isPGliteEnabled()) {
-        const pglite = await this.getPGlite();
-        if (pglite.isReady()) {
-          const result = await pglite.queryRecurringPlans(filters);
-          const duration = performance.now() - startTime;
-          performanceMonitor.trackPGliteCall('getRecurringPlans', duration);
+      // API-FIRST
+      if (!this.shouldUsePGlite()) {
+        const result = await this.getRecurringPlansFromAPI(filters);
+        const duration = performance.now() - startTime;
+        performanceMonitor.trackAPICall('getRecurringPlans', duration);
+        console.info('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
+        return result;
+      }
+
+      // OPT-IN PGlite
+      const pglite = await this.getPGlite();
+
+      if (!pglite.isReady()) {
+        const waitStartTime = Date.now();
+        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (!pglite.isReady()) {
+          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+          const result = await this.getRecurringPlansFromAPI(filters);
+          performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
           return result;
         }
       }
 
-      // Fallback to API
-      const result = await this.getRecurringPlansFromAPI(filters);
+      console.info('[DATA_LAYER] Using PGlite');
+      const result = await pglite.queryRecurringPlans(filters);
       const duration = performance.now() - startTime;
-      performanceMonitor.trackAPICall('getRecurringPlans', duration);
-      return result;
-    } catch (error) {
-      console.error('[DATA_LAYER] getRecurringPlans failed:', error);
 
-      // Fallback to API on PGlite error
-      if (isPGliteEnabled()) {
-        console.warn('[DATA_LAYER] PGlite failed, falling back to API');
-        const result = await this.getRecurringPlansFromAPI(filters);
-        const duration = performance.now() - startTime;
-        performanceMonitor.trackAPICall('getRecurringPlans', duration);
-        return result;
+      if (result.length === 0) {
+        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        const apiResult = await this.getRecurringPlansFromAPI(filters);
+        performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
+        console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+        return apiResult;
       }
 
-      throw error;
+      performanceMonitor.trackPGliteCall('getRecurringPlans', duration);
+      console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      return result;
+
+    } catch (error) {
+      console.error('[DATA_LAYER] Error in getRecurringPlans', error);
+      const result = await this.getRecurringPlansFromAPI(filters);
+      performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
+      return result;
     }
   }
 
