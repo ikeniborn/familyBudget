@@ -12,6 +12,7 @@ import { logger, configureLogger } from '../utils/logger';
 import { runMigrations } from './migrationManager';
 import { runValidationSuite } from '../validation/validationSuite';
 import { getPGliteManager } from '../index';
+import { syncReferenceData } from '../operations/referenceSync';
 
 /**
  * Initialize PGlite instance with IndexedDB backend
@@ -141,8 +142,12 @@ export async function initializeDatabaseInBackground(): Promise<void> {
 
     // Step 4: Initial sync (reference data only)
     logger.info('[DB_INIT] Step 4/5: Sync reference data');
-    // TODO: Implement syncReferenceData()
-    // await syncReferenceData();
+    await syncReferenceData(db, (progress) => {
+      logger.info(`[DB_INIT] ${progress.phase}: ${progress.message}`, {
+        current: progress.current,
+        total: progress.total
+      });
+    });
 
     // Step 5: Run validation suite
     logger.info('[DB_INIT] Step 5/5: Validate readiness');
