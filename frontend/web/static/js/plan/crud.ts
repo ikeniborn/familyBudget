@@ -266,10 +266,10 @@ function updateEditCategoryTypeBadge(type: string): void {
  * Shows create form for new plan (regular, recurring, or with reminder)
  */
 export function openAddPlanModal(): void {
-  const modalId = 'modal_add_plan';
+  const modalId = 'modal_plan';
 
   // Reset button state
-  const form = document.getElementById('form_modal_add_plan') as HTMLFormElement | null;
+  const form = document.getElementById('form_modal_plan') as HTMLFormElement | null;
   const submitBtn = form?.querySelector('.save-btn') as HTMLButtonElement | null;
   if (submitBtn) {
     submitBtn.disabled = false;
@@ -1022,7 +1022,7 @@ function getFrequencyDisplayText(type: string, value: number | null): string {
  * Update frequency-specific fields visibility
  * Shows/hides month day picker and yearly picker based on frequency type
  *
- * @param modalId - Modal ID (e.g., 'modal_add_plan')
+ * @param modalId - Modal ID (e.g., 'modal_plan')
  */
 export function updateFrequencyFields(modalId: string): void {
   const frequencySelect = document.querySelector(
@@ -1054,7 +1054,7 @@ export function updateFrequencyFields(modalId: string): void {
  * Update yearly frequency value (encode month + day to MMDD format)
  * Validates day is valid for selected month
  *
- * @param modalId - Modal ID (e.g., 'modal_add_plan')
+ * @param modalId - Modal ID (e.g., 'modal_plan')
  */
 export function updateYearlyFrequencyValue(modalId: string): void {
   const monthSelect = document.querySelector(
@@ -1119,7 +1119,7 @@ export function updateYearlyFrequencyValue(modalId: string): void {
  * Update duration-specific fields visibility
  * Also initializes/destroys CalendarWidget for end date field
  *
- * @param modalId - Modal ID (e.g., 'modal_add_plan')
+ * @param modalId - Modal ID (e.g., 'modal_plan')
  */
 export function updateDurationFields(modalId: string): void {
   const durationSelect = document.querySelector(
@@ -1176,7 +1176,7 @@ export function updateDurationFields(modalId: string): void {
  * Update recurring schedule preview text
  * Builds human-readable preview from frequency and duration settings
  *
- * @param modalId - Modal ID (e.g., 'modal_add_plan')
+ * @param modalId - Modal ID (e.g., 'modal_plan')
  */
 export function updateRecurringPreview(modalId: string): void {
   const previewText = document.getElementById(`recurring-preview-text-${modalId}`);
@@ -1254,7 +1254,7 @@ export function updateRecurringPreview(modalId: string): void {
  * Update reminder datetime hidden field
  * Combines date, hour, minute into ISO datetime format (YYYY-MM-DDTHH:mm)
  *
- * @param modalId - Modal ID (e.g., 'modal_add_plan')
+ * @param modalId - Modal ID (e.g., 'modal_plan')
  */
 export function updateReminderDatetime(modalId: string): void {
   const dateInput = document.getElementById(`reminder_date_${modalId}`) as HTMLInputElement | null;
@@ -1324,7 +1324,7 @@ export async function createPlan(event: Event): Promise<void> {
   setSubmitLoading(form, true);
 
   const formData = new FormData(form);
-  const modalId = 'modal_add_plan';
+  const modalId = 'modal_plan';
 
   // Check plan mode from radio buttons
   const planMode = formData.get('plan_mode') || 'regular';
@@ -1447,12 +1447,12 @@ export async function createPlan(event: Event): Promise<void> {
           logCrud.debug('[createPlan] Recurring plan created:', result);
         }
 
-        (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+        (document.getElementById('modal_plan') as HTMLDialogElement).close();
         form.reset();
         // Reset recurring settings
         resetRecurringSettings(modalId);
         // Reset reminder settings
-        const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+        const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields(modalId);
         await loadFacts();
@@ -1474,12 +1474,12 @@ export async function createPlan(event: Event): Promise<void> {
           showToast(message, 'success');
           logCrud.debug('[createPlan] Recurring plan created:', createdPlan);
 
-          (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+          (document.getElementById('modal_plan') as HTMLDialogElement).close();
           form.reset();
           // Reset recurring settings
           resetRecurringSettings(modalId);
           // Reset reminder settings
-          const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+          const reminderSettings = document.getElementById('reminder-settings-modal_plan');
           if (reminderSettings) reminderSettings.classList.add('hidden');
           resetReminderFields(modalId);
           await loadFacts();
@@ -1531,12 +1531,12 @@ export async function createPlan(event: Event): Promise<void> {
         }
       }
 
-      (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+      (document.getElementById('modal_plan') as HTMLDialogElement).close();
       form.reset();
       // Reset reminder settings visibility and fields
-      const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+      const reminderSettings = document.getElementById('reminder-settings-modal_plan');
       if (reminderSettings) reminderSettings.classList.add('hidden');
-      resetReminderFields('modal_add_plan');
+      resetReminderFields('modal_plan');
       await loadFacts(); // Перезагрузить список планов
 
       // Переинициализировать кнопки периода
@@ -1567,12 +1567,12 @@ export async function createPlan(event: Event): Promise<void> {
           }
         }
 
-        (document.getElementById('modal_add_plan') as HTMLDialogElement).close();
+        (document.getElementById('modal_plan') as HTMLDialogElement).close();
         form.reset();
         // Reset reminder settings visibility and fields
-        const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+        const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
-        resetReminderFields('modal_add_plan');
+        resetReminderFields('modal_plan');
         await loadFacts(); // Перезагрузить список планов
 
         // Переинициализировать кнопки периода
