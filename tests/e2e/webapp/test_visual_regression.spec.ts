@@ -43,7 +43,13 @@ test.describe('Visual Regression - Homepage', () => {
     }
 
     // Wait for HTMX to load all data sections (PGlite init + data loading)
-    await page.waitForSelector('.loading.loading-spinner', { state: 'hidden', timeout: 15000 });
+    // Check that spinners are removed (HTMX innerHTML swap removes them from DOM)
+    await page.waitForFunction(() => {
+      const quickStatsSpinner = document.querySelector('#quick-stats .loading.loading-spinner');
+      const balancesSpinner = document.querySelector('#account-balances .loading.loading-spinner');
+      const transactionsSpinner = document.querySelector('#recent-transactions .loading.loading-spinner');
+      return !quickStatsSpinner && !balancesSpinner && !transactionsSpinner;
+    }, { timeout: 15000 });
 
     // Wait for content to stabilize after data load
     await page.waitForTimeout(1000);
