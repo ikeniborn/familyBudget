@@ -48,10 +48,16 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          npx playwright install --with-deps ${{ matrix.browser }}
+          npx playwright install-deps ${{ matrix.browser }}
+
+      - name: Verify Playwright installation
+        run: npx playwright --version
 
       - name: Run E2E tests
         env:
+          CI: true
           BASE_URL: https://fbd.ikeniborn.ru
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}

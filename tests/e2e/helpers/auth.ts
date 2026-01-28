@@ -9,38 +9,50 @@ import { Page, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-// Load environment variables from .env.test
+// Load environment variables from .env.test or process.env (CI)
 function loadTestEnv(): { email: string; password: string; baseUrl: string } {
-  const envPath = path.resolve(__dirname, '../../../.env.test');
+  // In CI environment (GitHub Actions), use environment variables directly
+  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
 
-  if (!fs.existsSync(envPath)) {
-    throw new Error(
-      `.env.test not found. Create it from .env.test.example and add TEST_USER_EMAIL and TEST_USER_PASSWORD.\n` +
-      `See: docs/testing/e2e-test-user-setup.md`
-    );
+  let email = process.env.TEST_USER_EMAIL;
+  let password = process.env.TEST_USER_PASSWORD;
+  let baseUrl = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
+
+  // In local development, try loading from .env.test file
+  if (!isCI && (!email || !password)) {
+    const envPath = path.resolve(__dirname, '../../../.env.test');
+
+    if (!fs.existsSync(envPath)) {
+      throw new Error(
+        `.env.test not found. Create it from .env.test.example and add TEST_USER_EMAIL and TEST_USER_PASSWORD.\n` +
+        `See: docs/testing/e2e-test-user-setup.md`
+      );
+    }
+
+    const envContent = fs.readFileSync(envPath, 'utf-8');
+    const env: Record<string, string> = {};
+
+    // Parse .env.test file
+    envContent.split('\n').forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+
+      const [key, ...valueParts] = trimmed.split('=');
+      const value = valueParts.join('=').trim();
+
+      env[key.trim()] = value;
+    });
+
+    email = email || env.TEST_USER_EMAIL;
+    password = password || env.TEST_USER_PASSWORD;
+    baseUrl = baseUrl || env.BASE_URL || 'https://fbd.ikeniborn.ru';
   }
-
-  const envContent = fs.readFileSync(envPath, 'utf-8');
-  const env: Record<string, string> = {};
-
-  // Parse .env.test file
-  envContent.split('\n').forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) return;
-
-    const [key, ...valueParts] = trimmed.split('=');
-    const value = valueParts.join('=').trim();
-
-    env[key.trim()] = value;
-  });
-
-  const email = env.TEST_USER_EMAIL || process.env.TEST_USER_EMAIL;
-  const password = env.TEST_USER_PASSWORD || process.env.TEST_USER_PASSWORD;
-  const baseUrl = env.BASE_URL || process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
 
   if (!email || !password) {
     throw new Error(
-      `TEST_USER_EMAIL and TEST_USER_PASSWORD must be set in .env.test or environment variables.\n` +
+      `TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.\n` +
+      `- CI: Set GitHub Actions secrets\n` +
+      `- Local: Create .env.test from .env.test.example\n` +
       `See: docs/testing/e2e-test-user-setup.md`
     );
   }
