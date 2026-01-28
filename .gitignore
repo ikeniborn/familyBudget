@@ -337,3 +337,4 @@ bundle-stats*.html
 
 # Vite build temporary directory
 dist/
+tests/e2e/.auth/
