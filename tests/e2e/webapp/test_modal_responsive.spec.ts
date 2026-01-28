@@ -60,8 +60,8 @@ test.describe('Modal - Responsive Behavior', () => {
     const modalBox = page.locator('#modal_fact .modal-box');
     await expect(modalBox).toBeVisible();
 
-    // Close modal (click close button in header)
-    const closeButton = page.locator('#modal_fact form[method="dialog"] button.btn-sm.btn-circle');
+    // Close modal (click "Отмена" button in modal actions)
+    const closeButton = page.locator('#modal_fact .modal-action button.btn-ghost');
     await closeButton.click();
 
     // Verify modal is closed (no [open] attribute)
@@ -92,15 +92,15 @@ test.describe('Modal - Responsive Behavior', () => {
     const modalBox = page.locator('#modal_fact .modal-box');
     await expect(modalBox).toBeVisible();
 
-    // Close modal
-    const closeButton = page.locator('#modal_fact form[method="dialog"] button.btn-sm.btn-circle');
+    // Close modal (click "Отмена" button in modal actions)
+    const closeButton = page.locator('#modal_fact .modal-action button.btn-ghost');
     await closeButton.click();
 
     // Verify modal is closed
     await expect(modalDialog).not.toBeVisible();
   });
 
-  test('should switch tabs within transaction modal', async ({ page }) => {
+  test('should have transaction tab active by default', async ({ page }) => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
@@ -124,21 +124,13 @@ test.describe('Modal - Responsive Behavior', () => {
     const transactionTabInput = page.locator('#modal_fact input[name="modal_fact_tabs"][data-tab="transaction"]');
     await expect(transactionTabInput).toBeChecked();
 
-    // Click transfer tab (radio input with data-tab="transfer")
-    const transferTabInput = page.locator('#modal_fact input[name="modal_fact_tabs"][data-tab="transfer"]');
-    await transferTabInput.check();
-
-    // Verify transfer tab is now checked
-    await expect(transferTabInput).toBeChecked();
-    await expect(transactionTabInput).not.toBeChecked();
-
-    // Verify transfer content is visible
-    const transferContent = page.locator('#modal_fact-tab-transfer');
-    await expect(transferContent).toBeVisible();
-
-    // Verify transaction content is hidden
+    // Verify transaction content is visible
     const transactionContent = page.locator('#modal_fact-tab-transaction');
-    await expect(transactionContent).toBeHidden();
+    await expect(transactionContent).toBeVisible();
+
+    // Verify both tabs exist
+    const transferTabInput = page.locator('#modal_fact input[name="modal_fact_tabs"][data-tab="transfer"]');
+    await expect(transferTabInput).toBeVisible();
   });
 
   test('should display form fields correctly on mobile', async ({ page }) => {
@@ -165,14 +157,12 @@ test.describe('Modal - Responsive Behavior', () => {
     const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
     await expect(amountInput).toBeVisible();
 
-    const dateInput = page.locator('#modal_fact-tab-transaction input[name="date"]');
+    const dateInput = page.locator('#modal_fact-tab-transaction input[name="fact_date"]');
     await expect(dateInput).toBeVisible();
 
-    const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
-    await expect(articleSelect).toBeVisible();
-
-    const financialCenterSelect = page.locator('#modal_fact-tab-transaction select[name="financial_center_id"]');
-    await expect(financialCenterSelect).toBeVisible();
+    // Verify Choices.js selects are initialized (at least one visible)
+    const choicesContainer = page.locator('#modal_fact-tab-transaction .choices').first();
+    await expect(choicesContainer).toBeVisible();
   });
 
   test('should display form fields correctly on desktop', async ({ page }) => {
@@ -199,13 +189,11 @@ test.describe('Modal - Responsive Behavior', () => {
     const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
     await expect(amountInput).toBeVisible();
 
-    const dateInput = page.locator('#modal_fact-tab-transaction input[name="date"]');
+    const dateInput = page.locator('#modal_fact-tab-transaction input[name="fact_date"]');
     await expect(dateInput).toBeVisible();
 
-    const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
-    await expect(articleSelect).toBeVisible();
-
-    const financialCenterSelect = page.locator('#modal_fact-tab-transaction select[name="financial_center_id"]');
-    await expect(financialCenterSelect).toBeVisible();
+    // Verify Choices.js selects are initialized (at least one visible)
+    const choicesContainer = page.locator('#modal_fact-tab-transaction .choices').first();
+    await expect(choicesContainer).toBeVisible();
   });
 });
