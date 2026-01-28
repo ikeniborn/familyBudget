@@ -172,9 +172,11 @@ export class PGliteDiagnosticModal extends BaseModal {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Clear and append parsed content
+    // Clear and append all parsed content (not just firstChild)
     this.diagnosticContainer.innerHTML = '';
-    this.diagnosticContainer.appendChild(doc.body.firstChild as Node);
+    while (doc.body.firstChild) {
+      this.diagnosticContainer.appendChild(doc.body.firstChild);
+    }
   }
 
   /**
