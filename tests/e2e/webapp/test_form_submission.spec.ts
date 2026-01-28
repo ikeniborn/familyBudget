@@ -25,7 +25,11 @@ test.describe('Form Submission - Transaction Creation', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
     await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
+    // Use domcontentloaded instead of networkidle to avoid timeout issues
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for critical resources
+    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
 
     // Close cookie consent modal if present
     const acceptAllButton = page.locator('button:has-text("Принять все")');
@@ -47,14 +51,17 @@ test.describe('Form Submission - Transaction Creation', () => {
     const speedDialMenu = page.locator('#fab-speed-dial-menu');
     await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
+    // Wait for animation to complete before clicking buttons
+    await page.waitForTimeout(500);
+
     const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
     await addFactButton.click();
 
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
-    // Wait for financial centers to load
-    await page.waitForTimeout(1000);
+    // Wait for financial centers and Choices.js to initialize
+    await page.waitForTimeout(2000);
 
     // Fill required fields
     // Date (use "Сегодня" button for simplicity)
@@ -68,8 +75,13 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Verify Article dropdown exists
     // Note: Article selection via ChoicesCategoryTree is too complex for E2E automation
     // We verify the field exists but don't attempt programmatic selection
+    // Choices.js hides the original select, so check if it's attached to DOM (not visible)
     const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
-    await expect(articleSelect).toBeVisible();
+    await expect(articleSelect).toBeAttached(); // exists in DOM but hidden by Choices.js
+
+    // Verify Choices.js container is visible
+    const articleChoices = page.locator('#modal_fact-tab-transaction .choices[data-type="select-one"]').first();
+    await expect(articleChoices).toBeVisible();
 
     // Record Type (expense is default, no action needed)
 
@@ -142,14 +154,17 @@ test.describe('Form Submission - Transaction Creation', () => {
     const speedDialMenu = page.locator('#fab-speed-dial-menu');
     await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
+    // Wait for animation to complete before clicking buttons
+    await page.waitForTimeout(500);
+
     const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
     await addFactButton.click();
 
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
-    // Wait for financial centers to load
-    await page.waitForTimeout(1000);
+    // Wait for financial centers and Choices.js to initialize
+    await page.waitForTimeout(2000);
 
     // Fill required fields (same as desktop)
     const todayButton = page.locator('#modal_fact-tab-transaction button:has-text("Сегодня")');
@@ -159,8 +174,13 @@ test.describe('Form Submission - Transaction Creation', () => {
     const fcSelect = page.locator('#modal_fact-tab-transaction select[name="financial_center_id"]');
     await expect(fcSelect).toBeVisible();
 
+    // Choices.js hides the original select, so check if it's attached to DOM (not visible)
     const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
-    await expect(articleSelect).toBeVisible();
+    await expect(articleSelect).toBeAttached(); // exists in DOM but hidden by Choices.js
+
+    // Verify Choices.js container is visible
+    const articleChoices = page.locator('#modal_fact-tab-transaction .choices[data-type="select-one"]').first();
+    await expect(articleChoices).toBeVisible();
 
     // Amount
     const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
@@ -197,14 +217,17 @@ test.describe('Form Submission - Transaction Creation', () => {
     const speedDialMenu = page.locator('#fab-speed-dial-menu');
     await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
+    // Wait for animation to complete before clicking buttons
+    await page.waitForTimeout(500);
+
     const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
     await addFactButton.click();
 
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
-    // Wait for financial centers to load
-    await page.waitForTimeout(1000);
+    // Wait for financial centers and Choices.js to initialize
+    await page.waitForTimeout(2000);
 
     // Fill required fields
     const todayButton = page.locator('#modal_fact-tab-transaction button:has-text("Сегодня")');
@@ -221,8 +244,13 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Verify Article dropdown exists
     // Note: Article selection via ChoicesCategoryTree is too complex for E2E automation
     // We verify the field exists but don't attempt programmatic selection
+    // Choices.js hides the original select, so check if it's attached to DOM (not visible)
     const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
-    await expect(articleSelect).toBeVisible();
+    await expect(articleSelect).toBeAttached(); // exists in DOM but hidden by Choices.js
+
+    // Verify Choices.js container is visible
+    const articleChoices = page.locator('#modal_fact-tab-transaction .choices[data-type="select-one"]').first();
+    await expect(articleChoices).toBeVisible();
 
     // Amount
     const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
