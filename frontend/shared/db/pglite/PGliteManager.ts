@@ -75,6 +75,7 @@ import {
   type PruningStats
 } from './operations/pruningOperations';
 import { getState, updateState, isConnected } from './core/stateManager';
+import type { InitializationStatus } from './core/PGliteState';
 import type { IPGliteConfig } from './types/dependencies';
 import type {
   LocalArticle,
@@ -107,6 +108,7 @@ import { getPGliteFeatureFlags } from './features/featureFlags';
 export interface DiagnosticData {
   isEnabled: boolean;
   isInitialized: boolean;
+  initializationStatus: InitializationStatus;  // NEW: Background init status for early error detection
   dbSizeKB: number;
   lastSyncTimestamp: string;
   syncStatus: 'idle' | 'syncing' | 'error';
@@ -755,12 +757,14 @@ export class PGliteManager {
    * @returns Diagnostic data including DB size, table stats, and performance metrics
    */
   async getDiagnosticData(): Promise<DiagnosticData> {
-    const { db } = getState();
+    const state = getState();
+    const { db } = state;
     if (!db) {
       // Return default data if not initialized
       return {
         isEnabled: false,
         isInitialized: false,
+        initializationStatus: state.initializationStatus || 'not_started',
         dbSizeKB: 0,
         lastSyncTimestamp: 'Never',
         syncStatus: 'idle',
@@ -818,9 +822,11 @@ export class PGliteManager {
         logger.warn('[DIAGNOSTIC] Failed to get pruning stats', error);
       }
 
+      const state = getState();
       return {
         isEnabled: true,
         isInitialized: this.isReady(),
+        initializationStatus: state.initializationStatus || 'not_started',
         dbSizeKB,
         lastSyncTimestamp: syncMeta?.last_sync_timestamp
           ? new Date(syncMeta.last_sync_timestamp).toLocaleString('ru-RU')

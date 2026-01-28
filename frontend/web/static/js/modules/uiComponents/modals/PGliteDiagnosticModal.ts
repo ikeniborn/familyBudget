@@ -73,21 +73,34 @@ export class PGliteDiagnosticModal extends BaseModal {
       let attempts = 0;
       while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
         attempts++;
-        if (attempts % 10 === 0) {
-          // Log every 2 seconds
-          try {
-            const diagnosticData = await pglite.getDiagnosticData();
+
+        // Check for initialization error at every iteration (early exit)
+        try {
+          const diagnosticData = await pglite.getDiagnosticData();
+
+          // If initialization failed, exit immediately instead of waiting 30s
+          if (diagnosticData.initializationStatus === 'error') {
+            console.error('[DIAGNOSTIC] Initialization error detected, exiting wait loop early');
+            break;
+          }
+
+          if (attempts % 10 === 0) {
+            // Log every 2 seconds
             console.log('[DIAGNOSTIC] Waiting for PGlite...', {
               attempt: attempts,
               elapsed: Date.now() - startTime,
+              initStatus: diagnosticData.initializationStatus,
               isInitialized: diagnosticData.isInitialized,
               syncStatus: diagnosticData.syncStatus,
               isReady: pglite.isReady()
             });
-          } catch (e) {
+          }
+        } catch (e) {
+          if (attempts % 10 === 0) {
             console.log('[DIAGNOSTIC] Cannot get diagnostic data yet, still initializing...');
           }
         }
+
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 

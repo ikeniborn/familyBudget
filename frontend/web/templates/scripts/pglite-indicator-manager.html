@@ -162,15 +162,33 @@
         }
     }
 
-    function onPGliteSyncError(error) {
+    async function onPGliteSyncError(error) {
         console.error('[PGLITE_INDICATOR] Sync error:', error);
         if (localStorage.getItem('enablePGlite') === 'true') {
             updatePGliteIndicator('error');
 
-            // Auto-recover to active after 5 seconds
-            setTimeout(() => {
-                updatePGliteIndicator('active');
-            }, 5000);
+            // Conditional auto-recovery based on error type
+            try {
+                const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
+                const state = getState();
+
+                // Only auto-recover for transient sync errors, NOT for initialization errors
+                if (state.errorType === 'sync') {
+                    console.info('[PGLITE_INDICATOR] Transient sync error, will auto-recover in 5s');
+                    setTimeout(() => {
+                        updatePGliteIndicator('active');
+                    }, 5000);
+                } else if (state.errorType === 'initialization') {
+                    console.warn('[PGLITE_INDICATOR] Initialization error, NO auto-recovery (stay red)');
+                    // Stay in error state permanently
+                } else {
+                    // Unknown error type, default to NO recovery (safe default)
+                    console.warn('[PGLITE_INDICATOR] Unknown error type, NO auto-recovery');
+                }
+            } catch (e) {
+                // Cannot determine error type, default to NO recovery
+                console.error('[PGLITE_INDICATOR] Cannot determine error type:', e);
+            }
         }
     }
 
