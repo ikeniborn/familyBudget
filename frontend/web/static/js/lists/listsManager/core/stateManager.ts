@@ -49,8 +49,11 @@ function convertShoppingList(local: LocalShoppingList): ShoppingList {
     temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
     name: local.name,
     is_active: local.is_active,
-    created_at: local.created_at.toISOString(),
-    updated_at: local.updated_at.toISOString(),
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
     description: local.description || undefined,
     // total_items and completed_items will be calculated by UI
   };
@@ -68,12 +71,17 @@ function convertShoppingListItem(local: LocalShoppingListItem, listId: number): 
     quantity: local.quantity,
     unit: local.unit,
     is_completed: local.is_completed,
-    completed_at: local.completed_at?.toISOString(),
+    // DEFENSIVE: Handle both Date and string for nullable completed_at
+    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at PGlite query layer
+    completed_at: local.completed_at
+      ? (typeof local.completed_at === 'string' ? local.completed_at : local.completed_at.toISOString())
+      : undefined,
     store_id: local.store_id,
     product_group_id: local.product_group_id,
     notes: local.comment, // PGlite uses 'comment', UI uses 'notes'
-    created_at: local.created_at.toISOString(),
-    updated_at: local.updated_at.toISOString(),
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
   };
 }
 
@@ -85,7 +93,10 @@ function convertStore(local: LocalStore): Store {
     id: local.id,
     name: local.name,
     is_active: local.is_active,
-    created_at: local.created_at.toISOString(),
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalStore.created_at type to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
 }
@@ -99,7 +110,10 @@ function convertProductGroup(local: LocalProductGroup): ProductGroup {
     name: local.name,
     parent_id: local.parent_id,
     is_active: local.is_active,
-    created_at: local.created_at.toISOString(),
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
 }
