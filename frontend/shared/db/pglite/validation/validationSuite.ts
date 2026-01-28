@@ -235,6 +235,9 @@ async function validatePerformance(
 
 /**
  * Collect diagnostic details
+ *
+ * Note: Uses COUNT(*) queries without user_id filtering.
+ * For diagnostics, we only need to verify data is loaded, not user-specific counts.
  */
 async function collectDiagnosticDetails(
   pglite: PGliteManager,
@@ -242,21 +245,37 @@ async function collectDiagnosticDetails(
   maxQueryTimeMs: number
 ) {
   try {
-    const articles = await pglite.queryArticles();
-    const financialCenters = await pglite.queryFinancialCenters(0, true);
-    const costCenters = await pglite.queryCostCenters(0, true);
+    const db = pglite.getDatabase();
+    if (!db) throw new Error('Database not initialized');
+
+    // Direct COUNT queries (no user_id filtering for diagnostics)
+    const articlesResult = await db.query('SELECT COUNT(*) as count FROM local_articles');
+    const fcResult = await db.query(
+      'SELECT COUNT(*) as count FROM local_financial_centers WHERE is_active = true'
+    );
+    const ccResult = await db.query(
+      'SELECT COUNT(*) as count FROM local_cost_centers WHERE is_active = true'
+    );
+
+    const articleCount = parseInt((articlesResult.rows[0] as { count: string }).count);
+    const financialCenterCount = parseInt((fcResult.rows[0] as { count: string }).count);
+    const costCenterCount = parseInt((ccResult.rows[0] as { count: string }).count);
+
     const schemaVersion = await pglite.getSchemaVersion();
 
-    // TODO: Query hierarchy count
-    // const hierarchyCount = await pglite.queryArticleHierarchyCount();
+    logger.info('[VALIDATION] Diagnostic counts', {
+      articleCount,
+      financialCenterCount,
+      costCenterCount
+    });
 
     return {
       schemaVersion,
       expectedSchemaVersion: EXPECTED_SCHEMA_VERSION,
-      articleCount: articles.length,
-      financialCenterCount: financialCenters.length,
-      costCenterCount: costCenters.length,
-      hierarchyCount: 0, // TODO: Implement hierarchy count query
+      articleCount,
+      financialCenterCount,
+      costCenterCount,
+      hierarchyCount: 0,
       avgQueryTimeMs,
       maxQueryTimeMs
     };

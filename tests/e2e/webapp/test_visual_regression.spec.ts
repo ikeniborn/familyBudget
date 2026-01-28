@@ -42,8 +42,17 @@ test.describe('Visual Regression - Homepage', () => {
       await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
     }
 
-    // Wait for content to stabilize
-    await page.waitForTimeout(2000); // Increased for visual regression stability
+    // Wait for HTMX to load all data sections (PGlite init + data loading)
+    // Check that spinners are removed (HTMX innerHTML swap removes them from DOM)
+    await page.waitForFunction(() => {
+      const quickStatsSpinner = document.querySelector('#quick-stats .loading.loading-spinner');
+      const balancesSpinner = document.querySelector('#account-balances .loading.loading-spinner');
+      const transactionsSpinner = document.querySelector('#recent-transactions .loading.loading-spinner');
+      return !quickStatsSpinner && !balancesSpinner && !transactionsSpinner;
+    }, { timeout: 15000 });
+
+    // Wait for content to stabilize after data load
+    await page.waitForTimeout(1000);
   });
 
   test('should match homepage on desktop', async ({ page }) => {
