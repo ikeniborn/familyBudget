@@ -49,8 +49,12 @@ jobs:
 
       - name: Install Playwright browsers
         run: |
-          npx playwright install --with-deps ${{ matrix.browser }}
-          npx playwright install-deps ${{ matrix.browser }}
+          # Install chromium for setup project (always needed for auth)
+          npx playwright install --with-deps chromium
+          # Install test browser if different from chromium
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            npx playwright install --with-deps ${{ matrix.browser }}
+          fi
 
       - name: Verify Playwright installation
         run: npx playwright --version

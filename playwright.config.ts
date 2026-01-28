@@ -48,6 +48,9 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'], // Setup uses chromium (always available in CI)
+      },
     },
 
     /* Desktop browsers with authentication */
