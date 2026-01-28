@@ -3029,13 +3029,21 @@ Secondary pages (e.g., `/lists`) use custom mobile menus that differ from main a
 
 **CRITICAL**: Mobile menu must lower z-index when modal is open to prevent overlap.
 
-**Hierarchy**:
-- Modal backdrop: `z-index: 1000`
-- Modal content: `z-index: 1001`
-- Choices.js container when open (in modal): `z-index: 1060` (via `.choices.is-open`)
-- Choices.js dropdown list (in modal): `z-index: 1061`
-- Mobile menu (normal): `z-index: 50`
-- Mobile menu (modal open): `z-index: 40`
+**Mobile Menu Behavior** (CSS Variables):
+- Mobile menu (normal): `var(--z-navbar)` = **50**
+- Mobile menu (modal open): `var(--z-fab-mobile)` = **40**
+
+**Modal Context** (relevant for mobile pages):
+- Modal backdrop: `var(--z-modal-backdrop)` = **999**
+- Modal content: `var(--z-modal)` = **900**
+- Choices.js container (modal): `z-index: 1060` (library-controlled)
+- Choices.js dropdown (modal): `z-index: 1061` (library-controlled)
+
+**Since v11.0**: All z-index values use CSS custom properties from `z-index-variables.css`.
+
+**Complete Z-Index System:**
+- [z-index-layering.md](architecture/frontend/z-index-layering.md) - Full 13-layer hierarchy
+- [z-index-layering.md#css-variables-reference](architecture/frontend/z-index-layering.md#css-variables-reference) - CSS variables usage
 
 ### Testing Checklist
 

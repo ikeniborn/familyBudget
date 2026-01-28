@@ -16,8 +16,8 @@
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
 <button id="add-item-fab"
         onclick="window.openAddItemModal()"
-        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
-        style="z-index: 1001; pointer-events: auto;"
+        class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
+        style="pointer-events: auto;"
         aria-label="Добавить товар"
         title="Добавить товар">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,8 +30,8 @@
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
 <button id="create-list-fab"
         onclick="window.openCreateListModal()"
-        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
-        style="z-index: 1001; pointer-events: auto;"
+        class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
+        style="pointer-events: auto;"
         aria-label="Создать список"
         title="Создать список">
     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -42,9 +42,9 @@
 <!-- FAB Speed Dial для массовых операций (Detail View, Desktop Only) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3" style="z-index: 1001;">
+<div id="lists-fab-menu" class="fab-menu lists-fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
-    <button onclick="window.toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl" style="z-index: 1003;" aria-label="Массовые операции">
+    <button onclick="window.toggleListsFAB()" class="fab-main lists-fab-main btn btn-primary btn-circle btn-lg shadow-xl" aria-label="Массовые операции">
         <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="5" r="2"/>
             <circle cx="12" cy="12" r="2"/>
@@ -78,5 +78,5 @@
 <!-- FAB Backdrop (Desktop Only) -->
 <!-- IMPORTANT: Visibility controlled by toggleListsFAB(), not Tailwind -->
 <!-- CSS @media (pointer: coarse) hides on touch devices -->
-<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden" style="z-index: 1000;" onclick="window.toggleListsFAB()"></div>
+<div id="lists-fab-backdrop" class="lists-fab-backdrop fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden" onclick="window.toggleListsFAB()"></div>
 {% endmacro %}

@@ -549,7 +549,7 @@ body.modal-open {
         overflow-y: auto !important;
         overflow-x: hidden !important;
         /* Above FAB toolbar */
-        z-index: 60 !important;
+        z-index: var(--z-dropdown) !important;  /* 60 - above navbar (50) */
     }
 
     /* Предотвращаем перенос текста в элементах меню */
@@ -602,7 +602,7 @@ body.modal-open {
 /* Modal Z-Index Configuration (Cookie Consent + WebAuthn) */
 /* Ensure cookie consent banner appears above ALL UI elements */
 #cookie-consent-banner {
-    z-index: 999 !important;  /* Above mobile menu (60), modals, FAB (50) */
+    z-index: var(--z-modal-backdrop) !important;  /* 999 - above mobile menu (60), modals, FAB (50) */
 }
 
 /* Ensure modal content clickable */
@@ -613,14 +613,14 @@ body.modal-open {
 
 /* WebAuthn onboarding modal - same priority as cookie consent */
 #webauthn-onboarding-modal {
-    z-index: 999 !important;  /* Same priority as cookie consent */
+    z-index: var(--z-modal-backdrop) !important;  /* 999 - same priority as cookie consent */
 }
 
 /* General modal safety net (optional but recommended) */
 dialog.modal {
-    z-index: 900 !important;  /* Above menu (60) but below priority modals (999) */
+    z-index: var(--z-modal) !important;  /* 900 - above menu (60) but below priority modals (999) */
 }
 
 dialog.modal::backdrop {
-    z-index: 899 !important;  /* Backdrop below modal */
+    z-index: calc(var(--z-modal) - 1) !important;  /* 899 - backdrop below modal */
 }

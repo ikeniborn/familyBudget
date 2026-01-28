@@ -153,7 +153,7 @@
   max-width: calc(100% - 6%); /* 3% margin on each side */
   max-height: 85vh; /* Prevent excessive vertical stretch */
   overflow-y: auto;
-  z-index: 2000; /* v5.1.10: Increased from 1000 to match non-modal calendar */
+  z-index: var(--z-calendar-modal); /* 2000 - modal context calendar */
 }
 
 /* Mobile touch improvements */
@@ -205,7 +205,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1999; /* v5.1.10: Below calendar (2000) but above other content */
+    z-index: calc(var(--z-calendar-modal) - 1); /* 1999 - below calendar */
     animation: backdrop-fade-in 0.2s ease-out;
   }
 
