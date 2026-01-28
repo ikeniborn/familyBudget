@@ -4,8 +4,8 @@
  */
 
 import { PGlite } from '@electric-sql/pglite';
-import { updateState } from './stateManager';
-import { getPGliteFeatureFlags, isPGliteEnabled, isPGliteActive } from '../features/featureFlags';
+import { updateState, getState } from './stateManager';
+import { getPGliteFeatureFlags, isPGliteEnabled } from '../features/featureFlags';
 import type { IPGliteConfig } from '../types/dependencies';
 import { PGliteInitError } from '../types/errors';
 import { logger, configureLogger } from '../utils/logger';
@@ -114,10 +114,11 @@ export async function closeDatabase(db: PGlite): Promise<void> {
  */
 export async function initializeDatabaseInBackground(): Promise<void> {
   // Check if background init is allowed
-  if (!isPGliteEnabled() || isPGliteActive()) {
+  const state = getState();
+  if (!isPGliteEnabled() || state.isInitialized) {
     logger.info('[DB_INIT] Background init skipped', {
       enabled: isPGliteEnabled(),
-      active: isPGliteActive()
+      isInitialized: state.isInitialized
     });
     return;
   }
