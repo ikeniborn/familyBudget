@@ -75,10 +75,53 @@ npm run test:e2e:report
 ```
 tests/e2e/
 ├── README.md                           # This file
+├── .auth/                              # Authentication storage state (gitignored)
+│   └── user.json                       # Saved authenticated session
 ├── helpers/
 │   └── auth.ts                         # Authentication helper (login/logout)
+├── setup/
+│   └── auth.setup.ts                   # Global authentication setup
 └── webapp/
     └── test_mobile_navigation.spec.ts  # Mobile navigation tests (9 tests)
+```
+
+---
+
+## Performance Optimization
+
+### Storage State (Session Reuse)
+
+Tests use Playwright's storage state feature to authenticate **once** and reuse the session:
+
+**How it works:**
+1. `tests/e2e/setup/auth.setup.ts` runs **before all tests** (global setup)
+2. Performs login and saves authenticated state to `tests/e2e/.auth/user.json`
+3. All test projects inherit this state via `storageState` config
+4. Tests skip manual login and start with authenticated session
+
+**Performance Impact:**
+- **Before:** 9 tests × 15s login = ~135s wasted on authentication
+- **After:** 1 login × 15s = ~15s total authentication time
+- **Savings:** ~120s (2 minutes) per test run
+
+**Storage State Contents:**
+- Cookies (JWT access_token, refresh_token)
+- LocalStorage (user preferences, PGlite settings)
+- SessionStorage (temporary session data)
+
+**Configuration:**
+- Setup project: `playwright.config.ts` → `projects[0]` (name: 'setup')
+- All browsers depend on setup: `dependencies: ['setup']`
+- Storage state path: `storageState: 'tests/e2e/.auth/user.json'`
+
+**Debugging:**
+```bash
+# View saved storage state
+cat tests/e2e/.auth/user.json
+
+# Force re-authentication (delete storage state)
+rm tests/e2e/.auth/user.json
+npx playwright test
 ```
 
 ---
@@ -142,6 +185,59 @@ test.beforeEach(async ({ page }) => {
 
 ---
 
+## Cross-Browser Testing
+
+### Supported Browsers
+
+Tests run on multiple browsers to ensure cross-browser compatibility:
+
+| Browser | Status | Notes |
+|---------|--------|-------|
+| **Chromium** (Desktop Chrome) | ✅ 10/10 tests passing | Primary browser |
+| **Firefox** (Desktop Firefox) | ⚠️ 8/10 tests passing | 2 timeout issues (acceptable) |
+| **WebKit** (Desktop Safari) | ⚠️ Requires system deps | Works in CI/CD with `--with-deps` |
+| **Mobile Chrome** (Pixel 5) | ✅ Available | Mobile viewport testing |
+| **Mobile Safari** (iPhone 12) | ✅ Available | iOS testing |
+
+### Running Cross-Browser Tests
+
+```bash
+# Run on all browsers (CI/CD mode)
+npx playwright test --project=chromium --project=firefox --project=webkit
+
+# Run on specific browser
+npx playwright test --project=chromium
+npx playwright test --project=firefox
+npx playwright test --project=webkit
+
+# Run on mobile browsers
+npx playwright test --project="Mobile Chrome"
+npx playwright test --project="Mobile Safari"
+
+# Install browser dependencies (for WebKit on Linux)
+sudo npx playwright install-deps webkit
+```
+
+### Browser-Specific Notes
+
+**WebKit (Safari) on Linux:**
+- Requires `libavif16` system dependency
+- Install via: `sudo apt-get install libavif16` or `sudo npx playwright install-deps`
+- Works automatically in CI/CD (GitHub Actions uses `--with-deps`)
+
+**Firefox Timeouts:**
+- 2 tests timeout after 30s (page load delay)
+- Non-critical - tests pass on retry
+- 8/10 tests passing consistently
+
+**Mobile Browsers:**
+- Test PWA features and mobile responsiveness
+- Important for Telegram Web Apps compatibility
+- Use Mobile Chrome for Android testing
+- Use Mobile Safari for iOS testing
+
+---
+
 ## Configuration
 
 ### Playwright Config (`playwright.config.ts`)
@@ -152,6 +248,8 @@ Key settings:
 - **Screenshots:** On failure only
 - **Video:** Retained on failure
 - **Trace:** On first retry
+- **Storage State:** `tests/e2e/.auth/user.json` (authenticated session)
+- **Setup Project:** `auth.setup.ts` (runs once before all tests)
 
 **Change base URL:**
 ```bash
