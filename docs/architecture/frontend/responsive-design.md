@@ -49,7 +49,7 @@ Family Budget uses Tailwind CSS breakpoint system:
    - Separate floating button with speed dial menu
    - Page-context visibility (hidden on /analytics)
    - No backdrop (opens without overlay)
-   - Z-index: 998
+   - Z-index: `var(--z-fab-mobile)` = **40** (below mobile navbar at 50)
 
 **Desktop (≥ 1024px):**
 - Single Floating Action Button (FAB) at bottom-right
@@ -140,13 +140,46 @@ const FAB_PAGE_CONTEXT = {
 
 ### Z-Index Hierarchy
 
-| Z-Index | Element | Purpose |
-|---------|---------|---------|
-| 50 | `.fab-container` | Base navigation |
-| 60 | `.dropdown-content` | Dropdown menus |
-| 999 | `#desktop-fab-backdrop` | Overlay when FAB open |
-| 1000 | `.desktop-fab-wrapper` | FAB menu items |
-| 1001+ | Lists page FABs | Context-specific |
+**Note:** All z-index values use CSS custom properties from `z-index-variables.css` for centralized management.
+
+| Z-Index | CSS Variable | Element | Purpose | Context |
+|---------|--------------|---------|---------|---------|
+| 9999 | `--z-autocomplete` | Autocomplete dropdown | Form inputs (Choices.js, Calendar) | Above all content |
+| 2000 | `--z-calendar-modal` | Calendar widget (modal) | Date pickers in modals | Higher than dialogs |
+| 1050 | `--z-dialog` | Dialog modals | DaisyUI .dialog, .modal | Confirmation prompts |
+| 1001-1003 | `--z-fab-lists` | Lists page FABs | Context-specific actions | /lists page only |
+| 1000 | `--z-fab-desktop` | `.fab-wrapper` | Desktop FAB menu items | ≥1024px only |
+| 999 | `--z-modal-backdrop` | `#desktop-fab-backdrop` | Modal backdrops | Overlay dimming |
+| 60 | `--z-dropdown` | `.dropdown-content` | Dropdown menus | Navigation |
+| 50 | `--z-navbar` | `.fab-container` | Mobile navbar | Base navigation |
+| 40 | `--z-fab-mobile` | `.fab-wrapper` | Mobile FAB | Below navbar |
+
+**DEPRECATED in v11.0:** `.mobile-fab-wrapper` (z-index: 998) - removed, use `.fab-wrapper` (40)
+
+**Complete Reference:** See [z-index-layering.md](z-index-layering.md) for:
+- Full 13-layer hierarchy
+- CSS variables usage examples
+- Component details
+- Troubleshooting guide
+
+### CSS Variables System
+
+**Since v11.0**, all z-index values use CSS custom properties for centralized management.
+
+**Benefits:**
+- Single source of truth in `z-index-variables.css`
+- Self-documenting variable names (`--z-fab-mobile`, `--z-modal-backdrop`)
+- Easy to update (change once, apply everywhere)
+- Prevents accidental conflicts
+
+**Example Usage:**
+```css
+.desktop-fab-wrapper {
+  z-index: var(--z-fab-desktop); /* 1000 */
+}
+```
+
+**Complete documentation:** [z-index-layering.md](z-index-layering.md#css-variables-reference)
 
 ### Implementation Files
 

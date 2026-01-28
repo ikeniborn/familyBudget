@@ -176,7 +176,8 @@ export async function initializeDatabaseInBackground(): Promise<void> {
     logger.error('[DB_INIT] Background initialization failed', error);
     updateState({
       initializationStatus: 'error',
-      lastError: error as Error
+      lastError: error as Error,
+      errorType: 'initialization'  // Mark as initialization error (NO auto-recovery)
     });
 
     // Show error toast (но не блокировать UI - API работает)

@@ -761,7 +761,7 @@
 /* Autocomplete dropdown styling */
 #product-suggestions-dropdown {
     /* Ensure dropdown appears above other modal content */
-    z-index: 9999;
+    z-index: var(--z-autocomplete);  /* 9999 - above all content */
 }
 
 /* Autocomplete suggestion items - touch optimization */
@@ -1675,4 +1675,20 @@ img[loading="lazy"] {
 /* Ensure form-control doesn't clip dropdown when open */
 #item-modal.store-dropdown-open .form-control {
     overflow: visible !important;
+}
+
+/* ==================================
+   Lists Page FAB Z-Index Classes
+   ================================== */
+
+.lists-fab-main {
+    z-index: var(--z-fab-lists);  /* 1003 - main button */
+}
+
+.lists-fab-menu {
+    z-index: var(--z-fab-lists-menu);  /* 1001 - menu items */
+}
+
+.lists-fab-backdrop {
+    z-index: var(--z-fab-desktop);  /* 1000 - same as desktop FAB backdrop */
 }

@@ -69,11 +69,15 @@
                             <span class="label-text-alt" id="factsWindowValue">90</span>
                         </label>
                         <input type="range" min="30" max="365" value="90" id="factsWindowSlider" class="range range-sm range-primary" step="30" />
-                        <div class="w-full flex justify-between text-xs px-2 opacity-60">
-                            <span>30</span>
-                            <span>90</span>
-                            <span>180</span>
-                            <span>365</span>
+                        <div class="w-full relative text-xs px-2 opacity-60" style="height: 1.5rem;">
+                            <!-- 30 days at 0% -->
+                            <span style="position: absolute; left: 0%;">30</span>
+                            <!-- 90 days at 17.9% (60/335) -->
+                            <span style="position: absolute; left: calc((90 - 30) / (365 - 30) * 100%); transform: translateX(-50%);">90</span>
+                            <!-- 180 days at 44.8% (150/335) -->
+                            <span style="position: absolute; left: calc((180 - 30) / (365 - 30) * 100%); transform: translateX(-50%);">180</span>
+                            <!-- 365 days at 100% -->
+                            <span style="position: absolute; right: 0%;">365</span>
                         </div>
                         <p class="text-sm opacity-70 mt-1">Количество дней фактов для синхронизации</p>
                     </div>

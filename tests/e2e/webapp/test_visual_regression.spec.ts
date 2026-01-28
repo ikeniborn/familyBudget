@@ -28,7 +28,11 @@ test.describe('Visual Regression - Homepage', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
     await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
+    // Use domcontentloaded instead of networkidle to avoid timeout issues
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for critical resources
+    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
 
     // Close cookie consent modal if present
     const acceptAllButton = page.locator('button:has-text("Принять все")');
@@ -39,7 +43,7 @@ test.describe('Visual Regression - Homepage', () => {
     }
 
     // Wait for content to stabilize
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000); // Increased for visual regression stability
   });
 
   test('should match homepage on desktop', async ({ page }) => {

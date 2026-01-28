@@ -30,6 +30,15 @@ export type InitializationStatus =
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error' | 'syncing';
 
 /**
+ * Error type for conditional auto-recovery
+ *
+ * - initialization: Fatal errors during PGlite setup (NO auto-recovery, stay red)
+ * - sync: Transient sync errors (auto-recover to green after 5s)
+ * - null: Unknown error type (safe default, no auto-recovery)
+ */
+export type ErrorType = 'initialization' | 'sync' | null;
+
+/**
  * Validation results from runValidationSuite()
  */
 export interface ValidationResults {
@@ -60,6 +69,7 @@ export interface PGliteState {
   initializationStatus: InitializationStatus;  // NEW: Background init status
   validationResults: ValidationResults | null; // NEW: Last validation results
   lastError: Error | null;                     // Changed from string to Error
+  errorType: ErrorType;                        // NEW: Error type for conditional auto-recovery
 }
 
 // Initial state
@@ -69,7 +79,8 @@ const state: PGliteState = {
   connectionStatus: 'disconnected',
   initializationStatus: 'not_started',
   validationResults: null,
-  lastError: null
+  lastError: null,
+  errorType: null  // Default: no auto-recovery (safe conservative approach)
 };
 
 export function getState(): PGliteState {

@@ -34,8 +34,11 @@ test.describe('Mobile Navigation - Responsive Design', () => {
     // Navigate to app
     await page.goto(BASE_URL);
 
-    // Wait for page load
-    await page.waitForLoadState('networkidle');
+    // Wait for page load - use domcontentloaded instead of networkidle to avoid timeout
+    await page.waitForLoadState('domcontentloaded');
+
+    // Wait for critical resources
+    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
   });
 
   test('should display mobile nav bar when viewport < 1024px', async ({ page }) => {

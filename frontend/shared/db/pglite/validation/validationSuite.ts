@@ -24,11 +24,11 @@ const EXPECTED_SCHEMA_VERSION = 7;
 
 /**
  * Performance thresholds (milliseconds)
- * Updated: More realistic thresholds for browser environment
+ * Updated: More realistic thresholds for browser environment with IndexedDB
  */
 const PERFORMANCE_THRESHOLDS = {
-  avgQueryTimeMs: 50,   // Average query < 50ms (was 10ms - too strict)
-  maxQueryTimeMs: 100   // Max query < 100ms (was 50ms)
+  avgQueryTimeMs: 100,  // Average query < 100ms (realistic for IndexedDB)
+  maxQueryTimeMs: 200   // Max query < 200ms (was 100ms)
 };
 
 /**

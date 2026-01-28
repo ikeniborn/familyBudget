@@ -48,10 +48,20 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          # Install chromium for setup project (always needed for auth)
+          npx playwright install --with-deps chromium
+          # Install test browser if different from chromium
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            npx playwright install --with-deps ${{ matrix.browser }}
+          fi
+
+      - name: Verify Playwright installation
+        run: npx playwright --version
 
       - name: Run E2E tests
         env:
+          CI: true
           BASE_URL: https://fbd.ikeniborn.ru
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}

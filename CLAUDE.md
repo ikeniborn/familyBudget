@@ -122,7 +122,19 @@ Singleton promise locks for race condition prevention (13x performance improveme
 
 ### 9. FAB Navigation Positioning
 Use `!important` for display properties, `visibility: hidden` for iOS Safari protection.
-**See:** `/docs/architecture/frontend/responsive-design.md` → FAB Navigation
+
+**Z-Index Values (CSS Variables):**
+- Mobile FAB (< 1024px): `var(--z-fab-mobile)` = **40** (below navbar at 50)
+- Desktop FAB (≥ 1024px): `var(--z-fab-desktop)` = **1000** (above backdrop at 999)
+- Lists FAB: `var(--z-fab-lists)` = **1001-1003** (context-specific)
+
+**Deprecated in v11.0:**
+- `.mobile-fab-wrapper` (z-index: 998) - replaced by `.fab-wrapper` in v7.x
+
+**See:**
+- `/docs/architecture/frontend/responsive-design.md` → FAB Navigation Architecture
+- `/docs/architecture/frontend/z-index-layering.md` → Complete Z-Index Hierarchy (13 layers)
+- `/docs/architecture/frontend/z-index-layering.md#css-variables-reference` → CSS Variables Usage
 
 ### 10. Vendor File Management
 **Source Control Strategy:** Store unminified vendor files in git, generate minified versions during build.
@@ -306,6 +318,7 @@ Project includes specialized skills in `.claude/skills/` for automated workflows
 - **[docker.md](docs/architecture/docker.md)** - Docker Multi-Stage Builds (5 images) ⭐ NEW
 - [authentication.md](docs/architecture/authentication.md) - JWT, OAuth, WebAuthn
 - [pwa.md](docs/architecture/pwa.md) - PWA, offline, Service Worker
+- [frontend/z-index-layering.md](docs/architecture/frontend/z-index-layering.md) - Z-Index hierarchy (13 layers, CSS variables)
 - [websocket.md](docs/architecture/websocket.md) - Real-time updates
 - [build-system.md](docs/architecture/build-system.md) - Build pipeline
 - [recurring-plans.md](docs/architecture/recurring-plans.md) - Recurring payments
