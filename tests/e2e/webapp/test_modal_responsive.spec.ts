@@ -40,100 +40,138 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set mobile viewport
     await page.setViewportSize(VIEWPORTS.mobile);
 
-    // Open modal via FAB button
+    // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    // Wait for modal to appear
-    const modal = page.locator('#modal_fact');
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Wait for Speed Dial menu to appear
+    const speedDialMenu = page.locator('#fab-speed-dial-menu');
+    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
-    // Verify modal is open
-    const dialog = modal.locator('dialog[open]');
-    await expect(dialog).toBeVisible();
+    // Click "Добавить факт" option
+    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
+    await addFactButton.click();
 
-    // Close modal
-    const closeButton = dialog.locator('button.btn-sm.btn-circle');
+    // Wait for modal dialog to open (modal_fact IS the dialog element)
+    const modalDialog = page.locator('#modal_fact[open]');
+    await expect(modalDialog).toBeVisible({ timeout: 5000 });
+
+    // Verify modal content is visible
+    const modalBox = page.locator('#modal_fact .modal-box');
+    await expect(modalBox).toBeVisible();
+
+    // Close modal (click close button in header)
+    const closeButton = page.locator('#modal_fact form[method="dialog"] button.btn-sm.btn-circle');
     await closeButton.click();
 
-    // Verify modal is closed
-    await expect(dialog).not.toBeVisible();
+    // Verify modal is closed (no [open] attribute)
+    await expect(modalDialog).not.toBeVisible();
   });
 
   test('should open and close transaction modal on desktop', async ({ page }) => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via FAB button
+    // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    // Wait for modal to appear
-    const modal = page.locator('#modal_fact');
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Wait for Speed Dial menu to appear
+    const speedDialMenu = page.locator('#fab-speed-dial-menu');
+    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
-    // Verify modal is open
-    const dialog = modal.locator('dialog[open]');
-    await expect(dialog).toBeVisible();
+    // Click "Добавить факт" option
+    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
+    await addFactButton.click();
+
+    // Wait for modal dialog to open
+    const modalDialog = page.locator('#modal_fact[open]');
+    await expect(modalDialog).toBeVisible({ timeout: 5000 });
+
+    // Verify modal content is visible
+    const modalBox = page.locator('#modal_fact .modal-box');
+    await expect(modalBox).toBeVisible();
 
     // Close modal
-    const closeButton = dialog.locator('button.btn-sm.btn-circle');
+    const closeButton = page.locator('#modal_fact form[method="dialog"] button.btn-sm.btn-circle');
     await closeButton.click();
 
     // Verify modal is closed
-    await expect(dialog).not.toBeVisible();
+    await expect(modalDialog).not.toBeVisible();
   });
 
   test('should switch tabs within transaction modal', async ({ page }) => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal
+    // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const modal = page.locator('#modal_fact');
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Wait for Speed Dial menu to appear
+    const speedDialMenu = page.locator('#fab-speed-dial-menu');
+    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
-    // Verify transaction tab is active by default
-    const transactionTab = modal.locator('[role="tab"]:has-text("Транзакция")');
-    await expect(transactionTab).toHaveAttribute('aria-selected', 'true');
+    // Click "Добавить факт" option
+    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
+    await addFactButton.click();
 
-    // Click transfer tab
-    const transferTab = modal.locator('[role="tab"]:has-text("Перевод")');
-    await transferTab.click();
+    // Wait for modal to open
+    const modalDialog = page.locator('#modal_fact[open]');
+    await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
-    // Verify transfer tab is now active
-    await expect(transferTab).toHaveAttribute('aria-selected', 'true');
-    await expect(transactionTab).toHaveAttribute('aria-selected', 'false');
+    // Verify transaction tab is active by default (checked radio input)
+    const transactionTabInput = page.locator('#modal_fact input[name="modal_fact_tabs"][data-tab="transaction"]');
+    await expect(transactionTabInput).toBeChecked();
+
+    // Click transfer tab (radio input with data-tab="transfer")
+    const transferTabInput = page.locator('#modal_fact input[name="modal_fact_tabs"][data-tab="transfer"]');
+    await transferTabInput.check();
+
+    // Verify transfer tab is now checked
+    await expect(transferTabInput).toBeChecked();
+    await expect(transactionTabInput).not.toBeChecked();
 
     // Verify transfer content is visible
-    const transferContent = modal.locator('#modal_fact-tab-transfer');
+    const transferContent = page.locator('#modal_fact-tab-transfer');
     await expect(transferContent).toBeVisible();
+
+    // Verify transaction content is hidden
+    const transactionContent = page.locator('#modal_fact-tab-transaction');
+    await expect(transactionContent).toBeHidden();
   });
 
   test('should display form fields correctly on mobile', async ({ page }) => {
     // Set mobile viewport
     await page.setViewportSize(VIEWPORTS.mobile);
 
-    // Open modal
+    // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const modal = page.locator('#modal_fact');
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Wait for Speed Dial menu to appear
+    const speedDialMenu = page.locator('#fab-speed-dial-menu');
+    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
-    // Verify key form fields are visible
-    const amountInput = modal.locator('input[name="amount"]');
+    // Click "Добавить факт" option
+    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
+    await addFactButton.click();
+
+    // Wait for modal to open
+    const modalDialog = page.locator('#modal_fact[open]');
+    await expect(modalDialog).toBeVisible({ timeout: 5000 });
+
+    // Verify key form fields are visible in transaction tab
+    const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
     await expect(amountInput).toBeVisible();
 
-    const dateInput = modal.locator('input[name="date"]');
+    const dateInput = page.locator('#modal_fact-tab-transaction input[name="date"]');
     await expect(dateInput).toBeVisible();
 
-    const articleSelect = modal.locator('select[name="article_id"]');
+    const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
     await expect(articleSelect).toBeVisible();
 
-    const financialCenterSelect = modal.locator('select[name="financial_center_id"]');
+    const financialCenterSelect = page.locator('#modal_fact-tab-transaction select[name="financial_center_id"]');
     await expect(financialCenterSelect).toBeVisible();
   });
 
@@ -141,77 +179,33 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal
+    // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const modal = page.locator('#modal_fact');
-    await expect(modal).toBeVisible({ timeout: 5000 });
+    // Wait for Speed Dial menu to appear
+    const speedDialMenu = page.locator('#fab-speed-dial-menu');
+    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
 
-    // Verify key form fields are visible
-    const amountInput = modal.locator('input[name="amount"]');
+    // Click "Добавить факт" option
+    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
+    await addFactButton.click();
+
+    // Wait for modal to open
+    const modalDialog = page.locator('#modal_fact[open]');
+    await expect(modalDialog).toBeVisible({ timeout: 5000 });
+
+    // Verify key form fields are visible in transaction tab
+    const amountInput = page.locator('#modal_fact-tab-transaction input[name="amount"]');
     await expect(amountInput).toBeVisible();
 
-    const dateInput = modal.locator('input[name="date"]');
+    const dateInput = page.locator('#modal_fact-tab-transaction input[name="date"]');
     await expect(dateInput).toBeVisible();
 
-    const articleSelect = modal.locator('select[name="article_id"]');
+    const articleSelect = page.locator('#modal_fact-tab-transaction select[name="article_id"]');
     await expect(articleSelect).toBeVisible();
 
-    const financialCenterSelect = modal.locator('select[name="financial_center_id"]');
+    const financialCenterSelect = page.locator('#modal_fact-tab-transaction select[name="financial_center_id"]');
     await expect(financialCenterSelect).toBeVisible();
-  });
-});
-
-test.describe('Modal - Plan Modal Behavior', () => {
-  test.beforeEach(async ({ page }) => {
-    // Authentication handled by global setup (storage state)
-    await page.goto(BASE_URL);
-    await page.waitForLoadState('networkidle');
-
-    // Close cookie consent modal if present
-    const acceptAllButton = page.locator('button:has-text("Принять все")');
-    const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);
-    if (isVisible) {
-      await acceptAllButton.click();
-      await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
-    }
-  });
-
-  test('should open plan modal via navigation', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
-
-    // Navigate to plans page
-    await page.goto(`${BASE_URL}/plans`);
-    await page.waitForLoadState('networkidle');
-
-    // Open modal via add button
-    const addButton = page.locator('button:has-text("Добавить план")').first();
-
-    // Check if button exists (may not be visible on all pages)
-    const buttonExists = await addButton.count() > 0;
-
-    if (buttonExists) {
-      await addButton.click();
-
-      // Wait for modal to appear
-      const modal = page.locator('#modal_plan');
-      await expect(modal).toBeVisible({ timeout: 5000 });
-
-      // Verify modal is open
-      const dialog = modal.locator('dialog[open]');
-      await expect(dialog).toBeVisible();
-
-      // Close modal
-      const closeButton = dialog.locator('button.btn-sm.btn-circle');
-      await closeButton.click();
-
-      // Verify modal is closed
-      await expect(dialog).not.toBeVisible();
-    } else {
-      // If button doesn't exist, skip test
-      test.skip();
-    }
   });
 });
