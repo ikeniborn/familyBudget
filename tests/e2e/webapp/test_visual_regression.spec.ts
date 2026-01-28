@@ -42,8 +42,11 @@ test.describe('Visual Regression - Homepage', () => {
       await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
     }
 
-    // Wait for content to stabilize
-    await page.waitForTimeout(2000); // Increased for visual regression stability
+    // Wait for HTMX to load all data sections (PGlite init + data loading)
+    await page.waitForSelector('.loading.loading-spinner', { state: 'hidden', timeout: 15000 });
+
+    // Wait for content to stabilize after data load
+    await page.waitForTimeout(1000);
   });
 
   test('should match homepage on desktop', async ({ page }) => {
