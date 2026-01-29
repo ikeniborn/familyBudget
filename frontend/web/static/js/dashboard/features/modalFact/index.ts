@@ -389,9 +389,13 @@ export async function openModalFact(): Promise<void> {
     switchTab('transaction');
 
     // Auto-fill today's date in both tabs
-    const { setFactDate, setFactTransferDate } = await import('./dateHelpers');
-    setFactDate(0); // Transaction tab: 0 = today
-    setFactTransferDate(0); // Transfer tab: 0 = today
+    // Use window functions (already exported by dateHelpers module)
+    if (typeof (window as any).setFactDate === 'function') {
+      (window as any).setFactDate(0); // Transaction tab: 0 = today
+    }
+    if (typeof (window as any).setFactTransferDate === 'function') {
+      (window as any).setFactTransferDate(0); // Transfer tab: 0 = today
+    }
 
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();

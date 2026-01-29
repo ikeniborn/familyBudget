@@ -402,9 +402,13 @@ export async function openModalPlan(): Promise<void> {
     switchTab('transaction');
 
     // Auto-fill current month in both tabs
-    const { setPlanPeriod, setPlanTransferPeriod } = await import('./dateHelpers');
-    setPlanPeriod(0); // Transaction tab: 0 = current month
-    setPlanTransferPeriod(0); // Transfer tab: 0 = current month
+    // Use window functions (already exported by dateHelpers module)
+    if (typeof (window as any).setPlanPeriod === 'function') {
+      (window as any).setPlanPeriod(0); // Transaction tab: 0 = current month
+    }
+    if (typeof (window as any).setPlanTransferPeriod === 'function') {
+      (window as any).setPlanTransferPeriod(0); // Transfer tab: 0 = current month
+    }
 
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
