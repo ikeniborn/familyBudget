@@ -69,8 +69,29 @@ export interface LocalShoppingList {
   updated_at: Date;
   synced_at: Date | null;
 
+  // Statistics (optional fields for API compatibility)
+  total_items?: number;           // Total items count
+  completed_items?: number;       // Completed items count
+  completion_percentage?: number; // Completion percentage (0-100)
+
   // Conflict resolution (populated when sync detects conflict)
   conflict_data?: ShoppingConflictDetection;
+}
+
+/**
+ * Shopping List with required statistics (returned from API)
+ *
+ * Backend API returns ShoppingListCardResponse with mandatory statistics fields:
+ * - total_items: count of all items
+ * - completed_items: count of completed items
+ * - completion_percentage: calculated percentage (0-100)
+ *
+ * This type extends LocalShoppingList and makes these fields required.
+ */
+export interface ShoppingListWithStats extends Omit<LocalShoppingList, 'total_items' | 'completed_items' | 'completion_percentage'> {
+  total_items: number;           // Required for API response
+  completed_items: number;       // Required for API response
+  completion_percentage: number; // Required for API response
 }
 
 /**

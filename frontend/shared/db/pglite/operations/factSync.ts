@@ -8,6 +8,7 @@
 
 import type { PGlite } from '@electric-sql/pglite';
 import { logger } from '../utils/logger';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 /**
  * Fact data from API
@@ -86,9 +87,14 @@ export async function syncFacts(
   onProgress?: FactSyncProgressCallback
 ): Promise<number> {
   logger.info('[FACT_SYNC] Syncing facts...', { factsWindow });
-  onProgress?.({ phase: 'facts', message: 'Fetching facts from API...', current: 0, total: 0 });
 
-  try {
+  let lastError: Error | null = null;
+  const maxAttempts = 3;
+  const baseDelay = 2000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      onProgress?.({ phase: 'facts', message: `Fetching facts from API (attempt ${attempt}/${maxAttempts})...`, current: 0, total: 0 });
     // Calculate date range
     const dateTo = new Date();
     const dateFrom = new Date();
@@ -105,9 +111,11 @@ export async function syncFacts(
       offset: '0'
     });
 
-    const response = await fetch(`/api/v1/facts?${params.toString()}`, {
-      credentials: 'include'
-    });
+    const response = await fetchWithTimeout(
+      `/api/v1/facts?${params.toString()}`,
+      { credentials: 'include' },
+      10000
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch facts: HTTP ${response.status}`);
@@ -205,13 +213,29 @@ export async function syncFacts(
       });
     }
 
-    logger.info('[FACT_SYNC] Facts sync completed', { count: insertedCount });
-    return insertedCount;
+      logger.info('[FACT_SYNC] Facts sync completed', { count: insertedCount, attempt });
+      return insertedCount;
 
-  } catch (error) {
-    logger.error('[FACT_SYNC] Failed to sync facts', error);
-    throw error;
+    } catch (error) {
+      lastError = error as Error;
+      logger.warn(`[FACT_SYNC] Attempt ${attempt}/${maxAttempts} failed`, error);
+
+      // Don't retry for critical errors (authentication issues)
+      if (lastError.message?.includes('401') || lastError.message?.includes('403')) {
+        logger.error('[FACT_SYNC] Critical authentication error, no retry', lastError);
+        throw lastError;
+      }
+
+      if (attempt < maxAttempts) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);  // 2s, 4s, 8s
+        logger.info(`[FACT_SYNC] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  logger.error('[FACT_SYNC] All retry attempts failed', lastError);
+  throw new Error(`Failed to sync facts after ${maxAttempts} attempts: ${lastError?.message}`);
 }
 
 /**
@@ -226,9 +250,14 @@ export async function syncRecurringPlans(
   onProgress?: FactSyncProgressCallback
 ): Promise<number> {
   logger.info('[PLAN_SYNC] Syncing recurring plans...');
-  onProgress?.({ phase: 'plans', message: 'Fetching recurring plans from API...', current: 0, total: 0 });
 
-  try {
+  let lastError: Error | null = null;
+  const maxAttempts = 3;
+  const baseDelay = 2000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      onProgress?.({ phase: 'plans', message: `Fetching recurring plans from API (attempt ${attempt}/${maxAttempts})...`, current: 0, total: 0 });
     // Fetch active plans from API
     const params = new URLSearchParams({
       is_active: 'true',
@@ -236,9 +265,11 @@ export async function syncRecurringPlans(
       skip: '0'
     });
 
-    const response = await fetch(`/api/v1/recurring-plans?${params.toString()}`, {
-      credentials: 'include'
-    });
+    const response = await fetchWithTimeout(
+      `/api/v1/recurring-plans?${params.toString()}`,
+      { credentials: 'include' },
+      10000
+    );
 
     if (!response.ok) {
       throw new Error(`Failed to fetch recurring plans: HTTP ${response.status}`);
@@ -296,15 +327,31 @@ export async function syncRecurringPlans(
 
     await db.query(insertSQL);
 
-    logger.info('[PLAN_SYNC] Plans sync completed', { count: plans.length });
-    onProgress?.({ phase: 'plans', message: 'Plans synced', current: plans.length, total: plans.length });
+      logger.info('[PLAN_SYNC] Plans sync completed', { count: plans.length, attempt });
+      onProgress?.({ phase: 'plans', message: 'Plans synced', current: plans.length, total: plans.length });
 
-    return plans.length;
+      return plans.length;
 
-  } catch (error) {
-    logger.error('[PLAN_SYNC] Failed to sync plans', error);
-    throw error;
+    } catch (error) {
+      lastError = error as Error;
+      logger.warn(`[PLAN_SYNC] Attempt ${attempt}/${maxAttempts} failed`, error);
+
+      // Don't retry for critical errors (authentication issues)
+      if (lastError.message?.includes('401') || lastError.message?.includes('403')) {
+        logger.error('[PLAN_SYNC] Critical authentication error, no retry', lastError);
+        throw lastError;
+      }
+
+      if (attempt < maxAttempts) {
+        const delay = baseDelay * Math.pow(2, attempt - 1);  // 2s, 4s, 8s
+        logger.info(`[PLAN_SYNC] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
+
+  logger.error('[PLAN_SYNC] All retry attempts failed', lastError);
+  throw new Error(`Failed to sync recurring plans after ${maxAttempts} attempts: ${lastError?.message}`);
 }
 
 /**

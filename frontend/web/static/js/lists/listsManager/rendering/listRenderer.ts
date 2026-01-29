@@ -370,9 +370,10 @@ export function renderShoppingListCards(): void {
   if (!grid) return;
 
   grid.innerHTML = state.shoppingLists.map(list => {
-    const totalItems = list.total_items || 0;
-    const completedItems = list.completed_items || 0;
-    const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+    // Statistics from API (ShoppingListWithStats guarantees these fields exist)
+    const totalItems = list.total_items ?? 0;
+    const completedItems = list.completed_items ?? 0;
+    const progressPercent = list.completion_percentage ?? 0;
 
     return `
       <div class="shopping-list-card" data-list-id="${list.id}">

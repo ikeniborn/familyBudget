@@ -89,6 +89,7 @@ export type {
   LocalProductGroup,
   LocalProductGroupHierarchy,
   LocalShoppingList,
+  ShoppingListWithStats,
   LocalShoppingListItem,
   ShoppingListFilters,
   ShoppingListItemFilters,

@@ -12,6 +12,7 @@ import type { PGlite } from '@electric-sql/pglite';
 import type { LocalArticle, LocalFinancialCenter, LocalCostCenter, LocalArticleHierarchy } from '../types/models';
 import { updateSyncMetadata } from './schemaOperations';
 import { logger } from '../utils/logger';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 export interface ReferenceDataResponse {
   articles: LocalArticle[];
@@ -44,11 +45,11 @@ async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      // Fetch all reference data in parallel
+      // Fetch all reference data in parallel with 10s timeout
       const [articlesRes, fcRes, ccRes] = await Promise.all([
-        fetch('/api/v1/articles', { credentials: 'include' }),
-        fetch('/api/v1/financial-centers', { credentials: 'include' }),
-        fetch('/api/v1/cost-centers', { credentials: 'include' })
+        fetchWithTimeout('/api/v1/articles', { credentials: 'include' }, 10000),
+        fetchWithTimeout('/api/v1/financial-centers', { credentials: 'include' }, 10000),
+        fetchWithTimeout('/api/v1/cost-centers', { credentials: 'include' }, 10000)
       ]);
 
       // Check HTTP status codes

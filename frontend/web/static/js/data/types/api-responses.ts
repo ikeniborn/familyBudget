@@ -13,7 +13,7 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalStore,
-  LocalShoppingList,
+  ShoppingListWithStats,
   LocalShoppingListItem,
   LocalProductGroup,
   LocalBudgetFact,
@@ -73,7 +73,7 @@ export interface StoreListResponse extends PaginatedResponse {
  * Schema: ShoppingListListResponse
  */
 export interface ShoppingListListResponse extends PaginatedResponse {
-  shopping_lists: LocalShoppingList[];
+  shopping_lists: ShoppingListWithStats[];
 }
 
 /**
