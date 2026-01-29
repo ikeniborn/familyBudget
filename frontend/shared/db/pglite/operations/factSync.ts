@@ -232,7 +232,7 @@ export async function syncRecurringPlans(
     // Fetch active plans from API
     const params = new URLSearchParams({
       is_active: 'true',
-      limit: '1000',  // Max limit
+      limit: '100',  // Max limit per API constraint (le=100)
       skip: '0'
     });
 
