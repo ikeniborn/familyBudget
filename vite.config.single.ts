@@ -111,8 +111,10 @@ export default defineConfig({
           constBindings: true
         },
         // Map external modules to global variables (only for IIFE modules)
+        // IMPORTANT: Use window.PGlite because PGlite global variable doesn't exist
+        // (only window.PGlite Proxy created in index.iife.ts:110)
         globals: {
-          '@db/pglite': 'PGlite'
+          '@db/pglite': 'window.PGlite'
         }
         // Note: manualChunks not supported for IIFE format
         // PGlite uses dynamic import() for lazy loading instead
