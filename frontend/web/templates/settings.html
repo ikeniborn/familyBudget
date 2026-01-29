@@ -69,16 +69,9 @@
                             <span class="label-text-alt" id="factsWindowValue">90</span>
                         </label>
                         <input type="range" min="30" max="360" value="90" id="factsWindowSlider" class="range range-sm range-primary" step="30" />
-                        <div class="w-full relative text-xs px-2 opacity-60" style="height: 1.5rem;">
-                            <!-- Logarithmic scale for better UX -->
-                            <!-- 30 days at 0% -->
-                            <span style="position: absolute; left: 0%;">30</span>
-                            <!-- 90 days at 25% -->
-                            <span style="position: absolute; left: 25%; transform: translateX(-50%);">90</span>
-                            <!-- 180 days at 75% -->
-                            <span style="position: absolute; left: 75%; transform: translateX(-50%);">180</span>
-                            <!-- 360 days at 100% -->
-                            <span style="position: absolute; right: 0%;">360</span>
+                        <div class="w-full flex justify-between text-xs px-2 opacity-60">
+                            <span>30</span>
+                            <span>360</span>
                         </div>
                         <p class="text-sm opacity-70 mt-1">Количество дней фактов для синхронизации</p>
                     </div>
@@ -133,10 +126,8 @@
                                     </label>
                                     <input type="range" min="30" max="360" value="90" id="pruningRetentionSlider" class="range range-sm range-warning" step="30" />
                                     <div class="w-full flex justify-between text-xs px-2 opacity-60">
-                                        <span>1 мес</span>
-                                        <span>3 мес</span>
-                                        <span>6 мес</span>
-                                        <span>1 год</span>
+                                        <span>30</span>
+                                        <span>360</span>
                                     </div>
                                     <p class="text-sm opacity-70 mt-1">Хранить синхронизированные данные (должно быть ≥ окна данных)</p>
                                 </div>
@@ -255,6 +246,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     factsWindowSlider.addEventListener('change', async (e) => {
         const days = parseInt(e.target.value);
+
+        // Auto-adjust retention window if it's less than facts window
+        const retentionDays = parseInt(localStorage.getItem('pgliteRetentionDays') || '90');
+        if (retentionDays < days) {
+            localStorage.setItem('pgliteRetentionDays', days.toString());
+            pruningRetentionSlider.value = days.toString();
+            pruningRetentionValue.textContent = `${days} дней`;
+
+            if (window.showToast) {
+                window.showToast(`Окно хранения автоматически обновлено до ${days} дней (≥ окна данных)`, 'info');
+            }
+        }
+
         await setPGliteFactsWindow(days);
     });
 
