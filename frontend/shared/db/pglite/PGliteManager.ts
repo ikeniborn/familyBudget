@@ -183,6 +183,27 @@ export class PGliteManager {
   }
 
   /**
+   * Initialize ConflictManager for background initialization flow
+   * Called from dbInitializer.ts after database and migrations are ready
+   */
+  initializeConflictManager(): void {
+    const state = getState();
+    const { db } = state;
+
+    if (!db) {
+      throw new Error('[PGLITE] Cannot initialize ConflictManager: database not initialized');
+    }
+
+    if (this.conflictManager) {
+      logger.info('[CONFLICT_MANAGER] Already initialized, skipping');
+      return;
+    }
+
+    this.conflictManager = new ConflictManager(db);
+    logger.info('[CONFLICT_MANAGER] Initialized successfully');
+  }
+
+  /**
    * Close database connection
    */
   async close(): Promise<void> {

@@ -138,8 +138,8 @@ export async function initializeDatabaseInBackground(): Promise<void> {
 
     // Step 3: Initialize ConflictManager
     logger.info('[DB_INIT] Step 3/5: Initialize ConflictManager');
-    // TODO: Import and initialize ConflictManager
-    // await initializeConflictManager();
+    const pgliteManagerForConflict = getPGliteManager();
+    pgliteManagerForConflict.initializeConflictManager();
 
     // Step 4: Initial sync (reference data only)
     logger.info('[DB_INIT] Step 4/5: Sync reference data');
