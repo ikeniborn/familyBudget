@@ -624,3 +624,46 @@ dialog.modal {
 dialog.modal::backdrop {
     z-index: calc(var(--z-modal) - 1) !important;  /* 899 - backdrop below modal */
 }
+
+/* ============================================== */
+/* 11. Modal Tabs Visual Enhancement            */
+/* ============================================== */
+
+/**
+ * Улучшенная визуализация табов в модалах для четкой индикации
+ * активного таба (Transaction vs Transfer).
+ *
+ * Problem: DaisyUI .tabs .tabs-boxed имеет слабый визуальный контраст
+ * между активным и неактивным табом.
+ *
+ * Solution: Добавить border, font-weight и opacity для четкого различия.
+ */
+
+/* Modal tabs container */
+.modal .tabs.tabs-boxed {
+    background-color: oklch(var(--b2));
+    border: 1px solid oklch(var(--bc) / 0.2);
+    padding: 0.25rem;
+}
+
+/* Inactive tab styling */
+.modal .tabs.tabs-boxed .tab {
+    opacity: 0.6;
+    font-weight: 400;
+    transition: all 0.2s ease;
+}
+
+/* Active tab styling */
+.modal .tabs.tabs-boxed .tab:checked {
+    opacity: 1;
+    font-weight: 600;
+    border: 2px solid oklch(var(--p));
+    background-color: oklch(var(--b1));
+    box-shadow: 0 2px 4px oklch(var(--bc) / 0.1);
+}
+
+/* Hover effect for inactive tabs */
+.modal .tabs.tabs-boxed .tab:not(:checked):hover {
+    opacity: 0.8;
+    background-color: oklch(var(--b3));
+}

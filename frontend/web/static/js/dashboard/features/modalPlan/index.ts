@@ -336,6 +336,31 @@ function formatPeriodYYYYMM(date: Date): string {
 }
 
 /**
+ * Setup save button click listener as fallback
+ * Ensures save button works even if onclick attribute fails
+ */
+function setupSaveButtonListener(): void {
+  const saveButton = document.querySelector('#modal_plan button[onclick*="savePlanModal"]') as HTMLButtonElement;
+
+  if (saveButton && !saveButton.dataset.listenerAttached) {
+    saveButton.addEventListener('click', async function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Call the global savePlanModal function
+      if (typeof (window as any).savePlanModal === 'function') {
+        (window as any).savePlanModal(this);
+      } else {
+        debugLog('[ModalPlan] savePlanModal not found on window');
+      }
+    });
+
+    saveButton.dataset.listenerAttached = 'true';
+    debugLog('[ModalPlan] Save button listener attached');
+  }
+}
+
+/**
  * Open modal plan
  * Always opens with transaction tab active (default)
  */
@@ -375,6 +400,14 @@ export async function openModalPlan(): Promise<void> {
 
     // Reset to transaction tab (default)
     switchTab('transaction');
+
+    // Auto-fill current month in both tabs
+    const { setPlanPeriod, setPlanTransferPeriod } = await import('./dateHelpers');
+    setPlanPeriod(0); // Transaction tab: 0 = current month
+    setPlanTransferPeriod(0); // Transfer tab: 0 = current month
+
+    // Setup save button click handler (fallback if onclick doesn't work)
+    setupSaveButtonListener();
 
   } catch (error) {
     debugLog('[ModalPlan] Error loading data:', error);

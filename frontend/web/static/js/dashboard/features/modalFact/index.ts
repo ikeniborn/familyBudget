@@ -326,6 +326,31 @@ function formatDateYYYYMMDD(date: Date): string {
 }
 
 /**
+ * Setup save button click listener as fallback
+ * Ensures save button works even if onclick attribute fails
+ */
+function setupSaveButtonListener(): void {
+  const saveButton = document.querySelector('#modal_fact button[onclick*="saveFactModal"]') as HTMLButtonElement;
+
+  if (saveButton && !saveButton.dataset.listenerAttached) {
+    saveButton.addEventListener('click', async function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Call the global saveFactModal function
+      if (typeof (window as any).saveFactModal === 'function') {
+        (window as any).saveFactModal(this);
+      } else {
+        debugLog('[ModalFact] saveFactModal not found on window');
+      }
+    });
+
+    saveButton.dataset.listenerAttached = 'true';
+    debugLog('[ModalFact] Save button listener attached');
+  }
+}
+
+/**
  * Open modal fact
  * Always opens with transaction tab active (default)
  */
@@ -362,6 +387,14 @@ export async function openModalFact(): Promise<void> {
 
     // Reset to transaction tab (default)
     switchTab('transaction');
+
+    // Auto-fill today's date in both tabs
+    const { setFactDate, setFactTransferDate } = await import('./dateHelpers');
+    setFactDate(0); // Transaction tab: 0 = today
+    setFactTransferDate(0); // Transfer tab: 0 = today
+
+    // Setup save button click handler (fallback if onclick doesn't work)
+    setupSaveButtonListener();
 
   } catch (error) {
     console.error('[ModalFact] Error loading data:', error);

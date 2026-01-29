@@ -44,6 +44,8 @@ export function setupTransactionTypeToggle(): void {
 
 /**
  * Update transaction type UI (button states)
+ * Active button: solid color, no outline
+ * Inactive button: outline with 50% opacity
  */
 function updateTransactionTypeUI(type: 'expense' | 'income'): void {
   const modalId = 'modal_fact';
@@ -58,11 +60,13 @@ function updateTransactionTypeUI(type: 'expense' | 'income'): void {
     const radioInput = button.querySelector<HTMLInputElement>('input[type="radio"]');
 
     if (buttonType === type) {
-      // Active button
+      // Active button: solid color (remove outline)
+      button.classList.remove('btn-outline', 'opacity-50');
       button.classList.add('btn-active');
       if (radioInput) radioInput.checked = true;
     } else {
-      // Inactive button
+      // Inactive button: outline with low opacity
+      button.classList.add('btn-outline', 'opacity-50');
       button.classList.remove('btn-active');
       if (radioInput) radioInput.checked = false;
     }
