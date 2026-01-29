@@ -191,12 +191,21 @@ self.addEventListener('activate', (event) => {
 });
 
 // === Periodic Sync for Data Pruning (task-010) ===
+//
+// IMPORTANT: Periodic Background Sync API is NOT supported in iOS Safari 16+
+// - Only works in Chrome/Edge desktop and Android
+// - iOS fallback: Client code should use Page Visibility API or manual timer
+// - Registration in client: if ('periodicSync' in registration) { ... }
+// - iOS behavior: Event listener registered but never fires
+//
+// See: https://caniuse.com/periodic-background-sync
+// Chrome support: 80+, Safari: No support
 
 const PRUNING_TAG = 'weekly-pruning';
 const PRUNING_MAX_RETRIES = 3;
 const PRUNING_RETRY_DELAY = 5000; // 5 seconds
 
-// Periodic sync event handler
+// Periodic sync event handler (Chrome/Edge only - iOS Safari will never trigger)
 self.addEventListener('periodicsync', (event) => {
   if (event.tag === PRUNING_TAG) {
     event.waitUntil(performPruning());
