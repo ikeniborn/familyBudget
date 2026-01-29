@@ -24,6 +24,7 @@ export interface ShoppingList {
   description?: string;          // Optional description
   total_items?: number;          // Total item count (from API)
   completed_items?: number;      // Completed item count (from API)
+  completion_percentage?: number; // Completion percentage (from API, 0-100)
 }
 
 export interface ShoppingItem {

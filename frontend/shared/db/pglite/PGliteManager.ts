@@ -74,7 +74,7 @@ import {
   type PruningResult,
   type PruningStats
 } from './operations/pruningOperations';
-import { getState, updateState, isConnected } from './core/stateManager';
+import { getState, updateState } from './core/stateManager';
 import type { InitializationStatus } from './core/PGliteState';
 import type { IPGliteConfig } from './types/dependencies';
 import type {
@@ -223,11 +223,14 @@ export class PGliteManager {
   /**
    * Check if database is ready for operations
    *
-   * @returns True if database is initialized and connected
+   * @returns True if database is initialized and in ready/active state
    */
   isReady(): boolean {
     const state = getState();
-    return state.isInitialized && isConnected();
+    // Use initializationStatus instead of connectionStatus (marked as deprecated)
+    // connectionStatus kept for backward compatibility (PGliteState.ts:28)
+    return state.isInitialized &&
+           (state.initializationStatus === 'ready' || state.initializationStatus === 'active');
   }
 
   /**

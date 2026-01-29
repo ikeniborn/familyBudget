@@ -16,6 +16,7 @@ import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsSta
 import { dataLayer } from '../../../data/DataLayer';
 import type {
   LocalShoppingList,
+  ShoppingListWithStats,
   LocalShoppingListItem,
   LocalStore,
   LocalProductGroup
@@ -41,9 +42,11 @@ declare global {
 // ============================================================================
 
 /**
- * Convert LocalShoppingList to ShoppingList
+ * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
+ *
+ * Handles both PGlite records (without stats) and API responses (with stats).
  */
-function convertShoppingList(local: LocalShoppingList): ShoppingList {
+function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
     temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
@@ -55,7 +58,10 @@ function convertShoppingList(local: LocalShoppingList): ShoppingList {
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
     description: local.description || undefined,
-    // total_items and completed_items will be calculated by UI
+    // Statistics from API response (optional in LocalShoppingList, required in ShoppingListWithStats)
+    total_items: local.total_items,
+    completed_items: local.completed_items,
+    completion_percentage: local.completion_percentage
   };
 }
 

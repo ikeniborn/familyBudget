@@ -31,7 +31,7 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
-  LocalShoppingList,
+  ShoppingListWithStats,
   LocalShoppingListItem,
   LocalStore,
   LocalProductGroup,
@@ -558,7 +558,7 @@ export class DataLayer {
    *
    * NEW STRATEGY (API-First with Opt-In PGlite)
    */
-  async getShoppingLists(filters?: ShoppingListFilters): Promise<LocalShoppingList[]> {
+  async getShoppingLists(filters?: ShoppingListFilters): Promise<ShoppingListWithStats[]> {
     const startTime = performance.now();
 
     console.info('[DATA_LAYER] getShoppingLists', {
@@ -623,7 +623,7 @@ export class DataLayer {
    * @param filters - Optional filters
    * @returns Array of shopping lists
    */
-  private async getShoppingListsFromAPI(filters?: ShoppingListFilters): Promise<LocalShoppingList[]> {
+  private async getShoppingListsFromAPI(filters?: ShoppingListFilters): Promise<ShoppingListWithStats[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
 

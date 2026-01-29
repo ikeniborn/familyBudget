@@ -165,28 +165,54 @@
     async function onPGliteSyncError(error) {
         console.error('[PGLITE_INDICATOR] Sync error:', error);
         if (localStorage.getItem('enablePGlite') === 'true') {
-            updatePGliteIndicator('error');
-
-            // Conditional auto-recovery based on error type
+            // Conditional error handling based on error type
             try {
                 const { getState } = await import('/static/js/dist/pglite-operations.bundle.js');
                 const state = getState();
 
+                // Determine if error is critical or temporary
+                const isCriticalError = error?.status === 401 || error?.status === 403;
+                const isTemporaryError = error?.name === 'NetworkError' || error?.message?.includes('timeout');
+
                 // Only auto-recover for transient sync errors, NOT for initialization errors
                 if (state.errorType === 'sync') {
+                    // Sync errors are always temporary - yellow indicator + auto-recovery in 5s
+                    updatePGliteIndicator('warning');
                     console.info('[PGLITE_INDICATOR] Transient sync error, will auto-recover in 5s');
                     setTimeout(() => {
                         updatePGliteIndicator('active');
                     }, 5000);
                 } else if (state.errorType === 'initialization') {
-                    console.warn('[PGLITE_INDICATOR] Initialization error, NO auto-recovery (stay red)');
-                    // Stay in error state permanently
+                    if (isCriticalError) {
+                        // Critical authentication error - red indicator, no auto-recovery
+                        updatePGliteIndicator('error');
+                        console.error('[PGLITE_INDICATOR] Critical initialization error (401/403), NO auto-recovery');
+                    } else if (isTemporaryError) {
+                        // Temporary network/timeout error - yellow indicator + auto-recovery in 10s
+                        updatePGliteIndicator('warning');
+                        console.warn('[PGLITE_INDICATOR] Temporary initialization error (network/timeout), auto-recovery in 10s');
+                        setTimeout(() => {
+                            updatePGliteIndicator('active');
+                        }, 10000);
+                    } else {
+                        // Unknown initialization error - yellow indicator + auto-recovery in 10s (safe default)
+                        updatePGliteIndicator('warning');
+                        console.warn('[PGLITE_INDICATOR] Unknown initialization error, auto-recovery in 10s');
+                        setTimeout(() => {
+                            updatePGliteIndicator('active');
+                        }, 10000);
+                    }
                 } else {
-                    // Unknown error type, default to NO recovery (safe default)
-                    console.warn('[PGLITE_INDICATOR] Unknown error type, NO auto-recovery');
+                    // Unknown error type - yellow indicator + auto-recovery in 10s (safe default)
+                    updatePGliteIndicator('warning');
+                    console.warn('[PGLITE_INDICATOR] Unknown error type, auto-recovery in 10s');
+                    setTimeout(() => {
+                        updatePGliteIndicator('active');
+                    }, 10000);
                 }
             } catch (e) {
-                // Cannot determine error type, default to NO recovery
+                // Cannot determine error type - yellow indicator (fallback)
+                updatePGliteIndicator('warning');
                 console.error('[PGLITE_INDICATOR] Cannot determine error type:', e);
             }
         }
