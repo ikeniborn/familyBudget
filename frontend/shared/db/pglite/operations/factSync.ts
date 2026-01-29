@@ -77,10 +77,30 @@ export type FactSyncProgressCallback = (progress: {
 /**
  * Sync facts within retention window
  *
+ * Uses retry logic with exponential backoff (3 attempts, 2-4-8s delays).
+ * Automatically retries on network errors and timeouts, but not on
+ * authentication errors (401, 403).
+ *
  * @param db - PGlite database instance
  * @param factsWindow - Number of days to sync (default: 90 days)
  * @param onProgress - Optional progress callback
  * @returns Number of facts synced
+ *
+ * @example
+ * ```typescript
+ * // Basic usage
+ * const count = await syncFacts(db, 90);
+ *
+ * // With progress callback
+ * const count = await syncFacts(db, 90, (progress) => {
+ *   debugLog(`${progress.phase}: ${progress.message}`);
+ * });
+ *
+ * // Retry logic is handled automatically by withRetry utility
+ * // - 3 attempts maximum
+ * // - Exponential backoff: 2s, 4s, 8s
+ * // - Skips retry for 401/403 errors
+ * ```
  */
 export async function syncFacts(
   db: PGlite,
@@ -229,9 +249,18 @@ export async function syncFacts(
 /**
  * Sync active recurring plans
  *
+ * Uses retry logic with exponential backoff (3 attempts, 2-4-8s delays).
+ * Same retry behavior as syncFacts for consistency.
+ *
  * @param db - PGlite database instance
  * @param onProgress - Optional progress callback
  * @returns Number of plans synced
+ *
+ * @example
+ * ```typescript
+ * const count = await syncRecurringPlans(db);
+ * debugLog(`Synced ${count} active plans`);
+ * ```
  */
 export async function syncRecurringPlans(
   db: PGlite,
