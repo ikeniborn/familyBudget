@@ -346,6 +346,35 @@ function closeFabMenu() {
 }
 
 /**
+ * Setup FAB button click listener as fallback
+ * Ensures FAB button works even if onclick attribute fails
+ */
+function setupFabButtonListener() {
+    const fabBtn = document.getElementById('fab-btn');
+
+    if (fabBtn && !fabBtn.dataset.listenerAttached) {
+        fabBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const currentPage = window.location.pathname;
+            if (currentPage === '/') {
+                if (typeof toggleFabMenu === 'function') {
+                    toggleFabMenu();
+                }
+            } else {
+                if (typeof safeOpenContextModal === 'function') {
+                    safeOpenContextModal();
+                }
+            }
+        });
+
+        fabBtn.dataset.listenerAttached = 'true';
+        console.log('[FAB] Button listener attached');
+    }
+}
+
+/**
  * Инициализация Speed Dial при загрузке страницы
  */
 (function initSpeedDial() {
@@ -364,6 +393,9 @@ function closeFabMenu() {
         menu.style.display = 'none';
         fabBtn.setAttribute('onclick', 'safeOpenContextModal()');
     }
+
+    // Setup programmatic listener as fallback
+    setupFabButtonListener();
 })();
 
 // Закрытие меню при клике вне FAB
