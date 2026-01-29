@@ -54,6 +54,14 @@ export async function postAPI<T = any>(
     throw new Error(`HTTP ${response.status}: ${errorText}`);
   }
 
+  // Check if response is JSON before parsing
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const textContent = await response.text();
+    const preview = textContent.substring(0, 200);
+    throw new Error(`Expected JSON response, got ${contentType || 'unknown'}. Preview: ${preview}`);
+  }
+
   const result = await response.json();
   debugLog(`[${context}] Response:`, result);
 

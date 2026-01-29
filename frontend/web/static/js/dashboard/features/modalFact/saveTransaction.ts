@@ -13,10 +13,18 @@ import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
 export async function saveFactTransaction(form: HTMLFormElement): Promise<void> {
   const formData = new FormData(form);
 
+  // Get display date and convert to API format
+  const displayDate = formData.get('fact_date') as string;
+  const apiDate = (window as any).BudgetShared?.DateFormatter.formatForAPI(displayDate);
+
+  if (!apiDate) {
+    throw new Error('Failed to convert date to API format');
+  }
+
   // Build request data
   const data = {
     record_type: formData.get('record_type'), // expense/income
-    fact_date: formData.get('fact_date'), // DD.MM.YYYY
+    fact_date: apiDate, // YYYY-MM-DD (converted from DD.MM.YYYY)
     financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
     article_id: parseIntOrNull(formData.get('article_id'))!,
     cost_center_id: parseIntOrNull(formData.get('cost_center_id')),

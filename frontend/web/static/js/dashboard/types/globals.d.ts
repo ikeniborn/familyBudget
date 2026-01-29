@@ -285,6 +285,8 @@ declare global {
     deleteFromEditModal?: () => Promise<void>;
     saveTransfer?: (button: HTMLElement) => void;
     setTransactionDate?: (offsetDays: number) => void;
+    setFactDate?: (offsetDays: number) => void;
+    setFactTransferDate?: (offsetDays: number) => void;
     loadFactHints?: (category?: any) => Promise<void>;
   }
 

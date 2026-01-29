@@ -24,6 +24,7 @@ import {
     goToPreviousPage,
     goToNextPage
 } from '../operations/factsController';
+import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransferDateAction } from '../index';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -72,6 +73,8 @@ export function setupWindowExports(): void {
 
     // Date and hints operations
     window.setTransactionDate = setTransactionDate;
+    window.setFactDate = setFactDateAction; // For modal_fact date buttons
+    window.setFactTransferDate = setFactTransferDateAction; // For modal_fact transfer tab date buttons
     window.loadFactHints = loadFactHintsWrapper;
     window.filterEditCostCenters = filterEditCostCenters;
 }

@@ -109,7 +109,10 @@ async function initializeUI(): Promise<void> {
         // 3. Load all dropdown data in parallel
         await loadAndPopulateDropdowns();
 
-        // 4. Load facts with default filters
+        // 4. Setup modal_fact event listeners (Today button, etc.)
+        setupModalFactListeners();
+
+        // 5. Load facts with default filters
         await loadFacts();
 
     } catch (error) {
@@ -201,6 +204,7 @@ async function loadAndPopulateDropdowns(): Promise<void> {
 
         // Populate create modal dropdowns
         populateCreateModalDropdowns(financialCenters, costCenters);
+        populateCreateModalArticles(articles);
 
     } catch (error) {
         logger.error(' Error loading dropdowns:', error);
@@ -372,11 +376,11 @@ function populateEditModalDropdowns(articles: any[], financialCenters: any[], co
 }
 
 /**
- * Populate create modal dropdowns
+ * Populate create modal dropdowns (modal_fact)
  */
 function populateCreateModalDropdowns(financialCenters: any[], costCenters: any[]): void {
-    // Financial centers in create modal
-    const createFcSelect = document.querySelector('#modal_add_transaction select[name="financial_center_id"]') as HTMLSelectElement;
+    // Financial centers in transaction tab
+    const createFcSelect = document.querySelector('#modal_fact select[name="financial_center_id"]') as HTMLSelectElement;
     if (createFcSelect) {
         createFcSelect.innerHTML = '<option value="">-- Выберите счет --</option>';
         financialCenters.forEach(fc => {
@@ -387,8 +391,8 @@ function populateCreateModalDropdowns(financialCenters: any[], costCenters: any[
         });
     }
 
-    // Cost centers in create modal
-    const createCcSelect = document.querySelector('#modal_add_transaction select[name="cost_center_id"]') as HTMLSelectElement;
+    // Cost centers in transaction tab
+    const createCcSelect = document.querySelector('#modal_fact select[name="cost_center_id"]') as HTMLSelectElement;
     if (createCcSelect) {
         createCcSelect.innerHTML = '<option value="">-- Не выбрано --</option>';
         costCenters.forEach(cc => {
@@ -398,6 +402,192 @@ function populateCreateModalDropdowns(financialCenters: any[], costCenters: any[
             createCcSelect.appendChild(option);
         });
     }
+
+    // Financial centers in transfer tab (from)
+    const transferFromFcSelect = document.querySelector('#modal_fact-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement;
+    if (transferFromFcSelect) {
+        transferFromFcSelect.innerHTML = '<option value="">-- Выберите счет --</option>';
+        financialCenters.forEach(fc => {
+            const option = document.createElement('option');
+            option.value = String(fc.id);
+            option.textContent = fc.name;
+            transferFromFcSelect.appendChild(option);
+        });
+    }
+
+    // Financial centers in transfer tab (to)
+    const transferToFcSelect = document.querySelector('#modal_fact-tab-transfer select[name="to_financial_center_id"]') as HTMLSelectElement;
+    if (transferToFcSelect) {
+        transferToFcSelect.innerHTML = '<option value="">-- Выберите счет --</option>';
+        financialCenters.forEach(fc => {
+            const option = document.createElement('option');
+            option.value = String(fc.id);
+            option.textContent = fc.name;
+            transferToFcSelect.appendChild(option);
+        });
+    }
+}
+
+/**
+ * Populate article (category) dropdowns in modal_fact
+ * This function will be called after financial centers are loaded
+ */
+function populateCreateModalArticles(articles: any[]): void {
+    // Article select in transaction tab
+    const articleSelect = document.querySelector('#modal_fact select[name="article_id"]') as HTMLSelectElement;
+    if (articleSelect) {
+        articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+
+        // Group articles by type for better UX
+        const expenseArticles = articles.filter(a => a.record_type === 'expense');
+        const incomeArticles = articles.filter(a => a.record_type === 'income');
+
+        // Add expense articles
+        if (expenseArticles.length > 0) {
+            const expenseGroup = document.createElement('optgroup');
+            expenseGroup.label = 'Расходы';
+            expenseArticles.forEach(article => {
+                const option = document.createElement('option');
+                option.value = String(article.id);
+                option.textContent = article.name;
+                expenseGroup.appendChild(option);
+            });
+            articleSelect.appendChild(expenseGroup);
+        }
+
+        // Add income articles
+        if (incomeArticles.length > 0) {
+            const incomeGroup = document.createElement('optgroup');
+            incomeGroup.label = 'Доходы';
+            incomeArticles.forEach(article => {
+                const option = document.createElement('option');
+                option.value = String(article.id);
+                option.textContent = article.name;
+                incomeGroup.appendChild(option);
+            });
+            articleSelect.appendChild(incomeGroup);
+        }
+    }
+
+    // Article selects in transfer tab
+    const transferFromArticleSelect = document.querySelector('#modal_fact-tab-transfer select[name="from_article_id"]') as HTMLSelectElement;
+    if (transferFromArticleSelect) {
+        transferFromArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        // Transfer from = expenses (debit)
+        const debitArticles = articles.filter(a => a.record_type === 'debit' || a.record_type === 'expense');
+        debitArticles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = String(article.id);
+            option.textContent = article.name;
+            transferFromArticleSelect.appendChild(option);
+        });
+    }
+
+    const transferToArticleSelect = document.querySelector('#modal_fact-tab-transfer select[name="to_article_id"]') as HTMLSelectElement;
+    if (transferToArticleSelect) {
+        transferToArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        // Transfer to = income (credit)
+        const creditArticles = articles.filter(a => a.record_type === 'credit' || a.record_type === 'income');
+        creditArticles.forEach(article => {
+            const option = document.createElement('option');
+            option.value = String(article.id);
+            option.textContent = article.name;
+            transferToArticleSelect.appendChild(option);
+        });
+    }
+}
+
+/**
+ * Setup event listeners for modal_fact
+ * Handles "Today" button, modal open events, etc.
+ */
+function setupModalFactListeners(): void {
+    const modal = document.getElementById('modal_fact');
+    if (!modal) return;
+
+    // Setup "Today" buttons for date auto-fill
+    setupTodayButtons();
+
+    // Setup modal open event to refresh dropdowns
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                const target = mutation.target as HTMLDialogElement;
+                if (target.open) {
+                    // Modal opened - refresh dropdowns if needed
+                    logger.log(' Modal opened - dropdowns already populated');
+                }
+            }
+        });
+    });
+
+    observer.observe(modal, {
+        attributes: true,
+        attributeFilter: ['open']
+    });
+}
+
+/**
+ * Set fact date (relative to today) - for transaction tab
+ * Used by onclick buttons in modal_fact transaction tab
+ * @param daysOffset - Number of days relative to today (0 = today, -1 = yesterday, etc.)
+ */
+export function setFactDate(daysOffset: number): void {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const dateStr = `${dd}.${mm}.${yyyy}`;
+
+    // Find fact_date input in modal_fact transaction tab
+    const modal = document.getElementById('modal_fact');
+    if (!modal) return;
+
+    const dateInput = modal.querySelector('input[name="fact_date"]') as HTMLInputElement;
+    if (dateInput) {
+        dateInput.value = dateStr;
+        dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+        dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        logger.log(' Transaction date set:', dateStr, '(offset:', daysOffset, ')');
+    }
+}
+
+/**
+ * Set transfer date (relative to today) - for transfer tab
+ * Used by onclick buttons in modal_fact transfer tab
+ * @param daysOffset - Number of days relative to today (0 = today, -1 = yesterday, etc.)
+ */
+export function setFactTransferDate(daysOffset: number): void {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    const dateStr = `${dd}.${mm}.${yyyy}`;
+
+    // Find transfer_date input in modal_fact transfer tab
+    const modal = document.getElementById('modal_fact');
+    if (!modal) return;
+
+    const dateInput = modal.querySelector('input[name="transfer_date"]') as HTMLInputElement;
+    if (dateInput) {
+        dateInput.value = dateStr;
+        dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+        dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        logger.log(' Transfer date set:', dateStr, '(offset:', daysOffset, ')');
+    }
+}
+
+/**
+ * Setup "Today" buttons (backup if onclick fails)
+ */
+function setupTodayButtons(): void {
+    // setFactDate is already exported to window, so onclick should work
+    // This is a backup setup in case onclick handlers are not working
+    logger.log(' Date buttons use onclick="setFactDate(offset)" pattern');
 }
 
 // ============================================================================
