@@ -247,9 +247,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     factsWindowSlider.addEventListener('change', async (e) => {
         const days = parseInt(e.target.value);
 
+        // Save facts window first (needed for retention validation)
+        await setPGliteFactsWindow(days);
+
         // Auto-adjust retention window if it's less than facts window
         const retentionDays = parseInt(localStorage.getItem('pgliteRetentionDays') || '90');
         if (retentionDays < days) {
+            isAutoAdjusting = true; // Prevent double toast from retention slider handler
             localStorage.setItem('pgliteRetentionDays', days.toString());
             pruningRetentionSlider.value = days.toString();
             pruningRetentionValue.textContent = `${days} дней`;
@@ -258,8 +262,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 window.showToast(`Окно хранения автоматически обновлено до ${days} дней (≥ окна данных)`, 'info');
             }
         }
-
-        await setPGliteFactsWindow(days);
     });
 
     // Handle diagnostic button
@@ -444,6 +446,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         pruningRetentionValue.textContent = `${days} дней`;
     });
 
+    let isAutoAdjusting = false; // Flag to prevent double toast
+
     pruningRetentionSlider.addEventListener('change', (e) => {
         const days = parseInt(e.target.value);
 
@@ -459,9 +463,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         localStorage.setItem('pgliteRetentionDays', days.toString());
-        if (window.showToast) {
+
+        // Only show toast if not triggered by auto-adjust
+        if (!isAutoAdjusting && window.showToast) {
             window.showToast(`Окно хранения обновлено до ${days} дней`, 'success');
         }
+        isAutoAdjusting = false; // Reset flag
     });
 
     // Handle manual pruning button
