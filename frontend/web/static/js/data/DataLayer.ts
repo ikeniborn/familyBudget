@@ -720,7 +720,7 @@ export class DataLayer {
   /**
    * Fetch shopping list items from REST API
    *
-   * @param listTempId - Shopping list temp_id
+   * @param listTempId - Shopping list ID (can be numeric ID or temp_id)
    * @param filters - Optional filters
    * @returns Array of shopping list items
    */
@@ -730,7 +730,7 @@ export class DataLayer {
   ): Promise<LocalShoppingListItem[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
-    params.set('shopping_list_temp_id', listTempId);
+    params.set('shopping_list_id', listTempId);
 
     if (filters?.is_completed !== undefined) {
       params.set('is_completed', filters.is_completed.toString());
