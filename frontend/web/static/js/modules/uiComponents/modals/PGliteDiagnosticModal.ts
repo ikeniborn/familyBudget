@@ -225,7 +225,7 @@ export class PGliteDiagnosticModal extends BaseModal {
             </div>
             <div class="text-center">
               <div class="text-2xl font-bold text-success">${data.tableStats.plans}</div>
-              <div class="text-sm opacity-70">Recurring Plans</div>
+              <div class="text-sm opacity-70">Plans</div>
             </div>
           </div>
         </div>
