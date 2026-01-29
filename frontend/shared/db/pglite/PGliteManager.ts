@@ -172,7 +172,10 @@ export class PGliteManager {
       // Initialize conflict manager (task-009)
       this.conflictManager = new ConflictManager(db);
 
-      updateState({ isInitialized: true });
+      updateState({
+        isInitialized: true,
+        initializationStatus: 'ready'  // Set to ready after successful initialization
+      });
 
       logger.info('PGliteManager initialized', {
         migrationsApplied,
