@@ -13,6 +13,7 @@ import { runMigrations } from './migrationManager';
 import { runValidationSuite } from '../validation/validationSuite';
 import { getPGliteManager } from '../index';
 import { syncReferenceData } from '../operations/referenceSync';
+import { syncFactsAndPlans } from '../operations/factSync';
 
 /**
  * Initialize PGlite instance with IndexedDB backend
@@ -106,8 +107,9 @@ export async function closeDatabase(db: PGlite): Promise<void> {
  * 3. Run migrations
  * 4. Initialize ConflictManager
  * 5. Sync reference data (articles, FCs, CCs)
- * 6. Run validation suite
- * 7. Update state to 'ready' and show notification
+ * 6. Sync transactional data (facts, recurring plans) - NEW
+ * 7. Run validation suite
+ * 8. Update state to 'ready' and show notification
  *
  * This function NEVER blocks UI - runs in background.
  * User continues to work via API while PGlite initializes.
@@ -128,21 +130,21 @@ export async function initializeDatabaseInBackground(): Promise<void> {
 
   try {
     // Step 1: Initialize database
-    logger.info('[DB_INIT] Step 1/5: Initialize database');
+    logger.info('[DB_INIT] Step 1/6: Initialize database');
     const db = await initializeDatabase();
 
     // Step 2: Run migrations
-    logger.info('[DB_INIT] Step 2/5: Run migrations');
+    logger.info('[DB_INIT] Step 2/6: Run migrations');
     const schemaVersion = await runMigrations(db);
     logger.info('[DB_INIT] Migrations complete', { schemaVersion });
 
     // Step 3: Initialize ConflictManager
-    logger.info('[DB_INIT] Step 3/5: Initialize ConflictManager');
+    logger.info('[DB_INIT] Step 3/6: Initialize ConflictManager');
     const pgliteManagerForConflict = getPGliteManager();
     pgliteManagerForConflict.initializeConflictManager();
 
-    // Step 4: Initial sync (reference data only)
-    logger.info('[DB_INIT] Step 4/5: Sync reference data');
+    // Step 4: Sync reference data (articles, FCs, CCs)
+    logger.info('[DB_INIT] Step 4/6: Sync reference data');
     await syncReferenceData(db, (progress) => {
       logger.info(`[DB_INIT] ${progress.phase}: ${progress.message}`, {
         current: progress.current,
@@ -150,8 +152,18 @@ export async function initializeDatabaseInBackground(): Promise<void> {
       });
     });
 
-    // Step 5: Run validation suite
-    logger.info('[DB_INIT] Step 5/5: Validate readiness');
+    // Step 5: Sync transactional data (facts, plans)
+    logger.info('[DB_INIT] Step 5/6: Sync facts and plans');
+    const factsWindow = 90;  // Default: 90 days
+    await syncFactsAndPlans(db, factsWindow, (progress) => {
+      logger.info(`[DB_INIT] ${progress.phase}: ${progress.message}`, {
+        current: progress.current,
+        total: progress.total
+      });
+    });
+
+    // Step 6: Run validation suite
+    logger.info('[DB_INIT] Step 6/6: Validate readiness');
     updateState({ initializationStatus: 'validating' });
 
     const pgliteManager = getPGliteManager();

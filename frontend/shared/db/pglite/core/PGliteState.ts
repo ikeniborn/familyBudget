@@ -55,6 +55,8 @@ export interface ValidationResults {
     financialCenterCount: number;
     costCenterCount: number;
     hierarchyCount: number;
+    factCount: number;
+    planCount: number;
     avgQueryTimeMs: number;
     maxQueryTimeMs: number;
   };

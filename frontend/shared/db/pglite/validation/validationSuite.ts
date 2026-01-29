@@ -257,17 +257,23 @@ async function collectDiagnosticDetails(
     const ccResult = await db.query(
       'SELECT COUNT(*) as count FROM local_cost_centers WHERE is_active = true'
     );
+    const factsResult = await db.query('SELECT COUNT(*) as count FROM local_budget_facts');
+    const plansResult = await db.query('SELECT COUNT(*) as count FROM local_recurring_plans WHERE is_active = true');
 
     const articleCount = parseInt((articlesResult.rows[0] as { count: string }).count);
     const financialCenterCount = parseInt((fcResult.rows[0] as { count: string }).count);
     const costCenterCount = parseInt((ccResult.rows[0] as { count: string }).count);
+    const factCount = parseInt((factsResult.rows[0] as { count: string }).count);
+    const planCount = parseInt((plansResult.rows[0] as { count: string }).count);
 
     const schemaVersion = await pglite.getSchemaVersion();
 
     logger.info('[VALIDATION] Diagnostic counts', {
       articleCount,
       financialCenterCount,
-      costCenterCount
+      costCenterCount,
+      factCount,
+      planCount
     });
 
     return {
@@ -277,6 +283,8 @@ async function collectDiagnosticDetails(
       financialCenterCount,
       costCenterCount,
       hierarchyCount: 0,
+      factCount,
+      planCount,
       avgQueryTimeMs,
       maxQueryTimeMs
     };
@@ -289,6 +297,8 @@ async function collectDiagnosticDetails(
       financialCenterCount: 0,
       costCenterCount: 0,
       hierarchyCount: 0,
+      factCount: 0,
+      planCount: 0,
       avgQueryTimeMs,
       maxQueryTimeMs
     };
