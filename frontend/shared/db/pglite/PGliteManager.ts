@@ -810,11 +810,13 @@ export class PGliteManager {
 
     try {
       // Get table counts in parallel (type-safe queries with type assertion)
-      const [articlesResult, fcResult, ccResult, factsResult, plansResult] = await Promise.all([
+      // Note: local_budget_facts contains both facts (record_type='fact') and plans (record_type='plan')
+      const [articlesResult, fcResult, ccResult, factsResult, plansResult, recurringPlansResult] = await Promise.all([
         db.query('SELECT COUNT(*) as count FROM local_articles'),
         db.query('SELECT COUNT(*) as count FROM local_financial_centers'),
         db.query('SELECT COUNT(*) as count FROM local_cost_centers'),
-        db.query('SELECT COUNT(*) as count FROM local_budget_facts'),
+        db.query("SELECT COUNT(*) as count FROM local_budget_facts WHERE record_type = 'fact'"),
+        db.query("SELECT COUNT(*) as count FROM local_budget_facts WHERE record_type = 'plan'"),
         db.query('SELECT COUNT(*) as count FROM local_recurring_plans WHERE is_active = true'),
       ]);
 
@@ -861,6 +863,9 @@ export class PGliteManager {
         syncStatus = 'idle'; // connected, disconnected, connecting → idle (no active sync)
       }
 
+      // Combine plans from local_budget_facts and recurring plans templates
+      const totalPlans = (plansResult.rows[0] as CountResult).count + (recurringPlansResult.rows[0] as CountResult).count;
+
       return {
         isEnabled: true,
         isInitialized: this.isReady(),
@@ -875,7 +880,7 @@ export class PGliteManager {
           financial_centers: (fcResult.rows[0] as CountResult).count,
           cost_centers: (ccResult.rows[0] as CountResult).count,
           facts: (factsResult.rows[0] as CountResult).count,
-          plans: (plansResult.rows[0] as CountResult).count,
+          plans: totalPlans,
         },
         performanceMetrics: {
           avgQueryTimeMs: Math.round(avgQueryTime * 100) / 100, // 2 decimal places

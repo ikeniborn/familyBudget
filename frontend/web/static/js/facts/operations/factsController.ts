@@ -615,8 +615,17 @@ export function renderFactsTable(facts: FactRow[]): void {
 export function renderFactRow(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
+    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
+    // Type assertion needed because PGlite runtime types may differ from interface
+    const dateValue: unknown = fact.fact_date;
+    const dateString = typeof dateValue === 'string'
+        ? dateValue
+        : (dateValue instanceof Date
+            ? dateValue.toISOString().split('T')[0]
+            : String(dateValue));
+
     // Format date safely (DateFormatter output is trusted)
-    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(fact.fact_date) || fact.fact_date;
+    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(dateString) || dateString;
 
     // Format amount (numeric values are safe)
     const amount = fact.fact_sum ?? fact.amount ?? 0;
