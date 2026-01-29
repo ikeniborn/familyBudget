@@ -686,8 +686,16 @@ export function renderFactRow(fact: FactRow): string {
 export function renderFactMobileCard(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
+    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
+    const dateValue: unknown = fact.fact_date;
+    const dateString = typeof dateValue === 'string'
+        ? dateValue
+        : (dateValue instanceof Date
+            ? dateValue.toISOString().split('T')[0]
+            : String(dateValue));
+
     // Format date and get short version (DD.MM)
-    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(fact.fact_date) || fact.fact_date;
+    const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(dateString) || dateString;
     const shortDate = (dateFormatted || '').slice(0, 5); // DD.MM
 
     // Format amount with color
