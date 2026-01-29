@@ -116,6 +116,8 @@ export interface DiagnosticData {
     articles: number;
     financial_centers: number;
     cost_centers: number;
+    facts: number;
+    plans: number;
   };
   performanceMetrics: {
     avgQueryTimeMs: number;
@@ -793,6 +795,8 @@ export class PGliteManager {
           articles: 0,
           financial_centers: 0,
           cost_centers: 0,
+          facts: 0,
+          plans: 0,
         },
         performanceMetrics: {
           avgQueryTimeMs: 0,
@@ -806,10 +810,12 @@ export class PGliteManager {
 
     try {
       // Get table counts in parallel (type-safe queries with type assertion)
-      const [articlesResult, fcResult, ccResult] = await Promise.all([
+      const [articlesResult, fcResult, ccResult, factsResult, plansResult] = await Promise.all([
         db.query('SELECT COUNT(*) as count FROM local_articles'),
         db.query('SELECT COUNT(*) as count FROM local_financial_centers'),
         db.query('SELECT COUNT(*) as count FROM local_cost_centers'),
+        db.query('SELECT COUNT(*) as count FROM local_budget_facts'),
+        db.query('SELECT COUNT(*) as count FROM local_recurring_plans WHERE is_active = true'),
       ]);
 
       // Calculate DB size using PostgreSQL system catalog (type-safe query with type assertion)
@@ -844,6 +850,17 @@ export class PGliteManager {
       }
 
       const state = getState();
+
+      // Map connectionStatus to syncStatus for diagnostics
+      let syncStatus: 'idle' | 'syncing' | 'error';
+      if (state.connectionStatus === 'error') {
+        syncStatus = 'error';
+      } else if (state.connectionStatus === 'syncing') {
+        syncStatus = 'syncing';
+      } else {
+        syncStatus = 'idle'; // connected, disconnected, connecting → idle (no active sync)
+      }
+
       return {
         isEnabled: true,
         isInitialized: this.isReady(),
@@ -852,11 +869,13 @@ export class PGliteManager {
         lastSyncTimestamp: syncMeta?.last_sync_timestamp
           ? new Date(syncMeta.last_sync_timestamp).toLocaleString('ru-RU')
           : 'Never',
-        syncStatus: 'idle', // TODO: track sync state
+        syncStatus,
         tableStats: {
           articles: (articlesResult.rows[0] as CountResult).count,
           financial_centers: (fcResult.rows[0] as CountResult).count,
           cost_centers: (ccResult.rows[0] as CountResult).count,
+          facts: (factsResult.rows[0] as CountResult).count,
+          plans: (plansResult.rows[0] as CountResult).count,
         },
         performanceMetrics: {
           avgQueryTimeMs: Math.round(avgQueryTime * 100) / 100, // 2 decimal places

@@ -65,7 +65,6 @@ export class PGliteDiagnosticModal extends BaseModal {
     try {
       // getPGliteManager() returns Promise due to window.PGlite Proxy
       const pglite = await getPGliteManager();
-      console.log('[DIAGNOSTIC] Got PGliteManager instance');
 
       // Wait for PGlite initialization (with timeout)
       const maxWaitMs = 30000; // 30 seconds (increased from 10)
@@ -84,21 +83,9 @@ export class PGliteDiagnosticModal extends BaseModal {
             break;
           }
 
-          if (attempts % 10 === 0) {
-            // Log every 2 seconds
-            console.log('[DIAGNOSTIC] Waiting for PGlite...', {
-              attempt: attempts,
-              elapsed: Date.now() - startTime,
-              initStatus: diagnosticData.initializationStatus,
-              isInitialized: diagnosticData.isInitialized,
-              syncStatus: diagnosticData.syncStatus,
-              isReady: pglite.isReady()
-            });
-          }
+          // Progress tracking every 2 seconds (silent)
         } catch (e) {
-          if (attempts % 10 === 0) {
-            console.log('[DIAGNOSTIC] Cannot get diagnostic data yet, still initializing...');
-          }
+          // Silently retry if diagnostic data not yet available
         }
 
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -126,8 +113,6 @@ export class PGliteDiagnosticModal extends BaseModal {
         `;
         return;
       }
-
-      console.log('[DIAGNOSTIC] PGlite is ready, loading diagnostic data');
 
       const data = await pglite.getDiagnosticData();
 
@@ -221,7 +206,7 @@ export class PGliteDiagnosticModal extends BaseModal {
       <div class="card bg-base-100 border border-base-300">
         <div class="card-body p-4">
           <h4 class="font-semibold mb-3">📊 Table Statistics</h4>
-          <div class="grid grid-cols-3 gap-4">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div class="text-center">
               <div class="text-2xl font-bold text-primary">${data.tableStats.articles}</div>
               <div class="text-sm opacity-70">Articles</div>
@@ -233,6 +218,14 @@ export class PGliteDiagnosticModal extends BaseModal {
             <div class="text-center">
               <div class="text-2xl font-bold text-accent">${data.tableStats.cost_centers}</div>
               <div class="text-sm opacity-70">Cost Centers</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-info">${data.tableStats.facts}</div>
+              <div class="text-sm opacity-70">Facts</div>
+            </div>
+            <div class="text-center">
+              <div class="text-2xl font-bold text-success">${data.tableStats.plans}</div>
+              <div class="text-sm opacity-70">Recurring Plans</div>
             </div>
           </div>
         </div>
