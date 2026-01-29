@@ -13,6 +13,7 @@ import type { LocalArticle, LocalFinancialCenter, LocalCostCenter, LocalArticleH
 import { updateSyncMetadata } from './schemaOperations';
 import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
+import { withRetry } from '../utils/retry';
 
 export interface ReferenceDataResponse {
   articles: LocalArticle[];
@@ -41,10 +42,8 @@ export type SyncProgressCallback = (progress: {
 async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
   logger.info('[REFERENCE_SYNC] Fetching reference data from API...');
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
+  return withRetry(
+    async () => {
       // Fetch all reference data in parallel with 10s timeout
       const [articlesRes, fcRes, ccRes] = await Promise.all([
         fetchWithTimeout('/api/v1/articles', { credentials: 'include' }, 10000),
@@ -93,21 +92,17 @@ async function fetchReferenceData(retries = 3): Promise<ReferenceDataResponse> {
         cost_centers,
         article_hierarchy
       };
-    } catch (error) {
-      lastError = error as Error;
-      logger.warn(`[REFERENCE_SYNC] Fetch attempt ${attempt}/${retries} failed`, error);
-
-      if (attempt < retries) {
-        // Exponential backoff: 1s, 2s, 4s
-        const delay = Math.pow(2, attempt - 1) * 1000;
-        logger.info(`[REFERENCE_SYNC] Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+    },
+    {
+      maxAttempts: retries,
+      baseDelay: 1000,
+      operationName: 'fetch reference data',
+      shouldRetry: (error) => {
+        // Don't retry for critical authentication errors
+        return !error.message?.includes('401') && !error.message?.includes('403');
       }
     }
-  }
-
-  logger.error('[REFERENCE_SYNC] All retry attempts failed', lastError);
-  throw new Error(`Failed to fetch reference data after ${retries} attempts: ${lastError?.message}`);
+  );
 }
 
 /**
