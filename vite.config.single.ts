@@ -101,6 +101,11 @@ export default defineConfig({
       // PGlite is built separately and loaded via <script> tag as window.PGlite
       external: entryName !== 'pglite' ? ['@db/pglite'] : [],
 
+      // Tree-shaking configuration (v10.1.48: prevent removal of window exports)
+      // CRITICAL: dashboard bundle uses side-effect-based window assignments via initWindowExports()
+      // Production tree-shaking removes these assignments → disable for dashboard only
+      treeshake: entryName === 'dashboard' ? false : 'recommended',
+
       output: {
         // All modules use IIFE format for synchronous window global creation
         // PGlite uses dynamic import() inside IIFE for lazy loading

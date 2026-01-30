@@ -254,8 +254,19 @@ function initModule(): void {
   debugLog('[Dashboard] Module loaded');
 }
 
-// Auto-initialize on load (v10.1.47 rebuild trigger)
+// Auto-initialize on load
 initModule();
+
+// ============================================================================
+// Prevent tree-shaking of window exports (v10.1.48 fix)
+// ============================================================================
+
+// CRITICAL: Force Vite to keep window exports by explicitly using them
+// Without this, production build tree-shakes initWindowExports() call
+if (typeof window !== 'undefined') {
+  // Mark as used to prevent tree-shaking
+  (window as any).__DASHBOARD_LOADED__ = true;
+}
 
 // ============================================================================
 // Default Export
