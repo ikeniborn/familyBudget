@@ -23,6 +23,7 @@ import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
 // ============================================================================
 
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+declare const showConfirmDialog: (message: string, title?: string) => Promise<boolean>;
 declare const debugLog: (...args: any[]) => void;
 
 export interface ItemData {
@@ -342,8 +343,14 @@ function updateItemCompletedDom(itemId: number, isCompleted: boolean): void {
  * @param skipConfirm - Skip confirmation dialog (default: false)
  */
 export async function deleteItem(itemId: number, skipConfirm: boolean = false): Promise<void> {
-  if (!skipConfirm && !confirm('Удалить этот товар?')) {
-    return;
+  if (!skipConfirm) {
+    const confirmed = await showConfirmDialog(
+      'Удалить этот товар?',
+      '🗑️ Удаление товара'
+    );
+    if (!confirmed) {
+      return;
+    }
   }
 
   const state = getState();
@@ -404,7 +411,11 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
 export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
   if (itemIds.length === 0) return;
 
-  if (!confirm(`Удалить выбранные товары (${itemIds.length})?`)) {
+  const confirmed = await showConfirmDialog(
+    `Удалить выбранные товары (${itemIds.length})?\nЭто действие необратимо.`,
+    '🗑️ Удаление товаров'
+  );
+  if (!confirmed) {
     return;
   }
 
