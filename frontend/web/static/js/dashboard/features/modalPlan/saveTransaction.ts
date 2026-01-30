@@ -65,8 +65,14 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
     }
   }
 
-  // POST /api/v1/recurring-plans
-  await postAPI('/api/v1/recurring-plans', planData, 'SavePlanModal');
+  // POST to appropriate endpoint based on plan mode
+  if (recurringSettings) {
+    // Recurring plan → /api/v1/recurring-plans
+    await postAPI('/api/v1/recurring-plans', planData, 'SavePlanModal');
+  } else {
+    // One-time plan (regular/reminder) → /api/v1/facts
+    await postAPI('/api/v1/facts', planData, 'SavePlanModal');
+  }
 
   // Update UI
   await refreshUIAfterPlanSave();
