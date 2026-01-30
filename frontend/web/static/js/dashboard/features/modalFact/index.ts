@@ -363,6 +363,12 @@ export async function openModalFact(): Promise<void> {
     return;
   }
 
+  // Prevent duplicate initialization if modal already open (v10.1.51)
+  if (modal.open) {
+    // Skip re-initialization silently (modal already open)
+    return;
+  }
+
   // Open modal immediately
   modal.showModal();
 

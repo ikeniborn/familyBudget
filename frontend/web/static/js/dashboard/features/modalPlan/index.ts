@@ -10,6 +10,7 @@ import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
+import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -402,6 +403,12 @@ export async function openModalPlan(): Promise<void> {
     return;
   }
 
+  // Prevent duplicate initialization if modal already open (v10.1.51)
+  if (modal.open) {
+    debugLog('[ModalPlan] Modal already open, skipping re-initialization');
+    return;
+  }
+
   // Open modal immediately
   modal.showModal();
 
@@ -423,6 +430,9 @@ export async function openModalPlan(): Promise<void> {
 
     // Setup plan type toggle listeners
     setupPlanTypeToggle();
+
+    // v10.1.51: Setup period buttons (moved from initializeForms)
+    setupPlanPeriodButtons();
 
     // Hide skeleton
     hideSkeleton();

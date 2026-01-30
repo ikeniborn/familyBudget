@@ -38,7 +38,7 @@ import {
   saveTransaction as saveTransactionImpl,
   saveTransactionOffline as saveTransactionOfflineImpl,
   setTransactionDate as setTransactionDateImpl,
-  setupTransactionTypeButtons as setupTransactionTypeButtonsImpl,
+  // v10.1.51: setupTransactionTypeButtons moved to modal open handler
 } from '../features/addTransaction';
 
 // Add Plan imports (Phase 3) - kept for backward compatibility with legacy inline JavaScript
@@ -47,8 +47,7 @@ import {
   savePlan as savePlanImpl,
   savePlanOffline as savePlanOfflineImpl,
   loadPlanHints as loadPlanHintsImpl,
-  setupPlanPeriodButtons as setupPlanPeriodButtonsImpl,
-  setupPlanTypeButtons as setupPlanTypeButtonsImpl,
+  // v10.1.51: setupPlanPeriodButtons and setupPlanTypeButtons moved to openModalPlan()
   toggleReminderSettings as toggleReminderSettingsImpl,
   togglePlanMode as togglePlanModeImpl,
   prefillReminderDateTime as prefillReminderDateTimeImpl,
@@ -240,12 +239,16 @@ function setupFormInitialization(): void {
 
 /**
  * Initialize forms after DOM is ready
+ *
+ * v10.1.51: Removed early initialization of period/type buttons
+ * These functions should be called when modal is opened, NOT at module initialization.
+ * Reason: Modal DOM may not be ready yet, causing "No buttons found" errors.
  */
 function initializeForms(): void {
-  // Initialize period buttons for plan form
-  setupPlanPeriodButtonsImpl();
-  setupPlanTypeButtonsImpl();
-  setupTransactionTypeButtonsImpl();
+  // v10.1.51: Period/type button initialization moved to modal open handlers
+  // setupPlanPeriodButtonsImpl();       // Called in openModalPlan()
+  // setupPlanTypeButtonsImpl();         // Called in openModalPlan()
+  // setupTransactionTypeButtonsImpl();  // Called in openModalFact()
 }
 
 // ============================================================================

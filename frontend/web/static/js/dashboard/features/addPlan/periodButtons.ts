@@ -41,10 +41,10 @@ export function updatePlanPeriodButtons(): void {
  * Set up handlers for period selection buttons
  */
 export function setupPlanPeriodButtons(): void {
-  // Only select period buttons inside modal_add_plan (not transfer_modal)
-  const periodButtons = document.querySelectorAll('#form_modal_add_plan .period-btn') as NodeListOf<HTMLButtonElement>;
+  // v10.1.51: Use v10.x tab-based selectors (modal_plan-tab-transaction)
+  const periodButtons = document.querySelectorAll('#modal_plan-tab-transaction .period-btn') as NodeListOf<HTMLButtonElement>;
 
-  const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]') as HTMLInputElement | null;
+  const hiddenInput = document.querySelector('#modal_plan-tab-transaction input[name="plan_month"]') as HTMLInputElement | null;
 
   if (periodButtons.length === 0) {
     console.error('[setupPlanPeriodButtons] ❌ ERROR: No period buttons found!');
