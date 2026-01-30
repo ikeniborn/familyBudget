@@ -272,16 +272,16 @@ function safeOpenContextModal() {
     // Fallback: Прямой вызов модальных окон
     const currentPage = window.location.pathname;
     if (currentPage === '/plan') {
-        if (typeof openModalPlan === 'function') {
-            openModalPlan();
+        if (typeof window.openModalPlan === 'function') {
+            window.openModalPlan();
         } else {
             console.error('[FAB] openModalPlan not available');
             showFallbackError();
         }
     } else {
         // По умолчанию - modal_fact (для / и /facts)
-        if (typeof openModalFact === 'function') {
-            openModalFact();
+        if (typeof window.openModalFact === 'function') {
+            window.openModalFact();
         } else {
             console.error('[FAB] openModalFact not available');
             showFallbackError();
