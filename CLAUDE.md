@@ -65,168 +65,128 @@ Use **testing** skill for code quality checks.
 **Database:** SCD Type 1 + History tables, Closure Table, PostgreSQL 16 + Alembic
 **Frontend:** PWA (HTMX + Tailwind + DaisyUI), Service Worker, WebSocket real-time
 
-**See architecture documentation:**
-- `/docs/architecture/README.md` - Dependency graph + recent changes
-- `/docs/architecture/authentication.md` - Auth system (JWT, OAuth, WebAuthn)
-- `/docs/architecture/pwa.md` - PWA features, offline support, caching
-- `/docs/architecture/websocket.md` - Real-time updates, Redis Pub/Sub
-- `/docs/architecture/build-system.md` - Build pipeline, TypeScript hybrid
-- `/docs/architecture/es-modules-migration.md` - ES Modules migration (v7.0.0)
+**See:** [Documentation Index](#documentation-index) for complete architecture guide
 
-### Module System (v7.0.0+)
-**Build:** Vite + TypeScript → ES Modules → IIFE bundles
-**Structure:** `core/` (state), `operations/`, `features/`, `ui/`, `integration/`
+## Skills Quick Reference
 
-**Commands:** `npm run build` (production), `npm run dev` (HMR), `npm run type-check`
-**See:** `/docs/architecture/build-system.md` for complete guide
+**Use skills for ALL development tasks.** Each skill contains complete implementation logic, templates, and safety rules.
 
-### Database Patterns
-**SCD Type 1 + History:** Main tables (current state), History tables (all changes, SCD Type 2)
-**Closure Table:** `ArticleHierarchy` for fast hierarchy queries
-**Shared Budget:** All users see all data, `user_id` indicates creator
+### Backend Development
 
-Use **db-management** skill for database operations.
-**See:** `/docs/architecture/database/` for schema documentation
+| Task | Skill | When to Use | Example |
+|------|-------|-------------|---------|
+| Add/modify REST endpoint | **api-development** | Creating CRUD operations, business logic | Add transaction filter endpoint |
+| Database schema changes | **db-management** | Migrations, SCD Type 2, Closure Table | Add recurring plan field |
+| Auth implementation | **authentication-security** | JWT, OAuth, security middleware | Add WebAuthn login |
+| Telegram bot features | **bot-development** | Bot commands, handlers, Web Apps | Add /stats command |
+
+**See:** `.claude/skills/{api-development,db-management,authentication-security,bot-development}/SKILL.md`
+
+### Frontend Development
+
+| Task | Skill | When to Use | Example |
+|------|-------|-------------|---------|
+| UI components/pages | **frontend-development** | HTMX, Tailwind, DaisyUI, TypeScript | Add budget chart widget |
+| Real-time updates | **websocket-realtime** | WebSocket events, SSE, Redis Pub/Sub | Live transaction updates |
+
+**See:** `.claude/skills/{frontend-development,websocket-realtime}/SKILL.md`
+
+### Operations & Testing
+
+| Task | Skill | When to Use | Example |
+|------|-------|-------------|---------|
+| Code quality checks | **testing** | Linting, formatting, type checking, tests | Pre-commit validation |
+| Deploy to testing | **deploy-test** | Automated deployment to budget-test | Deploy auth fix to staging |
+| Deploy to production | **deploy-prod** | Automated deployment to budget-prod | Release v10.2.0 |
+| Debug issues | **monitoring** | Logs, metrics, troubleshooting | Investigate WebSocket disconnect |
+
+**See:** `.claude/skills/{testing,deploy-test,deploy-prod,monitoring}/SKILL.md`
+
+### Patterns & Architecture
+
+| Task | Skill | When to Use | Example |
+|------|-------|-------------|---------|
+| Complex DB operations | **advanced-patterns** | SCD Type 2, Closure Table, transfers | Implement budget category hierarchy |
+
+**See:** `.claude/skills/advanced-patterns/SKILL.md`
 
 ## Critical Development Patterns
 
+**Top 5 patterns you MUST follow.** Full details in referenced documentation.
+
 ### 1. AsyncSession - ALWAYS await
-Missing `await` on AsyncSession methods causes silent failures. Always await `session.execute()`, `session.commit()`, `session.delete()`.
+Missing `await` on AsyncSession methods causes silent failures.
+```python
+# ✅ CORRECT
+await session.execute(stmt)
+await session.commit()
+
+# ❌ WRONG (silent failure)
+session.execute(stmt)  # Missing await
+```
+**Impact:** Database operations silently fail, no error raised.
 
 ### 2. History Tables - Copy ALL Fields
-History records MUST copy ALL fields including nullable ones. Missing `record_type` → IntegrityError.
-Use **db-management** skill for correct patterns.
+History records MUST copy ALL fields including nullable ones. Missing fields → IntegrityError.
+```python
+# ✅ CORRECT (use db-management skill)
+history_record = FinancialCenterHistory(
+    financial_center_id=fc.id,
+    name=fc.name,
+    record_type=fc.record_type,  # Don't forget!
+    # ... ALL other fields
+)
+```
+**See:** **db-management** skill for correct SCD Type 2 patterns
 
-### 3. Testing - Verify DB After Operations
-HTTP 200 ≠ Successful operation. Use **monitoring** skill for verification.
-
-### 4. WebSocket Multi-Worker
-Redis Pub/Sub for cross-worker synchronization (`.env`: `REDIS_ENABLED=true`).
-**See:** `/docs/architecture/websocket.md`
-
-### 5. iOS Safari Quirks
-Use `visibility: hidden` + `pointer-events: none` for guaranteed non-interactivity.
-**See:** `/docs/architecture/frontend/responsive-design.md`
-
-### 6. Service Worker Updates
-Manual update with version display modal. Build required before deployment.
-**See:** `/docs/architecture/pwa.md` → Service Worker Updates
-
-### 7. Transfer Deduplication
-`sync_hash` + `content_hash` prevent duplicate transfers.
+### 3. Transfer Deduplication
+Use `sync_hash` + `content_hash` to prevent duplicate transfers.
+```python
+sync_hash = f"{from_fc}_{to_fc}_{amount}_{date}"
+content_hash = hashlib.sha256(sync_hash.encode()).hexdigest()
+```
 **See:** `/docs/architecture/transfers-system.md`
 
-### 8. Deduplication Pattern
-Singleton promise locks for race condition prevention (13x performance improvement).
-**See:** `index.html:4435-4479` for implementation
+### 4. iOS Safari Quirks
+Use `visibility: hidden` + `pointer-events: none` for guaranteed non-interactivity.
+```css
+/* ✅ CORRECT (works on iOS Safari) */
+.hidden-element {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 
-### 9. FAB Navigation Positioning
-Use `!important` for display properties, `visibility: hidden` for iOS Safari protection.
-
-**Z-Index Values (CSS Variables):**
-- Mobile FAB (< 1024px): `var(--z-fab-mobile)` = **40** (below navbar at 50)
-- Desktop FAB (≥ 1024px): `var(--z-fab-desktop)` = **1000** (above backdrop at 999)
-- Lists FAB: `var(--z-fab-lists)` = **1001-1003** (context-specific)
-
-**Deprecated in v11.0:**
-- `.mobile-fab-wrapper` (z-index: 998) - replaced by `.fab-wrapper` in v7.x
-
-**See:**
-- `/docs/architecture/frontend/responsive-design.md` → FAB Navigation Architecture
-- `/docs/architecture/frontend/z-index-layering.md` → Complete Z-Index Hierarchy (13 layers)
-- `/docs/architecture/frontend/z-index-layering.md#css-variables-reference` → CSS Variables Usage
-
-### 10. Vendor File Management
-**Source Control Strategy:** Store unminified vendor files in git, generate minified versions during build.
-
-**Vendor Files Location:**
-- **CSS:** `frontend/web/static/css/vendor/` (choices.css)
-- **JS:** `frontend/web/static/js/vendor/` (htmx.js, choices.js, echarts.js, qr-creator.js)
-
-**Build Process:**
-```bash
-# CSS minification (PostCSS + cssnano)
-npm run minify:vendor-css
-
-# JS minification (Terser with parallel execution)
-npm run minify:vendor-js
-
-# Combined vendor build
-npm run build:vendor
-```
-
-**Minification Details:**
-- **CSS:** PostCSS with cssnano plugin (`postcss -u cssnano`)
-- **JS:** Terser with `--compress --mangle` via `scripts/minify-vendor.js` (parallel execution using Promise.all)
-- **Output:** `*.min.css` and `*.min.js` files (ignored by git via `.gitignore`)
-
-**Cache Busting:**
-HTML templates use `?v=PLACEHOLDER` pattern, replaced during deployment with actual version/commit hash.
-
-**Adding New Vendor Libraries:**
-1. Download unminified source to `frontend/web/static/{css,js}/vendor/`
-2. Add to `scripts/minify-vendor.js` files array (JS) or add PostCSS script (CSS)
-3. Update HTML templates with cache-busted path: `/static/.../vendor/library.min.{css,js}?v=PLACEHOLDER`
-4. Run `npm run build:vendor` to verify minification works
-5. Commit unminified source only (`.gitignore` prevents minified files from being tracked)
-
-**Download Script:**
-Use `/tmp/download-vendor.sh` for batch downloading vendor files from CDN with redirect handling.
-
-**Pre-Deploy Validation:**
-Deployment scripts automatically run `npm run build:vendor` to ensure all minified files are up-to-date.
-
-### 11. Shopping Lists Conflict Resolution (task-014)
-
-**Merge Strategy:**
-- **is_completed:** OR logic (true if either version completed)
-- **quantity:** MAX value (higher quantity wins)
-- **position:** Server is source of truth (auto-assigned on create)
-- **Other fields:** Server wins
-
-**Position Field:**
-- Auto-assigned on creation: MAX(position) + 1
-- Preserved on deletion (no reordering)
-- Sorting: ORDER BY position ASC
-
-**See:**
-- `frontend/shared/db/pglite/ShoppingConflictManager.ts:339-450` for merge implementation
-- `frontend/shared/db/pglite/operations/shoppingOperations.ts:266-314` for auto-assign
-- `/docs/architecture/pglite-conflict-resolution.md` for complete guide
-
-### 12. Modal Tab Architecture (v10.x+)
-
-**Tab-Based Modals:**
-- `modal_fact` (Фактические транзакции): Transaction tab + Transfer tab
-- `modal_plan` (Планируемые транзакции): Transaction tab + Transfer tab
-
-**Financial Centers Loading:**
-Use centralized `loadFinancialCenters(targetSelectors?)` with explicit selectors:
-```typescript
-// Transaction tabs (default)
-await loadFinancialCenters();
-
-// Transfer tabs (explicit)
-await loadFinancialCenters([
-  '#modal_fact-tab-transfer select[name="from_financial_center_id"]',
-  '#modal_fact-tab-transfer select[name="to_financial_center_id"]'
-]);
-```
-
-**⚠️ Legacy Selectors (Deprecated):**
-- `#form_modal_add_transaction` → `#modal_fact-tab-transaction`
-- `#form_modal_add_plan` → `#modal_plan-tab-transaction`
-
-**Validation:**
-Always validate critical selects after loading:
-```typescript
-const fcSelect = document.querySelector('#modal_fact-tab-transaction select[name="financial_center_id"]');
-if (!fcSelect || fcSelect.options.length <= 1) {
-  console.error('Financial center select not populated');
+/* ❌ WRONG (iOS Safari may ignore) */
+.hidden-element {
+  display: none;  /* iOS sometimes ignores */
 }
 ```
+**See:** `/docs/architecture/frontend/responsive-design.md`
 
-**See:** `/docs/architecture/frontend/modal-architecture.md` for complete guide
+### 5. Modal Tab Architecture (v10.x+)
+Use correct selectors for tab-based modals.
+```typescript
+// ✅ CORRECT (v10.x tab-based selectors)
+await loadFinancialCenters([
+  '#modal_fact-tab-transaction select[name="financial_center_id"]'
+]);
+
+// ❌ DEPRECATED (v9.x single-form selectors)
+await loadFinancialCenters([
+  '#form_modal_add_transaction select[name="financial_center_id"]'
+]);
+```
+**See:** `/docs/architecture/frontend/modal-architecture.md`
+
+### Other Important Patterns
+
+**See architecture documentation for:**
+- **WebSocket Multi-Worker:** Redis Pub/Sub synchronization → `/docs/architecture/websocket.md`
+- **Service Worker Updates:** Version display modal → `/docs/architecture/pwa.md`
+- **FAB Navigation:** Z-Index hierarchy → `/docs/architecture/frontend/z-index-layering.md`
+- **Vendor Management:** Build process → `/docs/architecture/build-system.md`
+- **Shopping Lists:** Conflict resolution → `/docs/architecture/pglite-conflict-resolution.md`
+- **Testing:** DB verification → **monitoring** skill
 
 ## Important Features
 
@@ -240,112 +200,99 @@ if (!fcSelect || fcSelect.options.length <= 1) {
 
 ## Development Workflow
 
-### Code Quality
-Use **testing** skill for automated quality checks (linting, formatting, type checking, tests).
+**Code Quality:** Use **testing** skill for automated quality checks (linting, formatting, type checking, tests).
 
-### Build Requirements (v9.0: CI/CD Only)
-**Development:** Minification NOT required locally
-**Production:** All builds (frontend, Docker) happen in GitHub Actions CI/CD
-- Cache busting in CI (scripts/ci/cache_busting_ci.sh)
-- Frontend build (npm run build:prod)
-- Docker build (5 images: backend, bot, nginx, redis, postgresql)
-- Push to ghcr.io with semver tags
-**See:** `docs/architecture/build-system.md`, `docs/architecture/ci-cd-build-deploy.md`
+**Build (v9.0+):** All builds happen in GitHub Actions CI/CD. See `docs/architecture/build-system.md`, `docs/architecture/ci-cd-build-deploy.md`
 
-### Deployment (Registry-First)
-Use **deploy-test** or **deploy-prod** skills for automated deployment.
-**Server workflow:** Pull images from ghcr.io → docker compose up → migrations
-**See:**
-- `.claude/skills/deploy-*/SKILL.md` (v9.0.0)
-- `CI-CD-REGISTRY-SUMMARY.md` (complete guide)
-- `/docs/architecture/guides/deployment-troubleshooting.md`
+**Deployment:** Use **deploy-test** or **deploy-prod** skills. Server pulls ready images from ghcr.io. See `CI-CD-REGISTRY-SUMMARY.md`
 
-## API Endpoints
+## Quick Reference
 
-**Auth:** `POST /auth/telegram`, `/auth/login`, `/auth/webauthn/authenticate/verify`, `/auth/refresh`
-**REST v1:** `/api/v1/articles`, `/api/v1/facts`, `/api/v1/transfers`, `/api/v1/recurring-plans`
+### API Endpoints
+**Auth:** `/auth/telegram`, `/auth/login`, `/auth/webauthn/authenticate/verify`
+**REST v1:** `/api/v1/{articles,facts,transfers,recurring-plans}`
 **WebSocket:** `ws://localhost:8000/ws/budget`
+**Swagger:** `/docs` (interactive API documentation)
 
-Use **api-development** skill for creating new endpoints.
-**See:** `/docs/architecture/endpoints/` for complete API docs
+Use **api-development** skill for creating new endpoints. See `/docs/architecture/endpoints/`
 
-## Logging Conventions
-
+### Logging Conventions
 **Active prefixes:** `[AUTH_EMAIL]`, `[AUTH_WEBAUTHN]`, `[RECURRING_PLAN]`, `[BULK_DELETE]`, `[WS_BULK]`, `[DEDUP]`, `[RTT_FILTER]`
 
-**See:** `frontend/web/static/js/config/logging.js` for configuration
+See `frontend/web/static/js/config/logging.js` for configuration
 
-## Troubleshooting
+### Troubleshooting
+**Common issues:**
+- WebSocket disconnects → Check Redis, backend logs (`/opt/budget/logs/`)
+- Deployment failures → Check disk space, Docker logs
+- Build errors → See `docs/architecture/build-system.md`
 
-**Installation issues:** Network checks, timeout increases
-**Docker GPG errors:** Remove corrupted keys
-**Deployment failures:** Check logs, disk space
-**WebSocket disconnects:** Check Redis, backend logs
+Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for detailed troubleshooting
 
-Use **monitoring** skill for diagnostics.
-**See:** `/docs/architecture/guides/` for comprehensive troubleshooting
-
-## Claude Code Skills
-
-Project includes specialized skills in `.claude/skills/` for automated workflows:
-
-**Backend Development:**
-- **api-development** - REST API endpoint creation with SCD Type 2 + Shared Budget
-- **db-management** - Database migrations, SCD Type 2, Closure Table patterns
-- **authentication-security** - JWT auth, Telegram OAuth, security middleware
-- **bot-development** - Telegram bot commands and handlers
-
-**Frontend Development:**
-- **frontend-development** - HTMX + Tailwind + DaisyUI + WebSocket components
-- **websocket-realtime** - WebSocket real-time updates, SSE, event buffering
-
-**Operations:**
-- **deploy-test** - Automated deployment to budget-test server
-- **deploy-prod** - Automated deployment to budget-prod server
-- **monitoring** - System monitoring and diagnostics
-- **testing** - Test automation and quality assurance
-
-**Patterns:**
-- **advanced-patterns** - SCD Type 2, Closure Table, Shared Family Budget
-
-**See:** `.claude/skills/*/SKILL.md` for detailed skill documentation
 
 ## Documentation Index
 
-### Architecture
-- [README.md](docs/architecture/README.md) - Dependency graph + recent changes
-- **[ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md)** - CI/CD Pipeline (v2.0, Registry-First) ⭐ NEW
-- **[docker.md](docs/architecture/docker.md)** - Docker Multi-Stage Builds (5 images) ⭐ NEW
-- [authentication.md](docs/architecture/authentication.md) - JWT, OAuth, WebAuthn
-- [pwa.md](docs/architecture/pwa.md) - PWA, offline, Service Worker
-- [frontend/z-index-layering.md](docs/architecture/frontend/z-index-layering.md) - Z-Index hierarchy (13 layers, CSS variables)
-- [websocket.md](docs/architecture/websocket.md) - Real-time updates
-- [build-system.md](docs/architecture/build-system.md) - Build pipeline
-- [recurring-plans.md](docs/architecture/recurring-plans.md) - Recurring payments
-- [notifications.md](docs/architecture/notifications.md) - Push + Telegram
-- [transfers-system.md](docs/architecture/transfers-system.md) - Transfer deduplication
-- [bulk-delete-optimization.md](docs/architecture/bulk-delete-optimization.md) - Bulk operations
-- [installation-resilience.md](docs/architecture/installation-resilience.md) - Installation framework
-- [backup-system.md](docs/architecture/backup-system.md) - Backup + restore
-- [caching-strategy.md](docs/architecture/caching-strategy.md) - HTTP caching
-- [es-modules-migration.md](docs/architecture/es-modules-migration.md) - ES Modules migration (v7.0.0)
+**Primary source of truth.** Always check docs before implementation.
 
-### Guides
-- [deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) - Deployment
-- [disaster-recovery.md](docs/architecture/guides/disaster-recovery.md) - Disaster recovery
-- [backup-operations.md](docs/architecture/guides/backup-operations.md) - Backup procedures
+### Architecture (Core Concepts)
 
-### Deployment (v9.0+ Registry-First)
-- **[CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md)** - Complete Registry-First Guide ⭐ MUST READ
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [README.md](docs/architecture/README.md) | Dependency graph, recent changes | Start of any task |
+| [authentication.md](docs/architecture/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
+| [pwa.md](docs/architecture/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
+| [websocket.md](docs/architecture/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
+| [build-system.md](docs/architecture/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
+| [es-modules-migration.md](docs/architecture/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
 
-### Product
-- [docs/prd/](docs/prd/) - Product requirements
-- [docs/guides/](docs/guides/) - User guides
-- [START.md](START.md) - Administrator installation guide
+### Database & Backend
 
-### API
-- `/docs` (Swagger) - Interactive API documentation
-- [docs/architecture/endpoints/](docs/architecture/endpoints/) - Endpoint documentation
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [database/](docs/architecture/database/) | Schema, SCD Type 2, Closure Table | DB schema changes |
+| [endpoints/](docs/architecture/endpoints/) | API documentation | API development |
+| [transfers-system.md](docs/architecture/transfers-system.md) | Transfer deduplication | Transfer operations |
+| [recurring-plans.md](docs/architecture/recurring-plans.md) | Recurring payments (MMDD encoding) | Recurring plans |
+
+### Frontend
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [frontend/responsive-design.md](docs/architecture/frontend/responsive-design.md) | Responsive, iOS Safari quirks | UI bugs, mobile issues |
+| [frontend/z-index-layering.md](docs/architecture/frontend/z-index-layering.md) | Z-Index hierarchy (13 layers) | Overlay conflicts |
+| [frontend/modal-architecture.md](docs/architecture/frontend/modal-architecture.md) | Tab-based modals (v10.x+) | Modal implementation |
+
+### Deployment & Operations
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| **[CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md)** | ⭐ Registry-First deployment (v9.0+) | Deployment tasks |
+| [ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
+| [docker.md](docs/architecture/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
+| [guides/deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
+| [guides/disaster-recovery.md](docs/architecture/guides/disaster-recovery.md) | Disaster recovery | Critical failures |
+| [guides/backup-operations.md](docs/architecture/guides/backup-operations.md) | Backup procedures | Backup/restore tasks |
+
+### Features & Optimization
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [notifications.md](docs/architecture/notifications.md) | Web Push + Telegram | Notifications |
+| [bulk-delete-optimization.md](docs/architecture/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
+| [pglite-conflict-resolution.md](docs/architecture/pglite-conflict-resolution.md) | Shopping lists conflict resolution | Shopping lists |
+| [pglite-pruning-compatibility.md](docs/architecture/pglite-pruning-compatibility.md) | PGlite data cleanup | Offline data management |
+| [caching-strategy.md](docs/architecture/caching-strategy.md) | HTTP caching | Performance |
+| [backup-system.md](docs/architecture/backup-system.md) | Backup + restore | Backup system |
+| [installation-resilience.md](docs/architecture/installation-resilience.md) | Installation framework | Installation issues |
+
+### Product & User Guides
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [START.md](START.md) | Administrator installation | Initial setup |
+| [docs/prd/](docs/prd/) | Product requirements | Feature planning |
+| [docs/guides/](docs/guides/) | User guides | User workflows |
+| `/docs` (Swagger) | Interactive API docs | API testing |
 
 ## Emergency Contacts
 

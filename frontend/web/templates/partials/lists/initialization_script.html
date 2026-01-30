@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
                 progressCheckInterval = setInterval(async () => {
                     try {
-                        const { getState } = await import('/static/js/dist/pglite.min.js');
+                        const { getState } = await import('/shared/db/pglite.min.js');
                         const state = getState();
 
                         if (state.initializationStatus === 'initializing' || state.initializationStatus === 'validating') {
