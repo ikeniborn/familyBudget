@@ -10,11 +10,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Show PGlite initialization progress if enabled
         let progressCheckInterval = null;
-        if (localStorage.getItem('enablePGlite') === 'true') {
+        if (localStorage.getItem('enablePGlite') === 'true' &&
+            typeof window.showPGliteProgress === 'function' &&
+            typeof window.hidePGliteProgress === 'function') {
             try {
-                const { showPGliteProgress, hidePGliteProgress } =
-                    await import('/static/js/notifications/pgliteProgressToast.js');
-
                 // Listen to state changes via polling
                 // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
                 progressCheckInterval = setInterval(async () => {
@@ -24,15 +23,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         if (state.initializationStatus === 'initializing' || state.initializationStatus === 'validating') {
                             // Show generic message (actual progress comes from progressCallback)
-                            showPGliteProgress({
+                            window.showPGliteProgress({
                                 phase: 'Initializing',
                                 message: 'Загрузка данных...'
                             });
                         } else if (state.initializationStatus === 'ready') {
-                            hidePGliteProgress();
+                            window.hidePGliteProgress();
                             clearInterval(progressCheckInterval);
                         } else if (state.initializationStatus === 'error') {
-                            hidePGliteProgress();
+                            window.hidePGliteProgress();
                             clearInterval(progressCheckInterval);
                         }
                     } catch (err) {
@@ -47,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }, 30000);
             } catch (err) {
-                console.warn('[LISTS_INIT] Progress toast import failed:', err);
+                console.warn('[LISTS_INIT] Progress monitoring failed:', err);
             }
         }
 

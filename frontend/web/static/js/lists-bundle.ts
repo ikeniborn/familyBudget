@@ -12,6 +12,9 @@ import './lists/csvImporter.ts';
 import './lists/googleSheetsImporter';
 import './lists/importManager';
 
+// PGlite progress notification (v10.1.38+)
+import { showPGliteProgress, hidePGliteProgress } from './notifications/pgliteProgressToast';
+
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
   // Initialization
@@ -220,7 +223,11 @@ const windowExports = {
         window.importManager.init();
       }
     }
-  }
+  },
+
+  // PGlite progress notifications (v10.1.38+)
+  showPGliteProgress,
+  hidePGliteProgress
 };
 
 // Экспорт в window (Object.assign - надёжнее работает после минификации)
