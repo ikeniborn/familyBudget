@@ -54,6 +54,8 @@ files=(
     "frontend/web/templates/2fa_setup.html"
     "frontend/web/templates/2fa_setup_login.html"
     "frontend/web/templates/settings.html"
+    # Web Template Scripts
+    "frontend/web/templates/scripts/service-worker-registration.html"
 )
 
 updated_count=0
