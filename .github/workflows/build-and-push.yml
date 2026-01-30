@@ -627,11 +627,7 @@ jobs:
             echo "Version files have been updated:"
             git diff IMAGE_VERSIONS.json package.json package-lock.json
             git add IMAGE_VERSIONS.json package.json package-lock.json
-            git commit -m "chore(ci): auto-update version files [skip ci]
-
-- IMAGE_VERSIONS.json: Docker image tags
-- package.json: npm package version
-- package-lock.json: lockfile version"
+            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
             git push
             echo "✅ Version files committed and pushed"
           else
@@ -763,4 +759,3 @@ jobs:
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-# Trigger rebuild for 10.1.41
