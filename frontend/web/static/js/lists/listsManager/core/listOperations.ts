@@ -75,7 +75,7 @@ function refreshUI(): void {
  */
 export async function createItem(data: ItemData): Promise<any> {
   const state = getState();
-  const pglite = getPGliteManager();
+  const pglite = await getPGliteManager();
 
   try {
     let result;
@@ -170,7 +170,7 @@ export async function createItem(data: ItemData): Promise<any> {
  */
 export async function updateItem(itemId: number, data: Partial<ItemData>): Promise<any> {
   const state = getState();
-  const pglite = getPGliteManager();
+  const pglite = await getPGliteManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -243,7 +243,7 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
  */
 export async function toggleItemCompleted(itemId: number, isCompleted: boolean): Promise<void> {
   const state = getState();
-  const pglite = getPGliteManager();
+  const pglite = await getPGliteManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -354,7 +354,7 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
   }
 
   const state = getState();
-  const pglite = getPGliteManager();
+  const pglite = await getPGliteManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -420,7 +420,7 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
   }
 
   const state = getState();
-  const pglite = getPGliteManager();
+  const pglite = await getPGliteManager();
 
   try {
     // PGlite-first strategy

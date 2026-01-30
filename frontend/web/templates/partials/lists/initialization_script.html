@@ -8,6 +8,48 @@
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Show PGlite initialization progress if enabled
+        let progressCheckInterval = null;
+        if (localStorage.getItem('enablePGlite') === 'true') {
+            try {
+                const { showPGliteProgress, hidePGliteProgress } =
+                    await import('/static/js/notifications/pgliteProgressToast.js');
+
+                // Listen to state changes via polling
+                // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
+                progressCheckInterval = setInterval(async () => {
+                    try {
+                        const { getState } = await import('/static/js/dist/pglite.min.js');
+                        const state = getState();
+
+                        if (state.initializationStatus === 'initializing' || state.initializationStatus === 'validating') {
+                            // Show generic message (actual progress comes from progressCallback)
+                            showPGliteProgress({
+                                phase: 'Initializing',
+                                message: 'Загрузка данных...'
+                            });
+                        } else if (state.initializationStatus === 'ready') {
+                            hidePGliteProgress();
+                            clearInterval(progressCheckInterval);
+                        } else if (state.initializationStatus === 'error') {
+                            hidePGliteProgress();
+                            clearInterval(progressCheckInterval);
+                        }
+                    } catch (err) {
+                        console.warn('[LISTS_INIT] Progress check failed:', err);
+                    }
+                }, 500);
+
+                // Cleanup after 30 seconds (timeout)
+                setTimeout(() => {
+                    if (progressCheckInterval) {
+                        clearInterval(progressCheckInterval);
+                    }
+                }, 30000);
+            } catch (err) {
+                console.warn('[LISTS_INIT] Progress toast import failed:', err);
+            }
+        }
 
         // Wait for bundle to load and export functions
         let attempts = 0;

@@ -192,7 +192,7 @@ export async function getFact(factId: number): Promise<BudgetFact> {
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
 
     try {
         // PGlite-first strategy
@@ -272,7 +272,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
  * Helper: Find fact temp_id by server ID
  */
 async function findFactTempId(factId: number): Promise<string | null> {
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
     if (!isPGliteEnabled() || !pglite.isReady()) {
         return null;
     }
@@ -292,7 +292,7 @@ async function findFactTempId(factId: number): Promise<string | null> {
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
 
     try {
         // PGlite-first strategy
@@ -393,7 +393,7 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
 
     try {
         // PGlite-first strategy

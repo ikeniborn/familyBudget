@@ -10,7 +10,7 @@
  */
 
 // Main Manager
-export { PGliteManager, getPGliteManager } from './PGliteManager';
+export { PGliteManager, getPGliteManager, __resetPGliteManager_TEST_ONLY__ } from './PGliteManager';
 export type { DiagnosticData } from './PGliteManager';
 
 // Core

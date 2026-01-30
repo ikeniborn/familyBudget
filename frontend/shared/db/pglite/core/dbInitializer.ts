@@ -113,8 +113,17 @@ export async function closeDatabase(db: PGlite): Promise<void> {
  *
  * This function NEVER blocks UI - runs in background.
  * User continues to work via API while PGlite initializes.
+ *
+ * @param progressCallback - Optional callback for progress updates
  */
-export async function initializeDatabaseInBackground(): Promise<void> {
+export async function initializeDatabaseInBackground(
+  progressCallback?: (progress: {
+    phase: string;
+    message: string;
+    current?: number;
+    total?: number
+  }) => void
+): Promise<void> {
   // Check if background init is allowed
   const state = getState();
   if (!isPGliteEnabled() || state.isInitialized) {
@@ -131,34 +140,72 @@ export async function initializeDatabaseInBackground(): Promise<void> {
   try {
     // Step 1: Initialize database
     logger.info('[DB_INIT] Step 1/6: Initialize database');
+    progressCallback?.({
+      phase: 'Database',
+      message: 'Инициализация IndexedDB...'
+    });
     const db = await initializeDatabase();
 
     // Step 2: Run migrations
     logger.info('[DB_INIT] Step 2/6: Run migrations');
+    progressCallback?.({
+      phase: 'Migrations',
+      message: 'Применение миграций схемы...'
+    });
     const schemaVersion = await runMigrations(db);
     logger.info('[DB_INIT] Migrations complete', { schemaVersion });
 
     // Step 3: Initialize ConflictManager
     logger.info('[DB_INIT] Step 3/6: Initialize ConflictManager');
-    const pgliteManagerForConflict = getPGliteManager();
+    progressCallback?.({
+      phase: 'ConflictManager',
+      message: 'Инициализация менеджера конфликтов...'
+    });
+    const pgliteManagerForConflict = await getPGliteManager();
     pgliteManagerForConflict.initializeConflictManager();
 
     // Step 4: Sync reference data (articles, FCs, CCs)
     logger.info('[DB_INIT] Step 4/6: Sync reference data');
-    await syncReferenceData(db, (progress) => {
-      logger.info(`[DB_INIT] ${progress.phase}: ${progress.message}`, {
-        current: progress.current,
-        total: progress.total
+    progressCallback?.({
+      phase: 'Reference Data',
+      message: 'Синхронизация справочников...'
+    });
+
+    await syncReferenceData(db, (refProgress) => {
+      // Forward progress with counts (articles + FCs + CCs)
+      progressCallback?.({
+        phase: 'Reference Data',
+        message: refProgress.message,
+        current: refProgress.current,
+        total: refProgress.total
+      });
+
+      logger.info(`[DB_INIT] ${refProgress.phase}: ${refProgress.message}`, {
+        current: refProgress.current,
+        total: refProgress.total
       });
     });
 
     // Step 5: Sync transactional data (facts, plans)
     logger.info('[DB_INIT] Step 5/6: Sync facts and plans');
     const factsWindow = 90;  // Default: 90 days
-    await syncFactsAndPlans(db, factsWindow, (progress) => {
-      logger.info(`[DB_INIT] ${progress.phase}: ${progress.message}`, {
-        current: progress.current,
-        total: progress.total
+    progressCallback?.({
+      phase: 'Facts & Plans',
+      message: 'Синхронизация транзакций...'
+    });
+
+    await syncFactsAndPlans(db, factsWindow, (syncProgress) => {
+      // Forward progress with counts (~754 facts for 90 days window)
+      progressCallback?.({
+        phase: 'Facts & Plans',
+        message: `Загружено ${syncProgress.current}/${syncProgress.total} транзакций`,
+        current: syncProgress.current,
+        total: syncProgress.total
+      });
+
+      logger.info(`[DB_INIT] ${syncProgress.phase}: ${syncProgress.message}`, {
+        current: syncProgress.current,
+        total: syncProgress.total
       });
     });
 
@@ -166,7 +213,12 @@ export async function initializeDatabaseInBackground(): Promise<void> {
     logger.info('[DB_INIT] Step 6/6: Validate readiness');
     updateState({ initializationStatus: 'validating' });
 
-    const pgliteManager = getPGliteManager();
+    progressCallback?.({
+      phase: 'Validation',
+      message: 'Проверка готовности базы данных...'
+    });
+
+    const pgliteManager = await getPGliteManager();
     const validationResults = await runValidationSuite(pgliteManager);
 
     if (!validationResults.allPassed) {
@@ -180,10 +232,22 @@ export async function initializeDatabaseInBackground(): Promise<void> {
       validationResults
     });
 
+    progressCallback?.({
+      phase: 'Complete',
+      message: 'Готово!'
+    });
+
     logger.info('[DB_INIT] Background initialization complete', validationResults);
 
-    // TODO: Show notification (Phase 5)
-    // showPGliteReadyNotification(validationResults);
+    // Show notification when ready (opt-in activation)
+    // Dynamic import for browser environment (will resolve to .js at runtime)
+    if (typeof window !== 'undefined' && (window as any).showPGliteReadyNotification) {
+      try {
+        (window as any).showPGliteReadyNotification(validationResults);
+      } catch (err) {
+        logger.warn('[DB_INIT] Failed to show ready notification', err);
+      }
+    }
 
   } catch (error) {
     logger.error('[DB_INIT] Background initialization failed', error);

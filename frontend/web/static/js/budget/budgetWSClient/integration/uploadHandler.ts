@@ -42,7 +42,7 @@ export class UploadHandler {
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
     }
 
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
     if (!pglite.isReady()) {
       debugLog('[UPLOAD] PGlite not initialized');
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
@@ -111,7 +111,7 @@ export class UploadHandler {
    * - Shows notifications
    */
   async handleUploadResponse(response: SyncClientChangesResponse): Promise<void> {
-    const pglite = getPGliteManager();
+    const pglite = await getPGliteManager();
     if (!pglite.isReady()) {
       debugLog('[UPLOAD] PGlite not initialized for response handling');
       return;

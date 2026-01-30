@@ -1382,17 +1382,56 @@ export class PGliteManager {
   }
 }
 
-// Singleton instance (optional, can be created manually)
-let instance: PGliteManager | null = null;
+/**
+ * SINGLETON PATTERN FOR PGLITEMANAGER
+ *
+ * Prevents repeated initialization across multiple imports.
+ * Thread-safe with promise caching for concurrent calls.
+ */
+
+// Global singleton instance
+let globalPGliteManager: PGliteManager | null = null;
+
+// Promise for in-flight initialization (prevent race conditions)
+let globalPGlitePromise: Promise<PGliteManager> | null = null;
 
 /**
- * Get singleton PGliteManager instance
+ * Get or create singleton PGliteManager instance
  *
- * @returns PGliteManager instance
+ * IMPORTANT: This is now async! All callers must await.
+ *
+ * @returns Promise<PGliteManager> - Singleton instance
  */
-export function getPGliteManager(): PGliteManager {
-  if (!instance) {
-    instance = new PGliteManager();
+export async function getPGliteManager(): Promise<PGliteManager> {
+  // Fast path: return cached instance
+  if (globalPGliteManager) {
+    return globalPGliteManager;
   }
-  return instance;
+
+  // In-flight initialization: return existing promise
+  if (globalPGlitePromise) {
+    return globalPGlitePromise;
+  }
+
+  // Start new initialization
+  globalPGlitePromise = (async () => {
+    const manager = new PGliteManager();
+
+    // Cache instance globally WITHOUT calling init()
+    // init() or initializeDatabaseInBackground() will be called explicitly by the caller
+    globalPGliteManager = manager;
+
+    return manager;
+  })();
+
+  return globalPGlitePromise;
+}
+
+/**
+ * Reset singleton (for testing only)
+ * DO NOT USE IN PRODUCTION
+ */
+export function __resetPGliteManager_TEST_ONLY__(): void {
+  globalPGliteManager = null;
+  globalPGlitePromise = null;
 }
