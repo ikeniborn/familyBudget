@@ -435,5 +435,8 @@ window.PlanApp = {
 console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
 
 // FAB toolbar compatibility (v10.1.11)
-// Export openModalPlan for FAB toolbar direct access
-window.openModalPlan = PlanCRUD.openAddPlanModal;
+// REMOVED: window.openModalPlan = PlanCRUD.openAddPlanModal
+// Reason: Conflicts with dashboard.min.js export (windowExports.ts)
+// dashboard.min.js already exports correct openModalPlan with loadTransactionTabData()
+// This line was overriding the correct implementation, causing financial centers/categories
+// to not load automatically (Task #1, #2 from v10.1.41 fixes)
