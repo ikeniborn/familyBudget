@@ -213,6 +213,16 @@ export async function loadFacts(): Promise<void> {
     if (filters.has_recurring_plan) params.append('has_recurring_plan', 'true');
     if (filters.has_reminder) params.append('has_reminder', 'true');
 
+    // Debug: Log applied filters
+    if (window.DEBUG_MODE && typeof debugLog !== 'undefined') {
+      debugLog('[PlanFactsTable] Loading facts with filters:', {
+        filters,
+        queryParams: params.toString(),
+        page: currentPage,
+        pageSize
+      });
+    }
+
     // Load facts and count in parallel
     const [factsResponse, countResponse] = await Promise.all([
       fetch(`/api/v1/facts?${params}`),

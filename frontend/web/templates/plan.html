@@ -4563,7 +4563,11 @@ function updateRecurringPreview(modalId) {
 
     previewText.textContent = `${frequencyText}, ${durationText}`;
 }
-window.updateRecurringPreview = updateRecurringPreview;
+// NOTE: v10.x modal_plan uses TypeScript implementation from modalPlan/recurringSettings.ts
+// Don't overwrite window.updateRecurringPreview if it already exists (loaded by dashboard.min.js)
+if (!window.updateRecurringPreview) {
+    window.updateRecurringPreview = updateRecurringPreview;
+}
 
 /**
  * Collect recurring settings from form

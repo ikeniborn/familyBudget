@@ -186,8 +186,8 @@ export function initEditCategoryTreeSelect(
       }
     }, 100);
 
-    // Timeout after 3 seconds
-    setTimeout(() => clearInterval(initCheckInterval), 3000);
+    // Timeout after 15 seconds (increased from 3s for slow connections)
+    setTimeout(() => clearInterval(initCheckInterval), 15000);
   }
 }
 

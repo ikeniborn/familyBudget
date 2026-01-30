@@ -6,7 +6,7 @@
  */
 
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
-import { getState } from '../../core/DashboardState';
+import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
@@ -86,29 +86,58 @@ async function loadTransactionTabData(): Promise<void> {
     debugLog('[ModalPlan] Loading transaction data...');
 
     // Import existing functions from addTransaction module (reuse)
-    const { loadTransactionCategories, loadFinancialCenters, loadCostCenters } = await import(
+    const { loadFinancialCenters, loadCostCenters } = await import(
       '../addTransaction/categoryLoader'
     );
 
     // Load financial centers FIRST (now with built-in retry logic)
-    await loadFinancialCenters();
+    await loadFinancialCenters([
+      '#modal_plan-tab-transaction select[name="financial_center_id"]'
+    ]);
 
     // Validation removed - retry logic in loadFinancialCenters handles failures
 
-    // Load categories and cost centers in parallel (safe - independent operations)
-    await Promise.all([
-      loadTransactionCategories(),
-      loadCostCenters()
-    ]);
+    // Load cost centers
+    await loadCostCenters();
 
     debugLog('[ModalPlan] Transaction data loaded');
   } else {
     debugLog('[ModalPlan] Using cached transaction data');
   }
 
-  // Hints are already integrated in loadTransactionCategories callback (from addTransaction module)
-  // The existing transactionCategoryTreeSelect/planCategoryTreeSelect handles it
-  // No additional setup needed
+  // Initialize CategoryTreeSelect for modal_plan transaction tab
+  if (!state.planCategoryTreeSelect) {
+    // Get current plan type (expense/income)
+    const typeInput = document.querySelector('#modal_plan-tab-transaction input[name="plan_type"]:checked') as HTMLInputElement | null;
+    const planType = typeInput?.value || 'expense';
+
+    if ((window as any).BudgetShared?.ChoicesCategoryTree) {
+      const planCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
+        '#modal_plan-tab-transaction select[name="article_id"]',
+        {
+          type: planType,
+          showLeafOnly: true,
+          mode: 'create',
+          onCategoryChange: (category: Category) => {
+            debugLog('[ModalPlan] Category changed:', category);
+            // Load plan hints if window function available
+            if (typeof (window as any).loadPlanHints === 'function') {
+              (window as any).loadPlanHints(category);
+            }
+          }
+        }
+      );
+
+      // Save instance to state
+      updateState({
+        planCategoryTreeSelect: planCategoryTree
+      });
+
+      debugLog('[ModalPlan] CategoryTreeSelect instance created');
+    } else {
+      debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
+    }
+  }
 }
 
 /**

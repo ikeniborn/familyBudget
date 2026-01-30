@@ -143,6 +143,11 @@ export function createTabManager(config: TabManagerConfig): TabManager {
     const tabInputs = document.querySelectorAll<HTMLInputElement>(`[name="${modalId}_tabs"]`);
 
     tabInputs.forEach(input => {
+      // Prevent duplicate listeners
+      if (input.dataset.listenerAttached === 'true') {
+        return;
+      }
+
       input.addEventListener('change', (e) => {
         const target = e.target as HTMLInputElement;
         if (target.checked) {
@@ -150,6 +155,8 @@ export function createTabManager(config: TabManagerConfig): TabManager {
           switchTab(newTab);
         }
       });
+
+      input.dataset.listenerAttached = 'true';
     });
   }
 
