@@ -254,7 +254,7 @@ function initModule(): void {
   debugLog('[Dashboard] Module loaded');
 }
 
-// Auto-initialize on load
+// Auto-initialize on load (v10.1.47 rebuild trigger)
 initModule();
 
 // ============================================================================
