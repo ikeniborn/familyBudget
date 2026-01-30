@@ -453,7 +453,7 @@
 
             if (event.data.type === 'EXECUTE_PRUNING') {
                 try {
-                    const { getPGliteManager } = await import('/static/db/pglite.min.js');
+                    const { getPGliteManager } = await import('/shared/db/pglite.min.js?v=PLACEHOLDER');
                     const pglite = getPGliteManager();
                     const result = await pglite.pruneFacts();
 
