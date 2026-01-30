@@ -73,66 +73,14 @@ jobs:
           fi
 
   # ============================================================================
-  # Job 2: Synchronize version files (package.json, package-lock.json)
-  # ============================================================================
-  sync-version:
-    needs: check-version
-    runs-on: ubuntu-latest
-    # Skip if commit already has [skip ci] to prevent loops
-    # Only run if VERSION changed
-    if: |
-      !contains(github.event.head_commit.message, '[skip ci]') &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 2
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Update package.json and package-lock.json
-        run: |
-          VERSION="${{ needs.check-version.outputs.current_version }}"
-          echo "Updating package.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
-
-          echo "Updating package-lock.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
-          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
-          rm package-lock.json.tmp
-
-      - name: Commit version sync
-        run: |
-          VERSION="${{ needs.check-version.outputs.current_version }}"
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-          if [[ -n $(git status --porcelain package.json package-lock.json) ]]; then
-            git add package.json package-lock.json
-            git commit -m "chore: auto-sync package.json and package-lock.json to version $VERSION [skip ci]"
-            git pull --rebase origin ${{ github.ref_name }}
-            git push
-            echo "✅ Version files synchronized to $VERSION"
-          else
-            echo "ℹ️ No changes needed (files already in sync)"
-          fi
-
-  # ============================================================================
-  # Job 3: Build services (frontend: cache busting, minification, validation)
+  # Job 2: Build services (frontend: cache busting, minification, validation)
   # ============================================================================
   service-build:
-    needs: [check-version, sync-version]
+    needs: [check-version]
     runs-on: ubuntu-latest
     if: |
       always() &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
-      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped')
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
     outputs:
       cache_version: ${{ steps.cache_bust.outputs.cache_version }}
     steps:
@@ -239,15 +187,14 @@ jobs:
       # All built files exist only in Docker images, not in git
 
   # ============================================================================
-  # Job 4: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
+  # Job 3: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
   # ============================================================================
   quality-checks:
-    needs: [check-version, sync-version, service-build]
+    needs: [check-version, service-build]
     runs-on: ubuntu-latest
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
-      (needs.sync-version.result == 'success' || needs.sync-version.result == 'skipped') &&
       (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
     steps:
       - name: Checkout code
@@ -255,7 +202,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Re-pull to get committed frontend assets and version sync
+      # Re-pull in case of concurrent commits (race conditions)
       - name: Pull latest changes
         run: |
           # Retry pull with exponential backoff (max 3 attempts)
@@ -340,7 +287,7 @@ jobs:
         continue-on-error: true
 
   # ============================================================================
-  # Job 5: Build and push Docker images to GitHub Container Registry
+  # Job 4: Build and push Docker images to GitHub Container Registry
   # ============================================================================
   image-build-push:
     needs: [check-version, service-build, quality-checks]
@@ -364,7 +311,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Re-pull to get committed frontend assets and version sync
+      # Re-pull in case of concurrent commits (race conditions)
       - name: Pull latest changes
         run: |
           # Retry pull with exponential backoff (max 3 attempts)
@@ -638,7 +585,33 @@ jobs:
         if: steps.changes.outputs.postgresql == 'true'
         run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
 
-      - name: Commit IMAGE_VERSIONS.json
+      # ========================================================================
+      # Update package.json and package-lock.json version
+      # ========================================================================
+      - name: Update package.json and package-lock.json
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Updating package.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+          echo "Updating package-lock.json to version $VERSION"
+          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
+          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
+          rm package-lock.json.tmp
+
+          echo "✅ package.json and package-lock.json updated to $VERSION"
+
+      # ========================================================================
+      # Commit all version files (IMAGE_VERSIONS.json + package.json + package-lock.json)
+      # ========================================================================
+      - name: Commit version files
         if: |
           steps.changes.outputs.backend == 'true' ||
           steps.changes.outputs.bot == 'true' ||
@@ -649,19 +622,24 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
-            echo "IMAGE_VERSIONS.json has been updated:"
-            git diff IMAGE_VERSIONS.json
-            git add IMAGE_VERSIONS.json
-            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+          # Check if any version files changed
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json package.json package-lock.json) ]]; then
+            echo "Version files have been updated:"
+            git diff IMAGE_VERSIONS.json package.json package-lock.json
+            git add IMAGE_VERSIONS.json package.json package-lock.json
+            git commit -m "chore(ci): auto-update version files [skip ci]
+
+- IMAGE_VERSIONS.json: Docker image tags
+- package.json: npm package version
+- package-lock.json: lockfile version"
             git push
-            echo "✅ IMAGE_VERSIONS.json committed and pushed"
+            echo "✅ Version files committed and pushed"
           else
-            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
+            echo "ℹ️ No changes to version files"
           fi
 
   # ============================================================================
-  # Job 6: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
+  # Job 5: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
   security-scan:
     needs: [check-version, image-build-push]
@@ -751,7 +729,7 @@ jobs:
         continue-on-error: true
 
   # ============================================================================
-  # Job 7: Pipeline summary (version, commit, job statuses, Docker image tags)
+  # Job 6: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
     needs: [check-version, service-build, quality-checks, image-build-push, security-scan]
