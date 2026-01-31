@@ -82,8 +82,8 @@ services:
   # Backend Application (FastAPI + HTMX)
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     image: familybudget-backend:test
     container_name: e2e-familybudget-backend
     restart: "no"
