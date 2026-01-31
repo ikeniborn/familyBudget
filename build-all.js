@@ -24,12 +24,12 @@ const builds = [
     globalName: 'NetworkModule'
   },
 
-  // === PGlite WASM Database (loaded after network, before other modules) ===
+  // === Dexie IndexedDB Wrapper (loaded after network, before other modules) ===
   {
-    name: 'pglite',
-    input: 'frontend/shared/db/pglite/index.iife.ts',
-    output: 'frontend/shared/db/pglite.min.js',
-    globalName: 'PGlite'
+    name: 'dexie',
+    input: 'frontend/shared/db/dexie/index.ts',
+    output: 'frontend/shared/db/dexie.min.js',
+    globalName: 'Dexie'
   },
 
   // === Performance Monitoring (loaded after PGlite) ===
