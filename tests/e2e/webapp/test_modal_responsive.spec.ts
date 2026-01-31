@@ -72,19 +72,11 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open Speed Dial menu
+    // Click FAB button to open modal (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    // Wait for Speed Dial menu to appear
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click "Добавить факт" option
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
-    // Wait for modal dialog to open
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -104,19 +96,11 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open Speed Dial menu
+    // Click FAB button to open modal (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    // Wait for Speed Dial menu to appear
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click "Добавить факт" option
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
-    // Wait for modal to open
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -169,19 +153,11 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open Speed Dial menu
+    // Click FAB button to open modal (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    // Wait for Speed Dial menu to appear
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click "Добавить факт" option
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
-    // Wait for modal to open
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 

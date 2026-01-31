@@ -6,6 +6,7 @@
 
 import { loadPendingRecords } from '../pendingRecords';
 import { closeEditModal, getCurrentEditingPendingId } from './formPopulation';
+import { ConfirmDialog } from '../../../modules/uiComponents/modals/ConfirmDialog';
 
 
 
@@ -84,7 +85,11 @@ export async function deleteFromEditModal(): Promise<void> {
   if (!recordId) return;
 
   // Confirm deletion
-  if (!confirm('Вы уверены, что хотите удалить эту запись? Это действие необратимо.')) {
+  const confirmed = await ConfirmDialog.show(
+    'Вы уверены, что хотите удалить эту запись? Это действие необратимо.',
+    'Подтверждение удаления'
+  );
+  if (!confirmed) {
     return;
   }
 
@@ -156,7 +161,10 @@ export async function deleteFactFromDashboard(factId: number, isRecurring: numbe
       deleteMode = choice; // 'single' or 'all'
     } else {
       // Regular fact - show standard confirmation
-      const confirmed = confirm('Вы уверены, что хотите удалить эту запись? Это действие необратимо.');
+      const confirmed = await ConfirmDialog.show(
+        'Вы уверены, что хотите удалить эту запись? Это действие необратимо.',
+        'Подтверждение удаления'
+      );
 
       if (!confirmed) {
         return;

@@ -4,17 +4,6 @@
 # Автоматическое обновление версий статических файлов при деплое
 #
 
-# Генерация новой версии на основе timestamp
-generate_cache_version() {
-    echo "v$(date +"%Y%m%d_%H%M")"
-}
-
-# Генерация версии на основе git commit hash (альтернатива)
-generate_cache_version_git() {
-    local git_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-    echo "${git_hash}"
-}
-
 # Чтение версии из VERSION файла
 generate_cache_version_from_file() {
     local version_file="${1:-VERSION}"
@@ -210,21 +199,26 @@ run_cache_busting() {
             check_cache_versions "$repo_dir"
             ;;
         manual)
-            read -p "Enter new cache version (or press Enter for auto): " manual_version
+            read -p "Enter new cache version (X.Y.Z format): " manual_version
             if [[ -z "$manual_version" ]]; then
-                manual_version=$(generate_cache_version)
+                echo "❌ ERROR: Manual version required" >&2
+                return 1
+            fi
+            # Валидация semantic versioning
+            if [[ ! "$manual_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "❌ ERROR: Invalid version format: $manual_version (expected: X.Y.Z)" >&2
+                return 1
             fi
             update_cache_versions "$manual_version" "$repo_dir"
             ;;
         auto|*)
-            # Попытка прочитать из VERSION файла, fallback на timestamp
-            local new_version=$(generate_cache_version_from_file "${repo_dir}/VERSION" 2>/dev/null)
+            # Чтение версии из VERSION файла (обязательно)
+            local new_version=$(generate_cache_version_from_file "${repo_dir}/VERSION")
             if [[ -z "$new_version" ]]; then
-                echo "⚠ VERSION file not found or invalid, using timestamp" >&2
-                new_version=$(generate_cache_version)
-            else
-                echo "ℹ Using version from VERSION file: $new_version" >&2
+                echo "❌ ERROR: VERSION file not found or invalid" >&2
+                return 1
             fi
+            echo "ℹ Using version from VERSION file: $new_version" >&2
             update_cache_versions "$new_version" "$repo_dir"
             ;;
     esac

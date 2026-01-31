@@ -160,18 +160,14 @@ test.describe('Visual Regression - Modals', () => {
   });
 
   test('should match transaction modal on desktop', async ({ page }) => {
+    // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via Speed Dial
+    // Open modal via FAB (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000); // Wait for content to load

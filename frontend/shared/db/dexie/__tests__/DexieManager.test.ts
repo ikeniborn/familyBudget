@@ -16,8 +16,11 @@ describe('DexieManager', () => {
   });
 
   afterEach(async () => {
-    await manager.clearAll();
-    await manager.close();
+    // Only clear/close if database is still ready
+    if (manager.isReady()) {
+      await manager.clearAll();
+      await manager.close();
+    }
   });
 
   describe('Initialization', () => {
