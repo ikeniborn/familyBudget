@@ -4,6 +4,7 @@
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_fact.html" import modal_fact %}
 {% from "components/modal_plan.html" import modal_plan %}
+{% from "components/modal_confirm.html" import confirm_modal %}
 
 {% block content %}
 <div class="space-y-6">
@@ -240,6 +241,8 @@
 <script src="/static/js/dashboard.min.js?v=PLACEHOLDER"></script>
 <!-- HTMX Widgets Manager (auto-refresh on network recovery) -->
 <script src="/static/js/htmxWidgets.js?v=PLACEHOLDER"></script>
+<!-- Confirm Dialog (custom modal for delete confirmations) -->
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
 
 <!-- Dashboard JavaScript is now loaded from dashboard.min.js module above -->
 <!-- The module auto-initializes and exports functions to window.Dashboard -->
@@ -247,6 +250,9 @@
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
 {{ modal_plan('modal_plan') }}
+
+<!-- Confirmation Dialog Modal -->
+{{ confirm_modal() }}
 
 {% endif %}
 {% endblock %}
