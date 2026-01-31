@@ -20,19 +20,36 @@ import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
 
 // TODO: Move these types to @db/dexie when getDiagnosticData is implemented
 interface DiagnosticData {
+  initializationStatus: string;
+  lastSyncTimestamp: string;
+  isEnabled: boolean;
+  isInitialized: boolean;
   dbSize: number;
+  dbSizeKB: number;
   tables: Record<string, number>;
-  syncStatus: string;
+  tableStats: {
+    articles: number;
+    financial_centers: number;
+    cost_centers: number;
+    facts: number;
+    plans: number;
+  };
+  syncStatus: 'error' | 'idle' | 'syncing';
   performance: {
     avgQueryTime: number;
   };
   performanceMetrics?: {
+    avgQueryTimeMs: number;
+    totalQueries: number;
     avgLoadTimeMs: number;
     avgSaveTimeMs: number;
   };
-  pruningStats?: {
+  pruningStats: {
     enabled: boolean;
     lastPrune?: Date;
+    lastPrunedAt: string;
+    totalPruned: number;
+    nextPruneEstimate: string;
   };
 }
 
@@ -268,11 +285,11 @@ export class DexieDiagnosticModal extends BaseModal {
           <div class="grid grid-cols-2 gap-4">
             <div>
               <div class="text-sm opacity-70">Average Query Time</div>
-              <div class="text-xl font-bold">${data.performanceMetrics.avgQueryTimeMs.toFixed(2)} ms</div>
+              <div class="text-xl font-bold">${(data.performanceMetrics?.avgQueryTimeMs ?? data.performance.avgQueryTime).toFixed(2)} ms</div>
             </div>
             <div>
               <div class="text-sm opacity-70">Total Queries Tracked</div>
-              <div class="text-xl font-bold">${data.performanceMetrics.totalQueries}</div>
+              <div class="text-xl font-bold">${data.performanceMetrics?.totalQueries ?? 0}</div>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@
 
 // Core
 import type { DexieManager as DexieManagerType } from './DexieManager';
+import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
 export { db, toCents, fromCents } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
@@ -34,7 +35,7 @@ export async function getState(): Promise<{ db: DexieManagerType | null }> {
     return { db: null };
   }
 
-  const manager = getDexieManager();
+  const manager = getDexieManagerImpl();
   await manager.init();
   return { db: manager };
 }
@@ -64,6 +65,19 @@ export * from './operations/shoppingOperations';
 export * from './operations/referenceSync';
 export * from './operations/factSync';
 export * from './operations/shoppingSync';
+
+// Backward compatibility aliases
+export {
+  createShoppingListItem as addItemToList,
+  updateShoppingListItem,
+  deleteShoppingListItem
+} from './operations/shoppingOperations';
+
+// toggleItemCompleted implementation (wrapper around updateShoppingListItem)
+export async function toggleItemCompleted(temp_id: string, is_completed: boolean): Promise<void> {
+  const { updateShoppingListItem } = await import('./operations/shoppingOperations');
+  await updateShoppingListItem(temp_id, { is_completed });
+}
 
 // Types
 export type {

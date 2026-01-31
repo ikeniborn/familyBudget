@@ -469,25 +469,81 @@ export class DexieManager {
    * TODO: Implement full diagnostic data collection
    */
   async getDiagnosticData(): Promise<{
+    initializationStatus: string;
+    lastSyncTimestamp: string;
+    isEnabled: boolean;
+    isInitialized: boolean;
     dbSize: number;
+    dbSizeKB: number;
     tables: Record<string, number>;
-    syncStatus: string;
+    tableStats: {
+      articles: number;
+      financial_centers: number;
+      cost_centers: number;
+      facts: number;
+      plans: number;
+    };
+    syncStatus: 'error' | 'idle' | 'syncing';
     performance: { avgQueryTime: number };
+    performanceMetrics?: {
+      avgQueryTimeMs: number;
+      totalQueries: number;
+      avgLoadTimeMs: number;
+      avgSaveTimeMs: number;
+    };
+    pruningStats: {
+      enabled: boolean;
+      lastPrune?: Date;
+      lastPrunedAt: string;
+      totalPruned: number;
+      nextPruneEstimate: string;
+    };
   }> {
     const articlesCount = await db.articles.count();
     const factsCount = await db.budgetFacts.count();
     const shoppingListsCount = await db.shoppingLists.count();
+    const financialCentersCount = await db.financialCenters.count();
+    const costCentersCount = await db.costCenters.count();
+
+    const dbSize = 0; // TODO: Calculate actual DB size
 
     return {
-      dbSize: 0, // TODO: Calculate actual DB size
+      initializationStatus: this.state,
+      lastSyncTimestamp: new Date().toISOString(),
+      isEnabled: true,
+      isInitialized: this.state === 'ready',
+      dbSize,
+      dbSizeKB: dbSize / 1024,
       tables: {
         articles: articlesCount,
         budgetFacts: factsCount,
-        shoppingLists: shoppingListsCount
+        shoppingLists: shoppingListsCount,
+        financialCenters: financialCentersCount,
+        costCenters: costCentersCount
       },
-      syncStatus: 'active',
+      tableStats: {
+        articles: articlesCount,
+        financial_centers: financialCentersCount,
+        cost_centers: costCentersCount,
+        facts: factsCount,
+        plans: 0 // TODO: Count recurring plans
+      },
+      syncStatus: 'idle' as const,
       performance: {
         avgQueryTime: 15 // TODO: Calculate from actual metrics
+      },
+      performanceMetrics: {
+        avgQueryTimeMs: 15,
+        totalQueries: 0, // TODO: Track actual queries
+        avgLoadTimeMs: 10,
+        avgSaveTimeMs: 20
+      },
+      pruningStats: {
+        enabled: false, // TODO: Implement pruning for Dexie
+        lastPrune: undefined,
+        lastPrunedAt: 'Never',
+        totalPruned: 0,
+        nextPruneEstimate: 'Never'
       }
     };
   }

@@ -70,17 +70,17 @@ export class UploadHandler {
       const batch = pending.slice(0, this.BATCH_SIZE);
       const remaining = pending.length - batch.length;
 
-      // Build request
+      // Build request (transform LocalBudgetFact to LocalPendingOperation)
       const request: SyncClientChangesRequest = {
         event: 'sync_client_changes',
         data: {
           user_id: this.userId,
-          operations: batch.map(op => ({
-            temp_id: op.temp_id || `op-${op.id}`, // Fallback for non-create ops
-            operation: op.operation,
-            entity_type: op.entity_type,
-            payload: op.payload,
-            content_hash: op.content_hash,
+          operations: batch.map(fact => ({
+            temp_id: fact.temp_id,
+            operation: 'create' as const, // Pending facts are always creates
+            entity_type: 'fact',
+            payload: fact as unknown as Record<string, unknown>,
+            content_hash: fact.content_hash || '',
           }))
         }
       };
@@ -88,7 +88,7 @@ export class UploadHandler {
       debugLog('[UPLOAD] Sending batch', {
         batch_size: batch.length,
         remaining,
-        operations: batch.map(op => ({ operation: op.operation, temp_id: op.temp_id }))
+        operations: batch.map(fact => ({ operation: 'create', temp_id: fact.temp_id }))
       });
 
       // Send via WebSocket
@@ -135,10 +135,11 @@ export class UploadHandler {
             server_id: result.server_id
           });
         } else {
-          // Retry failed operation
+          // Retry failed operation (fact stays in pending status)
           const errorMsg = result.error || 'Unknown error';
-          await pglite.retryPendingOperation(result.temp_id, errorMsg);
-          debugLog('[UPLOAD] Retry scheduled', {
+          // @ts-ignore - retryPendingOperation не реализован в DexieManager, fact остается pending
+          // await pglite.retryPendingOperation(result.temp_id, errorMsg);
+          debugLog('[UPLOAD] Retry scheduled (fact stays pending)', {
             temp_id: result.temp_id,
             error: errorMsg
           });

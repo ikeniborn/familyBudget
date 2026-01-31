@@ -16,7 +16,14 @@ import { loadShoppingListItems } from './stateManager';
 import { renderCurrentView } from '../rendering/tableBuilder';
 import { updateFABButtons } from '../features/searchFilter';
 import { updateFABVisibility } from '../rendering/listRenderer';
-import { getDexieManager, isDexieActive } from '@db/dexie';
+import {
+  getDexieManager,
+  isDexieActive,
+  addItemToList,
+  updateShoppingListItem,
+  toggleItemCompleted as toggleItemCompletedDexie,
+  deleteShoppingListItem
+} from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
@@ -98,7 +105,7 @@ export async function createItem(data: ItemData): Promise<any> {
       }
 
       // Create in PGlite (auto-adds to pending queue)
-      const temp_id = await pglite.addItemToList({
+      const temp_id = await addItemToList({
         shopping_list_temp_id: currentList.temp_id,
         creator_id: userId,
         product_name: data.product_name || '',
@@ -107,7 +114,18 @@ export async function createItem(data: ItemData): Promise<any> {
         comment: data.comment ?? null,
         position: null,                        // Auto-assigned by PGlite
         store_id: data.store_id ?? 0,          // 0 = no store
-        product_group_id: data.product_group_id ?? 0  // 0 = no group
+        product_group_id: data.product_group_id ?? 0,  // 0 = no group
+        // Completion status
+        is_completed: false,
+        completed_at: null,
+        // Sync tracking
+        sync_hash: null,
+        content_hash: null,
+        synced_at: null,
+        version: 1,
+        // Soft delete
+        deleted_at: null,
+        last_modified_by: userId
       });
 
       result = { tempId: temp_id, id: null };
@@ -192,7 +210,7 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
       if (data.store_id !== undefined) updates.store_id = data.store_id;
       if (data.product_group_id !== undefined) updates.product_group_id = data.product_group_id;
 
-      await pglite.updateItem(item.temp_id, updates);
+      await updateShoppingListItem(item.temp_id, updates);
       result = { tempId: item.temp_id, id: itemId };
       debugLog('[LIST_OPS] Item updated in PGlite', { temp_id: item.temp_id });
 
@@ -258,7 +276,7 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
     // PGlite-first strategy
     if (isDexieActive() && pglite.isReady() && item.temp_id) {
       // Toggle in PGlite (auto-adds to pending queue)
-      await pglite.toggleItemCompleted(item.temp_id, isCompleted);
+      await toggleItemCompletedDexie(item.temp_id, isCompleted);
       debugLog('[LIST_OPS] Item completion toggled in PGlite', { temp_id: item.temp_id, isCompleted });
 
       // Reload items from PGlite
@@ -366,7 +384,7 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
     // PGlite-first strategy
     if (isDexieActive() && pglite.isReady() && item.temp_id) {
       // Delete in PGlite (soft delete, adds to pending queue)
-      await pglite.deleteItem(item.temp_id);
+      await deleteShoppingListItem(item.temp_id);
       debugLog('[LIST_OPS] Item deleted in PGlite', { temp_id: item.temp_id });
 
       // Reload items from PGlite
@@ -434,7 +452,7 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
       }
 
       // Delete each item in PGlite (parallel)
-      await Promise.all(tempIds.map(temp_id => pglite.deleteItem(temp_id)));
+      await Promise.all(tempIds.map(temp_id => deleteShoppingListItem(temp_id)));
       debugLog('[LIST_OPS] Bulk deleted items in PGlite', { count: tempIds.length });
 
       // Reload items from PGlite

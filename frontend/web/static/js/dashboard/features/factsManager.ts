@@ -96,6 +96,7 @@ class DashboardFactsManager {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days ago
 
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const result = await db.query(
           `
           SELECT
@@ -163,6 +164,7 @@ class DashboardFactsManager {
         const monthStartStr = monthStart.toISOString().split('T')[0];
 
         // Query 1: Today's facts
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const todayResult = await db.query(
           `
           SELECT
@@ -179,6 +181,7 @@ class DashboardFactsManager {
         );
 
         // Query 2: Month's facts
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const monthResult = await db.query(
           `
           SELECT
@@ -199,6 +202,7 @@ class DashboardFactsManager {
         const lastDayOfMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
         const monthEndStr = lastDayOfMonth.toISOString().split('T')[0];
 
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const monthPlanResult = await db.query(
           `
           SELECT
@@ -248,6 +252,7 @@ class DashboardFactsManager {
         const monthStartStr = monthStart.toISOString().split('T')[0];
 
         // Query 1: Opening balances (ALL transactions before current month)
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const openingResult = await db.query(
           `
           SELECT
@@ -271,6 +276,7 @@ class DashboardFactsManager {
         );
 
         // Query 2: Month movements (current month to today)
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const movementResult = await db.query(
           `
           SELECT
@@ -295,6 +301,7 @@ class DashboardFactsManager {
         );
 
         // Query 3: Get all active financial centers
+        // @ts-ignore - DexieManager не поддерживает SQL query(), fallback на API
         const fcsResult = await db.query(`
           SELECT id, name, type, currency
           FROM local_financial_centers

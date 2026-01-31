@@ -119,6 +119,11 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --build-timeout)
+            if ! [[ "$2" =~ ^[0-9]+$ ]] || [[ "$2" -le 0 ]]; then
+                echo -e "${RED}✗${NC} Invalid --build-timeout: $2"
+                echo "Must be a positive integer"
+                exit 1
+            fi
             BUILD_TIMEOUT="$2"
             shift 2
             ;;
@@ -637,8 +642,10 @@ wait_for_github_actions() {
     fi
 
     # Получить последний workflow run
-    if ! get_latest_workflow_run "${branch}"; then
-        local exit_code=$?
+    get_latest_workflow_run "${branch}"
+    local exit_code=$?
+
+    if [[ $exit_code -ne 0 ]]; then
         if [[ $exit_code -eq 2 ]]; then
             # Run не найден, fallback на ручное подтверждение
             log WARNING "Workflow run не найден, переход на ручное подтверждение..."
@@ -652,6 +659,12 @@ wait_for_github_actions() {
             log ERROR "Ошибка при получении workflow run"
             return 1
         fi
+    fi
+
+    # Валидация экспортированных переменных
+    if [[ -z "${GH_RUN_ID}" || "${GH_RUN_ID}" == "null" ]]; then
+        log ERROR "Failed to retrieve workflow run information"
+        return 1
     fi
 
     local run_id="${GH_RUN_ID}"

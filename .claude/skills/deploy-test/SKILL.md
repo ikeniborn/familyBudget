@@ -859,6 +859,46 @@ Claude:
 
 ## Changelog
 
+### v9.2.0 (2026-01-31)
+**GitHub Actions Integration:**
+- ✅ **--wait-for-build flag**: Автоматический мониторинг GitHub Actions CI/CD
+- ✅ **gh CLI integration**: Polling workflow status с timeout защитой (default: 30 min)
+- ✅ **Smart fallback**: Manual confirmation если gh CLI недоступен
+- ✅ **Pre-deployment check**: Мониторинг происходит ПЕРЕД SSH подключением
+- ✅ **Build timeout**: Configurable via --build-timeout (default: 30 min)
+- ✅ **Detailed logging**: Показывает run ID, status, conclusion, elapsed time
+- ✅ **Error handling**: Автоматический abort если build fails/timeout
+- ✅ **Non-interactive mode**: Auto-decline в non-interactive окружении
+
+**Workflow improvements:**
+- Шаг 0.5 (NEW): Мониторинг GitHub Actions завершения ПЕРЕД SSH
+- Enhanced version confirmation с build status verification
+- Прямая ссылка на GitHub Actions run для manual inspection
+
+**Requirements:**
+- GitHub CLI (`gh`) v2.0+ для автоматического мониторинга
+- Fallback на manual confirmation если gh недоступен
+- Полная backward compatibility (default behavior без изменений)
+
+**Configuration:**
+- `config/ci-integration.json` v9.2.0: Мониторинг параметры
+- `config/preflight-checks.json`: Добавлена проверка gh CLI (check #8)
+- Polling interval: 15 секунд
+- Default timeout: 30 минут
+- Status mapping: completed_success, completed_failure, in_progress, unknown
+
+**Implementation:**
+- `check_github_cli()`: Проверка наличия и аутентификации gh CLI
+- `get_latest_workflow_run()`: Получение последнего workflow run для ветки
+- `wait_for_github_actions()`: Polling loop с timeout защитой
+- `ask_user_confirmation()`: Интерактивное подтверждение (fallback)
+
+**Impact:**
+- Безопасный деплой: образы гарантированно существуют в registry
+- Прозрачность: видимость статуса build в реальном времени
+- Гибкость: opt-in через флаг, не меняет default behavior
+- User experience: четкий feedback о прогрессе build
+
 ### v9.1.3 (2026-01-26)
 **Registry-Only Documentation (Critical Simplification):**
 - 🔥 **Удалены ВСЕ упоминания Local Build Mode** (deploy.sh больше не собирает на сервере)
