@@ -18,7 +18,7 @@ describe('Cents Conversion', () => {
     it('should handle float precision edge cases', () => {
       // JavaScript float precision issues
       expect(toCents(0.1 + 0.2)).toBe(30); // NOT 29.999999999999996!
-      expect(toCents(0.07 * 100)).toBe(7); // NOT 7.000000000000001!
+      expect(toCents(0.07)).toBe(7); // Convert 0.07 dollars to 7 cents
     });
 
     it('should round correctly', () => {
