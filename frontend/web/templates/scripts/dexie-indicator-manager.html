@@ -1,0 +1,204 @@
+{#
+    Dexie Indicator Manager Module
+    Visual status indicator for Dexie database in navbar.
+
+    CRITICAL: Load AFTER offline-manager-init.html
+
+    Functions:
+        - updateDexieIndicator(state): Update UI state
+        - showDexieIndicator(): Show indicator
+        - hideDexieIndicator(): Hide indicator
+        - initDexieIndicator(): Initialize on page load
+        - onDexieSyncStart/Complete/Error(): Sync hooks
+
+    States:
+        - 'active': Green (Dexie enabled, idle)
+        - 'syncing': Blue pulse (sync in progress)
+        - 'error': Red (sync error, auto-recover after 5s)
+#}
+{% if user %}
+<script>
+    // ============================================================================
+    // Dexie Indicator State Management
+    // ============================================================================
+
+    /**
+     * Update Dexie indicator visual state
+     * @param {string} state - 'not_started' | 'initializing' | 'validating' | 'ready' | 'active' | 'error' | 'syncing'
+     */
+    function updateDexieIndicator(state) {
+        const iconActive = document.getElementById('dexie-icon-active');
+        const iconSyncing = document.getElementById('dexie-icon-syncing');
+        const iconError = document.getElementById('dexie-icon-error');
+        const iconInitializing = document.getElementById('dexie-icon-initializing');
+        const iconReady = document.getElementById('dexie-icon-ready');
+
+        if (!iconActive || !iconSyncing || !iconError || !iconInitializing || !iconReady) {
+            console.warn('[DEXIE_INDICATOR] Icons not found');
+            return;
+        }
+
+        // Hide all states
+        iconActive.classList.add('hidden');
+        iconSyncing.classList.add('hidden');
+        iconError.classList.add('hidden');
+        iconInitializing.classList.add('hidden');
+        iconReady.classList.add('hidden');
+
+        // Show target state
+        switch (state) {
+            case 'not_started':
+                // Dexie не инициализируется - скрыть индикатор
+                hideDexieIndicator();
+                break;
+            case 'initializing':
+            case 'validating':
+                // Желтый с пульсацией
+                showDexieIndicator();
+                iconInitializing.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: initializing (yellow pulse)');
+                break;
+            case 'ready':
+                // Зеленый (готов, но не активен) - кликабельный
+                showDexieIndicator();
+                iconReady.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: ready (click to activate)');
+                break;
+            case 'active':
+                // Зеленый active (idle)
+                showDexieIndicator();
+                iconActive.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: active');
+                break;
+            case 'syncing':
+                // Синий с пульсацией
+                showDexieIndicator();
+                iconSyncing.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: syncing (blue pulse)');
+                break;
+            case 'error':
+                // Красный
+                showDexieIndicator();
+                iconError.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: error');
+                break;
+            default:
+                iconActive.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: active (default)');
+                break;
+        }
+    }
+
+    /**
+     * Show Dexie indicator wrapper (when Dexie enabled)
+     */
+    function showDexieIndicator() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.remove('hidden');
+            console.debug('[DEXIE_INDICATOR] Indicator shown');
+        }
+    }
+
+    /**
+     * Hide Dexie indicator wrapper (when Dexie disabled)
+     */
+    function hideDexieIndicator() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.add('hidden');
+            console.debug('[DEXIE_INDICATOR] Indicator hidden');
+        }
+    }
+
+    /**
+     * Initialize indicator based on localStorage.enableDexie
+     */
+    async function initDexieIndicator() {
+        try {
+            const isDexieEnabled = localStorage.getItem('enableDexie') === 'true';
+
+            if (isDexieEnabled) {
+                showDexieIndicator();
+                // Default to active state (Dexie operations module will update state as needed)
+                updateDexieIndicator('active');
+            } else {
+                hideDexieIndicator();
+            }
+        } catch (error) {
+            console.error('[DEXIE_INDICATOR] Init error:', error);
+            hideDexieIndicator();
+        }
+    }
+
+    // ============================================================================
+    // Sync Event Handlers
+    // ============================================================================
+
+    /**
+     * Handle sync start event
+     */
+    function onDexieSyncStart() {
+        console.debug('[DEXIE_INDICATOR] Sync started');
+        updateDexieIndicator('syncing');
+    }
+
+    /**
+     * Handle sync complete event
+     */
+    function onDexieSyncComplete() {
+        console.debug('[DEXIE_INDICATOR] Sync completed');
+        updateDexieIndicator('active');
+    }
+
+    /**
+     * Handle sync error event
+     */
+    function onDexieSyncError() {
+        console.error('[DEXIE_INDICATOR] Sync error');
+        updateDexieIndicator('error');
+
+        // Auto-recover to active after 5s
+        setTimeout(() => {
+            console.debug('[DEXIE_INDICATOR] Auto-recovering to active state');
+            updateDexieIndicator('active');
+        }, 5000);
+    }
+
+    // ============================================================================
+    // Event Listeners
+    // ============================================================================
+
+    /**
+     * Initialize indicator on DOMContentLoaded
+     */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDexieIndicator);
+    } else {
+        // DOM already loaded
+        initDexieIndicator();
+    }
+
+    /**
+     * Listen for custom Dexie sync events
+     */
+    document.addEventListener('dexie:sync:start', onDexieSyncStart);
+    document.addEventListener('dexie:sync:complete', onDexieSyncComplete);
+    document.addEventListener('dexie:sync:error', onDexieSyncError);
+
+    /**
+     * Listen for Dexie enable/disable toggle
+     */
+    document.addEventListener('dexie:toggled', (event) => {
+        const enabled = event.detail?.enabled;
+        if (enabled) {
+            showDexieIndicator();
+            updateDexieIndicator('active');
+        } else {
+            hideDexieIndicator();
+        }
+    });
+
+    console.debug('[DEXIE_INDICATOR] Module loaded');
+</script>
+{% endif %}
