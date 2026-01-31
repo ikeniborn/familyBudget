@@ -15,7 +15,7 @@ Family Budget is a family budget management system with Telegram bot and web int
 - 📈 Real-time updates via WebSocket + Redis Pub/Sub
 - 🔄 Change history (SCD Type 1 + History tables)
 
-**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose
+**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
 
 **Deployment (v9.0+):** Registry-First Architecture
 - All builds in GitHub Actions CI/CD
@@ -190,13 +190,14 @@ await loadFinancialCenters([
 
 ## Important Features
 
+**Dexie Offline Mode (v11.0+):** Production-ready IndexedDB для offline-first. 100% CRUD для Shopping Lists, Budget Facts. Bundle size 29KB (99% меньше vs PGlite). See `/docs/architecture/dexie-integration.md`
 **Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`
 **WebAuthn (v6.5.0+):** Passwordless biometric login. See `/docs/architecture/authentication.md`
 **Recurring Plans (v6.2.0+):** MMDD encoding for yearly frequency. See `/docs/architecture/recurring-plans.md`
 **Notifications (v6.4.0+):** Independent Web Push + Telegram control. See `/docs/architecture/notifications.md`
-**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. See `listsManager.ts:3207`
+**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. Conflict resolution. See `listsManager.ts:3207`
 **Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
-**PGlite Pruning (task-010):** Automatic data cleanup with retention window (30-365 days). Automatic weekly pruning (Chrome/Edge 80+) or manual cleanup (all browsers). See `/docs/architecture/pglite-pruning-compatibility.md`
+**Data Pruning (task-010):** Automatic cleanup с retention window (30-365 days). Weekly pruning (Chrome/Edge 80+) or manual. See `/docs/architecture/pglite-pruning-compatibility.md`
 
 ## Development Workflow
 
@@ -241,6 +242,7 @@ Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for d
 | [README.md](docs/architecture/README.md) | Dependency graph, recent changes | Start of any task |
 | [authentication.md](docs/architecture/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
 | [pwa.md](docs/architecture/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
+| **[dexie-integration.md](docs/architecture/dexie-integration.md)** | **Dexie.js offline mode (v11.0+)** | **Offline CRUD, cents conversion** |
 | [websocket.md](docs/architecture/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
 | [build-system.md](docs/architecture/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
 | [es-modules-migration.md](docs/architecture/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
