@@ -202,8 +202,8 @@ export class DexieManager {
     const temp_id = generateUUID();
 
     // Convert amount to cents
-    // ВАЖНО: Не включаем id для новых записей (IndexedDB не принимает null primary keys)
-    const factWithCents: Omit<LocalBudgetFact, 'id'> & { id?: number | null } = {
+    const factWithCents: LocalBudgetFact = {
+      id: null,
       temp_id,
       ...fact,
       amount: toCents(fact.amount),
@@ -214,7 +214,7 @@ export class DexieManager {
       synced_at: null
     };
 
-    await db.budgetFacts.add(factWithCents as LocalBudgetFact);
+    await db.budgetFacts.add(factWithCents);
 
     logger.info('[DexieManager] ✅ Fact created', { temp_id });
     return temp_id;

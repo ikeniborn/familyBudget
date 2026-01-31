@@ -74,14 +74,16 @@ export class FamilyBudgetDB extends Dexie {
 
       // Transactional Data
       // ВАЖНО: amount хранится как integer (cents), не decimal
-      budgetFacts: 'id, temp_id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
+      // PRIMARY KEY: temp_id (offline-first: temp_id always exists, id filled after sync)
+      budgetFacts: 'temp_id, id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
       pendingOperations: '++id, content_hash, entity_type, temp_id, server_id',
       syncConflicts: '++id, entity_type, temp_id, entity_id',
       recurringPlans: 'id, user_id, article_id, financial_center_id, is_active',
 
       // Shopping Lists
-      shoppingLists: 'id, temp_id, user_id, is_completed, sync_status',
-      shoppingListItems: 'id, temp_id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
+      // PRIMARY KEY: temp_id (same offline-first pattern as budgetFacts)
+      shoppingLists: 'temp_id, id, user_id, is_completed, sync_status',
+      shoppingListItems: 'temp_id, id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
       stores: 'id, user_id, name',
       productGroups: 'id, user_id, parent_id, name',
       productGroupHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id, depth',
