@@ -390,12 +390,12 @@ if (cachedResponse.headers.get('etag') !== freshResponse.headers.get('etag')) {
 
 ### Static File Versioning
 
-The application uses **timestamp-based query parameters** for cache busting of static files.
+The application uses **semantic version-based query parameters** for cache busting of static files.
 
 **Mechanism:**
 - All `.min.js` and `.min.css` files include `?v=PLACEHOLDER` in templates
-- During deployment, `scripts/lib/cache_busting.sh` replaces `PLACEHOLDER` with timestamp (`YYYYMMDD_HHMM`)
-- Example: `choices.min.css?v=20251224_1430`
+- During deployment, `scripts/lib/cache_busting.sh` replaces `PLACEHOLDER` with semantic version from `VERSION` file
+- Example: `choices.min.css?v=11.0.1`
 
 **Supported paths:**
 - `/static/` - Web application static files
