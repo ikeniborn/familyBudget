@@ -7,12 +7,12 @@
  * @version 1.0.0
  *
  * Window exports:
- * - window.UIComponents.openPGliteDiagnostic() - Open PGlite diagnostic modal
- * - window.UIComponents.PGliteDiagnosticModal - PGliteDiagnosticModal class
+ * - window.UIComponents.openDexieDiagnostic() - Open PGlite diagnostic modal
+ * - window.UIComponents.DexieDiagnosticModal - DexieDiagnosticModal class
  * - window.UIComponents.* - All other exported components
  */
 
-import { openPGliteDiagnostic, PGliteDiagnosticModal } from './modals/PGliteDiagnosticModal';
+import { openDexieDiagnostic, DexieDiagnosticModal } from './modals/DexieDiagnosticModal';
 import { ConfirmDialog, getConfirmDialogHTML } from './modals/ConfirmDialog';
 import { BaseModal } from './modals/BaseModal';
 import { FormModal } from './modals/FormModal';
@@ -45,10 +45,10 @@ declare global {
   interface Window {
     UIComponents: {
       // Modal functions
-      openPGliteDiagnostic: typeof openPGliteDiagnostic;
+      openDexieDiagnostic: typeof openDexieDiagnostic;
 
       // Modal classes
-      PGliteDiagnosticModal: typeof PGliteDiagnosticModal;
+      DexieDiagnosticModal: typeof DexieDiagnosticModal;
       ConfirmDialog: typeof ConfirmDialog;
       getConfirmDialogHTML: typeof getConfirmDialogHTML;
       BaseModal: typeof BaseModal;
@@ -84,10 +84,10 @@ declare global {
 if (typeof window !== 'undefined') {
   window.UIComponents = {
     // Modal functions
-    openPGliteDiagnostic,
+    openDexieDiagnostic,
 
     // Modal classes
-    PGliteDiagnosticModal,
+    DexieDiagnosticModal,
     ConfirmDialog,
     getConfirmDialogHTML,
     BaseModal,
@@ -121,10 +121,10 @@ if (typeof window !== 'undefined') {
 // Export all for module usage
 export {
   // Modal functions
-  openPGliteDiagnostic,
+  openDexieDiagnostic,
 
   // Modal classes
-  PGliteDiagnosticModal,
+  DexieDiagnosticModal,
   ConfirmDialog,
   getConfirmDialogHTML,
   BaseModal,

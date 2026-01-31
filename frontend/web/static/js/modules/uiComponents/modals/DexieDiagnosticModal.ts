@@ -15,10 +15,40 @@
  */
 
 import { BaseModal } from './BaseModal';
-import { getDexieManager } from '@db/pglite';
-import type { DiagnosticData } from '@db/pglite';
-import type { ConflictMetrics } from '@db/pglite/ConflictManager';
+import { getDexieManager } from '@db/dexie';
 import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
+
+// TODO: Move these types to @db/dexie when getDiagnosticData is implemented
+interface DiagnosticData {
+  dbSize: number;
+  tables: Record<string, number>;
+  syncStatus: string;
+  performance: {
+    avgQueryTime: number;
+  };
+  performanceMetrics?: {
+    avgLoadTimeMs: number;
+    avgSaveTimeMs: number;
+  };
+  pruningStats?: {
+    enabled: boolean;
+    lastPrune?: Date;
+  };
+}
+
+interface ConflictMetrics {
+  total: number;
+  resolved: number;
+  pending: number;
+  resolvedConflicts: number;
+  pendingConflicts: number;
+  totalConflicts: number;
+  conflictRate: number;
+  resolutionBreakdown: {
+    server: number;
+    client: number;
+  };
+}
 
 export class DexieDiagnosticModal extends BaseModal {
   private diagnosticContainer: HTMLDivElement | null = null;

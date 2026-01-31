@@ -12,8 +12,8 @@ import './lists/csvImporter.ts';
 import './lists/googleSheetsImporter';
 import './lists/importManager';
 
-// PGlite progress notification (v10.1.38+)
-import { showPGliteProgress, hidePGliteProgress } from './notifications/pgliteProgressToast';
+// Dexie progress notification (v11.0+)
+import { showDexieProgress, hideDexieProgress } from './notifications/dexieProgressToast';
 
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
@@ -226,8 +226,8 @@ const windowExports = {
   },
 
   // PGlite progress notifications (v10.1.38+)
-  showPGliteProgress,
-  hidePGliteProgress
+  showDexieProgress,
+  hideDexieProgress
 };
 
 // Экспорт в window (Object.assign - надёжнее работает после минификации)

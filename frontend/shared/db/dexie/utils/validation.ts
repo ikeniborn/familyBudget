@@ -71,22 +71,22 @@ export function validateFact(fact: {
  */
 export function validateShoppingItem(item: {
   name: string;
-  quantity: number;
-  position: number;
+  quantity: number | null;
+  position: number | null;
 }): void {
   // Validate name
   if (!item.name || item.name.trim().length === 0) {
     throw new Error('Shopping item name cannot be empty');
   }
 
-  // Validate quantity (positive integer)
-  if (!Number.isInteger(item.quantity) || item.quantity <= 0) {
-    throw new Error(`Invalid quantity: ${item.quantity}. Must be a positive integer`);
+  // Validate quantity (positive integer or null)
+  if (item.quantity !== null && (!Number.isInteger(item.quantity) || item.quantity <= 0)) {
+    throw new Error(`Invalid quantity: ${item.quantity}. Must be a positive integer or null`);
   }
 
-  // Validate position (non-negative integer)
-  if (!Number.isInteger(item.position) || item.position < 0) {
-    throw new Error(`Invalid position: ${item.position}. Must be a non-negative integer`);
+  // Validate position (non-negative integer or null)
+  if (item.position !== null && (!Number.isInteger(item.position) || item.position < 0)) {
+    throw new Error(`Invalid position: ${item.position}. Must be a non-negative integer or null`);
   }
 }
 

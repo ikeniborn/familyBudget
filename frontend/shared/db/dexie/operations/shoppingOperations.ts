@@ -54,8 +54,7 @@ export async function queryShoppingLists(
   // Apply filters
   if (filters) {
     results = results.filter(list => {
-      if (filters.user_id && list.user_id !== filters.user_id) return false;
-      if (filters.is_completed !== undefined && list.is_completed !== filters.is_completed) return false;
+      if (filters.is_active !== undefined && list.is_active !== filters.is_active) return false;
       if (filters.sync_status && list.sync_status !== filters.sync_status) return false;
       return true;
     });
@@ -77,7 +76,7 @@ export async function createShoppingListItem(
 
   // Validate
   validateShoppingItem({
-    name: item.name,
+    name: item.product_name,
     quantity: item.quantity,
     position: item.position
   });
@@ -112,7 +111,7 @@ export async function queryShoppingListItems(
     .equals(shopping_list_temp_id)
     .toArray();
 
-  return items.sort((a, b) => a.position - b.position);
+  return items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
 
 /**
@@ -120,7 +119,7 @@ export async function queryShoppingListItems(
  */
 export async function updateShoppingListItem(
   temp_id: string,
-  updates: Partial<Pick<LocalShoppingListItem, 'name' | 'quantity' | 'is_purchased' | 'position'>>
+  updates: Partial<Pick<LocalShoppingListItem, 'product_name' | 'quantity' | 'is_completed' | 'position'>>
 ): Promise<void> {
   logger.debug('[shoppingOps] updateShoppingListItem', { temp_id, updates });
 

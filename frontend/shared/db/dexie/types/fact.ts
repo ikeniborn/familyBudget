@@ -119,3 +119,15 @@ export interface FactFilters {
   date_from?: string;   // YYYY-MM-DD
   date_to?: string;     // YYYY-MM-DD
 }
+
+/**
+ * Filters for querying recurring plans
+ */
+export interface RecurringPlanFilters {
+  user_id?: number;
+  article_id?: number;
+  financial_center_id?: number;
+  cost_center_id?: number;
+  is_active?: boolean;
+  frequency?: string;
+}
