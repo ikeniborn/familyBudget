@@ -1,12 +1,12 @@
 /**
- * PGliteDiagnosticModal - Diagnostic modal for PGlite monitoring
+ * DexieDiagnosticModal - Diagnostic modal for Dexie monitoring
  *
  * Displays diagnostic information including DB size, table stats,
  * sync status, and performance metrics.
  *
  * @example
  * ```typescript
- * const modal = new PGliteDiagnosticModal();
+ * const modal = new DexieDiagnosticModal();
  * document.body.appendChild(modal.render());
  * modal.open(); // Will fetch fresh diagnostic data
  * ```
@@ -15,19 +15,19 @@
  */
 
 import { BaseModal } from './BaseModal';
-import { getPGliteManager } from '@db/pglite';
+import { getDexieManager } from '@db/pglite';
 import type { DiagnosticData } from '@db/pglite';
 import type { ConflictMetrics } from '@db/pglite/ConflictManager';
 import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
 
-export class PGliteDiagnosticModal extends BaseModal {
+export class DexieDiagnosticModal extends BaseModal {
   private diagnosticContainer: HTMLDivElement | null = null;
   private conflictMetrics: ConflictMetrics | null = null;
 
   constructor() {
     super({
       id: 'pglite-diagnostic-modal',
-      title: '🔍 PGlite Diagnostics',
+      title: '🔍 Dexie Diagnostics',
       size: 'max-w-4xl',
       onOpen: () => {
         this.loadDiagnosticData();
@@ -63,10 +63,10 @@ export class PGliteDiagnosticModal extends BaseModal {
     if (!this.diagnosticContainer) return;
 
     try {
-      // getPGliteManager() returns Promise due to window.PGlite Proxy
-      const pglite = await getPGliteManager();
+      // getDexieManager() returns Promise due to window.Dexie Proxy
+      const pglite = await getDexieManager();
 
-      // Wait for PGlite initialization (with timeout)
+      // Wait for Dexie initialization (with timeout)
       const maxWaitMs = 30000; // 30 seconds (increased from 10)
       const startTime = Date.now();
       let attempts = 0;
@@ -98,7 +98,7 @@ export class PGliteDiagnosticModal extends BaseModal {
         } catch (e) {
           finalStatus = { error: String(e) };
         }
-        console.error('[DIAGNOSTIC] PGlite not ready after timeout', {
+        console.error('[DIAGNOSTIC] Dexie not ready after timeout', {
           elapsed: Date.now() - startTime,
           finalStatus
         });
@@ -108,7 +108,7 @@ export class PGliteDiagnosticModal extends BaseModal {
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>PGlite не удалось инициализировать за 30 секунд. Проверьте консоль браузера для деталей.</span>
+            <span>Dexie не удалось инициализировать за 30 секунд. Проверьте консоль браузера для деталей.</span>
           </div>
         `;
         return;
@@ -357,7 +357,7 @@ export class PGliteDiagnosticModal extends BaseModal {
               <div class="stat bg-base-200 rounded-lg p-3">
                 <div class="stat-title text-xs">API Calls Saved</div>
                 <div class="stat-value text-lg text-primary">${stats.apiCallsReduced.toLocaleString()}</div>
-                <div class="stat-desc text-xs">Served from PGlite</div>
+                <div class="stat-desc text-xs">Served from Dexie</div>
               </div>
               <div class="stat bg-base-200 rounded-lg p-3">
                 <div class="stat-title text-xs">Bandwidth Saved</div>
@@ -367,7 +367,7 @@ export class PGliteDiagnosticModal extends BaseModal {
               <div class="stat bg-base-200 rounded-lg p-3">
                 <div class="stat-title text-xs">Speedup</div>
                 <div class="stat-value text-lg text-accent">${stats.speedupFactor.toFixed(1)}×</div>
-                <div class="stat-desc text-xs">PGlite vs API</div>
+                <div class="stat-desc text-xs">Dexie vs API</div>
               </div>
             </div>
 
@@ -416,7 +416,7 @@ export class PGliteDiagnosticModal extends BaseModal {
           </h5>
           <div class="grid grid-cols-3 gap-2 mt-2">
             <div class="text-center">
-              <div class="text-xs opacity-70">PGlite</div>
+              <div class="text-xs opacity-70">Dexie</div>
               <div class="text-lg font-bold text-primary">${breakdown.pglite}</div>
             </div>
             <div class="text-center">
@@ -496,14 +496,14 @@ export class PGliteDiagnosticModal extends BaseModal {
 /**
  * Singleton instance
  */
-let diagnosticModalInstance: PGliteDiagnosticModal | null = null;
+let diagnosticModalInstance: DexieDiagnosticModal | null = null;
 
 /**
- * Open PGlite diagnostic modal (singleton)
+ * Open Dexie diagnostic modal (singleton)
  */
-export function openPGliteDiagnostic(): void {
+export function openDexieDiagnostic(): void {
   if (!diagnosticModalInstance) {
-    diagnosticModalInstance = new PGliteDiagnosticModal();
+    diagnosticModalInstance = new DexieDiagnosticModal();
     document.body.appendChild(diagnosticModalInstance.render());
   }
 
