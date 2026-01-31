@@ -69,8 +69,8 @@ test.describe('Modal - Responsive Behavior', () => {
   });
 
   test('should open and close transaction modal on desktop', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
@@ -101,8 +101,8 @@ test.describe('Modal - Responsive Behavior', () => {
   });
 
   test('should have transaction tab active by default', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');
@@ -166,8 +166,8 @@ test.describe('Modal - Responsive Behavior', () => {
   });
 
   test('should display form fields correctly on desktop', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Click FAB button to open Speed Dial menu
     const fabButton = page.locator('#fab-btn');

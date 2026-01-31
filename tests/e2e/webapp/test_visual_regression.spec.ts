@@ -160,7 +160,8 @@ test.describe('Visual Regression - Modals', () => {
   });
 
   test('should match transaction modal on desktop', async ({ page }) => {
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Open modal via Speed Dial
     const fabButton = page.locator('#fab-btn');

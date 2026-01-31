@@ -41,8 +41,8 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should fill transaction form with all required fields', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Open modal via Speed Dial
     const fabButton = page.locator('#fab-btn');
@@ -114,8 +114,8 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should show validation error when required fields missing', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Open modal via Speed Dial
     const fabButton = page.locator('#fab-btn');
@@ -207,8 +207,8 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should submit income transaction', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Open modal via Speed Dial
     const fabButton = page.locator('#fab-btn');
@@ -281,8 +281,8 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should populate date using quick buttons', async ({ page }) => {
-    // Set desktop viewport
-    await page.setViewportSize(VIEWPORTS.desktop);
+    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
+    await page.setViewportSize(VIEWPORTS.mobile);
 
     // Open modal via Speed Dial
     const fabButton = page.locator('#fab-btn');
