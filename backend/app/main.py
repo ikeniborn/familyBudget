@@ -69,15 +69,6 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized successfully")
 
-    # Seed test user for E2E tests (only if TEST_MODE=true)
-    try:
-        from backend.app.utils.seed_test_user import seed_test_user
-        from backend.app.db.session import get_session_context
-        async with get_session_context() as db:
-            await seed_test_user(db)
-    except Exception as e:
-        logger.warning(f"Failed to seed test user: {e} - E2E tests may fail without test user")
-
     # Initialize Redis connection pool (optional, used for caching)
     try:
         from backend.app.services.redis_service import init_redis_pool, is_redis_available

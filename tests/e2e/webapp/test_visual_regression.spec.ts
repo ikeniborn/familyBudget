@@ -15,7 +15,7 @@
 import { test, expect } from '@playwright/test';
 
 // Test URLs
-// BASE_URL now uses baseURL from playwright.config.ts (http://localhost for E2E tests)
+// BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
 
 // Viewport sizes
 const VIEWPORTS = {
