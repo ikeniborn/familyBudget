@@ -88,8 +88,9 @@ Use **testing** skill for code quality checks.
 |------|-------|-------------|---------|
 | UI components/pages | **frontend-development** | HTMX, Tailwind, DaisyUI, TypeScript | Add budget chart widget |
 | Real-time updates | **websocket-realtime** | WebSocket events, SSE, Redis Pub/Sub | Live transaction updates |
+| Offline-first CRUD | **dexie-management** | Dexie.js operations, sync, cents conversion | Add offline support for model |
 
-**See:** `.claude/skills/{frontend-development,websocket-realtime}/SKILL.md`
+**See:** `.claude/skills/{frontend-development,websocket-realtime,dexie-management}/SKILL.md`
 
 ### Operations & Testing
 
