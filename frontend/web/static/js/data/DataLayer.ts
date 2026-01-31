@@ -98,7 +98,7 @@ export class DataLayer {
       return manager;
     });
 
-    return this.pglitePromise;
+    return this.dexiePromise;
   }
 
   /**

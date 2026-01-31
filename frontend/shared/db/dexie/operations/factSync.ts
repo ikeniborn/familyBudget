@@ -3,7 +3,7 @@
  * Синхронизация транзакций (offline → server, server → local)
  */
 
-import { db, fromCents } from '../core/database';
+import { db } from '../core/database';
 import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import { bulkInsertFacts } from './bulkOperations';

@@ -16,6 +16,14 @@ export function isDexieActive(): boolean {
   return localStorage.getItem('dexieActive') === 'true';
 }
 
+/**
+ * Set Dexie offline mode active/inactive
+ * Записывает feature flag в localStorage
+ */
+export function setDexieActive(active: boolean): void {
+  localStorage.setItem('dexieActive', active ? 'true' : 'false');
+}
+
 // Operations
 export * from './operations/schemaOperations';
 export * from './operations/factOperations';
@@ -40,14 +48,21 @@ export type {
   LocalPendingOperation,
   LocalSyncConflict,
   LocalRecurringPlan,
-  FactFilters
+  FactFilters,
+  RecurringPlanFilters
 } from './types/fact';
 
 export type {
   LocalShoppingList,
   LocalShoppingListItem,
   ShoppingListFilters,
-  ShoppingListItemFilters
+  ShoppingListItemFilters,
+  ShoppingListWithStats,
+  LocalStore,
+  LocalProductGroup,
+  LocalProductGroupHierarchy,
+  StoreFilters,
+  ProductGroupFilters
 } from './types/shopping';
 
 // Utils
@@ -61,3 +76,14 @@ export {
   validateSyncStatus,
   amountToCents
 } from './utils/validation';
+
+// Validation Results (for notifications)
+export interface ValidationResults {
+  success: boolean;
+  details: {
+    articleCount: number;
+    financialCenterCount: number;
+    costCenterCount: number;
+    avgQueryTimeMs: number;
+  };
+}

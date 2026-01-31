@@ -9,6 +9,7 @@
 import { db, toCents, fromCents } from './core/database';
 import { logger } from './utils/logger';
 import { validateFact } from './utils/validation';
+import { generateUUID } from './utils/hash';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -183,7 +184,9 @@ export class DexieManager {
    * Create new budget fact
    * ВАЖНО: amount конвертируется в cents при сохранении
    */
-  async createFact(fact: Omit<LocalBudgetFact, 'id'>): Promise<LocalBudgetFact> {
+  async createFact(
+    fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
+  ): Promise<string> {
     logger.debug('[DexieManager] createFact', fact);
 
     // Validate before insert
@@ -195,41 +198,50 @@ export class DexieManager {
       article_id: fact.article_id
     });
 
+    const temp_id = generateUUID();
+
     // Convert amount to cents
-    const factWithCents = {
+    const factWithCents: LocalBudgetFact = {
+      id: null,
+      temp_id,
       ...fact,
-      amount: toCents(fact.amount)
+      amount: toCents(fact.amount),
+      sync_status: 'pending',
+      content_hash: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      synced_at: null
     };
 
-    const id = await db.budgetFacts.add(factWithCents as LocalBudgetFact);
+    await db.budgetFacts.add(factWithCents);
 
-    logger.info('[DexieManager] ✅ Fact created', { id, temp_id: fact.temp_id });
-    return { ...factWithCents, id } as LocalBudgetFact;
+    logger.info('[DexieManager] ✅ Fact created', { temp_id });
+    return temp_id;
   }
 
   /**
-   * Update budget fact
+   * Update budget fact по temp_id
    */
-  async updateFact(id: number, updates: Partial<LocalBudgetFact>): Promise<void> {
-    logger.debug('[DexieManager] updateFact', { id, updates });
+  async updateFact(temp_id: string, updates: Partial<LocalBudgetFact>): Promise<void> {
+    logger.debug('[DexieManager] updateFact', { temp_id, updates });
 
     // Convert amount to cents if updated
     const updatesWithCents = updates.amount !== undefined
       ? { ...updates, amount: toCents(updates.amount) }
       : updates;
 
-    await db.budgetFacts.update(id, updatesWithCents);
-    logger.info('[DexieManager] ✅ Fact updated', { id });
+    await db.budgetFacts.where('temp_id').equals(temp_id).modify(updatesWithCents);
+    logger.info('[DexieManager] ✅ Fact updated', { temp_id });
   }
 
   /**
-   * Delete budget fact (soft delete)
+   * Delete budget fact (soft delete) по temp_id
    */
-  async deleteFact(id: number): Promise<void> {
-    logger.debug('[DexieManager] deleteFact', { id });
+  async deleteFact(temp_id: string): Promise<void> {
+    logger.debug('[DexieManager] deleteFact', { temp_id });
 
-    await db.budgetFacts.update(id, { sync_status: 'deleted' });
-    logger.info('[DexieManager] ✅ Fact deleted (soft)', { id });
+    await db.budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
+    logger.info('[DexieManager] ✅ Fact deleted (soft)', { temp_id });
   }
 
   /**
@@ -370,12 +382,89 @@ export class DexieManager {
   // ============================================================
 
   async queryShoppingLists(userId: number): Promise<LocalShoppingList[]> {
-    return await db.shoppingLists.where('user_id').equals(userId).toArray();
+    return await db.shoppingLists.where('creator_id').equals(userId).toArray();
   }
 
-  async createShoppingList(list: Omit<LocalShoppingList, 'id'>): Promise<LocalShoppingList> {
-    const id = await db.shoppingLists.add(list as LocalShoppingList);
-    return { ...list, id } as LocalShoppingList;
+  async createShoppingList(
+    list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
+  ): Promise<string> {
+    const temp_id = generateUUID();
+
+    const newList: LocalShoppingList = {
+      id: null,
+      temp_id,
+      ...list,
+      sync_status: 'pending',
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    await db.shoppingLists.add(newList);
+    return temp_id;
+  }
+
+  // ============================================================
+  // DIAGNOSTIC & MONITORING (Placeholder for UI)
+  // ============================================================
+
+  /**
+   * Get diagnostic data for monitoring modal
+   * TODO: Implement full diagnostic data collection
+   */
+  async getDiagnosticData(): Promise<{
+    dbSize: number;
+    tables: Record<string, number>;
+    syncStatus: string;
+    performance: { avgQueryTime: number };
+  }> {
+    const articlesCount = await db.articles.count();
+    const factsCount = await db.budgetFacts.count();
+    const shoppingListsCount = await db.shoppingLists.count();
+
+    return {
+      dbSize: 0, // TODO: Calculate actual DB size
+      tables: {
+        articles: articlesCount,
+        budgetFacts: factsCount,
+        shoppingLists: shoppingListsCount
+      },
+      syncStatus: 'active',
+      performance: {
+        avgQueryTime: 15 // TODO: Calculate from actual metrics
+      }
+    };
+  }
+
+  /**
+   * Get conflict metrics
+   * TODO: Implement conflict tracking
+   */
+  async getConflictMetrics(): Promise<{
+    total: number;
+    resolved: number;
+    pending: number;
+    resolvedConflicts: number;
+    pendingConflicts: number;
+    totalConflicts: number;
+    conflictRate: number;
+    resolutionBreakdown: {
+      server: number;
+      client: number;
+    };
+  }> {
+    return {
+      total: 0,
+      resolved: 0,
+      pending: 0,
+      resolvedConflicts: 0,
+      pendingConflicts: 0,
+      totalConflicts: 0,
+      conflictRate: 0,
+      resolutionBreakdown: {
+        server: 0,
+        client: 0
+      }
+    };
   }
 }
 

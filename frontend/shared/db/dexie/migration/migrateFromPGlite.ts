@@ -9,8 +9,6 @@ import { db, toCents } from '../core/database';
 import { logger } from '../utils/logger';
 import type {
   LocalArticle,
-  LocalFinancialCenter,
-  LocalCostCenter,
   LocalBudgetFact,
   LocalShoppingList,
   LocalShoppingListItem
