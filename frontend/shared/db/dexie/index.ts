@@ -8,6 +8,14 @@ export { DexieManager, getDexieManager } from './DexieManager';
 export { db, toCents, fromCents } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
 
+/**
+ * Check if Dexie offline mode is active
+ * Читает feature flag из localStorage
+ */
+export function isDexieActive(): boolean {
+  return localStorage.getItem('dexieActive') === 'true';
+}
+
 // Operations
 export * from './operations/schemaOperations';
 export * from './operations/factOperations';

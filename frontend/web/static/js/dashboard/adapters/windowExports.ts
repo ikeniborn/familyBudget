@@ -13,7 +13,7 @@
 import { defineReactiveProperties, initializeStateFromGlobals } from '../core/stateManager';
 import { getState, isCacheValid } from '../core/DashboardState';
 import { showModalWithSkeleton } from '../utils/modalHelpers';
-import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
+import { getDexieManager, isDexieActive } from '@db/dexie';
 
 
 
@@ -134,28 +134,28 @@ async function init(): Promise<void> {
   // Initialize state from existing globals
   initializeStateFromGlobals();
 
-  // Initialize PGlite early (BLOCKING)
-  if (isPGliteEnabled()) {
+  // Initialize Dexie early (BLOCKING)
+  if (isDexieActive()) {
     try {
-      const manager = await getPGliteManager();
+      const manager = await getDexieManager();
 
       if (!manager.isReady()) {
         const justLoggedIn = sessionStorage.getItem('just_logged_in');
 
         // Show initialization notification for first-time users
         if (justLoggedIn) {
-          debugLog('[Dashboard] First login detected - initializing PGlite (blocking)...');
+          debugLog('[Dashboard] First login detected - initializing Dexie (blocking)...');
           if (window.showToast) {
             window.showToast('Инициализация offline режима...', 'info');
           }
         }
 
-        // BLOCKING await - ensures PGlite ready before modal opens
+        // BLOCKING await - ensures Dexie ready before modal opens
         await manager.init();
-        debugLog('[Dashboard] PGlite initialized successfully');
+        debugLog('[Dashboard] Dexie initialized successfully');
       }
     } catch (err) {
-      console.error('[Dashboard] Failed to initialize PGlite:', err);
+      console.error('[Dashboard] Failed to initialize Dexie:', err);
       // Non-fatal: continue with API-only mode
       if (window.showToast) {
         window.showToast('Offline режим недоступен. Работа в online режиме.', 'warning');

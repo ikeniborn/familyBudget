@@ -2,13 +2,13 @@
  * Data Layer - Unified API for reference data
  *
  * Provides abstraction over PGlite (offline) and REST API (online) data sources.
- * Implements PGlite-first strategy with graceful fallback to API.
+ * Implements Dexie-first strategy with graceful fallback to API.
  *
  * @example
  * ```typescript
  * import { dataLayer } from './DataLayer';
  *
- * // Get articles (PGlite-first, API fallback)
+ * // Get articles (Dexie-first, API fallback)
  * const articles = await dataLayer.getArticles({ type: 'expense' });
  *
  * // Get financial centers
@@ -22,8 +22,8 @@
  * @module data/DataLayer
  */
 
-import { getPGliteManager, PGliteManager } from '@db/pglite';
-import { isPGliteActive } from '@db/pglite';
+import { getDexieManager, DexieManager } from '@db/dexie';
+import { isDexieActive } from '@db/dexie';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
 import type {
@@ -43,7 +43,7 @@ import type {
   ProductGroupFilters,
   FactFilters,
   RecurringPlanFilters
-} from '@db/pglite';
+} from '@db/dexie';
 import { factsManager } from '../dashboard/features/factsManager';
 import type {
   ArticleListResponse,
@@ -70,31 +70,31 @@ export interface ArticleFilters {
 
 /**
  * Data Layer class
- * Provides unified API for reference data with PGlite-first, API-fallback strategy
+ * Provides unified API for reference data with Dexie-first, API-fallback strategy
  */
 export class DataLayer {
-  private pglite: PGliteManager | null = null;
-  private pglitePromise: Promise<PGliteManager> | null = null;
+  private dexie: DexieManager | null = null;
+  private dexiePromise: Promise<DexieManager> | null = null;
 
   /**
-   * Lazy initialize PGlite manager
-   * Handles both sync and async getPGliteManager() implementations
+   * Lazy initialize Dexie manager
+   * Handles both sync and async getDexieManager() implementations
    */
-  private async getPGlite(): Promise<any> {
-    if (this.pglite) {
-      return this.pglite;
+  private async getDexie(): Promise<any> {
+    if (this.dexie) {
+      return this.dexie;
     }
 
-    if (this.pglitePromise) {
-      return this.pglitePromise;
+    if (this.dexiePromise) {
+      return this.dexiePromise;
     }
 
-    this.pglitePromise = Promise.resolve(getPGliteManager()).then(async (manager) => {
-      // Initialize PGlite on first access
+    this.dexiePromise = Promise.resolve(getDexieManager()).then(async (manager) => {
+      // Initialize Dexie on first access
       if (!manager.isReady()) {
         await manager.init();
       }
-      this.pglite = manager;
+      this.dexie = manager;
       return manager;
     });
 
@@ -108,7 +108,7 @@ export class DataLayer {
    * By default (API-first), returns false.
    */
   private shouldUsePGlite(): boolean {
-    return isPGliteActive();
+    return isDexieActive();
   }
 
   // =============================================================================
@@ -148,7 +148,7 @@ export class DataLayer {
       }
 
       // OPT-IN: User activated PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       // Wait for readiness (max 5s)
       if (!pglite.isReady()) {
@@ -275,7 +275,7 @@ export class DataLayer {
       }
 
       // OPT-IN: User activated PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       // Wait for readiness (max 5s)
       if (!pglite.isReady()) {
@@ -393,7 +393,7 @@ export class DataLayer {
       }
 
       // OPT-IN: User activated PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       // Wait for readiness (max 5s)
       if (!pglite.isReady()) {
@@ -494,7 +494,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
         while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
@@ -577,7 +577,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
@@ -674,7 +674,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
@@ -773,7 +773,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
         while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
@@ -850,7 +850,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
         while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
@@ -949,7 +949,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
@@ -1052,7 +1052,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
         while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
@@ -1161,7 +1161,7 @@ export class DataLayer {
       }
 
       // OPT-IN PGlite
-      const pglite = await this.getPGlite();
+      const pglite = await this.getDexie();
 
       if (!pglite.isReady()) {
         const waitStartTime = Date.now();
@@ -1247,7 +1247,7 @@ export class DataLayer {
   // =============================================================================
 
   /**
-   * Get dashboard data (PGlite-first with API fallback)
+   * Get dashboard data (Dexie-first with API fallback)
    * Used for future features requiring dashboard analytics
    *
    * @returns Dashboard data (recent facts, quick stats, account balances)
