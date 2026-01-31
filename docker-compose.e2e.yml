@@ -82,7 +82,7 @@ services:
   # Backend Application (FastAPI + HTMX)
   backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
       target: production
     image: familybudget-backend:test
