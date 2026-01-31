@@ -41,22 +41,14 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should fill transaction form with all required fields', async ({ page }) => {
-    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
-    await page.setViewportSize(VIEWPORTS.mobile);
+    // Set desktop viewport
+    await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via Speed Dial
+    // Open modal via FAB (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Wait for animation to complete before clicking buttons
-    await page.waitForTimeout(500);
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -114,19 +106,14 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should show validation error when required fields missing', async ({ page }) => {
-    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
-    await page.setViewportSize(VIEWPORTS.mobile);
+    // Set desktop viewport
+    await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via Speed Dial
+    // Open modal via FAB (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -207,22 +194,14 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should submit income transaction', async ({ page }) => {
-    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
-    await page.setViewportSize(VIEWPORTS.mobile);
+    // Set desktop viewport
+    await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via Speed Dial
+    // Open modal via FAB (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Wait for animation to complete before clicking buttons
-    await page.waitForTimeout(500);
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -281,19 +260,14 @@ test.describe('Form Submission - Transaction Creation', () => {
   });
 
   test('should populate date using quick buttons', async ({ page }) => {
-    // Set mobile viewport (FAB Speed Dial is mobile-specific UI)
-    await page.setViewportSize(VIEWPORTS.mobile);
+    // Set desktop viewport
+    await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via Speed Dial
+    // Open modal via FAB (opens directly without Speed Dial on production)
     const fabButton = page.locator('#fab-btn');
     await fabButton.click();
 
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
-
+    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
