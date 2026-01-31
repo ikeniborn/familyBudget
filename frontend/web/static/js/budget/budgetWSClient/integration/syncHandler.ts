@@ -3,8 +3,7 @@
  * Handles initial sync from backend to PGlite
  */
 
-import { getPGliteManager } from '@db/pglite';
-import { getPGliteFeatureFlags } from '@db/pglite/features/featureFlags';
+import { getDexieManager } from '@db/dexie';
 import type { SyncInitialResponse, SyncIncrementalResponse } from '../types/events';
 
 // Type declaration for global debugLog
@@ -16,7 +15,7 @@ declare const debugLog: (...args: any[]) => void;
  * @param data - Sync response with reference data
  */
 export async function handleSyncInitial(data: SyncInitialResponse['data']): Promise<void> {
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   if (!pglite.isReady()) {
     debugLog('[SYNC] PGlite not initialized');
@@ -137,7 +136,7 @@ export function requestInitialSync(userId: number): void {
  * @param data - Delta updates (created, updated, deleted facts)
  */
 export async function handleSyncIncremental(data: SyncIncrementalResponse['data']): Promise<void> {
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   if (!pglite.isReady()) {
     debugLog('[SYNC] PGlite not initialized');
@@ -219,7 +218,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
  * @param userId - User ID for sync
  */
 export async function requestIncrementalSync(userId: number): Promise<void> {
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   if (!pglite.isReady()) {
     debugLog('[SYNC] PGlite not initialized');

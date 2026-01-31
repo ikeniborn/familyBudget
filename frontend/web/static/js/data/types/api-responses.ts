@@ -19,7 +19,7 @@ import type {
   LocalBudgetFact,
   LocalRecurringPlan,
   LocalArticleHierarchy
-} from '@db/pglite';
+} from '@db/dexie';
 
 /**
  * Base pagination interface

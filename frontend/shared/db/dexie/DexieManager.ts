@@ -16,6 +16,7 @@ import type {
   LocalCostCenter,
   LocalBudgetFact,
   LocalShoppingList,
+  LocalArticleHierarchy,
   FactFilters,
   LocalSyncMetadata
 } from './types/models';
@@ -322,6 +323,62 @@ export class DexieManager {
     }
 
     logger.info('[DexieManager] ✅ Bulk insert complete', { total: facts.length });
+  }
+
+  /**
+   * Bulk insert articles
+   */
+  async bulkInsertArticles(articles: LocalArticle[], onProgress?: ProgressCallback): Promise<void> {
+    logger.info('[DexieManager] bulkInsertArticles', { count: articles.length });
+    await db.articles.bulkAdd(articles);
+    if (onProgress) onProgress(articles.length, articles.length);
+  }
+
+  /**
+   * Bulk insert financial centers
+   */
+  async bulkInsertFinancialCenters(centers: LocalFinancialCenter[], onProgress?: ProgressCallback): Promise<void> {
+    logger.info('[DexieManager] bulkInsertFinancialCenters', { count: centers.length });
+    await db.financialCenters.bulkAdd(centers);
+    if (onProgress) onProgress(centers.length, centers.length);
+  }
+
+  /**
+   * Bulk insert cost centers
+   */
+  async bulkInsertCostCenters(centers: LocalCostCenter[], onProgress?: ProgressCallback): Promise<void> {
+    logger.info('[DexieManager] bulkInsertCostCenters', { count: centers.length });
+    await db.costCenters.bulkAdd(centers);
+    if (onProgress) onProgress(centers.length, centers.length);
+  }
+
+  /**
+   * Bulk insert article hierarchy
+   */
+  async bulkInsertHierarchy(hierarchy: LocalArticleHierarchy[], onProgress?: ProgressCallback): Promise<void> {
+    logger.info('[DexieManager] bulkInsertHierarchy', { count: hierarchy.length });
+    await db.articleHierarchy.bulkAdd(hierarchy);
+    if (onProgress) onProgress(hierarchy.length, hierarchy.length);
+  }
+
+  /**
+   * Bulk update facts
+   */
+  async bulkUpdateFacts(facts: Partial<LocalBudgetFact>[]): Promise<void> {
+    logger.info('[DexieManager] bulkUpdateFacts', { count: facts.length });
+    await db.budgetFacts.bulkPut(facts as LocalBudgetFact[]);
+  }
+
+  /**
+   * Bulk soft delete facts
+   */
+  async bulkSoftDeleteFacts(temp_ids: string[]): Promise<void> {
+    logger.info('[DexieManager] bulkSoftDeleteFacts', { count: temp_ids.length });
+    await db.transaction('rw', db.budgetFacts, async () => {
+      for (const temp_id of temp_ids) {
+        await db.budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
+      }
+    });
   }
 
   // ============================================================

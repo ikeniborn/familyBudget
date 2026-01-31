@@ -20,7 +20,7 @@ import type {
   LocalShoppingListItem,
   LocalStore,
   LocalProductGroup
-} from '@db/pglite';
+} from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
