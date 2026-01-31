@@ -180,7 +180,7 @@ export interface PollResponse {
 }
 
 // ============================================================================
-// PGlite Sync Events
+// Dexie Sync Events
 // ============================================================================
 
 export interface SyncInitialRequest {
@@ -229,7 +229,7 @@ export interface SyncInitialResponse {
 }
 
 // ============================================================================
-// PGlite Incremental Sync Events
+// Dexie Incremental Sync Events
 // ============================================================================
 
 export interface SyncIncrementalRequest {

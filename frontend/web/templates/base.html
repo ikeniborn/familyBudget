@@ -419,7 +419,7 @@
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
 
-    <!-- PGlite Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
+    <!-- Dexie Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
     <script src="/shared/db/pglite.min.js?v=PLACEHOLDER"></script>
 
     <!-- Debug Logger (conditional logging for development) -->
@@ -527,13 +527,13 @@
                 </button>
             </div>
 
-            <!-- PGlite Status Indicator (visual-only, no interaction) -->
-            <div id="pglite-indicator-wrapper"
+            <!-- Dexie Status Indicator (visual-only, no interaction) -->
+            <div id="dexie-indicator-wrapper"
                  class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
-                 data-tip="Локальная БД (PGlite)">
+                 data-tip="Локальная БД (Dexie)">
                 <div class="btn btn-ghost btn-circle btn-sm sm:btn-md pointer-events-none">
                     <!-- Active State: Green (default) -->
-                    <svg id="pglite-icon-active"
+                    <svg id="dexie-icon-active"
                          xmlns="http://www.w3.org/2000/svg"
                          class="h-5 w-5 sm:h-6 sm:w-6 text-success"
                          fill="none"
@@ -546,7 +546,7 @@
                     </svg>
 
                     <!-- Syncing State: Blue + Pulse -->
-                    <svg id="pglite-icon-syncing"
+                    <svg id="dexie-icon-syncing"
                          xmlns="http://www.w3.org/2000/svg"
                          class="h-5 w-5 sm:h-6 sm:w-6 text-info pglite-pulse hidden"
                          fill="none"
@@ -559,7 +559,7 @@
                     </svg>
 
                     <!-- Error State: Red -->
-                    <svg id="pglite-icon-error"
+                    <svg id="dexie-icon-error"
                          xmlns="http://www.w3.org/2000/svg"
                          class="h-5 w-5 sm:h-6 sm:w-6 text-error hidden"
                          fill="none"
@@ -572,7 +572,7 @@
                     </svg>
 
                     <!-- NEW: Initializing State: Yellow + Pulse -->
-                    <svg id="pglite-icon-initializing"
+                    <svg id="dexie-icon-initializing"
                          xmlns="http://www.w3.org/2000/svg"
                          class="h-5 w-5 sm:h-6 sm:w-6 text-warning pglite-pulse hidden"
                          fill="none"
@@ -585,7 +585,7 @@
                     </svg>
 
                     <!-- NEW: Ready State: Green (clickable for activation) -->
-                    <svg id="pglite-icon-ready"
+                    <svg id="dexie-icon-ready"
                          xmlns="http://www.w3.org/2000/svg"
                          class="h-5 w-5 sm:h-6 sm:w-6 text-success cursor-pointer hidden"
                          fill="none"
@@ -815,9 +815,9 @@
         // NEW: PGlite Background Initialization (API-First Migration)
         document.addEventListener('DOMContentLoaded', function() {
             // Check if PGlite enabled and not already initialized
-            const enablePGlite = localStorage.getItem('enablePGlite') === 'true';
+            const enableDexie = localStorage.getItem('enableDexie') === 'true';
 
-            if (enablePGlite && typeof window.PGlite !== 'undefined') {
+            if (enableDexie && typeof window.PGlite !== 'undefined') {
                 console.info('[APP] Starting PGlite background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
@@ -825,7 +825,7 @@
                     console.warn('[APP] Background PGlite init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
-            } else if (enablePGlite) {
+            } else if (enableDexie) {
                 console.warn('[APP] PGlite enabled but window.PGlite not loaded');
             } else {
                 console.info('[APP] PGlite disabled, skipping background init');
@@ -1059,7 +1059,7 @@
     <!-- Offline Manager Initialization (only for authenticated users) -->
     {% if user %}
     {% include 'scripts/offline-manager-init.html' %}
-    {% include 'scripts/pglite-indicator-manager.html' %}
+    {% include 'scripts/dexie-indicator-manager.html' %}
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
     {% endif %}

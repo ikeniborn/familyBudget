@@ -374,9 +374,9 @@ async function handleBiometricAuth() {
 
             console.log('[WEBAUTHN_CLIENT] Redirecting to dashboard...');
             // CRITICAL: Auto-enable PGlite FIRST (before redirect)
-            if (localStorage.getItem('enablePGlite') === null) {
-                localStorage.setItem('enablePGlite', 'true');
-                console.log('[AUTH] PGlite auto-enabled for new user (WebAuthn)');
+            if (localStorage.getItem('enableDexie') === null) {
+                localStorage.setItem('enableDexie', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (WebAuthn)');
             }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
@@ -528,9 +528,9 @@ async function handlePasswordLogin(e) {
             console.log('[AUTH_EMAIL] Admin bypass detected - JWT tokens received');
             console.log('[AUTH_EMAIL] Redirecting to dashboard (2FA skipped)');
             // CRITICAL: Auto-enable PGlite FIRST (before redirect)
-            if (localStorage.getItem('enablePGlite') === null) {
-                localStorage.setItem('enablePGlite', 'true');
-                console.log('[AUTH] PGlite auto-enabled for new user (Admin bypass)');
+            if (localStorage.getItem('enableDexie') === null) {
+                localStorage.setItem('enableDexie', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Admin bypass)');
             }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
@@ -557,9 +557,9 @@ async function handlePasswordLogin(e) {
         } else {
             // Fallback - shouldn't happen for email login
             // CRITICAL: Auto-enable PGlite FIRST (before redirect)
-            if (localStorage.getItem('enablePGlite') === null) {
-                localStorage.setItem('enablePGlite', 'true');
-                console.log('[AUTH] PGlite auto-enabled for new user (Fallback)');
+            if (localStorage.getItem('enableDexie') === null) {
+                localStorage.setItem('enableDexie', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Fallback)');
             }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
@@ -666,9 +666,9 @@ async function handleQuickBiometricAuth() {
             const data = await verifyRes.json();
             console.log('[WEBAUTHN_CLIENT] ✅ Quick login successful');
             // CRITICAL: Auto-enable PGlite FIRST (before redirect)
-            if (localStorage.getItem('enablePGlite') === null) {
-                localStorage.setItem('enablePGlite', 'true');
-                console.log('[AUTH] PGlite auto-enabled for new user (Quick login)');
+            if (localStorage.getItem('enableDexie') === null) {
+                localStorage.setItem('enableDexie', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Quick login)');
             }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';

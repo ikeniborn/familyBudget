@@ -384,7 +384,7 @@ export class DexieDiagnosticModal extends BaseModal {
       const stats = performanceMonitor.getDetailedStats();
 
       // Only show if there are tracked calls
-      if (stats.api.count === 0 && stats.pglite.count === 0) {
+      if (stats.api.count === 0 && stats.dexie.count === 0) {
         return '';
       }
 
@@ -438,8 +438,8 @@ export class DexieDiagnosticModal extends BaseModal {
   /**
    * Render individual module breakdown card
    */
-  private renderModuleBreakdownCard(name: string, breakdown: { pglite: number; api: number; reductionPercent: number }, icon: string): string {
-    const total = breakdown.pglite + breakdown.api;
+  private renderModuleBreakdownCard(name: string, breakdown: { dexie: number; api: number; reductionPercent: number }, icon: string): string {
+    const total = breakdown.dexie + breakdown.api;
 
     // Skip if no calls for this module
     if (total === 0) {
@@ -464,7 +464,7 @@ export class DexieDiagnosticModal extends BaseModal {
           <div class="grid grid-cols-3 gap-2 mt-2">
             <div class="text-center">
               <div class="text-xs opacity-70">Dexie</div>
-              <div class="text-lg font-bold text-primary">${breakdown.pglite}</div>
+              <div class="text-lg font-bold text-primary">${breakdown.dexie}</div>
             </div>
             <div class="text-center">
               <div class="text-xs opacity-70">API</div>

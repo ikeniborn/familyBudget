@@ -1,7 +1,7 @@
 /**
  * Performance Monitor for tracking Data Layer performance
  *
- * Tracks API vs PGlite call performance with detailed metrics.
+ * Tracks API vs Dexie call performance with detailed metrics.
  *
  * @example
  * ```typescript
@@ -10,8 +10,8 @@
  * // Track API call
  * performanceMonitor.trackAPICall('getArticles', 150.5);
  *
- * // Track PGlite call
- * performanceMonitor.trackPGliteCall('getArticles', 5.2);
+ * // Track Dexie call
+ * performanceMonitor.trackDexieCall('getArticles', 5.2);
  *
  * // Get statistics
  * const stats = performanceMonitor.getStats();
@@ -22,7 +22,7 @@
  */
 
 /**
- * Metrics for a single call type (API or PGlite)
+ * Metrics for a single call type (API or Dexie)
  */
 export interface CallMetric {
   /** Total number of calls */
@@ -38,16 +38,16 @@ export interface CallMetric {
 }
 
 /**
- * Performance statistics comparing API and PGlite performance
+ * Performance statistics comparing API and Dexie performance
  */
 export interface PerformanceStats {
   /** API call metrics */
   api: CallMetric;
-  /** PGlite call metrics */
-  pglite: CallMetric;
+  /** Dexie call metrics */
+  dexie: CallMetric;
   /** Percentage reduction in API calls (0-100) */
   reductionPercent: number;
-  /** Speedup factor (api avg / pglite avg) */
+  /** Speedup factor (api avg / dexie avg) */
   speedupFactor: number;
 }
 
@@ -56,7 +56,7 @@ export interface PerformanceStats {
  */
 export interface ModuleBreakdown {
   /** PGlite call count */
-  pglite: number;
+  dexie: number;
   /** API call count */
   api: number;
   /** Reduction percentage for this module */
@@ -89,7 +89,7 @@ export interface DetailedPerformanceStats extends PerformanceStats {
  */
 export class PerformanceMonitor {
   private apiMetrics: Map<string, number[]> = new Map();
-  private pgliteMetrics: Map<string, number[]> = new Map();
+  private dexieMetrics: Map<string, number[]> = new Map();
 
   /**
    * Track an API call
@@ -110,11 +110,11 @@ export class PerformanceMonitor {
    * @param method - Method name (e.g., 'getArticles')
    * @param durationMs - Call duration in milliseconds
    */
-  trackPGliteCall(method: string, durationMs: number): void {
-    if (!this.pgliteMetrics.has(method)) {
-      this.pgliteMetrics.set(method, []);
+  trackDexieCall(method: string, durationMs: number): void {
+    if (!this.dexieMetrics.has(method)) {
+      this.dexieMetrics.set(method, []);
     }
-    this.pgliteMetrics.get(method)!.push(durationMs);
+    this.dexieMetrics.get(method)!.push(durationMs);
   }
 
   /**
@@ -152,22 +152,22 @@ export class PerformanceMonitor {
   getStats(): PerformanceStats {
     // Flatten all metrics
     const allApiDurations = Array.from(this.apiMetrics.values()).flat();
-    const allPgliteDurations = Array.from(this.pgliteMetrics.values()).flat();
+    const allDexieDurations = Array.from(this.dexieMetrics.values()).flat();
 
     const api = this.calculateMetric(allApiDurations);
-    const pglite = this.calculateMetric(allPgliteDurations);
+    const dexie = this.calculateMetric(allDexieDurations);
 
-    const totalCalls = api.count + pglite.count;
+    const totalCalls = api.count + dexie.count;
     const reductionPercent = totalCalls > 0 ? (1 - api.count / totalCalls) * 100 : 0;
 
     const speedupFactor =
-      api.avgDurationMs > 0 && pglite.avgDurationMs > 0
-        ? api.avgDurationMs / pglite.avgDurationMs
+      api.avgDurationMs > 0 && dexie.avgDurationMs > 0
+        ? api.avgDurationMs / dexie.avgDurationMs
         : 1;
 
     return {
       api,
-      pglite,
+      dexie,
       reductionPercent: parseFloat(reductionPercent.toFixed(1)),
       speedupFactor: parseFloat(speedupFactor.toFixed(1)),
     };
@@ -213,32 +213,32 @@ export class PerformanceMonitor {
 
     // Initialize breakdown
     const breakdown: DetailedPerformanceStats['breakdown'] = {
-      shoppingLists: { pglite: 0, api: 0, reductionPercent: 0 },
-      facts: { pglite: 0, api: 0, reductionPercent: 0 },
-      recurringPlans: { pglite: 0, api: 0, reductionPercent: 0 },
-      dashboard: { pglite: 0, api: 0, reductionPercent: 0 },
-      other: { pglite: 0, api: 0, reductionPercent: 0 }
+      shoppingLists: { dexie: 0, api: 0, reductionPercent: 0 },
+      facts: { dexie: 0, api: 0, reductionPercent: 0 },
+      recurringPlans: { dexie: 0, api: 0, reductionPercent: 0 },
+      dashboard: { dexie: 0, api: 0, reductionPercent: 0 },
+      other: { dexie: 0, api: 0, reductionPercent: 0 }
     };
 
     // Count calls per module
-    const allMethods = new Set([...this.apiMetrics.keys(), ...this.pgliteMetrics.keys()]);
+    const allMethods = new Set([...this.apiMetrics.keys(), ...this.dexieMetrics.keys()]);
 
     for (const method of allMethods) {
       const module = this.classifyMethod(method);
-      breakdown[module].pglite += (this.pgliteMetrics.get(method) || []).length;
+      breakdown[module].dexie += (this.dexieMetrics.get(method) || []).length;
       breakdown[module].api += (this.apiMetrics.get(method) || []).length;
     }
 
     // Calculate reduction percent per module
     for (const module of Object.keys(breakdown) as Array<keyof typeof breakdown>) {
-      const { pglite, api } = breakdown[module];
-      const total = pglite + api;
+      const { dexie, api } = breakdown[module];
+      const total = dexie + api;
       breakdown[module].reductionPercent = total > 0 ? parseFloat(((1 - api / total) * 100).toFixed(1)) : 0;
     }
 
     // Calculate bandwidth saved (assume 5KB per API call)
     const BYTES_PER_API_CALL = 5 * 1024; // 5 KB
-    const apiCallsReduced = basicStats.pglite.count;
+    const apiCallsReduced = basicStats.dexie.count;
     const totalBandwidthSaved = parseFloat(((apiCallsReduced * BYTES_PER_API_CALL) / 1024).toFixed(1)); // KB
 
     return {
@@ -255,14 +255,14 @@ export class PerformanceMonitor {
    *
    * @returns Per-method statistics
    */
-  getMethodStats(): Record<string, { api: CallMetric; pglite: CallMetric }> {
-    const methods = new Set([...this.apiMetrics.keys(), ...this.pgliteMetrics.keys()]);
+  getMethodStats(): Record<string, { api: CallMetric; dexie: CallMetric }> {
+    const methods = new Set([...this.apiMetrics.keys(), ...this.dexieMetrics.keys()]);
 
-    const result: Record<string, { api: CallMetric; pglite: CallMetric }> = {};
+    const result: Record<string, { api: CallMetric; dexie: CallMetric }> = {};
     for (const method of methods) {
       result[method] = {
         api: this.calculateMetric(this.apiMetrics.get(method) || []),
-        pglite: this.calculateMetric(this.pgliteMetrics.get(method) || []),
+        dexie: this.calculateMetric(this.dexieMetrics.get(method) || []),
       };
     }
 
@@ -274,7 +274,7 @@ export class PerformanceMonitor {
    */
   reset(): void {
     this.apiMetrics.clear();
-    this.pgliteMetrics.clear();
+    this.dexieMetrics.clear();
   }
 }
 

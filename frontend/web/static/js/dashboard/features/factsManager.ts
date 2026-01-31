@@ -132,7 +132,7 @@ class DashboardFactsManager {
         );
 
         const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('loadRecentFacts', duration);
+        performanceMonitor.trackDexieCall('loadRecentFacts', duration);
         debugLog(`[DASHBOARD] Recent facts from PGlite: ${duration.toFixed(1)}ms`);
 
         return this.mapRecentFacts(result.rows);
@@ -220,7 +220,7 @@ class DashboardFactsManager {
         );
 
         const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('calculateQuickStats', duration);
+        performanceMonitor.trackDexieCall('calculateQuickStats', duration);
         debugLog(`[DASHBOARD] Quick stats from PGlite: ${duration.toFixed(1)}ms`);
 
         return this.mapQuickStats(todayResult.rows, monthResult.rows, monthPlanResult.rows);
@@ -310,7 +310,7 @@ class DashboardFactsManager {
         `);
 
         const duration = performance.now() - startTime;
-        performanceMonitor.trackPGliteCall('loadAccountBalances', duration);
+        performanceMonitor.trackDexieCall('loadAccountBalances', duration);
         debugLog(`[DASHBOARD] Account balances from PGlite: ${duration.toFixed(1)}ms`);
 
         return this.mapAccountBalances(fcsResult.rows, openingResult.rows, movementResult.rows);

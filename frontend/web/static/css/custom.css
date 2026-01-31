@@ -759,7 +759,7 @@ html.offline-mode .save-btn:hover {
  * Pulse animation for PGlite syncing state
  * GPU-accelerated with transform + opacity
  */
-@keyframes pglite-pulse {
+@keyframes dexie-pulse {
     0%, 100% {
         opacity: 0.5;
         transform: scale(1);
@@ -770,13 +770,13 @@ html.offline-mode .save-btn:hover {
     }
 }
 
-.pglite-pulse {
-    animation: pglite-pulse 1.5s ease-in-out infinite;
+.dexie-pulse {
+    animation: dexie-pulse 1.5s ease-in-out infinite;
 }
 
 /* Respect reduced motion preferences (accessibility) */
 @media (prefers-reduced-motion: reduce) {
-    .pglite-pulse {
+    .dexie-pulse {
         animation: none;
         opacity: 1;
     }

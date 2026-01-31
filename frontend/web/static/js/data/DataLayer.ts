@@ -179,7 +179,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getArticles', duration);
+      performanceMonitor.trackDexieCall('getArticles', duration);
       console.info('[DATA_LAYER] PGlite returned', {
         count: result.length,
         source: 'PGlite',
@@ -306,7 +306,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getFinancialCenters', duration);
+      performanceMonitor.trackDexieCall('getFinancialCenters', duration);
       console.info('[DATA_LAYER] PGlite returned', {
         count: result.length,
         source: 'PGlite',
@@ -424,7 +424,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getCostCenters', duration);
+      performanceMonitor.trackDexieCall('getCostCenters', duration);
       console.info('[DATA_LAYER] PGlite returned', {
         count: result.length,
         source: 'PGlite',
@@ -516,7 +516,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getArticleHierarchy', duration);
+      performanceMonitor.trackDexieCall('getArticleHierarchy', duration);
       return result;
     } catch (error) {
       console.error('[DATA_LAYER] Error in getArticleHierarchy', error);
@@ -605,7 +605,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getShoppingLists', duration);
+      performanceMonitor.trackDexieCall('getShoppingLists', duration);
       console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
       return result;
 
@@ -705,7 +705,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getShoppingListItems', duration);
+      performanceMonitor.trackDexieCall('getShoppingListItems', duration);
       console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
       return result;
 
@@ -795,7 +795,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getStores', duration);
+      performanceMonitor.trackDexieCall('getStores', duration);
       return result;
     } catch (error) {
       console.error('[DATA_LAYER] Error in getStores', error);
@@ -872,7 +872,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getProductGroups', duration);
+      performanceMonitor.trackDexieCall('getProductGroups', duration);
       return result;
     } catch (error) {
       console.error('[DATA_LAYER] Error in getProductGroups', error);
@@ -977,7 +977,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getFacts', duration);
+      performanceMonitor.trackDexieCall('getFacts', duration);
       console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
       return result;
 
@@ -1075,7 +1075,7 @@ export class DataLayer {
         return apiCount;
       }
 
-      performanceMonitor.trackPGliteCall('getFactsCount', duration);
+      performanceMonitor.trackDexieCall('getFactsCount', duration);
       return count;
     } catch (error) {
       console.error('[DATA_LAYER] Error in getFactsCount', error);
@@ -1189,7 +1189,7 @@ export class DataLayer {
         return apiResult;
       }
 
-      performanceMonitor.trackPGliteCall('getRecurringPlans', duration);
+      performanceMonitor.trackDexieCall('getRecurringPlans', duration);
       console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
       return result;
 

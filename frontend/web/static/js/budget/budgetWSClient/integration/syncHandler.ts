@@ -1,9 +1,9 @@
 /**
- * PGlite Sync Handler
- * Handles initial sync from backend to PGlite
+ * Dexie Sync Handler
+ * Handles initial sync from backend to Dexie
  */
 
-import { getDexieManager, getPGliteFeatureFlags } from '@db/dexie';
+import { getDexieManager, getDexieFeatureFlags } from '@db/dexie';
 import type { SyncInitialResponse, SyncIncrementalResponse } from '../types/events';
 
 // Type declaration for global debugLog
@@ -15,10 +15,10 @@ declare const debugLog: (...args: any[]) => void;
  * @param data - Sync response with reference data
  */
 export async function handleSyncInitial(data: SyncInitialResponse['data']): Promise<void> {
-  const pglite = await getDexieManager();
+  const dexie = await getDexieManager();
 
-  if (!pglite.isReady()) {
-    debugLog('[SYNC] PGlite not initialized');
+  if (!dexie.isReady()) {
+    debugLog('[SYNC] Dexie not initialized');
     return;
   }
 
@@ -66,27 +66,27 @@ export async function handleSyncInitial(data: SyncInitialResponse['data']): Prom
     }));
 
     // Bulk insert with progress tracking
-    await pglite.bulkInsertArticles(articles, onProgress);
-    await pglite.bulkInsertFinancialCenters(financialCenters, onProgress);
-    await pglite.bulkInsertCostCenters(costCenters, onProgress);
-    await pglite.bulkInsertHierarchy(data.hierarchy, onProgress);
+    await dexie.bulkInsertArticles(articles, onProgress);
+    await dexie.bulkInsertFinancialCenters(financialCenters, onProgress);
+    await dexie.bulkInsertCostCenters(costCenters, onProgress);
+    await dexie.bulkInsertHierarchy(data.hierarchy, onProgress);
 
     // Update sync metadata
-    await pglite.updateSyncMetadata({
+    await dexie.updateSyncMetadata({
       entity_type: 'articles',
       last_sync_timestamp: new Date(),
       sync_version: 1,
       total_records: data.articles.length
     });
 
-    await pglite.updateSyncMetadata({
+    await dexie.updateSyncMetadata({
       entity_type: 'financial_centers',
       last_sync_timestamp: new Date(),
       sync_version: 1,
       total_records: data.financial_centers.length
     });
 
-    await pglite.updateSyncMetadata({
+    await dexie.updateSyncMetadata({
       entity_type: 'cost_centers',
       last_sync_timestamp: new Date(),
       sync_version: 1,
@@ -139,10 +139,10 @@ export function requestInitialSync(userId: number): void {
  * @param data - Delta updates (created, updated, deleted facts)
  */
 export async function handleSyncIncremental(data: SyncIncrementalResponse['data']): Promise<void> {
-  const pglite = await getDexieManager();
+  const dexie = await getDexieManager();
 
-  if (!pglite.isReady()) {
-    debugLog('[SYNC] PGlite not initialized');
+  if (!dexie.isReady()) {
+    debugLog('[SYNC] Dexie not initialized');
     return;
   }
 
@@ -175,20 +175,20 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
 
     // Apply bulk operations
     if (created.length > 0) {
-      await pglite.bulkInsertFacts(created);
+      await dexie.bulkInsertFacts(created);
     }
 
     if (updated.length > 0) {
-      await pglite.bulkUpdateFacts(updated);
+      await dexie.bulkUpdateFacts(updated);
     }
 
     if (data.deleted.length > 0) {
       // Convert server IDs to temp_ids (TODO: server should send temp_ids instead)
-      await pglite.bulkSoftDeleteFacts(data.deleted.map(String));
+      await dexie.bulkSoftDeleteFacts(data.deleted.map(String));
     }
 
     // Update sync metadata with new timestamp
-    await pglite.updateSyncMetadata({
+    await dexie.updateSyncMetadata({
       entity_type: 'budget_facts',
       last_sync_timestamp: new Date(data.sync_timestamp),
       sync_version: 1,
@@ -198,7 +198,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     debugLog('[SYNC] Incremental sync completed successfully');
 
     // Dispatch CustomEvent for UI updates
-    const event = new CustomEvent('pglite:sync:complete', {
+    const event = new CustomEvent('dexie:sync:complete', {
       detail: {
         created: data.created.length,
         updated: data.updated.length,
@@ -225,10 +225,10 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
  * @param userId - User ID for sync
  */
 export async function requestIncrementalSync(userId: number): Promise<void> {
-  const pglite = await getDexieManager();
+  const dexie = await getDexieManager();
 
-  if (!pglite.isReady()) {
-    debugLog('[SYNC] PGlite not initialized');
+  if (!dexie.isReady()) {
+    debugLog('[SYNC] Dexie not initialized');
     return;
   }
 
@@ -238,7 +238,7 @@ export async function requestIncrementalSync(userId: number): Promise<void> {
   }
 
   // Get last sync timestamp from metadata
-  const syncMeta = await pglite.getSyncMetadata('budget_facts');
+  const syncMeta = await dexie.getSyncMetadata('budget_facts');
   const lastSyncTimestamp = syncMeta?.last_sync_timestamp
     ? new Date(syncMeta.last_sync_timestamp).toISOString()
     : new Date(0).toISOString(); // Epoch if never synced
@@ -291,7 +291,7 @@ export class SyncHandler {
    * Start auto-sync with configurable interval
    */
   startAutoSync(): void {
-    const flags = getPGliteFeatureFlags();
+    const flags = getDexieFeatureFlags();
 
     if (this.autoSyncTimer !== null) {
       debugLog('[SYNC] Auto-sync already running');

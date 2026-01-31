@@ -196,9 +196,8 @@ await loadFinancialCenters([
 **WebAuthn (v6.5.0+):** Passwordless biometric login. See `/docs/architecture/authentication.md`
 **Recurring Plans (v6.2.0+):** MMDD encoding for yearly frequency. See `/docs/architecture/recurring-plans.md`
 **Notifications (v6.4.0+):** Independent Web Push + Telegram control. See `/docs/architecture/notifications.md`
-**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. Conflict resolution. See `listsManager.ts:3207`
+**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. Offline-first с Dexie. See `/docs/architecture/dexie-integration.md`
 **Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
-**Data Pruning (task-010):** Automatic cleanup с retention window (30-365 days). Weekly pruning (Chrome/Edge 80+) or manual. See `/docs/architecture/pglite-pruning-compatibility.md`
 
 ## Development Workflow
 
@@ -282,8 +281,6 @@ Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for d
 |----------|---------|--------------|
 | [notifications.md](docs/architecture/notifications.md) | Web Push + Telegram | Notifications |
 | [bulk-delete-optimization.md](docs/architecture/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
-| [pglite-conflict-resolution.md](docs/architecture/pglite-conflict-resolution.md) | Shopping lists conflict resolution | Shopping lists |
-| [pglite-pruning-compatibility.md](docs/architecture/pglite-pruning-compatibility.md) | PGlite data cleanup | Offline data management |
 | [caching-strategy.md](docs/architecture/caching-strategy.md) | HTTP caching | Performance |
 | [backup-system.md](docs/architecture/backup-system.md) | Backup + restore | Backup system |
 | [installation-resilience.md](docs/architecture/installation-resilience.md) | Installation framework | Installation issues |

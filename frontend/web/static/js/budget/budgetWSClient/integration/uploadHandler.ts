@@ -1,6 +1,6 @@
 /**
  * Upload Handler
- * Synchronizes local PGlite pending operations with backend via WebSocket
+ * Synchronizes local Dexie pending operations with backend via WebSocket
  *
  * Task-008: Client-to-server upload with retry logic and progress tracking
  */
@@ -42,9 +42,9 @@ export class UploadHandler {
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
     }
 
-    const pglite = await getDexieManager();
-    if (!pglite.isReady()) {
-      debugLog('[UPLOAD] PGlite not initialized');
+    const dexie = await getDexieManager();
+    if (!dexie.isReady()) {
+      debugLog('[UPLOAD] Dexie not initialized');
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
     }
 
@@ -57,7 +57,7 @@ export class UploadHandler {
 
     try {
       // Get pending operations (retry-eligible only)
-      const pending = await pglite.getPendingOperations();
+      const pending = await dexie.getPendingOperations();
 
       if (pending.length === 0) {
         debugLog('[UPLOAD] No pending operations to upload');
@@ -111,9 +111,9 @@ export class UploadHandler {
    * - Shows notifications
    */
   async handleUploadResponse(response: SyncClientChangesResponse): Promise<void> {
-    const pglite = await getDexieManager();
-    if (!pglite.isReady()) {
-      debugLog('[UPLOAD] PGlite not initialized for response handling');
+    const dexie = await getDexieManager();
+    if (!dexie.isReady()) {
+      debugLog('[UPLOAD] Dexie not initialized for response handling');
       return;
     }
 
@@ -129,7 +129,7 @@ export class UploadHandler {
       try {
         if (result.status === 'success' && result.server_id !== null) {
           // Confirm successful upload
-          await pglite.confirmPendingOperation(result.temp_id, result.server_id);
+          await dexie.confirmPendingOperation(result.temp_id, result.server_id);
           debugLog('[UPLOAD] Confirmed operation', {
             temp_id: result.temp_id,
             server_id: result.server_id
@@ -138,7 +138,7 @@ export class UploadHandler {
           // Retry failed operation (fact stays in pending status)
           const errorMsg = result.error || 'Unknown error';
           // @ts-ignore - retryPendingOperation не реализован в DexieManager, fact остается pending
-          // await pglite.retryPendingOperation(result.temp_id, errorMsg);
+          // await dexie.retryPendingOperation(result.temp_id, errorMsg);
           debugLog('[UPLOAD] Retry scheduled (fact stays pending)', {
             temp_id: result.temp_id,
             error: errorMsg
@@ -159,7 +159,7 @@ export class UploadHandler {
     }
 
     // Dispatch CustomEvent for UI updates
-    const event = new CustomEvent('pglite:upload:complete', {
+    const event = new CustomEvent('dexie:upload:complete', {
       detail: {
         success: success_count,
         errors: error_count,
