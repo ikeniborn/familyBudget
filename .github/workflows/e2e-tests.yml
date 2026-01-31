@@ -24,7 +24,7 @@ jobs:
   e2e-tests:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20  # Increased timeout for Docker setup + tests
 
     strategy:
       fail-fast: false
@@ -59,10 +59,51 @@ jobs:
       - name: Verify Playwright installation
         run: npx playwright --version
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Build Docker images
+        env:
+          POSTGRESQL_VERSION: latest
+          REDIS_VERSION: latest
+          NGINX_VERSION: latest
+          VERSION: ${{ github.sha }}
+        run: |
+          echo "Building backend Docker image for E2E tests..."
+          docker compose -f docker-compose.e2e.yml build backend
+          echo "Pulling other service images..."
+          docker compose -f docker-compose.e2e.yml pull postgres redis nginx
+
+      - name: Start Docker Compose services
+        env:
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          VERSION: ${{ github.sha }}
+        run: |
+          echo "Starting E2E test environment..."
+          docker compose -f docker-compose.e2e.yml up -d
+          echo "Waiting for all services to be ready..."
+
+      - name: Wait for services to be healthy
+        run: |
+          chmod +x .github/workflows/scripts/wait-for-services.sh
+          .github/workflows/scripts/wait-for-services.sh
+
+      - name: Show service logs (for debugging)
+        if: always()
+        run: |
+          echo "=== Backend logs ==="
+          docker compose -f docker-compose.e2e.yml logs backend | tail -n 100
+          echo "=== Nginx logs ==="
+          docker compose -f docker-compose.e2e.yml logs nginx | tail -n 50
+          echo "=== PostgreSQL logs ==="
+          docker compose -f docker-compose.e2e.yml logs postgres | tail -n 50
+
       - name: Run E2E tests
         env:
           CI: true
-          BASE_URL: https://fbd.ikeniborn.ru
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
@@ -83,3 +124,10 @@ jobs:
           name: playwright-screenshots-${{ matrix.browser }}
           path: test-results/
           retention-days: 7
+
+      - name: Cleanup Docker containers
+        if: always()
+        run: |
+          echo "Stopping and removing E2E test containers..."
+          docker compose -f docker-compose.e2e.yml down -v --remove-orphans
+          echo "Cleanup complete"

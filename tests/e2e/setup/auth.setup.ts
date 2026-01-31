@@ -36,7 +36,8 @@ setup('authenticate', async ({ page }) => {
   await login(page);
 
   // Navigate to main page to ensure session is fully initialized
-  await page.goto(process.env.BASE_URL || 'https://fbd.ikeniborn.ru');
+  // E2E tests run against local Docker environment (configured in playwright.config.ts)
+  await page.goto('/');  // Uses baseURL from playwright.config.ts
   await page.waitForLoadState('networkidle');
 
   // eslint-disable-next-line no-console

@@ -1,0 +1,212 @@
+# Docker Compose configuration for E2E tests in GitHub Actions
+# This file defines a lightweight test environment for Playwright E2E tests
+#
+# Key differences from production docker-compose.yml:
+# - Uses tmpfs for postgres (ephemeral, no persistent data)
+# - Minimal resource limits (faster startup)
+# - Test mode environment variables (TEST_MODE=true)
+# - Container names with e2e- prefix (avoid conflicts)
+# - No SSL/TLS (local HTTP only)
+# - Simplified healthchecks
+
+services:
+  # PostgreSQL Database (ephemeral for tests)
+  postgres:
+    image: ghcr.io/ikeniborn/familybudget-postgresql:${POSTGRESQL_VERSION:-latest}
+    container_name: e2e-familybudget-postgres
+    restart: "no"  # Don't restart containers in test environment
+    stop_grace_period: 10s
+    stop_signal: SIGINT
+    environment:
+      POSTGRES_DB: familybudget_test
+      POSTGRES_USER: familybudget_test
+      POSTGRES_PASSWORD: test_password_123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # Minimal performance settings for tests
+      POSTGRES_MAX_CONNECTIONS: 50
+      POSTGRES_SHARED_BUFFERS: 128MB
+    # Use tmpfs instead of volume for ephemeral data (faster, no cleanup needed)
+    tmpfs:
+      - /var/lib/postgresql/data:size=512M
+    ports:
+      - "5432:5432"
+    networks:
+      - familybudget-e2e
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U familybudget_test -d familybudget_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "fsync=off"  # Disable fsync for tests (faster writes, safe because tmpfs)
+      - "-c"
+      - "synchronous_commit=off"  # Disable synchronous commit for tests
+      - "-c"
+      - "full_page_writes=off"  # Disable full page writes for tests
+      - "-c"
+      - "log_min_duration_statement=5000"  # Log slow queries > 5s
+
+  # Redis (Caching & WebSocket Sync)
+  redis:
+    image: ghcr.io/ikeniborn/familybudget-redis:${REDIS_VERSION:-latest}
+    container_name: e2e-familybudget-redis
+    restart: "no"
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly no
+      --save ""
+      --requirepass "test_redis_password"
+    # Use tmpfs for ephemeral Redis data
+    tmpfs:
+      - /data:size=128M
+    ports:
+      - "6379:6379"
+    networks:
+      - familybudget-e2e
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "test_redis_password", "--no-auth-warning", "ping"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+
+  # Backend Application (FastAPI + HTMX)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: familybudget-backend:test
+    container_name: e2e-familybudget-backend
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://familybudget_test:test_password_123@postgres:5432/familybudget_test
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: familybudget_test
+      DB_USER: familybudget_test
+      DB_PASSWORD: test_password_123
+
+      # Application
+      APP_ENV: test
+      DEBUG: "true"
+      VERSION: ${VERSION:-11.0.1}
+      PYTHONDONTWRITEBYTECODE: 1
+      TEST_MODE: "true"  # Enable test mode (seed test user, disable certain checks)
+
+      # Security (test credentials)
+      JWT_SECRET: test_jwt_secret_key_for_e2e_tests_only
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_DAYS: 7
+      API_INTERNAL_KEY: test_api_internal_key_for_e2e_tests_only
+
+      # Test user credentials (seeded on startup)
+      TEST_USER_EMAIL: ${TEST_USER_EMAIL:-test@example.com}
+      TEST_USER_PASSWORD: ${TEST_USER_PASSWORD:-testpass123}
+
+      # Telegram (dummy values for tests)
+      TELEGRAM_BOT_TOKEN: "1234567890:ABCDefGhIJKlmNOPQrsTUVwxyZ"
+      TELEGRAM_BOT_USERNAME: test_bot
+      TELEGRAM_WEBHOOK_URL: ""
+
+      # Admin (test admin)
+      ADMIN_TELEGRAM_ID: "123456789"
+      ADMIN_EMAIL: admin@test.local
+      ADMIN_PASSWORD: admin_test_password
+
+      # CORS (allow localhost)
+      CORS_ORIGINS: '["http://localhost","http://localhost:80","http://127.0.0.1"]'
+
+      # Domain
+      DOMAIN: localhost
+
+      # Logging
+      LOG_LEVEL: debug
+      LOG_FORMAT: json
+
+      # Timezone
+      TZ: UTC
+      SYSTEM_TIMEZONE: UTC
+
+      # Performance (single worker for tests)
+      WORKERS: 1
+      MAX_CONNECTIONS: 50
+
+      # Redis (Caching & WebSocket Sync)
+      REDIS_URL: redis://:test_redis_password@redis:6379/0
+      REDIS_CACHE_TTL_DEFAULT: 60
+      REDIS_CACHE_TTL_REFERENCE: 300
+      REDIS_CACHE_TTL_DASHBOARD: 30
+      WRITE_BEHIND_ENABLED: "false"
+
+      # Push Notifications (dummy VAPID keys for tests)
+      VAPID_PUBLIC_KEY: "BMXt1YbGE9nRbPPwF7z8w6lQvKj9x2Y3nZ8mL4pQ5rT6sU7vW8xY9zA1bC2dE3fF4"
+      VAPID_PRIVATE_KEY: "gHiJ5kL6mN7oP8qR9sT0uV1wX2yZ3aB4cD5eF6gH7iJ8"
+      VAPID_CONTACT_EMAIL: admin@test.local
+
+      # WebAuthn (test configuration)
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_RP_NAME: "Family Budget E2E Tests"
+      WEBAUTHN_ORIGIN: http://localhost
+
+    ports:
+      - "8000:8000"
+    networks:
+      - familybudget-e2e
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    command: >
+      uvicorn backend.app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 1
+      --ws-per-message-deflate false
+      --log-level debug
+      --access-log
+      --proxy-headers
+      --forwarded-allow-ips='*'
+
+  # Nginx Reverse Proxy (HTTP only, no SSL)
+  nginx:
+    image: ghcr.io/ikeniborn/familybudget-nginx:${NGINX_VERSION:-latest}
+    container_name: e2e-familybudget-nginx
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - DOMAIN=localhost
+      - E2E_MODE=true  # Disable SSL, use HTTP only
+    ports:
+      - "80:80"
+    networks:
+      - familybudget-e2e
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+networks:
+  familybudget-e2e:
+    driver: bridge

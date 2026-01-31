@@ -29,8 +29,9 @@ export default defineConfig({
   /* Shared settings for all the projects below. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    /* Default: production URL (aligns with project policy: no local services) */
-    baseURL: process.env.BASE_URL || 'https://fbd.ikeniborn.ru',
+    /* E2E tests run against local Docker environment in GitHub Actions */
+    /* For local testing: docker compose -f docker-compose.e2e.yml up -d */
+    baseURL: 'http://localhost',
 
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',

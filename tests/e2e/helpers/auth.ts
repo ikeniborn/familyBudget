@@ -16,7 +16,9 @@ function loadTestEnv(): { email: string; password: string; baseUrl: string } {
 
   let email = process.env.TEST_USER_EMAIL;
   let password = process.env.TEST_USER_PASSWORD;
-  let baseUrl = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
+  // E2E tests run against local Docker environment (http://localhost)
+  // Configured in playwright.config.ts baseURL
+  let baseUrl = process.env.BASE_URL || 'http://localhost';
 
   // In local development, try loading from .env.test file
   if (!isCI && (!email || !password)) {
@@ -45,7 +47,7 @@ function loadTestEnv(): { email: string; password: string; baseUrl: string } {
 
     email = email || env.TEST_USER_EMAIL;
     password = password || env.TEST_USER_PASSWORD;
-    baseUrl = baseUrl || env.BASE_URL || 'https://fbd.ikeniborn.ru';
+    baseUrl = baseUrl || env.BASE_URL || 'http://localhost';
   }
 
   if (!email || !password) {

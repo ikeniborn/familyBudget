@@ -15,7 +15,7 @@
 import { test, expect } from '@playwright/test';
 
 // Test URLs
-const BASE_URL = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
+// BASE_URL now uses baseURL from playwright.config.ts (http://localhost for E2E tests)
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -27,7 +27,7 @@ const VIEWPORTS = {
 test.describe('Visual Regression - Homepage', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     // Use domcontentloaded instead of networkidle to avoid timeout issues
     await page.waitForLoadState('domcontentloaded');
 
@@ -88,7 +88,7 @@ test.describe('Visual Regression - Homepage', () => {
 
 test.describe('Visual Regression - Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     await page.waitForLoadState('networkidle');
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
@@ -148,7 +148,7 @@ test.describe('Visual Regression - Navigation', () => {
 
 test.describe('Visual Regression - Modals', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     await page.waitForLoadState('networkidle');
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
@@ -204,7 +204,7 @@ test.describe('Visual Regression - Modals', () => {
 
 test.describe('Visual Regression - Statistics', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     await page.waitForLoadState('networkidle');
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
