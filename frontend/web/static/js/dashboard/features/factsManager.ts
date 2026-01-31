@@ -89,8 +89,8 @@ class DashboardFactsManager {
   async loadRecentFacts(limit: number = 10): Promise<RecentFact[]> {
     const startTime = performance.now();
 
-    // Try PGlite first
-    const { db } = getState();
+    // Try Dexie first
+    const { db } = await getState();
     if (isDexieActive() && db) {
       try {
         const cutoffDate = new Date();
@@ -155,7 +155,7 @@ class DashboardFactsManager {
   async calculateQuickStats(): Promise<QuickStats> {
     const startTime = performance.now();
 
-    const { db } = getState();
+    const { db } = await getState();
     if (isDexieActive() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];
@@ -240,7 +240,7 @@ class DashboardFactsManager {
   async loadAccountBalances(): Promise<AccountBalance[]> {
     const startTime = performance.now();
 
-    const { db } = getState();
+    const { db } = await getState();
     if (isDexieActive() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];

@@ -4,6 +4,7 @@
  */
 
 // Core
+import type { DexieManager as DexieManagerType } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
 export { db, toCents, fromCents } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
@@ -28,7 +29,7 @@ export function setDexieActive(active: boolean): void {
  * Get Dexie state (compatibility wrapper)
  * Возвращает DexieManager для backward compatibility с PGlite кодом
  */
-export async function getState(): Promise<{ db: DexieManager | null }> {
+export async function getState(): Promise<{ db: DexieManagerType | null }> {
   if (!isDexieActive()) {
     return { db: null };
   }

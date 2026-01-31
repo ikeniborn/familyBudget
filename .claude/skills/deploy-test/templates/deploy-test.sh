@@ -61,6 +61,10 @@ SKIP_LOCAL_VALIDATION=false # Пропустить предварительну�
 NO_AUTO_COMMIT=false        # Не коммитить исправления автоматически
 ROLLBACK_ON_FAIL=false      # Откатить на предыдущую версию при ошибке
 
+# Флаги v9.2.0 (GitHub Actions мониторинг)
+WAIT_FOR_BUILD=false        # Ожидать завершения GitHub Actions
+BUILD_TIMEOUT=30            # Timeout для GitHub Actions (минуты)
+
 # Парсинг аргументов
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -110,6 +114,18 @@ while [[ $# -gt 0 ]]; do
             ROLLBACK_ON_FAIL=true
             shift
             ;;
+        --wait-for-build)
+            WAIT_FOR_BUILD=true
+            shift
+            ;;
+        --build-timeout)
+            BUILD_TIMEOUT="$2"
+            shift 2
+            ;;
+        --skip-build-check)
+            WAIT_FOR_BUILD=false
+            shift
+            ;;
         *)
             echo "Unknown option: $1"
             echo "Usage: $0 [OPTIONS]"
@@ -125,6 +141,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --skip-local-validation Пропустить предварительную проверку кода"
             echo "  --no-auto-commit        Не коммитить исправления автоматически"
             echo "  --rollback-on-fail      Откатить на предыдущую версию при ошибке"
+            echo "  --wait-for-build        Ожидать завершения GitHub Actions (default: false)"
+            echo "  --build-timeout N       Timeout для GitHub Actions (default: 30 min)"
+            echo "  --skip-build-check      Пропустить проверку GitHub Actions"
             exit 1
             ;;
     esac
@@ -480,6 +499,232 @@ fix_issues() {
     esac
 }
 
+# =========================================
+# GitHub Actions Monitoring (v9.2.0)
+# =========================================
+
+# Проверка наличия и аутентификации GitHub CLI
+check_github_cli() {
+    if ! command -v gh &> /dev/null; then
+        return 1
+    fi
+
+    # Проверка аутентификации
+    if ! gh auth status &> /dev/null; then
+        return 1
+    fi
+
+    return 0
+}
+
+# Получить последний workflow run для указанной ветки
+# Аргументы:
+#   $1 - branch name (default: "test")
+# Возвращает:
+#   0 - Run найден
+#   1 - Ошибка API
+#   2 - Run не найден
+get_latest_workflow_run() {
+    local branch="${1:-test}"
+    local workflow="build-and-push.yml"
+
+    log INFO "Поиск последнего workflow run для ветки: ${branch}..."
+
+    # Запрос к GitHub API через gh CLI
+    local run_json=""
+    run_json=$(gh run list \
+        --workflow="${workflow}" \
+        --branch="${branch}" \
+        --limit 1 \
+        --json databaseId,status,conclusion,headSha,createdAt 2>&1)
+
+    local exit_code=$?
+
+    if [[ $exit_code -ne 0 ]]; then
+        log ERROR "Ошибка при запросе к GitHub API:"
+        echo "${run_json}" | tee -a "${LOG_FILE}"
+        return 1
+    fi
+
+    # Проверка что массив не пустой
+    local run_count=$(echo "${run_json}" | jq '. | length' 2>/dev/null || echo "0")
+
+    if [[ "${run_count}" -eq 0 ]]; then
+        log WARNING "Workflow run не найден для ветки ${branch}"
+        log INFO "Возможно GitHub Actions еще не запустился"
+        return 2
+    fi
+
+    # Извлечь данные первого (последнего) run
+    local run_id=$(echo "${run_json}" | jq -r '.[0].databaseId' 2>/dev/null)
+    local status=$(echo "${run_json}" | jq -r '.[0].status' 2>/dev/null)
+    local conclusion=$(echo "${run_json}" | jq -r '.[0].conclusion' 2>/dev/null)
+
+    log INFO "Run ID: ${run_id}"
+    log INFO "Status: ${status}"
+    if [[ "${conclusion}" != "null" ]]; then
+        log INFO "Conclusion: ${conclusion}"
+    fi
+
+    # Экспорт переменных для использования в wait_for_github_actions
+    export GH_RUN_ID="${run_id}"
+    export GH_RUN_STATUS="${status}"
+    export GH_RUN_CONCLUSION="${conclusion}"
+
+    return 0
+}
+
+# Интерактивное подтверждение (fallback если gh CLI недоступен)
+ask_user_confirmation() {
+    log WARNING "========================================="
+    log WARNING "GitHub CLI (gh) не установлен или не аутентифицирован"
+    log WARNING "========================================="
+    log WARNING "Автоматический мониторинг GitHub Actions недоступен."
+    echo ""
+    log INFO "Проверьте статус GitHub Actions вручную:"
+    log INFO "  https://github.com/ikeniborn/familyBudget/actions"
+    echo ""
+
+    # Non-interactive mode (stdin not terminal)
+    if [[ ! -t 0 ]]; then
+        log WARNING "Non-interactive mode: отказ от деплоя без проверки CI/CD"
+        return 1
+    fi
+
+    # Interactive confirmation
+    read -p "${YELLOW}GitHub Actions build status cannot be verified automatically. Продолжить деплой без проверки CI/CD? [y/N]: ${NC}" -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log WARNING "Пользователь подтвердил деплой без проверки CI/CD"
+        return 0
+    else
+        log INFO "Деплой отменен пользователем"
+        return 1
+    fi
+}
+
+# Ожидание завершения GitHub Actions build
+# Аргументы:
+#   $1 - branch name (default: "test")
+#   $2 - timeout_minutes (default: 30)
+# Возвращает:
+#   0 - Build успешно завершен
+#   1 - Build failed или timeout
+wait_for_github_actions() {
+    local branch="${1:-test}"
+    local timeout_minutes="${2:-30}"
+    local timeout_seconds=$((timeout_minutes * 60))
+    local polling_interval=15  # секунды
+    local elapsed=0
+
+    log INFO "========================================="
+    log INFO "Мониторинг GitHub Actions build"
+    log INFO "========================================="
+    log INFO "Workflow: build-and-push.yml"
+    log INFO "Branch:   ${branch}"
+    log INFO "Timeout:  ${timeout_minutes} минут"
+    echo ""
+
+    # Проверка gh CLI
+    if ! check_github_cli; then
+        log WARNING "GitHub CLI недоступен, переход на ручное подтверждение..."
+        if ask_user_confirmation; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+
+    # Получить последний workflow run
+    if ! get_latest_workflow_run "${branch}"; then
+        local exit_code=$?
+        if [[ $exit_code -eq 2 ]]; then
+            # Run не найден, fallback на ручное подтверждение
+            log WARNING "Workflow run не найден, переход на ручное подтверждение..."
+            if ask_user_confirmation; then
+                return 0
+            else
+                return 1
+            fi
+        else
+            # API error
+            log ERROR "Ошибка при получении workflow run"
+            return 1
+        fi
+    fi
+
+    local run_id="${GH_RUN_ID}"
+    local status="${GH_RUN_STATUS}"
+    local conclusion="${GH_RUN_CONCLUSION}"
+
+    log INFO "Отслеживать прогресс: https://github.com/ikeniborn/familyBudget/actions/runs/${run_id}"
+    echo ""
+
+    # Если run уже завершен
+    if [[ "${status}" == "completed" ]]; then
+        if [[ "${conclusion}" == "success" ]]; then
+            log SUCCESS "✅ GitHub Actions build уже завершен успешно"
+            return 0
+        else
+            log ERROR "❌ GitHub Actions build завершился с ошибкой: ${conclusion}"
+            log ERROR "Проверьте логи: https://github.com/ikeniborn/familyBudget/actions/runs/${run_id}"
+            return 1
+        fi
+    fi
+
+    # Polling loop
+    log INFO "Ожидание завершения GitHub Actions build..."
+
+    while [[ $elapsed -lt $timeout_seconds ]]; do
+        # Получить текущий статус
+        local run_json=""
+        run_json=$(gh run view "${run_id}" --json status,conclusion 2>&1)
+        local exit_code=$?
+
+        if [[ $exit_code -ne 0 ]]; then
+            log WARNING "Ошибка при проверке статуса run ${run_id}"
+            sleep $polling_interval
+            elapsed=$((elapsed + polling_interval))
+            continue
+        fi
+
+        status=$(echo "${run_json}" | jq -r '.status' 2>/dev/null)
+        conclusion=$(echo "${run_json}" | jq -r '.conclusion' 2>/dev/null)
+
+        # Форматировать elapsed time
+        local elapsed_min=$((elapsed / 60))
+        local elapsed_sec=$((elapsed % 60))
+
+        log INFO "Прогресс: ${elapsed_min}m ${elapsed_sec}s | Status: ${status}"
+
+        # Проверка завершения
+        if [[ "${status}" == "completed" ]]; then
+            if [[ "${conclusion}" == "success" ]]; then
+                log SUCCESS "✅ GitHub Actions build успешно завершен (${elapsed_min}m ${elapsed_sec}s)"
+                return 0
+            else
+                log ERROR "❌ GitHub Actions build завершился с ошибкой: ${conclusion}"
+                log ERROR "Проверьте логи: https://github.com/ikeniborn/familyBudget/actions/runs/${run_id}"
+                return 1
+            fi
+        fi
+
+        # Ожидание
+        sleep $polling_interval
+        elapsed=$((elapsed + polling_interval))
+    done
+
+    # Timeout
+    log ERROR "❌ Timeout: GitHub Actions build не завершился за ${timeout_minutes} минут"
+    log ERROR "Проверьте статус вручную: https://github.com/ikeniborn/familyBudget/actions/runs/${run_id}"
+    return 1
+}
+
+# =========================================
+# Pre-deployment Validation (v2.0.0)
+# =========================================
+
 # Функция предварительной проверки локального кода (v2.0.0)
 validate_local_code() {
     log INFO "========================================="
@@ -737,15 +982,26 @@ run_deploy() {
     return 0
 }
 
-# Главная функция v2.0.0
+# Главная функция v9.2.0
 main() {
     log INFO "========================================="
-    log INFO "Deploy-test v2.0.0 с автоматическим восстановлением"
+    log INFO "Deploy-test v9.2.0"
     log INFO "Сервер: ${SSH_HOST}"
     log INFO "Ветка: ${GIT_BRANCH}"
     log INFO "Макс. попыток: ${MAX_RETRY_ATTEMPTS}"
+    log INFO "GitHub Actions мониторинг: $(if [[ "${WAIT_FOR_BUILD}" == "true" ]]; then echo "enabled"; else echo "disabled"; fi)"
     log INFO "Лог файл: ${LOG_FILE}"
     log INFO "========================================="
+
+    # Шаг 0.5: Мониторинг GitHub Actions (ПЕРЕД SSH подключением!) (v9.2.0+)
+    if [[ "$WAIT_FOR_BUILD" == "true" ]]; then
+        if ! wait_for_github_actions "$GIT_BRANCH" "$BUILD_TIMEOUT"; then
+            log ERROR "Деплой прерван: GitHub Actions build не завершился успешно"
+            generate_summary "FAILED" 0
+            exit 1
+        fi
+        echo ""
+    fi
 
     # Шаг 1: Проверка SSH подключения
     if ! check_ssh_connection; then

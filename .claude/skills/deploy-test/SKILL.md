@@ -1,18 +1,19 @@
 ---
 name: deploy-test
-description: Автоматизированный деплой на тестовый сервер budget-test с registry-first архитектурой (рекомендуется pull из ghcr.io, fallback на local build)
-version: 9.1.3
+description: Автоматизированный деплой на тестовый сервер budget-test с registry-first архитектурой и интеграцией GitHub Actions мониторинга
+version: 9.2.0
 author: Family Budget Team
-tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-first, toon-optimized, hybrid-build]
+tags: [deployment, automation, testing, ssh, budget-test, auto-recovery, error-handling, ci-cd, registry, registry-first, toon-optimized, github-actions]
 dependencies: [monitoring]
 context: fork
 user-invocable: true
 ---
 
-# Deploy Test Automation Skill v9.1.2
+# Deploy Test Automation Skill v9.2.0
 
 Автоматизирует весь процесс деплоя на тестовый сервер budget-test с:
 - ✅ **Registry-Only Architecture** - все сборки в GitHub Actions CI/CD (v9.0+)
+- ✅ **GitHub Actions Integration** - автоматический мониторинг завершения build (v9.2.0+)
 - ✅ **TOON Optimization** - экономия 464 токенов (44.9%) при обработке ошибок (v9.1+)
 - ✅ Автоматическим обнаружением и классификацией ошибок
 - ✅ Локальным исправлением кода (TypeScript, Python, npm)
@@ -52,19 +53,28 @@ user-invocable: true
    git push origin test
    ```
 
-2. **GitHub Actions CI/CD** (~5 минут):
-   - Собирает ALL 5 Docker images с embedded frontend
-   - Тегирует образы semver тегом из VERSION (10.0.50)
-   - Пушит в ghcr.io/ikeniborn/familybudget-*:10.0.50
+2. **GitHub Actions CI/CD** (~15-30 минут):
+   - Автоматический build triggered by push
+   - Сборка 5 Docker images с embedded frontend
+   - Push в ghcr.io/ikeniborn/familybudget-*:10.0.50
+   - Security scan + quality checks
 
-3. **Deployment на сервере:**
+3. **[НОВЫЙ ШАГ] Мониторинг завершения GitHub Actions** (рекомендуется):
    ```bash
-   ssh budget-test "cd ~/familyBudget && sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart"
-   # → Читает VERSION file → 10.0.50
-   # → Пулит 5 images из ghcr.io
-   # → docker compose up -d
-   # → Auto-cleanup старых images (7 days)
+   # Автоматический (рекомендуется)
+   bash deploy-test.sh --wait-for-build
+
+   # Или вручную: https://github.com/ikeniborn/familyBudget/actions
+   # Дождаться зеленого статуса ✅ для последнего run
    ```
+
+4. **Deployment на сервере** (автоматический):
+   - SSH подключение к budget-test
+   - Git pull в ~/familyBudget
+   - Pull Docker images из ghcr.io
+   - docker compose up -d
+   - Migrations + health checks
+   - Auto-cleanup старых образов (>7 дней)
 
 **ВАЖНО:**
 - ✅ Навык deploy-test НЕ меняет VERSION автоматически (manual control)
@@ -137,6 +147,80 @@ sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
 - ✅ GitHub Actions build MUST complete successfully
 - ✅ Images MUST exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}
 - ✅ VERSION file MUST exist in /opt/budget/
+
+## GitHub Actions Monitoring (v9.2.0+)
+
+**Automatic monitoring (recommended):**
+
+```bash
+# Автоматическое ожидание завершения GitHub Actions
+bash deploy-test.sh --wait-for-build
+
+# Кастомный timeout (default: 30 min)
+bash deploy-test.sh --wait-for-build --build-timeout 45
+```
+
+**Что происходит:**
+1. [ЛОКАЛЬНО] Проверка gh CLI и аутентификации
+2. [ЛОКАЛЬНО] Поиск последнего workflow run для ветки test
+3. [ЛОКАЛЬНО] Polling каждые 15s с timeout защитой
+4. Если успешен: продолжить деплой (SSH → git pull → deploy)
+5. Если failed: abort с ссылкой на логи
+
+**ВАЖНО:** Мониторинг происходит ДО подключения к серверу!
+
+**Requirements:**
+- GitHub CLI v2.0+ (`brew install gh` / `sudo apt install gh`)
+- GitHub auth: `gh auth login`
+- GitHub token с read permissions
+
+**Manual monitoring (fallback):**
+
+Если `gh` CLI недоступен:
+1. Откройте https://github.com/ikeniborn/familyBudget/actions
+2. Проверьте статус последнего workflow run для ветки test
+3. Дождитесь зеленого ✅ статуса
+4. Запустите deploy-test БЕЗ флага --wait-for-build
+
+**Polling behavior:**
+- Interval: 15 секунд между проверками
+- Timeout: 30 минут (configurable via `--build-timeout`)
+- Status display: `Прогресс: 2m 15s | Status: in_progress`
+- Auto-abort on failure: Деплой немедленно останавливается если build fails
+
+**Exit scenarios:**
+- ✅ `completed:success` → Продолжить деплой
+- ❌ `completed:failure` → Abort с ссылкой на GitHub Actions logs
+- ❌ `completed:cancelled` → Abort (build cancelled by user)
+- ⏱️ Timeout → Abort после 30 минут (configurable)
+
+**Non-interactive mode:**
+- Stdin не является терминалом → auto-decline без подтверждения
+- Используется для CI/CD pipelines где ручное подтверждение невозможно
+- Деплой прерывается если gh CLI недоступен
+
+**Example output:**
+```
+=========================================
+Мониторинг GitHub Actions build
+=========================================
+Workflow: build-and-push.yml
+Branch:   test
+Timeout:  30 минут
+
+Run ID: 12345678
+Status: in_progress
+
+Ожидание завершения GitHub Actions build...
+Отслеживать прогресс: https://github.com/ikeniborn/familyBudget/actions/runs/12345678
+
+Прогресс: 2m 15s | Status: in_progress
+Прогресс: 2m 30s | Status: in_progress
+...
+Прогресс: 8m 45s | Status: completed
+
+✅ GitHub Actions build успешно завершен (8m 45s)
+```
 
 ## TOON Optimization (v9.1+)
 
@@ -654,59 +738,78 @@ logs/deploy-test/
 
 ## Примеры использования
 
-### Пример 1: Простой деплой
+### Пример 1: Рекомендуемый workflow с мониторингом CI/CD
+
 ```
 Пользователь: "Задеплой на тестовый сервер"
 
 Claude:
-1. Проверяю SSH подключение... ✅
-2. Выполняю git pull... ✅
-3. Запускаю deploy.sh... ✅
-4. Анализирую логи... ✅
-5. Проверяю контейнеры... ✅
-6. Проверяю процессы... ✅
+1. Проверяю что VERSION обновлена... ✅
+2. Мониторинг GitHub Actions build...
+   - Run ID: 12345678
+   - Status: in_progress
+   - Прогресс: 5m 30s | Status: in_progress
+   - Прогресс: 8m 45s | Status: completed
+   ✅ GitHub Actions build успешно завершен (8m 45s)
+
+3. Проверяю SSH подключение... ✅
+4. Выполняю git pull... ✅
+5. Подтверждаю версии деплоя... ✅
+6. Запускаю deploy.sh --use-registry... ✅
+7. Проверяю контейнеры... ✅
 
 ✅ Деплой завершен успешно! Все сервисы работают корректно.
 ```
 
-### Пример 2: Деплой с ошибкой и исправлением
+### Пример 2: Деплой без мониторинга (текущее поведение)
+
 ```
 Пользователь: "Обновить код на budget-test"
 
 Claude:
 1. Проверяю SSH подключение... ✅
 2. Выполняю git pull... ✅
-3. Запускаю deploy.sh... ✅
-4. Анализирую логи... ⚠️ Обнаружена ошибка
-5. Проверяю контейнеры... ❌ Backend unhealthy
+3. Подтверждаю версии деплоя... ✅
+4. Запускаю deploy.sh --use-registry... ✅
 
-❌ Проблема: Backend container unhealthy
-   Причина: Database connection refused
-
-🔧 Исправляю автоматически:
-   - Перезапускаю PostgreSQL... ✅
-   - Перезапускаю Backend... ✅
-   - Проверяю health... ✅
-
-✅ Проблема исправлена! Все сервисы работают.
+✅ Деплой завершен успешно!
 ```
 
-### Пример 3: Множественные проблемы
+### Пример 3: gh CLI недоступен - fallback на manual confirmation
+
 ```
-Пользователь: "Сделай деплой на test"
+Пользователь: "Задеплой с --wait-for-build"
 
 Claude:
+⚠️ GitHub CLI (gh) не установлен или не аутентифицирован
+Автоматический мониторинг GitHub Actions недоступен.
+
+GitHub Actions build status cannot be verified automatically.
+Продолжить деплой без проверки CI/CD? [y/N]
+
+Пользователь: y
+
 1. Проверяю SSH подключение... ✅
-2. Выполняю git pull... ❌ Конфликт
+2. Выполняю git pull... ✅
+...
+```
 
-⚠️ Обнаружен конфликт в файле: backend/app/config.py
+### Пример 4: Build failed - деплой прерван
 
-Предлагаю решения:
-1. Stash изменения на сервере (рекомендую)
-2. Hard reset (удалит локальные изменения)
-3. Разрешить вручную
+```
+Пользователь: "Задеплой с мониторингом"
 
-Выбери вариант или я использую вариант 1?
+Claude:
+1. Мониторинг GitHub Actions build...
+   - Run ID: 12345679
+   - Status: in_progress
+   - Прогресс: 3m 20s | Status: in_progress
+   - Прогресс: 5m 15s | Status: completed
+
+❌ GitHub Actions build завершился с ошибкой: failure
+Проверьте логи: https://github.com/ikeniborn/familyBudget/actions/runs/12345679
+
+❌ Деплой прерван: GitHub Actions build не завершился успешно
 ```
 
 ## Best Practices

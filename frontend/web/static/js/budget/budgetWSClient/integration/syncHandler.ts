@@ -3,7 +3,7 @@
  * Handles initial sync from backend to PGlite
  */
 
-import { getDexieManager } from '@db/dexie';
+import { getDexieManager, getPGliteFeatureFlags } from '@db/dexie';
 import type { SyncInitialResponse, SyncIncrementalResponse } from '../types/events';
 
 // Type declaration for global debugLog
@@ -72,19 +72,22 @@ export async function handleSyncInitial(data: SyncInitialResponse['data']): Prom
     await pglite.bulkInsertHierarchy(data.hierarchy, onProgress);
 
     // Update sync metadata
-    await pglite.updateSyncMetadata('articles', {
+    await pglite.updateSyncMetadata({
+      entity_type: 'articles',
       last_sync_timestamp: new Date(),
       sync_version: 1,
       total_records: data.articles.length
     });
 
-    await pglite.updateSyncMetadata('financial_centers', {
+    await pglite.updateSyncMetadata({
+      entity_type: 'financial_centers',
       last_sync_timestamp: new Date(),
       sync_version: 1,
       total_records: data.financial_centers.length
     });
 
-    await pglite.updateSyncMetadata('cost_centers', {
+    await pglite.updateSyncMetadata({
+      entity_type: 'cost_centers',
       last_sync_timestamp: new Date(),
       sync_version: 1,
       total_records: data.cost_centers.length
@@ -154,6 +157,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     // Convert date strings to Date objects and add sync fields
     const created = data.created.map(f => ({
       ...f,
+      temp_id: f.id?.toString() || '', // Server facts use id as temp_id
       sync_status: 'synced' as const,  // Server facts are always synced
       synced_at: new Date(),             // Current time
       created_at: new Date(f.created_at),
@@ -162,6 +166,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
 
     const updated = data.updated.map(f => ({
       ...f,
+      temp_id: f.id?.toString() || '', // Server facts use id as temp_id
       sync_status: 'synced' as const,
       synced_at: new Date(),
       created_at: new Date(f.created_at),
@@ -178,11 +183,13 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     }
 
     if (data.deleted.length > 0) {
-      await pglite.bulkSoftDeleteFacts(data.deleted);
+      // Convert server IDs to temp_ids (TODO: server should send temp_ids instead)
+      await pglite.bulkSoftDeleteFacts(data.deleted.map(String));
     }
 
     // Update sync metadata with new timestamp
-    await pglite.updateSyncMetadata('budget_facts', {
+    await pglite.updateSyncMetadata({
+      entity_type: 'budget_facts',
       last_sync_timestamp: new Date(data.sync_timestamp),
       sync_version: 1,
       total_records: created.length + updated.length // Approximate

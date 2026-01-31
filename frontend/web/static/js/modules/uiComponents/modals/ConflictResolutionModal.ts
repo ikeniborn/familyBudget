@@ -15,7 +15,7 @@ import type {
   ResolutionStrategy,
   FieldDiff,
   FieldValue,
-} from '../../../../../../shared/db/pglite/types/conflicts';
+} from '../../../../../../shared/db/dexie/types/conflicts';
 
 /**
  * Props for ConflictResolutionModal

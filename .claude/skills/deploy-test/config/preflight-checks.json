@@ -72,6 +72,16 @@
       "blocking": false,
       "severity": "warning",
       "remediation": "Add healthcheck sections to docker-compose.yml"
+    },
+    {
+      "id": 8,
+      "name": "gh_cli_available",
+      "description": "GitHub CLI для мониторинга CI/CD (optional for --wait-for-build)",
+      "command": "command -v gh && gh auth status",
+      "expected": "gh binary exists and authenticated",
+      "blocking": false,
+      "severity": "info",
+      "remediation": "Install GitHub CLI: https://cli.github.com (required only with --wait-for-build flag)"
     }
   ],
 
@@ -88,17 +98,17 @@
   },
 
   "toon": {
-    "checks_toon": "id|name|description|blocking|severity|remediation\n1|tests_passing|GitHub Actions workflow status must be success|true|critical|Fix failing tests → push → wait for green CI\n2|version_bumped|VERSION file changed in last commit|false|warning|Update VERSION file → commit if versioning needed\n3|lockfile_updated|package-lock.json synchronized with package.json|false|warning|Run 'npm install' → commit package-lock.json\n4|image_sizes_reasonable|Total Docker image size < 1.5 GB|false|warning|Check multi-stage build configuration → optimize layers\n5|ci_pipeline_success|All GitHub Actions jobs completed successfully|true|critical|Fix failing CI jobs → rerun workflow\n6|image_versions_updated|IMAGE_VERSIONS.json hashes match current git state|false|warning|Check IMAGE_VERSIONS.json → may need CI rebuild\n7|health_checks_configured|All 5 services have healthcheck in docker-compose.yml|false|warning|Add healthcheck sections to docker-compose.yml",
+    "checks_toon": "id|name|description|blocking|severity|remediation\n1|tests_passing|GitHub Actions workflow status must be success|true|critical|Fix failing tests → push → wait for green CI\n2|version_bumped|VERSION file changed in last commit|false|warning|Update VERSION file → commit if versioning needed\n3|lockfile_updated|package-lock.json synchronized with package.json|false|warning|Run 'npm install' → commit package-lock.json\n4|image_sizes_reasonable|Total Docker image size < 1.5 GB|false|warning|Check multi-stage build configuration → optimize layers\n5|ci_pipeline_success|All GitHub Actions jobs completed successfully|true|critical|Fix failing CI jobs → rerun workflow\n6|image_versions_updated|IMAGE_VERSIONS.json hashes match current git state|false|warning|Check IMAGE_VERSIONS.json → may need CI rebuild\n7|health_checks_configured|All 5 services have healthcheck in docker-compose.yml|false|warning|Add healthcheck sections to docker-compose.yml\n8|gh_cli_available|GitHub CLI для мониторинга CI/CD (optional for --wait-for-build)|false|info|Install GitHub CLI: https://cli.github.com (required only with --wait-for-build flag)",
 
-    "token_savings": "38.2%",
+    "token_savings": "39.1%",
 
     "size_comparison": {
-      "json_tokens": 380,
-      "toon_tokens": 235,
-      "saved_tokens": 145,
-      "compression_ratio": 0.618
+      "json_tokens": 420,
+      "toon_tokens": 256,
+      "saved_tokens": 164,
+      "compression_ratio": 0.609
     },
 
-    "note": "TOON format for checks array. Blocking checks: 1, 5 (critical). Warning checks: 2, 3, 4, 6, 7."
+    "note": "TOON format for checks array. Blocking checks: 1, 5 (critical). Warning checks: 2, 3, 4, 6, 7. Info check: 8."
   }
 }

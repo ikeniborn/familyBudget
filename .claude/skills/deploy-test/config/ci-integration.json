@@ -1,11 +1,14 @@
 {
   "_description": "CI/CD Integration configuration for GitHub Actions",
-  "_version": "1.0.0",
+  "_version": "9.2.0",
 
   "github_actions": {
     "workflow_name": "build-and-push.yml",
     "workflow_path": ".github/workflows/build-and-push.yml",
     "branch": "test",
+    "default_branch": "test",
+    "default_timeout_minutes": 30,
+    "polling_interval_seconds": 15,
     "required_jobs": [
       "check-version",
       "sync-version",
@@ -19,7 +22,35 @@
       "quality-checks",
       "image-build-push"
     ],
-    "status_check_command": "gh run list --workflow=build-and-push.yml --limit 1 --json conclusion,status,headBranch"
+    "status_check_command": "gh run list --workflow=build-and-push.yml --branch={branch} --limit 1 --json databaseId,status,conclusion,headSha,createdAt"
+  },
+
+  "monitoring": {
+    "enabled_by_default": false,
+    "require_gh_cli": true,
+    "fallback_to_manual": true,
+    "auto_abort_on_build_failure": true
+  },
+
+  "timeout_thresholds": {
+    "warning_threshold_minutes": 20,
+    "critical_threshold_minutes": 25,
+    "max_timeout_minutes": 30
+  },
+
+  "status_mapping": {
+    "completed_success": ["completed:success"],
+    "completed_failure": ["completed:failure", "completed:cancelled", "completed:skipped"],
+    "in_progress": ["queued", "in_progress", "waiting"],
+    "unknown": ["requested"]
+  },
+
+  "error_messages": {
+    "gh_cli_missing": "GitHub CLI (gh) не установлен или не аутентифицирован. Автоматический мониторинг GitHub Actions недоступен.",
+    "no_workflow_run": "Workflow run не найден для ветки {branch}. Возможно GitHub Actions еще не запустился.",
+    "build_failed": "GitHub Actions build завершился с ошибкой: {conclusion}",
+    "build_timeout": "Timeout: GitHub Actions build не завершился за {timeout} минут",
+    "api_error": "Ошибка при запросе к GitHub API: {error}"
   },
 
   "registry": {
