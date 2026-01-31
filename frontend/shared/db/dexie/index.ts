@@ -24,6 +24,37 @@ export function setDexieActive(active: boolean): void {
   localStorage.setItem('dexieActive', active ? 'true' : 'false');
 }
 
+/**
+ * Get Dexie state (compatibility wrapper)
+ * Возвращает DexieManager для backward compatibility с PGlite кодом
+ */
+export async function getState(): Promise<{ db: DexieManager | null }> {
+  if (!isDexieActive()) {
+    return { db: null };
+  }
+
+  const manager = getDexieManager();
+  await manager.init();
+  return { db: manager };
+}
+
+/**
+ * Get Dexie feature flags (compatibility wrapper)
+ * Возвращает настройки для backward compatibility с PGlite кодом
+ */
+export function getDexieFeatureFlags(): {
+  autoSyncInterval: number;
+  enabled: boolean;
+} {
+  return {
+    autoSyncInterval: 30000, // 30 seconds
+    enabled: isDexieActive()
+  };
+}
+
+// Alias for backward compatibility
+export const getPGliteFeatureFlags = getDexieFeatureFlags;
+
 // Operations
 export * from './operations/schemaOperations';
 export * from './operations/factOperations';

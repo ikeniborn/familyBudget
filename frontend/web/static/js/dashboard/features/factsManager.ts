@@ -11,7 +11,7 @@
  * @module dashboard/features/factsManager
  */
 
-import { getState, isPGliteEnabled } from '@db/pglite';
+import { getState, isDexieActive } from '@db/dexie';
 import { performanceMonitor } from '../../monitoring/PerformanceMonitor';
 import type { QuickStats, AccountBalance, RecentFact } from '../types/analytics';
 
@@ -91,7 +91,7 @@ class DashboardFactsManager {
 
     // Try PGlite first
     const { db } = getState();
-    if (isPGliteEnabled() && db) {
+    if (isDexieActive() && db) {
       try {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 days ago
@@ -156,7 +156,7 @@ class DashboardFactsManager {
     const startTime = performance.now();
 
     const { db } = getState();
-    if (isPGliteEnabled() && db) {
+    if (isDexieActive() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];
         const monthStart = this.getMonthStart();
@@ -241,7 +241,7 @@ class DashboardFactsManager {
     const startTime = performance.now();
 
     const { db } = getState();
-    if (isPGliteEnabled() && db) {
+    if (isDexieActive() && db) {
       try {
         const today = new Date().toISOString().split('T')[0];
         const monthStart = this.getMonthStart();

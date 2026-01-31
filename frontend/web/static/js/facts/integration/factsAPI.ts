@@ -12,8 +12,8 @@ import { buildFilterQuery } from '../operations/filterOperations';
 import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 import { dataLayer } from '../../data/DataLayer';
-import type { FactFilters, LocalBudgetFact } from '@db/pglite';
-import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
+import type { FactFilters, LocalBudgetFact } from '@db/dexie';
+import { getDexieManager, isDexieActive } from '@db/dexie';
 
 // ============================================================================
 // Types
@@ -192,11 +192,11 @@ export async function getFact(factId: number): Promise<BudgetFact> {
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
-    const pglite = await getPGliteManager();
+    const pglite = await getDexieManager();
 
     try {
         // PGlite-first strategy
-        if (isPGliteEnabled() && pglite.isReady()) {
+        if (isDexieActive() && pglite.isReady()) {
             // Get user ID
             const userId = (window as any).offlineManager
                 ? await (window as any).offlineManager.getCurrentUserId()
@@ -272,8 +272,8 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
  * Helper: Find fact temp_id by server ID
  */
 async function findFactTempId(factId: number): Promise<string | null> {
-    const pglite = await getPGliteManager();
-    if (!isPGliteEnabled() || !pglite.isReady()) {
+    const pglite = await getDexieManager();
+    if (!isDexieActive() || !pglite.isReady()) {
         return null;
     }
 
@@ -292,11 +292,11 @@ async function findFactTempId(factId: number): Promise<string | null> {
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const pglite = await getPGliteManager();
+    const pglite = await getDexieManager();
 
     try {
         // PGlite-first strategy
-        if (isPGliteEnabled() && pglite.isReady()) {
+        if (isDexieActive() && pglite.isReady()) {
             // Find fact temp_id by server ID
             const temp_id = await findFactTempId(factId);
             if (!temp_id) {
@@ -393,11 +393,11 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
  * PGlite-first with API fallback (task-015 Phase 4.4)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const pglite = await getPGliteManager();
+    const pglite = await getDexieManager();
 
     try {
         // PGlite-first strategy
-        if (isPGliteEnabled() && pglite.isReady()) {
+        if (isDexieActive() && pglite.isReady()) {
             // Find fact temp_id by server ID
             const temp_id = await findFactTempId(factId);
             if (!temp_id) {

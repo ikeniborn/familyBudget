@@ -5,7 +5,7 @@
  * Task-008: Client-to-server upload with retry logic and progress tracking
  */
 
-import { getPGliteManager } from '@db/pglite';
+import { getDexieManager } from '@db/dexie';
 import type {
   SyncClientChangesRequest,
   SyncClientChangesResponse,
@@ -42,7 +42,7 @@ export class UploadHandler {
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
     }
 
-    const pglite = await getPGliteManager();
+    const pglite = await getDexieManager();
     if (!pglite.isReady()) {
       debugLog('[UPLOAD] PGlite not initialized');
       return { success: false, uploaded: 0, failed: 0, remaining: 0 };
@@ -111,7 +111,7 @@ export class UploadHandler {
    * - Shows notifications
    */
   async handleUploadResponse(response: SyncClientChangesResponse): Promise<void> {
-    const pglite = await getPGliteManager();
+    const pglite = await getDexieManager();
     if (!pglite.isReady()) {
       debugLog('[UPLOAD] PGlite not initialized for response handling');
       return;

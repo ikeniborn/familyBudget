@@ -16,7 +16,7 @@ import { loadShoppingListItems } from './stateManager';
 import { renderCurrentView } from '../rendering/tableBuilder';
 import { updateFABButtons } from '../features/searchFilter';
 import { updateFABVisibility } from '../rendering/listRenderer';
-import { getPGliteManager, isPGliteEnabled } from '@db/pglite';
+import { getDexieManager, isDexieActive } from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
@@ -75,13 +75,13 @@ function refreshUI(): void {
  */
 export async function createItem(data: ItemData): Promise<any> {
   const state = getState();
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   try {
     let result;
 
     // PGlite-first strategy
-    if (isPGliteEnabled() && pglite.isReady()) {
+    if (isDexieActive() && pglite.isReady()) {
       // Find current list temp_id
       const currentList = state.shoppingLists.find(l => l.id === state.currentListId);
       if (!currentList?.temp_id) {
@@ -170,7 +170,7 @@ export async function createItem(data: ItemData): Promise<any> {
  */
 export async function updateItem(itemId: number, data: Partial<ItemData>): Promise<any> {
   const state = getState();
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -182,7 +182,7 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
     let result;
 
     // PGlite-first strategy
-    if (isPGliteEnabled() && pglite.isReady() && item.temp_id) {
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
       // Update in PGlite (auto-adds to pending queue)
       const updates: any = {};
       if (data.product_name !== undefined) updates.product_name = data.product_name;
@@ -243,7 +243,7 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
  */
 export async function toggleItemCompleted(itemId: number, isCompleted: boolean): Promise<void> {
   const state = getState();
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -256,7 +256,7 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
 
   try {
     // PGlite-first strategy
-    if (isPGliteEnabled() && pglite.isReady() && item.temp_id) {
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
       // Toggle in PGlite (auto-adds to pending queue)
       await pglite.toggleItemCompleted(item.temp_id, isCompleted);
       debugLog('[LIST_OPS] Item completion toggled in PGlite', { temp_id: item.temp_id, isCompleted });
@@ -354,7 +354,7 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
   }
 
   const state = getState();
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
@@ -364,7 +364,7 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
 
   try {
     // PGlite-first strategy
-    if (isPGliteEnabled() && pglite.isReady() && item.temp_id) {
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
       // Delete in PGlite (soft delete, adds to pending queue)
       await pglite.deleteItem(item.temp_id);
       debugLog('[LIST_OPS] Item deleted in PGlite', { temp_id: item.temp_id });
@@ -420,11 +420,11 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
   }
 
   const state = getState();
-  const pglite = await getPGliteManager();
+  const pglite = await getDexieManager();
 
   try {
     // PGlite-first strategy
-    if (isPGliteEnabled() && pglite.isReady()) {
+    if (isDexieActive() && pglite.isReady()) {
       // Find items and get temp_ids
       const itemsToDelete = state.currentItems.filter(item => itemIds.includes(item.id));
       const tempIds = itemsToDelete.map(item => item.temp_id).filter(Boolean) as string[];
