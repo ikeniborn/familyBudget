@@ -9,59 +9,59 @@
         <p class="opacity-70">Управление общими настройками и функциями</p>
     </div>
 
-    <!-- PGlite Section -->
+    <!-- Dexie Section -->
     <div class="card bg-base-100 shadow-lg mb-6">
         <div class="card-body">
             <div class="flex items-center gap-3 mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                 </svg>
-                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">PGlite (Offline Mode)</h2>
+                <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">Dexie (Offline Mode)</h2>
             </div>
 
             <div class="space-y-4">
-                <!-- Enable PGlite Toggle -->
+                <!-- Enable Dexie Toggle -->
                 <div class="form-control">
                     <label class="label cursor-pointer">
                         <span class="label-text">
-                            <span class="font-semibold">Включить PGlite</span>
+                            <span class="font-semibold">Включить Dexie</span>
                             <p class="text-sm opacity-70">Локальная база данных для offline режима</p>
 
                             <!-- NEW: Status indicator (показывается во время инициализации) -->
-                            <div id="pglite-settings-status" class="mt-2 hidden">
+                            <div id="dexie-settings-status" class="mt-2 hidden">
                                 <div class="alert alert-info text-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
                                     </svg>
-                                    <span id="pglite-settings-status-text">Инициализация в фоне...</span>
+                                    <span id="dexie-settings-status-text">Инициализация в фоне...</span>
                                 </div>
                             </div>
                         </span>
-                        <input type="checkbox" id="enablePGliteCheckbox" class="toggle toggle-primary" />
+                        <input type="checkbox" id="enableDexieCheckbox" class="toggle toggle-primary" />
                     </label>
                 </div>
 
                 <!-- NEW: Activate button (показывается когда ready) -->
-                <div id="pglite-activate-section" class="hidden">
+                <div id="dexie-activate-section" class="hidden">
                     <div class="alert alert-success">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                         </svg>
                         <div>
                             <h3 class="font-bold">Локальная БД готова к использованию!</h3>
-                            <div class="text-sm" id="pglite-activate-details">
+                            <div class="text-sm" id="dexie-activate-details">
                                 Загружено данных, производительность проверена.
                             </div>
                         </div>
                     </div>
 
-                    <button id="pglite-activate-settings-btn" class="btn btn-primary mt-2 w-full">
+                    <button id="dexie-activate-settings-btn" class="btn btn-primary mt-2 w-full">
                         Активировать локальную БД
                     </button>
                 </div>
 
-                <!-- PGlite Settings (shown when enabled) -->
-                <div id="pgliteSettings" class="hidden space-y-4 pl-4 border-l-2 border-base-300">
+                <!-- Dexie Settings (shown when enabled) -->
+                <div id="dexieSettings" class="hidden space-y-4 pl-4 border-l-2 border-base-300">
                     <!-- Facts Window Slider -->
                     <div class="form-control">
                         <label class="label">
@@ -93,7 +93,7 @@
                                     <div class="font-semibold">🔍 Диагностика</div>
                                     <p class="text-sm opacity-70">Просмотр статистики и производительности БД</p>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-outline" id="openPGliteDiagnostic">
+                                <button type="button" class="btn btn-sm btn-outline" id="openDexieDiagnostic">
                                     Открыть
                                 </button>
                             </div>
@@ -168,11 +168,11 @@
                 </div>
 
                 <!-- Status Badge -->
-                <div id="pgliteStatus" class="alert alert-info hidden">
+                <div id="dexieStatus" class="alert alert-info hidden">
                     <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span id="pgliteStatusText"></span>
+                    <span id="dexieStatusText"></span>
                 </div>
             </div>
         </div>
@@ -183,41 +183,41 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<!-- PGlite Database (MUST load before PerformanceMonitor) -->
-<script src="/shared/db/pglite.min.js?v=PLACEHOLDER"></script>
+<!-- Dexie Database (MUST load before PerformanceMonitor) -->
+<script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
 
-<!-- Performance Monitor (required by PGliteDiagnosticModal) -->
+<!-- Performance Monitor (required by DexieDiagnosticModal) -->
 <script src="/static/js/monitoring/PerformanceMonitor.min.js?v=PLACEHOLDER"></script>
 
-<!-- UI Components Bundle (includes PGliteDiagnosticModal) -->
+<!-- UI Components Bundle (includes DexieDiagnosticModal) -->
 <script src="/static/js/dist/components.bundle.js?v=PLACEHOLDER"></script>
 
 <script>
-// Use window.PGlite global (IIFE format)
-const { setPGliteEnabled, setPGliteFactsWindow, isPGliteEnabled, getPGliteManager } = window.PGlite;
+// Use window.Dexie global (IIFE format)
+const { setDexieEnabled, setDexieFactsWindow, isDexieEnabled, getDexieManager } = window.Dexie;
 
-// Create global alias for openPGliteDiagnostic
-const openPGliteDiagnostic = window.UIComponents.openPGliteDiagnostic;
+// Create global alias for openDexieDiagnostic
+const openDexieDiagnostic = window.UIComponents.openDexieDiagnostic;
 
 // Initialize settings from localStorage
 document.addEventListener('DOMContentLoaded', async () => {
-    const enableCheckbox = document.getElementById('enablePGliteCheckbox');
+    const enableCheckbox = document.getElementById('enableDexieCheckbox');
     const factsWindowSlider = document.getElementById('factsWindowSlider');
     const factsWindowValue = document.getElementById('factsWindowValue');
-    const pgliteSettings = document.getElementById('pgliteSettings');
-    const pgliteStatus = document.getElementById('pgliteStatus');
-    const pgliteStatusText = document.getElementById('pgliteStatusText');
-    const openDiagnosticBtn = document.getElementById('openPGliteDiagnostic');
+    const dexieSettings = document.getElementById('dexieSettings');
+    const dexieStatus = document.getElementById('dexieStatus');
+    const dexieStatusText = document.getElementById('dexieStatusText');
+    const openDiagnosticBtn = document.getElementById('openDexieDiagnostic');
 
     // Load current state (async)
-    const isEnabled = await isPGliteEnabled();
+    const isEnabled = await isDexieEnabled();
     enableCheckbox.checked = isEnabled;
 
     if (isEnabled) {
-        pgliteSettings.classList.remove('hidden');
+        dexieSettings.classList.remove('hidden');
     }
 
-    const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
+    const factsWindow = parseInt(localStorage.getItem('dexieFactsWindow') || '90');
     factsWindowSlider.value = factsWindow.toString();
     factsWindowValue.textContent = factsWindow.toString();
 
@@ -225,17 +225,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     enableCheckbox.addEventListener('change', async (e) => {
         const enabled = e.target.checked;
 
-        await setPGliteEnabled(enabled);
+        await setDexieEnabled(enabled);
 
         // Show/hide settings
         if (enabled) {
-            pgliteSettings.classList.remove('hidden');
-            pgliteStatus.classList.remove('hidden');
-            pgliteStatusText.textContent = 'Обновите страницу для инициализации offline режима';
+            dexieSettings.classList.remove('hidden');
+            dexieStatus.classList.remove('hidden');
+            dexieStatusText.textContent = 'Обновите страницу для инициализации offline режима';
         } else {
-            pgliteSettings.classList.add('hidden');
-            pgliteStatus.classList.remove('hidden');
-            pgliteStatusText.textContent = 'Обновите страницу для возврата в online-only режим';
+            dexieSettings.classList.add('hidden');
+            dexieStatus.classList.remove('hidden');
+            dexieStatusText.textContent = 'Обновите страницу для возврата в online-only режим';
         }
     });
 
@@ -248,13 +248,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const days = parseInt(e.target.value);
 
         // Save facts window first (needed for retention validation)
-        await setPGliteFactsWindow(days);
+        await setDexieFactsWindow(days);
 
         // Auto-adjust retention window if it's less than facts window
-        const retentionDays = parseInt(localStorage.getItem('pgliteRetentionDays') || '90');
+        const retentionDays = parseInt(localStorage.getItem('dexieRetentionDays') || '90');
         if (retentionDays < days) {
             isAutoAdjusting = true; // Prevent double toast from retention slider handler
-            localStorage.setItem('pgliteRetentionDays', days.toString());
+            localStorage.setItem('dexieRetentionDays', days.toString());
             pruningRetentionSlider.value = days.toString();
             pruningRetentionValue.textContent = `${days} дней`;
 
@@ -266,26 +266,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Handle diagnostic button
     openDiagnosticBtn.addEventListener('click', () => {
-        openPGliteDiagnostic();
+        openDexieDiagnostic();
     });
 
-    // === NEW: PGlite Status Updates (API-First Migration) ===
+    // === NEW: Dexie Status Updates (API-First Migration) ===
 
-    const statusDiv = document.getElementById('pglite-settings-status');
-    const statusText = document.getElementById('pglite-settings-status-text');
-    const activateSection = document.getElementById('pglite-activate-section');
-    const activateBtn = document.getElementById('pglite-activate-settings-btn');
-    const activateDetails = document.getElementById('pglite-activate-details');
+    const statusDiv = document.getElementById('dexie-settings-status');
+    const statusText = document.getElementById('dexie-settings-status-text');
+    const activateSection = document.getElementById('dexie-activate-section');
+    const activateBtn = document.getElementById('dexie-activate-settings-btn');
+    const activateDetails = document.getElementById('dexie-activate-details');
 
     /**
-     * Update PGlite status in settings UI
+     * Update Dexie status in settings UI
      */
-    async function updateSettingsPGliteStatus() {
-        if (!window.PGlite) return;
+    async function updateSettingsDexieStatus() {
+        if (!window.Dexie) return;
 
-        const { getState, isPGliteActive } = window.PGlite;
+        const { getState, isDexieActive } = window.Dexie;
         const state = getState();
-        const isActive = await isPGliteActive();
+        const isActive = await isDexieActive();
 
         if (!state) return;
 
@@ -339,8 +339,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Handle activate button click
     if (activateBtn) {
         activateBtn.addEventListener('click', async () => {
-            const { setPGliteActive } = window.PGlite;
-            await setPGliteActive(true);
+            const { setDexieActive } = window.Dexie;
+            await setDexieActive(true);
 
             // Show confirmation
             alert('Локальная БД активирована. Страница будет перезагружена.');
@@ -351,14 +351,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Update status every second
-    setInterval(updateSettingsPGliteStatus, 1000);
+    setInterval(updateSettingsDexieStatus, 1000);
 
     // Listen to state changes
-    window.addEventListener('pglite:state:changed', updateSettingsPGliteStatus);
-    window.addEventListener('pglite:active:changed', updateSettingsPGliteStatus);
+    window.addEventListener('dexie:state:changed', updateSettingsDexieStatus);
+    window.addEventListener('dexie:active:changed', updateSettingsDexieStatus);
 
     // Initial update
-    updateSettingsPGliteStatus();
+    updateSettingsDexieStatus();
 
     // === Pruning Controls (task-010) ===
 
@@ -378,14 +378,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Load current state
-    const enableAutoPruning = localStorage.getItem('pgliteEnableAutoPruning') === 'true';
+    const enableAutoPruning = localStorage.getItem('dexieEnableAutoPruning') === 'true';
     enableAutoPruningCheckbox.checked = enableAutoPruning;
 
     if (enableAutoPruning) {
         pruningControls.classList.remove('hidden');
     }
 
-    const pruningRetention = parseInt(localStorage.getItem('pgliteRetentionDays') || '90');
+    const pruningRetention = parseInt(localStorage.getItem('dexieRetentionDays') || '90');
     pruningRetentionSlider.value = pruningRetention.toString();
     pruningRetentionValue.textContent = `${pruningRetention} дней`;
 
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     enableAutoPruningCheckbox.addEventListener('change', async (e) => {
         const enabled = e.target.checked;
 
-        localStorage.setItem('pgliteEnableAutoPruning', enabled ? 'true' : 'false');
+        localStorage.setItem('dexieEnableAutoPruning', enabled ? 'true' : 'false');
 
         if (enabled) {
             pruningControls.classList.remove('hidden');
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const days = parseInt(e.target.value);
 
         // Validate retention >= factsWindow
-        const factsWindow = parseInt(localStorage.getItem('pgliteFactsWindow') || '90');
+        const factsWindow = parseInt(localStorage.getItem('dexieFactsWindow') || '90');
         if (days < factsWindow) {
             if (window.showToast) {
                 window.showToast(`Окно хранения (${days}) должно быть ≥ окна данных (${factsWindow})`, 'error');
@@ -462,7 +462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        localStorage.setItem('pgliteRetentionDays', days.toString());
+        localStorage.setItem('dexieRetentionDays', days.toString());
 
         // Only show toast if not triggered by auto-adjust
         if (!isAutoAdjusting && window.showToast) {
@@ -486,8 +486,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             manualPruneBtn.disabled = true;
             manualPruneBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Очистка...';
 
-            const pglite = await getPGliteManager();
-            const result = await pglite.pruneFacts();
+            const dexie = await getDexieManager();
+            const result = await dexie.pruneFacts();
 
             if (window.showToast) {
                 window.showToast(
@@ -516,42 +516,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load pruning stats
     async function loadPruningStats() {
         try {
-            // getPGliteManager() returns Promise due to window.PGlite Proxy
-            const pglite = await getPGliteManager();
-            console.log('[PRUNING] Got PGliteManager instance');
+            // getDexieManager() returns Promise due to window.Dexie Proxy
+            const dexie = await getDexieManager();
+            console.log('[PRUNING] Got DexieManager instance');
 
-            // Wait for PGlite initialization (with timeout)
+            // Wait for Dexie initialization (with timeout)
             const maxWaitMs = 30000; // 30 seconds (increased from 10)
             const startTime = Date.now();
             let attempts = 0;
-            while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
+            while (!dexie.isReady() && (Date.now() - startTime) < maxWaitMs) {
                 attempts++;
                 if (attempts % 10 === 0) {
                     // Log every 2 seconds (10 * 200ms)
-                    const diagnosticData = await pglite.getDiagnosticData();
-                    console.log('[PRUNING] Waiting for PGlite...', {
+                    const diagnosticData = await dexie.getDiagnosticData();
+                    console.log('[PRUNING] Waiting for Dexie...', {
                         attempt: attempts,
                         elapsed: Date.now() - startTime,
                         isInitialized: diagnosticData.isInitialized,
                         syncStatus: diagnosticData.syncStatus,
-                        isReady: pglite.isReady()
+                        isReady: dexie.isReady()
                     });
                 }
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
 
-            if (!pglite.isReady()) {
-                const finalDiagnostic = await pglite.getDiagnosticData();
-                console.error('[PRUNING] PGlite not ready after timeout', {
+            if (!dexie.isReady()) {
+                const finalDiagnostic = await dexie.getDiagnosticData();
+                console.error('[PRUNING] Dexie not ready after timeout', {
                     elapsed: Date.now() - startTime,
                     finalStatus: finalDiagnostic
                 });
                 return;
             }
 
-            console.log('[PRUNING] PGlite is ready, loading stats');
+            console.log('[PRUNING] Dexie is ready, loading stats');
 
-            const stats = await pglite.getPruningStats();
+            const stats = await dexie.getPruningStats();
 
             if (stats.lastPrunedAt) {
                 lastPrunedAt.textContent = new Date(stats.lastPrunedAt).toLocaleString('ru-RU');
@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Load stats on page load (only if PGlite enabled)
+    // Load stats on page load (only if Dexie enabled)
     if (isEnabled) {
         loadPruningStats();
     }

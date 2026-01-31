@@ -1,28 +1,28 @@
 /**
- * PGlite Ready Notification System
+ * Dexie Ready Notification System
  *
- * PHASE 5: User notification when PGlite is ready to use
+ * PHASE 5: User notification when Dexie is ready to use
  *
  * Shows toast with:
  * - "Локальная БД готова!"
  * - Diagnostic info (article count, performance)
  * - Actions: [Да] [Нет] [Подробнее]
  *
- * On "Да": activates PGlite via setPGliteActive(true) and reloads page
+ * On "Да": activates Dexie via setDexieActive(true) and reloads page
  */
 
-import type { ValidationResults } from '@db/pglite';
-import { setPGliteActive } from '@db/pglite';
+import type { ValidationResults } from '@db/dexie';
+import { setDexieActive } from '@db/dexie';
 
 /**
- * Show notification when PGlite is ready
+ * Show notification when Dexie is ready
  *
  * @param validationResults - Results from validation suite
  */
-export function showPGliteReadyNotification(validationResults: ValidationResults): void {
+export function showDexieReadyNotification(validationResults: ValidationResults): void {
   // Check if notification already shown
-  if (localStorage.getItem('pgliteReadyNotificationShown') === 'true') {
-    console.info('[NOTIFICATION] PGlite ready notification already shown');
+  if (localStorage.getItem('dexieReadyNotificationShown') === 'true') {
+    console.info('[NOTIFICATION] Dexie ready notification already shown');
     return;
   }
 
@@ -39,13 +39,13 @@ export function showPGliteReadyNotification(validationResults: ValidationResults
         Производительность: ${details.avgQueryTimeMs.toFixed(1)}ms среднее время запроса
       </div>
       <div class="flex gap-2 mt-2">
-        <button id="pglite-activate-btn" class="btn btn-primary btn-sm">
+        <button id="dexie-activate-btn" class="btn btn-primary btn-sm">
           Переключиться
         </button>
-        <button id="pglite-dismiss-btn" class="btn btn-ghost btn-sm">
+        <button id="dexie-dismiss-btn" class="btn btn-ghost btn-sm">
           Позже
         </button>
-        <button id="pglite-details-btn" class="btn btn-ghost btn-sm">
+        <button id="dexie-details-btn" class="btn btn-ghost btn-sm">
           Подробнее
         </button>
       </div>
@@ -59,19 +59,19 @@ export function showPGliteReadyNotification(validationResults: ValidationResults
 
   // Обработчики кнопок
   setTimeout(() => {
-    const activateBtn = document.getElementById('pglite-activate-btn');
-    const dismissBtn = document.getElementById('pglite-dismiss-btn');
-    const detailsBtn = document.getElementById('pglite-details-btn');
+    const activateBtn = document.getElementById('dexie-activate-btn');
+    const dismissBtn = document.getElementById('dexie-dismiss-btn');
+    const detailsBtn = document.getElementById('dexie-details-btn');
 
     if (activateBtn) {
       activateBtn.addEventListener('click', async () => {
         console.info('[NOTIFICATION] User clicked "Переключиться"');
 
-        // Активируем PGlite
-        setPGliteActive(true);
+        // Активируем Dexie
+        setDexieActive(true);
 
         // Помечаем что notification показан
-        localStorage.setItem('pgliteReadyNotificationShown', 'true');
+        localStorage.setItem('dexieReadyNotificationShown', 'true');
 
         // TODO: Close toast (dismissToast not in global types yet)
         // if (window.dismissToast) {
@@ -104,7 +104,7 @@ export function showPGliteReadyNotification(validationResults: ValidationResults
         console.info('[NOTIFICATION] User clicked "Подробнее"');
 
         // TODO: Open diagnostic modal
-        // const diagnosticModal = (window as any).PGliteDiagnosticModal;
+        // const diagnosticModal = (window as any).DexieDiagnosticModal;
         // if (diagnosticModal) {
         //   diagnosticModal.open();
         // }

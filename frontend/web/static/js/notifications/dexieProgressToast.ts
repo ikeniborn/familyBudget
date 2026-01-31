@@ -1,5 +1,5 @@
 /**
- * Progressive loading toast for PGlite initialization
+ * Progressive loading toast for Dexie initialization
  * Shows phase-by-phase progress with real-time counts
  *
  * Phases:
@@ -21,11 +21,11 @@ interface ProgressPhase {
 let currentToastId: string | null = null;
 
 /**
- * Show or update PGlite initialization progress toast
+ * Show or update Dexie initialization progress toast
  *
  * @param progress - Current phase and progress info
  */
-export function showPGliteProgress(progress: ProgressPhase): void {
+export function showDexieProgress(progress: ProgressPhase): void {
   // Build progress bar HTML if counts available
   const progressBar = progress.total ? `
     <progress class="progress progress-primary w-full mt-2"
@@ -55,9 +55,9 @@ export function showPGliteProgress(progress: ProgressPhase): void {
 }
 
 /**
- * Hide PGlite progress toast
+ * Hide Dexie progress toast
  */
-export function hidePGliteProgress(): void {
+export function hideDexieProgress(): void {
   if (currentToastId && typeof (window as any).dismissToast === 'function') {
     (window as any).dismissToast(currentToastId);
     currentToastId = null;
