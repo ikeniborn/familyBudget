@@ -15,7 +15,7 @@
 import { test, expect } from '@playwright/test';
 
 // Test URLs
-const BASE_URL = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
+// BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -32,7 +32,7 @@ test.describe('Mobile Navigation - Responsive Design', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
     // Navigate to app
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
 
     // Wait for page load - use domcontentloaded instead of networkidle to avoid timeout
     await page.waitForLoadState('domcontentloaded');
@@ -164,7 +164,7 @@ test.describe('Mobile Navigation - Responsive Design', () => {
 test.describe('Mobile Navigation - User Interactions', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     await page.waitForLoadState('networkidle');
     await page.setViewportSize(VIEWPORTS.mobile);
   });
@@ -216,7 +216,7 @@ test.describe('Mobile Navigation - Performance', () => {
     const startTime = Date.now();
 
     // Navigate to page
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
 
     // Wait for mobile nav to appear
     const mobileNav = page.locator('.mobile-nav-wrapper');

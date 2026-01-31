@@ -3,8 +3,7 @@ name: E2E Tests
 on:
   pull_request:
     branches:
-      - test
-      - main
+      - main  # Only run E2E tests for test → prod (main)
     paths:
       - 'frontend/**'
       - 'tests/e2e/**'
@@ -25,6 +24,8 @@ jobs:
     name: E2E Tests (${{ matrix.browser }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Only run if PR is from test branch to main
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'test' && github.base_ref == 'main')
 
     strategy:
       fail-fast: false
@@ -59,13 +60,14 @@ jobs:
       - name: Verify Playwright installation
         run: npx playwright --version
 
-      - name: Run E2E tests
+      - name: Run E2E tests (against test server)
         env:
           CI: true
           BASE_URL: https://fbd.ikeniborn.ru
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
           TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
+          echo "Running E2E tests against https://fbd.ikeniborn.ru"
           npx playwright test --project="${{ matrix.browser }}" --reporter=html,list
 
       - name: Upload Playwright report

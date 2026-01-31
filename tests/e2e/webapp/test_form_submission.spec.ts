@@ -13,7 +13,7 @@
 import { test, expect } from '@playwright/test';
 
 // Test URLs
-const BASE_URL = process.env.BASE_URL || 'https://fbd.ikeniborn.ru';
+// BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -24,7 +24,7 @@ const VIEWPORTS = {
 test.describe('Form Submission - Transaction Creation', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
-    await page.goto(BASE_URL);
+    await page.goto('/');  // Uses baseURL from playwright.config.ts
     // Use domcontentloaded instead of networkidle to avoid timeout issues
     await page.waitForLoadState('domcontentloaded');
 

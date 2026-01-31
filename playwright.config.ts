@@ -29,7 +29,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    /* Default: production URL (aligns with project policy: no local services) */
+    /* E2E tests run against deployed test server (fbd.ikeniborn.ru) */
     baseURL: process.env.BASE_URL || 'https://fbd.ikeniborn.ru',
 
     /* Collect trace when retrying the failed test. */
