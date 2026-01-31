@@ -84,7 +84,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: production
     image: familybudget-backend:test
     container_name: e2e-familybudget-backend
     restart: "no"
