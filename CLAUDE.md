@@ -17,39 +17,23 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 **Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
 
-**Deployment (v9.0+):** Registry-First Architecture
-- All builds in GitHub Actions CI/CD
-- 5 custom Docker images (backend, bot, nginx, redis, postgresql)
-- Server only pulls from ghcr.io (no npm/Node.js required)
-- Multi-stage Dockerfiles with embedded frontend
-- Automatic image cleanup (7 days retention)
-- Deployment always 2-3 min (pull only)
-
 ## Quick Start
 
 ### Local Development (Code Validation Only)
 **CRITICAL:** НЕ запускайте сервисы локально (`uvicorn`, `docker compose up`). Только validation.
-
-Use **testing** skill for code quality checks.
-**See:** `docs/architecture/build-system.md` for build commands
-
-### Deployment (Registry-First v9.0+)
-**Testing:** Use **deploy-test** skill for automated deployment to budget-test
-**Production:** Use **deploy-prod** skill for automated deployment to budget-prod
 
 **BREAKING CHANGE (v9.0):**
 - All builds (frontend, Docker) happen in GitHub Actions CI/CD
 - Server only pulls ready images from ghcr.io (registry-first)
 - npm/Node.js NOT required on server
 - Manual VERSION bump before push
-- Deployment ALWAYS takes 2-3 min (pull only)
 
 ### Environments
 
-| Environment | URL | Purpose | Deploy Skill |
-|-------------|-----|---------|--------------|
-| **Production** | https://fb.ikeniborn.ru/ | Live users | **deploy-prod** |
-| **Development** | https://fbd.ikeniborn.ru/ | Feature testing | **deploy-test** |
+| Environment | URL | Purpose |
+|-------------|-----|---------|
+| **Production** | https://fb.ikeniborn.ru/ | Live users |
+| **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
 ## Terminology (UI ↔ Code)
 
@@ -60,67 +44,6 @@ Use **testing** skill for code quality checks.
 | **Статья** | `Article` | `t_d_article` | Budget categories (hierarchical) |
 | **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Income/expenses/transfers |
 
-## Architecture
-
-**Backend:** `backend/app/main.py` (entry), `api/v1/` (REST), `services/` (business logic)
-**Database:** SCD Type 1 + History tables, Closure Table, PostgreSQL 16 + Alembic
-**Frontend:** PWA (HTMX + Tailwind + DaisyUI), Service Worker, WebSocket real-time
-
-**See:** [Documentation Index](#documentation-index) for complete architecture guide
-
-## Skills Quick Reference
-
-**Use skills for ALL development tasks.** Each skill contains complete implementation logic, templates, and safety rules.
-
-### Backend Development
-
-| Task | Skill | When to Use | Example |
-|------|-------|-------------|---------|
-| Add/modify REST endpoint | **api-development** | Creating CRUD operations, business logic | Add transaction filter endpoint |
-| Database schema changes | **db-management** | Migrations, SCD Type 2, Closure Table | Add recurring plan field |
-| Auth implementation | **authentication-security** | JWT, OAuth, security middleware | Add WebAuthn login |
-| Telegram bot features | **bot-development** | Bot commands, handlers, Web Apps | Add /stats command |
-
-**See:** `.claude/skills/{api-development,db-management,authentication-security,bot-development}/SKILL.md`
-
-### Frontend Development
-
-| Task | Skill | When to Use | Example |
-|------|-------|-------------|---------|
-| UI components/pages | **frontend-development** | HTMX, Tailwind, DaisyUI, TypeScript | Add budget chart widget |
-| Real-time updates | **websocket-realtime** | WebSocket events, SSE, Redis Pub/Sub | Live transaction updates |
-| Offline-first CRUD | **dexie-management** | Dexie.js operations, sync, cents conversion | Add offline support for model |
-
-**See:** `.claude/skills/{frontend-development,websocket-realtime,dexie-management}/SKILL.md`
-
-### Operations & Testing
-
-| Task | Skill | When to Use | Example |
-|------|-------|-------------|---------|
-| Code quality checks | **testing** | Linting, formatting, type checking, tests | Pre-commit validation |
-| Deploy to testing | **deploy-test** | Automated deployment to budget-test | Deploy auth fix to staging |
-| Deploy to production | **deploy-prod** | Automated deployment to budget-prod | Release v10.2.0 |
-| Debug issues | **monitoring** | Logs, metrics, troubleshooting | Investigate WebSocket disconnect |
-
-**See:** `.claude/skills/{testing,deploy-test,deploy-prod,monitoring}/SKILL.md`
-
-### Patterns & Architecture
-
-| Task | Skill | When to Use | Example |
-|------|-------|-------------|---------|
-| Complex DB operations | **advanced-patterns** | SCD Type 2, Closure Table, transfers | Implement budget category hierarchy |
-
-**See:** `.claude/skills/advanced-patterns/SKILL.md`
-
-## Important Features
-
-**Dexie Offline Mode (v11.0+):** Production-ready IndexedDB для offline-first. 100% CRUD для Shopping Lists, Budget Facts. Lightweight bundle size (29KB). See `/docs/architecture/dexie-integration.md`
-**Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`
-**WebAuthn (v6.5.0+):** Passwordless biometric login. See `/docs/architecture/authentication.md`
-**Recurring Plans (v6.2.0+):** MMDD encoding for yearly frequency. See `/docs/architecture/recurring-plans.md`
-**Notifications (v6.4.0+):** Independent Web Push + Telegram control. See `/docs/architecture/notifications.md`
-**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. Offline-first с Dexie. See `/docs/architecture/dexie-integration.md`
-**Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
 
 ## Documentation Index
 
@@ -159,7 +82,6 @@ Use **testing** skill for code quality checks.
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| **[CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md)** | ⭐ Registry-First deployment (v9.0+) | Deployment tasks |
 | [ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
 | [docker.md](docs/architecture/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
 | [guides/deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
@@ -180,15 +102,7 @@ Use **testing** skill for code quality checks.
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| [START.md](START.md) | Administrator installation | Initial setup |
 | [docs/prd/](docs/prd/) | Product requirements | Feature planning |
-| [docs/guides/](docs/guides/) | User guides | User workflows |
-
-## Emergency Contacts
-
-**Repository Issues:** https://github.com/anthropics/familybudget/issues
-**Production Monitoring:** Check `/opt/budget/logs/`
-**Database Backup:** `/opt/budget/backups/` (7-day retention)
 
 # Task Execution 
 
