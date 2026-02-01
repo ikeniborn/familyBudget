@@ -787,18 +787,18 @@ jobs:
           script: |
             echo "🚀 Starting deployment to budget-test..."
 
-            # Navigate to project directory
-            cd /opt/budget
+            # Navigate to project repository
+            cd ~/familyBudget
 
             # Pull latest code from test branch
             echo "📥 Pulling latest code..."
-            sudo git fetch origin
-            sudo git checkout test
-            sudo git pull origin test
+            git fetch origin
+            git checkout test
+            git pull origin test
 
             # Run deploy script in registry mode
             echo "🐳 Pulling Docker images and restarting containers..."
-            sudo bash scripts/deploy.sh --mode registry
+            bash scripts/deploy.sh --mode registry
 
             # Wait for services to start
             echo "⏳ Waiting for services to initialize (30s)..."
@@ -806,7 +806,7 @@ jobs:
 
             # Verify deployment
             echo "✅ Checking container health..."
-            sudo docker-compose ps
+            docker-compose ps
 
             # Check backend health endpoint
             echo "🏥 Checking backend health..."
