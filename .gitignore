@@ -342,3 +342,12 @@ tests/e2e/.auth/
 # Playwright test results
 playwright-report/
 test-results/
+
+# Build artifacts
+dist/
+.vite-build/
+
+# Service Worker build results
+frontend/web/static/sw.min.js
+frontend/web/static/sw.min.js.map
+frontend/web/static/sw.min.js.gz
