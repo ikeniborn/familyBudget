@@ -108,6 +108,14 @@ async function loadTransactionTabData(): Promise<void> {
 
   // Initialize CategoryTreeSelect for modal_plan transaction tab
   if (!state.planCategoryTreeSelect) {
+    // CRITICAL FIX: Verify DOM element exists BEFORE creating ChoicesCategoryTree
+    const articleSelect = document.querySelector('#modal_plan-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
+
+    if (!articleSelect) {
+      debugLog('[ModalPlan] Article select not found - DOM not ready yet');
+      throw new Error('Article select element not available');
+    }
+
     // Get current plan type (expense/income)
     const typeInput = document.querySelector('#modal_plan-tab-transaction input[name="plan_type"]:checked') as HTMLInputElement | null;
     const planType = typeInput?.value || 'expense';
@@ -137,6 +145,7 @@ async function loadTransactionTabData(): Promise<void> {
       debugLog('[ModalPlan] CategoryTreeSelect instance created');
     } else {
       debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
+      throw new Error('BudgetShared.ChoicesCategoryTree not loaded');
     }
   }
 }
@@ -431,11 +440,11 @@ export async function openModalPlan(): Promise<void> {
     // Setup plan type toggle listeners
     setupPlanTypeToggle();
 
-    // v10.1.51: Setup period buttons (moved from initializeForms)
-    setupPlanPeriodButtons();
-
-    // Hide skeleton
+    // CRITICAL FIX: Hide skeleton BEFORE period buttons setup
     hideSkeleton();
+
+    // Setup period buttons AFTER skeleton hidden
+    setupPlanPeriodButtons();
 
     // Reset to transaction tab (default)
     switchTab('transaction');
@@ -453,8 +462,22 @@ export async function openModalPlan(): Promise<void> {
     setupSaveButtonListener();
 
   } catch (error) {
-    debugLog('[ModalPlan] Error loading data:', error);
+    debugLog('[ModalPlan] Critical error loading data:', error);
+
+    // CRITICAL FIX: Always hide skeleton to prevent form lock
     hideSkeleton();
+
+    // CRITICAL FIX: Show user-facing error toast
+    if (typeof (window as any).showToast === 'function') {
+      (window as any).showToast('Ошибка загрузки формы плана. Попробуйте обновить страницу.', 'error');
+    }
+
+    // CRITICAL FIX: Close modal to prevent broken state
+    const modal = document.getElementById('modal_plan') as HTMLDialogElement;
+    modal?.close();
+
+    // Re-throw to allow caller to handle
+    throw error;
   }
 }
 

@@ -64,6 +64,12 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
     setButtonLoading(button, false);
     form.reportValidity();
     restoreRequiredValidation(); // Restore before return
+
+    // CRITICAL FIX: Show toast notification for validation errors
+    if (typeof (window as any).showToast === 'function') {
+      (window as any).showToast('Заполните все обязательные поля', 'warning');
+    }
+
     return;
   }
 
