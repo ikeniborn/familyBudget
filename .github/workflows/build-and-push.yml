@@ -91,10 +91,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+        uses: ./.github/actions/setup-node
 
       - name: Restore build cache
         uses: actions/cache@v4
@@ -230,10 +227,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+        uses: ./.github/actions/setup-node
 
       - name: Install Node dependencies
         if: steps.detect-merge.outputs.is_pr_merge == 'false'
@@ -249,10 +243,9 @@ jobs:
 
       - name: Setup Python
         if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-python
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install Python dependencies
         if: steps.detect-merge.outputs.is_pr_merge == 'false'

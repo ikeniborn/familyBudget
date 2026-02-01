@@ -26,10 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+        uses: ./.github/actions/setup-node
 
       - name: Install Node dependencies
         run: npm ci

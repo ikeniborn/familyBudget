@@ -42,10 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+        uses: ./.github/actions/setup-node
 
       - name: Install Node dependencies
         run: npm ci
@@ -60,10 +57,9 @@ jobs:
         run: npm run build
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-python
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install Python dependencies
         run: |
