@@ -99,14 +99,21 @@ async function openAddTransactionModal(): Promise<void> {
         return window.Dashboard.openAddTransactionModal();
     }
 
-    // Fallback: simple modal open without skeleton
-    const modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
+    // Fallback: Open v10.x tabbed modal (modal_fact)
+    // Try modern modal first (v10.x+)
+    let modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
+
+    // Fallback to legacy modal (v9.x)
+    if (!modal) {
+        modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
+    }
+
     if (modal?.showModal) {
         // Set default date to today
         setTransactionDate(0);
         modal.showModal();
     } else {
-        console.warn('[FactsManager] Transaction modal not found');
+        console.warn('[FactsManager] Transaction modal not found (tried modal_fact and modal_add_transaction)');
     }
 }
 
