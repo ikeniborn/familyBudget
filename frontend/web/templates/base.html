@@ -838,23 +838,51 @@
             }
         });
 
-        // NEW: PGlite Background Initialization (API-First Migration)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if PGlite enabled and not already initialized
-            const enableDexie = localStorage.getItem('enableDexie') === 'true';
+        // Feature Flag Migration (one-time): PGlite → Dexie terminology
+        (function migrateFeatureFlags() {
+            const migrationMapping = {
+                'enablePGlite': 'dexieActive',
+                'enableDexie': 'dexieActive',
+                'pgliteEnableConflictResolution': 'dexieEnableConflictResolution',
+                'pgliteEnableAutoPruning': 'dexieEnableAutoPruning',
+                'pgliteFactsWindow': 'dexieFactsWindow',
+                'pgliteAutoSync': 'dexieAutoSync',
+                'pgliteDebug': 'dexieDebug',
+                'pgliteRetentionDays': 'dexieRetentionDays'
+            };
 
-            if (enableDexie && typeof window.PGlite !== 'undefined') {
-                console.info('[APP] Starting PGlite background initialization...');
+            let migratedCount = 0;
+            Object.entries(migrationMapping).forEach(([oldKey, newKey]) => {
+                const value = localStorage.getItem(oldKey);
+                if (value !== null) {
+                    localStorage.setItem(newKey, value);
+                    localStorage.removeItem(oldKey);
+                    migratedCount++;
+                }
+            });
+
+            if (migratedCount > 0) {
+                console.info(`[Migration] ✅ Migrated ${migratedCount} feature flag keys`);
+            }
+        })();
+
+        // NEW: Dexie Background Initialization (API-First Migration)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Dexie enabled and not already initialized
+            const dexieActive = localStorage.getItem('dexieActive') === 'true';
+
+            if (dexieActive && typeof window.PGlite !== 'undefined') {
+                console.info('[APP] Starting Dexie background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
                 window.PGlite.initializeDatabaseInBackground().catch(error => {
-                    console.warn('[APP] Background PGlite init failed (non-critical):', error);
+                    console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
-            } else if (enableDexie) {
-                console.warn('[APP] PGlite enabled but window.PGlite not loaded');
+            } else if (dexieActive) {
+                console.warn('[APP] Dexie enabled but window.PGlite not loaded');
             } else {
-                console.info('[APP] PGlite disabled, skipping background init');
+                console.info('[APP] Dexie disabled, skipping background init');
             }
         });
 

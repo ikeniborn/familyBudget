@@ -8,9 +8,9 @@
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Show PGlite initialization progress if enabled
+        // Show Dexie initialization progress if enabled
         let progressCheckInterval = null;
-        if (localStorage.getItem('enablePGlite') === 'true' &&
+        if (localStorage.getItem('dexieActive') === 'true' &&
             typeof window.showPGliteProgress === 'function' &&
             typeof window.hidePGliteProgress === 'function') {
             try {
