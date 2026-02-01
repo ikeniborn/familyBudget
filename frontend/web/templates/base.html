@@ -373,10 +373,46 @@
             }
         }
 
-        /* Reduced motion support for update indicator */
+        /* ========================================
+           Dexie Indicator Animations
+           ======================================== */
+
+        /* Pulse animation for status dot */
+        @keyframes dexie-dot-pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.95);
+            }
+        }
+
+        .dexie-pulse {
+            animation: dexie-dot-pulse 2s ease-in-out infinite;
+        }
+
+        /* Rotate animation for syncing state */
+        @keyframes dexie-icon-rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .dexie-rotate {
+            animation: dexie-icon-rotate 3s linear infinite;
+        }
+
+        /* Reduced motion support for update indicator and Dexie */
         @media (prefers-reduced-motion: reduce) {
             .update-icon-enter,
-            #update-available-btn span {
+            #update-available-btn span,
+            .dexie-pulse,
+            .dexie-rotate {
                 animation: none;
             }
         }
@@ -527,75 +563,65 @@
                 </button>
             </div>
 
-            <!-- Dexie Status Indicator (visual-only, no interaction) -->
+            <!-- Dexie Status Indicator (Database Icon + Status Dot) -->
             <div id="dexie-indicator-wrapper"
                  class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
                  data-tip="Локальная БД (Dexie)">
-                <div class="btn btn-ghost btn-circle btn-sm sm:btn-md pointer-events-none">
-                    <!-- Active State: Green (default) -->
-                    <svg id="dexie-icon-active"
-                         xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-success"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke="currentColor"
-                         stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
-                    </svg>
+                <div class="relative flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200 transition-colors">
+                    <!-- Active State: Green Database Icon -->
+                    <div id="dexie-icon-active" class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-success"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-success rounded-full dexie-pulse"></div>
+                    </div>
 
-                    <!-- Syncing State: Blue + Pulse -->
-                    <svg id="dexie-icon-syncing"
-                         xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-info dexie-pulse hidden"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke="currentColor"
-                         stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
-                    </svg>
+                    <!-- Syncing State: Blue Database Icon + Pulse -->
+                    <div id="dexie-icon-syncing" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-info dexie-rotate"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-info rounded-full dexie-pulse"></div>
+                    </div>
 
-                    <!-- Error State: Red -->
-                    <svg id="dexie-icon-error"
-                         xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-error hidden"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke="currentColor"
-                         stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9"/>
-                    </svg>
+                    <!-- Error State: Red Database Icon -->
+                    <div id="dexie-icon-error" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-error"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-error rounded-full"></div>
+                    </div>
 
-                    <!-- NEW: Initializing State: Yellow + Pulse -->
-                    <svg id="dexie-icon-initializing"
-                         xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-warning dexie-pulse hidden"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke="currentColor"
-                         stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M12 6v6l4 2"/>
-                    </svg>
+                    <!-- Initializing State: Yellow Database Icon + Pulse -->
+                    <div id="dexie-icon-initializing" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-warning"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-warning rounded-full dexie-pulse"></div>
+                    </div>
 
-                    <!-- NEW: Ready State: Green (clickable for activation) -->
-                    <svg id="dexie-icon-ready"
-                         xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-success cursor-pointer hidden"
-                         fill="none"
-                         viewBox="0 0 24 24"
-                         stroke="currentColor"
-                         stroke-width="1.5">
-                        <circle cx="12" cy="12" r="9" stroke-linecap="round"/>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M5 13l4 4L19 7"/>
-                    </svg>
+                    <!-- Ready State: Green Database Icon (clickable) -->
+                    <div id="dexie-icon-ready" class="hidden flex items-center gap-1.5 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-success"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-success rounded-full"></div>
+                    </div>
                 </div>
             </div>
 

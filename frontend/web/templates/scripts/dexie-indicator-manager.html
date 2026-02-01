@@ -23,7 +23,7 @@
     // ============================================================================
 
     /**
-     * Update Dexie indicator visual state
+     * Update Dexie indicator visual state (Database Icon + Status Dot)
      * @param {string} state - 'not_started' | 'initializing' | 'validating' | 'ready' | 'active' | 'error' | 'syncing'
      */
     function updateDexieIndicator(state) {
@@ -38,7 +38,7 @@
             return;
         }
 
-        // Hide all states
+        // Hide all states (now they are divs containing icon + dot)
         iconActive.classList.add('hidden');
         iconSyncing.classList.add('hidden');
         iconError.classList.add('hidden');
@@ -53,34 +53,34 @@
                 break;
             case 'initializing':
             case 'validating':
-                // Желтый с пульсацией
+                // Желтый database icon + пульсирующая точка
                 showDexieIndicator();
                 iconInitializing.classList.remove('hidden');
-                console.debug('[DEXIE_INDICATOR] State: initializing (yellow pulse)');
+                console.debug('[DEXIE_INDICATOR] State: initializing (yellow DB + pulse dot)');
                 break;
             case 'ready':
-                // Зеленый (готов, но не активен) - кликабельный
+                // Зеленый database icon (готов, но не активен) - кликабельный
                 showDexieIndicator();
                 iconReady.classList.remove('hidden');
-                console.debug('[DEXIE_INDICATOR] State: ready (click to activate)');
+                console.debug('[DEXIE_INDICATOR] State: ready (green DB, click to activate)');
                 break;
             case 'active':
-                // Зеленый active (idle)
+                // Зеленый database icon + пульсирующая зеленая точка (idle)
                 showDexieIndicator();
                 iconActive.classList.remove('hidden');
-                console.debug('[DEXIE_INDICATOR] State: active');
+                console.debug('[DEXIE_INDICATOR] State: active (green DB + pulse dot)');
                 break;
             case 'syncing':
-                // Синий с пульсацией
+                // Синий database icon (вращение) + пульсирующая синяя точка
                 showDexieIndicator();
                 iconSyncing.classList.remove('hidden');
-                console.debug('[DEXIE_INDICATOR] State: syncing (blue pulse)');
+                console.debug('[DEXIE_INDICATOR] State: syncing (blue DB rotate + pulse dot)');
                 break;
             case 'error':
-                // Красный
+                // Красный database icon + красная точка (без анимации)
                 showDexieIndicator();
                 iconError.classList.remove('hidden');
-                console.debug('[DEXIE_INDICATOR] State: error');
+                console.debug('[DEXIE_INDICATOR] State: error (red DB + dot)');
                 break;
             default:
                 iconActive.classList.remove('hidden');
