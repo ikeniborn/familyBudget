@@ -101,13 +101,13 @@ jobs:
           fi
           echo "✅ Valid cache versions found"
 
-          # Test 3: Check PGlite script tag exists
-          echo "🔍 Checking PGlite script tag in base.html..."
-          if ! grep -q "/shared/db/pglite.min.js" frontend/web/templates/base.html; then
-            echo "❌ PGlite script tag missing in base.html"
+          # Test 3: Check Dexie script tag exists
+          echo "🔍 Checking Dexie script tag in base.html..."
+          if ! grep -q "/shared/db/dexie.min.js" frontend/web/templates/base.html; then
+            echo "❌ Dexie script tag missing in base.html"
             exit 1
           fi
-          echo "✅ PGlite script tag found"
+          echo "✅ Dexie script tag found"
 
           # Test 4: Check Service Worker file exists and has valid version
           echo "🔍 Checking Service Worker cache version..."

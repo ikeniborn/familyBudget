@@ -417,6 +417,11 @@ html.offline-mode .save-btn:hover {
         z-index: var(--z-fab-desktop);  /* 1000 - above backdrop (999) */
         position: relative;
     }
+
+    /* Hide desktop FAB when modal is open (v11.x+ fix) */
+    body:has(.modal.modal-open) .desktop-fab-wrapper {
+        z-index: 950;
+    }
 }
 
 /* Navigation container */
@@ -692,8 +697,16 @@ html.offline-mode .save-btn:hover {
     transform: rotate(45deg);
 }
 
-/* Desktop FAB backdrop transition */
-#desktop-fab-backdrop {
+/* Desktop FAB backdrop styles (v11.x+ fix) */
+.desktop-fab-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    z-index: var(--z-fab-backdrop);
     transition: opacity 0.3s ease-out;
 }
 

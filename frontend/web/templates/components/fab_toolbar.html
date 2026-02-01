@@ -117,16 +117,7 @@
         </button>
 
         <!-- Backdrop for closing menu on outside click -->
-        <div id="desktop-fab-backdrop" style="
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.3);
-            z-index: var(--z-fab-backdrop);
-        "></div>
+        <div id="desktop-fab-backdrop" class="desktop-fab-backdrop"></div>
     </div>
 
     <!-- Mobile Speed Dial FAB для главной страницы (< 1024px) -->
@@ -227,18 +218,19 @@ const FAB_PAGE_CONTEXT = {
             if (isDesktop) {
                 // Desktop: show desktop FAB, hide mobile FAB
                 if (desktopFabWrapper) {
-                    desktopFabWrapper.style.display = '';
+                    desktopFabWrapper.style.display = 'block';
                     desktopFabWrapper.style.visibility = 'visible';
                     desktopFabWrapper.style.pointerEvents = 'auto';
                 }
                 if (mobileFabWrapper) {
                     mobileFabWrapper.style.display = 'none';
                     mobileFabWrapper.style.visibility = 'hidden';
+                    mobileFabWrapper.style.pointerEvents = 'none';
                 }
             } else {
                 // Mobile: show mobile FAB, hide desktop FAB
                 if (mobileFabWrapper) {
-                    mobileFabWrapper.style.display = '';
+                    mobileFabWrapper.style.display = 'block';
                     mobileFabWrapper.style.visibility = 'visible';
                     mobileFabWrapper.style.pointerEvents = 'auto';
                     mobileFabWrapper.style.opacity = '1';
@@ -246,6 +238,7 @@ const FAB_PAGE_CONTEXT = {
                 if (desktopFabWrapper) {
                     desktopFabWrapper.style.display = 'none';
                     desktopFabWrapper.style.visibility = 'hidden';
+                    desktopFabWrapper.style.pointerEvents = 'none';
                 }
             }
         }
@@ -429,35 +422,6 @@ function closeFabMenu() {
 }
 
 /**
- * Setup FAB button click listener as fallback
- * Ensures FAB button works even if onclick attribute fails
- */
-function setupFabButtonListener() {
-    const fabBtn = document.getElementById('fab-btn');
-
-    if (fabBtn && !fabBtn.dataset.listenerAttached) {
-        fabBtn.addEventListener('click', function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            const currentPage = window.location.pathname;
-            if (currentPage === '/') {
-                if (typeof toggleFabMenu === 'function') {
-                    toggleFabMenu();
-                }
-            } else {
-                if (typeof safeOpenContextModal === 'function') {
-                    safeOpenContextModal();
-                }
-            }
-        });
-
-        fabBtn.dataset.listenerAttached = 'true';
-        console.log('[FAB] Button listener attached');
-    }
-}
-
-/**
  * Инициализация Speed Dial при загрузке страницы
  */
 (function initSpeedDial() {
@@ -469,44 +433,66 @@ function setupFabButtonListener() {
 
     // Mobile FAB initialization
     if (mobileMenu && mobileFabBtn) {
-        if (currentPage === '/') {
-            // Главная страница: Speed dial меню
-            mobileMenu.style.display = 'none'; // Изначально закрыто
-            mobileFabBtn.setAttribute('onclick', 'toggleFabMenu()');
-        } else {
-            // /facts, /plan: прямое открытие модального окна
-            mobileMenu.style.display = 'none';
-            mobileFabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+        mobileFabBtn.removeAttribute('onclick');
+
+        if (mobileFabBtn.dataset.listenerAttached === 'true') {
+            return;
         }
 
-        // Setup programmatic listener as fallback
-        setupFabButtonListener();
+        if (currentPage === '/') {
+            mobileMenu.style.display = 'none';
+            mobileFabBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleFabMenu();
+            });
+        } else {
+            mobileMenu.style.display = 'none';
+            mobileFabBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                safeOpenContextModal();
+            });
+        }
+
+        mobileFabBtn.dataset.listenerAttached = 'true';
     }
 
     // Desktop FAB initialization
     if (desktopWrapper && desktopFabBtn) {
         const backdrop = document.getElementById('desktop-fab-backdrop');
+        desktopFabBtn.removeAttribute('onclick');
+
+        if (desktopFabBtn.dataset.listenerAttached === 'true') {
+            return;
+        }
 
         if (currentPage === '/') {
-            // Главная страница: Speed dial меню (изначально закрыто)
             desktopWrapper.classList.add('closed');
             desktopWrapper.classList.remove('open');
-            if (backdrop) backdrop.style.display = 'none'; // Ensure backdrop hidden
-            desktopFabBtn.setAttribute('onclick', 'toggleDesktopFabMenu()');
-        } else {
-            // /facts, /plan: скрыть Speed Dial меню, прямое открытие модального окна
-            desktopWrapper.classList.add('closed');
-            desktopWrapper.classList.remove('open');
-            if (backdrop) backdrop.style.display = 'none'; // Ensure backdrop hidden
+            if (backdrop) backdrop.style.display = 'none';
 
-            // Hide menu items completely on non-home pages
-            const menuItems = desktopWrapper.querySelectorAll('.fab-menu-item');
-            menuItems.forEach(item => {
-                item.style.display = 'none';
+            desktopFabBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleDesktopFabMenu();
             });
+        } else {
+            desktopWrapper.classList.add('closed');
+            desktopWrapper.classList.remove('open');
+            if (backdrop) backdrop.style.display = 'none';
 
-            desktopFabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+            const menuItems = desktopWrapper.querySelectorAll('.fab-menu-item');
+            menuItems.forEach(item => item.style.display = 'none');
+
+            desktopFabBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                safeOpenContextModal();
+            });
         }
+
+        desktopFabBtn.dataset.listenerAttached = 'true';
     }
 })();
 
@@ -520,6 +506,26 @@ document.addEventListener('click', function(event) {
     // Если клик вне FAB и меню открыто - закрыть
     if (!wrapper.contains(event.target) && wrapper.classList.contains('open')) {
         closeFabMenu();
+    }
+});
+
+// Keyboard navigation: Escape key closes FAB menu
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' || event.keyCode === 27) {
+        // Close mobile FAB menu
+        const mobileWrapper = document.getElementById('fab-wrapper');
+        const mobileMenu = document.getElementById('fab-speed-dial-menu');
+        if (mobileWrapper && mobileMenu && mobileWrapper.classList.contains('open')) {
+            closeFabMenu();
+            event.preventDefault();
+        }
+
+        // Close desktop FAB menu
+        const desktopWrapper = document.getElementById('desktop-fab-wrapper');
+        if (desktopWrapper && desktopWrapper.classList.contains('open')) {
+            closeDesktopFabMenu();
+            event.preventDefault();
+        }
     }
 });
 
@@ -566,16 +572,29 @@ function closeDesktopFabMenu() {
     }
 }
 
-// Закрытие desktop меню при клике на backdrop
-document.addEventListener('DOMContentLoaded', function() {
+// Desktop backdrop close listener (IIFE - no DOMContentLoaded dependency)
+(function attachDesktopBackdropListener() {
     const backdrop = document.getElementById('desktop-fab-backdrop');
-
     if (backdrop) {
         backdrop.addEventListener('click', function(event) {
             event.preventDefault();
             event.stopPropagation();
             closeDesktopFabMenu();
         });
+    } else {
+        // Fallback: retry after DOM ready if element not found
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                const backdropRetry = document.getElementById('desktop-fab-backdrop');
+                if (backdropRetry) {
+                    backdropRetry.addEventListener('click', function(event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeDesktopFabMenu();
+                    });
+                }
+            });
+        }
     }
-});
+})();
 </script>

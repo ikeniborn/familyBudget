@@ -453,9 +453,9 @@
 
             if (event.data.type === 'EXECUTE_PRUNING') {
                 try {
-                    const { getPGliteManager } = await import('/shared/db/pglite.min.js?v=PLACEHOLDER');
-                    const pglite = getPGliteManager();
-                    const result = await pglite.pruneFacts();
+                    const { getDexieManager } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
+                    const dexie = getDexieManager();
+                    const result = await dexie.pruneFacts();
 
                     event.ports[0].postMessage({ success: true, result });
                 } catch (error) {
