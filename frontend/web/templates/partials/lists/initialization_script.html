@@ -8,11 +8,14 @@
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Show PGlite initialization progress if enabled
+        // Show Dexie initialization progress if enabled
         let progressCheckInterval = null;
-        if (localStorage.getItem('enablePGlite') === 'true' &&
-            typeof window.showPGliteProgress === 'function' &&
-            typeof window.hidePGliteProgress === 'function') {
+        const showProgress = window.showDexieProgress || showProgress;
+        const hideProgress = window.hideDexieProgress || hideProgress;
+
+        if (localStorage.getItem('dexieActive') === 'true' &&
+            typeof showProgress === 'function' &&
+            typeof hideProgress === 'function') {
             try {
                 // Listen to state changes via polling
                 // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
@@ -23,15 +26,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         if (state.initializationStatus === 'initializing' || state.initializationStatus === 'validating') {
                             // Show generic message (actual progress comes from progressCallback)
-                            window.showPGliteProgress({
+                            showProgress({
                                 phase: 'Initializing',
                                 message: 'Загрузка данных...'
                             });
                         } else if (state.initializationStatus === 'ready') {
-                            window.hidePGliteProgress();
+                            hideProgress();
                             clearInterval(progressCheckInterval);
                         } else if (state.initializationStatus === 'error') {
-                            window.hidePGliteProgress();
+                            hideProgress();
                             clearInterval(progressCheckInterval);
                         }
                     } catch (err) {

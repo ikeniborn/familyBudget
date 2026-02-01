@@ -60,12 +60,12 @@
 
         console.log('[AUTH_REDIRECT] Initializing redirect flow...');
 
-        // Auto-enable PGlite for first-time users (only if not already set)
-        if (localStorage.getItem('enableDexie') === null) {
-            localStorage.setItem('enableDexie', 'true');
+        // Auto-enable Dexie for first-time users (only if not already set)
+        if (localStorage.getItem('dexieActive') === null) {
+            localStorage.setItem('dexieActive', 'true');
             console.log('[AUTH_REDIRECT] ✅ Dexie auto-enabled for new user');
         } else {
-            console.log('[AUTH_REDIRECT] Dexie already configured:', localStorage.getItem('enableDexie'));
+            console.log('[AUTH_REDIRECT] Dexie already configured:', localStorage.getItem('dexieActive'));
         }
 
         // Set just_logged_in flag for WebAuthn onboarding

@@ -112,11 +112,11 @@
     }
 
     /**
-     * Initialize indicator based on localStorage.enableDexie
+     * Initialize indicator based on localStorage.dexieActive
      */
     async function initDexieIndicator() {
         try {
-            const isDexieEnabled = localStorage.getItem('enableDexie') === 'true';
+            const isDexieEnabled = localStorage.getItem('dexieActive') === 'true';
 
             if (isDexieEnabled) {
                 showDexieIndicator();

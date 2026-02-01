@@ -54,8 +54,10 @@ export function getDexieFeatureFlags(): {
   };
 }
 
-// Alias for backward compatibility
+// Aliases for backward compatibility
 export const getPGliteFeatureFlags = getDexieFeatureFlags;
+export const isDexieEnabled = isDexieActive;
+export const setDexieEnabled = setDexieActive;
 
 // Operations
 export * from './operations/schemaOperations';

@@ -458,6 +458,50 @@
     <!-- Dexie Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
     <script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
 
+    <!-- Dexie Compatibility Layer: window.PGlite → window.Dexie (backward compatibility) -->
+    <script>
+        // Create window.PGlite as alias to window.Dexie for backward compatibility
+        // This ensures existing code using window.PGlite continues to work
+        if (typeof window.Dexie !== 'undefined' && typeof window.PGlite === 'undefined') {
+            window.PGlite = {
+                // Core initialization
+                initializeDatabaseInBackground: window.Dexie.initializeDatabaseInBackground,
+                isReady: window.Dexie.isReady,
+                getDiagnosticData: window.Dexie.getDiagnosticData,
+
+                // Feature flags
+                isDexieActive: window.Dexie.isDexieActive,
+                setDexieActive: window.Dexie.setDexieActive,
+                isDexieEnabled: window.Dexie.isDexieEnabled,
+                setDexieEnabled: window.Dexie.setDexieEnabled,
+                getDexieFeatureFlags: window.Dexie.getDexieFeatureFlags,
+
+                // Manager
+                getDexieManager: window.Dexie.getDexieManager,
+                getState: window.Dexie.getState,
+
+                // Operations (if exposed)
+                createFact: window.Dexie.createFact,
+                updateFact: window.Dexie.updateFact,
+                deleteFact: window.Dexie.deleteFact,
+                queryFacts: window.Dexie.queryFacts,
+
+                // Shopping lists
+                createShoppingList: window.Dexie.createShoppingList,
+                queryShoppingLists: window.Dexie.queryShoppingLists,
+
+                // Sync
+                syncReferenceData: window.Dexie.syncReferenceData,
+                syncBudgetFacts: window.Dexie.syncBudgetFacts
+            };
+            console.info('[Compatibility] window.PGlite alias created for window.Dexie');
+        } else if (typeof window.Dexie === 'undefined') {
+            console.warn('[Compatibility] window.Dexie not available, skipping PGlite alias');
+        } else {
+            console.debug('[Compatibility] window.PGlite already exists, skipping alias');
+        }
+    </script>
+
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
 
@@ -838,23 +882,51 @@
             }
         });
 
-        // NEW: PGlite Background Initialization (API-First Migration)
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if PGlite enabled and not already initialized
-            const enableDexie = localStorage.getItem('enableDexie') === 'true';
+        // Feature Flag Migration (one-time): PGlite → Dexie terminology
+        (function migrateFeatureFlags() {
+            const migrationMapping = {
+                'enablePGlite': 'dexieActive',
+                'enableDexie': 'dexieActive',
+                'pgliteEnableConflictResolution': 'dexieEnableConflictResolution',
+                'pgliteEnableAutoPruning': 'dexieEnableAutoPruning',
+                'pgliteFactsWindow': 'dexieFactsWindow',
+                'pgliteAutoSync': 'dexieAutoSync',
+                'pgliteDebug': 'dexieDebug',
+                'pgliteRetentionDays': 'dexieRetentionDays'
+            };
 
-            if (enableDexie && typeof window.PGlite !== 'undefined') {
-                console.info('[APP] Starting PGlite background initialization...');
+            let migratedCount = 0;
+            Object.entries(migrationMapping).forEach(([oldKey, newKey]) => {
+                const value = localStorage.getItem(oldKey);
+                if (value !== null) {
+                    localStorage.setItem(newKey, value);
+                    localStorage.removeItem(oldKey);
+                    migratedCount++;
+                }
+            });
+
+            if (migratedCount > 0) {
+                console.info(`[Migration] ✅ Migrated ${migratedCount} feature flag keys`);
+            }
+        })();
+
+        // NEW: Dexie Background Initialization (API-First Migration)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Dexie enabled and not already initialized
+            const dexieActive = localStorage.getItem('dexieActive') === 'true';
+
+            if (dexieActive && typeof window.PGlite !== 'undefined') {
+                console.info('[APP] Starting Dexie background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
                 window.PGlite.initializeDatabaseInBackground().catch(error => {
-                    console.warn('[APP] Background PGlite init failed (non-critical):', error);
+                    console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
-            } else if (enableDexie) {
-                console.warn('[APP] PGlite enabled but window.PGlite not loaded');
+            } else if (dexieActive) {
+                console.warn('[APP] Dexie enabled but window.PGlite not loaded');
             } else {
-                console.info('[APP] PGlite disabled, skipping background init');
+                console.info('[APP] Dexie disabled, skipping background init');
             }
         });
 

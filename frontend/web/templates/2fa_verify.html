@@ -239,8 +239,8 @@ async function handleVerify(e) {
 
         showToast('Вход выполнен успешно!', 'success');
         // CRITICAL: Auto-enable PGlite FIRST (before redirect)
-        if (localStorage.getItem('enableDexie') === null) {
-            localStorage.setItem('enableDexie', 'true');
+        if (localStorage.getItem('dexieActive') === null) {
+            localStorage.setItem('dexieActive', 'true');
             console.log('[AUTH] Dexie auto-enabled for new user (2FA)');
         }
         sessionStorage.setItem('just_logged_in', 'true');
