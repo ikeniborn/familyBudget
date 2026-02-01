@@ -47,8 +47,18 @@ if git diff --cached --name-only | grep -q '^VERSION$'; then
     rm -f "$GIT_ROOT/package.json.bak"
 
     # Update package-lock.json (2 locations: root .version and .packages."".version)
-    sed -i.bak "s/\"version\": \"$CURRENT_PKG_VERSION\"/\"version\": \"$VERSION\"/" "$GIT_ROOT/package-lock.json"
-    rm -f "$GIT_ROOT/package-lock.json.bak"
+    # Use jq for reliable JSON manipulation
+    if command -v jq >/dev/null 2>&1; then
+      jq --arg v "$VERSION" '.version = $v' "$GIT_ROOT/package-lock.json" > "$GIT_ROOT/package-lock.json.tmp"
+      jq --arg v "$VERSION" '.packages."".version = $v' "$GIT_ROOT/package-lock.json.tmp" > "$GIT_ROOT/package-lock.json"
+      rm -f "$GIT_ROOT/package-lock.json.tmp"
+    else
+      echo "   ⚠️  jq not found, using fallback sed (may not update all locations)"
+      # Get current version from package-lock.json
+      CURRENT_LOCK_VERSION=$(grep -m1 '"version"' "$GIT_ROOT/package-lock.json" | sed 's/.*"version": "\(.*\)".*/\1/')
+      sed -i.bak "s/\"version\": \"$CURRENT_LOCK_VERSION\"/\"version\": \"$VERSION\"/" "$GIT_ROOT/package-lock.json"
+      rm -f "$GIT_ROOT/package-lock.json.bak"
+    fi
 
     # Stage updated files
     git add "$GIT_ROOT/package.json" "$GIT_ROOT/package-lock.json"
