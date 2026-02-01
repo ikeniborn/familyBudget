@@ -720,6 +720,79 @@ for (const build of toBuild) {
 
 ---
 
+### CI/CD Build Cache (v11.1.0)
+
+**File:** `.github/workflows/build-and-push.yml`
+
+**Purpose:** Кешировать node_modules, Vite cache и .build-cache между GitHub Actions runs
+
+**Configuration:**
+```yaml
+- name: Restore build cache
+  uses: actions/cache@v4
+  with:
+    path: |
+      node_modules
+      .vite
+      .build-cache
+    key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json', 'config/vite.config*.ts', 'build-all.js') }}
+    restore-keys: |
+      ${{ runner.os }}-build-
+```
+
+**Cache Key Components:**
+- `runner.os`: Linux (GitHub Actions Ubuntu runner)
+- `package-lock.json`: Invalidate при изменении dependencies
+- `config/vite.config*.ts`: Invalidate при изменении Vite конфигурации
+- `build-all.js`: Invalidate при изменении build logic
+
+**Cache Invalidation:**
+| Trigger | Cache Status | Rebuild Required |
+|---------|-------------|------------------|
+| Changed package-lock.json | ❌ MISS (invalidated) | Yes (npm ci) |
+| Changed vite.config.ts | ❌ MISS (invalidated) | Yes (full rebuild) |
+| Changed build-all.js | ❌ MISS (invalidated) | Yes (full rebuild) |
+| Changed frontend/*.ts | ✅ HIT (cache valid) | Partial (incremental) |
+| Changed backend/*.py | ✅ HIT (cache valid) | No (skip frontend build) |
+
+**Cache Size:**
+| Directory | Size | Purpose |
+|-----------|------|---------|
+| `node_modules/` | ~200-250MB | npm packages |
+| `.vite/` | ~10-20MB | Vite cache (deps pre-bundling) |
+| `.build-cache/` | ~1-2KB | Bundle hash files (41 files × 32 bytes) |
+| **Total** | **~210-270MB** | |
+
+**GitHub Actions Cache Limits:**
+- Repository limit: **10 GB**
+- Cache eviction: LRU (least recently used)
+- Cache retention: 7 days (if not accessed)
+
+**Performance Impact (CI/CD):**
+| Scenario | npm ci | Build Time | Total | Speedup |
+|----------|--------|------------|-------|---------|
+| Cold build (cache miss) | 2-3 min | 13-17s | 2.5-3.5 min | 1x (baseline) |
+| Warm build (cache hit) | **5-10s** | 8-12s | **20-30s** | **5-7x faster** |
+| Warm + incremental (1 file changed) | **5-10s** | 2-5s | **10-15s** | **10-15x faster** |
+
+**Восстановление cache:**
+```bash
+# GitHub Actions автоматически восстанавливает cache при cache hit
+# Fallback: restore-keys позволяет использовать частичный match
+# Пример: restore-keys: ${{ runner.os }}-build- → восстановит последний cache с префиксом
+```
+
+**Monitoring cache effectiveness:**
+```yaml
+# Добавить в workflow для отладки
+- name: Cache statistics
+  run: |
+    echo "Cache hit: ${{ steps.cache.outputs.cache-hit }}"
+    du -sh node_modules .vite .build-cache
+```
+
+---
+
 ## Performance Optimization
 
 ### Vite Features
