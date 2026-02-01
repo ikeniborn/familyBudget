@@ -40,10 +40,7 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Копируем build configuration files (required for npm run build:prod)
 COPY build-all.js ./
-COPY vite*.ts ./
-COPY vitest.config.ts postcss.config.js ./
-COPY tsconfig*.json ./
-COPY tailwind.config.js eslint.config.js ./
+COPY config/ ./config/
 COPY sw.js manifest.json ./
 
 # Копируем исходники frontend
