@@ -74,7 +74,8 @@
     <!-- Desktop Speed Dial FAB (≥ 1024px) -->
     <div class="desktop-fab-wrapper closed" id="desktop-fab-wrapper">
         <!-- Speed Dial Menu Items (shown above FAB button) -->
-        <div class="fab-menu-item" style="margin-bottom: 0.75rem;">
+        <div class="fab-menu-item">
+            <span class="badge badge-neutral mr-2">Добавить план</span>
             <button
                 onclick="openModalPlan(); closeDesktopFabMenu();"
                 class="btn btn-circle btn-primary shadow-lg"
@@ -86,10 +87,10 @@
                           d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
             </button>
-            <span class="badge badge-neutral ml-2">Добавить план</span>
         </div>
 
-        <div class="fab-menu-item" style="margin-bottom: 0.75rem;">
+        <div class="fab-menu-item">
+            <span class="badge badge-neutral mr-2">Добавить факт</span>
             <button
                 onclick="openModalFact(); closeDesktopFabMenu();"
                 class="btn btn-circle btn-primary shadow-lg"
@@ -101,7 +102,6 @@
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                 </svg>
             </button>
-            <span class="badge badge-neutral ml-2">Добавить факт</span>
         </div>
 
         <!-- Main FAB Button -->
@@ -115,9 +115,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
         </button>
-
-        <!-- Backdrop for closing menu on outside click -->
-        <div id="desktop-fab-backdrop" class="desktop-fab-backdrop"></div>
     </div>
 
     <!-- Mobile Speed Dial FAB для главной страницы (< 1024px) -->
@@ -536,9 +533,8 @@ document.addEventListener('keydown', function(event) {
  */
 function toggleDesktopFabMenu() {
     const wrapper = document.getElementById('desktop-fab-wrapper');
-    const backdrop = document.getElementById('desktop-fab-backdrop');
 
-    if (!wrapper || !backdrop) {
+    if (!wrapper) {
         console.error('[FAB] Desktop FAB elements not found');
         return;
     }
@@ -549,12 +545,10 @@ function toggleDesktopFabMenu() {
         // Закрыть меню
         wrapper.classList.remove('open');
         wrapper.classList.add('closed');
-        backdrop.style.display = 'none';
     } else {
         // Открыть меню
         wrapper.classList.remove('closed');
         wrapper.classList.add('open');
-        backdrop.style.display = 'block';
     }
 }
 
@@ -563,38 +557,10 @@ function toggleDesktopFabMenu() {
  */
 function closeDesktopFabMenu() {
     const wrapper = document.getElementById('desktop-fab-wrapper');
-    const backdrop = document.getElementById('desktop-fab-backdrop');
 
-    if (wrapper && backdrop) {
+    if (wrapper) {
         wrapper.classList.remove('open');
         wrapper.classList.add('closed');
-        backdrop.style.display = 'none';
     }
 }
-
-// Desktop backdrop close listener (IIFE - no DOMContentLoaded dependency)
-(function attachDesktopBackdropListener() {
-    const backdrop = document.getElementById('desktop-fab-backdrop');
-    if (backdrop) {
-        backdrop.addEventListener('click', function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            closeDesktopFabMenu();
-        });
-    } else {
-        // Fallback: retry after DOM ready if element not found
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-                const backdropRetry = document.getElementById('desktop-fab-backdrop');
-                if (backdropRetry) {
-                    backdropRetry.addEventListener('click', function(event) {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        closeDesktopFabMenu();
-                    });
-                }
-            });
-        }
-    }
-})();
 </script>
