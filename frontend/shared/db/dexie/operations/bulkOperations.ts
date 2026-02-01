@@ -10,7 +10,7 @@ import type { LocalBudgetFact } from '../types/fact';
 /**
  * Progress callback для bulk operations
  */
-export type BulkProgressCallback = (current: number, total: number) => void;
+export type BulkProgressCallback = (_current: number, _total: number) => void;
 
 /**
  * Bulk insert facts с progress reporting

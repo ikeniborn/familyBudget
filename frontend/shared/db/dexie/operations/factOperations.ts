@@ -28,11 +28,6 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
 export async function createFact(
   fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
 ): Promise<string> {
-  // Trigger sync start indicator (совместимость с PGlite)
-  if (typeof window !== 'undefined') {
-    (window as any).pgliteIndicator?.onSyncStart();
-  }
-
   try {
     const temp_id = generateUUID();
     const content_hash = await calculateContentHash(fact as Record<string, unknown>);
@@ -81,17 +76,9 @@ export async function createFact(
 
     logger.info('[Dexie] ✅ Fact created', { temp_id });
 
-    // Sync complete
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncComplete();
-    }
-
     return temp_id;
   } catch (error) {
     logger.error('[Dexie] ❌ Fact create error:', error);
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncError(error as Error);
-    }
     throw error;
   }
 }
@@ -106,11 +93,6 @@ export async function updateFact(
   temp_id: string,
   updates: Partial<Pick<LocalBudgetFact, 'date' | 'amount' | 'article_id' | 'financial_center_id' | 'cost_center_id' | 'comment'>>
 ): Promise<void> {
-  // Trigger sync start
-  if (typeof window !== 'undefined') {
-    (window as any).pgliteIndicator?.onSyncStart();
-  }
-
   try {
     logger.debug('[Dexie] Updating fact', { temp_id, updates });
 
@@ -149,16 +131,8 @@ export async function updateFact(
     });
 
     logger.info('[Dexie] ✅ Fact updated', { temp_id });
-
-    // Sync complete
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncComplete();
-    }
   } catch (error) {
     logger.error('[Dexie] ❌ Fact update error:', error);
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncError(error as Error);
-    }
     throw error;
   }
 }
@@ -169,11 +143,6 @@ export async function updateFact(
  * @param temp_id - Fact temp_id
  */
 export async function deleteFact(temp_id: string): Promise<void> {
-  // Trigger sync start
-  if (typeof window !== 'undefined') {
-    (window as any).pgliteIndicator?.onSyncStart();
-  }
-
   try {
     logger.debug('[Dexie] Deleting fact', { temp_id });
 
@@ -205,16 +174,8 @@ export async function deleteFact(temp_id: string): Promise<void> {
     });
 
     logger.info('[Dexie] ✅ Fact deleted', { temp_id });
-
-    // Sync complete
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncComplete();
-    }
   } catch (error) {
     logger.error('[Dexie] ❌ Fact delete error:', error);
-    if (typeof window !== 'undefined') {
-      (window as any).pgliteIndicator?.onSyncError(error as Error);
-    }
     throw error;
   }
 }

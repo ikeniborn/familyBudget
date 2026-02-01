@@ -29,7 +29,7 @@ export type InitializationStatus = 'not_started' | 'initializing' | 'ready' | 'e
 /**
  * Progress callback for bulk operations
  */
-export type ProgressCallback = (current: number, total: number) => void;
+export type ProgressCallback = (_current: number, _total: number) => void;
 
 /**
  * DexieManager - Main database interface

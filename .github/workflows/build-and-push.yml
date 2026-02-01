@@ -759,3 +759,74 @@ jobs:
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Job 7: Deploy to test server (only for test branch)
+  # ============================================================================
+  deploy-test:
+    name: Deploy to budget-test
+    needs: [check-version, image-build-push]
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      github.ref_name == 'test' &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      needs.image-build-push.result == 'success'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          port: ${{ secrets.TEST_SERVER_SSH_PORT }}
+          script: |
+            echo "🚀 Starting deployment to budget-test..."
+
+            # Navigate to project directory
+            cd /opt/budget
+
+            # Pull latest code from test branch
+            echo "📥 Pulling latest code..."
+            sudo git fetch origin
+            sudo git checkout test
+            sudo git pull origin test
+
+            # Run deploy script in registry mode
+            echo "🐳 Pulling Docker images and restarting containers..."
+            sudo bash scripts/deploy.sh --mode registry
+
+            # Wait for services to start
+            echo "⏳ Waiting for services to initialize (30s)..."
+            sleep 30
+
+            # Verify deployment
+            echo "✅ Checking container health..."
+            sudo docker-compose ps
+
+            # Check backend health endpoint
+            echo "🏥 Checking backend health..."
+            curl -f http://localhost:8000/health || exit 1
+
+            # Check nginx response
+            echo "🌐 Checking nginx..."
+            curl -f http://localhost:80 || exit 1
+
+            echo "✅ Deployment completed successfully!"
+
+      - name: Deployment Success
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to test server (budget-test)" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 URL: https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Version: $(cat VERSION)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY
