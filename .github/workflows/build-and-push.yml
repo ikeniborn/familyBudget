@@ -90,6 +90,26 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      - name: Sync package.json version with VERSION file
+        run: |
+          VERSION=$(cat VERSION | tr -d '[:space:]')
+          CURRENT_PKG_VERSION=$(jq -r '.version' package.json)
+
+          if [[ "$VERSION" != "$CURRENT_PKG_VERSION" ]]; then
+            echo "📝 Syncing package.json: $CURRENT_PKG_VERSION → $VERSION"
+            jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
+            mv package.json.tmp package.json
+
+            echo "📝 Syncing package-lock.json: $CURRENT_PKG_VERSION → $VERSION"
+            jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
+            jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
+            rm package-lock.json.tmp
+
+            echo "✅ package.json and package-lock.json synced to $VERSION"
+          else
+            echo "✅ package.json already in sync with VERSION ($VERSION)"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
