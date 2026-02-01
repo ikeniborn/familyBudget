@@ -4,14 +4,22 @@
  * Build script для последовательной сборки всех entry points через Vite
  *
  * Vite не поддерживает multiple IIFE bundles в одном конфиге,
- * поэтому запускаем build 5 раз с разными входными файлами.
+ * поэтому запускаем build 41 раз с разными входными файлами.
+ *
+ * Оптимизации (v11.1.0):
+ * - Incremental builds: Пропуск неизменённых bundles (hash-based detection)
+ * - Кеш хранится в .build-cache/ (gitignore)
  */
 
 const { spawn } = require('child_process');
 const { resolve } = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const production = process.env.NODE_ENV === 'production';
 const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '_')}`;
+const CACHE_DIR = '.build-cache';
+const FORCE_REBUILD = process.env.FORCE_REBUILD === 'true';
 
 // All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
@@ -289,7 +297,68 @@ console.log('\n━━━━━━━━━━━━━━━━━━━━━�
 console.log(`🚀 Building ${builds.length} bundles with Vite`);
 console.log(`📦 Mode: ${production ? 'PRODUCTION' : 'development'}`);
 console.log(`🔖 Cache Version: ${cacheVersion}`);
+console.log(`♻️  Incremental builds: ${!FORCE_REBUILD ? 'ENABLED' : 'DISABLED (FORCE_REBUILD)'}`);
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+/**
+ * Вычислить MD5 хеш исходного файла
+ * @param {string} filepath - Путь к исходному файлу
+ * @returns {string} MD5 хеш содержимого файла
+ */
+function getFileHash(filepath) {
+  try {
+    const content = fs.readFileSync(filepath, 'utf8');
+    return crypto.createHash('md5').update(content).digest('hex');
+  } catch (error) {
+    console.warn(`⚠️  Cannot hash ${filepath}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Проверить, нужно ли пересобирать bundle
+ * @param {Object} build - Build configuration
+ * @returns {boolean} true если нужно пересобирать
+ */
+function shouldRebuild(build) {
+  // Форсированная пересборка
+  if (FORCE_REBUILD) return true;
+
+  const hashFile = `${CACHE_DIR}/${build.name}.hash`;
+  const currentHash = getFileHash(build.input);
+
+  // Не удалось вычислить хеш → пересобрать
+  if (!currentHash) return true;
+
+  // Первая сборка → пересобрать
+  if (!fs.existsSync(hashFile)) {
+    console.log(`🆕 First build: ${build.name}`);
+    return true;
+  }
+
+  // Сравнить хеш
+  const previousHash = fs.readFileSync(hashFile, 'utf8');
+  if (currentHash !== previousHash) {
+    console.log(`🔄 Changed: ${build.name}`);
+    return true;
+  }
+
+  // Файл не изменился → пропустить
+  console.log(`✓ Skip unchanged: ${build.name}`);
+  return false;
+}
+
+/**
+ * Сохранить хеш после успешной сборки
+ * @param {Object} build - Build configuration
+ */
+function saveHash(build) {
+  const hash = getFileHash(build.input);
+  if (!hash) return;
+
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  fs.writeFileSync(`${CACHE_DIR}/${build.name}.hash`, hash);
+}
 
 // Функция для запуска одного build
 function runBuild(build) {
@@ -316,6 +385,7 @@ function runBuild(build) {
     vite.on('close', (code) => {
       if (code === 0) {
         console.log(`✅ ${build.name} built successfully\n`);
+        saveHash(build); // Сохранить хеш после успешной сборки
         resolve();
       } else {
         reject(new Error(`Build failed for ${build.name} with code ${code}`));
@@ -328,18 +398,27 @@ function runBuild(build) {
   });
 }
 
-// Последовательная сборка всех bundles
+// Последовательная сборка всех bundles с incremental optimization
 async function buildAll() {
   const startTime = Date.now();
 
   try {
-    for (const build of builds) {
+    // Фильтровать bundles для пересборки
+    const toBuild = builds.filter(shouldRebuild);
+    const skipped = builds.length - toBuild.length;
+
+    console.log(`📊 Building ${toBuild.length} of ${builds.length} bundles (${skipped} unchanged)\n`);
+
+    // Собрать только изменённые bundles
+    for (const build of toBuild) {
       await runBuild(build);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`✅ All bundles built successfully in ${duration}s`);
+    console.log(`✅ Build completed in ${duration}s`);
+    console.log(`   Built: ${toBuild.length} bundles`);
+    console.log(`   Skipped: ${skipped} bundles (unchanged)`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     process.exit(0);
   } catch (error) {

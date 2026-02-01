@@ -346,6 +346,7 @@ test-results/
 # Build artifacts
 dist/
 .vite-build/
+.build-cache/
 
 # Service Worker build results
 frontend/web/static/sw.min.js

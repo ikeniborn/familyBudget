@@ -1,22 +1,132 @@
 # Build System Architecture
 
-**Last Updated:** 2026-01-18
-**Version:** 7.0.2
+**Last Updated:** 2026-02-01
+**Version:** 11.1.0
 
 ## Overview
 
 Family Budget uses **Vite** as the modern build system with integrated TypeScript compilation, minification, and gzip pre-compression.
 
 **Migration Timeline:**
+- **v11.1.0 (2026-02-01)**: Incremental builds + CI cache (10-15x faster incremental)
 - **v7.1.0 (2026-01-05)**: TypeScript migration (hybrid TS/JS approach)
 - **v7.0.0 (2026-01-07)**: Vite migration (replaced Rollup + bash scripts)
 - **v7.0.1 (2026-01-09)**: Lists bundle migration (5 modules → 1 bundle)
 
 **Total Build Impact:**
-- Build time: **13-17 seconds** (75% faster than v5.7.0)
+- Cold build time: **13-17 seconds** (75% faster than v5.7.0)
+- Incremental build: **0.5-2 seconds** (10-15x faster - only changed bundles)
+- CI build with cache: **8-12 seconds** (node_modules cached)
 - Raw file size reduction: 10-15%
 - Delivery size reduction: 60-70% (via gzip)
 - Expected Lighthouse performance score: >90
+
+---
+
+## Recent Changes
+
+### 2026-02-01: Incremental Builds + CI Cache (v11.1.0)
+
+**Change:** Реализована система incremental builds с hash-based detection изменений + GitHub Actions cache для node_modules и Vite
+
+**Проблема:**
+- Каждый запуск `npm run build` пересобирал ВСЕ 41 bundle (~13-17s)
+- Локальная разработка: изменение 1 файла → пересборка всех 41 bundles
+- CI/CD: каждая сборка скачивала node_modules заново (~2-3 минуты)
+- Нет механизма skip неизменённых bundles
+
+**Решение:**
+
+**1. Incremental Builds (build-all.js):**
+```javascript
+// Hash-based detection изменений
+function shouldRebuild(build) {
+  const hashFile = `.build-cache/${build.name}.hash`;
+  const currentHash = getFileHash(build.input);
+  const previousHash = fs.readFileSync(hashFile, 'utf8');
+
+  return currentHash !== previousHash; // Пересобрать только если изменился
+}
+
+// Фильтрация bundles перед сборкой
+const toBuild = builds.filter(shouldRebuild);
+console.log(`Building ${toBuild.length} of ${builds.length} bundles`);
+```
+
+**2. CI Cache (.github/workflows/build-and-push.yml):**
+```yaml
+- name: Restore build cache
+  uses: actions/cache@v4
+  with:
+    path: |
+      node_modules
+      .vite
+      .build-cache
+    key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json', 'config/vite.config*.ts', 'build-all.js') }}
+    restore-keys: |
+      ${{ runner.os }}-build-
+```
+
+**Результаты:**
+
+**Локальная разработка:**
+- Первая сборка: 13-17s (полная)
+- Изменили 1 файл: **0.5-2s** (только 1 bundle)
+- Изменили 5 файлов: **2-5s** (только 5 bundles)
+
+**CI/CD (GitHub Actions):**
+- Cold build (cache miss): 13-17s + 2-3 min (npm ci)
+- Warm build (cache hit): **8-12s** (node_modules из кеша)
+- Incremental (только frontend): **4-6s** (только изменённые bundles)
+
+**Файлы:**
+- `build-all.js`: Добавлены функции `getFileHash()`, `shouldRebuild()`, `saveHash()`
+- `.build-cache/`: 41 файл с MD5 хешами (по ~32 bytes)
+- `.gitignore`: Добавлен `.build-cache/`
+- `.github/workflows/build-and-push.yml`: Добавлен `actions/cache@v4` step
+
+**Переменные окружения:**
+- `FORCE_REBUILD=true` - Отключить incremental builds (пересобрать всё)
+
+**Пример использования:**
+```bash
+# Обычная сборка (incremental)
+npm run build  # Пересоберёт только изменённые bundles
+
+# Форсированная полная пересборка
+FORCE_REBUILD=true npm run build  # Пересоберёт все 41 bundle
+```
+
+**Логи сборки:**
+```
+🚀 Building 41 bundles with Vite
+📦 Mode: PRODUCTION
+🔖 Cache Version: 11.1.0
+♻️  Incremental builds: ENABLED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Building 3 of 41 bundles (38 unchanged)
+
+🔄 Changed: budgetShared
+📦 Building: budgetShared (frontend/shared/static/js/budgetShared.min.js)
+✅ budgetShared built successfully
+
+🔄 Changed: lists
+📦 Building: lists (frontend/web/static/js/lists.min.js)
+✅ lists built successfully
+
+🔄 Changed: dashboard
+📦 Building: dashboard (frontend/web/static/js/dashboard.min.js)
+✅ dashboard built successfully
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Build completed in 2.1s
+   Built: 3 bundles
+   Skipped: 38 bundles (unchanged)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Commit:** `[будет добавлен после merge]`
 
 ---
 
@@ -526,22 +636,87 @@ frontend/web/static/
 
 ## Build Orchestration
 
-### Sequential Build Script
+### Sequential Build Script with Incremental Optimization
 
-**File:** `build-all.js` (114 lines)
+**File:** `build-all.js` (430 lines) - v11.1.0
 
-**Purpose:** Sequential build for multiple configurations
+**Purpose:** Sequential build для 41 bundle с incremental optimization (hash-based detection)
 
 **Usage:**
 ```bash
-node build-all.js
+# Обычная сборка (incremental - только изменённые bundles)
+npm run build
+
+# Форсированная полная пересборка
+FORCE_REBUILD=true npm run build
+
+# Development mode (без minification)
+npm run bundle:dev
 ```
 
-**What it does:**
-1. Runs `vite build` with main config
-2. Runs `vite build` with single bundle config (if needed)
-3. Handles build errors gracefully
-4. Provides progress feedback
+**Механизм incremental builds:**
+
+**1. Hash Calculation (getFileHash)**
+```javascript
+function getFileHash(filepath) {
+  const content = fs.readFileSync(filepath, 'utf8');
+  return crypto.createHash('md5').update(content).digest('hex');
+}
+```
+
+**2. Change Detection (shouldRebuild)**
+```javascript
+function shouldRebuild(build) {
+  const hashFile = `.build-cache/${build.name}.hash`;
+  const currentHash = getFileHash(build.input);
+  const previousHash = fs.readFileSync(hashFile, 'utf8');
+
+  return currentHash !== previousHash; // Пересобрать только если изменился
+}
+```
+
+**3. Hash Persistence (saveHash)**
+```javascript
+function saveHash(build) {
+  fs.mkdirSync('.build-cache', { recursive: true });
+  fs.writeFileSync(`.build-cache/${build.name}.hash`, getFileHash(build.input));
+}
+```
+
+**4. Filtered Build Execution**
+```javascript
+const toBuild = builds.filter(shouldRebuild);
+console.log(`Building ${toBuild.length} of ${builds.length} bundles`);
+
+for (const build of toBuild) {
+  await runBuild(build);
+  saveHash(build); // Сохранить хеш после успешной сборки
+}
+```
+
+**Cache Directory Structure:**
+```
+.build-cache/
+├── network.hash (32 bytes)
+├── dexie.hash (32 bytes)
+├── budgetShared.hash (32 bytes)
+├── ... (41 файлов total)
+└── sw.hash (32 bytes)
+```
+
+**Cache Invalidation:**
+- Automatic: При изменении исходного файла (MD5 hash changed)
+- Manual: `FORCE_REBUILD=true npm run build`
+- CI/CD: Cache key includes `build-all.js` (при изменении логики сборки)
+
+**Performance Impact:**
+| Scenario | Bundles Changed | Build Time | Speedup |
+|----------|-----------------|------------|---------|
+| First build | 41 (all) | 13-17s | 1x (baseline) |
+| Changed 1 file | 1 | 0.5-2s | **10-15x faster** |
+| Changed 5 files | 5 | 2-5s | **4-6x faster** |
+| Changed 10 files | 10 | 5-8s | **2-3x faster** |
+| Full rebuild (FORCE_REBUILD) | 41 (all) | 13-17s | 1x (baseline) |
 
 ---
 

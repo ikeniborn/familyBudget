@@ -96,6 +96,17 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .vite
+            .build-cache
+          key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json', 'config/vite.config*.ts', 'build-all.js') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
       - name: Install dependencies
         run: npm ci
 
