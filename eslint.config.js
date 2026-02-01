@@ -20,6 +20,7 @@ module.exports = [
       "scripts/**",
       ".venv/**",
       "venv/**",
+      "config/**",
       "*.config.js",
       "*.config.ts",
       "build-all.js",

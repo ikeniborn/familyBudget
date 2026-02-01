@@ -34,7 +34,7 @@
     "forceConsistentCasingInFileNames": true,
 
     /* Path Mapping */
-    "baseUrl": ".",
+    "baseUrl": "..",
     "paths": {
       "@web/*": ["frontend/web/static/js/*"],
       "@webapp/*": ["frontend/webapp/static/js/*"],
@@ -45,20 +45,20 @@
   },
 
   "include": [
-    "frontend/web/static/js/**/*.ts",
-    "frontend/webapp/static/js/**/*.ts",
-    "frontend/shared/static/js/**/*.ts",
-    "frontend/shared/db/**/*.ts",
-    "types/**/*.d.ts"
+    "../frontend/web/static/js/**/*.ts",
+    "../frontend/webapp/static/js/**/*.ts",
+    "../frontend/shared/static/js/**/*.ts",
+    "../frontend/shared/db/**/*.ts",
+    "../types/**/*.d.ts"
   ],
 
   "exclude": [
-    "node_modules",
-    "frontend/**/vendor",
-    "frontend/**/*.min.js",
-    "frontend/**/*.temp.js",
-    "frontend/**/dist",      // NEW: Exclude Rollup output directories
-    "frontend/**/*.bundle.js", // NEW: Exclude bundle files
-    ".nvm-isolated"
+    "../node_modules",
+    "../frontend/**/vendor",
+    "../frontend/**/*.min.js",
+    "../frontend/**/*.temp.js",
+    "../frontend/**/dist",      // NEW: Exclude Rollup output directories
+    "../frontend/**/*.bundle.js", // NEW: Exclude bundle files
+    "../.nvm-isolated"
   ]
 }

@@ -307,7 +307,7 @@ function runBuild(build) {
       CACHE_VERSION: cacheVersion
     };
 
-    const vite = spawn('npx', ['vite', 'build', '--config', 'vite.config.single.ts'], {
+    const vite = spawn('npx', ['vite', 'build', '--config', 'config/vite.config.single.ts'], {
       env,
       stdio: 'inherit',
       shell: true

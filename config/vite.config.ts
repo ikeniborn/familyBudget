@@ -4,7 +4,7 @@ import { copyFileSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import compression from 'vite-plugin-compression';
 import { visualizer } from 'rollup-plugin-visualizer';
-import swCacheVersionPlugin from './vite-plugin-sw-version';
+import swCacheVersionPlugin from '../scripts/build/plugins/vite-plugin-sw-version';
 
 const production = process.env.NODE_ENV === 'production';
 
