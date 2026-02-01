@@ -527,40 +527,8 @@ document.addEventListener('keydown', function(event) {
 });
 
 // ============= Desktop Speed Dial Controls =============
-
-/**
- * Переключает Desktop Speed Dial меню
- */
-function toggleDesktopFabMenu() {
-    const wrapper = document.getElementById('desktop-fab-wrapper');
-
-    if (!wrapper) {
-        console.error('[FAB] Desktop FAB elements not found');
-        return;
-    }
-
-    const isOpen = wrapper.classList.contains('open');
-
-    if (isOpen) {
-        // Закрыть меню
-        wrapper.classList.remove('open');
-        wrapper.classList.add('closed');
-    } else {
-        // Открыть меню
-        wrapper.classList.remove('closed');
-        wrapper.classList.add('open');
-    }
-}
-
-/**
- * Закрывает Desktop Speed Dial меню
- */
-function closeDesktopFabMenu() {
-    const wrapper = document.getElementById('desktop-fab-wrapper');
-
-    if (wrapper) {
-        wrapper.classList.remove('open');
-        wrapper.classList.add('closed');
-    }
-}
+// NOTE: toggleDesktopFabMenu() and closeDesktopFabMenu() are defined in
+// frontend/web/static/js/components/desktopFab.ts and exported to window
+// for onclick handlers. Global click listener for closing menu on outside
+// click is also handled by desktopFab.ts module.
 </script>

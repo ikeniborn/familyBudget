@@ -233,7 +233,8 @@ export { dashboardExports, initWindowExports } from './adapters/windowExports';
 import { initWindowExports, dashboardExports } from './adapters/windowExports';
 import { setInitialized } from './core/stateManager';
 
-
+// Desktop FAB component (auto-initializes on import)
+import '../components/desktopFab';
 
 declare const debugLog: (...args: any[]) => void;
 /**
