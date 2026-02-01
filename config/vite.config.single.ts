@@ -156,11 +156,11 @@ export default defineConfig({
   // Path aliases
   resolve: {
     alias: {
-      '@web': resolve(__dirname, 'frontend/web/static/js'),
-      '@webapp': resolve(__dirname, 'frontend/webapp/static/js'),
-      '@shared': resolve(__dirname, 'frontend/shared/static/js'),
-      '@components': resolve(__dirname, 'frontend/web/static/js/modules/uiComponents'),
-      '@db': resolve(__dirname, 'frontend/shared/db')
+      '@web': resolve(__dirname, '..', 'frontend/web/static/js'),
+      '@webapp': resolve(__dirname, '..', 'frontend/webapp/static/js'),
+      '@shared': resolve(__dirname, '..', 'frontend/shared/static/js'),
+      '@components': resolve(__dirname, '..', 'frontend/web/static/js/modules/uiComponents'),
+      '@db': resolve(__dirname, '..', 'frontend/shared/db')
     }
   },
 
