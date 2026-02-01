@@ -1,7 +1,7 @@
 """
 Shopping Lists Sync API endpoints (task-012).
 
-This module provides sync endpoints for offline-first PGlite support.
+This module provides sync endpoints for offline-first support (Dexie.js).
 
 Endpoints:
     GET /api/v1/sync/shopping-reference - Initial sync for reference data (stores, product groups)
@@ -47,7 +47,7 @@ router = APIRouter(
 # ========================================
 
 class StoreResponse(BaseModel):
-    """Store reference data for PGlite."""
+    """Store reference data for offline database."""
     id: int
     name: str
     address: Optional[str]
@@ -60,7 +60,7 @@ class StoreResponse(BaseModel):
 
 
 class ProductGroupResponse(BaseModel):
-    """Product Group reference data for PGlite."""
+    """Product Group reference data for offline database."""
     id: int
     parent_id: Optional[int]
     name: str
@@ -73,7 +73,7 @@ class ProductGroupResponse(BaseModel):
 
 
 class ProductGroupHierarchyResponse(BaseModel):
-    """Product Group Hierarchy (Closure Table) for PGlite."""
+    """Product Group Hierarchy (Closure Table) for offline database."""
     ancestor_id: int
     descendant_id: int
     depth: int
@@ -174,7 +174,7 @@ class ShoppingListsDeltaResponse(BaseModel):
     "/shopping-reference",
     response_model=ShoppingReferenceResponse,
     summary="Initial sync: Reference data",
-    description="Get all reference data for PGlite initial sync (stores, product groups, hierarchy)",
+    description="Get all reference data for offline database initial sync (stores, product groups, hierarchy)",
 )
 async def get_shopping_reference_data(
     session: AsyncSession = Depends(get_session),

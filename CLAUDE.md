@@ -114,7 +114,7 @@ Use **testing** skill for code quality checks.
 
 ## Important Features
 
-**Dexie Offline Mode (v11.0+):** Production-ready IndexedDB для offline-first. 100% CRUD для Shopping Lists, Budget Facts. Bundle size 29KB (99% меньше vs PGlite). See `/docs/architecture/dexie-integration.md`
+**Dexie Offline Mode (v11.0+):** Production-ready IndexedDB для offline-first. 100% CRUD для Shopping Lists, Budget Facts. Lightweight bundle size (29KB). See `/docs/architecture/dexie-integration.md`
 **Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`
 **WebAuthn (v6.5.0+):** Passwordless biometric login. See `/docs/architecture/authentication.md`
 **Recurring Plans (v6.2.0+):** MMDD encoding for yearly frequency. See `/docs/architecture/recurring-plans.md`

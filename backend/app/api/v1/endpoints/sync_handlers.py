@@ -1,7 +1,7 @@
 """
-PGlite Sync Handlers
+Offline Database Sync Handlers
 
-Handles initial sync requests from frontend PGlite integration.
+Handles initial sync requests from frontend offline database (Dexie.js).
 Sends reference data (articles, financial centers, cost centers, hierarchy).
 Also handles incremental sync for budget facts (delta updates).
 """

@@ -31,7 +31,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
             # Allow Telegram to embed WebApp in iframe
             csp = (
                 "default-src 'self'; "
-                "script-src 'self' https://telegram.org https://*.telegram.org 'unsafe-inline' 'wasm-unsafe-eval'; "  # unsafe-inline for inline scripts, wasm-unsafe-eval for PGlite WebAssembly
+                "script-src 'self' https://telegram.org https://*.telegram.org 'unsafe-inline'; "  # unsafe-inline for inline scripts
                 "style-src 'self' 'unsafe-inline'; "  # unsafe-inline for inline styles
                 "img-src 'self' data: https:; "
                 "connect-src 'self' https://api.telegram.org; "
@@ -44,7 +44,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
             # CSP for Web UI with CDN support (Tailwind, DaisyUI, HTMX, ECharts, Telegram Login Widget)
             csp = (
                 "default-src 'self'; "
-                "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://telegram.org https://*.telegram.org 'unsafe-inline' 'wasm-unsafe-eval'; "  # Allow CDN, Telegram widget, inline scripts, and PGlite WebAssembly
+                "script-src 'self' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net https://telegram.org https://*.telegram.org 'unsafe-inline'; "  # Allow CDN, Telegram widget, inline scripts
                 "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "  # Allow DaisyUI and inline styles
                 "img-src 'self' data: https:; "
                 "connect-src 'self'; "

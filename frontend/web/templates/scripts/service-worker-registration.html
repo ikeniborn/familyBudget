@@ -447,7 +447,7 @@
         // === Handle Service Worker Messages (task-010) ===
         navigator.serviceWorker.addEventListener('message', async (event) => {
             if (event.data.type === 'GET_PRUNING_FLAG') {
-                const enableAutoPruning = localStorage.getItem('pgliteEnableAutoPruning') === 'true';
+                const enableAutoPruning = localStorage.getItem('dexieEnableAutoPruning') === 'true';
                 event.ports[0].postMessage({ enableAutoPruning });
             }
 
@@ -469,7 +469,7 @@
             navigator.serviceWorker.ready.then(async (registration) => {
                 try {
                     // Check if auto-pruning enabled
-                    const enableAutoPruning = localStorage.getItem('pgliteEnableAutoPruning') === 'true';
+                    const enableAutoPruning = localStorage.getItem('dexieEnableAutoPruning') === 'true';
 
                     if (enableAutoPruning) {
                         await registration.periodicSync.register('weekly-pruning', {

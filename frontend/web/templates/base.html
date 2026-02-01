@@ -910,21 +910,21 @@
             }
         })();
 
-        // NEW: Dexie Background Initialization (API-First Migration)
+        // Dexie Background Initialization (offline-first mode)
         document.addEventListener('DOMContentLoaded', function() {
             // Check if Dexie enabled and not already initialized
             const dexieActive = localStorage.getItem('dexieActive') === 'true';
 
-            if (dexieActive && typeof window.PGlite !== 'undefined') {
+            if (dexieActive && typeof window.Dexie !== 'undefined') {
                 console.info('[APP] Starting Dexie background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
-                window.PGlite.initializeDatabaseInBackground().catch(error => {
+                window.Dexie.initializeDatabaseInBackground().catch(error => {
                     console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
             } else if (dexieActive) {
-                console.warn('[APP] Dexie enabled but window.PGlite not loaded');
+                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
             } else {
                 console.info('[APP] Dexie disabled, skipping background init');
             }
