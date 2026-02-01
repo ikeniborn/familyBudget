@@ -81,46 +81,10 @@ jobs:
           # Read cache version from file
           CACHE_VERSION=$(cat .cache_version)
           echo "Using cache version: $CACHE_VERSION"
-
-          # Test 1: Check PLACEHOLDER replaced
-          echo "🔍 Checking for unreplaced PLACEHOLDERs..."
-          if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/; then
-            echo "❌ PLACEHOLDER not replaced in templates"
-            exit 1
-          fi
-          echo "✅ No PLACEHOLDER markers found"
-
-          # Test 2: Check version format in templates
-          echo "🔍 Checking cache version format..."
-          if ! grep -rE '\?v=v[0-9_]+' frontend/web/templates/ >/dev/null; then
-            echo "❌ No valid cache versions found in templates"
-            exit 1
-          fi
-          echo "✅ Valid cache versions found"
-
-          # Test 3: Check Dexie script tag exists
-          echo "🔍 Checking Dexie script tag in base.html..."
-          if ! grep -q "/shared/db/dexie.min.js" frontend/web/templates/base.html; then
-            echo "❌ Dexie script tag missing in base.html"
-            exit 1
-          fi
-          echo "✅ Dexie script tag found"
-
-          # Test 4: Check Service Worker file exists and has valid version
-          echo "🔍 Checking Service Worker cache version..."
-          if [[ ! -f frontend/web/static/sw.min.js ]]; then
-            echo "⚠️  Service Worker file missing (will be built in Docker)"
-          else
-            # Service Worker uses minified code, check for version presence
-            if ! grep -q "$CACHE_VERSION" frontend/web/static/sw.min.js; then
-              echo "⚠️  Warning: Could not verify SW cache version (may be minified)"
-            else
-              echo "✅ Service Worker cache version verified"
-            fi
-          fi
-
           echo ""
-          echo "✅ All validation checks passed"
+
+          # Run consolidated validation script
+          bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION"
 
       - name: Validation Summary
         if: always()
