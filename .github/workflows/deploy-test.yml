@@ -1,7 +1,10 @@
 name: Deploy to Test Server
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types:
+      - completed
     branches:
       - test
   workflow_dispatch:
@@ -10,19 +13,11 @@ jobs:
   deploy-test:
     name: Deploy to budget-test
     runs-on: ubuntu-latest
-    needs: build-and-push  # Wait for Docker images to be built and pushed
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Wait for build completion
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.sha }}
-          check-name: 'build-and-push'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 30
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
