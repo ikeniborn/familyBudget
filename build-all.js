@@ -8,6 +8,8 @@
  *
  * Оптимизации (v11.1.0):
  * - Incremental builds: Пропуск неизменённых bundles (hash-based detection)
+ *
+ * Cache invalidation: 2026-02-01T20:15:00+03:00
  * - Кеш хранится в .build-cache/ (gitignore)
  */
 
