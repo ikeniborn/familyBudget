@@ -338,6 +338,12 @@ function shouldRebuild(build) {
     return true;
   }
 
+  // Проверить существование output файла
+  if (!fs.existsSync(build.output)) {
+    console.log(`🔨 Output missing: ${build.name} (rebuilding)`);
+    return true;
+  }
+
   // Сравнить хеш
   const previousHash = fs.readFileSync(hashFile, 'utf8');
   if (currentHash !== previousHash) {
