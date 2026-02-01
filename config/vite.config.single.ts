@@ -94,7 +94,7 @@ export default defineConfig({
 
     rollupOptions: {
       input: {
-        [entryName]: resolve(__dirname, entryInput)
+        [entryName]: resolve(__dirname, '..', entryInput)
       },
 
       // External dependencies (modules that should NOT be bundled)
