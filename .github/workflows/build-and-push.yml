@@ -728,7 +728,7 @@ jobs:
   # Job 6: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, quality-checks, image-build-push, security-scan]
+    needs: [check-version, service-build, quality-checks, image-build-push, security-scan, deploy-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -752,6 +752,7 @@ jobs:
           echo "- Quality Checks: ${{ needs.quality-checks.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
@@ -765,13 +766,14 @@ jobs:
   # ============================================================================
   deploy-test:
     name: Deploy to budget-test
-    needs: [check-version, image-build-push]
+    needs: [check-version, image-build-push, security-scan]
     runs-on: ubuntu-latest
     if: |
       always() &&
       github.ref_name == 'test' &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
-      needs.image-build-push.result == 'success'
+      needs.image-build-push.result == 'success' &&
+      needs.security-scan.result == 'success'
 
     steps:
       - name: Checkout code
