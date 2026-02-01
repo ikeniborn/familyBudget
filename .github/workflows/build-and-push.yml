@@ -213,20 +213,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Re-pull in case of concurrent commits (race conditions)
-      - name: Pull latest changes
-        run: |
-          # Retry pull with exponential backoff (max 3 attempts)
-          for i in 1 2 3; do
-            if git pull origin ${{ github.ref_name }}; then
-              echo "✅ Git pull successful"
-              break
-            else
-              echo "⚠️ Git pull attempt $i failed, retrying in $((i * 2))s..."
-              sleep $((i * 2))
-            fi
-          done
-
+      # No need for git pull retry - concurrency prevents race conditions (line 32-34)
       - name: Detect merge commit from PR
         id: detect-merge
         run: |
@@ -477,18 +464,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run cache busting before Docker build
-        run: |
-          echo "Running cache busting with version: $CACHE_VERSION"
-          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
-
-          # Verify templates were updated
-          if grep -rE '\?v=PLACEHOLDER' frontend/web/templates/ frontend/webapp/ 2>/dev/null; then
-            echo "❌ PLACEHOLDER still found after cache busting"
-            exit 1
-          fi
-          echo "✅ Cache busting completed - templates ready for Docker build"
-
+      # Cache busting already done in service-build job (line 113-145)
+      # Templates are validated there, no need to repeat
       - name: Set build date
         id: build-date
         run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT

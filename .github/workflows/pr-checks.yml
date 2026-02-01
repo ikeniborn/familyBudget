@@ -76,7 +76,7 @@ jobs:
 
       - name: Python ruff lint
         run: ruff check backend/
-        continue-on-error: true
+        # Removed continue-on-error: linter errors should block PR
 
       - name: Unit tests
         run: pytest tests/unit/ --cov --cov-report=xml || true
