@@ -90,29 +90,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Install jq for package.json sync
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Sync package.json version with VERSION file
-        run: |
-          VERSION=$(cat VERSION | tr -d '[:space:]')
-          CURRENT_PKG_VERSION=$(jq -r '.version' package.json)
-
-          if [[ "$VERSION" != "$CURRENT_PKG_VERSION" ]]; then
-            echo "📝 Syncing package.json: $CURRENT_PKG_VERSION → $VERSION"
-            jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
-            mv package.json.tmp package.json
-
-            echo "📝 Syncing package-lock.json: $CURRENT_PKG_VERSION → $VERSION"
-            jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
-            jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
-            rm package-lock.json.tmp
-
-            echo "✅ package.json and package-lock.json synced to $VERSION"
-          else
-            echo "✅ package.json already in sync with VERSION ($VERSION)"
-          fi
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -620,32 +597,9 @@ jobs:
         run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
 
       # ========================================================================
-      # Update package.json and package-lock.json version
+      # Commit IMAGE_VERSIONS.json
       # ========================================================================
-      - name: Update package.json and package-lock.json
-        if: |
-          steps.changes.outputs.backend == 'true' ||
-          steps.changes.outputs.bot == 'true' ||
-          steps.changes.outputs.nginx == 'true' ||
-          steps.changes.outputs.redis == 'true' ||
-          steps.changes.outputs.postgresql == 'true'
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          echo "Updating package.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package.json > package.json.tmp
-          mv package.json.tmp package.json
-
-          echo "Updating package-lock.json to version $VERSION"
-          jq --arg v "$VERSION" '.version = $v' package-lock.json > package-lock.json.tmp
-          jq --arg v "$VERSION" '.packages."".version = $v' package-lock.json.tmp > package-lock.json
-          rm package-lock.json.tmp
-
-          echo "✅ package.json and package-lock.json updated to $VERSION"
-
-      # ========================================================================
-      # Commit all version files (IMAGE_VERSIONS.json + package.json + package-lock.json)
-      # ========================================================================
-      - name: Commit version files
+      - name: Commit IMAGE_VERSIONS.json
         if: |
           steps.changes.outputs.backend == 'true' ||
           steps.changes.outputs.bot == 'true' ||
@@ -656,16 +610,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Check if any version files changed
-          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json package.json package-lock.json) ]]; then
-            echo "Version files have been updated:"
-            git diff IMAGE_VERSIONS.json package.json package-lock.json
-            git add IMAGE_VERSIONS.json package.json package-lock.json
+          # Check if IMAGE_VERSIONS.json changed
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
+            echo "IMAGE_VERSIONS.json has been updated:"
+            git diff IMAGE_VERSIONS.json
+            git add IMAGE_VERSIONS.json
             git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
             git push
-            echo "✅ Version files committed and pushed"
+            echo "✅ IMAGE_VERSIONS.json committed and pushed"
           else
-            echo "ℹ️ No changes to version files"
+            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
           fi
 
   # ============================================================================
