@@ -90,6 +90,51 @@ function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
 // ============================================================================
 
 /**
+ * Enrich facts with names from reference data (client-side join)
+ * Fixes Bug #4: convertBudgetFact() leaves names empty when using Dexie
+ *
+ * @param facts - Facts with empty name fields
+ * @returns Facts enriched with article_name, financial_center_name, cost_center_name
+ */
+async function enrichFactsWithNames(facts: BudgetFact[]): Promise<BudgetFact[]> {
+    try {
+        // Get user ID (from first fact or filters)
+        const userId = facts.length > 0 ? facts[0].user_id : getFilters().user_id || 1;
+
+        // Load reference data from DataLayer (Dexie or API)
+        const [articles, financialCenters, costCenters] = await Promise.all([
+            dataLayer.getArticles(),
+            dataLayer.getFinancialCenters(userId, true),
+            dataLayer.getCostCenters(userId, null, true)
+        ]);
+
+        // Create lookup maps for fast access
+        const articleMap = new Map(articles.map(a => [a.id, a]));
+        const fcMap = new Map(financialCenters.map(fc => [fc.id, fc]));
+        const ccMap = new Map(costCenters.map(cc => [cc.id, cc]));
+
+        // Enrich each fact
+        return facts.map(fact => {
+            const article = articleMap.get(fact.article_id);
+            const fc = fcMap.get(fact.financial_center_id);
+            const cc = fact.cost_center_id ? ccMap.get(fact.cost_center_id) : null;
+
+            return {
+                ...fact,
+                article_name: article?.name || fact.article_name || '',
+                article_type: (article?.type as any) || fact.article_type || 'expense',
+                financial_center_name: fc?.name || fact.financial_center_name || '',
+                cost_center_name: cc?.name || fact.cost_center_name || null
+            };
+        });
+    } catch (error) {
+        console.error('[FACTS_API] Error enriching facts with names:', error);
+        // Return facts as-is if enrichment fails
+        return facts;
+    }
+}
+
+/**
  * Load facts (PGlite-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
@@ -102,7 +147,13 @@ export async function loadFacts(): Promise<LoadFactsResponse> {
         const localFacts = await dataLayer.getFacts(factFilters);
 
         // Convert to UI types
-        const allFacts = localFacts.map(convertBudgetFact);
+        let allFacts = localFacts.map(convertBudgetFact);
+
+        // BUG FIX: Enrich facts with names from reference data (client-side join)
+        // Fixes Bug #4: Table shows "undefined" and "—" instead of actual names
+        if (isDexieActive()) {
+            allFacts = await enrichFactsWithNames(allFacts);
+        }
 
         // Client-side pagination
         const limit = getLimit();
