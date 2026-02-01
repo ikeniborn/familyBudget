@@ -12,7 +12,13 @@ import { buildFilterQuery } from '../operations/filterOperations';
 import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 import { dataLayer } from '../../data/DataLayer';
-import type { FactFilters, LocalBudgetFact } from '@db/dexie';
+import type {
+    FactFilters,
+    LocalBudgetFact,
+    LocalArticle,
+    LocalFinancialCenter,
+    LocalCostCenter
+} from '@db/dexie';
 import { getDexieManager, isDexieActive } from '@db/dexie';
 
 // ============================================================================
@@ -60,26 +66,46 @@ function buildFactFilters(): FactFilters {
  * Note: Names (article_name, financial_center_name, etc.) are not available in PGlite
  * TODO: Add client-side join with reference data in future
  */
-function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
+/**
+ * Lookup maps for enriching facts with reference data
+ */
+interface EnrichmentMaps {
+    articles: Map<number, LocalArticle>;
+    financialCenters: Map<number, LocalFinancialCenter>;
+    costCenters: Map<number, LocalCostCenter>;
+}
+
+/**
+ * Convert LocalBudgetFact to BudgetFact with optional enrichment
+ *
+ * @param local - Raw fact from Dexie
+ * @param maps - Optional reference data for enrichment (client-side join)
+ * @returns BudgetFact with all fields populated
+ */
+function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): BudgetFact {
+    // Client-side join: Lookup reference data if maps provided
+    const article = maps?.articles.get(local.article_id);
+    const fc = maps?.financialCenters.get(local.financial_center_id || 0);
+    const cc = local.cost_center_id && maps ? maps.costCenters.get(local.cost_center_id) : null;
+
     return {
         id: local.id || 0,
         temp_id: local.temp_id,    // Preserve PGlite temp_id for write operations (task-015 Phase 4.4)
         fact_date: local.date, // Already YYYY-MM-DD
         article_id: local.article_id,
-        article_name: '', // TODO: Client-side join with local_articles
-        article_type: 'expense', // TODO: Client-side join with local_articles
+        article_name: article?.name || '',
+        article_type: (article?.type as any) || 'expense',
         financial_center_id: local.financial_center_id || 0,
-        financial_center_name: '', // TODO: Client-side join with local_financial_centers
+        financial_center_name: fc?.name || '',
         cost_center_id: local.cost_center_id,
-        cost_center_name: null, // TODO: Client-side join with local_cost_centers
+        cost_center_name: cc?.name || null,
         amount: Number(local.amount),
         description: local.comment,
         user_id: local.user_id,
-        user_name: '', // TODO: Add user name lookup
+        user_name: '', // User names not stored in reference data (multi-user shared facts)
         record_type: 'spend', // Default mapping from 'fact'
         // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
         // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-        // TODO (task-016): Normalize LocalBudgetFact.created_at type to string at PGlite query layer
         created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
         updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString()
     };
@@ -90,69 +116,53 @@ function convertBudgetFact(local: LocalBudgetFact): BudgetFact {
 // ============================================================================
 
 /**
- * Enrich facts with names from reference data (client-side join)
- * Fixes Bug #4: convertBudgetFact() leaves names empty when using Dexie
+ * Load reference data for enriching facts (client-side join)
+ * Used when Dexie is active to populate name fields
  *
- * @param facts - Facts with empty name fields
- * @returns Facts enriched with article_name, financial_center_name, cost_center_name
+ * @param userId - User ID for loading financial centers and cost centers
+ * @returns Lookup maps for articles, financial centers, and cost centers
  */
-async function enrichFactsWithNames(facts: BudgetFact[]): Promise<BudgetFact[]> {
-    try {
-        // Get user ID (from first fact or filters)
-        const userId = facts.length > 0 ? facts[0].user_id : getFilters().user_id || 1;
+async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
+    // Load reference data from DataLayer (Dexie or API)
+    const [articles, financialCenters, costCenters] = await Promise.all([
+        dataLayer.getArticles(),
+        dataLayer.getFinancialCenters(userId, true),
+        dataLayer.getCostCenters(userId, null, true)
+    ]);
 
-        // Load reference data from DataLayer (Dexie or API)
-        const [articles, financialCenters, costCenters] = await Promise.all([
-            dataLayer.getArticles(),
-            dataLayer.getFinancialCenters(userId, true),
-            dataLayer.getCostCenters(userId, null, true)
-        ]);
-
-        // Create lookup maps for fast access
-        const articleMap = new Map(articles.map(a => [a.id, a]));
-        const fcMap = new Map(financialCenters.map(fc => [fc.id, fc]));
-        const ccMap = new Map(costCenters.map(cc => [cc.id, cc]));
-
-        // Enrich each fact
-        return facts.map(fact => {
-            const article = articleMap.get(fact.article_id);
-            const fc = fcMap.get(fact.financial_center_id);
-            const cc = fact.cost_center_id ? ccMap.get(fact.cost_center_id) : null;
-
-            return {
-                ...fact,
-                article_name: article?.name || fact.article_name || '',
-                article_type: (article?.type as any) || fact.article_type || 'expense',
-                financial_center_name: fc?.name || fact.financial_center_name || '',
-                cost_center_name: cc?.name || fact.cost_center_name || null
-            };
-        });
-    } catch (error) {
-        console.error('[FACTS_API] Error enriching facts with names:', error);
-        // Return facts as-is if enrichment fails
-        return facts;
-    }
+    // Create lookup maps for O(1) access during conversion
+    return {
+        articles: new Map(articles.map(a => [a.id, a])),
+        financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
+        costCenters: new Map(costCenters.map(cc => [cc.id, cc]))
+    };
 }
 
 /**
- * Load facts (PGlite-first with API fallback)
+ * Load facts (Dexie-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadFacts(): Promise<LoadFactsResponse> {
     try {
-        // Build filters for PGlite
+        // Build filters for Dexie
         const factFilters = buildFactFilters();
 
-        // Load all facts via DataLayer (PGlite-first + API fallback)
+        // Load all facts via DataLayer (Dexie-first + API fallback)
         const localFacts = await dataLayer.getFacts(factFilters);
 
-        // Convert to UI types
-        let allFacts = localFacts.map(convertBudgetFact);
+        // Convert to UI types with enrichment (if Dexie active)
+        let allFacts: BudgetFact[];
 
-        // BUG FIX: Enrich facts with names from reference data (client-side join)
-        // Fixes Bug #4: Table shows "undefined" and "—" instead of actual names
-        if (isDexieActive()) {
-            allFacts = await enrichFactsWithNames(allFacts);
+        if (isDexieActive() && localFacts.length > 0) {
+            // Load reference data for client-side join
+            const userId = localFacts[0].user_id;
+            const enrichmentMaps = await loadEnrichmentMaps(userId);
+
+            // Convert with enrichment (single pass - O(n))
+            allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
+        } else {
+            // No enrichment needed (API provides full data or empty result)
+            allFacts = localFacts.map(fact => convertBudgetFact(fact));
         }
 
         // Client-side pagination
