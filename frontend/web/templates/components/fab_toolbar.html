@@ -485,15 +485,19 @@ function setupFabButtonListener() {
 
     // Desktop FAB initialization
     if (desktopWrapper && desktopFabBtn) {
+        const backdrop = document.getElementById('desktop-fab-backdrop');
+
         if (currentPage === '/') {
             // Главная страница: Speed dial меню (изначально закрыто)
             desktopWrapper.classList.add('closed');
             desktopWrapper.classList.remove('open');
+            if (backdrop) backdrop.style.display = 'none'; // Ensure backdrop hidden
             desktopFabBtn.setAttribute('onclick', 'toggleDesktopFabMenu()');
         } else {
             // /facts, /plan: скрыть Speed Dial меню, прямое открытие модального окна
             desktopWrapper.classList.add('closed');
             desktopWrapper.classList.remove('open');
+            if (backdrop) backdrop.style.display = 'none'; // Ensure backdrop hidden
 
             // Hide menu items completely on non-home pages
             const menuItems = desktopWrapper.querySelectorAll('.fab-menu-item');
