@@ -237,6 +237,10 @@ try {
     // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
     Object.assign(window, windowExports);
 
+    // Backward compatibility aliases: PGlite → Dexie terminology
+    (window as any).showPGliteProgress = showDexieProgress;
+    (window as any).hidePGliteProgress = hideDexieProgress;
+
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
     // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI)
