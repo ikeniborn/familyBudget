@@ -798,7 +798,7 @@ jobs:
 
             # Run deploy script in registry mode
             echo "🐳 Pulling Docker images and restarting containers..."
-            bash scripts/deploy.sh --mode registry
+            sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
 
             # Wait for services to start
             echo "⏳ Waiting for services to initialize (30s)..."
@@ -806,7 +806,7 @@ jobs:
 
             # Verify deployment
             echo "✅ Checking container health..."
-            docker-compose ps
+            sudo docker-compose ps
 
             # Check backend health endpoint
             echo "🏥 Checking backend health..."
