@@ -71,7 +71,65 @@
         </div> <!-- .nav-container -->
     </div> <!-- .mobile-nav-wrapper -->
 
-    <!-- Speed Dial FAB для главной страницы -->
+    <!-- Desktop Speed Dial FAB (≥ 1024px) -->
+    <div class="desktop-fab-wrapper closed" id="desktop-fab-wrapper">
+        <!-- Speed Dial Menu Items (shown above FAB button) -->
+        <div class="fab-menu-item" style="margin-bottom: 0.75rem;">
+            <button
+                onclick="openModalPlan(); closeDesktopFabMenu();"
+                class="btn btn-circle btn-primary shadow-lg"
+                aria-label="Добавить плановую транзакцию"
+                title="Добавить план">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- Calendar icon -->
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </button>
+            <span class="badge badge-neutral ml-2">Добавить план</span>
+        </div>
+
+        <div class="fab-menu-item" style="margin-bottom: 0.75rem;">
+            <button
+                onclick="openModalFact(); closeDesktopFabMenu();"
+                class="btn btn-circle btn-primary shadow-lg"
+                aria-label="Добавить фактическую транзакцию"
+                title="Добавить факт">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- Document icon -->
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </button>
+            <span class="badge badge-neutral ml-2">Добавить факт</span>
+        </div>
+
+        <!-- Main FAB Button -->
+        <button
+            onclick="toggleDesktopFabMenu()"
+            class="fab-button btn btn-circle btn-primary shadow-lg"
+            id="desktop-fab-btn"
+            aria-label="Добавить запись"
+            title="Добавить запись">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+        </button>
+
+        <!-- Backdrop for closing menu on outside click -->
+        <div id="desktop-fab-backdrop" style="
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.3);
+            z-index: var(--z-fab-backdrop);
+        "></div>
+    </div>
+
+    <!-- Mobile Speed Dial FAB для главной страницы (< 1024px) -->
     <div class="fab-wrapper" id="fab-wrapper">
         <!-- Speed Dial меню (показывается только на /) -->
         <div id="fab-speed-dial-menu" class="mobile-fab-menu" style="display: none;">
@@ -147,23 +205,48 @@ const FAB_PAGE_CONTEXT = {
 
     // Apply page context to FAB visibility
     function applyFabPageContext() {
-        const fabWrapper = document.getElementById('fab-wrapper');
+        const mobileFabWrapper = document.getElementById('fab-wrapper');
+        const desktopFabWrapper = document.getElementById('desktop-fab-wrapper');
         const mobileWrapper = fabToolbar.querySelector('.mobile-nav-wrapper');
+        const isDesktop = window.innerWidth >= BREAKPOINT;
 
         if (!context || context === 'lists') {
             // Hide FAB on /lists and unlisted pages (e.g., /analytics)
-            if (fabWrapper) {
-                fabWrapper.style.display = 'none';
-                fabWrapper.style.visibility = 'hidden';
-                fabWrapper.style.pointerEvents = 'none';
+            if (mobileFabWrapper) {
+                mobileFabWrapper.style.display = 'none';
+                mobileFabWrapper.style.visibility = 'hidden';
+                mobileFabWrapper.style.pointerEvents = 'none';
+            }
+            if (desktopFabWrapper) {
+                desktopFabWrapper.style.display = 'none';
+                desktopFabWrapper.style.visibility = 'hidden';
+                desktopFabWrapper.style.pointerEvents = 'none';
             }
         } else {
-            // Show FAB on /, /facts, /plan
-            if (fabWrapper) {
-                fabWrapper.style.display = '';
-                fabWrapper.style.visibility = 'visible';
-                fabWrapper.style.pointerEvents = 'auto';
-                fabWrapper.style.opacity = '1'; // Гарантия видимости
+            // Show appropriate FAB on /, /facts, /plan
+            if (isDesktop) {
+                // Desktop: show desktop FAB, hide mobile FAB
+                if (desktopFabWrapper) {
+                    desktopFabWrapper.style.display = '';
+                    desktopFabWrapper.style.visibility = 'visible';
+                    desktopFabWrapper.style.pointerEvents = 'auto';
+                }
+                if (mobileFabWrapper) {
+                    mobileFabWrapper.style.display = 'none';
+                    mobileFabWrapper.style.visibility = 'hidden';
+                }
+            } else {
+                // Mobile: show mobile FAB, hide desktop FAB
+                if (mobileFabWrapper) {
+                    mobileFabWrapper.style.display = '';
+                    mobileFabWrapper.style.visibility = 'visible';
+                    mobileFabWrapper.style.pointerEvents = 'auto';
+                    mobileFabWrapper.style.opacity = '1';
+                }
+                if (desktopFabWrapper) {
+                    desktopFabWrapper.style.display = 'none';
+                    desktopFabWrapper.style.visibility = 'hidden';
+                }
             }
         }
 
@@ -379,26 +462,51 @@ function setupFabButtonListener() {
  */
 (function initSpeedDial() {
     const currentPage = window.location.pathname;
-    const menu = document.getElementById('fab-speed-dial-menu');
-    const fabBtn = document.getElementById('fab-btn');
+    const mobileMenu = document.getElementById('fab-speed-dial-menu');
+    const mobileFabBtn = document.getElementById('fab-btn');
+    const desktopWrapper = document.getElementById('desktop-fab-wrapper');
+    const desktopFabBtn = document.getElementById('desktop-fab-btn');
 
-    if (!menu || !fabBtn) return;
+    // Mobile FAB initialization
+    if (mobileMenu && mobileFabBtn) {
+        if (currentPage === '/') {
+            // Главная страница: Speed dial меню
+            mobileMenu.style.display = 'none'; // Изначально закрыто
+            mobileFabBtn.setAttribute('onclick', 'toggleFabMenu()');
+        } else {
+            // /facts, /plan: прямое открытие модального окна
+            mobileMenu.style.display = 'none';
+            mobileFabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+        }
 
-    if (currentPage === '/') {
-        // Главная страница: Speed dial меню
-        menu.style.display = 'none'; // Изначально закрыто
-        fabBtn.setAttribute('onclick', 'toggleFabMenu()');
-    } else {
-        // /facts, /plan: прямое открытие модального окна
-        menu.style.display = 'none';
-        fabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+        // Setup programmatic listener as fallback
+        setupFabButtonListener();
     }
 
-    // Setup programmatic listener as fallback
-    setupFabButtonListener();
+    // Desktop FAB initialization
+    if (desktopWrapper && desktopFabBtn) {
+        if (currentPage === '/') {
+            // Главная страница: Speed dial меню (изначально закрыто)
+            desktopWrapper.classList.add('closed');
+            desktopWrapper.classList.remove('open');
+            desktopFabBtn.setAttribute('onclick', 'toggleDesktopFabMenu()');
+        } else {
+            // /facts, /plan: скрыть Speed Dial меню, прямое открытие модального окна
+            desktopWrapper.classList.add('closed');
+            desktopWrapper.classList.remove('open');
+
+            // Hide menu items completely on non-home pages
+            const menuItems = desktopWrapper.querySelectorAll('.fab-menu-item');
+            menuItems.forEach(item => {
+                item.style.display = 'none';
+            });
+
+            desktopFabBtn.setAttribute('onclick', 'safeOpenContextModal()');
+        }
+    }
 })();
 
-// Закрытие меню при клике вне FAB
+// Закрытие меню при клике вне FAB (mobile)
 document.addEventListener('click', function(event) {
     const wrapper = document.getElementById('fab-wrapper');
     const menu = document.getElementById('fab-speed-dial-menu');
@@ -408,6 +516,62 @@ document.addEventListener('click', function(event) {
     // Если клик вне FAB и меню открыто - закрыть
     if (!wrapper.contains(event.target) && wrapper.classList.contains('open')) {
         closeFabMenu();
+    }
+});
+
+// ============= Desktop Speed Dial Controls =============
+
+/**
+ * Переключает Desktop Speed Dial меню
+ */
+function toggleDesktopFabMenu() {
+    const wrapper = document.getElementById('desktop-fab-wrapper');
+    const backdrop = document.getElementById('desktop-fab-backdrop');
+
+    if (!wrapper || !backdrop) {
+        console.error('[FAB] Desktop FAB elements not found');
+        return;
+    }
+
+    const isOpen = wrapper.classList.contains('open');
+
+    if (isOpen) {
+        // Закрыть меню
+        wrapper.classList.remove('open');
+        wrapper.classList.add('closed');
+        backdrop.style.display = 'none';
+    } else {
+        // Открыть меню
+        wrapper.classList.remove('closed');
+        wrapper.classList.add('open');
+        backdrop.style.display = 'block';
+    }
+}
+
+/**
+ * Закрывает Desktop Speed Dial меню
+ */
+function closeDesktopFabMenu() {
+    const wrapper = document.getElementById('desktop-fab-wrapper');
+    const backdrop = document.getElementById('desktop-fab-backdrop');
+
+    if (wrapper && backdrop) {
+        wrapper.classList.remove('open');
+        wrapper.classList.add('closed');
+        backdrop.style.display = 'none';
+    }
+}
+
+// Закрытие desktop меню при клике на backdrop
+document.addEventListener('DOMContentLoaded', function() {
+    const backdrop = document.getElementById('desktop-fab-backdrop');
+
+    if (backdrop) {
+        backdrop.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeDesktopFabMenu();
+        });
     }
 });
 </script>
