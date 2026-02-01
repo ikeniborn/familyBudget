@@ -99,7 +99,8 @@ export default defineConfig({
 
       // External dependencies (modules that should NOT be bundled)
       // PGlite is built separately and loaded via <script> tag as window.PGlite
-      external: entryName !== 'pglite' ? ['@db/pglite'] : [],
+      // Dexie is bundled only in dexie bundle, external for all others
+      external: entryName === 'dexie' ? [] : ['@db/pglite', 'dexie'],
 
       // Tree-shaking configuration (v10.1.48: prevent removal of window exports)
       // CRITICAL: dashboard bundle uses side-effect-based window assignments via initWindowExports()
