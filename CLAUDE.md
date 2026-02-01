@@ -44,12 +44,6 @@ Use **testing** skill for code quality checks.
 - Manual VERSION bump before push
 - Deployment ALWAYS takes 2-3 min (pull only)
 
-**See:**
-- `.claude/skills/deploy-test/SKILL.md` (v9.0.0)
-- `.claude/skills/deploy-prod/SKILL.md` (v9.0.0)
-- `CI-CD-REGISTRY-SUMMARY.md` (registry-first guide)
-- `/docs/architecture/guides/deployment-troubleshooting.md`
-
 ### Environments
 
 | Environment | URL | Purpose | Deploy Skill |
@@ -128,38 +122,6 @@ Use **testing** skill for code quality checks.
 **Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. Offline-first с Dexie. See `/docs/architecture/dexie-integration.md`
 **Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
 
-## Development Workflow
-
-**Code Quality:** Use **testing** skill for automated quality checks (linting, formatting, type checking, tests).
-
-**Build (v9.0+):** All builds happen in GitHub Actions CI/CD. See `docs/architecture/build-system.md`, `docs/architecture/ci-cd-build-deploy.md`
-
-**Deployment:** Use **deploy-test** or **deploy-prod** skills. Server pulls ready images from ghcr.io. See `CI-CD-REGISTRY-SUMMARY.md`
-
-## Quick Reference
-
-### API Endpoints
-**Auth:** `/auth/telegram`, `/auth/login`, `/auth/webauthn/authenticate/verify`
-**REST v1:** `/api/v1/{articles,facts,transfers,recurring-plans}`
-**WebSocket:** `ws://localhost:8000/ws/budget`
-**Swagger:** `/docs` (interactive API documentation)
-
-Use **api-development** skill for creating new endpoints. See `/docs/architecture/endpoints/`
-
-### Logging Conventions
-**Active prefixes:** `[AUTH_EMAIL]`, `[AUTH_WEBAUTHN]`, `[RECURRING_PLAN]`, `[BULK_DELETE]`, `[WS_BULK]`, `[DEDUP]`, `[RTT_FILTER]`
-
-See `frontend/web/static/js/config/logging.js` for configuration
-
-### Troubleshooting
-**Common issues:**
-- WebSocket disconnects → Check Redis, backend logs (`/opt/budget/logs/`)
-- Deployment failures → Check disk space, Docker logs
-- Build errors → See `docs/architecture/build-system.md`
-
-Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for detailed troubleshooting
-
-
 ## Documentation Index
 
 **Primary source of truth.** Always check docs before implementation.
@@ -228,7 +190,7 @@ Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for d
 **Production Monitoring:** Check `/opt/budget/logs/`
 **Database Backup:** `/opt/budget/backups/` (7-day retention)
 
-# Task Execution v7.1 - Family Budget Edition
+# Task Execution 
 
 **Назначение:** Адаптивный workflow с SGR + Structured Output и lazy-loading skills для Family Budget - семейный бюджет с Telegram bot и PWA (FastAPI + PostgreSQL + HTMX + TypeScript)
 
@@ -238,7 +200,7 @@ Use **monitoring** skill for diagnostics. See `/docs/architecture/guides/` for d
 
 ## Задачи
 
-[User input секция - вставляется пользователем]
+[User input]
 
 **CORE REQUIREMENTS:**
 
@@ -326,8 +288,6 @@ PHASE 5C → Documentation + Summary
    @skill:git-workflow → @template:task-summary
 ```
 
-**Детали workflow:** См. skills (adaptive-workflow, structured-planning, code-review, git-workflow, pr-automation)
-
 ---
 
 ## Skills Quick Reference
@@ -388,15 +348,6 @@ PHASE 5C → Documentation + Summary
 | **frontend-development** | HTMX + Tailwind + DaisyUI + WebSocket components | UI components, pages |
 | **websocket-realtime** | WebSocket real-time updates, SSE broadcasting, event buffering | Real-time features |
 
-**Operations:**
-
-| Skill | Purpose | When to Use |
-|-------|---------|-------------|
-| **deploy-test** | Automated deployment to budget-test server (registry-first v9.0+) | Deploy to testing environment |
-| **deploy-prod** | Automated deployment to budget-prod server (registry-first v9.0+) | Deploy to production |
-| **monitoring** | System monitoring and diagnostics | Debug issues, troubleshooting |
-| **testing** | Test automation and quality assurance | Creating/running tests |
-
 **Patterns:**
 
 | Skill | Purpose | When to Use |
@@ -404,27 +355,6 @@ PHASE 5C → Documentation + Summary
 | **advanced-patterns** | SCD Type 2, Closure Table, Shared Family Budget patterns | Complex DB operations, transfers |
 
 **Список для проекта:** См. project CLAUDE.md и `.claude/skills/*/SKILL.md` для детальной документации
-
----
-
-## Token Efficiency (TOON Format)
-
-**NEW in v7.0:** Skills автоматически оптимизируют токены для structured output через TOON format (35-55% token savings для массивов >= 5 элементов).
-
-**Skills с TOON support:** structured-planning, code-review, pr-automation, skill-generator, prd-generator, architecture-documentation
-
-**Детали реализации:** См. `@skill:toon-skill` для API, интеграции, примеров и спецификации формата
-
----
-
-## Validation Commands
-
-**Type Checking:** `npm run type-check` (TypeScript), `mypy backend/` (Python)
-**Linting:** `npm run lint` (ESLint), `ruff check backend/` (Ruff)
-**Testing:** `pytest tests/`, `playwright test`
-**Database:** `alembic upgrade head --sql`
-
-**Полный список:** См. project CLAUDE.md → Testing skill для детальных команд и ожидаемых результатов
 
 ---
 
