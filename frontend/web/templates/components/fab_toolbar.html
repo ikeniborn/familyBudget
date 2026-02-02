@@ -77,7 +77,7 @@
         <div class="fab-menu-item">
             <span class="badge badge-neutral mr-2">Добавить план</span>
             <button
-                onclick="openModalPlan(); closeDesktopFabMenu();"
+                onclick="window.openModalPlan(); window.closeDesktopFabMenu();"
                 class="btn btn-circle btn-primary shadow-lg"
                 aria-label="Добавить плановую транзакцию"
                 title="Добавить план">
@@ -92,7 +92,7 @@
         <div class="fab-menu-item">
             <span class="badge badge-neutral mr-2">Добавить факт</span>
             <button
-                onclick="openModalFact(); closeDesktopFabMenu();"
+                onclick="window.openModalFact(); window.closeDesktopFabMenu();"
                 class="btn btn-circle btn-primary shadow-lg"
                 aria-label="Добавить фактическую транзакцию"
                 title="Добавить факт">
@@ -106,7 +106,7 @@
 
         <!-- Main FAB Button -->
         <button
-            onclick="toggleDesktopFabMenu()"
+            onclick="window.toggleDesktopFabMenu()"
             class="fab-button btn btn-circle btn-primary shadow-lg"
             id="desktop-fab-btn"
             aria-label="Добавить запись"
@@ -125,7 +125,7 @@
             <div class="mobile-fab-item">
                 <span class="mobile-fab-label">Добавить факт</span>
                 <button
-                    onclick="openModalFact(); closeFabMenu();"
+                    onclick="window.openModalFact(); closeFabMenu();"
                     class="btn btn-circle btn-primary shadow-lg"
                     aria-label="Добавить фактическую транзакцию"
                     title="Добавить факт">
@@ -141,7 +141,7 @@
             <div class="mobile-fab-item">
                 <span class="mobile-fab-label">Добавить план</span>
                 <button
-                    onclick="openModalPlan(); closeFabMenu();"
+                    onclick="window.openModalPlan(); closeFabMenu();"
                     class="btn btn-circle btn-primary shadow-lg"
                     aria-label="Добавить плановую транзакцию"
                     title="Добавить план">
