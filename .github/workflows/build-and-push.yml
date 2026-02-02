@@ -543,6 +543,9 @@ jobs:
             git diff IMAGE_VERSIONS.json
             git add IMAGE_VERSIONS.json
             git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+
+            # Pull and rebase to handle concurrent pushes
+            git pull --rebase origin test
             git push
             echo "✅ IMAGE_VERSIONS.json committed and pushed"
           else
