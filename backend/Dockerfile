@@ -23,7 +23,8 @@ WORKDIR /build
 COPY backend/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install --upgrade 'ecdsa>=0.20.0' 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
 
 # Stage 2: Frontend builder
 FROM node:18-alpine as frontend-builder

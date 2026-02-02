@@ -19,7 +19,6 @@ orjson>=3.10.0  # High-performance JSON serialization (3-10x faster)
 
 # Authentication & Security
 python-jose[cryptography]==3.4.0
-ecdsa>=0.20.0              # Security fix for CVE-2024-23342 (Minerva attack vulnerability)
 python-multipart==0.0.22
 slowapi==0.1.9             # Rate limiting for API endpoints (brute-force protection)
 argon2-cffi==23.1.0        # Password hashing (Argon2 - winner of Password Hashing Competition)
@@ -58,7 +57,3 @@ httpx==0.28.1
 black==24.10.0
 ruff==0.8.4
 sse-starlette>=2.0.0
-
-# Security: Transitive dependency fixes
-jaraco.context>=6.1.0      # Security fix for CVE-2026-23949 (path traversal vulnerability)
-wheel>=0.46.2              # Security fix for CVE-2026-24049 (privilege escalation vulnerability)
