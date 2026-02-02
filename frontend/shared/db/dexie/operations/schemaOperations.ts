@@ -52,7 +52,7 @@ export async function queryFinancialCenters(
 ): Promise<LocalFinancialCenter[]> {
   logger.debug('[schemaOps] queryFinancialCenters', { user_id, is_active });
 
-  let collection = db.financialCenters.where('user_id').equals(user_id);
+  const collection = db.financialCenters.where('user_id').equals(user_id);
 
   const results = await collection.toArray();
 
@@ -73,7 +73,7 @@ export async function queryCostCenters(
 ): Promise<LocalCostCenter[]> {
   logger.debug('[schemaOps] queryCostCenters', { user_id, is_active });
 
-  let collection = db.costCenters.where('user_id').equals(user_id);
+  const collection = db.costCenters.where('user_id').equals(user_id);
 
   const results = await collection.toArray();
 

@@ -85,6 +85,13 @@ module.exports = [
         confirm: "readonly",
         prompt: "readonly",
         Choices: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly",
+        // DOM types (for TypeScript interfaces used in code)
+        Node: "readonly",
+        Element: "readonly",
+        RequestInit: "readonly",
+        ResponseInit: "readonly",
       },
     },
     plugins: {
@@ -93,7 +100,7 @@ module.exports = [
     rules: {
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
-      "no-unused-vars": "warn",
+      "no-unused-vars": "off",  // Disabled in favor of @typescript-eslint/no-unused-vars
       "no-undef": "warn",
       "no-console": ["warn", { allow: ["warn", "error"] }],
       "no-debugger": "warn",
