@@ -9,12 +9,15 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 RUN apt-get update && \
-    apt-get upgrade -y && \
+    apt-get dist-upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Remove vulnerable system Python packages before creating venv
+RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
 
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
@@ -70,13 +73,16 @@ ENV PYTHONUNBUFFERED=1 \
     APP_HOME=/app
 
 RUN apt-get update && \
-    apt-get upgrade -y && \
+    apt-get dist-upgrade -y && \
     apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     ca-certificates \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
+
+# Remove vulnerable system Python packages to prevent Trivy false positives
+RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
 
 # Create non-root user (rarely changes)
 RUN groupadd -r appuser && useradd -r -g appuser appuser

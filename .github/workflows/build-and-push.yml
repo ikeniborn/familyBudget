@@ -593,14 +593,18 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           vuln-type: 'os,library'
           exit-code: '0'
+          trivyignores: '.trivyignore'
 
       - name: Generate vulnerability summary (backend)
         if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
           echo "## 🔒 Security Scan: Backend" >> $GITHUB_STEP_SUMMARY
-          docker run --rm aquasec/trivy:latest image \
+          docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
             --severity CRITICAL,HIGH \
             --format table \
+            --ignorefile /root/.trivyignore \
             ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
             >> $GITHUB_STEP_SUMMARY || true
         continue-on-error: true
@@ -608,23 +612,26 @@ jobs:
       - name: Check HIGH/CRITICAL vulnerabilities (backend)
         if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
-          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image..."
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image (with .trivyignore exceptions)..."
 
-          # Run Trivy with JSON output to count vulnerabilities
-          VULN_COUNT=$(docker run --rm aquasec/trivy:latest image \
+          # Run Trivy with JSON output to count vulnerabilities (excluding .trivyignore)
+          VULN_COUNT=$(docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
             --severity HIGH,CRITICAL \
             --format json \
             --quiet \
+            --ignorefile /root/.trivyignore \
             ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
             | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
 
-          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities"
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities (after .trivyignore exclusions)"
 
           if [ "$VULN_COUNT" -gt 0 ]; then
-            echo "::error::❌ Backend image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities - blocking deployment"
+            echo "::error::❌ Backend image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities (not in .trivyignore) - blocking deployment"
             exit 1
           else
-            echo "✅ No HIGH/CRITICAL vulnerabilities found in backend image"
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in backend image (after .trivyignore)"
           fi
 
       - name: Upload Trivy results (backend)
@@ -645,14 +652,18 @@ jobs:
           severity: 'CRITICAL,HIGH,MEDIUM'
           vuln-type: 'os,library'
           exit-code: '0'
+          trivyignores: '.trivyignore'
 
       - name: Generate vulnerability summary (bot)
         if: needs.image-build-push.outputs.bot_built == 'true'
         run: |
           echo "## 🔒 Security Scan: Bot" >> $GITHUB_STEP_SUMMARY
-          docker run --rm aquasec/trivy:latest image \
+          docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
             --severity CRITICAL,HIGH \
             --format table \
+            --ignorefile /root/.trivyignore \
             ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
             >> $GITHUB_STEP_SUMMARY || true
         continue-on-error: true
@@ -660,23 +671,26 @@ jobs:
       - name: Check HIGH/CRITICAL vulnerabilities (bot)
         if: needs.image-build-push.outputs.bot_built == 'true'
         run: |
-          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in bot image..."
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in bot image (with .trivyignore exceptions)..."
 
-          # Run Trivy with JSON output to count vulnerabilities
-          VULN_COUNT=$(docker run --rm aquasec/trivy:latest image \
+          # Run Trivy with JSON output to count vulnerabilities (excluding .trivyignore)
+          VULN_COUNT=$(docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
             --severity HIGH,CRITICAL \
             --format json \
             --quiet \
+            --ignorefile /root/.trivyignore \
             ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
             | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
 
-          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities"
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities (after .trivyignore exclusions)"
 
           if [ "$VULN_COUNT" -gt 0 ]; then
-            echo "::error::❌ Bot image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities - blocking deployment"
+            echo "::error::❌ Bot image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities (not in .trivyignore) - blocking deployment"
             exit 1
           else
-            echo "✅ No HIGH/CRITICAL vulnerabilities found in bot image"
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in bot image (after .trivyignore)"
           fi
 
       - name: Upload Trivy results (bot)

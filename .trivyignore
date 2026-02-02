@@ -1,0 +1,63 @@
+# Trivy Security Exceptions
+# Generated: 2026-02-02
+# Review quarterly: Recheck for available fixes
+
+# ============================================================================
+# Python Packages (No public fix available)
+# ============================================================================
+
+# CVE-2024-23342: python-ecdsa vulnerable to Minerva timing attack
+# Status: affected (no fix released as of 2026-02-02)
+# Impact: Timing attack on ECDSA signature generation
+# Mitigation: Accept risk - low exploitability in our use case (JWT signing)
+# Required by: python-jose[cryptography]==3.4.0
+# Next review: 2026-05-02
+CVE-2024-23342
+
+# ============================================================================
+# Debian Packages (will_not_fix or pending upstream fix)
+# ============================================================================
+
+# CVE-2023-45853: zlib integer overflow in zipOpenNewFileInZip4_6
+# Status: will_not_fix (Debian security team marked as unfixable)
+# Impact: Heap buffer overflow in specific zip operations
+# Mitigation: Accept risk - application doesn't use vulnerable zip functions
+CVE-2023-45853
+
+# CVE-2023-2953: openldap null pointer dereference in ber_memalloc_x
+# Status: No fix available in Debian 12 (bookworm)
+# Impact: DoS via null pointer dereference
+# Mitigation: Accept risk - LDAP functionality not used by application
+CVE-2023-2953
+
+# CVE-2025-7458: SQLite integer overflow (CRITICAL)
+# Status: Pending fix in Debian 12 (bookworm)
+# Impact: Integer overflow in SQLite
+# Mitigation: Accept risk temporarily - application uses PostgreSQL, SQLite only as transitive dependency
+# Next review: 2026-03-02 (monthly check for Debian security update)
+CVE-2025-7458
+
+# CVE-2026-0861: glibc integer overflow in memalign (HIGH)
+# Status: Pending fix in Debian 12 (bookworm) - CVE published 2026-01-XX
+# Impact: Heap corruption via integer overflow
+# Mitigation: Accept risk temporarily - very recent CVE, awaiting Debian security update
+# Next review: 2026-03-02
+CVE-2026-0861
+
+# CVE-2026-24882: GnuPG stack buffer overflow in tpm2daemon (HIGH)
+# Status: Pending fix in Debian 12 (bookworm) - CVE published 2026-01-XX
+# Impact: Arbitrary code execution via stack overflow
+# Mitigation: Accept risk temporarily - GPG TPM daemon not used by application
+# Next review: 2026-03-02
+CVE-2026-24882
+
+# ============================================================================
+# Review Schedule
+# ============================================================================
+# Monthly reviews: CVE-2025-7458, CVE-2026-0861, CVE-2026-24882 (recent CVEs)
+# Quarterly reviews: CVE-2024-23342 (ecdsa), CVE-2023-45853 (zlib), CVE-2023-2953 (ldap)
+#
+# Action items:
+# 1. Check Debian security tracker: https://security-tracker.debian.org/tracker/
+# 2. Check python-ecdsa releases: https://github.com/tlsfuzzer/python-ecdsa/releases
+# 3. Consider python-jose alternatives if ecdsa fix not released by 2026-06-01
