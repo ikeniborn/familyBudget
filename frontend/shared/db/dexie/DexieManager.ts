@@ -33,7 +33,8 @@ import type {
   LocalArticleHierarchy,
   LocalRecurringPlan,
   FactFilters,
-  LocalSyncMetadata
+  LocalSyncMetadata,
+  LocalSyncConflict
 } from './types/models';
 
 /**
@@ -759,7 +760,8 @@ export class DexieManager {
     strategy: ConflictStrategy
   ): Promise<Record<string, unknown>> {
     logger.debug('[DexieManager] resolveConflict', { conflictId: conflict.id, strategy });
-    return await resolveConflict(conflict as any, strategy);
+    // Type assertion: conflict parameter matches required LocalSyncConflict fields for resolution
+    return await resolveConflict(conflict as LocalSyncConflict, strategy);
   }
 
   /**
