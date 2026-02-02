@@ -54,21 +54,21 @@ Family Budget is a family budget management system with Telegram bot and web int
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | [README.md](docs/architecture/README.md) | Dependency graph, recent changes | Start of any task |
-| [authentication.md](docs/architecture/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
-| [pwa.md](docs/architecture/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
-| **[dexie-integration.md](docs/architecture/dexie-integration.md)** | **Dexie.js offline mode (v11.0+)** | **Offline CRUD, cents conversion** |
-| [websocket.md](docs/architecture/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
-| [build-system.md](docs/architecture/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
-| [es-modules-migration.md](docs/architecture/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
+| [authentication.md](docs/architecture/core/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
+| [pwa.md](docs/architecture/core/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
+| **[dexie-integration.md](docs/architecture/core/dexie-integration.md)** | **Dexie.js offline mode (v11.0+)** | **Offline CRUD, cents conversion** |
+| [websocket.md](docs/architecture/core/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
+| [build-system.md](docs/architecture/core/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
+| [es-modules-migration.md](docs/architecture/migrations/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
 
 ### Database & Backend
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| [database/](docs/architecture/database/) | Schema, SCD Type 2, Closure Table | DB schema changes |
-| [endpoints/](docs/architecture/endpoints/) | API documentation | API development |
-| [transfers-system.md](docs/architecture/transfers-system.md) | Transfer deduplication | Transfer operations |
-| [recurring-plans.md](docs/architecture/recurring-plans.md) | Recurring payments (MMDD encoding) | Recurring plans |
+| [database/](docs/architecture/backend/database/) | Schema, SCD Type 2, Closure Table | DB schema changes |
+| [endpoints/](docs/architecture/backend/endpoints/) | API documentation | API development |
+| [transfers-system.md](docs/architecture/features/transfers-system.md) | Transfer deduplication | Transfer operations |
+| [recurring-plans.md](docs/architecture/features/recurring-plans.md) | Recurring payments (MMDD encoding) | Recurring plans |
 
 ### Frontend
 
@@ -82,21 +82,21 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| [ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
-| [docker.md](docs/architecture/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
-| [guides/deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
-| [guides/disaster-recovery.md](docs/architecture/guides/disaster-recovery.md) | Disaster recovery | Critical failures |
-| [guides/backup-operations.md](docs/architecture/guides/backup-operations.md) | Backup procedures | Backup/restore tasks |
+| [ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
+| [docker.md](docs/architecture/core/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
+| [guides/deployment-troubleshooting.md](docs/architecture/operations/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
+| [guides/disaster-recovery.md](docs/architecture/operations/disaster-recovery.md) | Disaster recovery | Critical failures |
+| [guides/backup-operations.md](docs/architecture/operations/backup-operations.md) | Backup procedures | Backup/restore tasks |
 
 ### Features & Optimization
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| [notifications.md](docs/architecture/notifications.md) | Web Push + Telegram | Notifications |
-| [bulk-delete-optimization.md](docs/architecture/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
-| [caching-strategy.md](docs/architecture/caching-strategy.md) | HTTP caching | Performance |
-| [backup-system.md](docs/architecture/backup-system.md) | Backup + restore | Backup system |
-| [installation-resilience.md](docs/architecture/installation-resilience.md) | Installation framework | Installation issues |
+| [notifications.md](docs/architecture/features/notifications.md) | Web Push + Telegram | Notifications |
+| [bulk-delete-optimization.md](docs/architecture/features/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
+| [caching-strategy.md](docs/architecture/optimization/caching-strategy.md) | HTTP caching | Performance |
+| [backup-system.md](docs/architecture/features/backup-system.md) | Backup + restore | Backup system |
+| [installation-resilience.md](docs/architecture/optimization/installation-resilience.md) | Installation framework | Installation issues |
 
 ### Product & User Guides
 

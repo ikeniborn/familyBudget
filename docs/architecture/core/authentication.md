@@ -672,7 +672,7 @@ curl -X POST http://localhost:8000/api/v1/webauthn/register/options \
 
 ## Related Documentation
 
-- [Admin Setup Guide](./admin-setup.md) - Step-by-step admin configuration
+- [Admin Setup Guide](../features/admin-setup.md) - Step-by-step admin configuration
 - [CLAUDE.md](../../CLAUDE.md) - Developer documentation
 - [PRD](../prd/) - Product requirements
 

@@ -7,25 +7,55 @@ Use these files to understand component relationships when planning changes or o
 
 | Directory | Description | Files |
 |-----------|-------------|-------|
+| [core/](./core/) | Core architecture concepts (authentication, PWA, websocket, etc.) | 6 |
+| [features/](./features/) | Feature documentation (transfers, recurring plans, notifications, etc.) | 8 |
+| [frontend/](./frontend/) | Frontend architecture (responsive design, z-index, modals, etc.) | 9 |
+| [backend/](./backend/) | Backend components (database schemas, API endpoints) | 28 YAML |
+| [operations/](./operations/) | DevOps & operational guides (CI/CD, deployment, troubleshooting) | 8 |
+| [optimization/](./optimization/) | Optimization strategies (cache busting, caching, resilience) | 3 |
+| [migrations/](./migrations/) | Historical migrations (ES Modules, Dexie rollback) | 2 |
+| [patterns/](./patterns/) | Development patterns (retry pattern) | 1 |
+| [security/](./security/) | Security best practices (logging) | 1 |
+| [flows/](./flows/) | Data flow diagrams | 6 |
 | [functionality/](./functionality/) | Business logic modules | 15 |
 | [web/](./web/) | Frontend components | 5 |
-| [endpoints/](./endpoints/) | API endpoints | 18 |
-| [database/](./database/) | Database objects | 9 |
-| [flows/](./flows/) | Data flow diagrams | 6 |
-| [guides/](./guides/) | Development guides | 7 |
-| [frontend/](./frontend/) | Frontend patterns | 6 |
+| [guides/](./guides/) | Development guides (YAML files) | 5 YAML |
 
-**Total: 62 YAML files + 30+ architecture .md docs**
+**Total: ~90 files (39 markdown + 51 YAML)**
 
 ### Core Architecture Documents
 
 | Document | Description |
 |----------|-------------|
-| [api-replacement.md](./api-replacement.md) | PGlite-first architecture, 80-96% API reduction (task-015) |
-| [backup-system.md](./backup-system.md) | Backup system architecture (local + S3) |
-| [bulk-delete-optimization.md](./bulk-delete-optimization.md) | Bulk delete optimization & WebSocket summary events (v6.6.0) |
-| [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
-| [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
+| [core/authentication.md](./core/authentication.md) | JWT auth, Telegram OAuth, WebAuthn biometrics |
+| [core/pwa.md](./core/pwa.md) | PWA, offline support, Service Worker |
+| [core/dexie-integration.md](./core/dexie-integration.md) | Dexie.js offline mode (v11.0+) |
+| [core/websocket.md](./core/websocket.md) | Real-time updates, Redis Pub/Sub |
+| [core/build-system.md](./core/build-system.md) | Build pipeline, TypeScript, Vite |
+| [core/docker.md](./core/docker.md) | Docker multi-stage builds (5 images) |
+
+### Feature Documentation
+
+| Document | Description |
+|----------|-------------|
+| [features/transfers-system.md](./features/transfers-system.md) | Transfer deduplication, double-entry bookkeeping |
+| [features/recurring-plans.md](./features/recurring-plans.md) | Recurring payments (MMDD encoding) |
+| [features/notifications.md](./features/notifications.md) | Web Push + Telegram notifications |
+| [features/backup-system.md](./features/backup-system.md) | Backup + restore system |
+| [features/bulk-delete-optimization.md](./features/bulk-delete-optimization.md) | Bulk operations, WebSocket summary |
+| [features/admin-setup.md](./features/admin-setup.md) | Admin user setup |
+| [features/welcome-notification.md](./features/welcome-notification.md) | Welcome notifications |
+| [features/import-wizard.md](./features/import-wizard.md) | Import wizard |
+
+### Operations & DevOps
+
+| Document | Description |
+|----------|-------------|
+| [operations/ci-cd-build-deploy.md](./operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 |
+| [operations/deployment-troubleshooting.md](./operations/deployment-troubleshooting.md) | Deployment issues |
+| [operations/disaster-recovery.md](./operations/disaster-recovery.md) | Disaster recovery |
+| [operations/backup-operations.md](./operations/backup-operations.md) | Backup procedures |
+| [operations/versioning.md](./operations/versioning.md) | Version management |
 
 ## Recent Changes
 
@@ -50,7 +80,7 @@ Use these files to understand component relationships when planning changes or o
 - **Schema Updates:**
   - v4: Recurring Plans schema with sync metadata
 - **Documentation:**
-  - [api-replacement.md](./api-replacement.md) - Complete architecture guide
+  -  - Complete architecture guide
   - [api-replacement-guide.md](../development/api-replacement-guide.md) - Developer guide
   - [offline-mode.md](../guides/offline-mode.md) - User guide (v2.0)
   - [task-015-validation.md](../testing/task-015-validation.md) - Testing checklist (66 tests)
@@ -78,8 +108,8 @@ Use these files to understand component relationships when planning changes or o
   - Registry: All images in ghcr.io
   - Build: GitHub Actions CI/CD only
 - **Documentation:**
-  - [ci-cd-build-deploy.md](./ci-cd-build-deploy.md) - Complete v9.0 guide
-  - [docker.md](./docker.md) - Multi-stage Dockerfiles
+  - [ci-cd-build-deploy.md](./operations/ci-cd-build-deploy.md) - Complete v9.0 guide
+  - [docker.md](./core/docker.md) - Multi-stage Dockerfiles
   - [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md) - Migration guide
 - **Skills:**
   - Updated: deploy-test, deploy-prod (v9.0.0)
