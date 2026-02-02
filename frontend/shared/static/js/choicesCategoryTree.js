@@ -1107,22 +1107,6 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Clear category selection.
-     * Used in create modals to reset selection state.
-     */
-    clearSelection() {
-        // Clear Choices.js active selection
-        if (this.choices) {
-            this.choices.removeActiveItems();
-        }
-
-        // Clear DOM element value
-        if (this.element) {
-            this.element.value = '';
-        }
-    }
-
-    /**
      * Get all selected categories (for multiple mode).
      *
      * @returns {Array} Array of selected category objects
