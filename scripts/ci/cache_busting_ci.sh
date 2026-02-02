@@ -89,13 +89,14 @@ for file in "${files[@]}"; do
     #   - Semantic versioning: X.Y.Z (e.g., 10.0.23)
     #   - Legacy timestamp: v{YYYYMMDD_HHMM} (e.g., v20260123_1530)
     #   - Legacy hash: v{hash} (e.g., v12345678)
-    # Pattern 1: JS files - /static/js/file.js, /static/js/dist/bundle.js, /shared/db/pglite.js
-    # Pattern 2: CSS files - /static/css/file.css, /web/static/css/file.css
+    # Pattern 1: JS files - /static/js/file.js, /static/js/subdir/file.js, /shared/db/pglite.js
+    # Pattern 2: CSS files - /static/css/file.css, /static/css/subdir/file.css
     # Pattern 3: Jinja2 url_for - {{ url_for(...) }}?v=PLACEHOLDER
     # IMPORTANT: Order matters! Semantic version MUST be before v?[0-9a-f_]+ to avoid partial matches
+    # FIXED: Support subdirectories inside /static/js/ (e.g., /static/js/budget/file.min.js)
     perl -i.bak -pe "
-        s{(\\/(?:webapp\\/|web\\/|shared\\/)?(?:static\\/js|db)\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.|bundle\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
-        s{(\\/(?:webapp\\/|web\\/|shared\\/)?static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
+        s{(\\/(?:webapp\\/|web\\/|shared\\/)?(?:static\\/js|db)\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.|bundle\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
+        s{(\\/(?:webapp\\/|web\\/|shared\\/)?static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
         s{(['\"])\\s*\\)\\s*\\}\\}\\s*\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1) \\}\\}?v=${CACHE_VERSION}}g;
     " "$file"
 

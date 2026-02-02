@@ -93,9 +93,10 @@ update_cache_versions() {
         # - vendor/, offline/, workers/core/ и другие subdirectories (любая вложенность)
         # - Semantic versioning (X.Y.Z) и legacy timestamp format (v{YYYYMMDD_HHMM})
         # IMPORTANT: Order matters! Semantic version MUST be before v?[0-9a-f_]+ to avoid partial matches
+        # FIXED: Support digits in directory and file names (e.g., 2fa_setup, workerWrapper)
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/web\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/shared\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/web\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/shared\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
