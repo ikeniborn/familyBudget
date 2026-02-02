@@ -149,6 +149,7 @@ server {
     }
 
     # Root - web interface
+    # Note: /sw.min.js and /manifest.json are handled by backend with proper Cache-Control headers
     location / {
         proxy_pass http://backend;
         proxy_set_header Host $host;

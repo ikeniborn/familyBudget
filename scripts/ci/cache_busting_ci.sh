@@ -56,6 +56,8 @@ files=(
     "frontend/web/templates/settings.html"
     # Web Template Scripts
     "frontend/web/templates/scripts/service-worker-registration.html"
+    # Service Worker (minified - used in runtime)
+    "frontend/web/static/sw.min.js"
 )
 
 updated_count=0
@@ -75,11 +77,13 @@ for file in "${files[@]}"; do
     # Pattern 1: JS files - /static/js/file.js, /static/js/dist/bundle.js, /shared/db/pglite.js
     # Pattern 2: CSS files - /static/css/file.css, /web/static/css/file.css
     # Pattern 3: Jinja2 url_for - {{ url_for(...) }}?v=PLACEHOLDER
+    # Pattern 4: Service Worker CACHE_VERSION variable (sw.js)
     # IMPORTANT: Order matters! Semantic version MUST be before v?[0-9a-f_]+ to avoid partial matches
     perl -i.bak -pe "
         s{(\\/(?:webapp\\/|web\\/|shared\\/)?(?:static\\/js|db)\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.|bundle\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
         s{(\\/(?:webapp\\/|web\\/|shared\\/)?static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
         s{(['\"])\\s*\\)\\s*\\}\\}\\s*\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1) \\}\\}?v=${CACHE_VERSION}}g;
+        s{(const\\s+CACHE_VERSION\\s*=\\s*['\"])(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)(['\"])}{${1}${CACHE_VERSION}${3}}g;
     " "$file"
 
     if [[ $? -eq 0 ]]; then
