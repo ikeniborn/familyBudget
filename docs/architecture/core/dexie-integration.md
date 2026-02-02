@@ -410,8 +410,82 @@ npm run test:e2e -- dexie-integration.spec.ts
 
 ---
 
+## Critical Fixes (v11.0.1)
+
+### 🔴 Transaction Atomicity Fix
+
+**Проблема:** `confirmPendingOperation()` выполняла две операции последовательно без транзакции:
+```typescript
+// ❌ БЕЗ транзакции (v11.0.0)
+await db.budgetFacts.modify({ sync_status: 'synced' });  // Step 1
+await db.pendingOperations.delete();                     // Step 2
+// Crash между Step 1 и Step 2 → несогласованность данных!
+```
+
+**Решение (v11.0.1):**
+```typescript
+// ✅ С транзакцией (атомарность гарантирована)
+await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
+  await db.budgetFacts.modify({ sync_status: 'synced' });
+  await db.pendingOperations.delete();
+});
+// Crash → обе операции rollback, данные согласованы
+```
+
+**Файл:** `frontend/shared/db/dexie/operations/factOperations.ts:272-291`
+
+---
+
+### 🟡 Exponential Backoff для Retry Logic
+
+**Проблема:** При сетевых ошибках sync пытался повторить операцию немедленно → спам requests на сервер.
+
+**Решение (v11.0.1):**
+- Добавлено поле `next_retry_at` в `LocalPendingOperation`
+- Exponential backoff: 2s, 4s, 8s, 16s, 32s (максимум)
+- `getPendingOperations()` фильтрует операции по `next_retry_at`
+
+**Пример:**
+```typescript
+// Attempt 1: Immediate retry
+// Attempt 2: Wait 2 seconds
+// Attempt 3: Wait 4 seconds
+// Attempt 4: Wait 8 seconds
+// ...
+```
+
+**Файлы:**
+- `frontend/shared/db/dexie/types/fact.ts` (добавлен `next_retry_at`)
+- `frontend/shared/db/dexie/core/database.ts` (добавлен индекс)
+- `frontend/shared/db/dexie/operations/factOperations.ts` (логика backoff)
+
+---
+
+### 🟡 Conflict Modal Timeout
+
+**Проблема:** Если пользователь не закрывал conflict modal, sync зависал бесконечно.
+
+**Решение (v11.0.1):**
+- Timeout 60 секунд → auto-fallback на "server wins"
+- Cleanup logic предотвращает double resolution
+
+**Файл:** `frontend/web/static/js/offline/conflictResolver.ts:187-282`
+
+---
+
+### ⚙️ Удален /settings Dexie раздел
+
+**Изменение:** UI раздел настроек Dexie удален из `/settings` страницы.
+
+**Причина:** Dexie включен по умолчанию для всех пользователей (localStorage.dexieActive = 'true').
+
+**Файл:** `frontend/web/templates/settings.html`
+
+---
+
 ## История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-02 | v11.0.1 | 🔴 Transaction atomicity fix (confirmPendingOperation)<br>🟡 Exponential backoff для retry logic<br>🟡 Conflict modal timeout (60s)<br>⚙️ Удален /settings Dexie раздел |
 | 2026-01-31 | v11.0.0 | Initial release (PGlite → Dexie migration) |
