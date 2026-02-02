@@ -23,7 +23,7 @@ permissions:
 jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
@@ -116,7 +116,7 @@ jobs:
 
   sast-scan:
     name: SAST - Static Code Analysis
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
@@ -181,7 +181,7 @@ jobs:
 
   secrets-scan:
     name: Secrets Detection
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:

@@ -16,7 +16,7 @@ permissions:
 jobs:
   axe-core-tests:
     name: Axe-core A11y Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 20
 
     services:
