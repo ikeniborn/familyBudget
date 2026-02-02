@@ -99,8 +99,8 @@ export default defineConfig({
 
       // External dependencies (modules that should NOT be bundled)
       // PGlite is built separately and loaded via <script> tag as window.PGlite
-      // Dexie is bundled only in dexie bundle, external for all others
-      external: entryName === 'dexie' ? [] : ['@db/pglite', 'dexie'],
+      // Dexie is bundled in dashboard, external for others (except dashboard and dexie bundles)
+      external: (entryName === 'dexie' || entryName === 'dashboard') ? ['@db/pglite'] : ['@db/pglite', 'dexie'],
 
       // Tree-shaking configuration (v10.1.48: prevent removal of window exports)
       // CRITICAL: dashboard bundle uses side-effect-based window assignments via initWindowExports()
@@ -119,9 +119,9 @@ export default defineConfig({
         // Map external modules to global variables (only for IIFE modules)
         // IMPORTANT: Use window.PGlite because PGlite global variable doesn't exist
         // (only window.PGlite Proxy created in index.iife.ts:110)
+        // Note: Dexie is bundled in dashboard.min.js, not external
         globals: {
-          '@db/pglite': 'window.PGlite',
-          'dexie': 'Dexie'
+          '@db/pglite': 'window.PGlite'
         }
         // Note: manualChunks not supported for IIFE format
         // PGlite uses dynamic import() for lazy loading instead
