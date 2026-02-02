@@ -16,7 +16,7 @@ permissions:
 jobs:
   openapi-validation:
     name: OpenAPI Schema Validation
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     services:
@@ -185,7 +185,7 @@ jobs:
 
   typescript-types-validation:
     name: TypeScript Types Consistency
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     needs: openapi-validation
     if: always()
     timeout-minutes: 5
