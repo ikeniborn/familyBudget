@@ -605,6 +605,28 @@ jobs:
             >> $GITHUB_STEP_SUMMARY || true
         continue-on-error: true
 
+      - name: Check HIGH/CRITICAL vulnerabilities (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        run: |
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image..."
+
+          # Run Trivy with JSON output to count vulnerabilities
+          VULN_COUNT=$(docker run --rm aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --quiet \
+            ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
+            | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities"
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error::❌ Backend image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities - blocking deployment"
+            exit 1
+          else
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in backend image"
+          fi
+
       - name: Upload Trivy results (backend)
         if: needs.image-build-push.outputs.backend_built == 'true'
         uses: github/codeql-action/upload-sarif@v4
@@ -634,6 +656,28 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
             >> $GITHUB_STEP_SUMMARY || true
         continue-on-error: true
+
+      - name: Check HIGH/CRITICAL vulnerabilities (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        run: |
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in bot image..."
+
+          # Run Trivy with JSON output to count vulnerabilities
+          VULN_COUNT=$(docker run --rm aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --quiet \
+            ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
+            | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities"
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error::❌ Bot image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities - blocking deployment"
+            exit 1
+          else
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in bot image"
+          fi
 
       - name: Upload Trivy results (bot)
         if: needs.image-build-push.outputs.bot_built == 'true'
@@ -684,7 +728,7 @@ jobs:
   # Job 7: Deploy to test server (only for test branch)
   # ============================================================================
   deploy-test:
-    name: Deploy to budget-test
+    name: deploy-test
     needs: [check-version, image-build-push, security-scan]
     runs-on: ubuntu-latest
     if: |
