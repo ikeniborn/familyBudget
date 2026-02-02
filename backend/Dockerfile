@@ -57,6 +57,9 @@ COPY frontend/ ./frontend/
 COPY scripts/ ./scripts/
 COPY VERSION ./
 
+# Set production environment for Vite minification
+ENV NODE_ENV=production
+
 # Минификация и сборка frontend assets (FIRST - with PLACEHOLDER in templates)
 RUN npm run build:prod
 
