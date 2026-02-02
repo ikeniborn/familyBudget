@@ -416,7 +416,7 @@ After successful admin setup:
    ```
 
 3. **Read comprehensive authentication docs**
-   - [authentication.md](./authentication.md) - Complete architecture
+   - [authentication.md](../core/authentication.md) - Complete architecture
    - [CLAUDE.md](../../CLAUDE.md) - Developer guide
 
 4. **Configure monitoring** (optional)
@@ -428,6 +428,6 @@ After successful admin setup:
 
 ## Related Documentation
 
-- [Authentication Architecture](./authentication.md) - Complete authentication system
+- [Authentication Architecture](../core/authentication.md) - Complete authentication system
 - [CLAUDE.md](../../CLAUDE.md) - Developer documentation
 - [START.md](../../START.md) - Installation guide

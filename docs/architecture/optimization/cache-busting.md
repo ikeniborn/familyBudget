@@ -226,6 +226,81 @@ files=(
 )
 ```
 
+## Critical Fix (v6.5.3): Execution Order
+
+**Date:** 2025-12-29
+**Issue:** Cache busting ran BEFORE minification, causing PLACEHOLDER to persist in production
+
+### Problem
+
+**Original flow (v6.5.2 - BROKEN):**
+1. ❌ update-cache-busting.sh updated `sw.js` (source)
+2. ❌ npm run build minified `sw.js` → `sw.min.js`
+3. ❌ Result: `sw.min.js` still had PLACEHOLDER (minified from old sw.js)
+
+### Solution
+
+**Fixed flow (v6.5.3):**
+1. ✅ npm run build minifies `sw.js` → `sw.min.js`
+2. ✅ update-cache-busting.sh updates `sw.min.js` (minified version)
+3. ✅ Script re-compresses `sw.min.js.gz`
+4. ✅ Result: Both minified versions have correct timestamp
+
+**Changes:**
+- Removed cache busting from deploy.sh line 865-883 (pre-build)
+- Added cache busting at line 1090-1108 (post-build, after npm run build)
+- Changed `SW_FILE="sw.js"` → `SW_FILE="sw.min.js"` in update-cache-busting.sh
+- Added `SW_FILE_GZ="sw.min.js.gz"` re-compression
+
+---
+
+## Quote Compatibility Fix (v6.5.4)
+
+**Date:** 2025-12-30
+**Type:** Bugfix (Critical)
+**Issue:** Sed pattern incompatibility with minified syntax
+
+### Problem
+
+Deployment failed because sed pattern only supported single quotes `'...'`, but Terser minification produces double quotes `"..."`.
+
+**Root Cause:**
+- Sed pattern: `const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';`
+- Minified syntax: `const CACHE_VERSION="v20251229_2003";` (double quotes, no spaces)
+- Pattern mismatch → replacement failed → deployment aborted
+
+### Solution
+
+Updated sed pattern to support BOTH quote styles and spacing variations.
+
+**Before:**
+```bash
+sed -i.tmp "s/const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
+```
+
+**After:**
+```bash
+# Support both single/double quotes and with/without spaces (minified vs source syntax)
+sed -i.tmp "s/const CACHE_VERSION[[:space:]]*=[[:space:]]*[\"']\(CACHE_VERSION_PLACEHOLDER\|v[^\"']*\)[\"'];/const CACHE_VERSION=\"${NEW_VERSION}\";/" "$SW_FILE"
+```
+
+**Improvements:**
+- `[[:space:]]*` - Supports spaces/tabs (0 or more) around `=`
+- `[\"']` - Supports BOTH double and single quotes
+- `[^\"']*` - Captures version until any quote
+- Always replaces with double quotes (compatible with minified syntax)
+
+**Test Results:**
+- ✅ Minified syntax: `const CACHE_VERSION="v20251229_2003";` → Updated
+- ✅ Source syntax: `const CACHE_VERSION = 'v20251229_2003';` → Updated
+- ✅ PLACEHOLDER: `const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';` → Updated
+
+**Affected Files:**
+- `scripts/update-cache-busting.sh:50-51` - Updated sed pattern
+- `scripts/update-cache-busting.sh:55-56` - Updated grep check (uses `-E` flag)
+
+---
+
 ## Best Practices
 
 ### 1. Всегда использовать PLACEHOLDER в исходниках
@@ -314,6 +389,15 @@ grep "lists.min.js" /opt/budget/logs/nginx/access.log | \
 - Обновлена документация для включения в проект
 - Добавлены best practices для deploy навыков
 - Документирован процесс troubleshooting
+- Интегрированы критические исправления из cache-busting-fix.md (v6.5.3-6.5.4)
+
+**v6.5.4** - 2025-12-30
+- Исправлена несовместимость sed паттерна с минифицированным синтаксисом (двойные кавычки)
+- Обновлена проверка grep для поддержки обоих стилей кавычек
+
+**v6.5.3** - 2025-12-29
+- Исправлен порядок выполнения: cache busting теперь запускается ПОСЛЕ минификации
+- Скрипт обновляет sw.min.js вместо sw.js
 
 **v1.0 (10.0.0)** - 2026-01-20
 - Первая версия cache busting с semver

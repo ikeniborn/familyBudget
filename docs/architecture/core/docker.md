@@ -1072,7 +1072,7 @@ RUN apt-get install -y --no-install-recommends \
 
 ## Related Documentation
 
-- **CI/CD Build Pipeline**: [ci-cd-build-deploy.md](./ci-cd-build-deploy.md)
+- **CI/CD Build Pipeline**: [ci-cd-build-deploy.md](../operations/ci-cd-build-deploy.md)
 - **CI/CD Summary**: [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md)
 - **Deploy Test Skill**: [.claude/skills/deploy-test/SKILL.md](../../.claude/skills/deploy-test/SKILL.md)
 - **Deploy Prod Skill**: [.claude/skills/deploy-prod/SKILL.md](../../.claude/skills/deploy-prod/SKILL.md)

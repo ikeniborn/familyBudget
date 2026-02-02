@@ -820,9 +820,9 @@ console.log({
 
 ## Related Documentation
 
-- [PWA Architecture](./pwa.md) - Service Worker and offline support
-- [Caching Strategy](./caching-strategy.md) - Frontend cache versioning
-- [Web Workers](./web-workers.md) - Background processing
+- [PWA Architecture](../core/pwa.md) - Service Worker and offline support
+- [Caching Strategy](../optimization/caching-strategy.md) - Frontend cache versioning
+- [Web Workers - Background processing
 - [Backup System](./backup-system.md) - Data backup and recovery
 
 ## Changelog

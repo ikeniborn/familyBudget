@@ -8,7 +8,7 @@
 ## Обзор
 
 > **📖 Related Documentation:**
-> - For **Testing & Validation workflows** (frontend tests, E2E, security, accessibility), see [ci-cd-pipeline.md](./ci-cd-pipeline.md)
+> - For **Testing & Validation workflows** (frontend tests, E2E, security, accessibility), see [ci-cd-pipeline.md
 > - This document focuses on **Build & Deploy** processes (registry-first v9.0)
 
 Family Budget использует **registry-first архитектуру**: все сборки (минификация, Docker build, кэшбастинг) происходят ТОЛЬКО в GitHub Actions CI/CD. На сервере - только pull готовых образов из GitHub Container Registry (ghcr.io) и запуск.
@@ -1154,7 +1154,7 @@ Developer (local)          GitHub Actions (CI/CD)         Server (budget-test/pr
 ## Related Documentation
 
 - **CI/CD Summary**: [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md)
-- **Docker Architecture**: [docker.md](./docker.md) (v9.0 - NEW)
+- **Docker Architecture**: [docker.md](../core/docker.md) (v9.0 - NEW)
 - **Build System**: [build-system.md](./build-system.md)
 - **Deployment Troubleshooting**: [deployment-troubleshooting.md](./guides/deployment-troubleshooting.md)
 - **Build Mode Archive**: [archive/README-ARCHIVE.md](../../archive/README-ARCHIVE.md)
