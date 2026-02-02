@@ -120,7 +120,8 @@ export default defineConfig({
         // IMPORTANT: Use window.PGlite because PGlite global variable doesn't exist
         // (only window.PGlite Proxy created in index.iife.ts:110)
         globals: {
-          '@db/pglite': 'window.PGlite'
+          '@db/pglite': 'window.PGlite',
+          'dexie': 'Dexie'
         }
         // Note: manualChunks not supported for IIFE format
         // PGlite uses dynamic import() for lazy loading instead
