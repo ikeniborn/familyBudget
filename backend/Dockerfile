@@ -37,6 +37,9 @@ ENV CACHE_VERSION=${CACHE_VERSION}
 
 WORKDIR /build
 
+# Install bash and perl for cache_busting_ci.sh script
+RUN apk add --no-cache bash perl
+
 # Копируем package files
 COPY package*.json ./
 
