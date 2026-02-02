@@ -61,7 +61,7 @@ let selectedFactIds: Set<number> = new Set();
 /**
  * Map of fact ID → reminder for reminder status display
  */
-let remindersMap: Map<number, Reminder> = new Map();
+const remindersMap: Map<number, Reminder> = new Map();
 
 /**
  * Get current page number

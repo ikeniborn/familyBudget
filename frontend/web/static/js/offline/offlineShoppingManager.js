@@ -557,7 +557,7 @@ class OfflineShoppingManager {
             // Update local items with server data
             for (const serverItem of result.items || []) {
                 const tempId = `temp_item_${serverItem.id}`;
-                let localItem = await this.db.getShoppingListItem(tempId);
+                const localItem = await this.db.getShoppingListItem(tempId);
 
                 if (localItem && localItem.syncStatus === 'pending') {
                     // Local has pending changes - merge

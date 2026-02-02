@@ -94,7 +94,7 @@ function md5(string) {
     }
 
     function wordToHex(lsw, msw) {
-        let hexChars = "0123456789abcdef";
+        const hexChars = "0123456789abcdef";
         let hex = "";
         for (let i = 0; i <= 3; i++) {
             const byte = (lsw >>> (i * 8)) & 255;

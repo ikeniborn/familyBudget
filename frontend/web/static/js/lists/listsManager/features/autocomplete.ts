@@ -227,8 +227,8 @@ function renderSuggestionsDropdown(suggestions: any[]): void {
 
     // Calculate position (below input, aligned left)
     let top = inputRect.bottom + 4; // 4px gap (mt-1)
-    let left = inputRect.left;
-    let width = inputRect.width;
+    const left = inputRect.left;
+    const width = inputRect.width;
 
     // Ensure dropdown doesn't overflow viewport
     const maxHeight = 240; // max-h-60 = 15rem = 240px
@@ -393,7 +393,7 @@ function fillFormFromSuggestion(suggestion: any): void {
   }
 
   // CRITICAL: After filling form from autocomplete, trigger duplicate check and future quantity update
-  console.log('[AUTOCOMPLETE] Form filled from suggestion', {
+  debugLog('[AUTOCOMPLETE] Form filled from suggestion', {
     productName: suggestion.product_name,
     storeId: suggestion.store_id,
     quantity: suggestion.quantity
@@ -404,7 +404,7 @@ function fillFormFromSuggestion(suggestion: any): void {
   const storeId = state.choicesInstances?.store?.getValue(true) || storeSelect?.value;
 
   if (productName && storeId && state.currentListId) {
-    console.log('[AUTOCOMPLETE] Triggering duplicate check after autocomplete selection');
+    debugLog('[AUTOCOMPLETE] Triggering duplicate check after autocomplete selection');
 
     // NOTE: These functions (searchDuplicate, showDuplicateWarning, updateFutureQuantity)
     // are in the original listsManager.ts but should be moved to a separate modal module
@@ -412,18 +412,18 @@ function fillFormFromSuggestion(suggestion: any): void {
     if (typeof (window as any).listsManager?.searchDuplicate === 'function') {
       (window as any).listsManager.searchDuplicate(productName, parseInt(storeId)).then((duplicate: any) => {
         if (duplicate) {
-          console.log('[AUTOCOMPLETE] Duplicate found after autocomplete, showing warning');
+          debugLog('[AUTOCOMPLETE] Duplicate found after autocomplete, showing warning');
           if (typeof (window as any).listsManager?.showDuplicateWarning === 'function') {
             (window as any).listsManager.showDuplicateWarning(duplicate);
           }
 
           // If quantity is already filled (from suggestion), update future quantity display
           if (quantityInput?.value && typeof (window as any).listsManager?.updateFutureQuantity === 'function') {
-            console.log('[AUTOCOMPLETE] Quantity already filled, updating future quantity');
+            debugLog('[AUTOCOMPLETE] Quantity already filled, updating future quantity');
             (window as any).listsManager.updateFutureQuantity();
           }
         } else {
-          console.log('[AUTOCOMPLETE] No duplicate found after autocomplete');
+          debugLog('[AUTOCOMPLETE] No duplicate found after autocomplete');
         }
       }).catch((error: any) => {
         console.error('[AUTOCOMPLETE] Error checking duplicate after autocomplete:', error);

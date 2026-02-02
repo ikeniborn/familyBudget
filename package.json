@@ -1,11 +1,11 @@
 {
   "name": "family-budget",
-  "version": "11.1.16",
+  "version": "11.1.17",
   "description": "Family Budget - Telegram-based personal finance management system",
   "main": "index.js",
   "scripts": {
     "type-check": "tsc --noEmit -p config/tsconfig.json",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 5000",
     "build:tailwind": "tailwindcss -c config/tailwind.config.js -i ./frontend/web/static/css/tailwind.input.css -o ./frontend/web/static/css/tailwind-daisyui.css",
     "minify:tailwind": "postcss --config config/postcss.config.js frontend/web/static/css/tailwind-daisyui.css -u cssnano -o frontend/web/static/css/tailwind-daisyui.min.css",
     "minify:custom-css": "postcss --config config/postcss.config.js frontend/web/static/css/custom.css -u cssnano -o frontend/web/static/css/custom.min.css",

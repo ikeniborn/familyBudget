@@ -162,7 +162,7 @@ class CSVImporter {
 
                 const duration = Math.round(performance.now() - startTime);
                 if (window.DEBUG_MODE) {
-                    console.log(`[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+                    debugLog(`[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
                 }
 
                 return result;
@@ -177,7 +177,7 @@ class CSVImporter {
         const duration = Math.round(performance.now() - startTime);
 
         if (window.DEBUG_MODE && duration > 100) {
-            console.log(`[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+            debugLog(`[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
         }
 
         return result;
@@ -887,7 +887,7 @@ class CSVImporter {
      */
     getFilteredPaginatedRows() {
         // Apply filters
-        let filteredRows = this.allPreviewRows.filter(row => {
+        const filteredRows = this.allPreviewRows.filter(row => {
             // Store filter (exact match from dropdown)
             if (this.previewFilters.store) {
                 const storeValue = row.data.store || '';
@@ -1072,7 +1072,7 @@ class CSVImporter {
             // Page numbers with ellipsis
             const maxVisiblePages = 5;
             let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
             if (endPage - startPage + 1 < maxVisiblePages) {
                 startPage = Math.max(1, endPage - maxVisiblePages + 1);

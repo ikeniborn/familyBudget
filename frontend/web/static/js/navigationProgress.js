@@ -25,7 +25,7 @@
     'use strict';
 
     // Defensive debugLog - prevent errors if not defined
-    var log = (typeof debugLog === 'function') ? debugLog : function() {};
+    const log = (typeof debugLog === 'function') ? debugLog : function() {};
 
     const NavigationProgress = {
         // DOM elements
@@ -84,12 +84,12 @@
          */
         isSafariPWA() {
             // Check for iOS standalone mode
-            var isStandalone = window.navigator.standalone === true;
+            const isStandalone = window.navigator.standalone === true;
             // Check for display-mode: standalone
-            var isDisplayStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isDisplayStandalone = window.matchMedia('(display-mode: standalone)').matches;
             // Check for Safari
-            var isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
             return (isStandalone || isDisplayStandalone) && (isSafari || isIOS);
         },
@@ -101,12 +101,12 @@
             // Only process single touch
             if (event.changedTouches && event.changedTouches.length !== 1) return;
 
-            var touch = event.changedTouches ? event.changedTouches[0] : event;
-            var target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const touch = event.changedTouches ? event.changedTouches[0] : event;
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
             if (!target) return;
 
-            var link = target.closest('a');
+            const link = target.closest('a');
             if (!this.shouldIntercept(link)) return;
 
             // Prevent default and handle navigation
@@ -121,7 +121,7 @@
             setTimeout(() => { this._touchHandled = false; }, 300);
 
             this.closeMobileMenu();
-            var href = link.getAttribute('href');
+            const href = link.getAttribute('href');
             this.navigateTo(href);
         },
 

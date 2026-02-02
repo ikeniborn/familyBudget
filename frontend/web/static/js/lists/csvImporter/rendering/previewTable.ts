@@ -68,7 +68,7 @@ export function getFilteredPaginatedRows(): FilteredPaginatedResult {
   const pagination = getPreviewPagination();
 
   // Apply filters
-  let filteredRows = allRows.filter(row => {
+  const filteredRows = allRows.filter(row => {
     // Store filter (exact match from dropdown)
     if (filters.store) {
       const storeValue = row.data?.store || '';
@@ -271,7 +271,7 @@ export function renderPreviewTableHTML(): string {
     // Page numbers with ellipsis
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
 
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
