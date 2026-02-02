@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   validate-cache-busting:
-    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
     name: Validate Cache Busting Logic
     
     steps:
