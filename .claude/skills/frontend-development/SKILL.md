@@ -92,6 +92,56 @@ function createItem<T extends { id: number }>(item: T): T {
 - 473 non-critical errors (acceptable for gradual migration)
 - 0 errors in critical modules (offlineManager.ts)
 
+**Window Exports Pattern (for onclick handlers):**
+
+ES Modules не экспортируют функции в глобальную область видимости автоматически. Для использования в inline onclick handlers требуется явный export в `window` объект.
+
+**Pattern: Export to window object**
+```typescript
+// BAD: Function not accessible from onclick
+export function openModal() {
+    // ...
+}
+
+// GOOD: Explicit window export
+export function openModal() {
+    // ...
+}
+
+// Export to window for onclick handlers
+(window as any).openModal = openModal;
+```
+
+**HTML onclick handlers:**
+```html
+<!-- BAD: ReferenceError - function not in global scope -->
+<button onclick="openModal()">Open</button>
+
+<!-- GOOD: Explicit window. prefix -->
+<button onclick="window.openModal()">Open</button>
+```
+
+**Best Practice:**
+- ALWAYS use `window.` prefix in HTML onclick handlers
+- Export functions via dedicated windowExports.ts module
+- Prefer event listeners over inline onclick when possible
+
+**Example: windowExports.ts**
+```typescript
+// frontend/web/static/js/dashboard/adapters/windowExports.ts
+import { openModalFact } from '../modalFact';
+import { openModalPlan } from '../modalPlan';
+
+// Export to window for onclick handlers
+window.openModalFact = openModalFact;
+window.openModalPlan = openModalPlan;
+```
+
+**Why this matters:**
+- ES Modules use strict mode → no implicit global scope
+- Inline onclick handlers execute in global scope (= window)
+- Without `window.` prefix → ReferenceError
+
 ## Build Commands
 
 **Production Build (v7.0.0+):**
@@ -224,6 +274,22 @@ npm run minify:css         # Use: npm run build (automatic)
 **Custom CSS instead of Tailwind:**
 - **Symptom**: Inconsistent styling, CSS bloat
 - **Fix**: Use Tailwind utility classes
+
+**Onclick handlers without window. prefix:**
+- **Symptom**: `ReferenceError: <functionName> is not defined` in browser console при клике на кнопки
+- **Root Cause**: ES Modules не экспортируют функции в глобальную область видимости. Inline onclick handlers выполняются в global scope (= window object)
+- **Fix**: Добавить `window.` prefix к всем функциям в onclick handlers
+- **Example**:
+  ```html
+  <!-- BAD: ReferenceError -->
+  <button onclick="openModalFact()">Add Fact</button>
+
+  <!-- GOOD: Works correctly -->
+  <button onclick="window.openModalFact()">Add Fact</button>
+  ```
+- **Prevention**: Используй dedicated windowExports.ts module для централизованного экспорта
+- **Reference**: См. "Window Exports Pattern" в TypeScript Development Patterns выше
+- **Real Case**: fab_toolbar.html (5 onclick handlers исправлено в v11.1.24)
 
 ## Related Skills
 
