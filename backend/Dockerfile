@@ -57,16 +57,17 @@ COPY frontend/ ./frontend/
 COPY scripts/ ./scripts/
 COPY VERSION ./
 
+# Минификация и сборка frontend assets (FIRST - with PLACEHOLDER in templates)
+RUN npm run build:prod
+
 # Cache busting - замена PLACEHOLDER на CACHE_VERSION во всех template files
+# This only modifies templates for serving, NOT source files
 RUN if [ -n "$CACHE_VERSION" ]; then \
         echo "Running cache busting with version: $CACHE_VERSION"; \
         bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"; \
     else \
         echo "WARNING: CACHE_VERSION not set, skipping cache busting"; \
     fi
-
-# Минификация и сборка frontend assets
-RUN npm run build:prod
 
 # Проверка результатов (включая Service Worker)
 RUN ls -lh frontend/web/static/css/ && \
