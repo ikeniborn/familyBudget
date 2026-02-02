@@ -68,7 +68,22 @@ for file in "${files[@]}"; do
         continue
     fi
 
-    # Perl regex замена (из cache_busting.sh:84-87)
+    # Special handling for Service Worker files (sw.min.js)
+    # Replace: const CACHE_VERSION = 'PLACEHOLDER' → const CACHE_VERSION = '11.1.30'
+    if [[ "$file" == *"sw.min.js"* ]] || [[ "$file" == *"sw.js"* ]]; then
+        sed -i.bak "s/'PLACEHOLDER'/'${CACHE_VERSION}'/g; s/\"PLACEHOLDER\"/\"${CACHE_VERSION}\"/g" "$file"
+        if [[ $? -eq 0 ]]; then
+            rm -f "${file}.bak"
+            updated_count=$((updated_count + 1))
+            echo "  ✓ Updated: $file (Service Worker)"
+        else
+            echo "  ✗ Failed: $file"
+            [[ -f "${file}.bak" ]] && mv "${file}.bak" "$file"
+        fi
+        continue
+    fi
+
+    # Perl regex замена для всех остальных файлов (HTML templates)
     # Обновляет ?v=PLACEHOLDER или ?v=<старая-версия> на ?v=<новая-версия>
     # Pattern supports:
     #   - Semantic versioning: X.Y.Z (e.g., 10.0.23)
@@ -77,13 +92,11 @@ for file in "${files[@]}"; do
     # Pattern 1: JS files - /static/js/file.js, /static/js/dist/bundle.js, /shared/db/pglite.js
     # Pattern 2: CSS files - /static/css/file.css, /web/static/css/file.css
     # Pattern 3: Jinja2 url_for - {{ url_for(...) }}?v=PLACEHOLDER
-    # Pattern 4: Service Worker CACHE_VERSION variable (sw.js)
     # IMPORTANT: Order matters! Semantic version MUST be before v?[0-9a-f_]+ to avoid partial matches
     perl -i.bak -pe "
         s{(\\/(?:webapp\\/|web\\/|shared\\/)?(?:static\\/js|db)\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.|bundle\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
         s{(\\/(?:webapp\\/|web\\/|shared\\/)?static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${CACHE_VERSION}}g;
         s{(['\"])\\s*\\)\\s*\\}\\}\\s*\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1) \\}\\}?v=${CACHE_VERSION}}g;
-        s{(const\\s+CACHE_VERSION\\s*=\\s*['\"])(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)(['\"])}{${1}${CACHE_VERSION}${3}}g;
     " "$file"
 
     if [[ $? -eq 0 ]]; then
