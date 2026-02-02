@@ -440,7 +440,7 @@ jobs:
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
@@ -458,7 +458,7 @@ jobs:
           tags: ${{ steps.meta-bot.outputs.tags }}
           labels: ${{ steps.meta-bot.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             PYTHON_VERSION=3.11
@@ -475,7 +475,7 @@ jobs:
           tags: ${{ steps.meta-nginx.outputs.tags }}
           labels: ${{ steps.meta-nginx.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Build and push redis
         if: steps.changes.outputs.redis == 'true'
@@ -487,7 +487,7 @@ jobs:
           tags: ${{ steps.meta-redis.outputs.tags }}
           labels: ${{ steps.meta-redis.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Build and push postgresql
         if: steps.changes.outputs.postgresql == 'true'
@@ -499,7 +499,71 @@ jobs:
           tags: ${{ steps.meta-postgresql.outputs.tags }}
           labels: ${{ steps.meta-postgresql.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
+
+      # ========================================================================
+      # Cleanup old untagged cache images (older than 7 days)
+      # ========================================================================
+      - name: Cleanup old untagged images
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Cleaning up old untagged Docker cache images (older than 7 days)..."
+
+          # Calculate cutoff date (7 days ago in ISO 8601 format)
+          CUTOFF_DATE=$(date -u -d '7 days ago' +'%Y-%m-%dT%H:%M:%SZ')
+          echo "Cutoff date: $CUTOFF_DATE"
+
+          # List of all package names
+          PACKAGES=(
+            "familybudget-backend"
+            "familybudget-bot"
+            "familybudget-nginx"
+            "familybudget-redis"
+            "familybudget-postgresql"
+          )
+
+          TOTAL_DELETED=0
+
+          for PACKAGE in "${PACKAGES[@]}"; do
+            echo ""
+            echo "📦 Processing package: $PACKAGE"
+
+            # Get all untagged versions older than cutoff date
+            OLD_VERSIONS=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions?per_page=100" \
+              --jq ".[] | select(.metadata.container.tags | length == 0) | select(.created_at < \"$CUTOFF_DATE\") | .id" 2>/dev/null || echo "")
+
+            if [[ -z "$OLD_VERSIONS" ]]; then
+              echo "   No old untagged images found"
+              continue
+            fi
+
+            COUNT=$(echo "$OLD_VERSIONS" | wc -l)
+            echo "   Found $COUNT old untagged images to delete"
+
+            # Delete each old version
+            while IFS= read -r VERSION_ID; do
+              if gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
+                2>/dev/null; then
+                TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                echo "   ✓ Deleted image ID: $VERSION_ID"
+              else
+                echo "   ✗ Failed to delete image ID: $VERSION_ID"
+              fi
+            done <<< "$OLD_VERSIONS"
+          done
+
+          echo ""
+          echo "✅ Cleanup completed: $TOTAL_DELETED old untagged images deleted"
 
       # ========================================================================
       # Update IMAGE_VERSIONS.json with newly built image tags

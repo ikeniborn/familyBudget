@@ -69,6 +69,7 @@ export async function createFact(
       attempts: 0,
       max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
       last_error: null,
+      next_retry_at: null, // First attempt - no backoff
       content_hash,
       created_at: new Date(),
       updated_at: new Date()
@@ -125,6 +126,7 @@ export async function updateFact(
       attempts: 0,
       max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
       last_error: null,
+      next_retry_at: null, // First attempt - no backoff
       content_hash,
       created_at: new Date(),
       updated_at: new Date()
@@ -168,6 +170,7 @@ export async function deleteFact(temp_id: string): Promise<void> {
       attempts: 0,
       max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
       last_error: null,
+      next_retry_at: null, // First attempt - no backoff
       content_hash: '', // Empty for deletes
       created_at: new Date(),
       updated_at: new Date()
@@ -256,14 +259,32 @@ async function addPendingOperation(operation: Omit<LocalPendingOperation, 'id'>)
 }
 
 /**
- * Get pending operations для sync
+ * Get pending operations ready for sync (respects exponential backoff)
  */
 export async function getPendingOperations(): Promise<LocalPendingOperation[]> {
   logger.debug('[Dexie] getPendingOperations');
 
-  return await db.pendingOperations
+  const now = new Date();
+  const allOperations = await db.pendingOperations
     .orderBy('created_at')
     .toArray();
+
+  // Filter out operations that are waiting for backoff to expire
+  const readyOperations = allOperations.filter(op => {
+    // If next_retry_at is null, operation is ready (first attempt or max attempts reached)
+    if (!op.next_retry_at) return true;
+
+    // Check if backoff period has expired
+    return new Date(op.next_retry_at) <= now;
+  });
+
+  logger.debug('[Dexie] Pending operations filtered', {
+    total: allOperations.length,
+    ready: readyOperations.length,
+    waiting: allOperations.length - readyOperations.length
+  });
+
+  return readyOperations;
 }
 
 /**
@@ -275,23 +296,38 @@ export async function confirmPendingOperation(
 ): Promise<void> {
   logger.debug('[Dexie] confirmPendingOperation', { temp_id, server_id });
 
-  // Update fact с server ID
-  await db.budgetFacts.where('temp_id').equals(temp_id).modify({
-    id: server_id,
-    sync_status: 'synced',
-    synced_at: new Date()
-  });
+  // 🔒 CRITICAL: Wrap in transaction to ensure atomicity
+  // If crash happens between modify() and delete(), both operations rollback
+  await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
+    // Update fact с server ID
+    await db.budgetFacts.where('temp_id').equals(temp_id).modify({
+      id: server_id,
+      sync_status: 'synced',
+      synced_at: new Date()
+    });
 
-  // Remove from pending queue
-  await db.pendingOperations
-    .where('temp_id').equals(temp_id)
-    .delete();
+    // Remove from pending queue
+    await db.pendingOperations
+      .where('temp_id').equals(temp_id)
+      .delete();
+  });
 
   logger.info('[Dexie] ✅ Operation confirmed', { temp_id, server_id });
 }
 
 /**
- * Fail pending operation (increment attempts)
+ * Calculate exponential backoff delay (milliseconds)
+ * Attempts 1-5 → 2s, 4s, 8s, 16s, 32s
+ */
+function calculateBackoffDelay(attempts: number): number {
+  const baseDelay = 2000; // 2 seconds
+  const maxDelay = 32000; // 32 seconds
+  const delay = baseDelay * Math.pow(2, attempts - 1);
+  return Math.min(delay, maxDelay);
+}
+
+/**
+ * Fail pending operation (increment attempts + exponential backoff)
  */
 export async function failPendingOperation(
   temp_id: string,
@@ -308,10 +344,11 @@ export async function failPendingOperation(
   const newAttempts = operation.attempts + 1;
 
   if (newAttempts >= operation.max_attempts) {
-    // Max attempts reached - mark as failed
+    // Max attempts reached - mark as failed (no more retries)
     await db.pendingOperations.where('temp_id').equals(temp_id).modify({
       last_error: error,
-      attempts: newAttempts
+      attempts: newAttempts,
+      next_retry_at: null // Stop retrying
     });
 
     logger.error('[Dexie] ❌ Operation failed (max attempts)', {
@@ -320,17 +357,23 @@ export async function failPendingOperation(
       max_attempts: operation.max_attempts
     });
   } else {
-    // Increment attempts
+    // Calculate next retry time with exponential backoff
+    const backoffMs = calculateBackoffDelay(newAttempts);
+    const nextRetryAt = new Date(Date.now() + backoffMs);
+
     await db.pendingOperations.where('temp_id').equals(temp_id).modify({
       last_error: error,
       attempts: newAttempts,
+      next_retry_at: nextRetryAt,
       updated_at: new Date()
     });
 
-    logger.warn('[Dexie] Operation retry', {
+    logger.warn('[Dexie] Operation retry scheduled', {
       temp_id,
       attempts: newAttempts,
-      max_attempts: operation.max_attempts
+      max_attempts: operation.max_attempts,
+      next_retry_at: nextRetryAt.toISOString(),
+      backoff_seconds: backoffMs / 1000
     });
   }
 }
