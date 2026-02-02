@@ -76,7 +76,7 @@ export class FamilyBudgetDB extends Dexie {
       // ВАЖНО: amount хранится как integer (cents), не decimal
       // PRIMARY KEY: temp_id (offline-first: temp_id always exists, id filled after sync)
       budgetFacts: 'temp_id, id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
-      pendingOperations: '++id, content_hash, entity_type, temp_id, server_id',
+      pendingOperations: '++id, content_hash, entity_type, temp_id, server_id, next_retry_at',
       syncConflicts: '++id, entity_type, temp_id, entity_id',
       recurringPlans: 'id, user_id, article_id, financial_center_id, is_active',
 

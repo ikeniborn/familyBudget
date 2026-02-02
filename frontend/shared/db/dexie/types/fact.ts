@@ -58,6 +58,7 @@ export interface LocalPendingOperation {
   attempts: number;
   max_attempts: number;
   last_error: string | null;
+  next_retry_at: Date | null; // Exponential backoff: 2s, 4s, 8s, 16s, 32s
 
   // Deduplication
   content_hash: string;        // UNIQUE constraint

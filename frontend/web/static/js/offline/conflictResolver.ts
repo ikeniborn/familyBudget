@@ -191,6 +191,9 @@ class ConflictResolver {
     ): Promise<any> {
         return new Promise((resolve) => {
             const modalId = 'conflictResolutionModal';
+            const TIMEOUT_MS = 60000; // 60 seconds
+            let timeoutHandle: number | null = null;
+            let resolved = false; // Flag to prevent double resolution
 
             // Удалить старое модальное окно если есть
             const existingModal = document.getElementById(modalId);
@@ -228,18 +231,42 @@ class ConflictResolver {
                 checkbox.checked = true;
             }
 
+            // Cleanup function to clear timeout and remove modal
+            const cleanup = () => {
+                if (timeoutHandle !== null) {
+                    clearTimeout(timeoutHandle);
+                    timeoutHandle = null;
+                }
+                if (checkbox) checkbox.checked = false;
+                modal.remove();
+            };
+
+            // Auto-resolve after timeout (fallback to server wins)
+            timeoutHandle = window.setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    if (window.logSync) {
+                        window.logSync.warn('Conflict modal timeout - auto-choosing server version');
+                    }
+                    cleanup();
+                    resolve(serverData);
+                }
+            }, TIMEOUT_MS);
+
             // Обработчик кнопки "Keep Server"
             const keepServerBtn = modal.querySelector(
                 '#keepServerBtn'
             ) as HTMLButtonElement;
             if (keepServerBtn) {
                 keepServerBtn.addEventListener('click', () => {
-                    if (window.logSync) {
-                        window.logSync.info('User chose: Keep Server');
+                    if (!resolved) {
+                        resolved = true;
+                        if (window.logSync) {
+                            window.logSync.info('User chose: Keep Server');
+                        }
+                        cleanup();
+                        resolve(serverData);
                     }
-                    if (checkbox) checkbox.checked = false;
-                    modal.remove();
-                    resolve(serverData);
                 });
             }
 
@@ -249,12 +276,14 @@ class ConflictResolver {
             ) as HTMLButtonElement;
             if (keepOfflineBtn) {
                 keepOfflineBtn.addEventListener('click', () => {
-                    if (window.logSync) {
-                        window.logSync.info('User chose: Keep Offline');
+                    if (!resolved) {
+                        resolved = true;
+                        if (window.logSync) {
+                            window.logSync.info('User chose: Keep Offline');
+                        }
+                        cleanup();
+                        resolve(offlineData);
                     }
-                    if (checkbox) checkbox.checked = false;
-                    modal.remove();
-                    resolve(offlineData);
                 });
             }
 
@@ -264,18 +293,20 @@ class ConflictResolver {
             ) as HTMLButtonElement;
             if (mergeBtn) {
                 mergeBtn.addEventListener('click', () => {
-                    const merged = this._performManualMerge(
-                        modal,
-                        offlineData,
-                        serverData,
-                        conflicts
-                    );
-                    if (window.logSync) {
-                        window.logSync.info('User chose: Manual Merge', merged);
+                    if (!resolved) {
+                        resolved = true;
+                        const merged = this._performManualMerge(
+                            modal,
+                            offlineData,
+                            serverData,
+                            conflicts
+                        );
+                        if (window.logSync) {
+                            window.logSync.info('User chose: Manual Merge', merged);
+                        }
+                        cleanup();
+                        resolve(merged);
                     }
-                    if (checkbox) checkbox.checked = false;
-                    modal.remove();
-                    resolve(merged);
                 });
             }
         });
