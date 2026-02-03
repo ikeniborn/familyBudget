@@ -52,16 +52,14 @@
      * Keeps navbar badge in sync with pending records
      */
     async function periodicSyncBadgeUpdate() {
-        if (!window.offlineManager) return;
-
         try {
-            const { items } = await window.offlineManager.getAllUnsyncedItems();
-            updateNavbarSyncBadge(items.length);
+            // Use Dexie to get pending operations
+            const dexie = await window.Dexie.getDexieManager();
+            const pendingOps = await dexie.getPendingOperations();
+            updateNavbarSyncBadge(pendingOps.length);
         } catch (error) {
-            // Ignore transient errors during navigation
-            if (error.name !== 'InvalidStateError' && window.DEBUG_MODE) {
-                console.warn('[SYNC] Periodic update error:', error);
-            }
+            // Dexie not available - skip badge update
+            updateNavbarSyncBadge(0);
         }
     }
 

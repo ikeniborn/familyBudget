@@ -171,7 +171,7 @@ export interface APIListResponse<T> {
 // ============================================================================
 
 import { dataLayer } from '../data/DataLayer';
-import { getCurrentUserId } from '../offline/offlineManager/utils/userHelpers';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Data Loading Functions

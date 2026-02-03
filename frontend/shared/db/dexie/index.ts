@@ -13,9 +13,15 @@ export type { InitializationStatus, ProgressCallback } from './DexieManager';
 /**
  * Check if Dexie offline mode is active
  * Читает feature flag из localStorage
+ *
+ * DEFAULT: TRUE (active by default)
+ * Users can explicitly disable: localStorage.setItem('dexieActive', 'false')
  */
 export function isDexieActive(): boolean {
-  return localStorage.getItem('dexieActive') === 'true';
+  const stored = localStorage.getItem('dexieActive');
+  // Default: TRUE (active by default)
+  // Users can explicitly disable: localStorage.setItem('dexieActive', 'false')
+  return stored !== 'false';
 }
 
 /**
