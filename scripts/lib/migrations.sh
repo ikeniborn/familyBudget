@@ -54,7 +54,8 @@ run_alembic_migrations() {
     # Check current Alembic revision
     info "Checking current migration status..."
     local current_revision
-    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "none")
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    current_revision=$(compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "none")
 
     if [[ "$current_revision" == "none" ]]; then
         info "No migrations applied yet - fresh database detected"
@@ -64,7 +65,8 @@ run_alembic_migrations() {
 
     # Check available head revision
     local head_revision
-    head_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini heads 2>&1" | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    head_revision=$(compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini heads 2>&1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
 
     if [[ "$head_revision" == "unknown" ]]; then
         warning "Cannot determine head revision"
@@ -86,7 +88,9 @@ run_alembic_migrations() {
     echo ""
 
     # Use PIPESTATUS to capture alembic exit code (tee always returns 0)
-    compose_cmd exec -T backend bash -c "cd /app && ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID:-} alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    # Pass ADMIN_TELEGRAM_ID via -e flag for docker exec
+    compose_cmd exec -T -e ADMIN_TELEGRAM_ID="${ADMIN_TELEGRAM_ID:-}" backend python -m alembic -c backend/db/migrations/alembic.ini upgrade head 2>&1 | tee -a "$LOG_FILE"
     local alembic_exit_code=${PIPESTATUS[0]}
 
     if [[ $alembic_exit_code -eq 0 ]]; then
@@ -95,7 +99,8 @@ run_alembic_migrations() {
 
         # Show new current revision
         local new_revision
-        new_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "unknown")
+        # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+        new_revision=$(compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
         if [[ "$new_revision" != "unknown" && "$new_revision" != "$current_revision" ]]; then
             info "Database updated: $current_revision → $new_revision"
         elif [[ "$new_revision" == "$current_revision" ]]; then
@@ -131,7 +136,8 @@ verify_database_schema() {
     # Check Alembic migration status
     info "Checking Alembic migration status..."
     local current_revision
-    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "none")
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    current_revision=$(compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "none")
 
     if [[ "$current_revision" == "none" ]]; then
         warning "No Alembic migrations applied - database may be empty"

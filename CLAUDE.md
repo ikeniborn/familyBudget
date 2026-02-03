@@ -53,6 +53,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 **HOTFIX (v11.2.15):**
 - Fixed GitHub Actions deployment hang on port conflict check (non-interactive mode support)
 
+**HOTFIX (v11.2.16):**
+- Fixed Alembic migrations for distroless runtime (use python -m alembic instead of bash)
+
 ### Environments
 
 | Environment | URL | Purpose |
