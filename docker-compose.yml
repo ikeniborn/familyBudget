@@ -186,9 +186,6 @@ services:
       SYSTEM_TIMEZONE: ${SYSTEM_TIMEZONE:-UTC}
 
       # Performance
-      # WORKERS: Configurable workers with Redis-backed WebSocket support
-      # Default: 1 (legacy SSE mode), can be increased to 4 with Redis Pub/Sub
-      WORKERS: ${WORKERS:-1}
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
 
       # Redis (Caching & WebSocket Sync)
