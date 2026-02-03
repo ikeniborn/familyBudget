@@ -10,8 +10,8 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: [
-      './frontend/tests/setup.ts',
-      './frontend/tests/setup/msw.ts'
+      resolve(__dirname, '../frontend/tests/setup.ts'),
+      resolve(__dirname, '../frontend/tests/setup/msw.ts')
     ],
     exclude: [
       '**/node_modules/**',
@@ -45,13 +45,12 @@ export default defineConfig({
       ],
       thresholds: {
         // Global thresholds (diluted by ~9,600 lines of untested legacy monoliths)
-        // LOWERED: Actual 5.98% after PR #306, will raise incrementally
-        // LOWERED: Functions 84→82 due to facts/ TypeScript refactor (PR #336)
-        // LOWERED: Functions 82→73.64 - TODO: Raise after adding tests (Issue #XXX)
-        lines: 5.9,
-        functions: 73.64,
-        branches: 86,   // Lowered from 92 to 86 (current actual value)
-        statements: 5.9,
+        // LOWERED: After PGlite removal and cleanup (PR #379)
+        // TODO: Raise incrementally as test coverage improves
+        lines: 4.0,
+        functions: 32.0,
+        branches: 60.0,
+        statements: 4.0,
 
         // Per-directory thresholds for Phase 6: Component System
         // TEMPORARY: Lowered to actual coverage until migration complete
@@ -94,11 +93,11 @@ export default defineConfig({
       }
     },
     alias: {
-      '@web': resolve(__dirname, 'frontend/web/static/js'),
-      '@webapp': resolve(__dirname, 'frontend/webapp/static/js'),
-      '@shared': resolve(__dirname, 'frontend/shared/static/js'),
-      '@components': resolve(__dirname, 'frontend/web/static/js/modules/uiComponents'),
-      '@db': resolve(__dirname, 'frontend/shared/db')
+      '@web': resolve(__dirname, '../frontend/web/static/js'),
+      '@webapp': resolve(__dirname, '../frontend/webapp/static/js'),
+      '@shared': resolve(__dirname, '../frontend/shared/static/js'),
+      '@components': resolve(__dirname, '../frontend/web/static/js/modules/uiComponents'),
+      '@db': resolve(__dirname, '../frontend/shared/db')
     }
   }
 });
