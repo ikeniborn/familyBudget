@@ -48,6 +48,7 @@ Family Budget is a family budget management system with Telegram bot and web int
 - Server only pulls ready images from ghcr.io (registry-first)
 - npm/Node.js NOT required on server
 - Manual VERSION bump before push
+- Never update manual package.json or package-lock.json. Updated in GitHub Actions CI/CD
 
 ### Environments
 
