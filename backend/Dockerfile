@@ -40,21 +40,25 @@ WORKDIR /build
 # Install bash and perl for cache_busting_ci.sh script
 RUN apk add --no-cache bash perl
 
-# Копируем package files
+# Копируем package files (change rarely - good cache layer)
 COPY package*.json ./
 
-# Install dependencies with BuildKit cache mount
+# Install dependencies with BuildKit cache mount (cache hit if package*.json unchanged)
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Копируем build configuration files (required for npm run build:prod)
+# Копируем build configuration files (change rarely - good cache layer)
+# These are required for npm run build:prod
 COPY build-all.js ./
 COPY config/ ./config/
 COPY sw.js manifest.json ./
 
-# Копируем исходники frontend
+# Копируем исходники frontend (change frequently - near end for better cache)
+# Moved after dependencies to maximize cache hit rate
 COPY frontend/ ./frontend/
 COPY scripts/ ./scripts/
+
+# Copy VERSION last (changes on every release - invalidates least layers)
 COPY VERSION ./
 
 # Set production environment for Vite minification
