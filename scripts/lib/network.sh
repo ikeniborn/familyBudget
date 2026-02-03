@@ -99,14 +99,22 @@ check_port_available() {
             echo ""
             info "Рекомендация: Остановить host certbot и использовать контейнерную версию."
             echo ""
-            echo "Опции:"
-            echo "  [1] Остановить host certbot (временно) и продолжить деплой (рекомендуется)"
-            echo "  [2] Отключить host certbot навсегда и продолжить"
-            echo "  [3] Отменить деплой"
-            echo ""
 
-            read -p "Выберите [1-3]: " choice
-            echo ""
+            # Non-interactive mode (no TTY) - automatically stop certbot temporarily
+            if [[ ! -t 0 ]]; then
+                info "Non-interactive mode: automatically stopping host certbot (option 1)"
+                choice="1"
+            else
+                # Interactive mode - ask user
+                echo "Опции:"
+                echo "  [1] Остановить host certbot (временно) и продолжить деплой (рекомендуется)"
+                echo "  [2] Отключить host certbot навсегда и продолжить"
+                echo "  [3] Отменить деплой"
+                echo ""
+
+                read -p "Выберите [1-3]: " choice
+                echo ""
+            fi
 
             case $choice in
                 1)
@@ -210,14 +218,22 @@ check_port_available() {
             # Standard handling for non-certbot processes
             warning "This will prevent $service_name from starting."
             echo ""
-            echo "Опции:"
-            echo "  [1] Остановить процесс и продолжить"
-            echo "  [2] Изменить порт в .env файле"
-            echo "  [3] Отменить деплой"
-            echo ""
 
-            read -p "Выберите [1-3]: " choice
-            echo ""
+            # Non-interactive mode (no TTY) - automatically stop process
+            if [[ ! -t 0 ]]; then
+                info "Non-interactive mode: automatically stopping process on port $port"
+                choice="1"
+            else
+                # Interactive mode - ask user
+                echo "Опции:"
+                echo "  [1] Остановить процесс и продолжить"
+                echo "  [2] Изменить порт в .env файле"
+                echo "  [3] Отменить деплой"
+                echo ""
+
+                read -p "Выберите [1-3]: " choice
+                echo ""
+            fi
 
             case $choice in
                 1)

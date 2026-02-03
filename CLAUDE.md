@@ -50,6 +50,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 - Manual VERSION bump before push
 - Never update manual package.json or package-lock.json. Updated in GitHub Actions CI/CD
 
+**HOTFIX (v11.2.15):**
+- Fixed GitHub Actions deployment hang on port conflict check (non-interactive mode support)
+
 ### Environments
 
 | Environment | URL | Purpose |
