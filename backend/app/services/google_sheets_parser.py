@@ -16,10 +16,10 @@ Usage:
     # Fetch CSV
     csv_bytes = await fetch_google_sheets_as_csv(spreadsheet_id, sheet_gid)
 """
+from typing import Optional
 
 import logging
 import re
-from typing import Optional, Tuple
 
 import httpx
 
@@ -31,7 +31,7 @@ class GoogleSheetsError(Exception):
     pass
 
 
-async def parse_google_sheets_url(url: str) -> Tuple[str, Optional[str]]:
+async def parse_google_sheets_url(url: str) -> tuple[str, Optional[str]]:
     """
     Extract spreadsheet ID and sheet GID from Google Sheets URL.
 

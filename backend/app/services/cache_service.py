@@ -25,12 +25,16 @@ Usage:
 
 import hashlib
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar, Optional, Union
 
 from backend.app.core.config import Settings, get_settings
-from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads, dumps_for_cache
-
+from backend.app.core.json_utils import (
+    dumps as json_dumps,
+    dumps_for_cache,
+    loads as json_loads,
+)
 from backend.app.services.redis_service import get_redis, is_redis_available
 
 logger = logging.getLogger(__name__)
@@ -80,7 +84,7 @@ class CacheKey:
         return f"cache:{self.prefix}"
 
     @classmethod
-    def articles_list(cls, filter_hash: str | None = None) -> "CacheKey":
+    def articles_list(cls, filter_hash: Optional[str] = None) -> "CacheKey":
         """Cache key for articles list."""
         if filter_hash:
             return cls(prefix="articles", parts=("list", filter_hash))
@@ -132,7 +136,7 @@ class CacheKey:
         return cls(prefix="recent", parts=("html", str(limit)))
 
     @classmethod
-    def recurring_plan_list(cls, user_id: int, filter_hash: str | None = None) -> "CacheKey":
+    def recurring_plan_list(cls, user_id: int, filter_hash: Optional[str] = None) -> "CacheKey":
         """Cache key for recurring plan list with optional filter hash."""
         if filter_hash:
             return cls(prefix="recurring_plans", parts=(str(user_id), "list", filter_hash))
@@ -167,7 +171,7 @@ class CacheService:
             self._settings = get_settings()
         return self._settings
 
-    def _get_ttl(self, ttl: int | CacheTTL | None) -> int:
+    def _get_ttl(self, ttl: Union[int, Optional[CacheTTL]]) -> int:
         """Get TTL value, using defaults from settings if needed."""
         if ttl is not None:
             return int(ttl)
@@ -180,7 +184,7 @@ class CacheService:
         sorted_filters = dumps_for_cache(filters)
         return hashlib.md5(sorted_filters.encode()).hexdigest()[:12]
 
-    async def get(self, key: str | CacheKey) -> Any | None:
+    async def get(self, key: Union[str, CacheKey]) -> Optional[Any]:
         """
         Get value from cache.
 
@@ -209,9 +213,9 @@ class CacheService:
 
     async def set(
         self,
-        key: str | CacheKey,
+        key: Union[str, CacheKey],
         value: Any,
-        ttl: int | CacheTTL | None = None,
+        ttl: Union[int, Optional[CacheTTL]] = None,
     ) -> bool:
         """
         Set value in cache.
@@ -244,9 +248,9 @@ class CacheService:
 
     async def get_or_set(
         self,
-        key: str | CacheKey,
+        key: Union[str, CacheKey],
         fetch_fn: Callable[[], Any],
-        ttl: int | CacheTTL | None = None,
+        ttl: Union[int, Optional[CacheTTL]] = None,
     ) -> Any:
         """
         Get from cache or fetch and cache.
@@ -274,7 +278,7 @@ class CacheService:
 
         return data
 
-    async def delete(self, key: str | CacheKey) -> bool:
+    async def delete(self, key: Union[str, CacheKey]) -> bool:
         """
         Delete a specific key from cache.
 
@@ -356,7 +360,7 @@ class CacheService:
         """Invalidate all cost center cache."""
         return await self.invalidate_pattern("cost_centers:*")
 
-    async def invalidate_recurring_plans(self, user_id: int | None = None) -> int:
+    async def invalidate_recurring_plans(self, user_id: Optional[int] = None) -> int:
         """
         Invalidate recurring plan cache.
 
@@ -398,7 +402,7 @@ cache_service = CacheService()
 async def cached_list(
     key: CacheKey,
     fetch_fn: Callable[[], Any],
-    ttl: int | None = None,
+    ttl: Optional[int] = None,
 ) -> list:
     """
     Cache a list of items.

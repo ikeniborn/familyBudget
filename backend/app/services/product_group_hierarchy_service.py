@@ -19,8 +19,8 @@ Performance:
     All queries use indexed lookups on closure table - O(1) complexity.
     No recursive queries needed.
 """
-
 from typing import Optional
+
 
 from sqlalchemy import delete, insert, literal
 from sqlmodel import select

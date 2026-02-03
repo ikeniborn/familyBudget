@@ -7,10 +7,9 @@ Provides functions to export data in CSV format for download.
 import csv
 import io
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi.responses import StreamingResponse
-
 
 # ============================================================================
 # CSV Export
@@ -18,9 +17,9 @@ from fastapi.responses import StreamingResponse
 
 
 def export_to_csv(
-    data: List[Dict[str, Any]],
+    data: list[dict[str, Any]],
     filename: str,
-    columns: List[str] = None
+    columns: list[str] = None
 ) -> StreamingResponse:
     """
     Export data to CSV format.

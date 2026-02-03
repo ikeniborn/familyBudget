@@ -12,13 +12,11 @@ Tests complete workflows for Advanced Analytics features introduced in v5.0.0-be
 Phase 2 Feature: Advanced Analytics UI (EPIC-003)
 """
 
+from datetime import date, timedelta
+
 import pytest
-from datetime import date, datetime, timedelta
-from decimal import Decimal
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
-
-from backend.app.models.user import User
 
 
 @pytest.mark.asyncio
@@ -75,7 +73,7 @@ class TestWaterfallChartJourney:
             )
             expense_ids[code] = response.json()["id"]
 
-        print(f"✅ Created 1 income + 4 expense categories")
+        print("✅ Created 1 income + 4 expense categories")
 
         # ===== STEP 2: Add Transactions Over Multiple Periods =====
         print("\n📊 Step 2: Adding transactions over 3 months...")
@@ -146,7 +144,7 @@ class TestWaterfallChartJourney:
                     }
                 )
 
-        print(f"✅ Created transactions for 3 months")
+        print("✅ Created transactions for 3 months")
 
         # ===== STEP 3: Test Waterfall - Default Period (Month) =====
         print("\n📊 Step 3: Testing waterfall chart (month period)...")
@@ -201,7 +199,7 @@ class TestWaterfallChartJourney:
             # (This is a simplified check - actual logic may vary)
             assert isinstance(balances[i], (int, float))
 
-        print(f"✅ Cumulative balance calculation verified")
+        print("✅ Cumulative balance calculation verified")
 
         # ===== STEP 7: Test Drill-down by Category =====
         print("\n📊 Step 7: Testing drill-down by category...")
@@ -258,7 +256,7 @@ class TestHeatmapChartJourney:
             json={"code": "DAILY", "name": "Daily Expenses", "type": "expense", "parent_id": None}
         )
         expense_id = expense_response.json()["id"]
-        print(f"✅ Created expense category")
+        print("✅ Created expense category")
 
         # ===== STEP 2: Add Transactions Across Different Days =====
         print("\n🗓️ Step 2: Adding transactions across multiple weeks...")
@@ -286,7 +284,7 @@ class TestHeatmapChartJourney:
                     }
                 )
 
-        print(f"✅ Created transactions: 4 weeks × 7 days = 28 transactions")
+        print("✅ Created transactions: 4 weeks × 7 days = 28 transactions")
 
         # ===== STEP 3: Test Heatmap - Default Period (Month) =====
         print("\n🗓️ Step 3: Testing heatmap (month period)...")
@@ -361,7 +359,7 @@ class TestHeatmapChartJourney:
             max_value = max(all_values)
             print(f"✅ Color scale range: {min_value:.2f} - {max_value:.2f}")
         else:
-            print(f"⚠️  No data points for color scale (all zeros)")
+            print("⚠️  No data points for color scale (all zeros)")
 
         print("\n" + "="*60)
         print("🎉 HEATMAP CHART ANALYTICS TEST PASSED!")
@@ -487,7 +485,7 @@ class TestPlanVsFactJourney:
         total_plan = sum(month_data["plan"])
         total_fact = sum(month_data["fact"])
 
-        print(f"✅ Plan vs Fact (month):")
+        print("✅ Plan vs Fact (month):")
         print(f"   - Total plan: {total_plan:.2f}")
         print(f"   - Total fact: {total_fact:.2f}")
         if total_plan > 0:
@@ -530,7 +528,7 @@ class TestPlanVsFactJourney:
                 # Deviation should be reasonable (e.g., -50% to +100%)
                 assert -50 <= deviation_pct <= 100
 
-        print(f"✅ Deviation calculations verified")
+        print("✅ Deviation calculations verified")
 
         # ===== STEP 9: Test Category-Level Drill-down =====
         print("\n📈 Step 9: Testing category-level drill-down...")
@@ -544,7 +542,7 @@ class TestPlanVsFactJourney:
 
         assert "plan" in food_data
         assert "fact" in food_data
-        print(f"✅ Plan vs Fact drill-down (Food category)")
+        print("✅ Plan vs Fact drill-down (Food category)")
 
         print("\n" + "="*60)
         print("🎉 PLAN VS FACT ANALYTICS TEST PASSED!")
@@ -616,7 +614,7 @@ class TestAnalyticsWithCenterFilters:
         )
         expense_id = expense.json()["id"]
 
-        print(f"✅ Created 2 ЦФО, 2 МВЗ, 1 category")
+        print("✅ Created 2 ЦФО, 2 МВЗ, 1 category")
 
         # ===== STEP 2: Add Transactions with Different Centers =====
         print("\n🔧 Step 2: Adding transactions with different center combinations...")
@@ -643,7 +641,7 @@ class TestAnalyticsWithCenterFilters:
                 }
             )
 
-        print(f"✅ Created 4 transactions with different center combinations")
+        print("✅ Created 4 transactions with different center combinations")
 
         # ===== STEP 3: Test Waterfall Filtered by ЦФО =====
         print("\n🔧 Step 3: Testing waterfall filtered by ЦФО...")
@@ -652,7 +650,7 @@ class TestAnalyticsWithCenterFilters:
             f"/api/v1/analytics/waterfall?period=month&financial_center_id={fc_cash_id}"
         )
         if wf_cash.status_code == 200:
-            print(f"✅ Waterfall accepts ЦФО filter")
+            print("✅ Waterfall accepts ЦФО filter")
         else:
             print(f"⚠️  Waterfall filtering by ЦФО not implemented (status: {wf_cash.status_code})")
 
@@ -663,7 +661,7 @@ class TestAnalyticsWithCenterFilters:
             f"/api/v1/analytics/waterfall?period=month&cost_center_id={cc_personal_id}"
         )
         if wf_personal.status_code == 200:
-            print(f"✅ Waterfall accepts МВЗ filter")
+            print("✅ Waterfall accepts МВЗ filter")
         else:
             print(f"⚠️  Waterfall filtering by МВЗ not implemented (status: {wf_personal.status_code})")
 
@@ -674,7 +672,7 @@ class TestAnalyticsWithCenterFilters:
             f"/api/v1/analytics/heatmap?period=month&financial_center_id={fc_cash_id}"
         )
         if hm_cash.status_code == 200:
-            print(f"✅ Heatmap accepts ЦФО filter")
+            print("✅ Heatmap accepts ЦФО filter")
         else:
             print(f"⚠️  Heatmap filtering by ЦФО not implemented (status: {hm_cash.status_code})")
 
@@ -685,7 +683,7 @@ class TestAnalyticsWithCenterFilters:
             f"/api/v1/analytics/heatmap?period=month&cost_center_id={cc_work_id}"
         )
         if hm_work.status_code == 200:
-            print(f"✅ Heatmap accepts МВЗ filter")
+            print("✅ Heatmap accepts МВЗ filter")
         else:
             print(f"⚠️  Heatmap filtering by МВЗ not implemented (status: {hm_work.status_code})")
 
@@ -697,21 +695,21 @@ class TestAnalyticsWithCenterFilters:
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={fc_cash_id}"
         )
         assert cb_cash.status_code == 200
-        print(f"✅ Category breakdown with ЦФО filter")
+        print("✅ Category breakdown with ЦФО filter")
 
         # Test with МВЗ filter
         cb_personal = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&cost_center_id={cc_personal_id}"
         )
         assert cb_personal.status_code == 200
-        print(f"✅ Category breakdown with МВЗ filter")
+        print("✅ Category breakdown with МВЗ filter")
 
         # Test with both filters
         cb_both = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={fc_cash_id}&cost_center_id={cc_personal_id}"
         )
         assert cb_both.status_code == 200
-        print(f"✅ Category breakdown with both ЦФО and МВЗ filters")
+        print("✅ Category breakdown with both ЦФО and МВЗ filters")
 
         print("\n" + "="*60)
         print("🎉 ANALYTICS WITH ЦФО/МВЗ FILTERS TEST PASSED!")
@@ -806,7 +804,7 @@ class TestComprehensiveAnalyticsIntegration:
                 }
             )
 
-        print(f"✅ Created comprehensive test data (1 income + 30 expenses)")
+        print("✅ Created comprehensive test data (1 income + 30 expenses)")
 
         # ===== STEP 2: Test All 6 Chart Types =====
         print("\n🎨 Step 2: Testing all 6 chart types...")
@@ -817,7 +815,7 @@ class TestComprehensiveAnalyticsIntegration:
         stats_data = stats.json()
         assert "today" in stats_data
         assert "month" in stats_data
-        print(f"✅ [1/6] Quick Stats")
+        print("✅ [1/6] Quick Stats")
 
         # 2. Trends (current calendar month)
         trends = await auth_client.get("/api/v1/analytics/trends?period=month")
@@ -827,21 +825,21 @@ class TestComprehensiveAnalyticsIntegration:
         assert "income" in trends_data
         assert "expense" in trends_data
         assert 1 <= len(trends_data["labels"]) <= 31  # Current calendar month (1-31 days)
-        print(f"✅ [2/6] Trends")
+        print("✅ [2/6] Trends")
 
         # 3. Category Breakdown
         breakdown = await auth_client.get("/api/v1/analytics/category-breakdown?type=expense&period=month")
         assert breakdown.status_code == 200
         breakdown_data = breakdown.json()
         assert len(breakdown_data["categories"]) == len(expense_categories)
-        print(f"✅ [3/6] Category Breakdown")
+        print("✅ [3/6] Category Breakdown")
 
         # 4. Waterfall
         waterfall = await auth_client.get("/api/v1/analytics/waterfall?period=month")
         assert waterfall.status_code == 200
         waterfall_data = waterfall.json()
         assert "balance" in waterfall_data
-        print(f"✅ [4/6] Waterfall Chart")
+        print("✅ [4/6] Waterfall Chart")
 
         # 5. Heatmap (weeks × weekdays grid for period=month)
         heatmap = await auth_client.get("/api/v1/analytics/heatmap?period=month")
@@ -850,7 +848,7 @@ class TestComprehensiveAnalyticsIntegration:
         assert "xAxis" in heatmap_data  # Day names (Пн-Вс)
         assert "yAxis" in heatmap_data  # Week numbers
         assert "data" in heatmap_data   # 2D array: weeks × days
-        print(f"✅ [5/6] Heatmap")
+        print("✅ [5/6] Heatmap")
 
         # 6. Plan vs Fact
         plan_fact = await auth_client.get("/api/v1/analytics/plan-fact?period=month")
@@ -858,7 +856,7 @@ class TestComprehensiveAnalyticsIntegration:
         plan_fact_data = plan_fact.json()
         assert "plan" in plan_fact_data
         assert "fact" in plan_fact_data
-        print(f"✅ [6/6] Plan vs Fact")
+        print("✅ [6/6] Plan vs Fact")
 
         # ===== STEP 3: Verify Data Consistency =====
         print("\n🎨 Step 3: Verifying data consistency across charts...")
@@ -872,7 +870,7 @@ class TestComprehensiveAnalyticsIntegration:
         # Verify they're in same ballpark (allowing for rounding/filtering differences)
         assert abs(month_total_stats - breakdown_total) / month_total_stats < 0.1  # Within 10%
 
-        print(f"✅ Data consistency verified:")
+        print("✅ Data consistency verified:")
         print(f"   - Stats total: {month_total_stats:.2f}")
         print(f"   - Breakdown total: {breakdown_total:.2f}")
         print(f"   - Difference: {abs(month_total_stats - breakdown_total):.2f}")
@@ -883,13 +881,13 @@ class TestComprehensiveAnalyticsIntegration:
         # Invalid period
         invalid_period = await auth_client.get("/api/v1/analytics/waterfall?period=invalid")
         assert invalid_period.status_code in [400, 422]
-        print(f"✅ Invalid period rejected")
+        print("✅ Invalid period rejected")
 
         # Non-existent article_id
         invalid_article = await auth_client.get("/api/v1/analytics/waterfall?article_id=999999")
         # Should return 200 with empty data, not error
         assert invalid_article.status_code == 200
-        print(f"✅ Non-existent article handled gracefully")
+        print("✅ Non-existent article handled gracefully")
 
         print("\n" + "="*60)
         print("🎉 COMPREHENSIVE 6-CHART INTEGRATION TEST PASSED!")

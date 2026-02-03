@@ -10,13 +10,12 @@ Security considerations:
 - Sanitizes filenames to prevent path traversal
 - Uses httpOnly for download security
 """
+from typing import Optional
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import httpx
-
 
 logger = logging.getLogger(__name__)
 

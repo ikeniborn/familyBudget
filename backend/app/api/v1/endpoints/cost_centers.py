@@ -11,10 +11,10 @@ Endpoints:
     PUT    /api/v1/cost-centers/{id} - Update cost center (creates new SCD2 version)
     DELETE /api/v1/cost-centers/{id} - Soft delete cost center
 """
+from typing import Optional
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,13 @@ from backend.app.schemas.cost_center import (
     CostCenterUpdate,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services.scd2_service import has_changes
+from backend.app.services.cache_service import cache_service
 from backend.app.services.cost_center_service import (
+    FAR_FUTURE_DATETIME,
     create_initial_history,
     update_cost_center_profile,
-    FAR_FUTURE_DATETIME,
 )
-from backend.app.services.cache_service import cache_service
+from backend.app.services.scd2_service import has_changes
 
 router = APIRouter(
     prefix="/cost-centers",
@@ -60,7 +60,7 @@ async def list_cost_centers(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     include_inactive: bool = Query(False, description="Include archived cost centers"),
-    financial_center_id: int | None = Query(
+    financial_center_id: Optional[int] = Query(
         default=None,
         description="Filter cost centers by financial center ID. "
                     "Returns cost centers with NO FC restrictions OR linked to this specific FC."
@@ -559,8 +559,8 @@ async def delete_cost_center(
         HTTPException: 403 if not admin
         HTTPException: 404 if cost center not found
     """
-    from backend.app.models.fact import BudgetFact
     from backend.app.models.cost_center_history import CostCenterHistory
+    from backend.app.models.fact import BudgetFact
 
     # Check: Only admins can delete cost centers
     if not current_user.is_admin:

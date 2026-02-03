@@ -4,26 +4,24 @@ Reminder service for scheduled plan notifications.
 Handles CRUD operations for reminders and sending notifications
 via Telegram and Web Push when reminders are due.
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional, List, Tuple
-
-from backend.app.core.json_utils import dumps as json_dumps
 
 import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.logging import get_logger
-from backend.app.db.session import get_session_context
-from backend.app.utils.timezone import now_utc, now_local
-from backend.app.models.scheduled_reminder import ScheduledReminder
-from backend.app.models.push_subscription import PushSubscription
-from backend.app.models.fact import BudgetFact
 from backend.app.models.article import Article
-from backend.app.models.user import User
+from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.push_subscription import PushSubscription
+from backend.app.models.scheduled_reminder import ScheduledReminder
+from backend.app.models.user import User
+from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)
 
@@ -260,7 +258,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         batch_size: int = 100,
-    ) -> List[ScheduledReminder]:
+    ) -> list[ScheduledReminder]:
         """
         Get reminders that are due (status=pending and datetime <= now).
 
@@ -291,7 +289,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         reminder: ScheduledReminder,
-    ) -> Tuple[bool, bool]:
+    ) -> tuple[bool, bool]:
         """
         Send reminder notification via Telegram and Web Push.
 
@@ -505,7 +503,7 @@ class ReminderService:
 
         # Try to import pywebpush
         try:
-            from pywebpush import webpush, WebPushException
+            from pywebpush import WebPushException, webpush
         except ImportError:
             logger.warning("[REMINDER] pywebpush not installed, skipping Web Push")
             return False
@@ -580,7 +578,7 @@ class ReminderService:
         status: Optional[str] = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """
         List reminders for a user with plan info.
 

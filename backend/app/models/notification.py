@@ -4,10 +4,10 @@ Notification model for budget alert tracking.
 This module defines the Notification model that stores history of budget
 notifications sent to users (or broadcast to all users).
 """
+from typing import Optional
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

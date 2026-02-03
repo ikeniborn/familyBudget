@@ -7,8 +7,8 @@ Separate from auth.py because Web Apps use different validation algorithm.
 References:
     - https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
 """
-
 from typing import Optional
+
 
 from pydantic import BaseModel, Field
 

@@ -26,11 +26,10 @@ Security:
     - Token rotation: Old refresh token revoked when used
     - Revocation support: Tokens can be blacklisted on logout
 """
+from typing import Optional
 
 import hashlib
-import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 from jose import JWTError, jwt
 

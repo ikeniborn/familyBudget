@@ -4,12 +4,12 @@ CSV Import Schemas
 Pydantic models for CSV import API endpoints
 """
 
-from decimal import Decimal
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-from backend.app.schemas.store import StoreResponse
+
 from backend.app.schemas.product_group import ProductGroupResponse
+from backend.app.schemas.store import StoreResponse
 
 
 class CSVAnalyzeRequest(BaseModel):

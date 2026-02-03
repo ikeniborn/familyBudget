@@ -7,13 +7,13 @@ Tests verify that all analytics endpoints return Russian localized labels:
 - Waterfall endpoint: Russian month names for year period
 """
 
+from datetime import date, timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.fact import Fact
-from backend.app.models.article import Article
-from datetime import date, timedelta
 
 
 class TestAnalyticsLocalization:

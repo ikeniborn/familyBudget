@@ -9,16 +9,16 @@ CRUD operations for recurring (scheduled) payments:
 - List user's recurring plans
 - Get statistics
 """
+from typing import Optional
 
 import hashlib
-from typing import Literal, Optional
-
-from backend.app.core.json_utils import dumps_for_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import backend.app.api.v1.endpoints.budget_ws as ws
 from backend.app.core.auth import get_current_user
+from backend.app.core.json_utils import dumps_for_cache
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session
 from backend.app.models.user import User
@@ -31,7 +31,6 @@ from backend.app.schemas.recurring_plan import (
 )
 from backend.app.services.cache_service import CacheKey, CacheService
 from backend.app.services.recurring_plan_service import RecurringPlanService
-import backend.app.api.v1.endpoints.budget_ws as ws
 
 logger = get_logger(__name__)
 
@@ -116,7 +115,7 @@ async def list_recurring_plans(
         )
         return RecurringPlanListResponse(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] List cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] List cache MISS, fetching from DB")
 
     # Fetch from DB
     items, total = await service.list_recurring_plans(
@@ -171,7 +170,7 @@ async def get_recurring_plan_stats(
         logger.info(f"[RECURRING_PLAN_CACHE] Stats cache HIT: user_id={current_user.id}")
         return RecurringPlanStats(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
 
     # Fetch from DB (optimized version from Phase 2.2)
     stats = await service.get_stats(
@@ -181,7 +180,7 @@ async def get_recurring_plan_stats(
 
     # Cache with TTL (5 min per requirements)
     await cache_service.set(cache_key, stats, ttl=300)
-    logger.info(f"[RECURRING_PLAN_CACHE] Stats cached: ttl=300s")
+    logger.info("[RECURRING_PLAN_CACHE] Stats cached: ttl=300s")
 
     return RecurringPlanStats(**stats)
 
@@ -283,7 +282,7 @@ async def get_recurring_plan(
         logger.info(f"[RECURRING_PLAN_CACHE] Detail cache HIT: plan_id={plan_id}")
         return RecurringPlanResponse(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
 
     # Fetch from DB (optimized version from Phase 2.1)
     plan_details = await service.get_plan_with_details(
@@ -300,7 +299,7 @@ async def get_recurring_plan(
 
     # Cache with TTL (30 min)
     await cache_service.set(cache_key, plan_details, ttl=1800)
-    logger.info(f"[RECURRING_PLAN_CACHE] Detail cached: ttl=1800s")
+    logger.info("[RECURRING_PLAN_CACHE] Detail cached: ttl=1800s")
 
     return RecurringPlanResponse(**plan_details)
 
@@ -556,7 +555,7 @@ async def batch_delete_recurring_plans(
             error_msg = str(e)
             logger.warning(f"[BULK_DELETE] Failed to delete plan_id={plan_id}: {error_msg}")
             failed.append({"plan_id": plan_id, "error": error_msg})
-        except Exception as e:
+        except Exception:
             # Unexpected errors
             # Log full error для debugging (только в логах, не для клиента)
             logger.error(

@@ -7,9 +7,9 @@ Seeded during migration, used for multi-bank import functionality.
 Pattern: Dimension table (SCD Type 1)
 Table: t_d_bank_provider
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

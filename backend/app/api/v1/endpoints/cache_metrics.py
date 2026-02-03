@@ -22,7 +22,7 @@ Date: 2025-12-27
 """
 
 import logging
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, status
 
@@ -43,7 +43,7 @@ router = APIRouter(
 )
 
 # Singleton service instance (initialized in dependencies.py)
-_cache_metrics_service: CacheMetricsService | None = None
+_cache_metrics_service: Optional[CacheMetricsService] = None
 
 
 def get_cache_metrics_service() -> CacheMetricsService:

@@ -7,11 +7,11 @@ File content is NOT stored (metadata only, files deleted after parsing).
 Pattern: Temporary metadata table
 Table: t_import_file_upload
 """
-
-from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Text, Column, BigInteger
+from datetime import datetime
+
+from sqlalchemy import JSON, BigInteger, Column, Text
 from sqlmodel import Field, SQLModel
 
 

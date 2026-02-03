@@ -12,14 +12,14 @@ GDPR Requirements:
 - Allow withdrawal at any time
 - Append-only records (never delete)
 """
+from typing import Optional
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, desc
+from sqlmodel import desc, select
 
 from backend.app.core.auth import get_current_user, get_current_user_optional
 from backend.app.db.session import get_session
@@ -85,7 +85,7 @@ async def get_consent_status(
         )
 
     # Get latest consent for each type
-    consents: Dict[str, ConsentStatus] = {}
+    consents: dict[str, ConsentStatus] = {}
     latest_policy_version = None
 
     for consent_type in UserConsent.consent_types():

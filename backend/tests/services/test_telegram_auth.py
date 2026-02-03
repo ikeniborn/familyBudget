@@ -25,13 +25,10 @@ Reference:
 import hashlib
 import hmac
 import time
-from typing import Dict
 from unittest.mock import patch
 
-import pytest
-
 from backend.app.core.config import get_settings
-from backend.app.services.telegram_auth import validate_telegram_auth, AUTH_DATE_EXPIRATION
+from backend.app.services.telegram_auth import AUTH_DATE_EXPIRATION, validate_telegram_auth
 
 settings = get_settings()
 
@@ -41,7 +38,7 @@ settings = get_settings()
 # ============================================================================
 
 
-def compute_telegram_hash(data: Dict[str, str], bot_token: str) -> str:
+def compute_telegram_hash(data: dict[str, str], bot_token: str) -> str:
     """
     Compute valid Telegram OAuth hash for testing.
 
@@ -76,7 +73,7 @@ def create_valid_telegram_data(
     username: str = None,
     photo_url: str = None,
     auth_date: str = None,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Create valid Telegram OAuth data with correct hash.
 

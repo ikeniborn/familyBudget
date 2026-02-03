@@ -10,9 +10,9 @@ Key features:
 - Shared across all users (admin-managed)
 - Full change history in ProductGroupHistory table
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

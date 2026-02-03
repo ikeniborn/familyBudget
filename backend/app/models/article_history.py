@@ -7,13 +7,12 @@ for Article table with temporal validity (valid_from, valid_to).
 All changes to Article table are logged here with metadata about what changed,
 when, and who made the change.
 """
+from typing import Optional
 
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy import ARRAY, DateTime, String
 from sqlmodel import Column, Field, SQLModel
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -219,7 +218,7 @@ class ArticleHistory(SQLModel, table=True):
         max_length=50,
         description="Type of change: CREATE/UPDATE/ARCHIVE/RESTORE/HIERARCHY_CHANGE"
     )
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         sa_column=Column(ARRAY(String)),
         default=None,
         description="Array of field names that were changed (e.g., ['name', 'description'])"

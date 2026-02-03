@@ -15,7 +15,7 @@ All error responses follow this structure:
 }
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -186,7 +186,7 @@ def get_common_responses(
     include_422: bool = True,
     include_500: bool = True,
     include_503: bool = False,
-) -> dict[int | str, dict[str, Any]]:
+) -> dict[Union[int, str], dict[str, Any]]:
     """
     Get common error responses for endpoint documentation.
 
@@ -212,7 +212,7 @@ def get_common_responses(
         ))
         async def get_article(id: int): ...
     """
-    responses: dict[int | str, dict[str, Any]] = {}
+    responses: dict[Union[int, str], dict[str, Any]] = {}
 
     if include_400:
         responses[400] = BadRequestResponse

@@ -20,8 +20,6 @@ Key Features:
 """
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # Revision identifiers
 revision = "p1b2c3d4e5f6"

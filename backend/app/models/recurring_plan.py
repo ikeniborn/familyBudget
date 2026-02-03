@@ -7,10 +7,10 @@ Recurring plans generate BudgetFact records automatically based on frequency set
 Pattern: Dimension table (SCD Type 1 with soft delete)
 Table: t_d_recurring_plan
 """
+from typing import Optional
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

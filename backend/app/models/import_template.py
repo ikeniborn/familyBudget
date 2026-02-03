@@ -11,7 +11,7 @@ Key features:
 """
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from sqlalchemy import JSON
 from sqlmodel import Column, Field, SQLModel
@@ -126,7 +126,7 @@ class ImportTemplate(SQLModel, table=True):
     )
 
     # Configuration (JSONB)
-    config: Dict[str, Any] = Field(
+    config: dict[str, Any] = Field(
         sa_column=Column(JSON, nullable=False),
         description="JSONB field with import configuration (delimiter, mappings, formats)"
     )

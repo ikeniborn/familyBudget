@@ -10,8 +10,7 @@ Pattern: Service layer (business logic)
 import csv
 import io
 import logging
-from typing import Any
-
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,7 @@ class CSVAnalyzer:
     async def analyze_file(
         file_content: bytes,
         filename: str,
-        user_delimiter: str | None = None
+        user_delimiter: Optional[str] = None
     ) -> dict[str, Any]:
         """
         Analyze CSV file structure.

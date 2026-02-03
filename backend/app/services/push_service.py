@@ -16,18 +16,17 @@ Usage:
         session, connected_user_ids, "Title", "Body", data
     )
 """
+from typing import Optional
 
 import logging
 from datetime import datetime
-from typing import Optional, Set
 
-from backend.app.core.json_utils import dumps as json_dumps
-
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.app.core.config import get_settings
+from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.models.push_subscription import PushSubscription
 
 logger = logging.getLogger(__name__)
@@ -179,7 +178,7 @@ class PushService:
     @staticmethod
     async def broadcast_except_connected(
         session: AsyncSession,
-        connected_user_ids: Set[int],
+        connected_user_ids: set[int],
         title: str,
         body: str,
         data: Optional[dict] = None

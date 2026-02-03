@@ -7,13 +7,12 @@ for ProductGroup table with temporal validity (valid_from, valid_to).
 All changes to ProductGroup table are logged here with metadata about what changed,
 when, and who made the change.
 """
+from typing import Optional
 
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy import ARRAY, DateTime, String
 from sqlmodel import Column, Field, SQLModel
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -188,7 +187,7 @@ class ProductGroupHistory(SQLModel, table=True):
         max_length=50,
         description="Type of change: CREATE, UPDATE, ARCHIVE, RESTORE, HIERARCHY_CHANGE"
     )
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(ARRAY(String), nullable=True),
         description="Array of changed field names (e.g., ['name', 'parent_id']). NULL for CREATE."

@@ -10,9 +10,9 @@ Key features:
 - Only the creator (owner) can DELETE their list
 - Header+Lines pattern (one-to-many with ShoppingListItem)
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

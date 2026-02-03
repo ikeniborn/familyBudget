@@ -13,9 +13,9 @@ Key features:
 - Global articles shared across users and user-specific articles
 - Full change history in ArticleHistory table
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

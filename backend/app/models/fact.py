@@ -7,10 +7,10 @@ This table stores actual income/expense transactions with references to dimensio
 Pattern: Fact table (partitioned by month at DB level)
 Table: t_f_budget_fact
 """
+from typing import Optional
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

@@ -7,11 +7,11 @@ Holds imported transactions before user enrichment (category, FC, CC assignment)
 Pattern: Staging table (temporary, deleted after import execution)
 Table: t_import_staging
 """
-
-from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Text, Column, BigInteger, ForeignKey
+from datetime import date, datetime
+
+from sqlalchemy import JSON, BigInteger, Column, ForeignKey, Text
 from sqlmodel import Field, SQLModel
 
 

@@ -4,10 +4,10 @@ Pydantic schemas for Store endpoints.
 This module defines request/response schemas for Store CRUD operations.
 Stores represent shopping locations (supermarkets, shops, etc.).
 """
+from typing import Optional
 
 import re
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 

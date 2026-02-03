@@ -8,9 +8,9 @@ This module defines request and response schemas for the authentication flow:
 - User response data
 - Authentication response with user data
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 

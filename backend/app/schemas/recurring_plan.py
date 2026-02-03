@@ -13,7 +13,6 @@ from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_v
 
 from backend.app.utils.timezone import now_local
 
-
 # Reusable type for Decimal fields that serialize to float in JSON
 SerializedDecimal = Annotated[Decimal, PlainSerializer(lambda x: float(x), return_type=float)]
 
@@ -145,7 +144,7 @@ class RecurringPlanCreate(BaseModel):
         ten_years_ago = today - timedelta(days=365 * 10)
 
         if v < ten_years_ago:
-            raise ValueError(f"Start date cannot be more than 10 years in the past")
+            raise ValueError("Start date cannot be more than 10 years in the past")
 
         return v
 

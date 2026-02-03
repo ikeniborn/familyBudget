@@ -22,9 +22,9 @@ Key Functions:
 import csv
 import io
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import UploadFile, HTTPException
+from fastapi import HTTPException, UploadFile
 
 
 class TinkoffCSVParser:
@@ -83,7 +83,7 @@ class TinkoffCSVParser:
     ]
 
     @staticmethod
-    async def parse_csv_file(file: UploadFile) -> List[Dict[str, Any]]:
+    async def parse_csv_file(file: UploadFile) -> list[dict[str, Any]]:
         """
         Parse uploaded CSV file from Tinkoff.
 
@@ -147,7 +147,7 @@ class TinkoffCSVParser:
             )
 
     @staticmethod
-    def validate_csv_format(first_row: Dict[str, Any]) -> None:
+    def validate_csv_format(first_row: dict[str, Any]) -> None:
         """
         Validate CSV format by checking headers.
 
@@ -182,10 +182,10 @@ class TinkoffCSVParser:
 
     @staticmethod
     def filter_transactions(
-        rows: List[Dict[str, Any]],
+        rows: list[dict[str, Any]],
         skip_failed: bool = True,
         skip_internal_transfers: bool = True
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Filter transactions based on status and type.
 
@@ -220,9 +220,9 @@ class TinkoffCSVParser:
 
     @staticmethod
     def convert_to_staging(
-        rows: List[Dict[str, Any]],
+        rows: list[dict[str, Any]],
         user_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Convert CSV rows to ImportStaging-compatible dictionaries.
 
@@ -290,7 +290,7 @@ class TinkoffCSVParser:
         user_id: int,
         skip_failed: bool = True,
         skip_internal_transfers: bool = True
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Full pipeline: parse → validate → filter → convert.
 

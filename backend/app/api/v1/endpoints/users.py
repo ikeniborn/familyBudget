@@ -13,7 +13,7 @@ Features:
 
 import logging
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -36,12 +36,11 @@ from backend.app.schemas.user import (
     UserListResponse,
     UserUpdate,
 )
+from backend.app.services import create_new_version, has_changes
 from backend.app.services.google_sheets_parser import (
     GoogleSheetsError,
     parse_google_sheets_url,
 )
-from backend.app.services import create_new_version, has_changes
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -128,8 +127,8 @@ async def get_current_user_info(
 async def update_notification_preferences(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    enable_push: bool | None = Query(None, description="Enable/disable Web Push notifications"),
-    enable_telegram: bool | None = Query(None, description="Enable/disable Telegram bot notifications"),
+    enable_push: Optional[bool] = Query(None, description="Enable/disable Web Push notifications"),
+    enable_telegram: Optional[bool] = Query(None, description="Enable/disable Telegram bot notifications"),
 ) -> User:
     """
     Update user notification preferences.

@@ -8,8 +8,8 @@ CRUD operations for plan reminders:
 - Delete reminder
 - List all user's reminders
 """
-
 from typing import Optional
+
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,8 +25,8 @@ from backend.app.schemas.scheduled_reminder import (
     ReminderUpdate,
     ReminderWithPlanInfo,
 )
+from backend.app.services.cache_service import CacheKey, cache_service
 from backend.app.services.reminder_service import ReminderService
-from backend.app.services.cache_service import cache_service, CacheKey
 
 logger = get_logger(__name__)
 

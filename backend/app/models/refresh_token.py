@@ -4,11 +4,11 @@ Refresh Token model for JWT authentication with rotation support.
 This module defines the RefreshToken model that stores hashed refresh tokens
 with expiration and revocation support for secure JWT authentication.
 """
-
-from datetime import datetime, timedelta
 from typing import Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from datetime import datetime
+
+from sqlmodel import Field, SQLModel
 
 
 class RefreshToken(SQLModel, table=True):

@@ -8,14 +8,13 @@ Endpoints:
 """
 
 import base64
-from io import BytesIO
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser
 from backend.app.db.session import get_session
+from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.schemas.csv_import import (
     CSVAnalyzeRequest,
     CSVAnalyzeResponse,
@@ -32,11 +31,9 @@ from backend.app.services.csv_column_matcher import (
 from backend.app.services.csv_detector import detect_csv_format
 from backend.app.services.csv_security import sanitize_csv_row
 from backend.app.services.csv_validator import (
-    validate_csv_rows,
     aggregate_duplicate_rows,
+    validate_csv_rows,
 )
-from backend.app.schemas.shopping_list_item import ShoppingListItemCreate
-from backend.app.models.shopping_list_item import ShoppingListItem
 
 router = APIRouter(prefix="/shopping-lists/import", tags=["Shopping CSV Import"])
 
@@ -340,10 +337,10 @@ async def execute_csv_import(
 
     # Get stores and product groups cache from validation
     from backend.app.services.csv_validator import (
-        validate_store_reference,
-        validate_product_group_reference,
-        get_or_create_store,
         get_or_create_product_group,
+        get_or_create_store,
+        validate_product_group_reference,
+        validate_store_reference,
     )
     stores_cache = {}
     product_groups_cache = {}
@@ -400,6 +397,7 @@ async def execute_csv_import(
                 if not store_exists and store_name.lower() not in created_stores_dict:
                     # Fetch full Store object for response
                     from sqlmodel import select
+
                     from backend.app.models.store import Store
 
                     store_stmt = select(Store).where(Store.id == store_id)
@@ -505,8 +503,8 @@ async def execute_csv_import(
         )
 
     # Prepare metadata for created references
-    from backend.app.schemas.store import StoreResponse
     from backend.app.schemas.product_group import ProductGroupResponse
+    from backend.app.schemas.store import StoreResponse
 
     created_stores_list = [
         StoreResponse.model_validate(store)

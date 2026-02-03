@@ -4,10 +4,10 @@ Pydantic schemas for CostCenter endpoints.
 This module defines request/response schemas for CostCenter CRUD operations.
 Cost centers represent projects, departments, and other budget allocation categories.
 """
+from typing import Optional
 
 import re
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 

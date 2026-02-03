@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import json as _json_stdlib  # Always available for fallback
 import logging
+from collections.abc import Callable
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from starlette.responses import Response
@@ -109,7 +110,7 @@ def default_serializer(obj: Any) -> Any:
 def dumps(
     obj: Any,
     *,
-    default: JsonSerializer | None = None,
+    default: Optional[JsonSerializer] = None,
     sort_keys: bool = False,
     indent: bool = False,
 ) -> str:
@@ -157,7 +158,7 @@ def dumps(
         )
 
 
-def loads(data: str | bytes) -> Any:
+def loads(data: Union[str, bytes]) -> Any:
     """
     Deserialize JSON string or bytes to Python object.
 
@@ -209,7 +210,7 @@ def is_orjson_available() -> bool:
     return _ORJSON_AVAILABLE
 
 
-def dumps_for_cache(obj: Any, *, default: JsonSerializer | None = None) -> str:
+def dumps_for_cache(obj: Any, *, default: Optional[JsonSerializer] = None) -> str:
     """
     Serialize object to deterministic JSON string for caching.
 
@@ -226,7 +227,7 @@ def dumps_for_cache(obj: Any, *, default: JsonSerializer | None = None) -> str:
     return dumps(obj, default=default, sort_keys=True, indent=False)
 
 
-def dumps_pretty(obj: Any, *, default: JsonSerializer | None = None) -> str:
+def dumps_pretty(obj: Any, *, default: Optional[JsonSerializer] = None) -> str:
     """
     Serialize object to pretty-printed JSON string.
 

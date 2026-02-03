@@ -13,12 +13,12 @@ Key features:
 - Updated monthly or on-demand
 - Unique constraint on (financial_center_id, year, month)
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 from decimal import Decimal
 
-from sqlmodel import Field, SQLModel, Index
+from sqlmodel import Field, Index, SQLModel
 
 
 class FinancialCenterBalanceMonthly(SQLModel, table=True):

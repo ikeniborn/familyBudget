@@ -12,7 +12,7 @@ Tests complete notification management workflows through API:
 These tests verify notifications API works correctly end-to-end with database integration.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -21,7 +21,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.notification import Notification
-
 
 # ============================================================================
 # Create Notification Tests

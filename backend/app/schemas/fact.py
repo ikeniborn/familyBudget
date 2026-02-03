@@ -11,8 +11,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from backend.app.utils.timezone import now_local
 from backend.app.schemas.recurring_plan import RecurringPlanResponse
+from backend.app.utils.timezone import now_local
 
 
 class FactCreate(BaseModel):

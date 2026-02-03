@@ -12,7 +12,6 @@ Features:
     - Aggregation endpoint for summaries
 """
 
-import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -26,8 +25,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
     CurrentUser,
-    apply_user_filter,
-    ensure_user_owns_resource,
     get_session,
     get_user_id_for_create,
 )
@@ -46,10 +43,9 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
-from backend.app.schemas.recurring_plan import RecurringPlanResponse
-from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
-from backend.app.services.write_behind_service import write_behind_service
+from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
+from backend.app.services.write_behind_service import write_behind_service
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -320,7 +316,7 @@ async def create_fact(
             # request_id is None means Write-Behind is enabled but queue failed
             # Fall through to sync write below
             logger.warning(
-                f"[WRITE-BEHIND] Queue returned None, falling back to sync write"
+                "[WRITE-BEHIND] Queue returned None, falling back to sync write"
             )
 
         except Exception as e:
@@ -534,8 +530,9 @@ async def list_facts(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -1070,8 +1067,9 @@ async def get_facts_count(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -1416,6 +1414,7 @@ async def delete_fact(
     - 404 Not Found: Fact not found
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     # Load fact
@@ -1519,6 +1518,7 @@ async def batch_delete_facts(
     - 400 Bad Request: Empty list or too many facts
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     if not fact_ids:

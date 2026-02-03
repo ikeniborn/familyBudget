@@ -24,10 +24,9 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-
-from sqlalchemy import func
 
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
@@ -83,11 +82,11 @@ async def list_shopping_list_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     shopping_list_id: int = Query(..., description="Shopping list ID to filter"),
-    is_completed: bool | None = Query(
+    is_completed: Optional[bool] = Query(
         None, description="Filter by completion status (True/False/None)"
     ),
-    store_id: int | None = Query(None, description="Filter by store ID"),
-    product_group_id: int | None = Query(None, description="Filter by product group ID"),
+    store_id: Optional[int] = Query(None, description="Filter by store ID"),
+    product_group_id: Optional[int] = Query(None, description="Filter by product group ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
 ) -> ShoppingListItemListResponse:
@@ -938,7 +937,7 @@ async def batch_delete_items(
 async def get_pending_sync_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    shopping_list_id: int | None = Query(
+    shopping_list_id: Optional[int] = Query(
         None, description="Optional filter by shopping list ID"
     ),
 ) -> ShoppingListItemListResponse:
@@ -984,7 +983,7 @@ async def delta_sync(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     shopping_list_id: int = Query(..., description="Shopping list ID"),
-    since: datetime | None = Query(
+    since: Optional[datetime] = Query(
         None, description="Get changes since this timestamp (ISO 8601)"
     ),
 ) -> SyncDeltaResponse:
@@ -1233,7 +1232,7 @@ async def batch_sync(
     )
 
 
-def _auto_merge_items(server_item: ShoppingListItem, client_update) -> dict | None:
+def _auto_merge_items(server_item: ShoppingListItem, client_update) -> Optional[dict]:
     """
     Attempt to auto-merge server and client changes.
 

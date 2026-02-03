@@ -4,11 +4,10 @@ Web UI router for serving HTML pages.
 Handles web interface routes with Jinja2 templates and HTMX integration.
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from backend.app.core.dependencies import CurrentAdmin, CurrentUser, CurrentUserOptional
-from backend.app.models.user import User
 
 web_router = APIRouter(tags=["Web UI"])
 
@@ -24,6 +23,7 @@ async def index(
     Redirects to /login-email if unauthenticated, shows dashboard if authenticated.
     """
     from fastapi.responses import RedirectResponse
+
     from backend.app.main import templates
 
     # Redirect unauthenticated users to login page
@@ -227,8 +227,8 @@ async def admin_logs(
 
     Uses LogsCollectorService for log aggregation.
     """
-    from backend.app.main import templates
     from backend.app.core.logging import get_logger
+    from backend.app.main import templates
 
     logger = get_logger(__name__)
     logger.info(f"[WEB_ROUTER] Admin logs page accessed by user_id={current_admin.id}")

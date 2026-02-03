@@ -16,7 +16,6 @@ from datetime import datetime
 from io import StringIO
 from typing import Any, Optional
 
-
 # Common delimiters to test
 COMMON_DELIMITERS = [",", ";", "\t", "|"]
 
@@ -372,7 +371,7 @@ def detect_csv_format(
                 result.thousands_separator,
             ) = detect_number_format(all_values)
 
-    except Exception as e:
+    except Exception:
         # Fallback: return result with defaults
         result.confidence = 0.0
 

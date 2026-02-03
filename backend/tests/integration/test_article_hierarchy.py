@@ -16,9 +16,7 @@ from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.article import Article
 from backend.app.models.hierarchy import ArticleHierarchy
-
 
 # ============================================================================
 # Create Hierarchy Tests

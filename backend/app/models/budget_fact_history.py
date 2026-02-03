@@ -8,14 +8,13 @@ All changes to BudgetFact table are logged here with metadata about what changed
 when, and who made the change. This includes CASCADE DELETIONS when dimension
 records (articles, financial centers, cost centers) are deleted.
 """
+from typing import Optional
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import List, Optional
 
-from sqlalchemy import DateTime, ARRAY, String
+from sqlalchemy import ARRAY, DateTime, String
 from sqlmodel import Column, Field, SQLModel
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -253,7 +252,7 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Type of change: CREATE, UPDATE, DELETE"
     )
 
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(ARRAY(String)),
         description="List of changed field names (NULL for CREATE/DELETE)"

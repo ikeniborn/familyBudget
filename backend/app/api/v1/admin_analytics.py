@@ -14,7 +14,6 @@ Endpoints:
 """
 
 from datetime import date, datetime, timedelta
-from typing import List
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import func, select

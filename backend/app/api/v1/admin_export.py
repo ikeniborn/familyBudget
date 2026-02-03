@@ -4,9 +4,9 @@ Admin Export API endpoints.
 Provides system-wide data export functionality for administrators.
 Admins can export all users' facts with advanced filtering.
 """
+from typing import Optional
 
 from datetime import date
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import select

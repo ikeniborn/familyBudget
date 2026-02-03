@@ -22,7 +22,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.user import User
 
-
 # ============================================================================
 # POST /api/v1/articles - Create Article
 # ============================================================================

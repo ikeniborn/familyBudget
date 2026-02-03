@@ -4,10 +4,10 @@ Pydantic schemas for ProductGroup endpoints.
 This module defines request/response schemas for ProductGroup CRUD operations.
 Product groups represent hierarchical product categories (e.g., "Food" → "Dairy" → "Milk").
 """
+from typing import Optional
 
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -266,7 +266,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=[True]
     )
 
-    children: Optional[List["ProductGroupTreeResponse"]] = Field(
+    children: Optional[list["ProductGroupTreeResponse"]] = Field(
         default=None,
         description="Child product groups (recursive)",
         examples=[None]

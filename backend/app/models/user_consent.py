@@ -11,9 +11,9 @@ GDPR Requirements:
 - Allow consent withdrawal at any time
 - Keep historical records of consent changes
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

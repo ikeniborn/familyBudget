@@ -19,9 +19,8 @@ from fastapi import Request, status
 from fastapi.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 
-from backend.app.core.json_utils import ORJSONResponse
-
 from backend.app.core.exceptions import APIException
+from backend.app.core.json_utils import ORJSONResponse
 from backend.app.core.logging import StructuredLogger
 from backend.app.middleware.logging_middleware import get_correlation_id
 

@@ -15,9 +15,9 @@ Usage:
     now = now_utc()  # For storage
     now_user = now_local(user.timezone)  # For display
 """
+from typing import Optional
 
 from datetime import datetime, timezone
-from typing import Optional
 from zoneinfo import ZoneInfo, available_timezones
 
 

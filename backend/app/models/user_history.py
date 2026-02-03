@@ -15,13 +15,12 @@ SECURITY NOTE:
 
     Only non-sensitive fields are tracked for audit purposes.
 """
+from typing import Optional
 
 from datetime import datetime, timezone
-from typing import List, Optional
 
-from sqlalchemy import DateTime, ARRAY, BigInteger, Column, String
+from sqlalchemy import ARRAY, BigInteger, Column, DateTime, String
 from sqlmodel import Field, SQLModel
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -251,7 +250,7 @@ class UserHistory(SQLModel, table=True):
         max_length=50,
         description="Type of change: CREATE/UPDATE/ROLE_CHANGE/LOGIN"
     )
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         sa_column=Column(ARRAY(String)),
         default=None,
         description="Array of field names that were changed (e.g., ['username', 'photo_url'])"

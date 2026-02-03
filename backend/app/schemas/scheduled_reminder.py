@@ -4,9 +4,9 @@ Pydantic schemas for Scheduled Reminder API.
 Defines request/response models for plan reminder management.
 Each plan can have at most one scheduled reminder.
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 

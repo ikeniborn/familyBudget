@@ -17,15 +17,14 @@ Key Functions:
     - create_initial_history(): Create initial history record for new cost center
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.cost_center_history import CostCenterHistory
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -35,7 +34,7 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 async def update_cost_center_profile(
     session: AsyncSession,
     cost_center: CostCenter,
-    updates: Dict[str, Any],
+    updates: dict[str, Any],
     changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
 ) -> CostCenter:
@@ -135,7 +134,7 @@ async def update_cost_center_profile(
 async def get_cost_center_history(
     session: AsyncSession,
     cost_center_id: int,
-) -> List[CostCenterHistory]:
+) -> list[CostCenterHistory]:
     """
     Get full change history for a cost center from CostCenterHistory table.
 

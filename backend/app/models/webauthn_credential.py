@@ -23,9 +23,9 @@ Attributes:
     is_revoked: Revocation flag (soft delete)
     revoked_at: Revocation timestamp
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import BigInteger, Column, Index, LargeBinary
 from sqlmodel import Field, SQLModel
@@ -108,7 +108,7 @@ class WebAuthnCredential(SQLModel, table=True):
     )
 
     # Authenticator metadata
-    transports: Optional[List[str]] = Field(
+    transports: Optional[list[str]] = Field(
         default=None,
         sa_column=Column("transports", nullable=True),
         description="Supported transports as string array: ['internal', 'usb', 'nfc', 'ble']"

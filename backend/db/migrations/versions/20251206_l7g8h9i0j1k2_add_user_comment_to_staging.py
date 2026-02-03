@@ -9,9 +9,8 @@ Allows users to add comments during enrichment which will be
 concatenated with description on import (via period separator).
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "l7g8h9i0j1k2"

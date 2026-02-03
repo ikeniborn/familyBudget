@@ -15,8 +15,9 @@ Version: 1.0.0
 Date: 2025-12-27
 """
 
+from typing import Any, Optional
+
 from pydantic import BaseModel, Field
-from typing import Any, Dict, List, Optional
 
 
 class ServiceWorkerMetrics(BaseModel):
@@ -34,7 +35,7 @@ class IndexedDBMetrics(BaseModel):
 
     db_version: int = Field(description="IndexedDB schema version")
     pending_count: int = Field(description="Total pending items across all stores")
-    store_stats: Dict[str, Any] = Field(description="Per-store statistics (facts, transfers, plans, etc.)")
+    store_stats: dict[str, Any] = Field(description="Per-store statistics (facts, transfers, plans, etc.)")
 
 
 class StorageQuotaMetrics(BaseModel):
@@ -189,7 +190,7 @@ class AggregatedCacheMetrics(BaseModel):
 
     client_count: int = Field(description="Number of active clients (with metrics < 5 minutes old)")
     last_updated: Optional[str] = Field(description="ISO timestamp of last aggregation (null if no clients)")
-    clients: List[ClientCacheSnapshot] = Field(description="Individual client metrics snapshots")
+    clients: list[ClientCacheSnapshot] = Field(description="Individual client metrics snapshots")
     aggregated: AggregatedMetrics = Field(description="Aggregated statistics across all clients")
 
     class Config:

@@ -13,9 +13,9 @@ Key features:
 - Global cost centers shared across users and user-specific cost centers
 - Full change history in CostCenterHistory table
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

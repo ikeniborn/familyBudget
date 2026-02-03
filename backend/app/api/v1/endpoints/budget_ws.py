@@ -34,29 +34,26 @@ import asyncio
 import logging
 import time
 import uuid
+from asyncio import Task
 from collections import deque
 from datetime import datetime, timedelta
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-
-from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
-from jose import JWTError, jwt
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_session, get_session_context
+from backend.app.api.v1.endpoints.sync_handlers import (
+    handle_sync_client_changes,
+    handle_sync_incremental_request,
+    handle_sync_initial,
+)
+from backend.app.core.dependencies import get_current_user
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
+from backend.app.db.session import get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
-from backend.app.core.dependencies import get_current_user
 from backend.app.services.jwt import create_ws_token, decode_ws_token
-from backend.app.api.v1.endpoints.sync_handlers import (
-    handle_sync_initial,
-    handle_sync_incremental_request,
-    handle_sync_client_changes,
-)
 
 # Security constants
 MAX_CONNECTIONS_PER_USER = 10  # Max WebSocket connections per user
@@ -312,7 +309,7 @@ class BudgetWebSocketManager:
             data: Event data (will be JSON serialized)
         """
         if not self.connections:
-            logger.debug(f"Budget WS broadcast skipped: no connections")
+            logger.debug("Budget WS broadcast skipped: no connections")
             return
 
         event = {
@@ -452,10 +449,8 @@ class EventBuffer:
 # Use Redis Pub/Sub for multi-worker support, fallback to in-memory
 
 from backend.app.services.redis_ws_manager import (
-    get_ws_manager as _get_redis_ws_manager,
     get_event_buffer as _get_redis_event_buffer,
-    init_redis_ws,
-    close_redis_ws,
+    get_ws_manager as _get_redis_ws_manager,
 )
 
 # Global instances - use Redis-backed manager with in-memory fallback
@@ -468,7 +463,7 @@ def get_budget_ws_manager():
     return ws_manager
 
 
-async def verify_ws_token(token: str) -> User | None:
+async def verify_ws_token(token: str) -> Optional[User]:
     """
     Verify JWT token from WebSocket query parameter.
 
@@ -813,7 +808,7 @@ async def poll_budget_events(
 
 # ==================== Background Cleanup Task ====================
 
-_cleanup_task: asyncio.Task | None = None
+_cleanup_task: Optional[Task] = None
 
 
 async def _periodic_cleanup():
@@ -872,7 +867,7 @@ def _get_connected_user_ids() -> set[int]:
     return {uid for uid, _, _, _ in ws_manager.connections}
 
 
-async def _send_push_for_offline_users(title: str, body: str, data: dict | None = None):
+async def _send_push_for_offline_users(title: str, body: str, data: Optional[dict] = None):
     """
     Send push notification to users WITHOUT active WebSocket connections.
     """

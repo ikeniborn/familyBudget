@@ -31,16 +31,15 @@ Usage:
     # Generate backup codes
     plain_codes, hashed_json = generate_backup_codes()
 """
-
-import secrets
 from typing import Optional
 
+import secrets
+
 import pyotp
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHash, VerifyMismatchError
 
 from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError, InvalidHash
-
 
 # TOTP configuration
 TOTP_DIGITS = 6           # Number of digits in TOTP code

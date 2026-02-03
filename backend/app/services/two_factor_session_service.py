@@ -36,17 +36,16 @@ Usage:
         await consume_session(session, token)
         # Issue JWT tokens
 """
+from typing import Optional
 
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.two_factor_session import TwoFactorSession
-
 
 # Session configuration
 SESSION_TTL_MINUTES = 5          # Session expires after 5 minutes

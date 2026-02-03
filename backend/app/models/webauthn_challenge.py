@@ -33,9 +33,9 @@ Attributes:
     ip_address: Client IP address for audit
     user_agent: Client user agent string for audit
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import CheckConstraint, Index
 from sqlmodel import Field, SQLModel

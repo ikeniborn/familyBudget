@@ -13,15 +13,14 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import or_, select
+from sqlmodel import select
 
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import FinancialCenter, User
@@ -32,13 +31,13 @@ from backend.app.schemas.financial_center import (
     FinancialCenterResponse,
     FinancialCenterUpdate,
 )
-from backend.app.services.scd2_service import has_changes
+from backend.app.services.cache_service import cache_service
 from backend.app.services.financial_center_service import (
+    FAR_FUTURE_DATETIME,
     create_initial_history,
     update_financial_center_profile,
-    FAR_FUTURE_DATETIME,
 )
-from backend.app.services.cache_service import cache_service
+from backend.app.services.scd2_service import has_changes
 
 router = APIRouter(
     prefix="/financial-centers",

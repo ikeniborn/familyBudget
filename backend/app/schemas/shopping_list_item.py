@@ -4,10 +4,10 @@ Pydantic schemas for ShoppingListItem endpoints.
 This module defines request/response schemas for ShoppingListItem CRUD operations.
 Shopping list items are the lines in Header+Lines pattern (header is ShoppingList).
 """
+from typing import Optional
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -328,7 +328,7 @@ class BatchCompleteRequest(BaseModel):
     Marks multiple items as completed or uncompleted in a single request.
     """
 
-    item_ids: List[int] = Field(
+    item_ids: list[int] = Field(
         ...,
         min_length=1,
         description="List of shopping list item IDs to update",
@@ -358,7 +358,7 @@ class BatchDeleteRequest(BaseModel):
     Deletes multiple items in a single request.
     """
 
-    item_ids: List[int] = Field(
+    item_ids: list[int] = Field(
         ...,
         min_length=1,
         description="List of shopping list item IDs to delete",
@@ -412,11 +412,11 @@ class SyncDeltaResponse(BaseModel):
     Returns items changed since last sync timestamp.
     """
 
-    items: List[ShoppingListItemResponse] = Field(
+    items: list[ShoppingListItemResponse] = Field(
         description="List of changed items (created/updated since timestamp)"
     )
 
-    deleted_ids: List[int] = Field(
+    deleted_ids: list[int] = Field(
         description="List of soft-deleted item IDs (deleted_at IS NOT NULL since timestamp)"
     )
 
@@ -510,17 +510,17 @@ class BatchSyncRequest(BaseModel):
         description="Shopping list ID for all operations"
     )
 
-    creates: List[SyncItemCreate] = Field(
+    creates: list[SyncItemCreate] = Field(
         default=[],
         description="Items to create (new items from offline)"
     )
 
-    updates: List[SyncItemUpdate] = Field(
+    updates: list[SyncItemUpdate] = Field(
         default=[],
         description="Items to update (modified offline)"
     )
 
-    deletes: List[SyncItemDelete] = Field(
+    deletes: list[SyncItemDelete] = Field(
         default=[],
         description="Items to delete (deleted offline)"
     )
@@ -602,22 +602,22 @@ class BatchSyncResponse(BaseModel):
     Contains results of all operations and any conflicts.
     """
 
-    created: List[SyncCreatedItem] = Field(
+    created: list[SyncCreatedItem] = Field(
         default=[],
         description="Successfully created items (with temp_id mapping)"
     )
 
-    updated: List[ShoppingListItemResponse] = Field(
+    updated: list[ShoppingListItemResponse] = Field(
         default=[],
         description="Successfully updated items"
     )
 
-    deleted: List[int] = Field(
+    deleted: list[int] = Field(
         default=[],
         description="Successfully deleted item IDs"
     )
 
-    conflicts: List[SyncConflict] = Field(
+    conflicts: list[SyncConflict] = Field(
         default=[],
         description="Items with conflicts (require resolution)"
     )
@@ -752,7 +752,7 @@ class ProductSuggestionsResponse(BaseModel):
     Response schema for product autocomplete suggestions.
     """
 
-    suggestions: List[ProductSuggestion] = Field(
+    suggestions: list[ProductSuggestion] = Field(
         default_factory=list,
         description="List of product suggestions"
     )

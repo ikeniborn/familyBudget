@@ -4,9 +4,9 @@ Push Subscription model for Web Push notifications.
 Stores browser push subscriptions for sending notifications via Web Push API.
 Each user can have multiple subscriptions (different browsers/devices).
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

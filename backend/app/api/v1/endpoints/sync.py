@@ -13,12 +13,13 @@ Sync Strategy:
     - Reference data is read-only on client (server is source of truth)
     - Transactional data (lists, items) supports bidirectional sync with conflict resolution
 """
+from typing import Optional
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 from sqlmodel import select
@@ -31,7 +32,6 @@ from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.models.store import Store
 from backend.app.schemas.errors import get_common_responses
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +91,9 @@ class ShoppingReferenceResponse(BaseModel):
     - Product Groups (categories with hierarchy)
     - Product Group Hierarchy (Closure Table for fast queries)
     """
-    stores: List[StoreResponse]
-    product_groups: List[ProductGroupResponse]
-    product_group_hierarchy: List[ProductGroupHierarchyResponse]
+    stores: list[StoreResponse]
+    product_groups: list[ProductGroupResponse]
+    product_group_hierarchy: list[ProductGroupHierarchyResponse]
 
 
 class ShoppingListDeltaItem(BaseModel):
@@ -134,20 +134,20 @@ class ShoppingListItemDeltaItem(BaseModel):
 
 class DeltaCreated(BaseModel):
     """Created records in delta sync."""
-    lists: List[ShoppingListDeltaItem]
-    items: List[ShoppingListItemDeltaItem]
+    lists: list[ShoppingListDeltaItem]
+    items: list[ShoppingListItemDeltaItem]
 
 
 class DeltaUpdated(BaseModel):
     """Updated records in delta sync."""
-    lists: List[ShoppingListDeltaItem]
-    items: List[ShoppingListItemDeltaItem]
+    lists: list[ShoppingListDeltaItem]
+    items: list[ShoppingListItemDeltaItem]
 
 
 class DeltaDeleted(BaseModel):
     """Deleted record IDs in delta sync."""
-    list_ids: List[int]
-    item_ids: List[int]
+    list_ids: list[int]
+    item_ids: list[int]
 
 
 class ShoppingListsDeltaResponse(BaseModel):
@@ -225,7 +225,7 @@ async def get_shopping_reference_data(
     )
 
 
-def _build_shopping_lists_queries(since: Optional[datetime]) -> Tuple[Select, Select, List[int]]:
+def _build_shopping_lists_queries(since: Optional[datetime]) -> tuple[Select, Select, list[int]]:
     """
     Build queries for shopping lists delta sync.
 
@@ -256,7 +256,7 @@ def _build_shopping_lists_queries(since: Optional[datetime]) -> Tuple[Select, Se
     return created_query, updated_query, deleted_ids
 
 
-def _build_shopping_list_items_queries(since: Optional[datetime]) -> Tuple[Select, Select, Select]:
+def _build_shopping_list_items_queries(since: Optional[datetime]) -> tuple[Select, Select, Select]:
     """
     Build queries for shopping list items delta sync.
 

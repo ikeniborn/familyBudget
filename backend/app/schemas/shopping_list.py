@@ -4,10 +4,10 @@ Pydantic schemas for ShoppingList endpoints.
 This module defines request/response schemas for ShoppingList CRUD operations.
 Shopping lists are the header in Header+Lines pattern (items are in ShoppingListItem).
 """
+from typing import Optional
 
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -290,7 +290,7 @@ class ShoppingListWithItemsResponse(BaseModel):
     )
 
     # Items (forward reference, resolved at import)
-    items: List["ShoppingListItemResponse"] = Field(
+    items: list["ShoppingListItemResponse"] = Field(
         default=[],
         description="List of shopping list items"
     )
@@ -331,4 +331,5 @@ class ShoppingListListResponse(BaseModel):
 
 # Forward reference import (circular dependency resolution)
 from backend.app.schemas.shopping_list_item import ShoppingListItemResponse
+
 ShoppingListWithItemsResponse.model_rebuild()

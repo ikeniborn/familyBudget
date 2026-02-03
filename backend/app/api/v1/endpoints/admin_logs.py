@@ -10,9 +10,9 @@ Date: 2025-12-27
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -44,19 +44,19 @@ class LogEntry(BaseModel):
 
 class LogsResponse(BaseModel):
     """Response with logs from all services."""
-    browser: List[LogEntry] = Field(default_factory=list)
-    backend: List[LogEntry] = Field(default_factory=list)
-    bot: List[LogEntry] = Field(default_factory=list)
-    postgres: List[LogEntry] = Field(default_factory=list)
-    nginx: List[LogEntry] = Field(default_factory=list)
+    browser: list[LogEntry] = Field(default_factory=list)
+    backend: list[LogEntry] = Field(default_factory=list)
+    bot: list[LogEntry] = Field(default_factory=list)
+    postgres: list[LogEntry] = Field(default_factory=list)
+    nginx: list[LogEntry] = Field(default_factory=list)
     total_count: int = Field(..., description="Total logs before filtering")
     filtered_count: int = Field(..., description="Total logs after filtering")
-    filters_applied: Dict[str, Any] = Field(..., description="Filters that were applied")
+    filters_applied: dict[str, Any] = Field(..., description="Filters that were applied")
 
 
 class BrowserLogBatch(BaseModel):
     """Batch of browser logs from client."""
-    logs: List[LogEntry] = Field(..., description="Array of log entries")
+    logs: list[LogEntry] = Field(..., description="Array of log entries")
     user_id: int = Field(..., description="User ID sending logs")
     session_id: str = Field(..., description="Browser session ID")
 

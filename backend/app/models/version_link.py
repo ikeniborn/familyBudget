@@ -17,12 +17,12 @@ Each link records:
 
 Created: 2025-11-09
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional, List
 
-from sqlmodel import SQLModel, Field, JSON, Column
 from sqlalchemy import TIMESTAMP
+from sqlmodel import JSON, Column, Field, SQLModel
 
 
 class ArticleVersionLink(SQLModel, table=True):
@@ -67,7 +67,7 @@ class ArticleVersionLink(SQLModel, table=True):
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed, e.g. ['name', 'type']",
@@ -113,7 +113,7 @@ class FinancialCenterVersionLink(SQLModel, table=True):
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed",
@@ -159,7 +159,7 @@ class CostCenterVersionLink(SQLModel, table=True):
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed",

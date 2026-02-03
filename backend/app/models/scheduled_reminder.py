@@ -4,9 +4,9 @@ Scheduled Reminder model for plan notifications.
 Stores reminder configuration for budget plans (record_type='plan').
 Each plan can have at most one scheduled reminder (enforced by UNIQUE constraint).
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

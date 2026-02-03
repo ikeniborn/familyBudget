@@ -6,9 +6,8 @@ These dependencies will be used throughout the application for:
 - User authentication and authorization
 - Configuration access
 """
+from typing import Optional
 
-from backend.app.core.config import get_settings
-from backend.app.db.session import get_session
 
 # Authentication dependencies (TASK-014)
 from backend.app.core.auth import (
@@ -19,6 +18,13 @@ from backend.app.core.auth import (
     get_current_user,
     get_current_user_optional,
 )
+from backend.app.core.config import get_settings
+
+# Internal API authentication
+from backend.app.core.internal_auth import (
+    InternalAPIKey,
+    verify_internal_api_key,
+)
 
 # User isolation helpers (TASK-014)
 from backend.app.core.user_isolation import (
@@ -27,16 +33,10 @@ from backend.app.core.user_isolation import (
     ensure_user_owns_resource,
     get_user_id_for_create,
 )
-
-# Internal API authentication
-from backend.app.core.internal_auth import (
-    InternalAPIKey,
-    verify_internal_api_key,
-)
+from backend.app.db.session import get_session
 
 # Cache Metrics Service (Admin Monitoring)
 from backend.app.services.cache_metrics_service import CacheMetricsService
-from typing import Optional
 
 _cache_metrics_service: Optional[CacheMetricsService] = None
 

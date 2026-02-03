@@ -6,7 +6,6 @@ CRUD endpoints for CSV import templates (column mapping configurations).
 Templates are USER-SPECIFIC (filtered by user_id).
 """
 
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import select

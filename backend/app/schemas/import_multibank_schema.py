@@ -3,9 +3,10 @@ Multi-Bank Import Schemas
 
 Pydantic schemas for multi-bank import API endpoints.
 """
+from typing import Optional
+
 
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class CreateBankRequest(BaseModel):

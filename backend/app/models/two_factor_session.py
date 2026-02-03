@@ -22,9 +22,9 @@ Flow:
 
 Table: t_2fa_session
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Index
 from sqlmodel import Field, SQLModel

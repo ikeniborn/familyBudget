@@ -7,9 +7,9 @@ Allows reusing mappings for repeated imports while preserving user customization
 Pattern: Configuration table (SCD Type 1)
 Table: t_import_column_mapping
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel

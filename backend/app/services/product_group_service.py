@@ -17,8 +17,8 @@ Key Functions:
     - create_initial_history(): Create initial history record
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -27,7 +27,6 @@ from backend.app.models.product_group import ProductGroup
 from backend.app.models.product_group_history import ProductGroupHistory
 from backend.app.services import product_group_hierarchy_service
 
-
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
@@ -35,7 +34,7 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 async def update_product_group_profile(
     session: AsyncSession,
     product_group: ProductGroup,
-    updates: Dict[str, Any],
+    updates: dict[str, Any],
     changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
 ) -> ProductGroup:
@@ -197,7 +196,7 @@ async def move_product_group(
 async def get_product_group_history(
     session: AsyncSession,
     product_group_id: int,
-) -> List[ProductGroupHistory]:
+) -> list[ProductGroupHistory]:
     """
     Get full change history for a product group.
 

@@ -13,17 +13,14 @@ Endpoints:
 - POST /import/mappings - Save/update mapping
 - POST /import/files/{file_id}/parse - Parse CSV with mapping → staging
 """
+from typing import Optional
 
 import logging
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 
-from decimal import Decimal
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
@@ -34,18 +31,13 @@ from backend.app.models.import_staging import ImportStaging
 from backend.app.schemas.import_multibank_schema import (
     AnalyzeResponse,
     BankProviderResponse,
-    BulkUpdateRequest,
     CreateBankRequest,
     FileUploadResponse,
     GoogleSheetsUploadRequest,
-    ImportExecuteRequest,
-    ImportExecuteResponse,
     MappingResponse,
     MappingSaveRequest,
     ParseRequest,
     ParseResponse,
-    StagingRecordResponse,
-    StagingUpdateRequest,
 )
 from backend.app.services.bank_provider_service import BankProviderService
 from backend.app.services.csv_analyzer import CSVAnalyzer
@@ -233,7 +225,7 @@ async def upload_file(
     current_user: CurrentUser,
     bank_provider_id: int,
     file: UploadFile = File(...),
-    delimiter: str | None = None,
+    delimiter: Optional[str] = None,
     session: AsyncSession = Depends(get_session)
 ):
     """

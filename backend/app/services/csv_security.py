@@ -12,7 +12,6 @@ References:
 import re
 from typing import Any
 
-
 # Dangerous prefixes that can be interpreted as formulas in Excel/Sheets
 DANGEROUS_PREFIXES = ("=", "@", "+", "-", "\t", "\r")
 

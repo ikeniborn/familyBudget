@@ -8,15 +8,15 @@ Usage:
     from backend.app.utils.template_filters import register_filters
     register_filters(templates.env)
 """
+from typing import Optional
 
 from datetime import date
 from decimal import Decimal
-from typing import Union
 
 from jinja2 import Environment
 
 
-def format_money_mobile(value: Union[float, Decimal, None]) -> str:
+def format_money_mobile(value: float | Optional[Decimal]) -> str:
     """
     Format money with k/M abbreviations for mobile displays.
 
@@ -43,7 +43,7 @@ def format_money_mobile(value: Union[float, Decimal, None]) -> str:
     return f"{sign}{formatted}"
 
 
-def format_money_desktop(value: Union[float, Decimal, None]) -> str:
+def format_money_desktop(value: float | Optional[Decimal]) -> str:
     """
     Format money with space separators for desktop displays.
 
@@ -60,7 +60,7 @@ def format_money_desktop(value: Union[float, Decimal, None]) -> str:
     return f"-{formatted}" if num < 0 else formatted
 
 
-def format_pct(value: Union[float, Decimal, None]) -> str:
+def format_pct(value: float | Optional[Decimal]) -> str:
     """
     Format percentage value.
 
@@ -75,7 +75,7 @@ def format_pct(value: Union[float, Decimal, None]) -> str:
     return f"{int(round(float(value)))}%"
 
 
-def balance_color(value: Union[float, Decimal, None]) -> str:
+def balance_color(value: float | Optional[Decimal]) -> str:
     """
     Return CSS class based on balance sign.
 
@@ -115,7 +115,7 @@ def amount_color(article_type: str) -> str:
     return colors.get(article_type, "font-bold")
 
 
-def format_money_recent(value: Union[float, Decimal, None], article_type: str) -> str:
+def format_money_recent(value: float | Optional[Decimal], article_type: str) -> str:
     """
     Format money with +/- sign based on article type.
 

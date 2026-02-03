@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.user import User
 
-
 # ============================================================================
 # User Creation Tests
 # ============================================================================

@@ -27,11 +27,12 @@ Usage:
     # Validate password strength
     is_strong, message = validate_password_strength("weak")
 """
+from typing import Optional
 
 import re
-from argon2 import PasswordHasher, Type
-from argon2.exceptions import VerifyMismatchError, InvalidHash
 
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import InvalidHash, VerifyMismatchError
 
 # Argon2id configuration (OWASP recommended parameters)
 # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
@@ -102,7 +103,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def verify_password_with_dummy(
     password: str,
-    password_hash: str | None,
+    password_hash: Optional[str],
 ) -> bool:
     """
     Verify password with timing attack protection.

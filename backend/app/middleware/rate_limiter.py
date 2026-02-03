@@ -33,7 +33,6 @@ Error Response (429 Too Many Requests):
 """
 
 import logging
-from typing import Optional
 
 from fastapi import Request
 from slowapi import Limiter

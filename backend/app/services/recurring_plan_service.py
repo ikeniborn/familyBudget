@@ -4,10 +4,10 @@ Recurring Plan Service for scheduled payment management.
 Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
+from typing import Optional
 
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
 from sqlalchemy import and_, case, func as sa_func
 from sqlmodel import select
@@ -381,7 +381,7 @@ class RecurringPlanService:
         is_active: Optional[bool] = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """
         List recurring plans for a user.
 
@@ -703,7 +703,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         recurring_plan: RecurringPlan,
-        fact_ids: List[int],
+        fact_ids: list[int],
     ) -> int:
         """
         Create scheduled reminders for generated facts (if enable_reminder=true).

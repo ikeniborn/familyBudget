@@ -3,15 +3,15 @@ Export API endpoints.
 
 Provides data export functionality in CSV format.
 """
+from typing import Optional
 
 from datetime import date, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import CurrentUser, get_current_user, get_session
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.utils.export import (

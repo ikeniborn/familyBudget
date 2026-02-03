@@ -10,10 +10,10 @@ Key features:
 - Offline sync support with sync_status field
 - Many-to-one relationship with ShoppingList (shopping_list_id FK)
 """
+from typing import Optional
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

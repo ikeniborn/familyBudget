@@ -28,7 +28,6 @@ ORDER BY similarity(LOWER(product_name), 'мол') DESC;
 
 from alembic import op
 
-
 # revision identifiers
 revision = 'w8j9k0l1m2n3'
 down_revision = 'v7h8i9j0k1l2'

@@ -9,9 +9,9 @@ Implements "whitelist" pattern:
 This model enables filtering of cost centers based on selected financial center
 when creating new transactions.
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

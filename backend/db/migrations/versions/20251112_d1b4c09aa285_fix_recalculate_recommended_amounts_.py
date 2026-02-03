@@ -30,17 +30,15 @@ t_d_article (SCD Type 2):
   - type (expense/income) <- NEEDED
   - is_current, valid_from, valid_to <- NEEDED for SCD Type 2 filtering
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = 'd1b4c09aa285'
-down_revision: Union[str, None] = 'b2232d851007'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = 'b2232d851007'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

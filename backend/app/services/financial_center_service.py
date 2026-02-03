@@ -17,15 +17,14 @@ Key Functions:
     - create_initial_history(): Create initial history record for new financial center
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.financial_center_history import FinancialCenterHistory
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -35,7 +34,7 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 async def update_financial_center_profile(
     session: AsyncSession,
     financial_center: FinancialCenter,
-    updates: Dict[str, Any],
+    updates: dict[str, Any],
     changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
 ) -> FinancialCenter:
@@ -135,7 +134,7 @@ async def update_financial_center_profile(
 async def get_financial_center_history(
     session: AsyncSession,
     financial_center_id: int,
-) -> List[FinancialCenterHistory]:
+) -> list[FinancialCenterHistory]:
     """
     Get full change history for a financial center from FinancialCenterHistory table.
 

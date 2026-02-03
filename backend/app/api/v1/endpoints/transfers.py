@@ -3,15 +3,16 @@
 import logging
 from datetime import datetime, timedelta
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import get_session, CurrentUser
-from backend.app.schemas.transfer import TransferCreate, TransferResponse
-from backend.app.models.fact import BudgetFact
-from backend.app.models.budget_fact_history import BudgetFactHistory
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
+from backend.app.models.budget_fact_history import BudgetFactHistory
+from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.schemas.transfer import TransferCreate, TransferResponse
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ async def generate_transfer_id(session: AsyncSession) -> int:
     Uses max(transfer_id) + 1 from existing facts.
     Alternative: Use UUID or database sequence.
     """
-    from sqlmodel import select, func
+    from sqlmodel import func, select
 
     result = await session.exec(
         select(func.max(BudgetFact.transfer_id))
@@ -171,7 +172,7 @@ async def create_transfer(
     # - Duplicate transfers from multiple form submissions
     # - Duplicate transfers from double-click on save button
     if transfer.sync_hash:
-        from sqlmodel import select, and_
+        from sqlmodel import and_, select
 
         # Search for transfer with same sync_hash within 24 hours
         # Transfer consists of 2 BudgetFact records (expense + income)

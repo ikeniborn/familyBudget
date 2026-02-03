@@ -4,10 +4,10 @@ Pydantic schemas for FinancialCenter endpoints.
 This module defines request/response schemas for FinancialCenter CRUD operations.
 Financial centers represent bank accounts, wallets, and other financial entities.
 """
+from typing import Optional
 
 import re
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 

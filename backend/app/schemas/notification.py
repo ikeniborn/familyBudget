@@ -4,10 +4,10 @@ Pydantic schemas for Notification management endpoints.
 This module defines schemas for notification CRUD operations including
 broadcast notification support (user_id=NULL).
 """
+from typing import Optional
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 

@@ -9,12 +9,13 @@ Tests:
 - Validation and error handling
 """
 
-import pytest
 from decimal import Decimal
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.models.user import User
 
+from backend.app.models.user import User
 
 pytestmark = pytest.mark.asyncio
 
@@ -247,8 +248,6 @@ async def test_delete_shopping_list_item(
     assert response.status_code == 204
 
     # Verify item is deleted
-    from backend.app.models.shopping_list_item import ShoppingListItem
-    from sqlalchemy import select
 
     # Get session from dependency override
     # Note: In real test, we'd use the session fixture
@@ -272,7 +271,6 @@ async def test_batch_complete_items(
     """Test batch completing items."""
     # Create additional item
     from backend.app.models.shopping_list_item import ShoppingListItem
-    from decimal import Decimal
 
     item2 = ShoppingListItem(
         creator_id=test_user.id,
@@ -315,7 +313,6 @@ async def test_batch_delete_items(
     """Test batch deleting items."""
     # Create additional item
     from backend.app.models.shopping_list_item import ShoppingListItem
-    from decimal import Decimal
 
     item2 = ShoppingListItem(
         creator_id=test_user.id,

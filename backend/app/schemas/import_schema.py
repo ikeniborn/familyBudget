@@ -7,12 +7,11 @@ This module defines request/response schemas for CSV import workflow:
 - Execute import → BudgetFact
 - Cleanup staging
 """
+from typing import Optional
 
 from datetime import date, datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
-
 
 # Response schemas
 
@@ -98,7 +97,7 @@ class ImportStagingListResponse(BaseModel):
     Paginated list of staging records.
     """
 
-    items: List[ImportStagingResponse] = Field(..., description="Staging records")
+    items: list[ImportStagingResponse] = Field(..., description="Staging records")
     total: int = Field(..., ge=0, description="Total number of staging records for this user")
     page: int = Field(..., ge=1, description="Current page number")
     page_size: int = Field(..., ge=1, le=10000, description="Page size (max 10000 for client-side filtering)")
@@ -149,7 +148,7 @@ class ImportStagingBulkUpdate(BaseModel):
     Applies same updates to all specified IDs.
     """
 
-    ids: List[int] = Field(
+    ids: list[int] = Field(
         ...,
         min_length=1,
         max_length=1000,
@@ -201,7 +200,7 @@ class ImportExecuteResponse(BaseModel):
         description="Number of transactions failed with errors"
     )
 
-    errors: List[str] = Field(
+    errors: list[str] = Field(
         default_factory=list,
         description="List of error messages for failed imports"
     )

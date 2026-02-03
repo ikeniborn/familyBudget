@@ -13,9 +13,9 @@ Key features:
 - Global financial centers shared across users and user-specific financial centers
 - Full change history in FinancialCenterHistory table
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 

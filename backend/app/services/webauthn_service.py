@@ -27,21 +27,18 @@ Usage:
     ...     session, challenge, credential_data, ip, user_agent
     ... )
 """
+from typing import Optional
 
 import base64
 import logging
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
-
-from backend.app.core.json_utils import loads as json_loads
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 # Import broadcast function (avoid circular import by importing at call site)
 # from backend.app.api.v1.endpoints.budget_ws import broadcast_webauthn_credential_compromised
-
 from webauthn import (
     generate_authentication_options,
     generate_registration_options,
@@ -60,11 +57,12 @@ from webauthn.helpers.structs import (
 )
 
 from backend.app.core.config import get_settings
+from backend.app.core.json_utils import loads as json_loads
 from backend.app.models.user import User
 from backend.app.models.webauthn_audit_log import WebAuthnAuditLog
 from backend.app.models.webauthn_challenge import WebAuthnChallenge
 from backend.app.models.webauthn_credential import WebAuthnCredential
-from backend.app.services.jwt import create_access_token, create_refresh_token, hash_token
+from backend.app.services.jwt import create_access_token, create_refresh_token
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -446,7 +444,7 @@ async def verify_authentication_and_issue_tokens(
     credential: dict,
     ip_address: Optional[str] = None,
     user_agent: Optional[str] = None,
-) -> Tuple[User, str, str]:
+) -> tuple[User, str, str]:
     """
     Verify WebAuthn authentication response and issue JWT tokens.
 
@@ -559,7 +557,7 @@ async def verify_authentication_and_issue_tokens(
             require_user_verification=True,
         )
 
-        logger.info(f"[WEBAUTHN_SERVICE] Signature verification: PASSED")
+        logger.info("[WEBAUTHN_SERVICE] Signature verification: PASSED")
         logger.debug(
             f"[WEBAUTHN_SERVICE] Sign count check: stored={cred.sign_count}, "
             f"new={verification.new_sign_count}"
@@ -603,7 +601,7 @@ async def verify_authentication_and_issue_tokens(
             await session.commit()
 
             # Broadcast credential compromised event via WebSocket
-            logger.debug(f"[WEBAUTHN_SERVICE] Broadcasting credential_compromised event")
+            logger.debug("[WEBAUTHN_SERVICE] Broadcasting credential_compromised event")
             from backend.app.api.v1.endpoints.budget_ws import broadcast_webauthn_credential_compromised
             await broadcast_webauthn_credential_compromised(
                 user_id=user.id,

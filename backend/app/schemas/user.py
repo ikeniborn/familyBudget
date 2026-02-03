@@ -9,9 +9,9 @@ BREAKING CHANGES:
 - UserDetailResponse: SCD2 fields removed (matches main User table)
 - UserHistoryResponse: NEW schema for history endpoint (has SCD2 fields)
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -443,7 +443,7 @@ class UserHistoryResponse(BaseModel):
         examples=["CREATE", "UPDATE", "ROLE_CHANGE"]
     )
 
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         description="Array of changed field names (e.g., ['username', 'photo_url'])",
         examples=[["username"], ["is_admin", "is_active"], None]

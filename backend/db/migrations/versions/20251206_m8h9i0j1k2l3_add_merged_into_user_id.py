@@ -9,9 +9,8 @@ When a user account is merged into another, this field stores the target user ID
 The source account is deactivated and all facts are transferred to target.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "m8h9i0j1k2l3"

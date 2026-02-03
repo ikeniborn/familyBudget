@@ -20,19 +20,19 @@ Usage:
     # Get opening balance (uses aggregate if available, fallback to full scan)
     opening_balance = await get_opening_balance(session, fc_id=1, year=2025, month=12)
 """
+from typing import Optional
 
-from datetime import datetime, date
-from decimal import Decimal
-from typing import Optional, Dict, List
 from calendar import monthrange
+from datetime import date, datetime
+from decimal import Decimal
 
-from sqlmodel import select, func, case
+from sqlmodel import case, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.financial_center_balance_monthly import FinancialCenterBalanceMonthly
-from backend.app.models.financial_center import FinancialCenter
-from backend.app.models.fact import BudgetFact
 from backend.app.models.article import Article
+from backend.app.models.fact import BudgetFact
+from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.financial_center_balance_monthly import FinancialCenterBalanceMonthly
 
 
 async def refresh_monthly_balances(
@@ -40,7 +40,7 @@ async def refresh_monthly_balances(
     year: Optional[int] = None,
     month: Optional[int] = None,
     financial_center_id: Optional[int] = None,
-) -> Dict[str, int]:
+) -> dict[str, int]:
     """
     Calculate and save monthly balance snapshots for financial centers.
 
@@ -317,8 +317,8 @@ async def get_opening_balances_bulk(
     session: AsyncSession,
     year: int,
     month: int,
-    financial_center_ids: Optional[List[int]] = None,
-) -> Dict[int, Decimal]:
+    financial_center_ids: Optional[list[int]] = None,
+) -> dict[int, Decimal]:
     """
     Get opening balances for multiple financial centers at once (optimized).
 

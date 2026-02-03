@@ -7,7 +7,7 @@ Import templates store user-specific CSV import configurations.
 
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -40,7 +40,7 @@ class ImportTemplateCreate(BaseModel):
         examples=["Standard format from Walmart shopping list export", None]
     )
 
-    config: Dict[str, Any] = Field(
+    config: dict[str, Any] = Field(
         ...,
         description="JSONB configuration (delimiter, column mappings, formats)",
         examples=[{
@@ -96,7 +96,7 @@ class ImportTemplateCreate(BaseModel):
 
     @field_validator("config")
     @classmethod
-    def config_not_empty(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def config_not_empty(cls, v: dict[str, Any]) -> dict[str, Any]:
         """
         Validate config.
 
@@ -141,7 +141,7 @@ class ImportTemplateUpdate(BaseModel):
         examples=["Updated description"]
     )
 
-    config: Optional[Dict[str, Any]] = Field(
+    config: Optional[dict[str, Any]] = Field(
         default=None,
         description="JSONB configuration",
         examples=[{
@@ -178,7 +178,7 @@ class ImportTemplateUpdate(BaseModel):
 
     @field_validator("config")
     @classmethod
-    def config_not_empty(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def config_not_empty(cls, v: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
         """Validate config if provided."""
         if v is None:
             return None
@@ -220,7 +220,7 @@ class ImportTemplateResponse(BaseModel):
         examples=["Standard format from Walmart", None]
     )
 
-    config: Dict[str, Any] = Field(
+    config: dict[str, Any] = Field(
         description="JSONB configuration",
         examples=[{
             "delimiter": ",",

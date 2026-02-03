@@ -15,7 +15,6 @@ from sqlmodel import SQLModel
 
 from backend.app.models.user import User
 
-
 T = TypeVar("T", bound=SQLModel)
 
 

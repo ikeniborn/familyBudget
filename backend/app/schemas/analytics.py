@@ -4,9 +4,9 @@ Pydantic schemas for Analytics endpoints.
 This module defines request/response schemas for analytical data operations,
 including plan hints and fact hints for transaction forms.
 """
+from typing import Optional
 
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 

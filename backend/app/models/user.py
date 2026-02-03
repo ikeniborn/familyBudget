@@ -15,9 +15,9 @@ Constraint: At least one auth method must be set (telegram_id OR email IS NOT NU
 IMPORTANT: This is a breaking change from previous SCD Type 2 implementation.
 Migration required to convert existing data.
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import BigInteger, CheckConstraint, Column, Index
 from sqlmodel import Field, SQLModel

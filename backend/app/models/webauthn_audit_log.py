@@ -25,9 +25,9 @@ Attributes:
     error_message: Error message for failed events
     created_at: Event timestamp
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Index
 from sqlmodel import Field, SQLModel

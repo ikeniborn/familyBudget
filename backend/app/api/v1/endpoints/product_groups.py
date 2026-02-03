@@ -21,7 +21,7 @@ Endpoints:
 
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,7 @@ async def list_product_groups(
     include_inactive: bool = Query(
         False, description="Include archived product groups"
     ),
-    parent_id: int | None = Query(
+    parent_id: Optional[int] = Query(
         None, description="Filter by parent ID (NULL for root groups)"
     ),
 ) -> ProductGroupListResponse:
@@ -510,7 +510,7 @@ async def get_product_group_subtree(
     product_group_id: int,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    max_depth: Annotated[int | None, Query(ge=0, le=10)] = None,
+    max_depth: Annotated[Optional[int], Query(ge=0, le=10)] = None,
     include_self: Annotated[bool, Query()] = True,
 ) -> ProductGroupListResponse:
     """

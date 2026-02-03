@@ -13,7 +13,7 @@ Tests complete fact management workflows through API:
 These tests verify facts API, aggregation service, and user isolation work correctly end-to-end.
 """
 
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -22,7 +22,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.fact import BudgetFact
-
 
 # ============================================================================
 # Create Fact Tests

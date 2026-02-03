@@ -12,7 +12,7 @@ Dependencies:
     - TASK-011: Database session management
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlmodel import select
@@ -142,7 +142,7 @@ async def get_current_admin(
 async def get_current_user_optional(
     request: Request,
     session: AsyncSession = Depends(get_session)
-) -> User | None:
+) -> Optional[User]:
     """
     Get currently authenticated user if available, None otherwise.
 
@@ -156,12 +156,12 @@ async def get_current_user_optional(
         session: Async database session
 
     Returns:
-        User | None: Current user if authenticated, None otherwise
+        Optional[User]: Current user if authenticated, None otherwise
 
     Example:
         ```python
         @app.get("/")
-        async def home(user: User | None = Depends(get_current_user_optional)):
+        async def home(user: Optional[User] = Depends(get_current_user_optional)):
             if user:
                 return {"message": f"Welcome back, {user.username}"}
             return {"message": "Welcome, please log in"}
@@ -187,4 +187,4 @@ async def get_current_user_optional(
 # Type aliases for cleaner endpoint signatures
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentAdmin = Annotated[User, Depends(get_current_admin)]
-CurrentUserOptional = Annotated[User | None, Depends(get_current_user_optional)]
+CurrentUserOptional = Annotated[Optional[User], Depends(get_current_user_optional)]

@@ -14,14 +14,13 @@ See: backend/app/services/user_service.py for:
     - create_initial_history(): Create initial history record for new users
     - get_user_history(): Get full change history
 """
+from typing import Optional
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.config import get_settings
 from backend.app.models.user import User
 from backend.app.services.password_service import (
     hash_password,

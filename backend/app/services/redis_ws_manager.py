@@ -39,19 +39,18 @@ import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import HTTPException, WebSocket, status
 
 from backend.app.core.json_utils import dumps as json_dumps
-from backend.app.services.redis_service import is_redis_available
 from backend.app.services.redis_pubsub_service import (
-    publish_event,
     get_events_since as redis_get_events_since,
+    publish_event,
     start_pubsub_listener,
     stop_pubsub_listener,
-    is_pubsub_running,
 )
+from backend.app.services.redis_service import is_redis_available
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +233,7 @@ class RedisBudgetWebSocketManager:
         2. Directly when Redis is not available (fallback mode)
         """
         if not self.connections:
-            logger.debug(f"Local broadcast skipped: no connections")
+            logger.debug("Local broadcast skipped: no connections")
             return
 
         event = {
@@ -374,8 +373,8 @@ class RedisEventBuffer:
 
 
 # Global instances
-_redis_ws_manager: RedisBudgetWebSocketManager | None = None
-_redis_event_buffer: RedisEventBuffer | None = None
+_redis_ws_manager: Optional[RedisBudgetWebSocketManager] = None
+_redis_event_buffer: Optional[RedisEventBuffer] = None
 
 
 def get_ws_manager() -> RedisBudgetWebSocketManager:
