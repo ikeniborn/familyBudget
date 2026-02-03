@@ -59,6 +59,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 **HOTFIX (v11.2.17):**
 - Fixed distroless ENTRYPOINT to use venv python (uvicorn module not found error)
 
+**HOTFIX (v11.2.18):**
+- Fixed ENTRYPOINT and HEALTHCHECK to use python3.11 explicitly (symlink 'python' not available in distroless venv)
+
 ### Environments
 
 | Environment | URL | Purpose |

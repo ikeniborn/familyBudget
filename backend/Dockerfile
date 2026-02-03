@@ -168,14 +168,15 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 EXPOSE 8000
 
 # Python-based healthcheck (no curl in distroless)
-# Use venv python for healthcheck (distroless default ENTRYPOINT overridden below)
+# Use venv python3.11 explicitly (symlink 'python' may not work in distroless COPY)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD ["/opt/venv/bin/python", "/app/healthcheck.py"]
+    CMD ["/opt/venv/bin/python3.11", "/app/healthcheck.py"]
 
 # Override distroless ENTRYPOINT to use venv python (has all dependencies)
 # Distroless base sets ENTRYPOINT=["/usr/bin/python3.11"] (system python, no packages)
-# We need /opt/venv/bin/python (has uvicorn, alembic, etc.)
-ENTRYPOINT ["/opt/venv/bin/python"]
+# We need /opt/venv/bin/python3.11 (has uvicorn, alembic, etc.)
+# Using python3.11 explicitly as 'python' symlink may not survive COPY in distroless
+ENTRYPOINT ["/opt/venv/bin/python3.11"]
 
 # Start server via Python script (supports WORKERS env var)
 CMD ["/app/start_server.py"]
