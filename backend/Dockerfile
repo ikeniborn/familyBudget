@@ -139,7 +139,8 @@ COPY --from=frontend-builder /build/scripts/ $APP_HOME/scripts/
 # Copy backend code (changes frequently) - NEAR END for better cache hit
 COPY backend/ $APP_HOME/backend/
 
-# Copy healthcheck script (Python-based, no curl needed in distroless)
+# Copy entrypoint and healthcheck scripts
+COPY backend/start_server.py $APP_HOME/start_server.py
 COPY backend/healthcheck.py $APP_HOME/healthcheck.py
 
 # Copy frontend assets (changes frequently) - NEAR END for better cache hit
@@ -172,4 +173,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD ["/app/healthcheck.py"]
 
-CMD ["-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Start server via Python script (supports WORKERS env var)
+CMD ["/app/start_server.py"]

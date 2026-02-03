@@ -178,6 +178,9 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
 
+      # Uvicorn workers (default 1 for SSE mode, increase with Redis Pub/Sub)
+      WORKERS: ${WORKERS:-1}
+
       # Timezone (IANA format: Europe/Moscow, America/New_York, UTC)
       TZ: ${SYSTEM_TIMEZONE:-UTC}
       SYSTEM_TIMEZONE: ${SYSTEM_TIMEZONE:-UTC}
