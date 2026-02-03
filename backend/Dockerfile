@@ -93,6 +93,8 @@ ENV PYTHONUNBUFFERED=1 \
     APP_HOME=/app
 
 # Copy runtime libraries from builder (distroless doesn't have package manager)
+# Python shared library (required by venv python3.11 binary when using --copies)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpython3.11.so.1.0 /usr/lib/x86_64-linux-gnu/
 # PostgreSQL client library (required by asyncpg)
 COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64-linux-gnu/
 # Copy all libpq dependencies from /lib/x86_64-linux-gnu/ (Kerberos, LDAP, SASL, GnuTLS, etc.)
