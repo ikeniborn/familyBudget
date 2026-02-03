@@ -13,6 +13,15 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    libpq5 \
+    libgssapi-krb5-2 \
+    libldap-2.5-0 \
+    libkrb5-3 \
+    libk5crypto3 \
+    libcom-err2 \
+    libkrb5support0 \
+    liblber-2.5-0 \
+    libsasl2-2 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -97,6 +106,17 @@ COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64
 # SSL/TLS libraries (required for HTTPS connections)
 COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
 COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3* /usr/lib/x86_64-linux-gnu/
+# libpq dependencies (required by PostgreSQL client library)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libldap-2.5.so.0* /usr/lib/x86_64-linux-gnu/
+# Additional Kerberos dependencies (required by libgssapi_krb5)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libkrb5.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libk5crypto.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libcom_err.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libkrb5support.so.0* /usr/lib/x86_64-linux-gnu/
+# LDAP dependencies (required by libldap-2.5)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/liblber-2.5.so.0* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libsasl2.so.2* /usr/lib/x86_64-linux-gnu/
 # CA certificates (required for TLS verification)
 COPY --from=python-builder /etc/ssl/certs /etc/ssl/certs
 
