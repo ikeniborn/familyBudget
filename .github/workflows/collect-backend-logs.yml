@@ -1,0 +1,43 @@
+name: Collect Backend Logs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  collect-logs:
+    name: Collect logs from test server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Collect Backend Diagnostics
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          port: ${{ secrets.TEST_SERVER_SSH_PORT }}
+          script: |
+            echo "=== Backend Container Status ==="
+            sudo docker ps -a | grep familybudget-backend || echo "No backend container found"
+
+            echo -e "\n=== Backend Container Logs (last 200 lines) ==="
+            sudo docker logs familybudget-backend --tail 200 2>&1 || echo "Cannot read logs"
+
+            echo -e "\n=== Container State ==="
+            sudo docker inspect familybudget-backend --format='{{json .State}}' | jq '.' || echo "Cannot inspect container"
+
+            echo -e "\n=== All Running Containers ==="
+            cd ~/familyBudget
+            sudo docker-compose ps
+
+            echo -e "\n=== Test Python Import (asyncpg) ==="
+            sudo docker run --rm --entrypoint python ghcr.io/ikeniborn/familybudget-backend:test -c "import sys; print(f'Python: {sys.version}'); import asyncpg; print('✅ asyncpg imported successfully')" 2>&1 || echo "❌ asyncpg import failed"
+
+            echo -e "\n=== Check asyncpg .so Dependencies ==="
+            sudo docker run --rm --entrypoint sh ghcr.io/ikeniborn/familybudget-backend:test -c "find /opt/venv/lib/python3.11/site-packages/asyncpg -name '*.so' -exec ldd {} \; 2>&1 | grep -E '(not found|=>)'" || echo "Cannot check .so dependencies"
+
+            echo -e "\n=== Test Direct Python Execution ==="
+            sudo docker run --rm --entrypoint python ghcr.io/ikeniborn/familybudget-backend:test -c "print('Python executable works')" 2>&1 || echo "Python execution failed"
+
+            echo -e "\n=== Check uvicorn Command ==="
+            sudo docker run --rm --entrypoint sh ghcr.io/ikeniborn/familybudget-backend:test -c "which uvicorn && uvicorn --version" 2>&1 || echo "uvicorn not found"
