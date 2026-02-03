@@ -279,6 +279,9 @@ declare global {
     // Simplified FAB (v9.0)
     openContextModal?: () => void;
 
+    // Dexie Diagnostic Modal (triple-click on green database icon)
+    openDexieDiagnostic?: () => void;
+
     // Facts module shared functions (used by both dashboard and facts)
     updateBatchDeleteButton?: () => void;
     updateFact?: (event: Event) => Promise<void>;

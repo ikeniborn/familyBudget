@@ -14,6 +14,7 @@ import { defineReactiveProperties, initializeStateFromGlobals } from '../core/st
 import { getState, isCacheValid } from '../core/DashboardState';
 import { showModalWithSkeleton } from '../utils/modalHelpers';
 import { getDexieManager, isDexieActive } from '@db/dexie';
+import { openDexieDiagnostic } from '@components/index';
 
 
 
@@ -782,6 +783,9 @@ export function initWindowExports(): void {
 
   // Expose simplified FAB function globally (v9.0)
   window.openContextModal = openContextModal;
+
+  // Expose Dexie diagnostic modal globally (for triple-click on green database icon)
+  window.openDexieDiagnostic = openDexieDiagnostic;
 
   debugLog('[Dashboard] Window exports initialized');
 }
