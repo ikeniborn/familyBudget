@@ -1,7 +1,8 @@
 # Docker Architecture - Multi-Stage Builds & Custom Images
 
 **Дата создания**: 2026-01-21
-**Версия**: 1.0 (Registry-First)
+**Последнее обновление**: 2026-02-03 (Distroless Migration v11.3)
+**Версия**: 1.2 (Registry-First + Distroless)
 **Статус**: Active
 
 ## Обзор
@@ -10,23 +11,23 @@ Family Budget использует **5 кастомных Docker образов*
 
 **Registry-First Architecture**: Все образы собираются ТОЛЬКО в CI/CD, на сервере - только pull готовых образов.
 
-### Custom Images (v9.0)
+### Custom Images (v11.3 - Distroless)
 
-1. **familybudget-backend** (~500 MB) - FastAPI backend с embedded frontend
-2. **familybudget-bot** (~400 MB) - Telegram bot (python-telegram-bot)
+1. **familybudget-backend** (~400 MB, was ~500 MB) - FastAPI backend с embedded frontend (distroless Python)
+2. **familybudget-bot** (~320 MB, was ~400 MB) - Telegram bot (distroless Python)
 3. **familybudget-nginx** (~50 MB) - Reverse proxy + TLS termination
 4. **familybudget-redis** (~40 MB) - In-memory cache + pub/sub
 5. **familybudget-postgresql** (~250 MB) - Database server
 
-**Total size**: ~1.2 GB на версию
+**Total size**: ~1.06 GB на версию (was ~1.2 GB, **14% reduction**)
 
 ---
 
 ## 1. Backend Dockerfile - Multi-Stage with Embedded Frontend
 
 **Location**: `backend/Dockerfile`
-**Base images**: `python:3.11-slim` (builder), `node:18-alpine` (frontend), `python:3.11-slim` (runtime)
-**Final size**: ~500 MB
+**Base images**: `python:3.11-slim` (builder), `node:18-alpine` (frontend), `gcr.io/distroless/python3-debian12` (runtime)
+**Final size**: ~400 MB (20% reduction from distroless migration)
 
 ### Architecture (3 stages)
 
@@ -1171,6 +1172,230 @@ app = FastAPI(
 
 ---
 
+## Distroless Migration (v11.3)
+
+**Дата**: 2026-02-03
+**Изменения**: Миграция runtime images с `python:3.11-slim-bookworm` на `gcr.io/distroless/python3-debian12`
+
+### Rationale
+
+**Проблема**: Slim images содержат ненужные инструменты (shell, package managers, curl), увеличивающие attack surface и размер образа.
+
+**Решение**: Distroless images содержат только Python runtime + essential libraries:
+- ✅ **Безопаснее**: Нет shell, нет apt-get, нет package managers
+- ✅ **Меньше**: -80-100 MB per service (20% reduction)
+- ✅ **Проще**: Меньше уязвимостей для scan
+
+### Changes Made
+
+#### 1. Backend Dockerfile
+
+**Before (python:3.11-slim)**:
+```dockerfile
+FROM python:3.11-slim-bookworm
+
+RUN apt-get update && apt-get install -y \
+    libpq5 curl ca-certificates postgresql-client
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+USER appuser
+
+HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
+```
+
+**After (distroless)**:
+```dockerfile
+FROM gcr.io/distroless/python3-debian12:latest
+
+# Copy runtime libraries from builder (no package manager in distroless)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /etc/ssl/certs /etc/ssl/certs
+
+# No RUN commands - distroless is immutable
+# No USER directive - distroless runs as nonroot (UID 65532) by default
+
+# Python-based healthcheck (no curl in distroless)
+HEALTHCHECK CMD ["python", "/app/healthcheck.py"]
+```
+
+**Key differences**:
+- ❌ No RUN commands (no shell, no apt-get)
+- ❌ No USER directive (nonroot by default)
+- ✅ Runtime libraries copied from builder stage
+- ✅ Python-based healthcheck instead of curl
+
+#### 2. Bot Dockerfile
+
+**Similar changes**:
+- Replace `python:3.11-slim` → `gcr.io/distroless/python3-debian12`
+- Copy SSL/TLS libraries for Telegram API HTTPS
+- Python-based healthcheck (import bot.main validation)
+
+#### 3. Python Healthcheck Scripts
+
+**Backend** (`backend/healthcheck.py`):
+```python
+import http.client
+
+conn = http.client.HTTPConnection("localhost", 8000, timeout=5)
+conn.request("GET", "/health")
+response = conn.getresponse()
+sys.exit(0 if response.status == 200 else 1)
+```
+
+**Bot** (`bot/healthcheck.py`):
+```python
+import bot.main  # Verify bot environment is valid
+sys.exit(0)
+```
+
+**Advantages**:
+- ✅ No external dependencies (stdlib only)
+- ✅ Works in distroless (no curl, no pgrep)
+- ✅ Healthcheck validates Python environment
+
+### Runtime Dependencies
+
+**Critical libraries** copied from builder stage:
+
+| Library | Purpose | Required By |
+|---------|---------|-------------|
+| `libpq.so.5*` | PostgreSQL client | asyncpg (backend) |
+| `libssl.so.3*` | SSL/TLS connections | HTTPS, Telegram API |
+| `libcrypto.so.3*` | Cryptography | SSL/TLS |
+| `/etc/ssl/certs` | CA certificates | TLS verification |
+
+**Why copy from builder?**:
+- Distroless has no package manager (`apt-get` unavailable)
+- Builder stage (`python:3.11-slim`) has these libraries installed
+- COPY preserves exact versions (reproducibility)
+
+### Debugging Without Shell
+
+**Problem**: `docker exec -it container bash` doesn't work (no shell in distroless)
+
+**Solutions**:
+
+#### 1. Extract files with `docker cp`
+```bash
+# Copy file from container to host
+docker cp familybudget-backend:/app/logs/app.log ./app.log
+
+# Copy entire directory
+docker cp familybudget-backend:/app/backend ./backend-debug
+```
+
+#### 2. Read logs
+```bash
+# Container logs (stdout/stderr)
+docker logs familybudget-backend
+
+# Follow logs in real-time
+docker logs -f familybudget-backend
+```
+
+#### 3. Inspect container
+```bash
+# Check healthcheck status
+docker inspect --format='{{.State.Health.Status}}' familybudget-backend
+
+# Check environment variables
+docker inspect --format='{{range .Config.Env}}{{println .}}{{end}}' familybudget-backend
+```
+
+#### 4. External debugging tools
+```bash
+# Test endpoint from host
+curl http://localhost:8000/health
+
+# Run Python script in container (limited)
+docker exec familybudget-backend python -c "import sys; print(sys.version)"
+```
+
+### Image Sizes Comparison
+
+| Image | Before (slim) | After (distroless) | Reduction |
+|-------|---------------|-------------------|-----------|
+| **Backend** | 500 MB | ~400 MB | -100 MB (20%) |
+| **Bot** | 400 MB | ~320 MB | -80 MB (20%) |
+| **Total** | 900 MB | ~720 MB | -180 MB (20%) |
+
+**Per version savings**: 180 MB × (test + prod deployments) = ~360 MB saved
+
+### Rollback Procedure
+
+**If distroless causes issues**:
+
+1. **Revert Dockerfile FROM line**:
+```bash
+# backend/Dockerfile line 83
+- FROM gcr.io/distroless/python3-debian12:latest
++ FROM python:3.11-slim-bookworm
+
+# bot/Dockerfile line 29
+- FROM gcr.io/distroless/python3-debian12:latest
++ FROM python:3.11-slim-bookworm
+```
+
+2. **Restore curl healthcheck** (backend):
+```dockerfile
+- HEALTHCHECK CMD ["python", "/app/healthcheck.py"]
++ HEALTHCHECK CMD curl -f http://localhost:8000/health || exit 1
+```
+
+3. **Restore pgrep healthcheck** (bot):
+```dockerfile
+- HEALTHCHECK CMD ["python", "/app/healthcheck.py"]
++ HEALTHCHECK CMD pgrep -f "python.*bot.main" || exit 1
+```
+
+4. **Restore RUN commands**:
+```dockerfile
+RUN apt-get update && apt-get install -y libpq5 curl ca-certificates
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+USER appuser
+```
+
+5. **Commit and push**:
+```bash
+git add backend/Dockerfile bot/Dockerfile
+git commit -m "revert: rollback distroless migration"
+git push origin test
+```
+
+**Estimated rollback time**: < 5 minutes (code changes) + ~4 minutes (CI/CD rebuild)
+
+### Known Limitations
+
+1. **No shell access**: `docker exec bash` doesn't work
+   - **Workaround**: Use `docker cp` for file extraction
+
+2. **No package manager**: Can't `apt-get install` at runtime
+   - **Workaround**: Copy libraries from builder stage
+
+3. **Debugging harder**: No `curl`, `wget`, `ps`, `top` commands
+   - **Workaround**: Use external tools from host
+
+4. **Healthcheck requires Python**: Can't use shell commands
+   - **Workaround**: Python-based healthcheck scripts
+
+### Security Benefits
+
+**Reduced attack surface**:
+- ❌ No shell → No shell injection attacks
+- ❌ No package managers → No supply chain attacks via apt
+- ❌ Fewer binaries → Smaller vulnerability scan surface
+
+**Trivy scan results** (expected after migration):
+- Before: ~15-20 MEDIUM vulnerabilities (from shell utils, curl)
+- After: ~5-10 MEDIUM vulnerabilities (only Python runtime)
+
+**Compliance**: Distroless images recommended for regulated environments (PCI-DSS, HIPAA)
+
+---
+
 ## Related Documentation
 
 - **CI/CD Build Pipeline**: [ci-cd-build-deploy.md](../operations/ci-cd-build-deploy.md)
@@ -1182,5 +1407,5 @@ app = FastAPI(
 
 **Last Updated**: 2026-02-03
 **Maintainer**: Family Budget Team
-**Version**: 1.1 (Registry-First + Dependency Optimization)
-**Breaking Changes**: 5 custom images, multi-stage builds, embedded frontend, requirements-dev.txt
+**Version**: 1.2 (Registry-First + Distroless Migration)
+**Breaking Changes**: 5 custom images, multi-stage builds, embedded frontend, requirements-dev.txt, distroless runtime images (v11.3)

@@ -430,6 +430,11 @@ jobs:
         id: build-date
         run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
+      # NOTE: Distroless migration (v11.3) - Expected image sizes after optimization:
+      # - Backend: ~400 MB (was 500 MB, 20% reduction)
+      # - Bot: ~320 MB (was 400 MB, 20% reduction)
+      # TODO: Add image size validation step after first successful build
+
       - name: Build and push backend
         if: steps.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v5

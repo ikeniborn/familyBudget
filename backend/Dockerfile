@@ -79,55 +79,47 @@ RUN ls -lh frontend/web/static/css/ && \
     ls -lh frontend/web/static/sw.min.js* && \
     echo "Frontend build complete with CACHE_VERSION=${CACHE_VERSION}"
 
-# Stage 3: Runtime image
-FROM python:3.11-slim-bookworm
+# Stage 3: Runtime image (Distroless for security and size optimization)
+FROM gcr.io/distroless/python3-debian12:latest
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     APP_HOME=/app
 
-RUN apt-get update && \
-    apt-get dist-upgrade -y && \
-    apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    ca-certificates \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Remove vulnerable system Python packages to prevent Trivy false positives
-RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
-
-# Create non-root user (rarely changes)
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Copy runtime libraries from builder (distroless doesn't have package manager)
+# PostgreSQL client library (required by asyncpg)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64-linux-gnu/
+# SSL/TLS libraries (required for HTTPS connections)
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3* /usr/lib/x86_64-linux-gnu/
+# CA certificates (required for TLS verification)
+COPY --from=python-builder /etc/ssl/certs /etc/ssl/certs
 
 # Copy Python venv from builder (changes when dependencies change)
 COPY --from=python-builder /opt/venv /opt/venv
 
 WORKDIR $APP_HOME
 
-# Create directories early (rarely changes)
-RUN mkdir -p $APP_HOME/logs $APP_HOME/uploads $APP_HOME/uploads/temp
-
 # Copy VERSION, manifest, sw.min.js (change on release)
-COPY --from=frontend-builder --chown=appuser:appuser /build/VERSION $APP_HOME/VERSION
-COPY --from=frontend-builder --chown=appuser:appuser /build/manifest.json $APP_HOME/manifest.json
-COPY --from=frontend-builder --chown=appuser:appuser /build/frontend/web/static/sw.min.js $APP_HOME/sw.min.js
+COPY --from=frontend-builder /build/VERSION $APP_HOME/VERSION
+COPY --from=frontend-builder /build/manifest.json $APP_HOME/manifest.json
+COPY --from=frontend-builder /build/frontend/web/static/sw.min.js $APP_HOME/sw.min.js
 
 # Copy scripts (changes rarely)
-COPY --from=frontend-builder --chown=appuser:appuser /build/scripts/ $APP_HOME/scripts/
+COPY --from=frontend-builder /build/scripts/ $APP_HOME/scripts/
 
 # Copy backend code (changes frequently) - NEAR END for better cache hit
-COPY --chown=appuser:appuser backend/ $APP_HOME/backend/
+COPY backend/ $APP_HOME/backend/
+
+# Copy healthcheck script (Python-based, no curl needed in distroless)
+COPY backend/healthcheck.py $APP_HOME/healthcheck.py
 
 # Copy frontend assets (changes frequently) - NEAR END for better cache hit
-COPY --from=frontend-builder --chown=appuser:appuser /build/frontend/ $APP_HOME/frontend/
+COPY --from=frontend-builder /build/frontend/ $APP_HOME/frontend/
 
-# Fix ownership for runtime directories
-RUN chown -R appuser:appuser $APP_HOME/logs $APP_HOME/uploads
-
-USER appuser
+# Note: Runtime directories (/app/logs, /app/uploads) will be created via volume mounts in docker-compose.yml
+# Distroless runs as nonroot user (UID 65532) - no RUN commands available
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Backend" \
@@ -147,7 +139,8 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 
 EXPOSE 8000
 
+# Python-based healthcheck (no curl in distroless)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD ["python", "/app/healthcheck.py"]
 
 CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
