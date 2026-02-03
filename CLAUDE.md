@@ -71,6 +71,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 **HOTFIX (v11.2.21):**
 - Use distroless system Python + PYTHONPATH instead of venv binary (simpler, no symlink/shared library issues)
 
+**HOTFIX (v11.2.22):**
+- Added missing httpx dependency (removed in v11.2.3 optimization, but still used by 5 services)
+
 ### Environments
 
 | Environment | URL | Purpose |
