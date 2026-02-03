@@ -6,7 +6,7 @@ All endpoints require admin privileges (is_admin=True).
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -37,10 +37,7 @@ from backend.app.schemas.user import (
     UserMergeRequest,
     UserMergeResponse,
 )
-from backend.app.services.telegram_auth import (
-    validate_telegram_user,
-    fetch_telegram_user_info
-)
+from backend.app.services.telegram_auth import fetch_telegram_user_info
 from backend.app.services.user_service import (
     update_user_profile,
     create_initial_history
@@ -114,7 +111,7 @@ async def get_system_timezone(
     from datetime import timezone as tz
     from zoneinfo import ZoneInfo
     from backend.app.core.config import get_settings
-    from backend.app.utils.timezone import get_common_timezones, now_local
+    from backend.app.utils.timezone import get_common_timezones
 
     settings = get_settings()
     tz_name = settings.SYSTEM_TIMEZONE
@@ -1088,9 +1085,9 @@ async def refresh_user_profile_from_telegram(
         raise HTTPException(
             status_code=404,
             detail=(
-                f"Failed to fetch user info from Telegram. "
-                f"User may not have started the bot @ikenibornbudgetbot. "
-                f"Please ask them to send /start to the bot."
+                "Failed to fetch user info from Telegram. "
+                "User may not have started the bot @ikenibornbudgetbot. "
+                "Please ask them to send /start to the bot."
             )
         )
 
@@ -1098,8 +1095,8 @@ async def refresh_user_profile_from_telegram(
         raise HTTPException(
             status_code=404,
             detail=(
-                f"User not found in Telegram bot. "
-                f"Please ask them to send /start to @ikenibornbudgetbot."
+                "User not found in Telegram bot. "
+                "Please ask them to send /start to @ikenibornbudgetbot."
             )
         )
 
@@ -1219,7 +1216,7 @@ async def merge_users(
     if target_user.merged_into_user_id is not None:
         raise HTTPException(
             status_code=400,
-            detail=f"Целевой аккаунт уже объединен с другим пользователем"
+            detail="Целевой аккаунт уже объединен с другим пользователем"
         )
 
     now = datetime.utcnow()
