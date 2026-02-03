@@ -48,8 +48,7 @@ from backend.app.api.v1.endpoints.sync_handlers import (
     handle_sync_initial,
 )
 from backend.app.core.dependencies import get_current_user
-from backend.app.core.json_utils import dumps as json_dumps
-from backend.app.core.json_utils import loads as json_loads
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from backend.app.db.session import get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
@@ -450,8 +449,6 @@ class EventBuffer:
 
 from backend.app.services.redis_ws_manager import (
     get_event_buffer as _get_redis_event_buffer,
-)
-from backend.app.services.redis_ws_manager import (
     get_ws_manager as _get_redis_ws_manager,
 )
 

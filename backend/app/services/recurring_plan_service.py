@@ -8,8 +8,7 @@ of BudgetFact records based on frequency settings.
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, case
-from sqlalchemy import func as sa_func
+from sqlalchemy import and_, case, func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

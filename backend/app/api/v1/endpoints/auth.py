@@ -89,11 +89,7 @@ from backend.app.services.totp_service import (
 )
 from backend.app.services.two_factor_session_service import (
     consume_session as consume_2fa_session,
-)
-from backend.app.services.two_factor_session_service import (
     create_session as create_2fa_session,
-)
-from backend.app.services.two_factor_session_service import (
     verify_session as verify_2fa_session,
 )
 from backend.app.services.user_service import (

@@ -38,8 +38,7 @@ import pyotp
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHash, VerifyMismatchError
 
-from backend.app.core.json_utils import dumps as json_dumps
-from backend.app.core.json_utils import loads as json_loads
+from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 
 # TOTP configuration
 TOTP_DIGITS = 6           # Number of digits in TOTP code

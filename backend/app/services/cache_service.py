@@ -30,9 +30,11 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from backend.app.core.config import Settings, get_settings
-from backend.app.core.json_utils import dumps as json_dumps
-from backend.app.core.json_utils import dumps_for_cache
-from backend.app.core.json_utils import loads as json_loads
+from backend.app.core.json_utils import (
+    dumps as json_dumps,
+    dumps_for_cache,
+    loads as json_loads,
+)
 from backend.app.services.redis_service import get_redis, is_redis_available
 
 logger = logging.getLogger(__name__)

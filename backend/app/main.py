@@ -357,8 +357,6 @@ from backend.app.utils.template_filters import register_filters
 register_filters(templates.env)
 
 # Add config as global template variable (for feature flags)
-from backend.app.core.config import get_settings
-
 templates.env.globals["config"] = get_settings()
 
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)

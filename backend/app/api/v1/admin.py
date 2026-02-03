@@ -40,11 +40,7 @@ from backend.app.schemas.user import (
 from backend.app.services import archive_recursive, has_changes, restore_recursive
 from backend.app.services.article_service import (
     FAR_FUTURE_DATETIME,
-)
-from backend.app.services.article_service import (
     create_initial_history as create_article_initial_history,
-)
-from backend.app.services.article_service import (
     update_article_profile as update_article_scd1,
 )
 from backend.app.services.telegram_auth import fetch_telegram_user_info
