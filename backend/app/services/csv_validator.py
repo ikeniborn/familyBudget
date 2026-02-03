@@ -10,7 +10,7 @@ Validates CSV data before import:
 
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -87,7 +87,7 @@ class ValidationResult:
 
 def validate_required_field(
     row_index: int, field_name: str, value: Any
-) -> ValidationError | None:
+) -> Optional[ValidationError]:
     """
     Validate that required field is present and not empty.
 
@@ -112,8 +112,8 @@ def validate_required_field(
 
 
 def validate_quantity(
-    row_index: int, value: str | None
-) -> ValidationError | None:
+    row_index: int, value: Optional[str]
+) -> Optional[ValidationError]:
     """
     Validate quantity field (must be positive decimal).
 
@@ -156,7 +156,7 @@ async def validate_store_reference(
     row_index: int,
     store_name: str,
     stores_cache: dict[str, int],
-) -> ValidationError | None:
+) -> Optional[ValidationError]:
     """
     Validate that store exists in database.
 
@@ -199,7 +199,7 @@ async def validate_product_group_reference(
     row_index: int,
     product_group_name: str,
     product_groups_cache: dict[str, int],
-) -> ValidationError | None:
+) -> Optional[ValidationError]:
     """
     Validate that product group exists in database.
 

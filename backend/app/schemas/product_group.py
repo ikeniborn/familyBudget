@@ -4,6 +4,7 @@ Pydantic schemas for ProductGroup endpoints.
 This module defines request/response schemas for ProductGroup CRUD operations.
 Product groups represent hierarchical product categories (e.g., "Food" → "Dairy" → "Milk").
 """
+from typing import Optional
 
 import re
 from datetime import datetime
@@ -34,13 +35,13 @@ class ProductGroupCreate(BaseModel):
         examples=["Food", "Dairy", "Vegetables"]
     )
 
-    parent_id: int | None = Field(
+    parent_id: Optional[int] = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["All food items", None]
@@ -96,7 +97,7 @@ class ProductGroupUpdate(BaseModel):
         - Only administrators can update product groups (checked at API level)
     """
 
-    name: str | None = Field(
+    name: Optional[str] = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -104,19 +105,19 @@ class ProductGroupUpdate(BaseModel):
         examples=["Updated Food"]
     )
 
-    parent_id: int | None = Field(
+    parent_id: Optional[int] = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -124,7 +125,7 @@ class ProductGroupUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str | None) -> str | None:
+    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
         """Validate product group name if provided."""
         if v is None:
             return None
@@ -165,7 +166,7 @@ class ProductGroupResponse(BaseModel):
         examples=[123]
     )
 
-    parent_id: int | None = Field(
+    parent_id: Optional[int] = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
@@ -176,13 +177,13 @@ class ProductGroupResponse(BaseModel):
         examples=["Food"]
     )
 
-    code: str | None = Field(
+    code: Optional[str] = Field(
         default=None,
         description="Business code for external integrations",
         examples=["PGRP-1", "PGRP-2", None]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["All food items", None]
     )
@@ -234,7 +235,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=[1]
     )
 
-    parent_id: int | None = Field(
+    parent_id: Optional[int] = Field(
         description="Parent product group ID",
         examples=[None]
     )
@@ -244,7 +245,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=["Food"]
     )
 
-    code: str | None = Field(
+    code: Optional[str] = Field(
         description="Business code",
         examples=["PGRP-1"]
     )
@@ -265,7 +266,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=[True]
     )
 
-    children: list["ProductGroupTreeResponse"] | None = Field(
+    children: Optional[list["ProductGroupTreeResponse"]] = Field(
         default=None,
         description="Child product groups (recursive)",
         examples=[None]
@@ -316,7 +317,7 @@ class ProductGroupMove(BaseModel):
         - Creates ProductGroupHistory snapshot with change_type='HIERARCHY_CHANGE'
     """
 
-    new_parent_id: int | None = Field(
+    new_parent_id: Optional[int] = Field(
         ...,
         description="New parent product group ID (NULL to move to root)",
         examples=[5, None]

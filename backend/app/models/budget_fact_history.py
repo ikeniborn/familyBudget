@@ -8,6 +8,7 @@ All changes to BudgetFact table are logged here with metadata about what changed
 when, and who made the change. This includes CASCADE DELETIONS when dimension
 records (articles, financial centers, cost centers) are deleted.
 """
+from typing import Optional
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -148,7 +149,7 @@ class BudgetFactHistory(SQLModel, table=True):
     __tablename__ = "t_f_budget_fact_history"
 
     # Primary key
-    history_id: int | None = Field(
+    history_id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key for history records"
@@ -178,12 +179,12 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Article ID snapshot"
     )
 
-    financial_center_id: int | None = Field(
+    financial_center_id: Optional[int] = Field(
         default=None,
         description="Financial center ID snapshot (optional)"
     )
 
-    cost_center_id: int | None = Field(
+    cost_center_id: Optional[int] = Field(
         default=None,
         description="Cost center ID snapshot (optional)"
     )
@@ -201,7 +202,7 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Amount snapshot"
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         max_length=None,
         description="Description snapshot"
@@ -213,7 +214,7 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Record type snapshot ('fact' or 'plan')"
     )
 
-    transfer_id: int | None = Field(
+    transfer_id: Optional[int] = Field(
         default=None,
         description="Transfer ID snapshot (optional)"
     )
@@ -251,18 +252,18 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Type of change: CREATE, UPDATE, DELETE"
     )
 
-    changed_fields: list[str] | None = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         sa_column=Column(ARRAY(String)),
         description="List of changed field names (NULL for CREATE/DELETE)"
     )
 
-    changed_by_user_id: int | None = Field(
+    changed_by_user_id: Optional[int] = Field(
         default=None,
         description="User who made the change (NULL for automatic changes)"
     )
 
-    cascade_delete_source: str | None = Field(
+    cascade_delete_source: Optional[str] = Field(
         default=None,
         max_length=100,
         description="What triggered cascade deletion (e.g., 'article_id:123')"

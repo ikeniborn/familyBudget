@@ -25,6 +25,7 @@ Attributes:
     error_message: Error message for failed events
     created_at: Event timestamp
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -89,21 +90,21 @@ class WebAuthnAuditLog(SQLModel, table=True):
     )
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
     )
 
     # Event metadata
-    user_id: int | None = Field(
+    user_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
         description="User ID (SET NULL on delete to preserve audit history)"
     )
 
-    credential_id: str | None = Field(
+    credential_id: Optional[str] = Field(
         default=None,
         max_length=1024,
         description="Base64URL-encoded credential ID (nullable for registration failures)"
@@ -120,19 +121,19 @@ class WebAuthnAuditLog(SQLModel, table=True):
     )
 
     # Client metadata
-    ip_address: str | None = Field(
+    ip_address: Optional[str] = Field(
         default=None,
         max_length=45,  # IPv6 max length
         description="Client IP address"
     )
 
-    user_agent: str | None = Field(
+    user_agent: Optional[str] = Field(
         default=None,
         description="Client user agent string"
     )
 
     # Error information
-    error_message: str | None = Field(
+    error_message: Optional[str] = Field(
         default=None,
         description="Error message for failed events (NULL for success events)"
     )

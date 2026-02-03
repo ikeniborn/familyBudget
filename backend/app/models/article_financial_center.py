@@ -9,6 +9,7 @@ Implements "whitelist" pattern:
 This model enables filtering of leaf articles based on selected financial center
 when creating new transactions.
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -41,7 +42,7 @@ class ArticleFinancialCenter(SQLModel, table=True):
 
     __tablename__ = "t_article_financial_center"
 
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"

@@ -19,7 +19,7 @@ Date: 2025-12-27
 import re
 from collections import deque
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 import docker
 from docker.errors import DockerException, NotFound
@@ -195,9 +195,9 @@ class LogsCollectorService:
     def filter_logs(
         self,
         logs: list[dict[str, Any]],
-        level: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None
+        level: Optional[str] = None,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None
     ) -> list[dict[str, Any]]:
         """
         Filter logs in-memory.
@@ -257,10 +257,10 @@ class LogsCollectorService:
 
     async def get_all_logs(
         self,
-        service: str | None = None,
-        level: str | None = None,
-        since: datetime | None = None,
-        until: datetime | None = None,
+        service: Optional[str] = None,
+        level: Optional[str] = None,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
         limit: int = 50
     ) -> dict[str, Any]:
         """

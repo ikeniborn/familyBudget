@@ -5,6 +5,7 @@ Handles automated notifications:
 - Weekly budget reports (FR-005)
 - Budget threshold checks (FR-006)
 """
+from typing import Optional
 
 from datetime import date, timedelta
 from decimal import Decimal
@@ -77,7 +78,7 @@ class NotificationService:
         actual_amount: Decimal,
         period_start: date,
         period_end: date,
-        user_id: int | None = None,
+        user_id: Optional[int] = None,
     ) -> Notification:
         """
         Create notification record in database.

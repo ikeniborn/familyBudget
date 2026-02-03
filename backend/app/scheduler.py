@@ -13,6 +13,7 @@ each worker initializes its own scheduler. To prevent duplicate job
 execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
 Only one worker can acquire the lock and execute the job.
 """
+from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -72,7 +73,7 @@ async def release_advisory_lock(session, lock_id: int):
     )
 
 # Global scheduler instance
-scheduler: AsyncIOScheduler | None = None
+scheduler: Optional[AsyncIOScheduler] = None
 
 
 async def recalculate_article_usage_stats_job():

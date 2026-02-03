@@ -18,7 +18,7 @@ Key Functions:
 """
 
 from datetime import date, datetime, timezone
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -38,8 +38,8 @@ async def create_new_version(
     session: AsyncSession,
     old_instance: T,
     updates: dict[str, Any],
-    changed_fields: list[str] | None = None,
-    changed_by_user_id: int | None = None,
+    changed_fields: Optional[list[str]] = None,
+    changed_by_user_id: Optional[int] = None,
 ) -> T:
     """
     Create new SCD Type 2 version by closing old version and creating new one.
@@ -212,7 +212,7 @@ async def get_current_version(
     session: AsyncSession,
     model_class: type[T],
     **filters: Any,
-) -> T | None:
+) -> Optional[T]:
     """
     Get current version of an entity.
 
@@ -261,7 +261,7 @@ async def get_version_at_date(
     model_class: type[T],
     target_date: date,
     **filters: Any,
-) -> T | None:
+) -> Optional[T]:
     """
     Get version that was active at a specific date (time-travel query).
 

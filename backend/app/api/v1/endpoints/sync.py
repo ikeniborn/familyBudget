@@ -13,6 +13,7 @@ Sync Strategy:
     - Reference data is read-only on client (server is source of truth)
     - Transactional data (lists, items) supports bidirectional sync with conflict resolution
 """
+from typing import Optional
 
 import logging
 from datetime import datetime, timezone
@@ -49,8 +50,8 @@ class StoreResponse(BaseModel):
     """Store reference data for offline database."""
     id: int
     name: str
-    address: str | None
-    code: str | None
+    address: Optional[str]
+    code: Optional[str]
     is_active: bool
     created_at: datetime
 
@@ -61,9 +62,9 @@ class StoreResponse(BaseModel):
 class ProductGroupResponse(BaseModel):
     """Product Group reference data for offline database."""
     id: int
-    parent_id: int | None
+    parent_id: Optional[int]
     name: str
-    code: str | None
+    code: Optional[str]
     is_active: bool
     created_at: datetime
 
@@ -100,7 +101,7 @@ class ShoppingListDeltaItem(BaseModel):
     id: int
     creator_id: int
     name: str
-    description: str | None
+    description: Optional[str]
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -117,13 +118,13 @@ class ShoppingListItemDeltaItem(BaseModel):
     store_id: int
     product_group_id: int
     product_name: str
-    quantity: int | None
-    unit: str | None
-    comment: str | None
+    quantity: Optional[int]
+    unit: Optional[str]
+    comment: Optional[str]
     is_completed: bool
-    completed_at: datetime | None
-    deleted_at: datetime | None
-    last_modified_by: int | None
+    completed_at: Optional[datetime]
+    deleted_at: Optional[datetime]
+    last_modified_by: Optional[int]
     created_at: datetime
     updated_at: datetime
 
@@ -224,7 +225,7 @@ async def get_shopping_reference_data(
     )
 
 
-def _build_shopping_lists_queries(since: datetime | None) -> tuple[Select, Select, list[int]]:
+def _build_shopping_lists_queries(since: Optional[datetime]) -> tuple[Select, Select, list[int]]:
     """
     Build queries for shopping lists delta sync.
 
@@ -255,7 +256,7 @@ def _build_shopping_lists_queries(since: datetime | None) -> tuple[Select, Selec
     return created_query, updated_query, deleted_ids
 
 
-def _build_shopping_list_items_queries(since: datetime | None) -> tuple[Select, Select, Select]:
+def _build_shopping_list_items_queries(since: Optional[datetime]) -> tuple[Select, Select, Select]:
     """
     Build queries for shopping list items delta sync.
 
@@ -300,7 +301,7 @@ def _build_shopping_list_items_queries(since: datetime | None) -> tuple[Select, 
 async def get_shopping_lists_delta(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    since: datetime | None = Query(
+    since: Optional[datetime] = Query(
         None,
         description="Last sync timestamp (ISO 8601). Returns all records if not provided."
     ),

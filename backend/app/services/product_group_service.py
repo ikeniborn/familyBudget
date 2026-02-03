@@ -18,7 +18,7 @@ Key Functions:
 """
 
 from datetime import date, datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,7 +35,7 @@ async def update_product_group_profile(
     session: AsyncSession,
     product_group: ProductGroup,
     updates: dict[str, Any],
-    changed_by_user_id: int | None = None,
+    changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
 ) -> ProductGroup:
     """
@@ -151,8 +151,8 @@ async def update_product_group_profile(
 async def move_product_group(
     session: AsyncSession,
     product_group: ProductGroup,
-    new_parent_id: int | None,
-    changed_by_user_id: int | None = None,
+    new_parent_id: Optional[int],
+    changed_by_user_id: Optional[int] = None,
 ) -> ProductGroup:
     """
     Move product group to new parent (convenience wrapper).
@@ -235,7 +235,7 @@ async def get_product_group_version_at_date(
     session: AsyncSession,
     product_group_id: int,
     target_date: date,
-) -> ProductGroupHistory | None:
+) -> Optional[ProductGroupHistory]:
     """
     Get ProductGroup version that was active at a specific date (time-travel query).
 

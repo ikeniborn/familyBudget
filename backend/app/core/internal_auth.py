@@ -4,7 +4,7 @@ Internal API authentication for bot-to-backend communication.
 Provides dependency for validating internal API key.
 """
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import Depends, Header, HTTPException, status
 
@@ -12,7 +12,7 @@ from backend.app.core.config import Settings, get_settings
 
 
 async def verify_internal_api_key(
-    x_api_key: Annotated[str | None, Header()] = None,
+    x_api_key: Annotated[Optional[str], Header()] = None,
     settings: Settings = Depends(get_settings)
 ) -> None:
     """

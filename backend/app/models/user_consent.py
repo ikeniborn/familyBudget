@@ -11,6 +11,7 @@ GDPR Requirements:
 - Allow consent withdrawal at any time
 - Keep historical records of consent changes
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -78,14 +79,14 @@ class UserConsent(SQLModel, table=True):
     __tablename__ = "t_user_consent"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
     )
 
     # User identification
-    user_id: int | None = Field(
+    user_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
@@ -93,7 +94,7 @@ class UserConsent(SQLModel, table=True):
         description="User ID (NULL for anonymous/pre-login consent)"
     )
 
-    session_id: str | None = Field(
+    session_id: Optional[str] = Field(
         default=None,
         max_length=255,
         nullable=True,
@@ -122,14 +123,14 @@ class UserConsent(SQLModel, table=True):
     )
 
     # Legal proof (required by GDPR)
-    ip_address: str | None = Field(
+    ip_address: Optional[str] = Field(
         default=None,
         max_length=45,  # IPv6 max length
         nullable=True,
         description="User's IP address at time of consent"
     )
 
-    user_agent: str | None = Field(
+    user_agent: Optional[str] = Field(
         default=None,
         max_length=500,
         nullable=True,

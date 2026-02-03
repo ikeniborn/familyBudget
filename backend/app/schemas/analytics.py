@@ -4,6 +4,7 @@ Pydantic schemas for Analytics endpoints.
 This module defines request/response schemas for analytical data operations,
 including plan hints and fact hints for transaction forms.
 """
+from typing import Optional
 
 from decimal import Decimal
 
@@ -31,13 +32,13 @@ class PlanHintsResponse(BaseModel):
         }
     """
 
-    prev_period_plan_sum: Decimal | None = Field(
+    prev_period_plan_sum: Optional[Decimal] = Field(
         None,
         ge=0,
         description="Sum of plans for the previous month (NULL if no data)"
     )
 
-    prev_period_fact_sum: Decimal | None = Field(
+    prev_period_fact_sum: Optional[Decimal] = Field(
         None,
         ge=0,
         description="Sum of facts for the previous month (NULL if no data)"
@@ -49,12 +50,12 @@ class PlanHintsResponse(BaseModel):
         examples=["2025-10", "2025-11"]
     )
 
-    article_id: int | None = Field(
+    article_id: Optional[int] = Field(
         None,
         description="Category ID for which hints were calculated"
     )
 
-    article_name: str | None = Field(
+    article_name: Optional[str] = Field(
         None,
         description="Category name for display"
     )
@@ -87,13 +88,13 @@ class FactHintsResponse(BaseModel):
         }
     """
 
-    period_plan_sum: Decimal | None = Field(
+    period_plan_sum: Optional[Decimal] = Field(
         None,
         ge=0,
         description="Sum of plans for the month (NULL if no data)"
     )
 
-    period_fact_sum: Decimal | None = Field(
+    period_fact_sum: Optional[Decimal] = Field(
         None,
         ge=0,
         description="Sum of facts for the month (NULL if no data)"
@@ -105,12 +106,12 @@ class FactHintsResponse(BaseModel):
         examples=["2025-12", "2025-11"]
     )
 
-    article_id: int | None = Field(
+    article_id: Optional[int] = Field(
         None,
         description="Category ID for which hints were calculated"
     )
 
-    article_name: str | None = Field(
+    article_name: Optional[str] = Field(
         None,
         description="Category name for display"
     )

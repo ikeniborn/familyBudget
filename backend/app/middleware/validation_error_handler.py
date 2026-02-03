@@ -11,6 +11,8 @@ Features:
     - Includes error type and location information
 """
 
+from typing import Union
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -20,7 +22,7 @@ from backend.app.core.json_utils import ORJSONResponse
 
 async def validation_exception_handler(
     request: Request,
-    exc: RequestValidationError | ValidationError,
+    exc: Union[RequestValidationError, ValidationError],
 ) -> ORJSONResponse:
     """
     Handle Pydantic validation errors and return structured JSON response.

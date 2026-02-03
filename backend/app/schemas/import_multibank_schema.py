@@ -3,6 +3,7 @@ Multi-Bank Import Schemas
 
 Pydantic schemas for multi-bank import API endpoints.
 """
+from typing import Optional
 
 
 from pydantic import BaseModel, Field
@@ -118,7 +119,7 @@ class MappingResponse(BaseModel):
     mapping_id: int = Field(description="Mapping ID")
     bank_provider_id: int = Field(description="Bank provider ID")
     mapping: dict = Field(description="Column mapping (budget field → CSV column)")
-    transformations: dict | None = Field(
+    transformations: Optional[dict] = Field(
         default=None,
         description="Optional transformations (date format, decimal separator, etc.)"
     )
@@ -139,7 +140,7 @@ class MappingSaveRequest(BaseModel):
 
     bank_provider_id: int = Field(description="Bank provider ID")
     mapping: dict = Field(description="Column mapping to save")
-    transformations: dict | None = Field(
+    transformations: Optional[dict] = Field(
         default=None,
         description="Optional transformations"
     )
@@ -230,17 +231,17 @@ class StagingRecordResponse(BaseModel):
 
     id: int
     user_id: int
-    file_upload_id: int | None
-    bank_provider_id: int | None
+    file_upload_id: Optional[int]
+    bank_provider_id: Optional[int]
     fact_date: str
     amount_string: str
-    description: str | None
-    csv_metadata: dict | None
-    budget_description: str | None
-    user_comment: str | None = None
-    article_id: int | None
-    financial_center_id: int | None
-    cost_center_id: int | None
+    description: Optional[str]
+    csv_metadata: Optional[dict]
+    budget_description: Optional[str]
+    user_comment: Optional[str] = None
+    article_id: Optional[int]
+    financial_center_id: Optional[int]
+    cost_center_id: Optional[int]
     is_selected: bool
     record_type: str = "fact"
 
@@ -256,12 +257,12 @@ class StagingUpdateRequest(BaseModel):
         >>> request = StagingUpdateRequest(financial_center_id=3, cost_center_id=7)
     """
 
-    article_id: int | None = None
-    financial_center_id: int | None = None
-    cost_center_id: int | None = None
-    budget_description: str | None = None
-    user_comment: str | None = None
-    record_type: str | None = None
+    article_id: Optional[int] = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
+    budget_description: Optional[str] = None
+    user_comment: Optional[str] = None
+    record_type: Optional[str] = None
 
 
 class BulkUpdateRequest(BaseModel):
@@ -279,10 +280,10 @@ class BulkUpdateRequest(BaseModel):
     """
 
     staging_ids: list[int] = Field(description="List of staging record IDs to update")
-    article_id: int | None = None
-    financial_center_id: int | None = None
-    cost_center_id: int | None = None
-    record_type: str | None = None
+    article_id: Optional[int] = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
+    record_type: Optional[str] = None
 
 
 class ImportExecuteRequest(BaseModel):

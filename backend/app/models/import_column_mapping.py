@@ -7,6 +7,7 @@ Allows reusing mappings for repeated imports while preserving user customization
 Pattern: Configuration table (SCD Type 1)
 Table: t_import_column_mapping
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -63,7 +64,7 @@ class ImportColumnMapping(SQLModel, table=True):
     )
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"
@@ -88,7 +89,7 @@ class ImportColumnMapping(SQLModel, table=True):
         description="Column mapping (CSV column → budget field)"
     )
 
-    transformations: dict | None = Field(
+    transformations: Optional[dict] = Field(
         default=None,
         sa_column=Column(JSON),
         description="Optional transformations (date format, decimal separator, etc.)"

@@ -7,6 +7,7 @@ Performs fuzzy matching of CSV columns to expected fields using:
 - Synonym matching
 - Partial matching (Levenshtein distance)
 """
+from typing import Optional
 
 
 # Expected fields for shopping list items
@@ -182,7 +183,7 @@ def simple_similarity(s1: str, s2: str) -> float:
     return common / max_len if max_len > 0 else 0.0
 
 
-def match_column(column: str) -> str | None:
+def match_column(column: str) -> Optional[str]:
     """
     Match CSV column to expected field using multiple strategies.
 
@@ -224,7 +225,7 @@ def match_column(column: str) -> str | None:
     return None
 
 
-def auto_map_columns(csv_columns: list[str]) -> dict[str, str | None]:
+def auto_map_columns(csv_columns: list[str]) -> dict[str, Optional[str]]:
     """
     Automatically map CSV columns to expected fields.
 
@@ -307,7 +308,7 @@ def get_mapping_suggestions(
 
 
 def validate_mapping(
-    mapping: dict[str, str | None]
+    mapping: dict[str, Optional[str]]
 ) -> tuple[bool, list[str], list[str]]:
     """
     Validate column mapping completeness.

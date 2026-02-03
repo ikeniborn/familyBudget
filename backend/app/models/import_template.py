@@ -11,7 +11,7 @@ Key features:
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import JSON
 from sqlmodel import Column, Field, SQLModel
@@ -99,7 +99,7 @@ class ImportTemplate(SQLModel, table=True):
     __tablename__ = "t_d_import_template"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -120,7 +120,7 @@ class ImportTemplate(SQLModel, table=True):
         index=True,
         description="Template name (e.g., 'Walmart CSV Format')"
     )
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the template"
     )

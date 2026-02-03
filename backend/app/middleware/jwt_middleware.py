@@ -14,6 +14,7 @@ Security Features:
       - HTMX (HX-Request: true) → 401 + HX-Redirect header
       - API (Accept: application/json) → JSON 401 response
 """
+from typing import Optional
 
 from collections.abc import Callable
 
@@ -249,7 +250,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         return False
 
-    def _extract_token(self, request: Request) -> str | None:
+    def _extract_token(self, request: Request) -> Optional[str]:
         """
         Extract JWT token from Cookie or Authorization header.
 
@@ -261,7 +262,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             request: HTTP request
 
         Returns:
-            str | None: JWT token if found, None otherwise
+            Optional[str]: JWT token if found, None otherwise
         """
         # Try to extract from Cookie first (primary method)
         token = request.cookies.get("access_token")

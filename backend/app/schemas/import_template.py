@@ -7,7 +7,7 @@ Import templates store user-specific CSV import configurations.
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -34,7 +34,7 @@ class ImportTemplateCreate(BaseModel):
         examples=["Walmart CSV Format", "Costco Format", "Standard CSV"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Standard format from Walmart shopping list export", None]
@@ -127,7 +127,7 @@ class ImportTemplateUpdate(BaseModel):
         - Cannot change user_id (templates belong to user)
     """
 
-    name: str | None = Field(
+    name: Optional[str] = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -135,13 +135,13 @@ class ImportTemplateUpdate(BaseModel):
         examples=["Updated Walmart CSV Format"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    config: dict[str, Any] | None = Field(
+    config: Optional[dict[str, Any]] = Field(
         default=None,
         description="JSONB configuration",
         examples=[{
@@ -150,7 +150,7 @@ class ImportTemplateUpdate(BaseModel):
         }]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -158,7 +158,7 @@ class ImportTemplateUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str | None) -> str | None:
+    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
         """Validate template name if provided."""
         if v is None:
             return None
@@ -178,7 +178,7 @@ class ImportTemplateUpdate(BaseModel):
 
     @field_validator("config")
     @classmethod
-    def config_not_empty(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
+    def config_not_empty(cls, v: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
         """Validate config if provided."""
         if v is None:
             return None
@@ -215,7 +215,7 @@ class ImportTemplateResponse(BaseModel):
         examples=["Walmart CSV Format"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["Standard format from Walmart", None]
     )

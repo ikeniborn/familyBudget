@@ -7,6 +7,7 @@ Seeded during migration, used for multi-bank import functionality.
 Pattern: Dimension table (SCD Type 1)
 Table: t_d_bank_provider
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -34,7 +35,7 @@ class BankProvider(SQLModel, table=True):
     __tablename__ = "t_d_bank_provider"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"

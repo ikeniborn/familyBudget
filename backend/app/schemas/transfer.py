@@ -2,7 +2,7 @@
 
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -35,7 +35,7 @@ class TransferCreate(BaseModel):
         ...,
         description="Expense article ID (категория списания)"
     )
-    from_cost_center_id: int | None = Field(
+    from_cost_center_id: Optional[int] = Field(
         default=None,
         description="Source cost center ID (optional)"
     )
@@ -49,13 +49,13 @@ class TransferCreate(BaseModel):
         ...,
         description="Income article ID (категория пополнения)"
     )
-    to_cost_center_id: int | None = Field(
+    to_cost_center_id: Optional[int] = Field(
         default=None,
         description="Destination cost center ID (optional)"
     )
 
     # Optional
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         max_length=500,
         description="Transfer description"
@@ -67,12 +67,12 @@ class TransferCreate(BaseModel):
     )
 
     # Deduplication fields (for offline sync and duplicate request prevention)
-    sync_hash: str | None = Field(
+    sync_hash: Optional[str] = Field(
         default=None,
         max_length=32,
         description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date)"
     )
-    content_hash: str | None = Field(
+    content_hash: Optional[str] = Field(
         default=None,
         max_length=32,
         description="MD5 hash of transfer content (from_cfo|to_cfo|amount|date|description)"

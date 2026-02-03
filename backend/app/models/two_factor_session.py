@@ -22,6 +22,7 @@ Flow:
 
 Table: t_2fa_session
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -92,7 +93,7 @@ class TwoFactorSession(SQLModel, table=True):
     )
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Auto-increment primary key"

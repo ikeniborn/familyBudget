@@ -41,7 +41,7 @@ import time
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from backend.app.core.config import get_settings
 from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
@@ -99,9 +99,9 @@ class WriteQueueItem:
         entity_type: str,
         data: dict[str, Any],
         user_id: int,
-        request_id: str | None = None,
+        request_id: Optional[str] = None,
         retries: int = 0,
-        created_at: float | None = None,
+        created_at: Optional[float] = None,
     ):
         self.operation = operation
         self.entity_type = entity_type
@@ -146,7 +146,7 @@ class WriteBehindService:
     """
 
     def __init__(self):
-        self._worker_task: asyncio.Task | None = None
+        self._worker_task: asyncio.Optional[Task] = None
         self._running = False
         self._worker_id = str(uuid.uuid4())[:8]
         self._stats = {
@@ -168,15 +168,15 @@ class WriteBehindService:
         article_id: int,
         amount: float,
         fact_date: str,
-        description: str | None = None,
-        financial_center_id: int | None = None,
-        cost_center_id: int | None = None,
+        description: Optional[str] = None,
+        financial_center_id: Optional[int] = None,
+        cost_center_id: Optional[int] = None,
         record_type: str = "fact",
         is_offline_sync: bool = False,
-        sync_hash: str | None = None,
-        content_hash: str | None = None,
-        changed_by_user_id: int | None = None,
-    ) -> str | None:
+        sync_hash: Optional[str] = None,
+        content_hash: Optional[str] = None,
+        changed_by_user_id: Optional[int] = None,
+    ) -> Optional[str]:
         """
         Queue a fact creation operation.
 
@@ -228,7 +228,7 @@ class WriteBehindService:
         fact_id: int,
         user_id: int,
         updates: dict[str, Any],
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Queue a fact update operation.
 
@@ -250,7 +250,7 @@ class WriteBehindService:
 
         return await self._queue_item(item)
 
-    async def queue_fact_delete(self, fact_id: int, user_id: int) -> str | None:
+    async def queue_fact_delete(self, fact_id: int, user_id: int) -> Optional[str]:
         """
         Queue a fact deletion operation.
 

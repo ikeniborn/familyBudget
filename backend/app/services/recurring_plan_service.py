@@ -4,6 +4,7 @@ Recurring Plan Service for scheduled payment management.
 Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
+from typing import Optional
 
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
@@ -278,8 +279,8 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         plan_id: int,
-        user_id: int | None = None,
-    ) -> RecurringPlan | None:
+        user_id: Optional[int] = None,
+    ) -> Optional[RecurringPlan]:
         """
         Get recurring plan by ID.
 
@@ -301,7 +302,7 @@ class RecurringPlanService:
         session: AsyncSession,
         plan_id: int,
         user_id: int,
-    ) -> dict | None:
+    ) -> Optional[dict]:
         """
         Get recurring plan with enriched details (optimized with JOIN).
 
@@ -377,7 +378,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         user_id: int,
-        is_active: bool | None = None,
+        is_active: Optional[bool] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[dict], int]:
@@ -866,10 +867,10 @@ class RecurringPlanService:
     def _calculate_next_occurrence(
         self,
         frequency_type: str,
-        frequency_value: int | None,
+        frequency_value: Optional[int],
         start_date: date,
         from_date: date,
-    ) -> date | None:
+    ) -> Optional[date]:
         """
         Calculate the next occurrence date after from_date.
 
@@ -979,7 +980,7 @@ class RecurringPlanService:
     def _get_frequency_display(
         self,
         frequency_type: str,
-        frequency_value: int | None,
+        frequency_value: Optional[int],
     ) -> str:
         """Get human-readable frequency description."""
         if frequency_type == "monthly":

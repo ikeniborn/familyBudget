@@ -9,7 +9,7 @@ Also handles incremental sync for budget facts (delta updates).
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -321,7 +321,7 @@ async def _handle_create_fact(
     temp_id: str,
     payload: dict,
     content_hash: str
-) -> tuple[int | None, str | None]:
+) -> tuple[Optional[int], Optional[str]]:
     """
     Handle create fact operation with deduplication.
 
@@ -380,7 +380,7 @@ async def _handle_update_fact(
     user_id: int,
     temp_id: str,
     payload: dict
-) -> tuple[int | None, str | None]:
+) -> tuple[Optional[int], Optional[str]]:
     """
     Handle update fact operation with partial updates.
 
@@ -431,7 +431,7 @@ async def _handle_delete_fact(
     user_id: int,
     temp_id: str,
     payload: dict
-) -> tuple[int | None, str | None]:
+) -> tuple[Optional[int], Optional[str]]:
     """
     Handle delete fact operation with history tracking.
 

@@ -9,6 +9,7 @@ BREAKING CHANGES:
 - UserDetailResponse: SCD2 fields removed (matches main User table)
 - UserHistoryResponse: NEW schema for history endpoint (has SCD2 fields)
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -34,35 +35,35 @@ class UserCreate(BaseModel):
         - Also creates initial history record in t_d_user_history
     """
 
-    telegram_id: int | None = Field(
+    telegram_id: Optional[int] = Field(
         default=None,
         gt=0,
         description="User's Telegram ID (must be unique, optional if email provided)",
         examples=[123456789, None]
     )
 
-    email: str | None = Field(
+    email: Optional[str] = Field(
         default=None,
         max_length=320,
         description="User's email for email-based auth (optional if telegram_id provided)",
         examples=["user@example.com", None]
     )
 
-    username: str | None = Field(
+    username: Optional[str] = Field(
         default=None,
         max_length=255,
         description="Telegram username (optional)",
         examples=["johndoe", None]
     )
 
-    first_name: str | None = Field(
+    first_name: Optional[str] = Field(
         default=None,
         max_length=255,
         description="User's first name (optional)",
         examples=["John", None]
     )
 
-    last_name: str | None = Field(
+    last_name: Optional[str] = Field(
         default=None,
         max_length=255,
         description="User's last name (optional)",
@@ -110,72 +111,72 @@ class UserUpdate(BaseModel):
         - All changes are logged with metadata (change_type, changed_fields)
     """
 
-    telegram_id: int | None = Field(
+    telegram_id: Optional[int] = Field(
         default=None,
         description="Telegram user ID (business key, nullable for email-only users)",
         examples=[740775802]
     )
 
-    email: str | None = Field(
+    email: Optional[str] = Field(
         default=None,
         max_length=320,
         description="User email for email-based auth",
         examples=["john@example.com"]
     )
 
-    username: str | None = Field(
+    username: Optional[str] = Field(
         default=None,
         max_length=255,
         description="Telegram username",
         examples=["johndoe_updated"]
     )
 
-    first_name: str | None = Field(
+    first_name: Optional[str] = Field(
         default=None,
         max_length=255,
         description="User's first name",
         examples=["John"]
     )
 
-    last_name: str | None = Field(
+    last_name: Optional[str] = Field(
         default=None,
         max_length=255,
         description="User's last name",
         examples=["Doe"]
     )
 
-    photo_url: str | None = Field(
+    photo_url: Optional[str] = Field(
         default=None,
         max_length=512,
         description="Local path to cached profile photo",
         examples=["/static/avatars/123.jpg"]
     )
 
-    is_admin: bool | None = Field(
+    is_admin: Optional[bool] = Field(
         default=None,
         description="Admin status flag",
         examples=[True, False]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="User activation status",
         examples=[True, False]
     )
 
-    enable_push_notifications: bool | None = Field(
+    enable_push_notifications: Optional[bool] = Field(
         default=None,
         description="Enable Web Push notifications for this user",
         examples=[True, False]
     )
 
-    enable_telegram_notifications: bool | None = Field(
+    enable_telegram_notifications: Optional[bool] = Field(
         default=None,
         description="Enable Telegram bot notifications for this user",
         examples=[True, False]
     )
 
-    google_sheets_url: str | None = Field(
+    google_sheets_url: Optional[str] = Field(
         default=None,
         max_length=2048,
         description="Saved Google Sheets URL for shopping list import",
@@ -200,19 +201,19 @@ class UserResponse(BaseModel):
         examples=[1]
     )
 
-    telegram_id: int | None = Field(
+    telegram_id: Optional[int] = Field(
         default=None,
         description="User's Telegram ID (business key, nullable for email-only users)",
         examples=[123456789, None]
     )
 
-    email: str | None = Field(
+    email: Optional[str] = Field(
         default=None,
         description="User email for email-based auth (nullable for Telegram-only users)",
         examples=["john@example.com", None]
     )
 
-    username: str | None = Field(
+    username: Optional[str] = Field(
         default=None,
         description="Telegram username",
         examples=["johndoe", None]
@@ -231,19 +232,19 @@ class UserResponse(BaseModel):
         examples=[True, False]
     )
 
-    first_name: str | None = Field(
+    first_name: Optional[str] = Field(
         default=None,
         description="User's first name from Telegram",
         examples=["John"]
     )
 
-    last_name: str | None = Field(
+    last_name: Optional[str] = Field(
         default=None,
         description="User's last name from Telegram",
         examples=["Doe", None]
     )
 
-    photo_url: str | None = Field(
+    photo_url: Optional[str] = Field(
         default=None,
         description="Local path to cached profile photo",
         examples=["/static/avatars/1.jpg", None]
@@ -271,19 +272,19 @@ class UserResponse(BaseModel):
         examples=[True, False]
     )
 
-    merged_into_user_id: int | None = Field(
+    merged_into_user_id: Optional[int] = Field(
         default=None,
         description="Target user ID if this account was merged into another",
         examples=[None, 2]
     )
 
-    google_sheets_url: str | None = Field(
+    google_sheets_url: Optional[str] = Field(
         default=None,
         description="Saved Google Sheets URL for shopping list import",
         examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]
     )
 
-    last_login_at: datetime | None = Field(
+    last_login_at: Optional[datetime] = Field(
         default=None,
         description="Timestamp of last successful login",
         examples=["2025-11-14T10:30:00Z", None]
@@ -367,25 +368,25 @@ class UserHistoryResponse(BaseModel):
         examples=[123456789]
     )
 
-    username: str | None = Field(
+    username: Optional[str] = Field(
         default=None,
         description="Username at time of change (snapshot)",
         examples=["johndoe"]
     )
 
-    first_name: str | None = Field(
+    first_name: Optional[str] = Field(
         default=None,
         description="First name at time of change (snapshot)",
         examples=["John"]
     )
 
-    last_name: str | None = Field(
+    last_name: Optional[str] = Field(
         default=None,
         description="Last name at time of change (snapshot)",
         examples=["Doe"]
     )
 
-    photo_url: str | None = Field(
+    photo_url: Optional[str] = Field(
         default=None,
         description="Photo URL at time of change (snapshot)",
         examples=["/static/avatars/1.jpg"]
@@ -401,19 +402,19 @@ class UserHistoryResponse(BaseModel):
         examples=[True]
     )
 
-    last_login_at: datetime | None = Field(
+    last_login_at: Optional[datetime] = Field(
         default=None,
         description="Last login at time of change (snapshot)",
         examples=["2025-11-14T10:30:00Z"]
     )
 
-    enable_push_notifications: bool | None = Field(
+    enable_push_notifications: Optional[bool] = Field(
         default=None,
         description="Push notifications preference at time of change (snapshot)",
         examples=[True, False]
     )
 
-    enable_telegram_notifications: bool | None = Field(
+    enable_telegram_notifications: Optional[bool] = Field(
         default=None,
         description="Telegram notifications preference at time of change (snapshot)",
         examples=[True, False]
@@ -436,19 +437,19 @@ class UserHistoryResponse(BaseModel):
     )
 
     # Audit metadata
-    change_type: str | None = Field(
+    change_type: Optional[str] = Field(
         default=None,
         description="Type of change: CREATE/UPDATE/ROLE_CHANGE/LOGIN",
         examples=["CREATE", "UPDATE", "ROLE_CHANGE"]
     )
 
-    changed_fields: list[str] | None = Field(
+    changed_fields: Optional[list[str]] = Field(
         default=None,
         description="Array of changed field names (e.g., ['username', 'photo_url'])",
         examples=[["username"], ["is_admin", "is_active"], None]
     )
 
-    changed_by_user_id: int | None = Field(
+    changed_by_user_id: Optional[int] = Field(
         default=None,
         description="User ID who made the change (NULL for automatic changes)",
         examples=[2, None]
@@ -552,13 +553,13 @@ class TelegramUserInfo(BaseModel):
         examples=[123456789]
     )
 
-    username: str | None = Field(
+    username: Optional[str] = Field(
         default=None,
         description="Telegram username (without @)",
         examples=["johndoe", None]
     )
 
-    first_name: str | None = Field(
+    first_name: Optional[str] = Field(
         default=None,
         description="User's first name from Telegram",
         examples=["John"]
@@ -640,7 +641,7 @@ class GoogleSheetsUrlUpdate(BaseModel):
         google_sheets_url: URL to save (None to clear)
     """
 
-    google_sheets_url: str | None = Field(
+    google_sheets_url: Optional[str] = Field(
         default=None,
         max_length=2048,
         description="Google Sheets URL to save. Set to null to clear saved URL.",
@@ -659,7 +660,7 @@ class GoogleSheetsUrlResponse(BaseModel):
         has_saved_url: Convenience flag for frontend
     """
 
-    google_sheets_url: str | None = Field(
+    google_sheets_url: Optional[str] = Field(
         default=None,
         description="Saved Google Sheets URL (None if not set)",
         examples=["https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0", None]

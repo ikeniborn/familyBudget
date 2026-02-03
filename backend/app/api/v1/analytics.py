@@ -3,6 +3,7 @@ Analytics API endpoints.
 
 Provides aggregated data for charts and dashboards.
 """
+from typing import Optional
 
 import calendar as cal_module
 import logging
@@ -195,7 +196,7 @@ def calculate_cumulative(data: list[float]) -> list[float]:
     return cumulative
 
 
-def get_previous_period(start_date: date, end_date: date, period: str | None = None) -> tuple[date, date]:
+def get_previous_period(start_date: date, end_date: date, period: Optional[str] = None) -> tuple[date, date]:
     """
     Calculate previous period boundaries.
 
@@ -974,13 +975,13 @@ async def get_account_balances_html(
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
-    period: str | None = Query(None, pattern="^(month|quarter|year)$"),
-    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
-    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
+    date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
     chart_mode: str = Query("cumulative", pattern="^(normal|cumulative)$"),
-    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
-    article_ids: list[int] | None = Query(None, description="Filter by category IDs (multiple selection)"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[list[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -1304,11 +1305,11 @@ async def get_plan_fact_data(
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    period: str | None = Query(None, pattern="^(month|quarter|year)$"),
-    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
-    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
+    date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", pattern="^(fact|plan)$"),
-    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     chart_mode: str = Query("normal", pattern="^(normal|cumulative)$"),
     session: AsyncSession = Depends(get_session)
 ):
@@ -1547,12 +1548,12 @@ async def get_trends_data(
 async def get_category_breakdown(
     current_user: CurrentUser,
     type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
-    period: str | None = Query(None, pattern="^(month|quarter|year|all)$"),
-    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
-    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year|all)$"),
+    date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", pattern="^(fact|plan)$"),
-    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
-    article_ids: list[int] | None = Query(None, description="Filter by category IDs (multiple selection)"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[list[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -1665,11 +1666,11 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
-    period: str | None = Query(None, pattern="^(month|quarter|year)$"),
-    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
-    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
-    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
+    date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    article_id: Optional[int] = Query(None, description="Filter by specific article (for drill-down)"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -1997,13 +1998,13 @@ async def get_waterfall_data(
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
-    period: str | None = Query(None, pattern="^(month|quarter|year)$"),
-    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
-    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
+    date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
     record_type: str = Query("fact", pattern="^(fact|plan)$"),
-    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
-    article_ids: list[int] | None = Query(None, description="Filter by category IDs (multiple selection)"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[list[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -2286,20 +2287,20 @@ async def get_heatmap_data(
 async def get_plans_monthly_comparison(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    planning_month: str | None = Query(
+    planning_month: Optional[str] = Query(
         None,
         description="Planning month in YYYY-MM format (defaults to current month)",
         regex=r"^\d{4}-(0[1-9]|1[0-2])$"
     ),
-    financial_center_id: int | None = Query(
+    financial_center_id: Optional[int] = Query(
         None,
         description="Filter by financial center ID (omit for all centers)"
     ),
-    article_type: str | None = Query(
+    article_type: Optional[str] = Query(
         None,
         description="Filter by article type: expense, income, debit, credit"
     ),
-    article_id: int | None = Query(
+    article_id: Optional[int] = Query(
         None,
         description="Filter by specific article/category ID"
     )
@@ -2542,14 +2543,14 @@ def get_russian_month_name(month: int, year: int) -> str:
 async def get_fact_hints(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    article_id: int | None = Query(None, gt=0, description="Category ID"),
+    article_id: Optional[int] = Query(None, gt=0, description="Category ID"),
     fact_date: date = Query(..., description="Transaction date (YYYY-MM-DD)"),
     article_type: str = Query(
         "expense",
         pattern="^(income|expense|debit|credit)$",
         description="Article type: expense, income, debit, or credit"
     ),
-    financial_center_id: int | None = Query(
+    financial_center_id: Optional[int] = Query(
         None,
         gt=0,
         description="Financial center ID filter"
@@ -2670,8 +2671,8 @@ async def get_plan_hints(
         pattern="^(income|expense|debit|credit)$",
         description="Article type: expense, income, debit, or credit"
     ),
-    article_id: int | None = Query(None, gt=0, description="Category ID"),
-    financial_center_id: int | None = Query(
+    article_id: Optional[int] = Query(None, gt=0, description="Category ID"),
+    financial_center_id: Optional[int] = Query(
         None,
         gt=0,
         description="Financial center ID filter"

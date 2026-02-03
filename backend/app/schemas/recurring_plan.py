@@ -7,7 +7,7 @@ Recurring plans generate BudgetFact records automatically based on frequency.
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_validator
 
@@ -52,7 +52,7 @@ class RecurringPlanCreate(BaseModel):
         examples=[1, 2]
     )
 
-    cost_center_id: int | None = Field(
+    cost_center_id: Optional[int] = Field(
         default=None,
         gt=0,
         description="Cost center ID (optional)",
@@ -65,7 +65,7 @@ class RecurringPlanCreate(BaseModel):
         examples=["monthly", "weekly"]
     )
 
-    frequency_value: int | None = Field(
+    frequency_value: Optional[int] = Field(
         default=None,
         description="Day value: for weekly 0-6 (Mon=0), for monthly/quarterly 1-28",
         examples=[5, 15, None]
@@ -77,13 +77,13 @@ class RecurringPlanCreate(BaseModel):
         examples=["2025-01-05"]
     )
 
-    end_date: date | None = Field(
+    end_date: Optional[date] = Field(
         default=None,
         description="Last occurrence date (optional)",
         examples=[None, "2025-12-31"]
     )
 
-    occurrences_count: int | None = Field(
+    occurrences_count: Optional[int] = Field(
         default=None,
         gt=0,
         le=365,
@@ -100,7 +100,7 @@ class RecurringPlanCreate(BaseModel):
         examples=["50000.00", "5000.00"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         max_length=1000,
         description="Transaction description template",
@@ -119,7 +119,7 @@ class RecurringPlanCreate(BaseModel):
         examples=[False, True]
     )
 
-    reminder_hour: int | None = Field(
+    reminder_hour: Optional[int] = Field(
         default=None,
         ge=0,
         le=23,
@@ -127,7 +127,7 @@ class RecurringPlanCreate(BaseModel):
         examples=[9, 14]
     )
 
-    reminder_minute: int | None = Field(
+    reminder_minute: Optional[int] = Field(
         default=None,
         ge=0,
         le=59,
@@ -222,7 +222,7 @@ class RecurringPlanCreate(BaseModel):
 
     @field_validator("description")
     @classmethod
-    def trim_description(cls, v: str | None) -> str | None:
+    def trim_description(cls, v: Optional[str]) -> Optional[str]:
         """Trim description whitespace."""
         if v:
             v = v.strip()
@@ -257,7 +257,7 @@ class RecurringPlanUpdate(BaseModel):
     Note: frequency_type, frequency_value, start_date cannot be changed.
     """
 
-    amount: Decimal | None = Field(
+    amount: Optional[Decimal] = Field(
         default=None,
         gt=0,
         max_digits=15,
@@ -266,26 +266,26 @@ class RecurringPlanUpdate(BaseModel):
         examples=["55000.00"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         max_length=1000,
         description="New description template",
         examples=["Updated rent payment"]
     )
 
-    cost_center_id: int | None = Field(
+    cost_center_id: Optional[int] = Field(
         default=None,
         description="New cost center ID (null to clear)",
         examples=[None, 1]
     )
 
-    end_date: date | None = Field(
+    end_date: Optional[date] = Field(
         default=None,
         description="New end date (to stop earlier)",
         examples=["2025-06-30"]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="Active status (false to pause)",
         examples=[True, False]
@@ -293,7 +293,7 @@ class RecurringPlanUpdate(BaseModel):
 
     @field_validator("description")
     @classmethod
-    def trim_description(cls, v: str | None) -> str | None:
+    def trim_description(cls, v: Optional[str]) -> Optional[str]:
         """Trim description whitespace."""
         if v:
             v = v.strip()
@@ -322,42 +322,42 @@ class RecurringPlanResponse(BaseModel):
     user_id: int = Field(description="Owner user ID")
 
     article_id: int = Field(description="Category ID")
-    article_name: str | None = Field(default=None, description="Category name")
-    article_type: str | None = Field(default=None, description="Category type (income/expense)")
+    article_name: Optional[str] = Field(default=None, description="Category name")
+    article_type: Optional[str] = Field(default=None, description="Category type (income/expense)")
 
     financial_center_id: int = Field(description="Account ID")
-    financial_center_name: str | None = Field(default=None, description="Account name")
+    financial_center_name: Optional[str] = Field(default=None, description="Account name")
 
-    cost_center_id: int | None = Field(default=None, description="Cost center ID")
-    cost_center_name: str | None = Field(default=None, description="Cost center name")
+    cost_center_id: Optional[int] = Field(default=None, description="Cost center ID")
+    cost_center_name: Optional[str] = Field(default=None, description="Cost center name")
 
     frequency_type: FrequencyType = Field(description="Frequency type")
-    frequency_value: int | None = Field(default=None, description="Day value")
-    frequency_display: str | None = Field(
+    frequency_value: Optional[int] = Field(default=None, description="Day value")
+    frequency_display: Optional[str] = Field(
         default=None,
         description="Human-readable frequency (e.g., 'Every Monday', 'Every 5th of month')"
     )
 
     start_date: date = Field(description="First occurrence date")
-    end_date: date | None = Field(default=None, description="Last occurrence date")
-    occurrences_count: int | None = Field(default=None, description="Max occurrences")
+    end_date: Optional[date] = Field(default=None, description="Last occurrence date")
+    occurrences_count: Optional[int] = Field(default=None, description="Max occurrences")
     occurrences_generated: int = Field(description="Facts already generated")
 
     amount: SerializedDecimal = Field(description="Transaction amount")
-    description: str | None = Field(default=None, description="Description template")
+    description: Optional[str] = Field(default=None, description="Description template")
     record_type: RecordType = Field(description="Generated record type")
 
     enable_reminder: bool = Field(description="Whether reminders are enabled")
-    reminder_hour: int | None = Field(default=None, description="Reminder hour (0-23)")
-    reminder_minute: int | None = Field(default=None, description="Reminder minute (0-59)")
-    reminder_time_display: str | None = Field(
+    reminder_hour: Optional[int] = Field(default=None, description="Reminder hour (0-23)")
+    reminder_minute: Optional[int] = Field(default=None, description="Reminder minute (0-59)")
+    reminder_time_display: Optional[str] = Field(
         default=None,
         description="Formatted reminder time (HH:MM)"
     )
 
     is_active: bool = Field(description="Active status")
-    next_generation_date: date | None = Field(default=None, description="Next scheduled date")
-    last_generated_date: date | None = Field(default=None, description="Last generated date")
+    next_generation_date: Optional[date] = Field(default=None, description="Next scheduled date")
+    last_generated_date: Optional[date] = Field(default=None, description="Last generated date")
 
     created_at: datetime = Field(description="Creation timestamp")
     updated_at: datetime = Field(description="Last update timestamp")

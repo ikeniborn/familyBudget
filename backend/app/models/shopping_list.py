@@ -10,6 +10,7 @@ Key features:
 - Only the creator (owner) can DELETE their list
 - Header+Lines pattern (one-to-many with ShoppingListItem)
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -76,7 +77,7 @@ class ShoppingList(SQLModel, table=True):
     __tablename__ = "t_f_shopping_list"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -97,7 +98,7 @@ class ShoppingList(SQLModel, table=True):
         index=True,
         description="Shopping list name"
     )
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the shopping list"
     )

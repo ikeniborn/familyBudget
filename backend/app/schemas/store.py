@@ -4,6 +4,7 @@ Pydantic schemas for Store endpoints.
 This module defines request/response schemas for Store CRUD operations.
 Stores represent shopping locations (supermarkets, shops, etc.).
 """
+from typing import Optional
 
 import re
 from datetime import datetime
@@ -33,13 +34,13 @@ class StoreCreate(BaseModel):
         examples=["Walmart", "Costco", "Local Bakery"]
     )
 
-    address: str | None = Field(
+    address: Optional[str] = Field(
         default=None,
         description="Physical address of the store",
         examples=["123 Main St, City, State 12345", None]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["24/7 grocery store", None]
@@ -94,7 +95,7 @@ class StoreUpdate(BaseModel):
         - Only administrators can update stores (checked at API level)
     """
 
-    name: str | None = Field(
+    name: Optional[str] = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -102,19 +103,19 @@ class StoreUpdate(BaseModel):
         examples=["Updated Walmart"]
     )
 
-    address: str | None = Field(
+    address: Optional[str] = Field(
         default=None,
         description="Physical address of the store",
         examples=["456 New St, City, State 12345"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description with new hours"]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -122,7 +123,7 @@ class StoreUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str | None) -> str | None:
+    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
         """Validate store name if provided."""
         if v is None:
             return None
@@ -168,19 +169,19 @@ class StoreResponse(BaseModel):
         examples=["Walmart"]
     )
 
-    address: str | None = Field(
+    address: Optional[str] = Field(
         default=None,
         description="Physical address",
         examples=["123 Main St, City, State 12345", None]
     )
 
-    code: str | None = Field(
+    code: Optional[str] = Field(
         default=None,
         description="Business code for external integrations",
         examples=["STORE-1", "STORE-2", None]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["24/7 grocery store", None]
     )

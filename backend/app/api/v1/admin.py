@@ -7,7 +7,7 @@ All endpoints require admin privileges (is_admin=True).
 
 import logging
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -57,11 +57,11 @@ logger = logging.getLogger(__name__)
 class UserStatsResponse(BaseModel):
     """User statistics response."""
     user_id: int
-    username: str | None
-    first_name: str | None
+    username: Optional[str]
+    first_name: Optional[str]
     total_facts: int
     total_articles: int
-    last_fact_date: str | None
+    last_fact_date: Optional[str]
 
 
 # Removed duplicate schemas - using imports from backend.app.schemas.article instead
@@ -139,7 +139,7 @@ async def get_all_users(
     session: AsyncSession = Depends(get_session),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
     offset: int = Query(0, ge=0, description="Number of users skipped"),
-    is_active: bool | None = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
+    is_active: Optional[bool] = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
 ) -> UserListResponse:
     """
     Get all users (admin only).
@@ -1309,7 +1309,7 @@ async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
     include_inactive: Annotated[bool, Query(description="Include archived categories (is_active=false)")] = True,
-    type: Annotated[str | None, Query(description="Filter by article type (income or expense)")] = None,
+    type: Annotated[Optional[str], Query(description="Filter by article type (income or expense)")] = None,
 ):
     """
     Get all articles (admin only).
@@ -1984,15 +1984,15 @@ class FactResponse(BaseModel):
     article_id: int
     amount: float
     fact_date: str
-    description: str | None
+    description: Optional[str]
     record_type: str
-    financial_center_id: int | None = None
-    cost_center_id: int | None = None
-    user_name: str | None = None
-    article_name: str | None = None
-    article_type: str | None = None  # Added for color logic (income/expense)
-    financial_center_name: str | None = None
-    cost_center_name: str | None = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
+    user_name: Optional[str] = None
+    article_name: Optional[str] = None
+    article_type: Optional[str] = None  # Added for color logic (income/expense)
+    financial_center_name: Optional[str] = None
+    cost_center_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -2000,27 +2000,27 @@ class FactResponse(BaseModel):
 
 class FactUpdateRequest(BaseModel):
     """Fact update request model."""
-    amount: float | None = None
-    fact_date: str | None = None  # ISO date string
-    description: str | None = None
-    article_id: int | None = None
-    financial_center_id: int | None = None
-    cost_center_id: int | None = None
+    amount: Optional[float] = None
+    fact_date: Optional[str] = None  # ISO date string
+    description: Optional[str] = None
+    article_id: Optional[int] = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
 
 
 @router.get("/facts", response_model=list[FactResponse])
 async def get_all_facts(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    user_id: int | None = Query(None, description="Filter by user ID"),
-    article_id: int | None = Query(None, description="Filter by article ID"),
-    article_type: str | None = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
-    date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
-    date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
-    record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
-    financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
-    cost_center_id: int | None = Query(None, description="Filter by cost center ID"),
-    search: str | None = Query(None, max_length=200, description="Search in description"),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    article_id: Optional[int] = Query(None, description="Filter by article ID"),
+    article_type: Optional[str] = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
+    date_from: Optional[str] = Query(None, description="Filter by date from (ISO format)"),
+    date_to: Optional[str] = Query(None, description="Filter by date to (ISO format)"),
+    record_type: Optional[str] = Query(None, description="Filter by record type (fact or plan)"),
+    financial_center_id: Optional[int] = Query(None, description="Filter by financial center ID"),
+    cost_center_id: Optional[int] = Query(None, description="Filter by cost center ID"),
+    search: Optional[str] = Query(None, max_length=200, description="Search in description"),
     limit: int = Query(50, ge=1, le=500, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset")
 ):
@@ -2132,14 +2132,14 @@ async def get_all_facts(
 async def get_facts_count(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    user_id: int | None = Query(None, description="Filter by user ID"),
-    article_id: int | None = Query(None, description="Filter by article ID"),
-    article_type: str | None = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
-    date_from: str | None = Query(None, description="Filter by date from (ISO format)"),
-    date_to: str | None = Query(None, description="Filter by date to (ISO format)"),
-    record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
-    financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
-    cost_center_id: int | None = Query(None, description="Filter by cost center ID")
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    article_id: Optional[int] = Query(None, description="Filter by article ID"),
+    article_type: Optional[str] = Query(None, pattern="^(income|expense|debit|credit)$", description="Filter by article type"),
+    date_from: Optional[str] = Query(None, description="Filter by date from (ISO format)"),
+    date_to: Optional[str] = Query(None, description="Filter by date to (ISO format)"),
+    record_type: Optional[str] = Query(None, description="Filter by record type (fact or plan)"),
+    financial_center_id: Optional[int] = Query(None, description="Filter by financial center ID"),
+    cost_center_id: Optional[int] = Query(None, description="Filter by cost center ID")
 ):
     """
     Get total facts count with filters (admin only).

@@ -20,6 +20,7 @@ Usage:
     # Get opening balance (uses aggregate if available, fallback to full scan)
     opening_balance = await get_opening_balance(session, fc_id=1, year=2025, month=12)
 """
+from typing import Optional
 
 from calendar import monthrange
 from datetime import date, datetime
@@ -36,9 +37,9 @@ from backend.app.models.financial_center_balance_monthly import FinancialCenterB
 
 async def refresh_monthly_balances(
     session: AsyncSession,
-    year: int | None = None,
-    month: int | None = None,
-    financial_center_id: int | None = None,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    financial_center_id: Optional[int] = None,
 ) -> dict[str, int]:
     """
     Calculate and save monthly balance snapshots for financial centers.
@@ -316,7 +317,7 @@ async def get_opening_balances_bulk(
     session: AsyncSession,
     year: int,
     month: int,
-    financial_center_ids: list[int] | None = None,
+    financial_center_ids: Optional[list[int]] = None,
 ) -> dict[int, Decimal]:
     """
     Get opening balances for multiple financial centers at once (optimized).

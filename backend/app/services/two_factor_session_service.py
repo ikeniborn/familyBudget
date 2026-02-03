@@ -36,6 +36,7 @@ Usage:
         await consume_session(session, token)
         # Issue JWT tokens
 """
+from typing import Optional
 
 import hashlib
 import secrets
@@ -112,7 +113,7 @@ async def create_session(
 async def verify_session(
     session: AsyncSession,
     token: str,
-) -> int | None:
+) -> Optional[int]:
     """
     Verify a 2FA session token.
 
@@ -232,7 +233,7 @@ async def cleanup_expired_sessions(
 async def get_session_by_user_id(
     session: AsyncSession,
     user_id: int,
-) -> TwoFactorSession | None:
+) -> Optional[TwoFactorSession]:
     """
     Get active (non-expired, non-used) session for a user.
 

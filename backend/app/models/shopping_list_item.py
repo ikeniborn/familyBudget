@@ -10,6 +10,7 @@ Key features:
 - Offline sync support with sync_status field
 - Many-to-one relationship with ShoppingList (shopping_list_id FK)
 """
+from typing import Optional
 
 from datetime import datetime
 from decimal import Decimal
@@ -108,7 +109,7 @@ class ShoppingListItem(SQLModel, table=True):
     __tablename__ = "t_f_shopping_list_item"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -147,22 +148,22 @@ class ShoppingListItem(SQLModel, table=True):
         index=True,
         description="Product name (REQUIRED, e.g., 'Organic Milk 1L')"
     )
-    quantity: Decimal | None = Field(
+    quantity: Optional[Decimal] = Field(
         default=None,
         max_digits=10,
         decimal_places=3,
         description="Quantity to buy (OPTIONAL, e.g., 2.5)"
     )
-    unit: str | None = Field(
+    unit: Optional[str] = Field(
         default=None,
         max_length=50,
         description="Unit of measurement (OPTIONAL, e.g., 'kg', 'liters', 'pieces')"
     )
-    comment: str | None = Field(
+    comment: Optional[str] = Field(
         default=None,
         description="Optional comment or notes (e.g., 'buy on sale', 'specific brand')"
     )
-    position: int | None = Field(
+    position: Optional[int] = Field(
         default=None,
         nullable=True,
         description="Position in list for ordering (auto-assigned if null)"
@@ -175,7 +176,7 @@ class ShoppingListItem(SQLModel, table=True):
         index=True,
         description="Completion flag (True = marked as bought, False = still needed)"
     )
-    completed_at: datetime | None = Field(
+    completed_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
         description="When item was marked as completed (for conflict resolution priority)"
@@ -198,7 +199,7 @@ class ShoppingListItem(SQLModel, table=True):
     )
 
     # Soft delete
-    deleted_at: datetime | None = Field(
+    deleted_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
         index=True,
@@ -206,7 +207,7 @@ class ShoppingListItem(SQLModel, table=True):
     )
 
     # Audit fields
-    last_modified_by: int | None = Field(
+    last_modified_by: Optional[int] = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,

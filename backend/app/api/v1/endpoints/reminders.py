@@ -8,6 +8,7 @@ CRUD operations for plan reminders:
 - Delete reminder
 - List all user's reminders
 """
+from typing import Optional
 
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -41,7 +42,7 @@ def get_reminder_service() -> ReminderService:
 # to ensure FastAPI matches them correctly (routes are matched in definition order)
 @router.get("/", response_model=ReminderListResponse)
 async def list_reminders(
-    status_filter: str | None = None,
+    status_filter: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
     current_user: User = Depends(get_current_user),

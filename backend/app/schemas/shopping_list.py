@@ -4,6 +4,7 @@ Pydantic schemas for ShoppingList endpoints.
 This module defines request/response schemas for ShoppingList CRUD operations.
 Shopping lists are the header in Header+Lines pattern (items are in ShoppingListItem).
 """
+from typing import Optional
 
 import re
 from datetime import datetime
@@ -33,7 +34,7 @@ class ShoppingListCreate(BaseModel):
         examples=["Weekly Groceries", "Party Supplies", "Monthly Shopping"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Shopping list for week of 2025-01-10", None]
@@ -85,7 +86,7 @@ class ShoppingListUpdate(BaseModel):
         - Cannot change creator_id (lists belong to creator)
     """
 
-    name: str | None = Field(
+    name: Optional[str] = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -93,13 +94,13 @@ class ShoppingListUpdate(BaseModel):
         examples=["Updated Weekly Groceries"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: bool | None = Field(
+    is_active: Optional[bool] = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived/completed)",
         examples=[True, False]
@@ -107,7 +108,7 @@ class ShoppingListUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: str | None) -> str | None:
+    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
         """Validate shopping list name if provided."""
         if v is None:
             return None
@@ -152,7 +153,7 @@ class ShoppingListResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10", None]
     )
@@ -207,7 +208,7 @@ class ShoppingListCardResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )
@@ -268,7 +269,7 @@ class ShoppingListWithItemsResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: str | None = Field(
+    description: Optional[str] = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )

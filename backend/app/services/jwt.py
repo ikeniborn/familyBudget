@@ -26,6 +26,7 @@ Security:
     - Token rotation: Old refresh token revoked when used
     - Revocation support: Tokens can be blacklisted on logout
 """
+from typing import Optional
 
 import hashlib
 from datetime import datetime, timedelta
@@ -123,7 +124,7 @@ def create_ws_token(user_id: int) -> str:
     return token
 
 
-def decode_ws_token(token: str) -> int | None:
+def decode_ws_token(token: str) -> Optional[int]:
     """
     Decode and validate WebSocket JWT token.
 
@@ -149,7 +150,7 @@ def decode_ws_token(token: str) -> int | None:
         return None
 
 
-def decode_access_token(token: str) -> int | None:
+def decode_access_token(token: str) -> Optional[int]:
     """
     Decode and validate JWT access token.
 
@@ -180,12 +181,12 @@ def decode_access_token(token: str) -> int | None:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
         # Prefer telegram_id (SCD Type 2 safe), fallback to user_id (legacy)
-        telegram_id: int | None = payload.get("telegram_id")
+        telegram_id: Optional[int] = payload.get("telegram_id")
         if telegram_id is not None:
             return telegram_id
 
         # Fallback to user_id for backward compatibility with old tokens
-        user_id: int | None = payload.get("user_id")
+        user_id: Optional[int] = payload.get("user_id")
         return user_id
 
     except JWTError:
@@ -193,7 +194,7 @@ def decode_access_token(token: str) -> int | None:
         return None
 
 
-def decode_access_token_full(token: str) -> tuple[int | None, int | None]:
+def decode_access_token_full(token: str) -> tuple[Optional[int], Optional[int]]:
     """
     Decode JWT access token and return both user_id and telegram_id.
 
@@ -226,8 +227,8 @@ def decode_access_token_full(token: str) -> tuple[int | None, int | None]:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
         # Extract both claims
-        user_id: int | None = payload.get("user_id")
-        telegram_id: int | None = payload.get("telegram_id")
+        user_id: Optional[int] = payload.get("user_id")
+        telegram_id: Optional[int] = payload.get("telegram_id")
 
         return user_id, telegram_id
 
@@ -286,7 +287,7 @@ def create_refresh_token(user_id: int) -> tuple[str, datetime]:
     return token, expire
 
 
-def decode_refresh_token(token: str) -> int | None:
+def decode_refresh_token(token: str) -> Optional[int]:
     """
     Decode and validate JWT refresh token.
 
@@ -328,7 +329,7 @@ def decode_refresh_token(token: str) -> int | None:
             return None
 
         # Extract user_id claim
-        user_id: int | None = payload.get("user_id")
+        user_id: Optional[int] = payload.get("user_id")
 
         if user_id is None:
             return None

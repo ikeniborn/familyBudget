@@ -27,6 +27,7 @@ Usage:
     # Validate password strength
     is_strong, message = validate_password_strength("weak")
 """
+from typing import Optional
 
 import re
 
@@ -102,7 +103,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def verify_password_with_dummy(
     password: str,
-    password_hash: str | None,
+    password_hash: Optional[str],
 ) -> bool:
     """
     Verify password with timing attack protection.

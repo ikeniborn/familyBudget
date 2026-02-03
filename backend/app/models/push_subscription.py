@@ -4,6 +4,7 @@ Push Subscription model for Web Push notifications.
 Stores browser push subscriptions for sending notifications via Web Push API.
 Each user can have multiple subscriptions (different browsers/devices).
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -35,7 +36,7 @@ class PushSubscription(SQLModel, table=True):
 
     __tablename__ = "t_push_subscription"
 
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"
@@ -66,7 +67,7 @@ class PushSubscription(SQLModel, table=True):
         description="Authentication secret for message encryption (base64)"
     )
 
-    user_agent: str | None = Field(
+    user_agent: Optional[str] = Field(
         default=None,
         max_length=500,
         description="Browser user agent for debugging"
@@ -78,7 +79,7 @@ class PushSubscription(SQLModel, table=True):
         description="When subscription was created"
     )
 
-    last_used_at: datetime | None = Field(
+    last_used_at: Optional[datetime] = Field(
         default=None,
         description="When subscription was last successfully used for sending"
     )

@@ -33,6 +33,7 @@ Attributes:
     ip_address: Client IP address for audit
     user_agent: Client user agent string for audit
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -90,7 +91,7 @@ class WebAuthnChallenge(SQLModel, table=True):
     )
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -105,7 +106,7 @@ class WebAuthnChallenge(SQLModel, table=True):
     )
 
     # User association (nullable for authentication challenges)
-    user_id: int | None = Field(
+    user_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
@@ -131,20 +132,20 @@ class WebAuthnChallenge(SQLModel, table=True):
         description="Challenge expiration timestamp (10-minute TTL)"
     )
 
-    consumed_at: datetime | None = Field(
+    consumed_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
         description="Challenge consumption timestamp (single-use enforcement)"
     )
 
     # Audit metadata
-    ip_address: str | None = Field(
+    ip_address: Optional[str] = Field(
         default=None,
         max_length=45,  # IPv6 max length
         description="Client IP address for audit trail"
     )
 
-    user_agent: str | None = Field(
+    user_agent: Optional[str] = Field(
         default=None,
         description="Client user agent string for audit trail"
     )

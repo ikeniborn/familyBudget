@@ -23,6 +23,7 @@ Attributes:
     is_revoked: Revocation flag (soft delete)
     revoked_at: Revocation timestamp
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -73,7 +74,7 @@ class WebAuthnCredential(SQLModel, table=True):
     )
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -107,19 +108,19 @@ class WebAuthnCredential(SQLModel, table=True):
     )
 
     # Authenticator metadata
-    transports: list[str] | None = Field(
+    transports: Optional[list[str]] = Field(
         default=None,
         sa_column=Column("transports", nullable=True),
         description="Supported transports as string array: ['internal', 'usb', 'nfc', 'ble']"
     )
 
-    aaguid: str | None = Field(
+    aaguid: Optional[str] = Field(
         default=None,
         max_length=36,
         description="Authenticator AAID in UUID format (e.g., '00000000-0000-0000-0000-000000000000')"
     )
 
-    device_name: str | None = Field(
+    device_name: Optional[str] = Field(
         default=None,
         max_length=255,
         description="User-friendly device name (e.g., 'iPhone 15 Pro')"
@@ -145,7 +146,7 @@ class WebAuthnCredential(SQLModel, table=True):
         description="Credential registration timestamp"
     )
 
-    last_used_at: datetime | None = Field(
+    last_used_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
         description="Last successful authentication timestamp"
@@ -158,7 +159,7 @@ class WebAuthnCredential(SQLModel, table=True):
         description="Credential revocation flag (soft delete)"
     )
 
-    revoked_at: datetime | None = Field(
+    revoked_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
         description="Credential revocation timestamp"

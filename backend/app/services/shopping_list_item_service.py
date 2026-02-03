@@ -18,6 +18,7 @@ Key Functions:
     - detect_conflicts(): Detect offline sync conflicts
     - resolve_conflict(): Resolve sync conflicts (server/client/merge)
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -32,7 +33,7 @@ async def batch_complete_items(
     session: AsyncSession,
     item_ids: list[int],
     is_completed: bool = True,
-    user_id: int | None = None,
+    user_id: Optional[int] = None,
 ) -> int:
     """
     Mark multiple shopping list items as completed (or uncompleted).
@@ -107,7 +108,7 @@ async def batch_complete_items(
 async def batch_delete_items(
     session: AsyncSession,
     item_ids: list[int],
-    user_id: int | None = None,
+    user_id: Optional[int] = None,
 ) -> int:
     """
     Soft-delete multiple shopping list items at once.
@@ -168,8 +169,8 @@ async def batch_delete_items(
 async def restore_item(
     session: AsyncSession,
     item_id: int,
-    user_id: int | None = None,
-) -> ShoppingListItem | None:
+    user_id: Optional[int] = None,
+) -> Optional[ShoppingListItem]:
     """
     Restore a soft-deleted shopping list item.
 
@@ -275,7 +276,7 @@ async def mark_items_pending(
 
 async def get_pending_sync_items(
     session: AsyncSession,
-    shopping_list_id: int | None = None,
+    shopping_list_id: Optional[int] = None,
 ) -> list[ShoppingListItem]:
     """
     Get all items with pending sync status.

@@ -19,6 +19,7 @@ Performance:
     All queries use indexed lookups on closure table - O(1) complexity.
     No recursive queries needed.
 """
+from typing import Optional
 
 
 from sqlalchemy import delete, insert, literal
@@ -32,7 +33,7 @@ from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
 async def get_subtree(
     session: AsyncSession,
     product_group_id: int,
-    max_depth: int | None = None,
+    max_depth: Optional[int] = None,
     include_self: bool = True,
 ) -> list[ProductGroup]:
     """
@@ -229,7 +230,7 @@ async def get_depth(
 async def create_hierarchy_paths(
     session: AsyncSession,
     product_group_id: int,
-    parent_id: int | None = None,
+    parent_id: Optional[int] = None,
 ) -> None:
     """
     Create closure table entries for new product group.
@@ -316,7 +317,7 @@ async def delete_hierarchy_paths(
 async def move_subtree(
     session: AsyncSession,
     product_group_id: int,
-    new_parent_id: int | None,
+    new_parent_id: Optional[int],
 ) -> None:
     """
     Move product group (and its subtree) to new parent.

@@ -12,7 +12,7 @@ Endpoints:
 
 import logging
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
@@ -37,15 +37,15 @@ async def get_facts_table_partial(
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=1000)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
-    date_from: Annotated[date | None, Query()] = None,
-    date_to: Annotated[date | None, Query()] = None,
-    article_id: Annotated[int | None, Query()] = None,
-    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = "fact",
-    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
-    search: Annotated[str | None, Query(max_length=200)] = None,
-    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
-    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
-    user_id: Annotated[int | None, Query(gt=0)] = None,
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = "fact",
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
+    search: Annotated[Optional[str], Query(max_length=200)] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    user_id: Annotated[Optional[int], Query(gt=0)] = None,
 ) -> str:
     """
     Get facts table partial (HTMX).

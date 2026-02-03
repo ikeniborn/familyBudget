@@ -18,6 +18,7 @@ Security Features:
     - Token blacklist (revoked tokens cannot be reused)
     - Refresh tokens hashed in database (SHA-256, like password hashing)
 """
+from typing import Optional, Union
 
 # Standard library imports
 import logging
@@ -655,7 +656,7 @@ async def telegram_login(
 async def refresh_access_token(
     response: Response,
     session: AsyncSession = Depends(get_session),
-    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
 ) -> AuthResponse:
     """
     Refresh access token using refresh token.
@@ -833,7 +834,7 @@ async def refresh_access_token(
 async def logout(
     response: Response,
     session: AsyncSession = Depends(get_session),
-    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
 ) -> dict:
     """
     Logout user by revoking refresh token.
@@ -956,7 +957,7 @@ async def register_email(
 
 @router.post(
     "/login",
-    response_model=EmailLoginResponse | AuthResponse,
+    response_model=Union[EmailLoginResponse, AuthResponse],
     status_code=status.HTTP_200_OK,
     summary="Login with email and password",
     responses=get_common_responses(include_401=True),
@@ -984,7 +985,7 @@ async def login_email(
     response: Response,
     data: EmailLoginRequest,
     session: AsyncSession = Depends(get_session),
-) -> EmailLoginResponse | AuthResponse:
+) -> Union[EmailLoginResponse, AuthResponse]:
     """Login with email/password, returns 2FA session token or direct auth for admin."""
     # Step 1: Authenticate with email/password (timing-safe)
     user = await authenticate_with_password(session, data.email, data.password)

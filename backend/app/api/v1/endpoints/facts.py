@@ -15,7 +15,7 @@ Features:
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
@@ -416,18 +416,18 @@ async def list_facts(
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-    date_from: Annotated[date | None, Query()] = None,
-    date_to: Annotated[date | None, Query()] = None,
-    article_id: Annotated[int | None, Query()] = None,
-    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
-    search: Annotated[str | None, Query(max_length=200)] = None,
-    amount_min: Annotated[Decimal | None, Query(ge=0)] = None,
-    amount_max: Annotated[Decimal | None, Query(ge=0)] = None,
-    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
-    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
-    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
+    search: Annotated[Optional[str], Query(max_length=200)] = None,
+    amount_min: Annotated[Optional[Decimal], Query(ge=0)] = None,
+    amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -917,8 +917,8 @@ async def get_recent_facts_html(
 async def get_facts_summary(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[date | None, Query()] = None,
-    date_to: Annotated[date | None, Query()] = None,
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
 ) -> FactSummary:
     """
     Get aggregated summary of facts (income/expense totals).
@@ -995,15 +995,15 @@ async def get_facts_summary(
 async def get_facts_count(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[date | None, Query()] = None,
-    date_to: Annotated[date | None, Query()] = None,
-    article_id: Annotated[int | None, Query()] = None,
-    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
-    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
-    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
-    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> dict:
     """
     Get total facts count with filters (Shared Family Budget).

@@ -11,6 +11,7 @@ Endpoints:
     PUT    /api/v1/cost-centers/{id} - Update cost center (creates new SCD2 version)
     DELETE /api/v1/cost-centers/{id} - Soft delete cost center
 """
+from typing import Optional
 
 import logging
 from datetime import datetime
@@ -59,7 +60,7 @@ async def list_cost_centers(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     include_inactive: bool = Query(False, description="Include archived cost centers"),
-    financial_center_id: int | None = Query(
+    financial_center_id: Optional[int] = Query(
         default=None,
         description="Filter cost centers by financial center ID. "
                     "Returns cost centers with NO FC restrictions OR linked to this specific FC."

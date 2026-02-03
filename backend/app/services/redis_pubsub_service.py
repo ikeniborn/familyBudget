@@ -33,7 +33,7 @@ import logging
 import time
 from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from backend.app.services.redis_service import get_redis, is_redis_available
@@ -49,8 +49,8 @@ EVENT_BUFFER_MAX_AGE = 60  # Seconds to keep events in buffer
 EVENT_BUFFER_MAX_SIZE = 1000  # Maximum events in buffer
 
 # Subscriber task reference
-_subscriber_task: asyncio.Task | None = None
-_local_broadcast_callback: Callable[[str, dict], Coroutine] | None = None
+_subscriber_task: Optional[asyncio.Task] = None
+_local_broadcast_callback: Optional[Callable[[str, dict], Coroutine]] = None
 
 
 async def publish_event(event_type: str, data: dict[str, Any]) -> bool:

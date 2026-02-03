@@ -6,6 +6,7 @@ Provides CRUD operations for bank provider reference table.
 
 Pattern: Service layer (business logic)
 """
+from typing import Optional
 
 import logging
 
@@ -63,7 +64,7 @@ class BankProviderService:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_code(session: AsyncSession, code: str) -> BankProvider | None:
+    async def get_by_code(session: AsyncSession, code: str) -> Optional[BankProvider]:
         """
         Get bank by code.
 
@@ -88,7 +89,7 @@ class BankProviderService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_by_id(session: AsyncSession, bank_id: int) -> BankProvider | None:
+    async def get_by_id(session: AsyncSession, bank_id: int) -> Optional[BankProvider]:
         """
         Get bank by ID.
 

@@ -3,6 +3,7 @@ Pydantic schemas for User Consent API (GDPR compliance).
 
 Defines request/response models for cookie consent management.
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -99,7 +100,7 @@ class ConsentStatusResponse(BaseModel):
         default_factory=dict,
         description="Consent status by type"
     )
-    privacy_policy_version: str | None = Field(
+    privacy_policy_version: Optional[str] = Field(
         None,
         description="Latest privacy policy version agreed to"
     )

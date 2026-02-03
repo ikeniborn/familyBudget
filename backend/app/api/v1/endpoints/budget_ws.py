@@ -37,7 +37,7 @@ import uuid
 from collections import deque
 from datetime import datetime, timedelta
 from json import JSONDecodeError
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
@@ -462,7 +462,7 @@ def get_budget_ws_manager():
     return ws_manager
 
 
-async def verify_ws_token(token: str) -> User | None:
+async def verify_ws_token(token: str) -> Optional[User]:
     """
     Verify JWT token from WebSocket query parameter.
 
@@ -807,7 +807,7 @@ async def poll_budget_events(
 
 # ==================== Background Cleanup Task ====================
 
-_cleanup_task: asyncio.Task | None = None
+_cleanup_task: asyncio.Optional[Task] = None
 
 
 async def _periodic_cleanup():
@@ -866,7 +866,7 @@ def _get_connected_user_ids() -> set[int]:
     return {uid for uid, _, _, _ in ws_manager.connections}
 
 
-async def _send_push_for_offline_users(title: str, body: str, data: dict | None = None):
+async def _send_push_for_offline_users(title: str, body: str, data: Optional[dict] = None):
     """
     Send push notification to users WITHOUT active WebSocket connections.
     """

@@ -4,6 +4,7 @@ Admin Export API endpoints.
 Provides system-wide data export functionality for administrators.
 Admins can export all users' facts with advanced filtering.
 """
+from typing import Optional
 
 from datetime import date
 
@@ -32,10 +33,10 @@ router = APIRouter(prefix="/admin/export", tags=["Admin Export"])
 async def export_all_facts_csv(
     current_admin: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_session),
-    user_id: int | None = Query(None, description="Filter by user ID"),
-    article_id: int | None = Query(None, description="Filter by article ID"),
-    start_date: date | None = Query(None, description="Start date for filtering"),
-    end_date: date | None = Query(None, description="End date for filtering"),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    article_id: Optional[int] = Query(None, description="Filter by article ID"),
+    start_date: Optional[date] = Query(None, description="Start date for filtering"),
+    end_date: Optional[date] = Query(None, description="End date for filtering"),
 ):
     """
     Export all users' facts (transactions) to CSV format.

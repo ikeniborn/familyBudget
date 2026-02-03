@@ -31,6 +31,7 @@ Usage:
     # Generate backup codes
     plain_codes, hashed_json = generate_backup_codes()
 """
+from typing import Optional
 
 import secrets
 
@@ -190,7 +191,7 @@ def generate_backup_codes(count: int = BACKUP_CODE_COUNT) -> tuple[list[str], st
 def verify_backup_code(
     code: str,
     hashed_codes_json: str,
-) -> tuple[bool, str | None]:
+) -> tuple[bool, Optional[str]]:
     """
     Verify a backup code and remove it if valid.
 
@@ -241,7 +242,7 @@ def verify_backup_code(
     return False, None
 
 
-def get_remaining_backup_codes_count(hashed_codes_json: str | None) -> int:
+def get_remaining_backup_codes_count(hashed_codes_json: Optional[str]) -> int:
     """
     Get count of remaining backup codes.
 

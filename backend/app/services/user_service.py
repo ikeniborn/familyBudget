@@ -17,7 +17,7 @@ Key Functions:
 """
 
 from datetime import date, datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -34,7 +34,7 @@ async def update_user_profile(
     session: AsyncSession,
     user: User,
     updates: dict[str, Any],
-    changed_by_user_id: int | None = None,
+    changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
 ) -> User:
     """
@@ -179,7 +179,7 @@ async def get_user_version_at_date(
     session: AsyncSession,
     user_id: int,
     target_date: date,
-) -> UserHistory | None:
+) -> Optional[UserHistory]:
     """
     Get User version that was active at a specific date (time-travel query).
 

@@ -19,6 +19,7 @@ Performance:
     All queries use indexed lookups on closure table - O(1) complexity.
     No recursive queries needed.
 """
+from typing import Optional
 
 from datetime import datetime, timezone
 
@@ -34,7 +35,7 @@ from backend.app.models.hierarchy import ArticleHierarchy
 async def get_subtree(
     session: AsyncSession,
     article_id: int,
-    max_depth: int | None = None,
+    max_depth: Optional[int] = None,
     include_self: bool = True,
 ) -> list[Article]:
     """
@@ -283,7 +284,7 @@ async def get_direct_children(
 async def get_root(
     session: AsyncSession,
     article_id: int,
-) -> Article | None:
+) -> Optional[Article]:
     """
     Find root article of the tree containing the given article.
 
@@ -410,7 +411,7 @@ async def get_level(
 async def archive_recursive(
     session: AsyncSession,
     article_id: int,
-    changed_by_user_id: int | None = None,
+    changed_by_user_id: Optional[int] = None,
 ) -> int:
     """
     Archive article and ALL its descendants recursively.
@@ -493,7 +494,7 @@ async def archive_recursive(
 async def restore_recursive(
     session: AsyncSession,
     article_id: int,
-    changed_by_user_id: int | None = None,
+    changed_by_user_id: Optional[int] = None,
 ) -> int:
     """
     Restore article and ALL its descendants recursively.

@@ -9,6 +9,7 @@ Implements "whitelist" pattern:
 This model enables filtering of cost centers based on selected financial center
 when creating new transactions.
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -40,7 +41,7 @@ class CostCenterFinancialCenter(SQLModel, table=True):
 
     __tablename__ = "t_cost_center_financial_center"
 
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"

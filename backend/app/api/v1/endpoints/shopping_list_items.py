@@ -82,11 +82,11 @@ async def list_shopping_list_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     shopping_list_id: int = Query(..., description="Shopping list ID to filter"),
-    is_completed: bool | None = Query(
+    is_completed: Optional[bool] = Query(
         None, description="Filter by completion status (True/False/None)"
     ),
-    store_id: int | None = Query(None, description="Filter by store ID"),
-    product_group_id: int | None = Query(None, description="Filter by product group ID"),
+    store_id: Optional[int] = Query(None, description="Filter by store ID"),
+    product_group_id: Optional[int] = Query(None, description="Filter by product group ID"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
 ) -> ShoppingListItemListResponse:
@@ -251,7 +251,7 @@ async def suggest_products(
         max_length=100,
         description="Search query (min 2 characters)"
     ),
-    shopping_list_id: int | None = Query(
+    shopping_list_id: Optional[int] = Query(
         default=None,
         description="Filter by shopping list ID (enables restore of deleted items)"
     ),
@@ -425,7 +425,7 @@ async def suggest_products(
         )
 
     # Deduplicate: prefer deleted items (have specific ID for restore)
-    seen: set[tuple[str, int | None, int | None]] = set()
+    seen: set[tuple[str, Optional[int], Optional[int]]] = set()
     unique_suggestions: list[ProductSuggestion] = []
 
     for s in suggestions:
@@ -463,7 +463,7 @@ async def check_duplicate_item(
     store_id: int = Query(..., description="Store ID"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> ShoppingListItemResponse | None:
+) -> Optional[ShoppingListItemResponse]:
     """
     Check if similar item exists in shopping list (NOT completed).
 
@@ -937,7 +937,7 @@ async def batch_delete_items(
 async def get_pending_sync_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    shopping_list_id: int | None = Query(
+    shopping_list_id: Optional[int] = Query(
         None, description="Optional filter by shopping list ID"
     ),
 ) -> ShoppingListItemListResponse:
@@ -983,7 +983,7 @@ async def delta_sync(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
     shopping_list_id: int = Query(..., description="Shopping list ID"),
-    since: datetime | None = Query(
+    since: Optional[datetime] = Query(
         None, description="Get changes since this timestamp (ISO 8601)"
     ),
 ) -> SyncDeltaResponse:
@@ -1232,7 +1232,7 @@ async def batch_sync(
     )
 
 
-def _auto_merge_items(server_item: ShoppingListItem, client_update) -> dict | None:
+def _auto_merge_items(server_item: ShoppingListItem, client_update) -> Optional[dict]:
     """
     Attempt to auto-merge server and client changes.
 

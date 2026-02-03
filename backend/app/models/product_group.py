@@ -10,6 +10,7 @@ Key features:
 - Shared across all users (admin-managed)
 - Full change history in ProductGroupHistory table
 """
+from typing import Optional
 
 from datetime import datetime
 
@@ -94,7 +95,7 @@ class ProductGroup(SQLModel, table=True):
     __tablename__ = "t_d_product_group"
 
     # Primary key
-    id: int | None = Field(
+    id: Optional[int] = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -107,7 +108,7 @@ class ProductGroup(SQLModel, table=True):
         nullable=False,
         description="Creator user ID (required - tracks creator for audit trail)"
     )
-    parent_id: int | None = Field(
+    parent_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_product_group.id",
         index=True,
@@ -121,11 +122,11 @@ class ProductGroup(SQLModel, table=True):
         index=True,
         description="Product group display name (unique)"
     )
-    description: str | None = Field(
+    description: Optional[str] = Field(
         default=None,
         description="Optional description or notes about the product group"
     )
-    code: str | None = Field(
+    code: Optional[str] = Field(
         default=None,
         max_length=50,
         nullable=True,
