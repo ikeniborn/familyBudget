@@ -1070,6 +1070,107 @@ RUN apt-get install -y --no-install-recommends \
 
 ---
 
+## Dependency Optimization (v11.2)
+
+**Дата**: 2026-02-03
+**Изменения**: Удалены неиспользуемые пакеты, test-only зависимости вынесены в `requirements-dev.txt`
+
+### Requirements Structure
+
+#### Production Dependencies (`backend/requirements.txt`)
+
+**48 packages** (было 57 в v11.1):
+- FastAPI framework (fastapi, starlette, uvicorn)
+- Database (sqlmodel, asyncpg, alembic, psycopg2-binary)
+- Auth (python-jose, argon2-cffi, pyotp, webauthn, pywebpush)
+- Services (redis, apscheduler, slowapi, psutil, docker, python-json-logger)
+- **Critical runtime dependencies** (см. ниже)
+
+#### Development/Test Dependencies (`backend/requirements-dev.txt`)
+
+**6 packages** (NEW in v11.2):
+- Testing: pytest, pytest-asyncio, pytest-cov, httpx
+- Code quality: black, ruff
+
+**Note**: Dev dependencies установлены ТОЛЬКО в CI/CD для тестов, не в production образе.
+
+---
+
+### Critical Runtime Dependencies
+
+Эти пакеты могут казаться "косвенными", но критичны для production:
+
+#### 1. email-validator (2.2.0)
+**Назначение**: Pydantic v2 требует email-validator для `EmailStr` validation
+**Используется**: `backend/app/schemas/auth.py` - authentication schemas
+**Без него**: Authentication ломается (login, OAuth, password reset)
+
+```python
+# backend/app/schemas/auth.py
+from pydantic import EmailStr  # Requires email-validator installed
+
+class UserRegister(BaseModel):
+    email: EmailStr  # Won't work without email-validator!
+```
+
+#### 2. python-dotenv (1.0.1)
+**Назначение**: pydantic-settings требует python-dotenv для `.env` файлов
+**Используется**: `backend/app/core/config.py` - configuration loading
+**Без него**: App startup fails с missing environment variables
+
+```python
+# backend/app/core/config.py
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",  # Requires python-dotenv to load!
+        env_file_encoding="utf-8"
+    )
+```
+
+#### 3. aiofiles (24.1.0)
+**Назначение**: FastAPI/Starlette использует aiofiles для async file I/O
+**Используется**: `backend/app/api/v1/endpoints/import_endpoints.py` - file uploads
+**Без него**: File upload endpoints падают с async I/O errors
+
+```python
+# backend/app/api/v1/endpoints/import_endpoints.py
+@router.post("/import")
+async def import_file(file: UploadFile = File(...)):
+    # FastAPI internally uses aiofiles for UploadFile processing
+    content = await file.read()
+```
+
+#### 4. orjson (>=3.10.0)
+**Назначение**: High-performance JSON serialization (3-10x faster)
+**Используется**: `backend/app/main.py:251` - default response class для ALL endpoints
+**Без него**: Performance regression (fallback to stdlib json)
+
+```python
+# backend/app/main.py
+app = FastAPI(
+    default_response_class=ORJSONResponse,  # Uses orjson for ALL responses
+)
+```
+
+---
+
+### Removed Packages (v11.2)
+
+#### Unused Dependencies (3 packages)
+- ❌ **reportlab** (4.2.5) - PDF export never implemented (0 imports)
+- ❌ **openpyxl** (3.1.5) - Excel export never implemented (0 imports)
+- ❌ **sse-starlette** (>=2.0.0) - SSE unused (WebSocket + Redis used instead)
+
+#### Test-Only Dependencies (6 packages → requirements-dev.txt)
+- pytest, pytest-asyncio, pytest-cov, httpx, black, ruff
+
+**Impact**:
+- Docker image size: -15-25 MB
+- Build time: -5-10 seconds
+- Security surface: меньше пакетов = меньше уязвимостей
+
+---
+
 ## Related Documentation
 
 - **CI/CD Build Pipeline**: [ci-cd-build-deploy.md](../operations/ci-cd-build-deploy.md)
@@ -1079,7 +1180,7 @@ RUN apt-get install -y --no-install-recommends \
 
 ---
 
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-02-03
 **Maintainer**: Family Budget Team
-**Version**: 1.0 (Registry-First Architecture)
-**Breaking Changes**: 5 custom images, multi-stage builds, embedded frontend
+**Version**: 1.1 (Registry-First + Dependency Optimization)
+**Breaking Changes**: 5 custom images, multi-stage builds, embedded frontend, requirements-dev.txt
