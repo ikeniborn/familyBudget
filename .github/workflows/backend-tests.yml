@@ -58,7 +58,7 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          pip install pytest-cov pytest-asyncio
+          pip install -r requirements-dev.txt
 
       - name: Run backend migrations
         env:
