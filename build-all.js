@@ -42,7 +42,7 @@ const builds = [
     globalName: 'Dexie'
   },
 
-  // === Performance Monitoring (loaded after PGlite) ===
+  // === Performance Monitoring (loaded after Dexie) ===
   {
     name: 'performanceMonitor',
     input: 'frontend/web/static/js/monitoring/PerformanceMonitor.ts',
@@ -50,7 +50,7 @@ const builds = [
     globalName: 'PerformanceMonitor'
   },
 
-  // === Data Layer (PGlite-first with API fallback) ===
+  // === Data Layer (Dexie-first with API fallback) ===
   {
     name: 'dataLayer',
     input: 'frontend/web/static/js/data/DataLayer.ts',
@@ -121,18 +121,6 @@ const builds = [
     input: 'frontend/web/static/js/offline/networkDetector.js',
     output: 'frontend/web/static/js/offline/networkDetector.min.js',
     globalName: 'NetworkDetector'
-  },
-  {
-    name: 'offlineManager',
-    input: 'frontend/web/static/js/offline/offlineManager/index.ts',  // TypeScript entry point (v7.0.0 migration)
-    output: 'frontend/web/static/js/offline/offlineManager.min.js',
-    globalName: 'OfflineManager'
-  },
-  {
-    name: 'conflictResolver',
-    input: 'frontend/web/static/js/offline/conflictResolver.js',
-    output: 'frontend/web/static/js/offline/conflictResolver.min.js',
-    globalName: 'ConflictResolver'
   },
   {
     name: 'offlineShoppingManager',

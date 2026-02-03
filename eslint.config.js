@@ -156,7 +156,6 @@ module.exports = [
         FormDataEntryValue: "readonly",
         NodeJS: "readonly",
         // Application-specific globals
-        pglite: "readonly",
         IndexedDBManager: "readonly",
         Logger: "readonly",
         logNav: "readonly",
