@@ -68,6 +68,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 **HOTFIX (v11.2.20):**
 - Added libpython3.11.so.1.0 shared library copy to distroless runtime (required by --copies venv binary)
 
+**HOTFIX (v11.2.21):**
+- Use distroless system Python + PYTHONPATH instead of venv binary (simpler, no symlink/shared library issues)
+
 ### Environments
 
 | Environment | URL | Purpose |

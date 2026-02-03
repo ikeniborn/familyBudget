@@ -20,7 +20,7 @@ RUN apt-get update && \
 # Remove vulnerable system Python packages before creating venv
 RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
 
-RUN python -m venv --copies /opt/venv
+RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
@@ -89,12 +89,10 @@ FROM gcr.io/distroless/python3-debian12:latest
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PATH="/opt/venv/bin:$PATH" \
+    PYTHONPATH="/opt/venv/lib/python3.11/site-packages:${PYTHONPATH}" \
     APP_HOME=/app
 
 # Copy runtime libraries from builder (distroless doesn't have package manager)
-# Python shared library (required by venv python3.11 binary when using --copies)
-COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpython3.11.so.1.0 /usr/lib/x86_64-linux-gnu/
 # PostgreSQL client library (required by asyncpg)
 COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64-linux-gnu/
 # Copy all libpq dependencies from /lib/x86_64-linux-gnu/ (Kerberos, LDAP, SASL, GnuTLS, etc.)
@@ -170,15 +168,13 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 EXPOSE 8000
 
 # Python-based healthcheck (no curl in distroless)
-# Use venv python3.11 explicitly (symlink 'python' may not work in distroless COPY)
+# Use distroless system Python + venv packages via PYTHONPATH
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD ["/opt/venv/bin/python3.11", "/app/healthcheck.py"]
+    CMD ["/usr/bin/python3.11", "/app/healthcheck.py"]
 
-# Override distroless ENTRYPOINT to use venv python (has all dependencies)
-# Distroless base sets ENTRYPOINT=["/usr/bin/python3.11"] (system python, no packages)
-# We need /opt/venv/bin/python3.11 (has uvicorn, alembic, etc.)
-# Using python3.11 explicitly as 'python' symlink may not survive COPY in distroless
-ENTRYPOINT ["/opt/venv/bin/python3.11"]
+# Use distroless system Python (no venv binary issues)
+# Packages loaded from /opt/venv/lib/python3.11/site-packages via PYTHONPATH
+ENTRYPOINT ["/usr/bin/python3.11"]
 
 # Start server via Python script (supports WORKERS env var)
 CMD ["/app/start_server.py"]
