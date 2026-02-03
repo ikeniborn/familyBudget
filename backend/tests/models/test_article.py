@@ -55,7 +55,7 @@ async def test_create_article_with_code(session: AsyncSession, test_user: User):
 
 
 @pytest.mark.asyncio
-async def test_create_global_article(session: AsyncSession):
+async def test_create_global_article(session: AsyncSession, test_user):
     """Test creating global article (no user_id)."""
     article = Article(
         user_id=test_user.id,

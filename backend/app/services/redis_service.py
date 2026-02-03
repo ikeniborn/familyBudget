@@ -26,14 +26,14 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 import redis.asyncio as redis
-from redis.asyncio import Redis
+from redis.asyncio import ConnectionPool, Redis
 
 from backend.app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 # Global connection pool
-_redis_pool: redis.Optional[ConnectionPool] = None
+_redis_pool: Optional[ConnectionPool] = None
 
 
 async def init_redis_pool() -> None:

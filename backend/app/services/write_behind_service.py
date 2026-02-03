@@ -39,6 +39,7 @@ import asyncio
 import logging
 import time
 import uuid
+from asyncio import Task
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
@@ -146,7 +147,7 @@ class WriteBehindService:
     """
 
     def __init__(self):
-        self._worker_task: asyncio.Optional[Task] = None
+        self._worker_task: Optional[Task] = None
         self._running = False
         self._worker_id = str(uuid.uuid4())[:8]
         self._stats = {
