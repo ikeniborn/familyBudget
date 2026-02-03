@@ -224,20 +224,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Workers: Default 1 for legacy SSE mode, can be increased with Redis Pub/Sub
+    # Command removed: Using Dockerfile CMD instead (correct array syntax for distroless)
+    # Dockerfile CMD: ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    # Workers: Default 1 for legacy SSE mode, can be increased via WORKERS env var with Redis Pub/Sub
     # See: backend/app/api/v1/endpoints/budget_ws.py for WebSocket implementation
-    # --ws-per-message-deflate false: Disable WebSocket compression for iOS Safari compatibility
-    # Reference: https://github.com/encode/uvicorn/issues/1298
-    command: >
-      python -m uvicorn backend.app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --workers ${WORKERS:-1}
-      --ws-per-message-deflate false
-      --log-level ${LOG_LEVEL:-info}
-      --access-log
-      --proxy-headers
-      --forwarded-allow-ips='*'
     deploy:
       resources:
         limits:
