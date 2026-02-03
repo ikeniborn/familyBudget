@@ -253,7 +253,7 @@ async function performPruning() {
 
         // Show notification if significant cleanup
         if (result.deletedCount > 0) {
-          await self.registration.showNotification('PGlite Cleanup', {
+          await self.registration.showNotification('Data Cleanup', {
             body: `Removed ${result.deletedCount} old transactions (${(result.dbSizeBefore - result.dbSizeAfter).toFixed(0)} KB saved)`,
             icon: '/static/icons/icon-192.png',
             badge: '/static/icons/icon-192.png'
@@ -280,7 +280,7 @@ async function performPruning() {
 
   // All retries exhausted - show error notification
   console.error('[PRUNING_SW] All retries exhausted', lastError);
-  await self.registration.showNotification('PGlite Cleanup Error', {
+  await self.registration.showNotification('Data Cleanup Error', {
     body: 'Failed to clean up old data after 3 attempts. Please try manual cleanup in Settings.',
     icon: '/static/icons/icon-192.png',
     badge: '/static/icons/icon-192.png',

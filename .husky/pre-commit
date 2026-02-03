@@ -99,42 +99,14 @@ else
 fi
 echo ""
 
-# Run unit tests (only if TypeScript source files changed, not for docs/configs)
-# Skip tests if SKIP_TESTS=1 environment variable is set
-CHANGED_TS_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v '\.d\.ts$' | grep -v 'vite\.config\.ts$' | grep -v 'vitest\.config\.ts$' || true)
-
-if [ -n "$CHANGED_TS_FILES" ] && [ "${SKIP_TESTS:-0}" != "1" ]; then
-  echo "3️⃣  Running unit tests..."
-
-  # Check if test script exists in package.json
-  if grep -q '"test"' "$GIT_ROOT/package.json" || grep -q '"test:coverage"' "$GIT_ROOT/package.json"; then
-    # Run tests from project root
-    cd "$GIT_ROOT"
-
-    # Use test:coverage if test doesn't exist
-    if grep -q '"test":' "$GIT_ROOT/package.json"; then
-      npm test -- --run --reporter=dot 2>&1 | tail -10
-      TEST_EXIT_CODE=${PIPESTATUS[0]}  # Get exit code of npm, not tail
-    else
-      npm run test:coverage -- --run --reporter=dot 2>&1 | tail -10
-      TEST_EXIT_CODE=${PIPESTATUS[0]}  # Get exit code of npm, not tail
-    fi
-
-    if [ $TEST_EXIT_CODE -ne 0 ]; then
-      echo "❌ Tests failed! Fix failing tests before committing."
-      exit 1
-    fi
-    echo "✅ All tests passed"
-  else
-    echo "⚠️  No test script found in package.json, skipping tests"
-  fi
-else
-  if [ "${SKIP_TESTS:-0}" = "1" ]; then
-    echo "3️⃣  Skipping unit tests (SKIP_TESTS=1)"
-  else
-    echo "3️⃣  Skipping unit tests (no source files changed)"
-  fi
-fi
+# ============================================================================
+# Unit tests moved to CI/CD for better performance
+# ============================================================================
+# Rationale: Unit tests (~30s+) are now run in GitHub Actions with full coverage
+# Pre-commit focuses on fast checks (~10-15s) for immediate feedback
+# Use SKIP_TESTS=1 environment variable if needed for WIP commits
+echo "ℹ️  Unit tests will run in CI/CD pipeline"
 echo ""
 
 echo "✅ All pre-commit checks passed!"
+echo "💡 Tip: Unit tests run in GitHub Actions with full coverage reporting"

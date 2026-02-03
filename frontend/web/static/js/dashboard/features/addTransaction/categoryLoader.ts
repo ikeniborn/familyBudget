@@ -11,7 +11,7 @@ import {
 } from '../../core/DashboardState';
 import type { Category, CostCenter } from '../../types/dashboard.d';
 import { dataLayer } from '../../../data/DataLayer';
-import { getCurrentUserId } from '../../../offline/offlineManager/utils/userHelpers';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Safe wrapper for showToast (handles case when not loaded yet)

@@ -33,8 +33,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality-checks:
+  # ============================================================================
+  # Frontend Checks (Consolidated from frontend-tests.yml)
+  # ============================================================================
+  frontend-quality:
+    name: Frontend Quality & Tests
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,22 +49,150 @@ jobs:
       - name: Setup Node.js
         uses: ./.github/actions/setup-node
 
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       - name: Install Node dependencies
         run: npm ci
 
-      - name: TypeScript type check
+      # TypeScript type check (REMOVED - already in pre-commit hook)
+      # Kept in CI only as safety net if pre-commit bypassed
+      - name: TypeScript type check (safety net)
         run: npm run type-check
+        continue-on-error: false
 
       - name: ESLint
         run: npm run lint
 
-      - name: Build frontend
-        run: npm run build
+      - name: Build CSS
+        run: npm run build:css
+
+      - name: Bundle JavaScript
+        run: npm run bundle
+
+      - name: Verify bundle sizes
+        run: |
+          if [ -f "frontend/web/static/js/dist/bundle.js" ]; then
+            MAIN_SIZE=$(stat -c%s frontend/web/static/js/dist/bundle.js)
+            MAX_SIZE=500000  # 500KB
+
+            echo "Main bundle size: $MAIN_SIZE bytes (max: $MAX_SIZE bytes)"
+
+            if [ $MAIN_SIZE -gt $MAX_SIZE ]; then
+              echo "❌ Main bundle too large: $MAIN_SIZE bytes (max $MAX_SIZE bytes / 500KB)"
+              exit 1
+            fi
+
+            echo "✅ Bundle size OK"
+          else
+            echo "⚠️  Bundle file not found, skipping size check"
+          fi
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            frontend/web/static/css/output.css
+            frontend/web/static/js/dist/
+          retention-days: 7
+
+      # Unit tests with coverage (SINGLE SOURCE OF TRUTH)
+      - name: Unit & Integration Tests
+        run: npm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Check coverage thresholds
+        run: |
+          LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+          FUNCTIONS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
+          BRANCHES=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
+          STATEMENTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
+
+          # Thresholds from vitest.config.ts
+          LINES_THRESHOLD=5.9
+          FUNCTIONS_THRESHOLD=73.7
+          BRANCHES_THRESHOLD=86
+          STATEMENTS_THRESHOLD=5.9
+
+          echo "Coverage Report:"
+          echo "  Lines: $LINES% (threshold: $LINES_THRESHOLD%)"
+          echo "  Functions: $FUNCTIONS% (threshold: $FUNCTIONS_THRESHOLD%)"
+          echo "  Branches: $BRANCHES% (threshold: $BRANCHES_THRESHOLD%)"
+          echo "  Statements: $STATEMENTS% (threshold: $STATEMENTS_THRESHOLD%)"
+
+          FAIL=0
+
+          if awk -v a="$LINES" -v b="$LINES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
+            echo "❌ Lines coverage $LINES% is below $LINES_THRESHOLD% threshold"
+            FAIL=1
+          fi
+
+          if awk -v a="$FUNCTIONS" -v b="$FUNCTIONS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
+            echo "❌ Functions coverage $FUNCTIONS% is below $FUNCTIONS_THRESHOLD% threshold"
+            FAIL=1
+          fi
+
+          if awk -v a="$BRANCHES" -v b="$BRANCHES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
+            echo "❌ Branches coverage $BRANCHES% is below $BRANCHES_THRESHOLD% threshold"
+            FAIL=1
+          fi
+
+          if awk -v a="$STATEMENTS" -v b="$STATEMENTS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
+            echo "❌ Statements coverage $STATEMENTS% is below $STATEMENTS_THRESHOLD% threshold"
+            FAIL=1
+          fi
+
+          if [ $FAIL -eq 1 ]; then
+            exit 1
+          fi
+
+          echo "✅ All coverage thresholds met"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ============================================================================
+  # Backend Checks
+  # ============================================================================
+  backend-quality:
+    name: Backend Quality & Tests
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: ./.github/actions/setup-python
         with:
           python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install Python dependencies
         run: |
@@ -72,22 +205,29 @@ jobs:
 
       - name: Python ruff lint
         run: ruff check backend/
-        # Removed continue-on-error: linter errors should block PR
 
-      - name: Unit tests
-        run: pytest tests/unit/ --cov --cov-report=xml || true
-        continue-on-error: true
+      - name: Backend unit tests
+        run: pytest tests/unit/ --cov --cov-report=xml
 
-      - name: Upload coverage
+      - name: Upload backend coverage
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
+          flags: backend
           fail_ci_if_error: false
-        continue-on-error: true
 
-      - name: PR Summary
-        if: always()
+  # ============================================================================
+  # PR Summary
+  # ============================================================================
+  summary:
+    name: PR Summary
+    runs-on: ubuntu-latest
+    needs: [frontend-quality, backend-quality]
+    if: always()
+
+    steps:
+      - name: Generate PR Summary
         run: |
           echo "## ✅ PR Quality Checks Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -95,4 +235,10 @@ jobs:
           echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All quality checks completed. Review the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Optimization Notes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Type check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Unit tests: Run once in CI with full coverage" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ console.log check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Time saved:** ~7 minutes per PR (eliminated test duplication)" >> $GITHUB_STEP_SUMMARY

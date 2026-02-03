@@ -75,7 +75,7 @@
             PUSH_BANNER: true,         // Push permission banner (info logs removed from code)
             ADMIN_LOGS: true,          // Admin logs page (info logs removed from code)
             CONFLICT: true,            // Conflict resolution (task-009: LWW strategy)
-            PGLITE: isDevelopment      // PGlite database operations (dev only)
+            DEXIE: isDevelopment       // Dexie database operations (dev only)
         },
 
         // Environment info (for debugging)

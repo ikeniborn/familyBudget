@@ -9,7 +9,7 @@
 
 import type { User, Article, FinancialCenter, CostCenter, ArticleTreeNode } from '../types/models';
 import { dataLayer } from '../../data/DataLayer';
-import { getCurrentUserId } from '../../offline/offlineManager/utils/userHelpers';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Load Users
