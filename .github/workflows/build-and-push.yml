@@ -34,7 +34,7 @@ on:
         options:
           - ubuntu-latest
           - self-hosted
-        default: self-hosted
+        default: ubuntu-latest
 
 # Allow only one workflow run at a time
 concurrency:
@@ -46,7 +46,7 @@ jobs:
   # Job 1: Check VERSION file changes
   # ============================================================================
   check-version:
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
@@ -85,7 +85,7 @@ jobs:
   # ============================================================================
   service-build:
     needs: [check-version]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
@@ -166,7 +166,7 @@ jobs:
   # ============================================================================
   quality-checks:
     needs: [check-version, service-build]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
@@ -249,7 +249,7 @@ jobs:
   # ============================================================================
   image-build-push:
     needs: [check-version, service-build, quality-checks]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
@@ -631,7 +631,7 @@ jobs:
   # ============================================================================
   security-scan:
     needs: [check-version, image-build-push]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
       (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
@@ -780,7 +780,7 @@ jobs:
   # ============================================================================
   summary:
     needs: [check-version, service-build, quality-checks, image-build-push, security-scan, deploy-test]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
     steps:
       - name: Checkout code
@@ -818,7 +818,7 @@ jobs:
   deploy-test:
     name: deploy-test
     needs: [check-version, image-build-push, security-scan]
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
       github.ref_name == 'test' &&

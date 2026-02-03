@@ -22,7 +22,7 @@ permissions:
 jobs:
   e2e-tests:
     name: E2E Tests (${{ matrix.browser }})
-    runs-on: ${{ github.event.inputs.runner_type || 'self-hosted' }}
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 15
     # Only run if PR is from test branch to main
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'test' && github.base_ref == 'main')
