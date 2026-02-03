@@ -11,7 +11,7 @@
 
 export {}; // Force module scope
 
-import type { NetworkStatus, SmartNetworkDetectorOptions } from '../types';
+import type { NetworkStatus, SmartNetworkDetectorOptions, StatusChangeOptions } from '../types';
 
 /**
  * Complete state container for NetworkDetector
@@ -63,7 +63,7 @@ export interface NetworkDetectorState {
   // ============================================================================
   // Callbacks
   // ============================================================================
-  onStatusChange: ((newStatus: NetworkStatus, oldStatus: NetworkStatus, options?: any) => void) | null;
+  onStatusChange: ((newStatus: NetworkStatus, oldStatus: NetworkStatus, options?: StatusChangeOptions) => void) | null;
 
   // ============================================================================
   // Auto recovery
@@ -169,7 +169,7 @@ export const loadOfflineState = (): void => {
     localStorage.removeItem('budget_manual_offline_mode');
   } catch (e) {
     // localStorage might be unavailable (incognito mode, browser restrictions)
-    if ((window as any).DEBUG_MODE) {
+    if (window.DEBUG_MODE) {
       console.warn('[NetworkState] localStorage unavailable:', e);
     }
     updateState({ autoOfflineMode: false });

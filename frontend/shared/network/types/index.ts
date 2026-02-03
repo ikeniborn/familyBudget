@@ -22,6 +22,15 @@ export interface ConnectionInfo {
 }
 
 /**
+ * Additional options passed to status change events
+ */
+export interface StatusChangeOptions {
+  timestamp?: number;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Constructor options for SmartNetworkDetector
  */
 export interface SmartNetworkDetectorOptions {
@@ -31,7 +40,7 @@ export interface SmartNetworkDetectorOptions {
   heartbeatTimeout?: number;
   minCheckInterval?: number;
   degradedRtt?: number;
-  onStatusChange?: ((newStatus: NetworkStatus, oldStatus: NetworkStatus, options?: any) => void) | null;
+  onStatusChange?: ((newStatus: NetworkStatus, oldStatus: NetworkStatus, options?: StatusChangeOptions) => void) | null;
 }
 
 /**
