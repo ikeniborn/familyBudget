@@ -1,8 +1,27 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Версия:** v11.0.0
+**Версия:** v11.1.40
 **Статус:** Production-ready
+**Migration Status:** Complete (v11.0+ - PGlite fully removed)
+
+---
+
+## Migration Complete (v11.1.40)
+
+**PGlite Legacy Removed:**
+- ✅ `offlineManager` directory deleted (21 files)
+- ✅ `conflictResolver.ts` deleted
+- ✅ `userHelpers.ts` moved to `@shared/utils/`
+- ✅ Templates migrated to Dexie API (`plan.html`, `navbar-sync-badge.html`)
+- ✅ Dexie активен по умолчанию (`isDexieActive()` returns `true`)
+- ✅ Build configuration updated (PGlite → Dexie comments)
+- ✅ Obsolete tests removed
+
+**Note:** userHelpers moved from `offlineManager/utils/` to `frontend/shared/static/js/utils/userHelpers.ts` and used by:
+- `dashboard/features/addTransaction/categoryLoader.ts`
+- `plan/helpers.ts`
+- `facts/integration/dropdownAPI.ts`
 
 ---
 
