@@ -167,7 +167,9 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 EXPOSE 8000
 
 # Python-based healthcheck (no curl in distroless)
+# Note: distroless python3-debian12 sets ENTRYPOINT=["/usr/bin/python3.11"]
+# So CMD args are passed directly to python interpreter
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD ["python", "/app/healthcheck.py"]
+    CMD ["/app/healthcheck.py"]
 
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
