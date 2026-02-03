@@ -85,6 +85,51 @@ import type {
   DetailedStatus
 } from './types';
 
+/**
+ * Extend Window interface to include Network Module exports
+ */
+declare global {
+  interface Window {
+    SmartNetworkDetector: typeof SmartNetworkDetector;
+    NetworkModule: {
+      init: typeof init;
+      destroy: typeof destroy;
+      dispatchRestoredState: typeof dispatchRestoredState;
+      setStatus: typeof setStatus;
+      checkConnectivity: typeof checkConnectivity;
+      handleOnline: typeof handleOnline;
+      handleOffline: typeof handleOffline;
+      getState: typeof getState;
+      updateState: typeof updateState;
+      resetState: typeof resetState;
+      createInitialState: typeof createInitialState;
+      loadOfflineState: typeof loadOfflineState;
+      saveOfflineState: typeof saveOfflineState;
+      startHeartbeat: typeof startHeartbeat;
+      stopHeartbeat: typeof stopHeartbeat;
+      getNextCheckDelay: typeof getNextCheckDelay;
+      scheduleNextHeartbeat: typeof scheduleNextHeartbeat;
+      startAutoRecoveryCheck: typeof startAutoRecoveryCheck;
+      stopAutoRecoveryCheck: typeof stopAutoRecoveryCheck;
+      hasNetworkInformation: typeof hasNetworkInformation;
+      getConnectionInfo: typeof getConnectionInfo;
+      getAdaptiveTimeout: typeof getAdaptiveTimeout;
+      handleConnectionChange: typeof handleConnectionChange;
+      onRequestSuccess: typeof onRequestSuccess;
+      onRequestFailure: typeof onRequestFailure;
+      enableAutoOfflineMode: typeof enableAutoOfflineMode;
+      disableAutoOfflineMode: typeof disableAutoOfflineMode;
+      isOfflineModeEnabled: typeof isOfflineModeEnabled;
+      getStatus: () => NetworkStatus;
+      isOnline: () => boolean;
+      isFullyOnline: () => boolean;
+      getDetailedStatus: () => DetailedStatus;
+      _networkLog: typeof _networkLog;
+      _networkWarn: typeof _networkWarn;
+    };
+  }
+}
+
 // ============================================================================
 // IIFE Wrapper
 // ============================================================================
@@ -127,10 +172,10 @@ import type {
   // ==========================================================================
 
   // Primary API: SmartNetworkDetector class (v2.0.0 compatible)
-  (window as any).SmartNetworkDetector = SmartNetworkDetector;
+  window.SmartNetworkDetector = SmartNetworkDetector;
 
   // Secondary API: NetworkModule namespace (modular access)
-  (window as any).NetworkModule = {
+  window.NetworkModule = {
     // Lifecycle
     init,
     destroy,

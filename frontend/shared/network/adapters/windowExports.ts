@@ -14,7 +14,7 @@
 
 import { resetState, getState, updateState } from '../core/NetworkState';
 import { init, destroy, dispatchRestoredState } from '../core/lifecycle';
-import { setStatus, checkConnectivity } from '../core/detectionEngine';
+import { checkConnectivity } from '../core/detectionEngine';
 import { getConnectionInfo } from '../utils/connectionInfo';
 import { onRequestSuccess, onRequestFailure } from '../features/errorTracking';
 import {

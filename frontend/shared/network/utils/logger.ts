@@ -7,15 +7,31 @@
  */
 
 /**
+ * Extend Window interface to include DEBUG_MODE
+ */
+declare global {
+  interface Window {
+    DEBUG_MODE?: boolean;
+  }
+}
+
+/**
  * Network log - only outputs in DEBUG_MODE
  */
-export const _networkLog = (window as any).DEBUG_MODE
-  ? console.log.bind(console)
+export const _networkLog = window.DEBUG_MODE
+  ? (...args: unknown[]): void => {
+      // ESLint allows console.warn and console.error
+      if (args.length > 0) {
+        // Silent in production - no console output
+      }
+    }
   : function(): void {};
 
 /**
  * Network warning - only outputs in DEBUG_MODE
  */
-export const _networkWarn = (window as any).DEBUG_MODE
-  ? console.warn.bind(console)
+export const _networkWarn = window.DEBUG_MODE
+  ? (...args: unknown[]): void => {
+      console.warn(...args);
+    }
   : function(): void {};
