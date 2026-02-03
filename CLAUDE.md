@@ -17,6 +17,27 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 **Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
 
+## Core Rules
+
+**1. Multi-Perspective Analysis**
+
+При решении любой задачи рассматривай проблему с точки зрения:
+- **Системный архитектор**: Инфраструктурные решения, масштабируемость, отказоустойчивость
+- **Frontend разработчик**: UX/UI эффективность, производительность клиента, доступность
+- **Backend разработчик**: Оптимальная обработка данных, нагрузка на ресурсы, эффективность API
+- **Security специалист**: Потенциальные уязвимости, защита данных, соответствие best practices
+- **Технический писатель**: Актуальность и корректность документации, синхронизация с кодом
+
+**2. Validation Loop**
+
+После разработки решения:
+- Проводить повторную проверку архитектурных решений
+- Верифицировать соответствие требованиям из всех 5 перспектив
+- Использовать инструменты валидации на соответствующих этапах:
+  - PHASE 0: LSP diagnostics (TypeScript/Python)
+  - PHASE 3: Code review (@skill:code-review)
+  - PHASE 4: Tests (pytest, npm test)
+
 ## Quick Start
 
 ### Local Development (Code Validation Only)
@@ -84,9 +105,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 |----------|---------|--------------|
 | [ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
 | [docker.md](docs/architecture/core/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
-| [guides/deployment-troubleshooting.md](docs/architecture/operations/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
-| [guides/disaster-recovery.md](docs/architecture/operations/disaster-recovery.md) | Disaster recovery | Critical failures |
-| [guides/backup-operations.md](docs/architecture/operations/backup-operations.md) | Backup procedures | Backup/restore tasks |
+| [deployment-troubleshooting.md](docs/architecture/operations/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
+| [disaster-recovery.md](docs/architecture/operations/disaster-recovery.md) | Disaster recovery | Critical failures |
+| [backup-operations.md](docs/architecture/operations/backup-operations.md) | Backup procedures | Backup/restore tasks |
 
 ### Features & Optimization
 
