@@ -193,6 +193,46 @@ export class DexieManager {
       .toArray();
   }
 
+  /**
+   * Query cost centers filtered by financial center
+   * @param userId - User ID
+   * @param financialCenterId - Financial center ID to filter by (can be null for no filter)
+   * @param includeGlobal - Include global cost centers (default: true)
+   * @returns Filtered cost centers
+   */
+  async queryFilteredCostCenters(
+    userId: number,
+    financialCenterId: number | null,
+    includeGlobal: boolean = true
+  ): Promise<LocalCostCenter[]> {
+    logger.debug('[DexieManager] queryFilteredCostCenters', {
+      userId,
+      financialCenterId,
+      includeGlobal
+    });
+
+    // Get all user's cost centers
+    const allCenters = await this.queryCostCenters(userId);
+
+    // Filter by financial center if specified
+    if (financialCenterId !== null) {
+      return allCenters.filter(center => {
+        // Include if matches financial center
+        if (center.financial_center_id === financialCenterId) {
+          return true;
+        }
+        // Include global cost centers if requested
+        if (includeGlobal && center.financial_center_id === null) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    // No filter specified (null), return all
+    return allCenters;
+  }
+
   // ============================================================
   // BUDGET FACTS OPERATIONS (CRUD)
   // ============================================================

@@ -672,7 +672,7 @@ html.offline-mode .save-btn:hover {
     display: none;  /* Force hide - like Main FAB in lists */
     opacity: 0;
     visibility: hidden;  /* iOS Safari protection */
-    transform: scale(0.5) translateY(20px);
+    transform: scale(0.5) translateY(-20px);
     pointer-events: none;
     transition: opacity 0.3s, visibility 0s 0.3s, transform 0.3s;
 }
