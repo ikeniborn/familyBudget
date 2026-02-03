@@ -42,6 +42,7 @@ export interface LocalCostCenter {
   id: number;
   user_id: number;
   name: string;
+  financial_center_id: number | null;
   is_active: boolean;
   created_at: Date;
 }

@@ -412,7 +412,7 @@ export class DataLayer {
 
       // Query PGlite
       console.info('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryFilteredCostCenters(userId, financialCenterId, true);
+      const result = await pglite.queryFilteredCostCenters(userId, financialCenterId, includeGlobal);
       const duration = performance.now() - startTime;
 
       // CRITICAL: Fallback на API если PGlite вернул пустой результат
