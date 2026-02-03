@@ -25,39 +25,36 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
-# Stage 2: Runtime
-FROM python:3.11-slim-bookworm
+# Stage 2: Runtime (Distroless for security and size optimization)
+FROM gcr.io/distroless/python3-debian12:latest
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH=/app
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    procps \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN groupadd -r botuser && useradd -r -g botuser botuser
+# Copy SSL/TLS libraries from builder (required for Telegram API HTTPS connections)
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3* /usr/lib/x86_64-linux-gnu/
+# CA certificates (required for TLS verification)
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 # Copy venv from builder
 COPY --from=builder /opt/venv /opt/venv
 
 WORKDIR /app
 
-# Copy bot application
-COPY --chown=botuser:botuser bot/ /app/bot/
+# Copy bot application (distroless runs as nonroot user UID 65532)
+COPY bot/ /app/bot/
 
-# Create logs directory
-RUN mkdir -p /app/logs && chown -R botuser:botuser /app/logs
+# Copy healthcheck script (Python-based, no pgrep needed in distroless)
+COPY bot/healthcheck.py /app/healthcheck.py
 
-USER botuser
+# Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
-# Health check - verify bot process is running
+# Python-based healthcheck (no pgrep in distroless)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD pgrep -f "python.*bot.main" || exit 1
+    CMD ["python", "/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
