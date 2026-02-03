@@ -206,6 +206,10 @@
      * Matches WebSocket Status Indicator pattern (budgetWSClient.js:2438-2453)
      */
     (function setupTripleClickDiagnostics() {
+        // Constants for triple-click detection
+        const CLICK_RESET_TIMEOUT_MS = 600;  // Time window for triple-click detection
+        const TRIPLE_CLICK_COUNT = 3;
+
         const icon = document.getElementById('dexie-icon-active');
         if (!icon) {
             console.warn('[DEXIE_INDICATOR] dexie-icon-active not found for triple-click');
@@ -223,18 +227,18 @@
             console.debug('[DEXIE_INDICATOR] Click', clickCount);
 
             if (clickCount === 1) {
-                // Start timer (reset after 600ms)
+                // Start timer (reset after CLICK_RESET_TIMEOUT_MS)
                 clickTimer = setTimeout(function() {
                     clickCount = 0;
-                }, 600);
-            } else if (clickCount === 3) {
+                }, CLICK_RESET_TIMEOUT_MS);
+            } else if (clickCount === TRIPLE_CLICK_COUNT) {
                 // Triple-click detected!
                 if (clickTimer) {
                     clearTimeout(clickTimer);
                 }
                 clickCount = 0;
 
-                console.info('[DEXIE_INDICATOR] Triple-click detected, opening diagnostics...');
+                console.debug('[DEXIE_INDICATOR] Triple-click detected, opening diagnostics...');
 
                 // Open diagnostic modal (from window exports)
                 if (typeof window.openDexieDiagnostic === 'function') {
@@ -246,7 +250,7 @@
             }
         });
 
-        console.log('[DEXIE_INDICATOR] Triple-click diagnostics handler registered');
+        console.debug('[DEXIE_INDICATOR] Triple-click diagnostics handler registered');
     })();
 
     console.debug('[DEXIE_INDICATOR] Module loaded');
