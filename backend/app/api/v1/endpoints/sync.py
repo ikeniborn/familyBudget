@@ -16,9 +16,9 @@ Sync Strategy:
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
 from sqlmodel import select
@@ -31,7 +31,6 @@ from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.models.store import Store
 from backend.app.schemas.errors import get_common_responses
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +49,8 @@ class StoreResponse(BaseModel):
     """Store reference data for offline database."""
     id: int
     name: str
-    address: Optional[str]
-    code: Optional[str]
+    address: str | None
+    code: str | None
     is_active: bool
     created_at: datetime
 
@@ -62,9 +61,9 @@ class StoreResponse(BaseModel):
 class ProductGroupResponse(BaseModel):
     """Product Group reference data for offline database."""
     id: int
-    parent_id: Optional[int]
+    parent_id: int | None
     name: str
-    code: Optional[str]
+    code: str | None
     is_active: bool
     created_at: datetime
 
@@ -91,9 +90,9 @@ class ShoppingReferenceResponse(BaseModel):
     - Product Groups (categories with hierarchy)
     - Product Group Hierarchy (Closure Table for fast queries)
     """
-    stores: List[StoreResponse]
-    product_groups: List[ProductGroupResponse]
-    product_group_hierarchy: List[ProductGroupHierarchyResponse]
+    stores: list[StoreResponse]
+    product_groups: list[ProductGroupResponse]
+    product_group_hierarchy: list[ProductGroupHierarchyResponse]
 
 
 class ShoppingListDeltaItem(BaseModel):
@@ -101,7 +100,7 @@ class ShoppingListDeltaItem(BaseModel):
     id: int
     creator_id: int
     name: str
-    description: Optional[str]
+    description: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -118,13 +117,13 @@ class ShoppingListItemDeltaItem(BaseModel):
     store_id: int
     product_group_id: int
     product_name: str
-    quantity: Optional[int]
-    unit: Optional[str]
-    comment: Optional[str]
+    quantity: int | None
+    unit: str | None
+    comment: str | None
     is_completed: bool
-    completed_at: Optional[datetime]
-    deleted_at: Optional[datetime]
-    last_modified_by: Optional[int]
+    completed_at: datetime | None
+    deleted_at: datetime | None
+    last_modified_by: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -134,20 +133,20 @@ class ShoppingListItemDeltaItem(BaseModel):
 
 class DeltaCreated(BaseModel):
     """Created records in delta sync."""
-    lists: List[ShoppingListDeltaItem]
-    items: List[ShoppingListItemDeltaItem]
+    lists: list[ShoppingListDeltaItem]
+    items: list[ShoppingListItemDeltaItem]
 
 
 class DeltaUpdated(BaseModel):
     """Updated records in delta sync."""
-    lists: List[ShoppingListDeltaItem]
-    items: List[ShoppingListItemDeltaItem]
+    lists: list[ShoppingListDeltaItem]
+    items: list[ShoppingListItemDeltaItem]
 
 
 class DeltaDeleted(BaseModel):
     """Deleted record IDs in delta sync."""
-    list_ids: List[int]
-    item_ids: List[int]
+    list_ids: list[int]
+    item_ids: list[int]
 
 
 class ShoppingListsDeltaResponse(BaseModel):
@@ -225,7 +224,7 @@ async def get_shopping_reference_data(
     )
 
 
-def _build_shopping_lists_queries(since: Optional[datetime]) -> Tuple[Select, Select, List[int]]:
+def _build_shopping_lists_queries(since: datetime | None) -> tuple[Select, Select, list[int]]:
     """
     Build queries for shopping lists delta sync.
 
@@ -256,7 +255,7 @@ def _build_shopping_lists_queries(since: Optional[datetime]) -> Tuple[Select, Se
     return created_query, updated_query, deleted_ids
 
 
-def _build_shopping_list_items_queries(since: Optional[datetime]) -> Tuple[Select, Select, Select]:
+def _build_shopping_list_items_queries(since: datetime | None) -> tuple[Select, Select, Select]:
     """
     Build queries for shopping list items delta sync.
 
@@ -301,7 +300,7 @@ def _build_shopping_list_items_queries(since: Optional[datetime]) -> Tuple[Selec
 async def get_shopping_lists_delta(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    since: Optional[datetime] = Query(
+    since: datetime | None = Query(
         None,
         description="Last sync timestamp (ISO 8601). Returns all records if not provided."
     ),

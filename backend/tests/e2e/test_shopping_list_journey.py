@@ -8,13 +8,14 @@ Complete user workflows:
 4. Offline scenario: Create offline → Sync online
 """
 
-import pytest
 import base64
 from decimal import Decimal
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.models.user import User
 
+from backend.app.models.user import User
 
 pytestmark = pytest.mark.asyncio
 
@@ -245,10 +246,11 @@ async def test_hierarchy_view_journey(
     3. Create items for different stores/groups
     4. Query hierarchy structure
     """
-    from backend.app.models.store import Store
+    from datetime import datetime
+
     from backend.app.models.product_group import ProductGroup
     from backend.app.models.shopping_list_item import ShoppingListItem
-    from datetime import datetime
+    from backend.app.models.store import Store
 
     # Step 1: Create stores
     stores = []

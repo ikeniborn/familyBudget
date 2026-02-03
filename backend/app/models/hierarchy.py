@@ -10,7 +10,6 @@ Table: t_d_article_hierarchy
 Maintenance: Automated via database triggers (see EPIC-001 TASK-005)
 """
 
-from typing import Optional
 from sqlmodel import Field, SQLModel
 
 

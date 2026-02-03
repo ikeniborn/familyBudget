@@ -7,25 +7,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.api.health import router as health_router
+from backend.app.api.v1.endpoints.budget_ws import (
+    set_push_db_session_factory,
+    start_ws_cleanup_task,
+    stop_ws_cleanup_task,
+)
 from backend.app.api.v1.router import api_router
 from backend.app.api.web.router import web_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.json_utils import ORJSONResponse, is_orjson_available
-from backend.app.core.logging import setup_logging, get_logger
-from backend.app.db.session import close_db, init_db, get_session
+from backend.app.core.logging import get_logger, setup_logging
+from backend.app.db.session import close_db, get_session, init_db
 from backend.app.middleware import JWTAuthMiddleware, limiter
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from backend.app.scheduler import start_scheduler, stop_scheduler
-from backend.app.api.v1.endpoints.budget_ws import (
-    start_ws_cleanup_task,
-    stop_ws_cleanup_task,
-    set_push_db_session_factory,
-)
 from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
     api_exception_handler,
@@ -38,6 +37,7 @@ from backend.app.middleware.validation_error_handler import (
     validation_exception_handler,
     value_error_handler,
 )
+from backend.app.scheduler import start_scheduler, stop_scheduler
 
 # Setup structured logging (using settings for level and format)
 _settings = get_settings()
@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
     # Warmup Redis connection (ensure pool is ready before first user request)
     try:
         if is_redis_available():
-            from backend.app.services.cache_service import cache_service, CacheKey
+            from backend.app.services.cache_service import CacheKey, cache_service
             # Simple warmup call to ensure connection is established
             await cache_service.get(CacheKey.quick_stats())
             logger.info("Redis connection warmed up")
@@ -353,10 +353,12 @@ templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
 # Register custom Jinja2 filters for HTMX partials
 from backend.app.utils.template_filters import register_filters
+
 register_filters(templates.env)
 
 # Add config as global template variable (for feature flags)
 from backend.app.core.config import get_settings
+
 templates.env.globals["config"] = get_settings()
 
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
@@ -377,7 +379,6 @@ async def service_worker():
     - Auto-updates after deployment without container restart
     """
     from fastapi.responses import FileResponse
-    from pathlib import Path
 
     sw_path = Path("/app/sw.min.js")
     if not sw_path.exists():
@@ -400,7 +401,6 @@ async def service_worker():
 async def pwa_manifest():
     """Serve PWA Manifest"""
     from fastapi.responses import FileResponse
-    from pathlib import Path
 
     manifest_path = Path("/app/manifest.json")
     if not manifest_path.exists():

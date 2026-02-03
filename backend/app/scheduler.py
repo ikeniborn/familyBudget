@@ -14,14 +14,13 @@ execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
 Only one worker can acquire the lock and execute the job.
 """
 
-import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import text
 
-from backend.app.db.session import get_session_context
-from backend.app.core.logging import get_logger
 from backend.app.core.config import get_settings
+from backend.app.core.logging import get_logger
+from backend.app.db.session import get_session_context
 from backend.app.services.notification_service import NotificationService
 from backend.app.services.reminder_service import ReminderService
 
@@ -355,8 +354,8 @@ async def generate_recurring_facts_job():
 
                 # ✅ CRITICAL: Invalidate cache + WebSocket broadcast after scheduler generation
                 if result['facts_created'] > 0:
-                    from backend.app.services.cache_service import CacheService
                     import backend.app.api.v1.endpoints.budget_ws as ws
+                    from backend.app.services.cache_service import CacheService
 
                     # Invalidate cache for all users (scheduler affects all users)
                     cache_service = CacheService()
@@ -412,7 +411,9 @@ async def cleanup_expired_webauthn_challenges_job():
 
             try:
                 from datetime import datetime
+
                 from sqlalchemy import delete, func, select
+
                 from backend.app.models.webauthn_challenge import WebAuthnChallenge
 
                 now = datetime.utcnow()

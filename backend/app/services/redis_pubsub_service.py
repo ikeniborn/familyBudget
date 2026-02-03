@@ -31,13 +31,12 @@ Usage:
 import asyncio
 import logging
 import time
+from collections.abc import Callable, Coroutine
 from datetime import datetime
-from typing import Any, Callable, Coroutine
+from typing import Any
 
-import redis.exceptions
-
-from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
-
+from backend.app.core.json_utils import dumps as json_dumps
+from backend.app.core.json_utils import loads as json_loads
 from backend.app.services.redis_service import get_redis, is_redis_available
 
 logger = logging.getLogger(__name__)

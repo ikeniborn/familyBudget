@@ -9,10 +9,8 @@ This module defines request/response schemas for CSV import workflow:
 """
 
 from datetime import date, datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
-
 
 # Response schemas
 
@@ -69,23 +67,23 @@ class ImportStagingResponse(BaseModel):
     # Raw Tinkoff CSV data
     tinkoff_date: date = Field(..., description="Transaction date from CSV")
     tinkoff_amount: str = Field(..., description="Raw amount from CSV (e.g., '-900,00')")
-    tinkoff_category: Optional[str] = Field(None, description="Tinkoff's category")
-    tinkoff_mcc: Optional[str] = Field(None, description="MCC code")
-    tinkoff_description: Optional[str] = Field(None, description="Transaction description")
-    tinkoff_card: Optional[str] = Field(None, description="Card number (e.g., '*5958')")
+    tinkoff_category: str | None = Field(None, description="Tinkoff's category")
+    tinkoff_mcc: str | None = Field(None, description="MCC code")
+    tinkoff_description: str | None = Field(None, description="Transaction description")
+    tinkoff_card: str | None = Field(None, description="Card number (e.g., '*5958')")
 
     # User-assigned enrichment
-    budget_description: Optional[str] = Field(None, description="Custom budget description (user-assigned)")
+    budget_description: str | None = Field(None, description="Custom budget description (user-assigned)")
 
-    article_id: Optional[int] = Field(None, description="Budget category ID (assigned by user)")
-    article_name: Optional[str] = Field(None, description="Budget category name (enriched)")
-    article_type: Optional[str] = Field(None, description="Article type: income/expense (enriched)")
+    article_id: int | None = Field(None, description="Budget category ID (assigned by user)")
+    article_name: str | None = Field(None, description="Budget category name (enriched)")
+    article_type: str | None = Field(None, description="Article type: income/expense (enriched)")
 
-    financial_center_id: Optional[int] = Field(None, description="Financial center ID (assigned by user)")
-    financial_center_name: Optional[str] = Field(None, description="FC name (enriched)")
+    financial_center_id: int | None = Field(None, description="Financial center ID (assigned by user)")
+    financial_center_name: str | None = Field(None, description="FC name (enriched)")
 
-    cost_center_id: Optional[int] = Field(None, description="Cost center ID (optional)")
-    cost_center_name: Optional[str] = Field(None, description="CC name (enriched)")
+    cost_center_id: int | None = Field(None, description="Cost center ID (optional)")
+    cost_center_name: str | None = Field(None, description="CC name (enriched)")
 
     is_selected: bool = Field(..., description="Whether to import this transaction")
 
@@ -98,7 +96,7 @@ class ImportStagingListResponse(BaseModel):
     Paginated list of staging records.
     """
 
-    items: List[ImportStagingResponse] = Field(..., description="Staging records")
+    items: list[ImportStagingResponse] = Field(..., description="Staging records")
     total: int = Field(..., ge=0, description="Total number of staging records for this user")
     page: int = Field(..., ge=1, description="Current page number")
     page_size: int = Field(..., ge=1, le=10000, description="Page size (max 10000 for client-side filtering)")
@@ -113,30 +111,30 @@ class ImportStagingUpdate(BaseModel):
     Allows user to assign category, FC, CC, budget description and mark as selected.
     """
 
-    budget_description: Optional[str] = Field(
+    budget_description: str | None = Field(
         None,
         description="Custom budget description to override tinkoff_description"
     )
 
-    article_id: Optional[int] = Field(
+    article_id: int | None = Field(
         None,
         gt=0,
         description="Budget category ID to assign"
     )
 
-    financial_center_id: Optional[int] = Field(
+    financial_center_id: int | None = Field(
         None,
         gt=0,
         description="Financial center ID to assign"
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         None,
         gt=0,
         description="Cost center ID to assign (optional)"
     )
 
-    is_selected: Optional[bool] = Field(
+    is_selected: bool | None = Field(
         None,
         description="Mark transaction for import"
     )
@@ -149,7 +147,7 @@ class ImportStagingBulkUpdate(BaseModel):
     Applies same updates to all specified IDs.
     """
 
-    ids: List[int] = Field(
+    ids: list[int] = Field(
         ...,
         min_length=1,
         max_length=1000,
@@ -201,7 +199,7 @@ class ImportExecuteResponse(BaseModel):
         description="Number of transactions failed with errors"
     )
 
-    errors: List[str] = Field(
+    errors: list[str] = Field(
         default_factory=list,
         description="List of error messages for failed imports"
     )

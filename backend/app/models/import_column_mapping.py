@@ -9,7 +9,6 @@ Table: t_import_column_mapping
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -64,7 +63,7 @@ class ImportColumnMapping(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"
@@ -89,7 +88,7 @@ class ImportColumnMapping(SQLModel, table=True):
         description="Column mapping (CSV column → budget field)"
     )
 
-    transformations: Optional[dict] = Field(
+    transformations: dict | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="Optional transformations (date format, decimal separator, etc.)"

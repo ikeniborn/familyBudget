@@ -5,10 +5,9 @@ This module defines the RefreshToken model that stores hashed refresh tokens
 with expiration and revocation support for secure JWT authentication.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import Field, SQLModel
 
 
 class RefreshToken(SQLModel, table=True):
@@ -42,7 +41,7 @@ class RefreshToken(SQLModel, table=True):
     __tablename__ = "t_f_refresh_token"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -84,12 +83,12 @@ class RefreshToken(SQLModel, table=True):
         nullable=False,
         description="Timestamp when token was created"
     )
-    last_used_at: Optional[datetime] = Field(
+    last_used_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Last time token was used to refresh access token"
     )
-    revoked_at: Optional[datetime] = Field(
+    revoked_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Timestamp when token was revoked (NULL if not revoked)"

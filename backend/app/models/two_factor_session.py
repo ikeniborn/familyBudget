@@ -24,7 +24,6 @@ Table: t_2fa_session
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
@@ -93,7 +92,7 @@ class TwoFactorSession(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-increment primary key"

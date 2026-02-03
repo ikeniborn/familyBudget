@@ -1,8 +1,9 @@
 """Transfer schemas for API requests and responses."""
 
-from decimal import Decimal
 from datetime import date
-from typing import Optional, Literal
+from decimal import Decimal
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -34,7 +35,7 @@ class TransferCreate(BaseModel):
         ...,
         description="Expense article ID (категория списания)"
     )
-    from_cost_center_id: Optional[int] = Field(
+    from_cost_center_id: int | None = Field(
         default=None,
         description="Source cost center ID (optional)"
     )
@@ -48,13 +49,13 @@ class TransferCreate(BaseModel):
         ...,
         description="Income article ID (категория пополнения)"
     )
-    to_cost_center_id: Optional[int] = Field(
+    to_cost_center_id: int | None = Field(
         default=None,
         description="Destination cost center ID (optional)"
     )
 
     # Optional
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=500,
         description="Transfer description"
@@ -66,12 +67,12 @@ class TransferCreate(BaseModel):
     )
 
     # Deduplication fields (for offline sync and duplicate request prevention)
-    sync_hash: Optional[str] = Field(
+    sync_hash: str | None = Field(
         default=None,
         max_length=32,
         description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date)"
     )
-    content_hash: Optional[str] = Field(
+    content_hash: str | None = Field(
         default=None,
         max_length=32,
         description="MD5 hash of transfer content (from_cfo|to_cfo|amount|date|description)"
@@ -100,6 +101,7 @@ class TransferCreate(BaseModel):
         Allows +1 day tolerance for timezone differences (same as FactCreate).
         """
         from datetime import timedelta
+
         from backend.app.utils.timezone import now_local
 
         if self.record_type == "fact":

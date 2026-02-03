@@ -20,7 +20,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
-from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User

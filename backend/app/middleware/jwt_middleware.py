@@ -15,14 +15,13 @@ Security Features:
       - API (Accept: application/json) → JSON 401 response
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response, status
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.app.core.json_utils import ORJSONResponse
-
 from backend.app.services.jwt import decode_access_token_full
 
 # Login page URL for redirects

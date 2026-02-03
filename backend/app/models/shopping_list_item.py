@@ -13,7 +13,6 @@ Key features:
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -109,7 +108,7 @@ class ShoppingListItem(SQLModel, table=True):
     __tablename__ = "t_f_shopping_list_item"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -148,22 +147,22 @@ class ShoppingListItem(SQLModel, table=True):
         index=True,
         description="Product name (REQUIRED, e.g., 'Organic Milk 1L')"
     )
-    quantity: Optional[Decimal] = Field(
+    quantity: Decimal | None = Field(
         default=None,
         max_digits=10,
         decimal_places=3,
         description="Quantity to buy (OPTIONAL, e.g., 2.5)"
     )
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         default=None,
         max_length=50,
         description="Unit of measurement (OPTIONAL, e.g., 'kg', 'liters', 'pieces')"
     )
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None,
         description="Optional comment or notes (e.g., 'buy on sale', 'specific brand')"
     )
-    position: Optional[int] = Field(
+    position: int | None = Field(
         default=None,
         nullable=True,
         description="Position in list for ordering (auto-assigned if null)"
@@ -176,7 +175,7 @@ class ShoppingListItem(SQLModel, table=True):
         index=True,
         description="Completion flag (True = marked as bought, False = still needed)"
     )
-    completed_at: Optional[datetime] = Field(
+    completed_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="When item was marked as completed (for conflict resolution priority)"
@@ -199,7 +198,7 @@ class ShoppingListItem(SQLModel, table=True):
     )
 
     # Soft delete
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         default=None,
         nullable=True,
         index=True,
@@ -207,7 +206,7 @@ class ShoppingListItem(SQLModel, table=True):
     )
 
     # Audit fields
-    last_modified_by: Optional[int] = Field(
+    last_modified_by: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,

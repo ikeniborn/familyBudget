@@ -14,9 +14,8 @@ Also creates partial index for active items and sets completed_at for existing
 completed items.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "r3d4e5f6g7h8"

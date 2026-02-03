@@ -9,10 +9,9 @@ Browser Support:
 - Яндекс.Браузер: ✅ Full support
 """
 
-import json
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,13 +20,13 @@ from sqlmodel import select
 from backend.app.core.auth import get_current_user
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
-from backend.app.models.user import User
 from backend.app.models.push_subscription import PushSubscription
+from backend.app.models.user import User
 from backend.app.schemas.push import (
+    PushNotificationRequest,
     PushSubscriptionCreate,
     PushSubscriptionResponse,
     VAPIDKeyResponse,
-    PushNotificationRequest
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ def is_vapid_configured() -> bool:
 
 
 @router.get("/vapid-key", response_model=VAPIDKeyResponse)
-async def get_vapid_key() -> Dict[str, str]:
+async def get_vapid_key() -> dict[str, str]:
     """
     Get VAPID public key for push subscription.
 
@@ -90,7 +89,7 @@ async def subscribe_to_push(
     subscription_data: PushSubscriptionCreate,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Subscribe to push notifications.
 
@@ -178,7 +177,7 @@ async def unsubscribe_from_push(
     subscription_data: PushSubscriptionCreate,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """
     Unsubscribe from push notifications.
 
@@ -229,7 +228,7 @@ async def send_push_notification(
     notification: PushNotificationRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Send a push notification to a user.
 

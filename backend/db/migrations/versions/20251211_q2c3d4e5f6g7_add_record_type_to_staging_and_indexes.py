@@ -12,9 +12,8 @@ The record_type field allows users to import transactions as either 'fact' (actu
 or 'plan' (budget plan) during the enrichment step.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "q2c3d4e5f6g7"

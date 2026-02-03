@@ -7,9 +7,9 @@ of BudgetFact records based on frequency settings.
 
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, case, func as sa_func
+from sqlalchemy import and_, case
+from sqlalchemy import func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -279,8 +279,8 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         plan_id: int,
-        user_id: Optional[int] = None,
-    ) -> Optional[RecurringPlan]:
+        user_id: int | None = None,
+    ) -> RecurringPlan | None:
         """
         Get recurring plan by ID.
 
@@ -302,7 +302,7 @@ class RecurringPlanService:
         session: AsyncSession,
         plan_id: int,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get recurring plan with enriched details (optimized with JOIN).
 
@@ -378,10 +378,10 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         user_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """
         List recurring plans for a user.
 
@@ -703,7 +703,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         recurring_plan: RecurringPlan,
-        fact_ids: List[int],
+        fact_ids: list[int],
     ) -> int:
         """
         Create scheduled reminders for generated facts (if enable_reminder=true).
@@ -867,10 +867,10 @@ class RecurringPlanService:
     def _calculate_next_occurrence(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
         start_date: date,
         from_date: date,
-    ) -> Optional[date]:
+    ) -> date | None:
         """
         Calculate the next occurrence date after from_date.
 
@@ -980,7 +980,7 @@ class RecurringPlanService:
     def _get_frequency_display(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
     ) -> str:
         """Get human-readable frequency description."""
         if frequency_type == "monthly":

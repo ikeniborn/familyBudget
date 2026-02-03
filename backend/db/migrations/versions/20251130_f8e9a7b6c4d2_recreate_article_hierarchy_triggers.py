@@ -24,17 +24,16 @@ Triggers:
 Usage:
     alembic upgrade head  # Auto-applies and rebuilds closure table
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 from sqlalchemy import text
 
-
 # revision identifiers, used by Alembic.
 revision: str = 'f8e9a7b6c4d2'
-down_revision: Union[str, None] = 'a8f3b9d4c621'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = 'a8f3b9d4c621'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

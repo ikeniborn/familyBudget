@@ -10,9 +10,9 @@ Date: 2025-12-27
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -34,29 +34,29 @@ router = APIRouter()
 
 class LogEntry(BaseModel):
     """Single log entry."""
-    timestamp: Optional[str] = Field(None, description="ISO 8601 timestamp")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
     level: str = Field(..., description="Log level: info, warning, error")
     message: str = Field(..., description="Log message")
     module: str = Field(..., description="Module or service name")
-    correlation_id: Optional[str] = Field(None, description="Request correlation ID")
-    user_id: Optional[int] = Field(None, description="User ID (browser logs only)")
+    correlation_id: str | None = Field(None, description="Request correlation ID")
+    user_id: int | None = Field(None, description="User ID (browser logs only)")
 
 
 class LogsResponse(BaseModel):
     """Response with logs from all services."""
-    browser: List[LogEntry] = Field(default_factory=list)
-    backend: List[LogEntry] = Field(default_factory=list)
-    bot: List[LogEntry] = Field(default_factory=list)
-    postgres: List[LogEntry] = Field(default_factory=list)
-    nginx: List[LogEntry] = Field(default_factory=list)
+    browser: list[LogEntry] = Field(default_factory=list)
+    backend: list[LogEntry] = Field(default_factory=list)
+    bot: list[LogEntry] = Field(default_factory=list)
+    postgres: list[LogEntry] = Field(default_factory=list)
+    nginx: list[LogEntry] = Field(default_factory=list)
     total_count: int = Field(..., description="Total logs before filtering")
     filtered_count: int = Field(..., description="Total logs after filtering")
-    filters_applied: Dict[str, Any] = Field(..., description="Filters that were applied")
+    filters_applied: dict[str, Any] = Field(..., description="Filters that were applied")
 
 
 class BrowserLogBatch(BaseModel):
     """Batch of browser logs from client."""
-    logs: List[LogEntry] = Field(..., description="Array of log entries")
+    logs: list[LogEntry] = Field(..., description="Array of log entries")
     user_id: int = Field(..., description="User ID sending logs")
     session_id: str = Field(..., description="Browser session ID")
 
@@ -75,10 +75,10 @@ class BrowserLogResponse(BaseModel):
 async def get_logs(
     request: Request,
     current_admin: CurrentAdmin,
-    service: Optional[str] = "all",
-    level: Optional[str] = "all",
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    service: str | None = "all",
+    level: str | None = "all",
+    since: str | None = None,
+    until: str | None = None,
     limit: int = 50
 ) -> LogsResponse:
     """

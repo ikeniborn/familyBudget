@@ -9,12 +9,13 @@ Tests:
 - Error handling and validation
 """
 
-import pytest
 import base64
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.models.user import User
 
+from backend.app.models.user import User
 
 pytestmark = pytest.mark.asyncio
 

@@ -6,21 +6,20 @@ Handles automated notifications:
 - Budget threshold checks (FR-006)
 """
 
-import httpx
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
-from typing import Optional
 
-from sqlmodel import select, func
+import httpx
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
-from backend.app.models.notification import Notification
-from backend.app.models.user import User
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
+from backend.app.models.notification import Notification
+from backend.app.models.user import User
 from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
@@ -78,7 +77,7 @@ class NotificationService:
         actual_amount: Decimal,
         period_start: date,
         period_end: date,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> Notification:
         """
         Create notification record in database.

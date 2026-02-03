@@ -7,7 +7,6 @@ Shopping lists are the header in Header+Lines pattern (items are in ShoppingList
 
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -34,7 +33,7 @@ class ShoppingListCreate(BaseModel):
         examples=["Weekly Groceries", "Party Supplies", "Monthly Shopping"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Shopping list for week of 2025-01-10", None]
@@ -86,7 +85,7 @@ class ShoppingListUpdate(BaseModel):
         - Cannot change creator_id (lists belong to creator)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -94,13 +93,13 @@ class ShoppingListUpdate(BaseModel):
         examples=["Updated Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived/completed)",
         examples=[True, False]
@@ -108,7 +107,7 @@ class ShoppingListUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate shopping list name if provided."""
         if v is None:
             return None
@@ -153,7 +152,7 @@ class ShoppingListResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10", None]
     )
@@ -208,7 +207,7 @@ class ShoppingListCardResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )
@@ -269,7 +268,7 @@ class ShoppingListWithItemsResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )
@@ -290,7 +289,7 @@ class ShoppingListWithItemsResponse(BaseModel):
     )
 
     # Items (forward reference, resolved at import)
-    items: List["ShoppingListItemResponse"] = Field(
+    items: list["ShoppingListItemResponse"] = Field(
         default=[],
         description="List of shopping list items"
     )
@@ -331,4 +330,5 @@ class ShoppingListListResponse(BaseModel):
 
 # Forward reference import (circular dependency resolution)
 from backend.app.schemas.shopping_list_item import ShoppingListItemResponse
+
 ShoppingListWithItemsResponse.model_rebuild()

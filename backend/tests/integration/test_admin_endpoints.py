@@ -12,7 +12,7 @@ Tests complete end-to-end admin functionality:
 These tests verify the entire admin stack works correctly.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -23,7 +23,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
-
 
 # ============================================================================
 # Users Management Tests

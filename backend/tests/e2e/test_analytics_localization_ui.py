@@ -11,12 +11,12 @@ Tests verify that all analytics charts display Russian labels in the UI:
 This test suite requires Playwright for browser automation.
 """
 
-import pytest
 from datetime import date, timedelta
+
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.user import User
 from backend.app.models.fact import Fact
 
 
@@ -274,7 +274,7 @@ class TestAnalyticsLocalizationUI:
             assert len(week) == 7, \
                 f"Week {week_idx} должна содержать 7 значений (по одному на каждый день)"
 
-        print(f"✓ Каждая неделя содержит 7 значений (дней)")
+        print("✓ Каждая неделя содержит 7 значений (дней)")
 
         # STEP 6: Verify metadata
         print("\n✅ Step 6: Verifying metadata...")

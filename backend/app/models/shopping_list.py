@@ -12,7 +12,6 @@ Key features:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -77,7 +76,7 @@ class ShoppingList(SQLModel, table=True):
     __tablename__ = "t_f_shopping_list"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -98,7 +97,7 @@ class ShoppingList(SQLModel, table=True):
         index=True,
         description="Shopping list name"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes about the shopping list"
     )

@@ -11,9 +11,8 @@ to use the correct delimiter and encoding when parsing the file.
 Fixes: Empty staging list when importing CSV files with comma delimiter.
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "n9i0j1k2l3m4"

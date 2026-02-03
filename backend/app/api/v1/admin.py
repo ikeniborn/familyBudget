@@ -7,7 +7,7 @@ All endpoints require admin privileges (is_admin=True).
 
 import logging
 from datetime import datetime
-from typing import Annotated, List
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -28,30 +28,27 @@ from backend.app.schemas.article import (
     ArticleUpdate,
 )
 from backend.app.schemas.user import (
+    TelegramUserInfo,
     UserCreate,
     UserDetailResponse,
-    UserListResponse,
-    UserUpdate,
-    TelegramUserInfo,
     UserHistoryListResponse,
+    UserListResponse,
     UserMergeRequest,
     UserMergeResponse,
+    UserUpdate,
 )
-from backend.app.services.telegram_auth import fetch_telegram_user_info
-from backend.app.services.user_service import (
-    update_user_profile,
-    create_initial_history
+from backend.app.services import archive_recursive, has_changes, restore_recursive
+from backend.app.services.article_service import (
+    FAR_FUTURE_DATETIME,
+)
+from backend.app.services.article_service import (
+    create_initial_history as create_article_initial_history,
 )
 from backend.app.services.article_service import (
     update_article_profile as update_article_scd1,
-    create_initial_history as create_article_initial_history,
-    FAR_FUTURE_DATETIME,
 )
-from backend.app.services import (
-    archive_recursive,
-    restore_recursive,
-    has_changes
-)
+from backend.app.services.telegram_auth import fetch_telegram_user_info
+from backend.app.services.user_service import create_initial_history, update_user_profile
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -110,6 +107,7 @@ async def get_system_timezone(
     """
     from datetime import timezone as tz
     from zoneinfo import ZoneInfo
+
     from backend.app.core.config import get_settings
     from backend.app.utils.timezone import get_common_timezones
 
@@ -258,7 +256,7 @@ async def get_telegram_user_info(
 
 
 
-@router.get("/users/stats/summary", response_model=List[UserStatsResponse])
+@router.get("/users/stats/summary", response_model=list[UserStatsResponse])
 async def get_users_stats(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
@@ -1310,7 +1308,7 @@ async def merge_users(
     )
 
 
-@router.get("/articles", response_model=List[ArticleResponse])
+@router.get("/articles", response_model=list[ArticleResponse])
 async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
@@ -1843,9 +1841,9 @@ async def delete_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if article has children or is used in transactions
     """
-    from backend.app.models.hierarchy import ArticleHierarchy
-    from backend.app.models.article_history import ArticleHistory
     from backend.app.models.article import ArticleUsageStats
+    from backend.app.models.article_history import ArticleHistory
+    from backend.app.models.hierarchy import ArticleHierarchy
 
     # Get article
     query = select(Article).where(Article.id == article_id)
@@ -1892,8 +1890,8 @@ async def delete_article(
     session.add(delete_history)
 
     # 2. CASCADE DELETE: Delete facts with history tracking
-    from backend.app.models.fact import BudgetFact
     from backend.app.models.budget_fact_history import BudgetFactHistory
+    from backend.app.models.fact import BudgetFact
 
     # Count facts for this article
     facts_count_query = select(func.count(BudgetFact.id)).where(
@@ -2014,7 +2012,7 @@ class FactUpdateRequest(BaseModel):
     cost_center_id: int | None = None
 
 
-@router.get("/facts", response_model=List[FactResponse])
+@router.get("/facts", response_model=list[FactResponse])
 async def get_all_facts(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
@@ -2379,7 +2377,7 @@ async def delete_fact(
 
 @router.post("/facts/batch-delete")
 async def batch_delete_facts(
-    fact_ids: List[int],
+    fact_ids: list[int],
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
@@ -2438,8 +2436,8 @@ async def get_redis_detailed_stats(
         dict: Detailed Redis statistics
     """
     from backend.app.services.redis_service import (
-        get_redis_stats,
         get_cache_breakdown,
+        get_redis_stats,
         is_redis_available,
     )
 

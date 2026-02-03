@@ -6,7 +6,6 @@ Each plan can have at most one scheduled reminder.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -108,7 +107,7 @@ class ReminderResponse(BaseModel):
         examples=["pending"]
     )
 
-    sent_at: Optional[datetime] = Field(
+    sent_at: datetime | None = Field(
         default=None,
         description="When reminder was actually sent (UTC)",
         examples=["2025-12-10T09:00:05Z"]
@@ -124,7 +123,7 @@ class ReminderResponse(BaseModel):
         examples=[False]
     )
 
-    error_message: Optional[str] = Field(
+    error_message: str | None = Field(
         default=None,
         description="Last error message if failed",
         examples=[None]
@@ -172,25 +171,25 @@ class ReminderWithPlanInfo(ReminderResponse):
     Used for displaying reminders in notifications page.
     """
 
-    article_name: Optional[str] = Field(
+    article_name: str | None = Field(
         default=None,
         description="Category name from linked plan",
         examples=["Продукты"]
     )
 
-    amount: Optional[float] = Field(
+    amount: float | None = Field(
         default=None,
         description="Plan amount",
         examples=[5000.00]
     )
 
-    fact_date: Optional[datetime] = Field(
+    fact_date: datetime | None = Field(
         default=None,
         description="Plan date",
         examples=["2025-12-15"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Plan description",
         examples=["Закупка продуктов на неделю"]

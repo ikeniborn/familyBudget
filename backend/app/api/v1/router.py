@@ -10,7 +10,6 @@ from backend.app.api.v1.admin import router as admin_router
 from backend.app.api.v1.admin_analytics import router as admin_analytics_router
 from backend.app.api.v1.admin_export import router as admin_export_router
 from backend.app.api.v1.admin_staging import router as admin_staging_router
-from backend.app.api.v1.endpoints.admin_logs import router as admin_logs_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
@@ -19,8 +18,8 @@ from backend.app.api.v1.endpoints import (
     cache_metrics_router,
     consent_router,
     cost_centers_router,
-    facts_router,
     facts_partials_router,
+    facts_router,
     financial_centers_router,
     google_sheets_import_router,
     import_router,
@@ -40,6 +39,7 @@ from backend.app.api.v1.endpoints import (
     users_router,
     webauthn_router,
 )
+from backend.app.api.v1.endpoints.admin_logs import router as admin_logs_router
 from backend.app.api.v1.export import router as export_router
 from backend.app.api.v1.webapp import router as webapp_router
 

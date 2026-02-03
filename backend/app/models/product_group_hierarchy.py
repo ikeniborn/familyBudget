@@ -10,7 +10,6 @@ Table: t_d_product_group_hierarchy
 Maintenance: Managed via service layer (ProductGroupHierarchyService)
 """
 
-from typing import Optional
 from sqlmodel import Field, SQLModel
 
 

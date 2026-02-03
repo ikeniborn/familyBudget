@@ -24,10 +24,9 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-
-from sqlalchemy import func
 
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
@@ -252,7 +251,7 @@ async def suggest_products(
         max_length=100,
         description="Search query (min 2 characters)"
     ),
-    shopping_list_id: Optional[int] = Query(
+    shopping_list_id: int | None = Query(
         default=None,
         description="Filter by shopping list ID (enables restore of deleted items)"
     ),
@@ -426,7 +425,7 @@ async def suggest_products(
         )
 
     # Deduplicate: prefer deleted items (have specific ID for restore)
-    seen: set[tuple[str, Optional[int], Optional[int]]] = set()
+    seen: set[tuple[str, int | None, int | None]] = set()
     unique_suggestions: list[ProductSuggestion] = []
 
     for s in suggestions:
@@ -464,7 +463,7 @@ async def check_duplicate_item(
     store_id: int = Query(..., description="Store ID"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> Optional[ShoppingListItemResponse]:
+) -> ShoppingListItemResponse | None:
     """
     Check if similar item exists in shopping list (NOT completed).
 

@@ -15,18 +15,17 @@ Created: 2025-11-09
 """
 
 import re
-from typing import Type, TypeVar
+from typing import TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel
 
 from backend.app.models.article import Article
-from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.cost_center import CostCenter
-from backend.app.models.store import Store
+from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.product_group import ProductGroup
-
+from backend.app.models.store import Store
 
 # Type variable for dimension models
 T = TypeVar("T", Article, FinancialCenter, CostCenter, Store, ProductGroup)
@@ -43,7 +42,7 @@ MODEL_PREFIXES = {
 
 async def generate_code(
     session: AsyncSession,
-    model_class: Type[T],
+    model_class: type[T],
 ) -> str:
     """
     Generate next sequential code for dimension model.
@@ -112,7 +111,7 @@ async def generate_code(
     return generated_code
 
 
-async def get_prefix_for_model(model_class: Type[SQLModel]) -> str:
+async def get_prefix_for_model(model_class: type[SQLModel]) -> str:
     """
     Get code prefix for model class.
 

@@ -12,11 +12,10 @@ Features:
     - Aggregation endpoint for summaries
 """
 
-import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
@@ -26,8 +25,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
     CurrentUser,
-    apply_user_filter,
-    ensure_user_owns_resource,
     get_session,
     get_user_id_for_create,
 )
@@ -46,10 +43,9 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
-from backend.app.schemas.recurring_plan import RecurringPlanResponse
-from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
-from backend.app.services.write_behind_service import write_behind_service
+from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
+from backend.app.services.write_behind_service import write_behind_service
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -320,7 +316,7 @@ async def create_fact(
             # request_id is None means Write-Behind is enabled but queue failed
             # Fall through to sync write below
             logger.warning(
-                f"[WRITE-BEHIND] Queue returned None, falling back to sync write"
+                "[WRITE-BEHIND] Queue returned None, falling back to sync write"
             )
 
         except Exception as e:
@@ -420,18 +416,18 @@ async def list_facts(
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
-    article_id: Annotated[Optional[int], Query()] = None,
-    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
-    search: Annotated[Optional[str], Query(max_length=200)] = None,
-    amount_min: Annotated[Optional[Decimal], Query(ge=0)] = None,
-    amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
-    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    article_id: Annotated[int | None, Query()] = None,
+    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
+    search: Annotated[str | None, Query(max_length=200)] = None,
+    amount_min: Annotated[Decimal | None, Query(ge=0)] = None,
+    amount_max: Annotated[Decimal | None, Query(ge=0)] = None,
+    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
+    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
+    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -534,8 +530,9 @@ async def list_facts(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -920,8 +917,8 @@ async def get_recent_facts_html(
 async def get_facts_summary(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
 ) -> FactSummary:
     """
     Get aggregated summary of facts (income/expense totals).
@@ -998,15 +995,15 @@ async def get_facts_summary(
 async def get_facts_count(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
-    article_id: Annotated[Optional[int], Query()] = None,
-    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
-    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    article_id: Annotated[int | None, Query()] = None,
+    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
+    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
+    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
+    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> dict:
     """
     Get total facts count with filters (Shared Family Budget).
@@ -1070,8 +1067,9 @@ async def get_facts_count(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -1416,6 +1414,7 @@ async def delete_fact(
     - 404 Not Found: Fact not found
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     # Load fact
@@ -1519,6 +1518,7 @@ async def batch_delete_facts(
     - 400 Bad Request: Empty list or too many facts
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     if not fact_ids:

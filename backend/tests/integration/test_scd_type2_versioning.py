@@ -12,7 +12,7 @@ Tests complete versioning scenarios across all entities:
 These tests verify SCD Type 2 implementation works correctly end-to-end.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
 
 import pytest
@@ -23,7 +23,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
-
 
 # ============================================================================
 # User Versioning Tests

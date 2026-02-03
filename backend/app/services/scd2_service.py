@@ -17,16 +17,14 @@ Key Functions:
     - get_history(): Get all versions ordered by valid_from
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, Optional, Type, TypeVar
+from datetime import date, datetime, timezone
+from typing import Any, TypeVar
 
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
 from backend.app.models.user import User
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -39,9 +37,9 @@ T = TypeVar("T", Article, User)
 async def create_new_version(
     session: AsyncSession,
     old_instance: T,
-    updates: Dict[str, Any],
-    changed_fields: Optional[list[str]] = None,
-    changed_by_user_id: Optional[int] = None,
+    updates: dict[str, Any],
+    changed_fields: list[str] | None = None,
+    changed_by_user_id: int | None = None,
 ) -> T:
     """
     Create new SCD Type 2 version by closing old version and creating new one.
@@ -135,13 +133,13 @@ async def create_new_version(
 
     # Step 4.5: Create version link record for audit trail
     # Lazy imports to avoid circular dependencies
+    from backend.app.models.cost_center import CostCenter
+    from backend.app.models.financial_center import FinancialCenter
     from backend.app.models.version_link import (
         ArticleVersionLink,
-        FinancialCenterVersionLink,
         CostCenterVersionLink,
+        FinancialCenterVersionLink,
     )
-    from backend.app.models.financial_center import FinancialCenter
-    from backend.app.models.cost_center import CostCenter
 
     link_record = None
 
@@ -212,9 +210,9 @@ async def create_new_version(
 
 async def get_current_version(
     session: AsyncSession,
-    model_class: Type[T],
+    model_class: type[T],
     **filters: Any,
-) -> Optional[T]:
+) -> T | None:
     """
     Get current version of an entity.
 
@@ -260,10 +258,10 @@ async def get_current_version(
 
 async def get_version_at_date(
     session: AsyncSession,
-    model_class: Type[T],
+    model_class: type[T],
     target_date: date,
     **filters: Any,
-) -> Optional[T]:
+) -> T | None:
     """
     Get version that was active at a specific date (time-travel query).
 
@@ -313,7 +311,7 @@ async def get_version_at_date(
 
 async def get_history(
     session: AsyncSession,
-    model_class: Type[T],
+    model_class: type[T],
     **filters: Any,
 ) -> list[T]:
     """
@@ -359,7 +357,7 @@ async def get_history(
     return list(result.scalars().all())
 
 
-def has_changes(old_instance: T, updates: Dict[str, Any]) -> tuple[bool, list[str]]:
+def has_changes(old_instance: T, updates: dict[str, Any]) -> tuple[bool, list[str]]:
     """
     Check if updates actually change any fields.
 

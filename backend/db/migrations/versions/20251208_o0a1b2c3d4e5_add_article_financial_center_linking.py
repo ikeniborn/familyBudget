@@ -15,9 +15,8 @@ Business Rules:
 - Existing transactions are not affected by this filtering
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "o0a1b2c3d4e5"

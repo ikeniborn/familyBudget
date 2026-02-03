@@ -15,10 +15,9 @@ Key features:
 """
 
 from datetime import datetime
-from typing import Optional
 from decimal import Decimal
 
-from sqlmodel import Field, SQLModel, Index
+from sqlmodel import Field, Index, SQLModel
 
 
 class FinancialCenterBalanceMonthly(SQLModel, table=True):
@@ -84,7 +83,7 @@ class FinancialCenterBalanceMonthly(SQLModel, table=True):
     __tablename__ = "t_agg_financial_center_balance_monthly"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"

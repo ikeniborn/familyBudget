@@ -19,7 +19,6 @@ Usage:
 
 import logging
 import re
-from typing import Optional, Tuple
 
 import httpx
 
@@ -31,7 +30,7 @@ class GoogleSheetsError(Exception):
     pass
 
 
-async def parse_google_sheets_url(url: str) -> Tuple[str, Optional[str]]:
+async def parse_google_sheets_url(url: str) -> tuple[str, str | None]:
     """
     Extract spreadsheet ID and sheet GID from Google Sheets URL.
 
@@ -82,7 +81,7 @@ async def parse_google_sheets_url(url: str) -> Tuple[str, Optional[str]]:
 
 async def fetch_google_sheets_as_csv(
     spreadsheet_id: str,
-    sheet_gid: Optional[str] = None,
+    sheet_gid: str | None = None,
     timeout: int = 30,
     max_redirects: int = 5
 ) -> bytes:

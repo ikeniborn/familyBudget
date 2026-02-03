@@ -20,7 +20,6 @@ Key Functions:
 """
 
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import func
 from sqlmodel import select
@@ -31,9 +30,9 @@ from backend.app.models.shopping_list_item import ShoppingListItem
 
 async def batch_complete_items(
     session: AsyncSession,
-    item_ids: List[int],
+    item_ids: list[int],
     is_completed: bool = True,
-    user_id: Optional[int] = None,
+    user_id: int | None = None,
 ) -> int:
     """
     Mark multiple shopping list items as completed (or uncompleted).
@@ -107,8 +106,8 @@ async def batch_complete_items(
 
 async def batch_delete_items(
     session: AsyncSession,
-    item_ids: List[int],
-    user_id: Optional[int] = None,
+    item_ids: list[int],
+    user_id: int | None = None,
 ) -> int:
     """
     Soft-delete multiple shopping list items at once.
@@ -169,8 +168,8 @@ async def batch_delete_items(
 async def restore_item(
     session: AsyncSession,
     item_id: int,
-    user_id: Optional[int] = None,
-) -> Optional[ShoppingListItem]:
+    user_id: int | None = None,
+) -> ShoppingListItem | None:
     """
     Restore a soft-deleted shopping list item.
 
@@ -227,7 +226,7 @@ async def restore_item(
 
 async def mark_items_pending(
     session: AsyncSession,
-    item_ids: List[int],
+    item_ids: list[int],
 ) -> int:
     """
     Mark items as pending sync (offline create/update).
@@ -276,8 +275,8 @@ async def mark_items_pending(
 
 async def get_pending_sync_items(
     session: AsyncSession,
-    shopping_list_id: Optional[int] = None,
-) -> List[ShoppingListItem]:
+    shopping_list_id: int | None = None,
+) -> list[ShoppingListItem]:
     """
     Get all items with pending sync status.
 
@@ -324,7 +323,7 @@ async def get_pending_sync_items(
 async def detect_conflicts(
     session: AsyncSession,
     shopping_list_id: int,
-) -> List[ShoppingListItem]:
+) -> list[ShoppingListItem]:
     """
     Detect items with sync conflicts.
 
@@ -421,7 +420,7 @@ async def get_items_by_completion_status(
     session: AsyncSession,
     shopping_list_id: int,
     is_completed: bool,
-) -> List[ShoppingListItem]:
+) -> list[ShoppingListItem]:
     """
     Get items filtered by completion status.
 
@@ -465,7 +464,7 @@ async def get_items_by_store(
     session: AsyncSession,
     shopping_list_id: int,
     store_id: int,
-) -> List[ShoppingListItem]:
+) -> list[ShoppingListItem]:
     """
     Get items filtered by store.
 
@@ -512,7 +511,7 @@ async def get_items_by_product_group(
     session: AsyncSession,
     shopping_list_id: int,
     product_group_id: int,
-) -> List[ShoppingListItem]:
+) -> list[ShoppingListItem]:
     """
     Get items filtered by product group (category).
 

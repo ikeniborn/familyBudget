@@ -20,9 +20,9 @@ Usage:
 """
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncIterator
 
 import redis.asyncio as redis
 from redis.asyncio import Redis

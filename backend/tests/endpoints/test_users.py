@@ -17,7 +17,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.user import User
 
-
 # ============================================================================
 # GET /api/v1/users - List Users (Admin Only)
 # ============================================================================

@@ -6,32 +6,27 @@ common test data, and HTTP client fixtures for API endpoint testing.
 """
 
 import asyncio
-from datetime import datetime
-from typing import AsyncGenerator, Generator
-
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.pool import NullPool
-from sqlmodel import SQLModel
-
-from backend.app.main import app
-from backend.app import models  # Import models module to ensure all are registered
-from backend.app.models.article import Article
-from backend.app.models.cost_center import CostCenter
-from backend.app.models.fact import BudgetFact
-from backend.app.models.financial_center import FinancialCenter
-from backend.app.models.hierarchy import ArticleHierarchy
-from backend.app.models.refresh_token import RefreshToken
-from backend.app.models.user import User
-from backend.app.services.jwt import create_access_token
 
 # Test database URL (PostgreSQL test database)
 # Uses 'postgres' hostname (Docker service name) when running in container
 # Uses 'localhost' when running locally outside Docker
 import os
+from collections.abc import AsyncGenerator, Generator
+from datetime import datetime
+
+import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import NullPool
+
+from backend.app.main import app
+from backend.app.models.article import Article
+from backend.app.models.fact import BudgetFact
+from backend.app.models.user import User
+from backend.app.services.jwt import create_access_token
+
 _db_host = os.getenv("POSTGRES_HOST", "postgres")  # Default to Docker service name
 TEST_DATABASE_URL = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:5432/familybudget_test"
 
@@ -512,8 +507,9 @@ async def test_shopping_list_item(
     Returns:
         ShoppingListItem: Tomatoes item (shared, creator_id for audit)
     """
-    from backend.app.models.shopping_list_item import ShoppingListItem
     from decimal import Decimal
+
+    from backend.app.models.shopping_list_item import ShoppingListItem
 
     item = ShoppingListItem(
         creator_id=test_user.id,

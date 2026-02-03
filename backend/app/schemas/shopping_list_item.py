@@ -7,7 +7,6 @@ Shopping list items are the lines in Header+Lines pattern (header is ShoppingLis
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -56,27 +55,27 @@ class ShoppingListItemCreate(BaseModel):
         examples=["Organic Milk 1L", "Bread", "Apples"]
     )
 
-    quantity: Optional[Decimal] = Field(
+    quantity: Decimal | None = Field(
         default=None,
         ge=0,
         description="Quantity to buy (OPTIONAL, integers preferred)",
         examples=[1, 2, 5, None]
     )
 
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         default=None,
         max_length=50,
         description="Unit of measurement (OPTIONAL)",
         examples=["kg", "liters", "pieces", None]
     )
 
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None,
         description="Optional comment or notes",
         examples=["buy on sale", "specific brand", None]
     )
 
-    position: Optional[int] = Field(
+    position: int | None = Field(
         default=None,
         description="Position in list for ordering (auto-assigned if null)",
         examples=[1, 2, 3, None]
@@ -119,19 +118,19 @@ class ShoppingListItemUpdate(BaseModel):
         - Cannot change shopping_list_id or creator_id
     """
 
-    store_id: Optional[int] = Field(
+    store_id: int | None = Field(
         default=None,
         description="Store ID",
         examples=[5]
     )
 
-    product_group_id: Optional[int] = Field(
+    product_group_id: int | None = Field(
         default=None,
         description="Product group ID",
         examples=[10]
     )
 
-    product_name: Optional[str] = Field(
+    product_name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -139,33 +138,33 @@ class ShoppingListItemUpdate(BaseModel):
         examples=["Updated Organic Milk 1L"]
     )
 
-    quantity: Optional[Decimal] = Field(
+    quantity: Decimal | None = Field(
         default=None,
         ge=0,
         description="Quantity to buy",
         examples=[3.0]
     )
 
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         default=None,
         max_length=50,
         description="Unit of measurement",
         examples=["bottles"]
     )
 
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None,
         description="Optional comment or notes",
         examples=["updated comment"]
     )
 
-    position: Optional[int] = Field(
+    position: int | None = Field(
         default=None,
         description="Position in list for ordering",
         examples=[5]
     )
 
-    is_completed: Optional[bool] = Field(
+    is_completed: bool | None = Field(
         default=None,
         description="Completion flag",
         examples=[True]
@@ -173,7 +172,7 @@ class ShoppingListItemUpdate(BaseModel):
 
     @field_validator("product_name")
     @classmethod
-    def product_name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def product_name_not_empty(cls, v: str | None) -> str | None:
         """Validate product name if provided."""
         if v is None:
             return None
@@ -227,22 +226,22 @@ class ShoppingListItemResponse(BaseModel):
         examples=["Organic Milk 1L"]
     )
 
-    quantity: Optional[Decimal] = Field(
+    quantity: Decimal | None = Field(
         description="Quantity to buy",
         examples=[2.5, None]
     )
 
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         description="Unit of measurement",
         examples=["kg", None]
     )
 
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         description="Optional comment",
         examples=["buy on sale", None]
     )
 
-    position: Optional[int] = Field(
+    position: int | None = Field(
         default=None,
         description="Position in list for ordering",
         examples=[1, None]
@@ -253,7 +252,7 @@ class ShoppingListItemResponse(BaseModel):
         examples=[False]
     )
 
-    completed_at: Optional[datetime] = Field(
+    completed_at: datetime | None = Field(
         default=None,
         description="When item was marked as completed (for conflict resolution)",
         examples=["2025-01-10T14:30:00Z", None]
@@ -271,14 +270,14 @@ class ShoppingListItemResponse(BaseModel):
     )
 
     # Soft delete (nullable - NULL means active, timestamp means deleted)
-    deleted_at: Optional[datetime] = Field(
+    deleted_at: datetime | None = Field(
         default=None,
         description="Soft delete timestamp (NULL = active)",
         examples=[None]
     )
 
     # Audit fields
-    last_modified_by: Optional[int] = Field(
+    last_modified_by: int | None = Field(
         default=None,
         description="User ID who last modified this item",
         examples=[123, None]
@@ -328,7 +327,7 @@ class BatchCompleteRequest(BaseModel):
     Marks multiple items as completed or uncompleted in a single request.
     """
 
-    item_ids: List[int] = Field(
+    item_ids: list[int] = Field(
         ...,
         min_length=1,
         description="List of shopping list item IDs to update",
@@ -358,7 +357,7 @@ class BatchDeleteRequest(BaseModel):
     Deletes multiple items in a single request.
     """
 
-    item_ids: List[int] = Field(
+    item_ids: list[int] = Field(
         ...,
         min_length=1,
         description="List of shopping list item IDs to delete",
@@ -412,11 +411,11 @@ class SyncDeltaResponse(BaseModel):
     Returns items changed since last sync timestamp.
     """
 
-    items: List[ShoppingListItemResponse] = Field(
+    items: list[ShoppingListItemResponse] = Field(
         description="List of changed items (created/updated since timestamp)"
     )
 
-    deleted_ids: List[int] = Field(
+    deleted_ids: list[int] = Field(
         description="List of soft-deleted item IDs (deleted_at IS NOT NULL since timestamp)"
     )
 
@@ -451,12 +450,12 @@ class SyncItemCreate(BaseModel):
     store_id: int = Field(..., description="Store ID")
     product_group_id: int = Field(..., description="Product group ID")
     product_name: str = Field(..., max_length=255, min_length=1)
-    quantity: Optional[Decimal] = Field(default=None)
-    unit: Optional[str] = Field(default=None, max_length=50)
-    comment: Optional[str] = Field(default=None)
-    position: Optional[int] = Field(default=None, description="Position in list")
+    quantity: Decimal | None = Field(default=None)
+    unit: str | None = Field(default=None, max_length=50)
+    comment: str | None = Field(default=None)
+    position: int | None = Field(default=None, description="Position in list")
     is_completed: bool = Field(default=False)
-    completed_at: Optional[datetime] = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
 
 
 class SyncItemUpdate(BaseModel):
@@ -473,15 +472,15 @@ class SyncItemUpdate(BaseModel):
     )
 
     # Fields to update (all optional)
-    store_id: Optional[int] = Field(default=None)
-    product_group_id: Optional[int] = Field(default=None)
-    product_name: Optional[str] = Field(default=None, max_length=255)
-    quantity: Optional[Decimal] = Field(default=None)
-    unit: Optional[str] = Field(default=None, max_length=50)
-    comment: Optional[str] = Field(default=None)
-    position: Optional[int] = Field(default=None)
-    is_completed: Optional[bool] = Field(default=None)
-    completed_at: Optional[datetime] = Field(default=None)
+    store_id: int | None = Field(default=None)
+    product_group_id: int | None = Field(default=None)
+    product_name: str | None = Field(default=None, max_length=255)
+    quantity: Decimal | None = Field(default=None)
+    unit: str | None = Field(default=None, max_length=50)
+    comment: str | None = Field(default=None)
+    position: int | None = Field(default=None)
+    is_completed: bool | None = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
 
 
 class SyncItemDelete(BaseModel):
@@ -510,22 +509,22 @@ class BatchSyncRequest(BaseModel):
         description="Shopping list ID for all operations"
     )
 
-    creates: List[SyncItemCreate] = Field(
+    creates: list[SyncItemCreate] = Field(
         default=[],
         description="Items to create (new items from offline)"
     )
 
-    updates: List[SyncItemUpdate] = Field(
+    updates: list[SyncItemUpdate] = Field(
         default=[],
         description="Items to update (modified offline)"
     )
 
-    deletes: List[SyncItemDelete] = Field(
+    deletes: list[SyncItemDelete] = Field(
         default=[],
         description="Items to delete (deleted offline)"
     )
 
-    client_last_sync: Optional[datetime] = Field(
+    client_last_sync: datetime | None = Field(
         default=None,
         description="Client's last sync timestamp (for conflict detection)"
     )
@@ -570,12 +569,12 @@ class SyncConflict(BaseModel):
         description="Type of conflict: 'update_update', 'update_delete', 'delete_update'"
     )
 
-    server_item: Optional[ShoppingListItemResponse] = Field(
+    server_item: ShoppingListItemResponse | None = Field(
         default=None,
         description="Current server state (None if deleted)"
     )
 
-    merged_item: Optional[ShoppingListItemResponse] = Field(
+    merged_item: ShoppingListItemResponse | None = Field(
         default=None,
         description="Auto-merged result (if applicable)"
     )
@@ -602,22 +601,22 @@ class BatchSyncResponse(BaseModel):
     Contains results of all operations and any conflicts.
     """
 
-    created: List[SyncCreatedItem] = Field(
+    created: list[SyncCreatedItem] = Field(
         default=[],
         description="Successfully created items (with temp_id mapping)"
     )
 
-    updated: List[ShoppingListItemResponse] = Field(
+    updated: list[ShoppingListItemResponse] = Field(
         default=[],
         description="Successfully updated items"
     )
 
-    deleted: List[int] = Field(
+    deleted: list[int] = Field(
         default=[],
         description="Successfully deleted item IDs"
     )
 
-    conflicts: List[SyncConflict] = Field(
+    conflicts: list[SyncConflict] = Field(
         default=[],
         description="Items with conflicts (require resolution)"
     )
@@ -660,7 +659,7 @@ class ConflictResolutionRequest(BaseModel):
         description="Resolution strategy: 'server' (keep server), 'client' (force client), 'merge' (auto-merge)"
     )
 
-    client_data: Optional[dict] = Field(
+    client_data: dict | None = Field(
         default=None,
         description="Client data to merge (required for 'merge' strategy)"
     )
@@ -678,7 +677,7 @@ class ProductSuggestion(BaseModel):
     """
 
     # Fields for restore functionality
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         description="Item ID for restore (null for aggregated active items)"
     )
@@ -688,7 +687,7 @@ class ProductSuggestion(BaseModel):
         description="True if item is soft-deleted and can be restored"
     )
 
-    shopping_list_id: Optional[int] = Field(
+    shopping_list_id: int | None = Field(
         default=None,
         description="Shopping list ID (for restore context)"
     )
@@ -699,44 +698,44 @@ class ProductSuggestion(BaseModel):
         description="Product name from history"
     )
 
-    store_id: Optional[int] = Field(
+    store_id: int | None = Field(
         default=None,
         description="Store ID where product was last bought"
     )
 
-    store_name: Optional[str] = Field(
+    store_name: str | None = Field(
         default=None,
         description="Store name where product was last bought"
     )
 
-    product_group_id: Optional[int] = Field(
+    product_group_id: int | None = Field(
         default=None,
         description="Product group ID from last purchase"
     )
 
-    product_group_name: Optional[str] = Field(
+    product_group_name: str | None = Field(
         default=None,
         description="Product group name from last purchase"
     )
 
     # Item details for form pre-fill
-    quantity: Optional[Decimal] = Field(
+    quantity: Decimal | None = Field(
         default=None,
         description="Quantity from deleted item (for restore)"
     )
 
-    unit: Optional[str] = Field(
+    unit: str | None = Field(
         default=None,
         description="Unit from deleted item (for restore)"
     )
 
-    comment: Optional[str] = Field(
+    comment: str | None = Field(
         default=None,
         description="Comment from deleted item (for restore)"
     )
 
     # Usage statistics
-    last_used: Optional[datetime] = Field(
+    last_used: datetime | None = Field(
         default=None,
         description="When this product was last added to a list"
     )
@@ -752,7 +751,7 @@ class ProductSuggestionsResponse(BaseModel):
     Response schema for product autocomplete suggestions.
     """
 
-    suggestions: List[ProductSuggestion] = Field(
+    suggestions: list[ProductSuggestion] = Field(
         default_factory=list,
         description="List of product suggestions"
     )

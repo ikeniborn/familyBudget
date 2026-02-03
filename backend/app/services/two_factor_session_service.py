@@ -40,13 +40,11 @@ Usage:
 import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.two_factor_session import TwoFactorSession
-
 
 # Session configuration
 SESSION_TTL_MINUTES = 5          # Session expires after 5 minutes
@@ -114,7 +112,7 @@ async def create_session(
 async def verify_session(
     session: AsyncSession,
     token: str,
-) -> Optional[int]:
+) -> int | None:
     """
     Verify a 2FA session token.
 
@@ -234,7 +232,7 @@ async def cleanup_expired_sessions(
 async def get_session_by_user_id(
     session: AsyncSession,
     user_id: int,
-) -> Optional[TwoFactorSession]:
+) -> TwoFactorSession | None:
     """
     Get active (non-expired, non-used) session for a user.
 

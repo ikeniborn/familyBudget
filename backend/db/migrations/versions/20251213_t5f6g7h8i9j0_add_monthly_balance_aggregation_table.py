@@ -22,10 +22,8 @@ Update Strategy:
 - Can be refreshed via admin API or scheduled job
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
-
+from alembic import op
 
 # Revision identifiers
 revision = "t5f6g7h8i9j0"

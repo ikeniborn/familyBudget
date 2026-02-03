@@ -11,9 +11,9 @@ Tests complete workflows for managing Financial Centers and Cost Centers with:
 Phase 2 Feature: ЦФО/МВЗ Integration (v5.0.0-beta)
 """
 
+from datetime import date
+
 import pytest
-from datetime import date, datetime, timedelta
-from decimal import Decimal
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -137,10 +137,10 @@ class TestFinancialCentersJourney:
         assert cash_current is not None
         assert cash_current["name"] == "Наличные (Обновлено)"
 
-        print(f"✅ SCD Type 1 + History verified:")
-        print(f"   - Financial center updated in-place (same ID)")
-        print(f"   - History snapshot created (for audit trail)")
-        print(f"   - Updated version visible in list")
+        print("✅ SCD Type 1 + History verified:")
+        print("   - Financial center updated in-place (same ID)")
+        print("   - History snapshot created (for audit trail)")
+        print("   - Updated version visible in list")
 
         # ===== STEP 6: Delete Financial Center =====
         print("\n💰 Step 6: Deleting financial center...")
@@ -159,12 +159,12 @@ class TestFinancialCentersJourney:
         fc_list_after = response_data["financial_centers"]  # Extract array from wrapper
         deleted_fc = next((fc for fc in fc_list_after if fc["id"] == crypto_id), None)
         assert deleted_fc is None
-        print(f"✅ Deleted ЦФО no longer appears in list")
+        print("✅ Deleted ЦФО no longer appears in list")
 
         # Getting deleted financial center should return 404
         get_deleted = await auth_client.get(f"/api/v1/financial-centers/{crypto_id}")
         assert get_deleted.status_code == 404
-        print(f"✅ GET request for deleted ЦФО returns 404")
+        print("✅ GET request for deleted ЦФО returns 404")
 
         print("\n" + "="*60)
         print("🎉 FINANCIAL CENTERS CRUD + SCD TYPE 2 TEST PASSED!")
@@ -280,7 +280,7 @@ class TestCostCentersJourney:
         personal_current = next((cc for cc in current_versions if cc["id"] == personal_id), None)
         assert personal_current is not None
         assert personal_current["name"] == "Личные (Обновлено)"
-        print(f"✅ SCD Type 1 + History verified (updated in-place)")
+        print("✅ SCD Type 1 + History verified (updated in-place)")
 
         # ===== STEP 6: Delete Cost Center =====
         print("\n🏢 Step 6: Deleting cost center...")
@@ -298,11 +298,11 @@ class TestCostCentersJourney:
         cc_list_after = response_data["cost_centers"]  # Extract array from wrapper
         deleted_cc = next((cc for cc in cc_list_after if cc["id"] == dept_id), None)
         assert deleted_cc is None
-        print(f"✅ Deleted МВЗ no longer appears in list")
+        print("✅ Deleted МВЗ no longer appears in list")
 
         get_deleted = await auth_client.get(f"/api/v1/cost-centers/{dept_id}")
         assert get_deleted.status_code == 404
-        print(f"✅ GET request for deleted МВЗ returns 404")
+        print("✅ GET request for deleted МВЗ returns 404")
 
         print("\n" + "="*60)
         print("🎉 COST CENTERS CRUD + SCD TYPE 2 TEST PASSED!")
@@ -448,7 +448,7 @@ class TestCentersIntegrationWithFacts:
         fact4_data = fact4.json()
         assert fact4_data["financial_center_id"] is None
         assert fact4_data["cost_center_id"] is None
-        print(f"✅ Created fact without centers (backward compatible)")
+        print("✅ Created fact without centers (backward compatible)")
 
         # ===== STEP 7: Query Facts and Verify Centers =====
         print("\n💼 Step 7: Querying facts with center associations...")
@@ -463,7 +463,7 @@ class TestCentersIntegrationWithFacts:
         fact_ids = [fact1_data["id"], fact2_data["id"], fact3_data["id"], fact4_data["id"]]
         found_facts = [f for f in facts if f["id"] in fact_ids]
         assert len(found_facts) == 4
-        print(f"✅ All 4 facts retrieved with correct center associations")
+        print("✅ All 4 facts retrieved with correct center associations")
 
         # ===== STEP 8: Update Fact with Different Centers =====
         print("\n💼 Step 8: Updating fact with different centers...")
@@ -491,7 +491,7 @@ class TestCentersIntegrationWithFacts:
         updated_fact_data = update_fact.json()
         assert updated_fact_data["financial_center_id"] == fc2_id
         assert updated_fact_data["cost_center_id"] == cc_id
-        print(f"✅ Updated fact with different ЦФО and added МВЗ")
+        print("✅ Updated fact with different ЦФО and added МВЗ")
 
         print("\n" + "="*60)
         print("🎉 ЦФО/МВЗ INTEGRATION WITH FACTS TEST PASSED!")
@@ -599,14 +599,14 @@ class TestCentersAnalytics:
         assert cash_breakdown.status_code == 200
         cash_data = cash_breakdown.json()
         # Note: Actual implementation may vary, adjust assertions accordingly
-        print(f"✅ Category breakdown filtered by ЦФО (Cash)")
+        print("✅ Category breakdown filtered by ЦФО (Cash)")
 
         # Filter by Card ЦФО (should get 200 + 150 = 350)
         card_breakdown = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={card_fc_id}"
         )
         assert card_breakdown.status_code == 200
-        print(f"✅ Category breakdown filtered by ЦФО (Card)")
+        print("✅ Category breakdown filtered by ЦФО (Card)")
 
         # ===== STEP 3: Test Category Breakdown Filtered by МВЗ =====
         print("\n📊 Step 3: Testing category breakdown filtered by МВЗ...")
@@ -616,14 +616,14 @@ class TestCentersAnalytics:
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&cost_center_id={personal_cc_id}"
         )
         assert personal_breakdown.status_code == 200
-        print(f"✅ Category breakdown filtered by МВЗ (Personal)")
+        print("✅ Category breakdown filtered by МВЗ (Personal)")
 
         # Filter by Family МВЗ (should get 50 + 150 = 200)
         family_breakdown = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&cost_center_id={family_cc_id}"
         )
         assert family_breakdown.status_code == 200
-        print(f"✅ Category breakdown filtered by МВЗ (Family)")
+        print("✅ Category breakdown filtered by МВЗ (Family)")
 
         # ===== STEP 4: Test Quick Stats with Center Filters =====
         print("\n📊 Step 4: Testing quick stats with center filters...")
@@ -635,7 +635,7 @@ class TestCentersAnalytics:
         # Note: quick-stats may not support filtering, adjust based on actual implementation
         # This is a test to verify the API accepts the parameter without error
         if stats_fc.status_code == 200:
-            print(f"✅ Quick stats accepts ЦФО filter parameter")
+            print("✅ Quick stats accepts ЦФО filter parameter")
         else:
             print(f"⚠️  Quick stats does not support ЦФО filtering (status: {stats_fc.status_code})")
 
@@ -644,7 +644,7 @@ class TestCentersAnalytics:
             f"/api/v1/analytics/quick-stats?cost_center_id={personal_cc_id}"
         )
         if stats_cc.status_code == 200:
-            print(f"✅ Quick stats accepts МВЗ filter parameter")
+            print("✅ Quick stats accepts МВЗ filter parameter")
         else:
             print(f"⚠️  Quick stats does not support МВЗ filtering (status: {stats_cc.status_code})")
 
@@ -757,7 +757,7 @@ class TestCentersValidation:
         # 2. Try to access as user2 (should fail)
         # 3. Verify users can only see their own centers
 
-        print(f"✅ User isolation enforced at API level (tested via auth requirements)")
+        print("✅ User isolation enforced at API level (tested via auth requirements)")
 
         print("\n" + "="*60)
         print("🎉 VALIDATION AND ERROR HANDLING TEST PASSED!")

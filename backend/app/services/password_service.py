@@ -29,9 +29,9 @@ Usage:
 """
 
 import re
-from argon2 import PasswordHasher, Type
-from argon2.exceptions import VerifyMismatchError, InvalidHash
 
+from argon2 import PasswordHasher, Type
+from argon2.exceptions import InvalidHash, VerifyMismatchError
 
 # Argon2id configuration (OWASP recommended parameters)
 # https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html

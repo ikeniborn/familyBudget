@@ -16,15 +16,14 @@ Key Functions:
     - get_user_version_at_date(): Time-travel query to UserHistory
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.user import User
 from backend.app.models.user_history import UserHistory
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -34,8 +33,8 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 async def update_user_profile(
     session: AsyncSession,
     user: User,
-    updates: Dict[str, Any],
-    changed_by_user_id: Optional[int] = None,
+    updates: dict[str, Any],
+    changed_by_user_id: int | None = None,
     change_type: str = "UPDATE",
 ) -> User:
     """
@@ -140,7 +139,7 @@ async def update_user_profile(
 async def get_user_history(
     session: AsyncSession,
     user_id: int,
-) -> List[UserHistory]:
+) -> list[UserHistory]:
     """
     Get full change history for a user from UserHistory table.
 
@@ -180,7 +179,7 @@ async def get_user_version_at_date(
     session: AsyncSession,
     user_id: int,
     target_date: date,
-) -> Optional[UserHistory]:
+) -> UserHistory | None:
     """
     Get User version that was active at a specific date (time-travel query).
 

@@ -12,7 +12,6 @@ Features:
     - Hierarchy support (parent_id, closure table)
 """
 
-from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -22,8 +21,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
     CurrentUser,
-    apply_user_filter,
-    ensure_user_owns_resource,
     get_session,
     get_user_id_for_create,
 )
@@ -38,8 +35,6 @@ from backend.app.schemas.article import (
 from backend.app.services import (
     archive_recursive,
     get_ancestors,
-    get_depth,
-    get_direct_children,
     get_subtree,
     has_changes,
     restore_recursive,
@@ -439,7 +434,7 @@ async def update_article(
 
     if not changed:
         # No changes, return existing article
-        logger.info(f"[ARTICLE UPDATE] No changes detected, returning old article")
+        logger.info("[ARTICLE UPDATE] No changes detected, returning old article")
         return old_article
 
     # Handle is_active changes separately (archiving/restoring)
@@ -491,7 +486,7 @@ async def update_article(
         return updated_article
     else:
         # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
-        logger.info(f"[ARTICLE UPDATE] Only is_active changed, returning updated article")
+        logger.info("[ARTICLE UPDATE] Only is_active changed, returning updated article")
         # Invalidate articles cache (is_active change affects listing)
         await cache_service.invalidate_articles()
         return old_article

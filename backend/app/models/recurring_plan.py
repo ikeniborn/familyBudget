@@ -10,7 +10,6 @@ Table: t_d_recurring_plan
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -68,7 +67,7 @@ class RecurringPlan(SQLModel, table=True):
     __tablename__ = "t_d_recurring_plan"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"
@@ -95,7 +94,7 @@ class RecurringPlan(SQLModel, table=True):
         description="Financial center for generated transactions"
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         foreign_key="t_d_cost_center.id",
         description="Cost center (optional) for generated transactions"
@@ -108,7 +107,7 @@ class RecurringPlan(SQLModel, table=True):
         description="Frequency type: daily, weekly, monthly, quarterly"
     )
 
-    frequency_value: Optional[int] = Field(
+    frequency_value: int | None = Field(
         default=None,
         description="Day value: for weekly 0-6 (Mon=0), for monthly/quarterly 1-28"
     )
@@ -119,13 +118,13 @@ class RecurringPlan(SQLModel, table=True):
         description="First occurrence date"
     )
 
-    end_date: Optional[date] = Field(
+    end_date: date | None = Field(
         default=None,
         description="Last occurrence date (optional, NULL = indefinite)"
     )
 
     # Occurrence tracking
-    occurrences_count: Optional[int] = Field(
+    occurrences_count: int | None = Field(
         default=None,
         description="Maximum number of occurrences (optional, NULL = indefinite)"
     )
@@ -144,7 +143,7 @@ class RecurringPlan(SQLModel, table=True):
         description="Transaction amount (always positive)"
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=1000,
         description="Transaction description template"
@@ -164,14 +163,14 @@ class RecurringPlan(SQLModel, table=True):
         description="Whether to create reminders for each generated fact"
     )
 
-    reminder_hour: Optional[int] = Field(
+    reminder_hour: int | None = Field(
         default=None,
         ge=0,
         le=23,
         description="Hour of reminder time (0-23) in SYSTEM_TIMEZONE. Required if enable_reminder=true"
     )
 
-    reminder_minute: Optional[int] = Field(
+    reminder_minute: int | None = Field(
         default=None,
         ge=0,
         le=59,
@@ -186,13 +185,13 @@ class RecurringPlan(SQLModel, table=True):
         description="Active status (soft delete via is_active=false)"
     )
 
-    next_generation_date: Optional[date] = Field(
+    next_generation_date: date | None = Field(
         default=None,
         index=True,
         description="Next date for fact generation (used by scheduler)"
     )
 
-    last_generated_date: Optional[date] = Field(
+    last_generated_date: date | None = Field(
         default=None,
         description="Date of last generated fact"
     )

@@ -17,9 +17,8 @@ Column details:
 - False for records created online (default)
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = 'u6g7h8i9j0k1'

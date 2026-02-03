@@ -53,18 +53,16 @@ Testing:
 6. Test downgrade
 7. Re-run upgrade (idempotency test)
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy import text
-from sqlalchemy.dialects.postgresql import ARRAY
 
 # revision identifiers, used by Alembic.
 revision: str = '2cb6c738c255'
-down_revision: Union[str, None] = '24a93352147e'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '24a93352147e'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

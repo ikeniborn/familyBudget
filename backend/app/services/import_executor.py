@@ -8,7 +8,6 @@ Converts staging records to budget facts with proper validation and error handli
 import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import List, Tuple
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
@@ -127,7 +126,7 @@ class ImportExecutor:
             raise ValueError(f"Invalid amount format: {amount_str}") from e
 
     @staticmethod
-    def validate_staging_record(record: ImportStaging) -> Tuple[bool, str]:
+    def validate_staging_record(record: ImportStaging) -> tuple[bool, str]:
         """
         Validate staging record before import.
 
@@ -165,7 +164,7 @@ class ImportExecutor:
         session: AsyncSession,
         user_id: int,
         selected_only: bool = True
-    ) -> Tuple[int, int, List[str]]:
+    ) -> tuple[int, int, list[str]]:
         """
         Execute import from staging to BudgetFact.
 
@@ -206,7 +205,7 @@ class ImportExecutor:
 
         success_count = 0
         failed_count = 0
-        error_messages: List[str] = []
+        error_messages: list[str] = []
 
         # Process each record
         for record in staging_records:

@@ -13,8 +13,7 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +32,13 @@ from backend.app.schemas.cost_center import (
     CostCenterUpdate,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services.scd2_service import has_changes
+from backend.app.services.cache_service import cache_service
 from backend.app.services.cost_center_service import (
+    FAR_FUTURE_DATETIME,
     create_initial_history,
     update_cost_center_profile,
-    FAR_FUTURE_DATETIME,
 )
-from backend.app.services.cache_service import cache_service
+from backend.app.services.scd2_service import has_changes
 
 router = APIRouter(
     prefix="/cost-centers",
@@ -559,8 +558,8 @@ async def delete_cost_center(
         HTTPException: 403 if not admin
         HTTPException: 404 if cost center not found
     """
-    from backend.app.models.fact import BudgetFact
     from backend.app.models.cost_center_history import CostCenterHistory
+    from backend.app.models.fact import BudgetFact
 
     # Check: Only admins can delete cost centers
     if not current_user.is_admin:

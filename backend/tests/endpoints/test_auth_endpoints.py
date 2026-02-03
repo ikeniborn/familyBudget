@@ -11,7 +11,6 @@ Endpoints tested:
 import hashlib
 import hmac
 import time
-from typing import Dict
 
 import pytest
 from httpx import AsyncClient
@@ -35,7 +34,7 @@ def generate_valid_telegram_auth_data(
     last_name: str = None,
     username: str = None,
     photo_url: str = None,
-) -> Dict[str, any]:
+) -> dict[str, any]:
     """
     Generate valid Telegram OAuth data with correct HMAC-SHA256 hash.
 

@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.user import User
 
-
 # ============================================================================
 # Article Creation Tests
 # ============================================================================

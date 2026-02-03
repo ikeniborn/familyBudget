@@ -4,7 +4,6 @@ Pydantic schemas for Admin management endpoints.
 This module defines schemas for admin-specific operations and statistics.
 """
 
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -51,7 +50,7 @@ class SystemStatsResponse(BaseModel):
         ge=0
     )
 
-    last_fact_date: Optional[str] = Field(
+    last_fact_date: str | None = Field(
         default=None,
         description="Date of the most recent transaction (ISO format YYYY-MM-DD)",
         examples=["2025-11-05", None]
@@ -83,11 +82,11 @@ class UserStatsResponse(BaseModel):
     """
 
     user_id: int = Field(description="User's database ID")
-    username: Optional[str] = Field(default=None, description="Telegram username")
-    first_name: Optional[str] = Field(default=None, description="User's first name")
+    username: str | None = Field(default=None, description="Telegram username")
+    first_name: str | None = Field(default=None, description="User's first name")
     total_facts: int = Field(description="[DEPRECATED] Transactions created by user")
     total_articles: int = Field(description="[DEPRECATED] Categories created by user")
-    last_fact_date: Optional[str] = Field(
+    last_fact_date: str | None = Field(
         default=None,
         description="[DEPRECATED] Last transaction created by user"
     )

@@ -19,85 +19,87 @@ Security Features:
     - Refresh tokens hashed in database (SHA-256, like password hashing)
 """
 
+# Standard library imports
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.core.logging_utils import hash_email_for_logging
 from backend.app.middleware.rate_limiter import limiter
-from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import (
+    AddEmailRequest,
+    AuthMethodsResponse,
     AuthResponse,
-    TelegramAuthData,
-    UserResponse,
-    EmailRegisterRequest,
+    BackupCodesResponse,
     EmailLoginRequest,
     EmailLoginResponse,
-    TwoFactorVerifyRequest,
-    TwoFactorSetupAndVerifyRequest,
-    TwoFactorSetupResponse,
-    TwoFactorVerifySetupRequest,
-    TwoFactorSetupCompleteResponse,
-    TwoFactorDisableRequest,
-    BackupCodesResponse,
-    AddEmailRequest,
-    SetPasswordRequest,
+    EmailRegisterRequest,
     LinkTelegramRequest,
     MessageResponse,
     RegistrationSuccessResponse,
-    AuthMethodsResponse,
+    SetPasswordRequest,
+    TelegramAuthData,
+    TwoFactorDisableRequest,
+    TwoFactorSetupAndVerifyRequest,
+    TwoFactorSetupCompleteResponse,
+    TwoFactorSetupResponse,
+    TwoFactorVerifyRequest,
+    TwoFactorVerifySetupRequest,
+    UserResponse,
     WebAuthnCredentialInfo,
 )
 from backend.app.services.auth_service import (
-    get_user_by_telegram_id,
+    add_email_to_user,
+    authenticate_with_password,
     get_user_by_email,
     get_user_by_id,
-    authenticate_with_password,
-    add_email_to_user,
-    set_user_password,
+    get_user_by_telegram_id,
     link_telegram_to_user,
+    set_user_password,
 )
 from backend.app.services.avatar_service import download_user_avatar
-from backend.app.services.password_service import (
-    hash_password,
-    validate_password_strength,
-    verify_password,
-)
-from backend.app.services.totp_service import (
-    generate_secret,
-    get_totp_uri,
-    verify_totp,
-    generate_backup_codes,
-    verify_backup_code,
-    get_remaining_backup_codes_count,
-)
-from backend.app.services.two_factor_session_service import (
-    create_session as create_2fa_session,
-    verify_session as verify_2fa_session,
-    consume_session as consume_2fa_session,
-)
-from backend.app.services.user_service import (
-    update_user_profile,
-    create_initial_history,
-)
 from backend.app.services.jwt import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     hash_token,
 )
+from backend.app.services.password_service import (
+    hash_password,
+    validate_password_strength,
+    verify_password,
+)
 from backend.app.services.telegram_auth import validate_telegram_auth
+from backend.app.services.totp_service import (
+    generate_backup_codes,
+    generate_secret,
+    get_totp_uri,
+    verify_backup_code,
+    verify_totp,
+)
+from backend.app.services.two_factor_session_service import (
+    consume_session as consume_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
+    create_session as create_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
+    verify_session as verify_2fa_session,
+)
+from backend.app.services.user_service import (
+    create_initial_history,
+)
 from backend.app.services.webauthn_service import user_has_webauthn_credentials
-
-# Standard library imports
-import logging
-from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 settings = get_settings()

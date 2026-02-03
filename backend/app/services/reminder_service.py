@@ -6,24 +6,21 @@ via Telegram and Web Push when reminders are due.
 """
 
 from datetime import datetime
-from typing import Optional, List, Tuple
-
-from backend.app.core.json_utils import dumps as json_dumps
 
 import httpx
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
+from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.logging import get_logger
-from backend.app.db.session import get_session_context
-from backend.app.utils.timezone import now_utc, now_local
-from backend.app.models.scheduled_reminder import ScheduledReminder
-from backend.app.models.push_subscription import PushSubscription
-from backend.app.models.fact import BudgetFact
 from backend.app.models.article import Article
-from backend.app.models.user import User
+from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.push_subscription import PushSubscription
+from backend.app.models.scheduled_reminder import ScheduledReminder
+from backend.app.models.user import User
+from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)
 
@@ -31,7 +28,7 @@ logger = get_logger(__name__)
 class ReminderService:
     """Service for scheduled reminder management."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
         self.bot_token = self.settings.TELEGRAM_BOT_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.bot_token}"
@@ -185,7 +182,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         fact_id: int,
-    ) -> Optional[ScheduledReminder]:
+    ) -> ScheduledReminder | None:
         """
         Get reminder by plan ID.
 
@@ -207,7 +204,7 @@ class ReminderService:
         session: AsyncSession,
         fact_id: int,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get reminder with plan and article info.
 
@@ -260,7 +257,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         batch_size: int = 100,
-    ) -> List[ScheduledReminder]:
+    ) -> list[ScheduledReminder]:
         """
         Get reminders that are due (status=pending and datetime <= now).
 
@@ -291,7 +288,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         reminder: ScheduledReminder,
-    ) -> Tuple[bool, bool]:
+    ) -> tuple[bool, bool]:
         """
         Send reminder notification via Telegram and Web Push.
 
@@ -387,8 +384,8 @@ class ReminderService:
         article_name: str,
         amount: float,
         fact_date: datetime,
-        description: Optional[str] = None,
-        financial_center_name: Optional[str] = None,
+        description: str | None = None,
+        financial_center_name: str | None = None,
     ) -> str:
         """
         Generate reminder message text.
@@ -505,7 +502,7 @@ class ReminderService:
 
         # Try to import pywebpush
         try:
-            from pywebpush import webpush, WebPushException
+            from pywebpush import WebPushException, webpush
         except ImportError:
             logger.warning("[REMINDER] pywebpush not installed, skipping Web Push")
             return False
@@ -577,10 +574,10 @@ class ReminderService:
         self,
         session: AsyncSession,
         user_id: int,
-        status: Optional[str] = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """
         List reminders for a user with plan info.
 

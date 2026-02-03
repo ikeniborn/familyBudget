@@ -35,7 +35,6 @@ Attributes:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import CheckConstraint, Index
 from sqlmodel import Field, SQLModel
@@ -91,7 +90,7 @@ class WebAuthnChallenge(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -106,7 +105,7 @@ class WebAuthnChallenge(SQLModel, table=True):
     )
 
     # User association (nullable for authentication challenges)
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
@@ -132,20 +131,20 @@ class WebAuthnChallenge(SQLModel, table=True):
         description="Challenge expiration timestamp (10-minute TTL)"
     )
 
-    consumed_at: Optional[datetime] = Field(
+    consumed_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Challenge consumption timestamp (single-use enforcement)"
     )
 
     # Audit metadata
-    ip_address: Optional[str] = Field(
+    ip_address: str | None = Field(
         default=None,
         max_length=45,  # IPv6 max length
         description="Client IP address for audit trail"
     )
 
-    user_agent: Optional[str] = Field(
+    user_agent: str | None = Field(
         default=None,
         description="Client user agent string for audit trail"
     )

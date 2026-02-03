@@ -9,7 +9,6 @@ Table: t_d_bank_provider
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -35,7 +34,7 @@ class BankProvider(SQLModel, table=True):
     __tablename__ = "t_d_bank_provider"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"

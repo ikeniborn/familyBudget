@@ -13,18 +13,13 @@ Tests complete user isolation workflows:
 These tests verify multi-tenancy and data isolation work correctly end-to-end.
 """
 
-from datetime import date
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.article import Article
-from backend.app.models.fact import BudgetFact
 from backend.app.services.jwt import create_access_token
-
 
 # ============================================================================
 # Article Isolation Tests

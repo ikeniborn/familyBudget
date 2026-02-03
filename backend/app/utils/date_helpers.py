@@ -8,10 +8,9 @@
 - Пропорционального расчета бюджетов
 """
 
+import calendar
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import List, Tuple
-import calendar
 
 
 def get_iso_week_number(target_date: date) -> str:
@@ -34,7 +33,7 @@ def get_iso_week_number(target_date: date) -> str:
     return f"Н{iso_week} {short_year}"
 
 
-def get_week_bounds(target_date: date) -> Tuple[date, date]:
+def get_week_bounds(target_date: date) -> tuple[date, date]:
     """
     Получить границы календарной недели (понедельник-воскресенье).
 
@@ -64,7 +63,7 @@ def get_rolling_weeks(
     num_weeks: int,
     end_date: date,
     include_incomplete: bool = True
-) -> List[Tuple[date, date, str]]:
+) -> list[tuple[date, date, str]]:
     """
     Получить последние N календарных недель (rolling period).
 
@@ -120,7 +119,7 @@ def get_rolling_months(
     num_months: int,
     end_date: date,
     include_incomplete: bool = True
-) -> List[Tuple[date, date, str]]:
+) -> list[tuple[date, date, str]]:
     """
     Получить последние N календарных месяцев (rolling period).
 
@@ -233,7 +232,7 @@ def get_month_name_short_ru(month: int) -> str:
     return month_names[month - 1]
 
 
-def get_quarter_bounds(target_date: date) -> Tuple[date, date, str]:
+def get_quarter_bounds(target_date: date) -> tuple[date, date, str]:
     """
     Получить границы rolling квартала (3 месяца от текущего месяца).
 
@@ -273,7 +272,7 @@ def get_quarter_bounds(target_date: date) -> Tuple[date, date, str]:
 # ============================================================================
 
 
-def get_current_calendar_month(target_date: date) -> Tuple[date, date]:
+def get_current_calendar_month(target_date: date) -> tuple[date, date]:
     """
     Получить границы текущего календарного месяца.
 
@@ -306,7 +305,7 @@ def get_current_calendar_month(target_date: date) -> Tuple[date, date]:
     return month_start, min(month_end, target_date)
 
 
-def get_current_calendar_quarter(target_date: date) -> Tuple[date, date]:
+def get_current_calendar_quarter(target_date: date) -> tuple[date, date]:
     """
     Получить границы текущего календарного квартала.
 
@@ -347,7 +346,7 @@ def get_current_calendar_quarter(target_date: date) -> Tuple[date, date]:
     return quarter_start, min(quarter_end, target_date)
 
 
-def get_current_calendar_year(target_date: date) -> Tuple[date, date]:
+def get_current_calendar_year(target_date: date) -> tuple[date, date]:
     """
     Получить границы текущего календарного года.
 

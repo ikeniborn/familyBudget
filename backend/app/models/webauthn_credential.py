@@ -25,7 +25,6 @@ Attributes:
 """
 
 from datetime import datetime
-from typing import List, Optional
 
 from sqlalchemy import BigInteger, Column, Index, LargeBinary
 from sqlmodel import Field, SQLModel
@@ -74,7 +73,7 @@ class WebAuthnCredential(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -108,19 +107,19 @@ class WebAuthnCredential(SQLModel, table=True):
     )
 
     # Authenticator metadata
-    transports: Optional[List[str]] = Field(
+    transports: list[str] | None = Field(
         default=None,
         sa_column=Column("transports", nullable=True),
         description="Supported transports as string array: ['internal', 'usb', 'nfc', 'ble']"
     )
 
-    aaguid: Optional[str] = Field(
+    aaguid: str | None = Field(
         default=None,
         max_length=36,
         description="Authenticator AAID in UUID format (e.g., '00000000-0000-0000-0000-000000000000')"
     )
 
-    device_name: Optional[str] = Field(
+    device_name: str | None = Field(
         default=None,
         max_length=255,
         description="User-friendly device name (e.g., 'iPhone 15 Pro')"
@@ -146,7 +145,7 @@ class WebAuthnCredential(SQLModel, table=True):
         description="Credential registration timestamp"
     )
 
-    last_used_at: Optional[datetime] = Field(
+    last_used_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Last successful authentication timestamp"
@@ -159,7 +158,7 @@ class WebAuthnCredential(SQLModel, table=True):
         description="Credential revocation flag (soft delete)"
     )
 
-    revoked_at: Optional[datetime] = Field(
+    revoked_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Credential revocation timestamp"

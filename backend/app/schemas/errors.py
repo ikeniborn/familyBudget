@@ -15,7 +15,7 @@ All error responses follow this structure:
 }
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,8 +29,8 @@ class ErrorDetail(BaseModel):
 
     message: str = Field(..., description="Human-readable error message")
     status_code: int = Field(..., description="HTTP status code")
-    error_code: Optional[str] = Field(None, description="Machine-readable error code")
-    details: Optional[dict[str, Any]] = Field(None, description="Additional error context")
+    error_code: str | None = Field(None, description="Machine-readable error code")
+    details: dict[str, Any] | None = Field(None, description="Additional error context")
 
     model_config = {
         "json_schema_extra": {

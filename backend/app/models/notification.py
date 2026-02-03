@@ -7,7 +7,6 @@ notifications sent to users (or broadcast to all users).
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -56,14 +55,14 @@ class Notification(SQLModel, table=True):
     __tablename__ = "t_notification"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
     )
 
     # Foreign keys
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,

@@ -36,12 +36,11 @@ from backend.app.schemas.user import (
     UserListResponse,
     UserUpdate,
 )
+from backend.app.services import create_new_version, has_changes
 from backend.app.services.google_sheets_parser import (
     GoogleSheetsError,
     parse_google_sheets_url,
 )
-from backend.app.services import create_new_version, has_changes
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)

@@ -21,7 +21,6 @@ Performance:
 """
 
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import func
 from sqlmodel import select
@@ -35,7 +34,7 @@ from backend.app.models.hierarchy import ArticleHierarchy
 async def get_subtree(
     session: AsyncSession,
     article_id: int,
-    max_depth: Optional[int] = None,
+    max_depth: int | None = None,
     include_self: bool = True,
 ) -> list[Article]:
     """
@@ -284,7 +283,7 @@ async def get_direct_children(
 async def get_root(
     session: AsyncSession,
     article_id: int,
-) -> Optional[Article]:
+) -> Article | None:
     """
     Find root article of the tree containing the given article.
 
@@ -411,7 +410,7 @@ async def get_level(
 async def archive_recursive(
     session: AsyncSession,
     article_id: int,
-    changed_by_user_id: Optional[int] = None,
+    changed_by_user_id: int | None = None,
 ) -> int:
     """
     Archive article and ALL its descendants recursively.
@@ -494,7 +493,7 @@ async def archive_recursive(
 async def restore_recursive(
     session: AsyncSession,
     article_id: int,
-    changed_by_user_id: Optional[int] = None,
+    changed_by_user_id: int | None = None,
 ) -> int:
     """
     Restore article and ALL its descendants recursively.

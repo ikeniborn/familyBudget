@@ -21,7 +21,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 
-
 # ============================================================================
 # Validation Error Tests (422)
 # ============================================================================

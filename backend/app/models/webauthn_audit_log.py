@@ -27,7 +27,6 @@ Attributes:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import Index
 from sqlmodel import Field, SQLModel
@@ -90,21 +89,21 @@ class WebAuthnAuditLog(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
     )
 
     # Event metadata
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
         description="User ID (SET NULL on delete to preserve audit history)"
     )
 
-    credential_id: Optional[str] = Field(
+    credential_id: str | None = Field(
         default=None,
         max_length=1024,
         description="Base64URL-encoded credential ID (nullable for registration failures)"
@@ -121,19 +120,19 @@ class WebAuthnAuditLog(SQLModel, table=True):
     )
 
     # Client metadata
-    ip_address: Optional[str] = Field(
+    ip_address: str | None = Field(
         default=None,
         max_length=45,  # IPv6 max length
         description="Client IP address"
     )
 
-    user_agent: Optional[str] = Field(
+    user_agent: str | None = Field(
         default=None,
         description="Client user agent string"
     )
 
     # Error information
-    error_message: Optional[str] = Field(
+    error_message: str | None = Field(
         default=None,
         description="Error message for failed events (NULL for success events)"
     )

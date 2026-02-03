@@ -10,7 +10,6 @@ This module defines request and response schemas for the authentication flow:
 """
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -53,17 +52,17 @@ class TelegramAuthData(BaseModel):
         description="User's first name from Telegram",
         examples=["John"]
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None,
         description="User's last name from Telegram (optional)",
         examples=["Doe", None]
     )
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None,
         description="Telegram username (optional)",
         examples=["johndoe", None]
     )
-    photo_url: Optional[str] = Field(
+    photo_url: str | None = Field(
         default=None,
         description="Profile photo URL (optional)",
         examples=["https://t.me/i/userpic/320/johndoe.jpg", None]
@@ -124,32 +123,32 @@ class UserResponse(BaseModel):
         description="User's database ID",
         examples=[1]
     )
-    telegram_id: Optional[int] = Field(
+    telegram_id: int | None = Field(
         default=None,
         description="User's Telegram ID (nullable for email-only users)",
         examples=[123456789, None]
     )
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None,
         description="User's email (nullable for Telegram-only users)",
         examples=["user@example.com", None]
     )
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None,
         description="Telegram username",
         examples=["johndoe", None]
     )
-    first_name: Optional[str] = Field(
+    first_name: str | None = Field(
         default=None,
         description="User's first name",
         examples=["John"]
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None,
         description="User's last name",
         examples=["Doe", None]
     )
-    photo_url: Optional[str] = Field(
+    photo_url: str | None = Field(
         default=None,
         description="Local path to cached profile photo",
         examples=["/static/avatars/1.jpg", None]
@@ -226,12 +225,12 @@ class AuthResponse(BaseModel):
         description="Success message",
         examples=["Authentication successful"]
     )
-    access_token: Optional[str] = Field(
+    access_token: str | None = Field(
         default=None,
         description="JWT access token (7-day expiry). Also set in httpOnly cookie.",
         examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."]
     )
-    refresh_token: Optional[str] = Field(
+    refresh_token: str | None = Field(
         default=None,
         description="JWT refresh token (30-day expiry). Also set in httpOnly cookie.",
         examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."]
@@ -241,7 +240,7 @@ class AuthResponse(BaseModel):
         description="Token type for Authorization header",
         examples=["bearer"]
     )
-    backup_codes: Optional[list[str]] = Field(
+    backup_codes: list[str] | None = Field(
         default=None,
         description="Backup codes for 2FA (only returned on first 2FA setup)",
         examples=[["ABCD-1234", "EFGH-5678", "IJKL-9012"]]
@@ -307,7 +306,7 @@ class EmailRegisterRequest(BaseModel):
         description="User's first name",
         examples=["John"]
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None,
         max_length=255,
         description="User's last name (optional)",
@@ -381,11 +380,11 @@ class EmailLoginResponse(BaseModel):
         default=300,
         description="Session token expiration in seconds"
     )
-    totp_secret: Optional[str] = Field(
+    totp_secret: str | None = Field(
         default=None,
         description="TOTP secret for manual entry (only for setup)"
     )
-    totp_uri: Optional[str] = Field(
+    totp_uri: str | None = Field(
         default=None,
         description="TOTP URI for QR code (only for setup)"
     )
@@ -628,9 +627,9 @@ class LinkTelegramRequest(BaseModel):
 
     id: int = Field(description="Telegram user ID")
     first_name: str = Field(description="First name from Telegram")
-    last_name: Optional[str] = Field(default=None, description="Last name")
-    username: Optional[str] = Field(default=None, description="Telegram username")
-    photo_url: Optional[str] = Field(default=None, description="Profile photo URL")
+    last_name: str | None = Field(default=None, description="Last name")
+    username: str | None = Field(default=None, description="Telegram username")
+    photo_url: str | None = Field(default=None, description="Profile photo URL")
     auth_date: int = Field(description="Authentication timestamp")
     hash: str = Field(description="HMAC-SHA256 hash for validation")
 
@@ -681,9 +680,9 @@ class WebAuthnCredentialInfo(BaseModel):
     """
 
     credential_id: str = Field(description="WebAuthn credential ID")
-    device_name: Optional[str] = Field(default=None, description="Device name")
+    device_name: str | None = Field(default=None, description="Device name")
     created_at: datetime = Field(description="Creation timestamp")
-    last_used_at: Optional[datetime] = Field(default=None, description="Last used timestamp")
+    last_used_at: datetime | None = Field(default=None, description="Last used timestamp")
 
 
 class AuthMethodsResponse(BaseModel):

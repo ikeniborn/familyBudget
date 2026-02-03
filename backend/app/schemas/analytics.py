@@ -6,7 +6,6 @@ including plan hints and fact hints for transaction forms.
 """
 
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -32,13 +31,13 @@ class PlanHintsResponse(BaseModel):
         }
     """
 
-    prev_period_plan_sum: Optional[Decimal] = Field(
+    prev_period_plan_sum: Decimal | None = Field(
         None,
         ge=0,
         description="Sum of plans for the previous month (NULL if no data)"
     )
 
-    prev_period_fact_sum: Optional[Decimal] = Field(
+    prev_period_fact_sum: Decimal | None = Field(
         None,
         ge=0,
         description="Sum of facts for the previous month (NULL if no data)"
@@ -50,12 +49,12 @@ class PlanHintsResponse(BaseModel):
         examples=["2025-10", "2025-11"]
     )
 
-    article_id: Optional[int] = Field(
+    article_id: int | None = Field(
         None,
         description="Category ID for which hints were calculated"
     )
 
-    article_name: Optional[str] = Field(
+    article_name: str | None = Field(
         None,
         description="Category name for display"
     )
@@ -88,13 +87,13 @@ class FactHintsResponse(BaseModel):
         }
     """
 
-    period_plan_sum: Optional[Decimal] = Field(
+    period_plan_sum: Decimal | None = Field(
         None,
         ge=0,
         description="Sum of plans for the month (NULL if no data)"
     )
 
-    period_fact_sum: Optional[Decimal] = Field(
+    period_fact_sum: Decimal | None = Field(
         None,
         ge=0,
         description="Sum of facts for the month (NULL if no data)"
@@ -106,12 +105,12 @@ class FactHintsResponse(BaseModel):
         examples=["2025-12", "2025-11"]
     )
 
-    article_id: Optional[int] = Field(
+    article_id: int | None = Field(
         None,
         description="Category ID for which hints were calculated"
     )
 
-    article_name: Optional[str] = Field(
+    article_name: str | None = Field(
         None,
         description="Category name for display"
     )

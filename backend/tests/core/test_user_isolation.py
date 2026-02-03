@@ -25,7 +25,6 @@ from backend.app.core.user_isolation import (
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 
-
 # ============================================================================
 # apply_user_filter() Tests
 # ============================================================================

@@ -28,7 +28,7 @@ Date: 2025-12-27
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +49,12 @@ class CacheMetricsService:
 
     def __init__(self):
         """Initialize cache metrics service with empty storage."""
-        self._metrics: Dict[str, Dict[str, Any]] = {}
+        self._metrics: dict[str, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
         self.TTL_SECONDS = 300  # 5 minutes
         logger.info("[CACHE_METRICS] Service initialized with TTL=%d seconds", self.TTL_SECONDS)
 
-    async def store_metrics(self, metrics: Dict[str, Any]) -> None:
+    async def store_metrics(self, metrics: dict[str, Any]) -> None:
         """
         Store metrics from a client with current timestamp.
 
@@ -91,7 +91,7 @@ class CacheMetricsService:
             # Cleanup expired metrics
             await self._cleanup_expired()
 
-    async def get_aggregated_metrics(self) -> Dict[str, Any]:
+    async def get_aggregated_metrics(self) -> dict[str, Any]:
         """
         Get aggregated cache metrics from all active clients.
 
@@ -176,7 +176,7 @@ class CacheMetricsService:
                 expired_ids
             )
 
-    def _aggregate(self, metrics_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _aggregate(self, metrics_list: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Calculate aggregated statistics from list of client metrics.
 
