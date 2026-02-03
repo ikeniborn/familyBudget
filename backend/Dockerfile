@@ -20,7 +20,7 @@ RUN apt-get update && \
 # Remove vulnerable system Python packages before creating venv
 RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
 
-RUN python -m venv /opt/venv
+RUN python -m venv --copies /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /build
