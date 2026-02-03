@@ -34,6 +34,7 @@ import asyncio
 import logging
 import time
 import uuid
+from asyncio import Task
 from collections import deque
 from datetime import datetime, timedelta
 from json import JSONDecodeError
@@ -807,7 +808,7 @@ async def poll_budget_events(
 
 # ==================== Background Cleanup Task ====================
 
-_cleanup_task: asyncio.Optional[Task] = None
+_cleanup_task: Optional[Task] = None
 
 
 async def _periodic_cleanup():
