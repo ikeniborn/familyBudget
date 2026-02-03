@@ -56,6 +56,9 @@ Family Budget is a family budget management system with Telegram bot and web int
 **HOTFIX (v11.2.16):**
 - Fixed Alembic migrations for distroless runtime (use python -m alembic instead of bash)
 
+**HOTFIX (v11.2.17):**
+- Fixed distroless ENTRYPOINT to use venv python (uvicorn module not found error)
+
 ### Environments
 
 | Environment | URL | Purpose |
