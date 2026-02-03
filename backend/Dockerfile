@@ -107,6 +107,16 @@ COPY --from=python-builder /lib/x86_64-linux-gnu/libk5crypto.so.3* /lib/x86_64-l
 COPY --from=python-builder /lib/x86_64-linux-gnu/libcom_err.so.2* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libkrb5support.so.0* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libkeyutils.so.1* /lib/x86_64-linux-gnu/
+# Transitive dependencies (required by GnuTLS and libpq)
+COPY --from=python-builder /lib/x86_64-linux-gnu/libresolv.so.2* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libp11-kit.so.0* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libidn2.so.0* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libunistring.so.2* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libtasn1.so.6* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libnettle.so.8* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libhogweed.so.6* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libgmp.so.10* /lib/x86_64-linux-gnu/
+COPY --from=python-builder /lib/x86_64-linux-gnu/libffi.so.8* /lib/x86_64-linux-gnu/
 # SSL/TLS libraries (already in distroless, but copy for consistency)
 COPY --from=python-builder /lib/x86_64-linux-gnu/libssl.so.3* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libcrypto.so.3* /lib/x86_64-linux-gnu/
