@@ -316,8 +316,6 @@ PHASE 5C → Documentation + Summary
 |-------|---------|-------------|
 | **advanced-patterns** | SCD Type 2, Closure Table, Shared Family Budget patterns | Complex DB operations, transfers |
 
-**Список для проекта:** См. project CLAUDE.md и `.claude/skills/*/SKILL.md` для детальной документации
-
 ---
 
 ## Key Principles
