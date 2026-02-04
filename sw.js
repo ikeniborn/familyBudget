@@ -88,54 +88,66 @@ self.addEventListener('install', (event) => {
   console.log('[SW] 📦 Installing Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        if (DEBUG) console.log('[SW] Caching static files');
-        // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
-        return Promise.allSettled(
-          STATIC_CACHE.map(url =>
-            cache.add(url).catch(err => {
-              // Подавляем ошибки кэширования - файл закэшируется позже при запросе
-              if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
+    (async () => {
+      // Check if we're in post-update mode (skip caching)
+      // Use Cache API flag instead of MessageChannel (more reliable after unregister)
+      try {
+        const updateModeCache = await caches.match('__sw_update_mode__');
+        if (updateModeCache) {
+          console.log('[SW] ⏭️ Skipping cache creation (post-update mode)');
+
+          // Clean up flag cache
+          await caches.delete('__sw_update_mode__');
+
+          // Skip waiting and activate immediately
+          await self.skipWaiting();
+          return; // Exit early, no caching
+        }
+      } catch (e) {
+        console.warn('[SW] Error checking update mode flag:', e.message);
+        // Continue with normal caching on error
+      }
+
+      // Normal caching flow...
+      const cache = await caches.open(CACHE_NAME);
+
+      if (DEBUG) console.log('[SW] Caching static files');
+      // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
+      await Promise.allSettled(
+        STATIC_CACHE.map(url =>
+          cache.add(url).catch(err => {
+            // Подавляем ошибки кэширования - файл закэшируется позже при запросе
+            if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
+            return null;
+          })
+        )
+      );
+
+      // Кэшируем ресурсы для offline страниц (CSS/JS)
+      // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
+      if (DEBUG) console.log('[SW] Caching offline page assets');
+      await Promise.allSettled(
+        OFFLINE_PAGE_ASSETS.map(url =>
+          fetch(url, { credentials: 'omit' })
+            .then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+              if (DEBUG) console.warn('[SW] Asset not found:', url);
               return null;
             })
-          )
-        );
-      })
-      .then(() => {
-        // Кэшируем ресурсы для offline страниц (CSS/JS)
-        // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
-        if (DEBUG) console.log('[SW] Caching offline page assets');
-        return caches.open(CACHE_NAME).then((cache) => {
-          return Promise.allSettled(
-            OFFLINE_PAGE_ASSETS.map(url =>
-              fetch(url, { credentials: 'omit' })
-                .then(response => {
-                  if (response.ok) {
-                    return cache.put(url, response);
-                  }
-                  if (DEBUG) console.warn('[SW] Asset not found:', url);
-                  return null;
-                })
-                .catch(err => {
-                  // Подавляем ошибки - файл может закэшироваться позже
-                  if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
-                  return null;
-                })
-            )
-          );
-        });
-      })
-      .then(() => {
-        console.log('[SW] ⚡ Calling skipWaiting() for immediate activation');
-        return self.skipWaiting();
-      })
-      .then(() => {
-        console.log('[SW] ✓ skipWaiting() completed');
-      })
-      .catch((err) => {
-        console.error('[SW] ERROR during install:', err);
-      })
+            .catch(err => {
+              // Подавляем ошибки - файл может закэшироваться позже
+              if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
+              return null;
+            })
+        )
+      );
+
+      console.log('[SW] ⚡ Calling skipWaiting() for immediate activation');
+      await self.skipWaiting();
+      console.log('[SW] ✓ skipWaiting() completed');
+    })()
   );
 });
 
