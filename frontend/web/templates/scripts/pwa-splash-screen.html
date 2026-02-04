@@ -21,20 +21,22 @@
     // Initialize post-auth flags BEFORE checking PWA mode
     // This ensures flags are set even if splash is skipped
     function initializePostAuthFlags() {
+        var flags = { dexieAutoEnabled: false, justLoggedIn: false };
+
         // Auto-enable Dexie for new users (only if not already set)
         if (localStorage.getItem('dexieActive') === null) {
             localStorage.setItem('dexieActive', 'true');
-            console.info('[PWA_SPLASH] ✅ Dexie auto-enabled for new user');
+            flags.dexieAutoEnabled = true;
         }
 
         // Session flag for WebAuthn onboarding (from URL query parameter)
         var urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('just_logged_in') === 'true') {
             sessionStorage.setItem('just_logged_in', 'true');
-            console.info('[PWA_SPLASH] ✅ Session flag set: just_logged_in=true');
+            flags.justLoggedIn = true;
         }
 
-        console.info('[PWA_SPLASH] Post-auth flags initialized');
+        console.info('[PWA_SPLASH] Post-auth flags initialized:', flags);
     }
 
     // Execute flag initialization immediately
