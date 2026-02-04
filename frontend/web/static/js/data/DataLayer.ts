@@ -172,7 +172,7 @@ export class DataLayer {
 
       // CRITICAL: Fallback на API если PGlite вернул пустой результат
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getArticlesFromAPI(filters);
         performanceMonitor.trackAPICall('getArticles', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -299,7 +299,7 @@ export class DataLayer {
 
       // CRITICAL: Fallback на API если PGlite вернул пустой результат
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getFinancialCentersFromAPI(includeGlobal);
         performanceMonitor.trackAPICall('getFinancialCenters', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -417,7 +417,7 @@ export class DataLayer {
 
       // CRITICAL: Fallback на API если PGlite вернул пустой результат
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
         performanceMonitor.trackAPICall('getCostCenters', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -598,7 +598,7 @@ export class DataLayer {
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getShoppingListsFromAPI(filters);
         performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -698,7 +698,7 @@ export class DataLayer {
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getShoppingListItemsFromAPI(listTempId, filters);
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -970,7 +970,7 @@ export class DataLayer {
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getFactsFromAPI(filters);
         performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
@@ -1182,7 +1182,7 @@ export class DataLayer {
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
-        console.warn('[DATA_LAYER] PGlite returned empty, using API fallback');
+        console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getRecurringPlansFromAPI(filters);
         performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
