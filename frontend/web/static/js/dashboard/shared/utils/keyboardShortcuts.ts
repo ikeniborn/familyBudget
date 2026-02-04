@@ -25,6 +25,7 @@ export function setupModalKeyboardShortcuts(
     return () => {}; // Return empty cleanup function
   }
 
+  // eslint-disable-next-line no-undef
   const handleKeyDown = (event: KeyboardEvent) => {
     // Ignore if modal is not open
     if (!modal.open) {
