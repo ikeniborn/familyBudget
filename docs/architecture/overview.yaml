@@ -443,28 +443,6 @@ architecture:
       version: "1.0.0"
 
     # ==========================================================================
-    # SETTINGS PAGE
-    # ==========================================================================
-    - id: "settingsPage"
-      name: "Settings Page"
-      type: "template-page"
-      file_path: "frontend/web/templates/settings.html"
-      loc: 154
-      language: "Jinja2 + TypeScript"
-      description: "Application settings page with PGlite configuration UI"
-      features:
-        - "Enable/disable PGlite toggle"
-        - "Facts window slider (30-365 days)"
-        - "Auto-sync interval display"
-        - "Diagnostic button to open PGliteDiagnosticModal"
-        - "Status alert with reload guidance"
-      dependencies:
-        - pglite
-        - pgliteDiagnosticModal
-      layer: "presentation"
-      version: "1.0.0"
-
-    # ==========================================================================
     # FACTS MODULE
     # ==========================================================================
     - id: "facts"
@@ -578,14 +556,14 @@ architecture:
         - "frontend/shared/db/pglite/PGliteManager.ts"
         - "frontend/shared/db/pglite/features/featureFlags.ts"
         - "frontend/web/static/js/modules/uiComponents/modals/PGliteDiagnosticModal.ts"
-        - "frontend/web/templates/settings.html"
       impact:
         - "Added setPGliteEnabled/setPGliteFactsWindow/setPGliteAutoSyncInterval setters"
         - "Added getDiagnosticData() with performance tracking (last 100 queries)"
         - "Created PGliteDiagnosticModal extending BaseModal"
-        - "Created settings.html with PGlite configuration UI"
         - "Performance tracking with circular buffer pattern"
         - "Toast notifications for user guidance"
+      notes:
+        - "Note: /settings page removed in v11.3.0 (was empty after Dexie UI removal in v11.0.1)"
 
     - date: "2026-01-21"
       commit: "dea96f53"

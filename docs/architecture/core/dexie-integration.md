@@ -492,13 +492,19 @@ await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
 
 ---
 
-### ⚙️ Удален /settings Dexie раздел
+### ⚙️ Удалена страница /settings
 
-**Изменение:** UI раздел настроек Dexie удален из `/settings` страницы.
+**v11.0.1:** UI раздел настроек Dexie удален из `/settings` страницы (Dexie включен по умолчанию).
 
-**Причина:** Dexie включен по умолчанию для всех пользователей (localStorage.dexieActive = 'true').
+**v11.3.0:** Вся страница `/settings` полностью удалена (не содержала активного контента после v11.0.1).
 
-**Файл:** `frontend/web/templates/settings.html`
+**Причина:** Dexie включен по умолчанию для всех пользователей (localStorage.dexieActive = 'true'). Страница оставалась пустой после удаления Dexie UI.
+
+**Файлы удалены:**
+- `frontend/web/templates/settings.html`
+- Backend роут: `backend/app/api/web/router.py::settings_page()`
+
+**Note:** Telegram bot команда `/settings` не затронута (отдельная функциональность бота).
 
 ---
 
@@ -506,5 +512,6 @@ await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-04 | v11.3.0 | ⚙️ Полностью удалена страница /settings (была пустой после v11.0.1)<br>🚀 Оптимизирован PWA splash (убран промежуточный экран auth_redirect) |
 | 2026-02-02 | v11.0.1 | 🔴 Transaction atomicity fix (confirmPendingOperation)<br>🟡 Exponential backoff для retry logic<br>🟡 Conflict modal timeout (60s)<br>⚙️ Удален /settings Dexie раздел |
 | 2026-01-31 | v11.0.0 | Initial release (PGlite → Dexie migration) |
