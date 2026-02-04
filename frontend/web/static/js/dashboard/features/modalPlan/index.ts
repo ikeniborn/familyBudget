@@ -421,6 +421,11 @@ export async function openModalPlan(): Promise<void> {
   // Open modal immediately
   modal.showModal();
 
+  // CRITICAL: Wait for DOM to render before loading data
+  // Without this, querySelector in loadTransactionTabData() won't find selectors
+  // Double requestAnimationFrame ensures browser completes render
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
   // Show skeleton while loading
   showSkeleton();
 
