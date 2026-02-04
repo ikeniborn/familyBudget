@@ -73,9 +73,9 @@ export class DexieDiagnosticModal extends BaseModal {
 
   constructor() {
     super({
-      id: 'pglite-diagnostic-modal',
+      id: 'dexie-diagnostic-modal',
       title: '🔍 Dexie Diagnostics',
-      size: 'max-w-4xl',
+      size: 'max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
       onOpen: () => {
         this.loadDiagnosticData();
       }
@@ -226,24 +226,24 @@ export class DexieDiagnosticModal extends BaseModal {
   private renderDiagnosticContent(data: DiagnosticData): string {
     return `
       <!-- Status Overview -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
         <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs">Status</div>
-          <div class="stat-value text-lg">
+          <div class="stat-title text-xs truncate">Status</div>
+          <div class="stat-value text-lg truncate">
             ${data.isEnabled && data.isInitialized ? '<span class="text-success">✓ Active</span>' : '<span class="text-warning">⚠ Inactive</span>'}
           </div>
         </div>
         <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs">DB Size</div>
-          <div class="stat-value text-lg">${this.formatSize(data.dbSizeKB)}</div>
+          <div class="stat-title text-xs truncate">DB Size</div>
+          <div class="stat-value text-lg truncate">${this.formatSize(data.dbSizeKB)}</div>
         </div>
         <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs">Last Sync</div>
-          <div class="stat-value text-sm">${data.lastSyncTimestamp}</div>
+          <div class="stat-title text-xs truncate">Last Sync</div>
+          <div class="stat-value text-sm truncate">${data.lastSyncTimestamp}</div>
         </div>
         <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs">Sync Status</div>
-          <div class="stat-value text-lg">
+          <div class="stat-title text-xs truncate">Sync Status</div>
+          <div class="stat-value text-lg truncate">
             ${this.renderSyncStatus(data.syncStatus)}
           </div>
         </div>
@@ -253,26 +253,26 @@ export class DexieDiagnosticModal extends BaseModal {
       <div class="card bg-base-100 border border-base-300">
         <div class="card-body p-4">
           <h4 class="font-semibold mb-3">📊 Table Statistics</h4>
-          <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             <div class="text-center">
-              <div class="text-2xl font-bold text-primary">${data.tableStats.articles}</div>
-              <div class="text-sm opacity-70">Articles</div>
+              <div class="text-xl sm:text-2xl font-bold text-primary">${data.tableStats.articles}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Articles</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-secondary">${data.tableStats.financial_centers}</div>
-              <div class="text-sm opacity-70">Financial Centers</div>
+              <div class="text-xl sm:text-2xl font-bold text-secondary">${data.tableStats.financial_centers}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Financial Centers</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-accent">${data.tableStats.cost_centers}</div>
-              <div class="text-sm opacity-70">Cost Centers</div>
+              <div class="text-xl sm:text-2xl font-bold text-accent">${data.tableStats.cost_centers}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Cost Centers</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-info">${data.tableStats.facts}</div>
-              <div class="text-sm opacity-70">Facts</div>
+              <div class="text-xl sm:text-2xl font-bold text-info">${data.tableStats.facts}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Facts</div>
             </div>
             <div class="text-center">
-              <div class="text-2xl font-bold text-success">${data.tableStats.plans}</div>
-              <div class="text-sm opacity-70">Plans</div>
+              <div class="text-xl sm:text-2xl font-bold text-success">${data.tableStats.plans}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Plans</div>
             </div>
           </div>
         </div>
@@ -284,12 +284,12 @@ export class DexieDiagnosticModal extends BaseModal {
           <h4 class="font-semibold mb-3">⚡ Performance Metrics</h4>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <div class="text-sm opacity-70">Average Query Time</div>
-              <div class="text-xl font-bold">${(data.performanceMetrics?.avgQueryTimeMs ?? data.performance.avgQueryTime).toFixed(2)} ms</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Average Query Time</div>
+              <div class="text-lg sm:text-xl font-bold">${(data.performanceMetrics?.avgQueryTimeMs ?? data.performance.avgQueryTime).toFixed(2)} ms</div>
             </div>
             <div>
-              <div class="text-sm opacity-70">Total Queries Tracked</div>
-              <div class="text-xl font-bold">${data.performanceMetrics?.totalQueries ?? 0}</div>
+              <div class="text-xs sm:text-sm opacity-70 truncate">Total Queries Tracked</div>
+              <div class="text-lg sm:text-xl font-bold">${data.performanceMetrics?.totalQueries ?? 0}</div>
             </div>
           </div>
         </div>

@@ -28,7 +28,7 @@ architecture:
       description: "Dashboard with modular TypeScript architecture for budget management"
       architecture:
         - "core/DashboardState.ts - State management"
-        - "features/factsManager.ts - PGlite analytics queries (task-011)"
+        - "features/factsManager.ts - Dexie analytics queries (task-011)"
         - "features/editModal/formPopulation.ts - Edit modal population"
         - "types/analytics.d.ts - TypeScript types for dashboard analytics"
         - "adapters/windowExports.ts - Global window exports"
@@ -42,7 +42,7 @@ architecture:
         - budgetShared
         - budgetWSClient
         - offlineManager
-        - pglite
+        - dexie
         - performanceMonitor
       layer: "presentation"
 
@@ -193,7 +193,7 @@ architecture:
       bundle_size: "~75KB (minified), ~14KB (gzip)"
       loc: 1450
       language: "TypeScript"
-      description: "WebSocket client for real-time updates with PGlite sync protocol"
+      description: "WebSocket client for real-time updates with Dexie sync protocol"
       architecture:
         - "core/connectionManager.ts - WebSocket connection lifecycle"
         - "integration/syncHandler.ts - Handle sync_initial and sync_incremental"
@@ -213,14 +213,14 @@ architecture:
         - sync_client_changes_response
       key_features:
         - "WebSocket with Long Polling fallback"
-        - "PGlite sync protocol (initial, incremental, upload)"
+        - "Dexie sync protocol (initial, incremental, upload)"
         - "Batch upload (max 100 operations)"
         - "Retry logic with attempts counter"
         - "Progress tracking via CustomEvents"
         - "Auto-upload on network reconnect"
       dependencies:
         - network (NetworkDetector)
-        - pglite (PGliteManager)
+        - dexie (DexieManager)
       layer: "integration"
       version: "2.0.0"
       status: "Production (task-008 complete)"
@@ -245,34 +245,34 @@ architecture:
     # ==========================================================================
     # PGLITE MODULE (Offline Database)
     # ==========================================================================
-    - id: "pglite"
-      name: "PGlite Module"
+    - id: "dexie"
+      name: "Dexie Module"
       type: "offline-database"
-      file_path: "frontend/shared/db/pglite.min.js"
-      source_path: "frontend/shared/db/pglite/"
-      bundle_size: "~15KB (minified), ~4KB (gzip) + 2.6MB WASM"
+      file_path: "frontend/shared/db/dexie.min.js"
+      source_path: "frontend/shared/db/dexie/"
+      bundle_size: "~255KB (minified), ~65KB (gzip)"
       loc: 800
       language: "TypeScript"
-      description: "Client-side PostgreSQL database using WebAssembly for offline mode"
+      description: "Client-side IndexedDB wrapper (Dexie.js) for offline mode with cents-based storage"
       architecture:
-        - "core/PGliteState.ts - State management (ZERO deps)"
-        - "core/dbInitializer.ts - Database initialization"
-        - "core/migrationManager.ts - Schema versioning"
-        - "operations/schemaOperations.ts - CRUD operations"
+        - "core/database.ts - Dexie database schema and initialization"
         - "operations/bulkOperations.ts - Bulk insert with chunking"
-        - "features/featureFlags.ts - Feature flag setters"
+        - "operations/factSync.ts - Fact synchronization with server"
+        - "operations/referenceSync.ts - Reference data sync (articles, FCs, CCs)"
+        - "operations/conflictOperations.ts - Conflict resolution"
+        - "operations/pruningOperations.ts - Data pruning based on date window"
       key_methods:
-        - "PGliteManager.init() - Initialize database and run migrations"
-        - "PGliteManager.bulkInsertArticles(articles, onProgress) - Chunked bulk insert"
-        - "PGliteManager.getDiagnosticData() - Performance metrics and DB stats"
-        - "setPGliteEnabled(enabled) - Enable/disable with toast notification"
-        - "setPGliteFactsWindow(days) - Configure data window (30-365 days)"
+        - "DexieManager.init() - Initialize database and run migrations"
+        - "DexieManager.bulkInsertArticles(articles, onProgress) - Chunked bulk insert"
+        - "DexieManager.getDiagnosticData() - Performance metrics and DB stats"
+        - "setDexieEnabled(enabled) - Enable/disable with toast notification"
+        - "setDexieFactsWindow(days) - Configure data window (30-365 days)"
       external_dependencies:
-        - "@electric-sql/pglite@0.2.0"
+        - "dexie@4.0.8"
       dependencies: []
       layer: "infrastructure"
-      version: "2.0.0"
-      status: "Phase 2: Transactions (task-001 to task-008 complete)"
+      version: "11.0.0"
+      status: "Production (replaced PGlite in v11.0+)"
       key_features:
         - "WebSocket sync protocol (initial + incremental + client upload)"
         - "Offline fact creation with temp_id tracking"
@@ -288,12 +288,12 @@ architecture:
     # PGLITE SYNC API (Backend)
     # ==========================================================================
     - id: "sync_api"
-      name: "PGlite Sync API"
+      name: "Dexie Sync API"
       type: "backend-api"
       file_path: "backend/app/api/v1/endpoints/sync_handlers.py"
       loc: 680
       language: "Python"
-      description: "Backend WebSocket handlers for PGlite synchronization protocol"
+      description: "Backend WebSocket handlers for Dexie synchronization protocol"
       architecture:
         - "handle_sync_initial() - Initial reference data sync (articles, FCs, CCs)"
         - "handle_sync_incremental_request() - Delta updates (created/updated/deleted facts)"
@@ -420,24 +420,24 @@ architecture:
     # ==========================================================================
     # PGLITE DIAGNOSTIC MODAL
     # ==========================================================================
-    - id: "pgliteDiagnosticModal"
-      name: "PGlite Diagnostic Modal"
+    - id: "dexieDiagnosticModal"
+      name: "Dexie Diagnostic Modal"
       type: "modal-component"
-      file_path: "frontend/web/static/js/modules/uiComponents/modals/PGliteDiagnosticModal.ts"
+      file_path: "frontend/web/static/js/modules/uiComponents/modals/DexieDiagnosticModal.ts"
       bundle_size: "Included in modals.min.js"
       loc: 199
       language: "TypeScript"
-      description: "Diagnostic modal for PGlite monitoring and debugging"
+      description: "Diagnostic modal for Dexie monitoring and debugging"
       architecture:
         - "Extends BaseModal with onOpen lifecycle hook"
-        - "Singleton pattern with openPGliteDiagnostic() helper"
-        - "Real-time data loading from PGliteManager"
+        - "Singleton pattern with openDexieDiagnostic() helper"
+        - "Real-time data loading from DexieManager"
       displays:
         - "Status badges (active/inactive, DB size, last sync)"
         - "Table statistics (articles, financial_centers, cost_centers)"
         - "Performance metrics (avg query time, total queries tracked)"
       dependencies:
-        - pglite
+        - dexie
         - baseModal
       layer: "presentation"
       version: "1.0.0"
@@ -533,7 +533,7 @@ architecture:
         - facts
         - lists
         - deleteButtonMacros
-        - pgliteDiagnosticModal
+        - dexieDiagnosticModal
         - settingsPage
 
     - name: "integration"
@@ -546,20 +546,20 @@ architecture:
       components:
         - budgetShared
         - offlineManager
-        - pglite
+        - dexie
 
   recent_changes:
     - date: "2026-01-21"
       commit: "b128ef2f"
-      description: "feat(pglite): add feature flag setters and diagnostic UI (task-004)"
+      description: "feat(dexie): add feature flag setters and diagnostic UI (task-004)"
       files_changed:
-        - "frontend/shared/db/pglite/PGliteManager.ts"
-        - "frontend/shared/db/pglite/features/featureFlags.ts"
-        - "frontend/web/static/js/modules/uiComponents/modals/PGliteDiagnosticModal.ts"
+        - "frontend/shared/db/dexie/DexieManager.ts"
+        - "frontend/shared/db/dexie/features/featureFlags.ts"
+        - "frontend/web/static/js/modules/uiComponents/modals/DexieDiagnosticModal.ts"
       impact:
-        - "Added setPGliteEnabled/setPGliteFactsWindow/setPGliteAutoSyncInterval setters"
+        - "Added setDexieEnabled/setDexieFactsWindow/setDexieAutoSyncInterval setters"
         - "Added getDiagnosticData() with performance tracking (last 100 queries)"
-        - "Created PGliteDiagnosticModal extending BaseModal"
+        - "Created DexieDiagnosticModal extending BaseModal"
         - "Performance tracking with circular buffer pattern"
         - "Toast notifications for user guidance"
       notes:

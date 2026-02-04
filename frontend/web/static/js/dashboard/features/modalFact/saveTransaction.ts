@@ -15,7 +15,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
 
   // Get display date and convert to API format
   const displayDate = formData.get('fact_date') as string;
-  const apiDate = (window as any).BudgetShared?.DateFormatter.formatForAPI(displayDate);
+  const apiDate = window.BudgetShared?.DateFormatter.formatForAPI(displayDate);
 
   if (!apiDate) {
     throw new Error('Failed to convert date to API format');
@@ -23,7 +23,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
 
   // Build request data
   const data = {
-    record_type: formData.get('record_type'), // expense/income
+    record_type: 'fact', // Always "fact" for actual transactions (backend expects "fact" or "plan")
     fact_date: apiDate, // YYYY-MM-DD (converted from DD.MM.YYYY)
     financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
     article_id: parseIntOrNull(formData.get('article_id'))!,
@@ -32,9 +32,14 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
     description: formData.get('description') || null
   };
 
-  // POST /api/v1/facts
-  await postAPI('/api/v1/facts', data, 'SaveFactModal');
+  try {
+    // POST /api/v1/facts
+    await postAPI('/api/v1/facts', data, 'SaveFactModal');
 
-  // Update UI
-  await refreshUIAfterFactSave();
+    // Update UI
+    await refreshUIAfterFactSave();
+  } catch (error) {
+    console.error('[SaveFactModal] Failed to save transaction:', error);
+    throw error; // Re-throw for upper layer handling
+  }
 }
