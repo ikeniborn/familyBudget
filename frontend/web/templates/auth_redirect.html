@@ -8,13 +8,11 @@
         // Instant redirect with just_logged_in flag
         // NOTE: Flag initialization now happens in PWA splash screen (pwa-splash-screen.html)
         // This page exists only for SEO/accessibility fallback
-        (function() {
-            var targetUrl = new URL('{{ target_url }}', window.location.origin);
-            targetUrl.searchParams.set('just_logged_in', 'true');
+        const targetUrl = new URL('{{ target_url }}', window.location.origin);
+        targetUrl.searchParams.set('just_logged_in', 'true');
 
-            console.log('[AUTH_REDIRECT] Instant redirect to:', targetUrl.toString());
-            window.location.replace(targetUrl.toString());
-        })();
+        console.log('[AUTH_REDIRECT] Instant redirect to:', targetUrl.toString());
+        window.location.replace(targetUrl.toString());
     </script>
     <noscript>
         <meta http-equiv="refresh" content="0;url={{ target_url }}?just_logged_in=true">
