@@ -56,6 +56,8 @@ Family Budget uses Tailwind CSS breakpoint system:
 - Speed Dial menu with 4 action items
 - Backdrop overlay when open
 - Z-index: 1000 (backdrop: 999)
+- **Menu expansion direction:** Upward (items appear ABOVE button)
+- **Main button position:** Fixed (doesn't move when menu opens)
 
 ### Page Context Visibility Matrix
 
@@ -93,6 +95,37 @@ Family Budget uses Tailwind CSS breakpoint system:
   breakpoint: 1024
 }
 ```
+
+### FAB Menu Expansion Direction (v11.3.0)
+
+**Desktop FAB (≥1024px):**
+- Speed Dial menu раскрывается **вверх** (items appear ABOVE button)
+- Главная кнопка остается fixed на месте (не сдвигается при раскрытии)
+- CSS Implementation:
+  ```css
+  .desktop-fab-wrapper {
+      flex-direction: column;  /* Not column-reverse */
+  }
+
+  /* Items positioned above button */
+  .desktop-fab-wrapper .fab-menu-item {
+      order: -1;
+  }
+
+  .desktop-fab-wrapper .fab-button {
+      order: 999;
+  }
+
+  /* Collapse animation slides down */
+  .desktop-fab-wrapper.closed .fab-menu-item {
+      transform: scale(0.5) translateY(20px);  /* +20px = slide down */
+  }
+  ```
+
+**Mobile FAB (<1024px):**
+- Speed Dial menu раскрывается **вверх** (items appear ABOVE button)
+- Используется отдельная структура `.mobile-fab-menu`
+- Positioning: `bottom: calc(100% + 0.5rem)`
 
 ### Critical CSS Requirements
 
