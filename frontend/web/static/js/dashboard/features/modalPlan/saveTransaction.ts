@@ -24,7 +24,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   if (recurringSettings) {
     // Recurring plan
     planData = {
-      record_type: formData.get('plan_type'), // expense/income
+      record_type: 'plan', // Always 'plan' for budget plans
       plan_month: formData.get('plan_month'), // YYYY-MM (start month)
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
@@ -44,8 +44,8 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   } else {
     // One-time plan (regular or reminder mode)
     planData = {
-      record_type: formData.get('plan_type'), // expense/income
-      plan_month: formData.get('plan_month'), // YYYY-MM
+      record_type: 'plan', // Always 'plan' for budget plans
+      fact_date: formData.get('plan_month') + '-01', // Convert YYYY-MM → YYYY-MM-01 for FactCreate schema
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
       cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
