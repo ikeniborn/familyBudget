@@ -21,7 +21,7 @@
     // Initialize post-auth flags BEFORE checking PWA mode
     // This ensures flags are set even if splash is skipped
     function initializePostAuthFlags() {
-        var flags = { dexieAutoEnabled: false, justLoggedIn: false };
+        const flags = { dexieAutoEnabled: false, justLoggedIn: false };
 
         // Auto-enable Dexie for new users (only if not already set)
         if (localStorage.getItem('dexieActive') === null) {
@@ -30,7 +30,7 @@
         }
 
         // Session flag for WebAuthn onboarding (from URL query parameter)
-        var urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('just_logged_in') === 'true') {
             sessionStorage.setItem('just_logged_in', 'true');
             flags.justLoggedIn = true;
@@ -42,12 +42,12 @@
     // Execute flag initialization immediately
     initializePostAuthFlags();
 
-    var splashEl = document.getElementById('pwa-splash');
+    const splashEl = document.getElementById('pwa-splash');
     if (!splashEl) return;
 
     // Only show splash in PWA mode (standalone)
-    var isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                window.navigator.standalone === true;
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                  window.navigator.standalone === true;
 
     if (!isPWA) {
         splashEl.remove();
@@ -55,13 +55,13 @@
     }
 
     // Detect page reload (F5) using Performance API
-    var navEntry = window.performance && window.performance.getEntriesByType &&
-                   window.performance.getEntriesByType('navigation')[0];
-    var isReload = navEntry && navEntry.type === 'reload';
+    const navEntry = window.performance && window.performance.getEntriesByType &&
+                     window.performance.getEntriesByType('navigation')[0];
+    const isReload = navEntry && navEntry.type === 'reload';
 
     // Session-based detection: cold start = no sessionStorage flag yet
-    var SPLASH_SESSION_KEY = 'pwa_splash_shown';
-    var isColdStart = false;
+    const SPLASH_SESSION_KEY = 'pwa_splash_shown';
+    let isColdStart = false;
 
     // Try sessionStorage (may fail in private browsing mode)
     try {
@@ -96,7 +96,7 @@
     }
 
     // Mark session as splash-shown (persists until tab close)
-    var startTimestamp = Date.now();
+    const startTimestamp = Date.now();
     try {
         sessionStorage.setItem(SPLASH_SESSION_KEY, startTimestamp.toString());
     } catch (e) {
@@ -109,14 +109,14 @@
     });
 
     // Show splash for 2 seconds on cold start
-    var MIN_DISPLAY_TIME = 2000;
-    var pageLoaded = false;
-    var timerDone = false;
+    const MIN_DISPLAY_TIME = 2000;
+    let pageLoaded = false;
+    let timerDone = false;
 
     function tryHideSplash() {
         if (timerDone && pageLoaded) {
-            var hideTimestamp = Date.now();
-            var actualDuration = hideTimestamp - startTimestamp;
+            const hideTimestamp = Date.now();
+            const actualDuration = hideTimestamp - startTimestamp;
 
             console.log('[PWA_SPLASH] Hiding splash', {
                 timerDone: timerDone,
