@@ -414,11 +414,20 @@ html.offline-mode .save-btn:hover {
 
     .desktop-fab-wrapper {
         display: flex !important;
-        flex-direction: column-reverse;
+        flex-direction: column;
         align-items: flex-end;
         gap: 0.75rem;
         z-index: var(--z-fab-desktop);  /* 1000 - above backdrop (999) */
         position: relative;
+    }
+
+    /* FAB menu items ordering - items appear ABOVE button */
+    .desktop-fab-wrapper .fab-menu-item {
+        order: -1;
+    }
+
+    .desktop-fab-wrapper .fab-button {
+        order: 999;
     }
 
     /* Fallback для браузеров без gap support (Safari < 14.1, IE11) */
@@ -672,7 +681,7 @@ html.offline-mode .save-btn:hover {
     display: none;  /* Force hide - like Main FAB in lists */
     opacity: 0;
     visibility: hidden;  /* iOS Safari protection */
-    transform: scale(0.5) translateY(-20px);
+    transform: scale(0.5) translateY(20px);
     pointer-events: none;
     transition: opacity 0.3s, visibility 0s 0.3s, transform 0.3s;
 }
