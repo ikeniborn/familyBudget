@@ -90,7 +90,7 @@ export async function loadFactHints(category: Category | null = null): Promise<v
     try {
       // Get form values
       const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]') as HTMLInputElement | null;
-      const factDate = window.BudgetShared?.DateFormatter.formatForAPI(dateInput?.value || window.BudgetShared?.DateFormatter.today() || '');
+      const factDate = window.BudgetShared?.DateFormatter.formatForAPI(dateInput?.value || window.BudgetShared?.DateFormatter.today() || '') || window.BudgetShared?.DateFormatter.today() || '';
       const typeInput = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked') as HTMLInputElement | null;
       const articleType = typeInput?.value || 'expense';
       const fcSelectEl = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]') as HTMLSelectElement | null;

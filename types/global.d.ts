@@ -115,7 +115,12 @@ interface Window {
 
   // BudgetShared bundle
   BudgetShared?: {
-    DateFormatter: any;
+    DateFormatter: {
+      formatForDisplay(isoDate: string): string;
+      formatForAPI(displayDate: string): string | null;
+      today(): string;
+      isValidDisplayFormat(displayDate: string): boolean;
+    };
     CalendarWidget: any;
     ChoicesCategoryTree: any;
   };

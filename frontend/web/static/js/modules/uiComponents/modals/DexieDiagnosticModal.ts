@@ -73,7 +73,7 @@ export class DexieDiagnosticModal extends BaseModal {
 
   constructor() {
     super({
-      id: 'pglite-diagnostic-modal',
+      id: 'dexie-diagnostic-modal',
       title: '🔍 Dexie Diagnostics',
       size: 'max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
       onOpen: () => {
