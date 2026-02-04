@@ -9,9 +9,16 @@ import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
+import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
+
+/**
+ * Keyboard shortcuts cleanup function
+ * Stored to remove listeners when modal closes
+ */
+let keyboardShortcutsCleanup: (() => void) | null = null;
 
 /**
  * Cache entry with timestamp and TTL
@@ -411,6 +418,22 @@ export async function openModalFact(): Promise<void> {
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
 
+    // UX: Setup keyboard shortcuts (Escape to close, Ctrl+Enter to save)
+    keyboardShortcutsCleanup = setupModalKeyboardShortcuts(
+      'modal_fact',
+      () => {
+        // Save callback: trigger save button click
+        const saveButton = document.querySelector('#modal_fact button[onclick*="saveFactModal"]') as HTMLButtonElement;
+        if (saveButton && !saveButton.disabled) {
+          saveButton.click();
+        }
+      },
+      () => {
+        // Close callback
+        closeModalFact();
+      }
+    );
+
   } catch (error) {
     console.error('[ModalFact] Error loading data:', error);
     hideSkeleton();
@@ -430,4 +453,10 @@ export function closeModalFact(): void {
 
   // Clear tab cache
   clearTabCache();
+
+  // UX: Cleanup keyboard shortcuts
+  if (keyboardShortcutsCleanup) {
+    keyboardShortcutsCleanup();
+    keyboardShortcutsCleanup = null;
+  }
 }
