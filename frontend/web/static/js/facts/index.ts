@@ -82,9 +82,6 @@ export function initialize(): void {
     // Initialize state
     initializeState();
 
-    // Setup window exports for onclick compatibility (HTMX partials)
-    setupWindowExports();
-
     // Phase 3: Register WebSocket handlers for real-time updates
     registerWSHandlers();
 
@@ -588,6 +585,16 @@ function setupTodayButtons(): void {
     // setFactDate is already exported to window, so onclick should work
     // This is a backup setup in case onclick handlers are not working
     logger.log(' Date buttons use onclick="setFactDate(offset)" pattern');
+}
+
+// ============================================================================
+// Window Exports (must run synchronously before DOM ready for onclick compatibility)
+// ============================================================================
+
+// Setup window exports immediately when module loads
+// This ensures onclick handlers in FAB toolbar have access to functions
+if (typeof window !== 'undefined') {
+    setupWindowExports();
 }
 
 // ============================================================================
