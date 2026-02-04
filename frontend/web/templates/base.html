@@ -496,7 +496,7 @@
             };
             console.info('[Compatibility] window.PGlite alias created for window.Dexie');
         } else if (typeof window.Dexie === 'undefined') {
-            console.warn('[Compatibility] window.Dexie not available, skipping PGlite alias');
+            console.debug('[Compatibility] window.Dexie not available yet, PGlite alias will be skipped');
         } else {
             console.debug('[Compatibility] window.PGlite already exists, skipping alias');
         }

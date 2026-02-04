@@ -225,74 +225,42 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private renderDiagnosticContent(data: DiagnosticData): string {
     return `
-      <!-- Status Overview -->
-      <div class="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs truncate">Status</div>
-          <div class="stat-value text-lg truncate">
-            ${data.isEnabled && data.isInitialized ? '<span class="text-success">✓ Active</span>' : '<span class="text-warning">⚠ Inactive</span>'}
-          </div>
-        </div>
-        <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs truncate">DB Size</div>
-          <div class="stat-value text-lg truncate">${this.formatSize(data.dbSizeKB)}</div>
-        </div>
-        <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs truncate">Last Sync</div>
-          <div class="stat-value text-sm truncate">${data.lastSyncTimestamp}</div>
-        </div>
-        <div class="stat bg-base-200 rounded-lg p-3">
-          <div class="stat-title text-xs truncate">Sync Status</div>
-          <div class="stat-value text-lg truncate">
-            ${this.renderSyncStatus(data.syncStatus)}
-          </div>
-        </div>
+      <!-- Status Overview (Compact Table) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">Metric</th><th class="text-xs">Value</th></tr></thead>
+          <tbody class="text-xs">
+            <tr><td>Status</td><td>${data.isEnabled && data.isInitialized ? 'Active' : 'Inactive'}</td></tr>
+            <tr><td>DB Size</td><td>${this.formatSize(data.dbSizeKB)}</td></tr>
+            <tr><td>Last Sync</td><td>${data.lastSyncTimestamp}</td></tr>
+            <tr><td>Sync Status</td><td>${this.renderSyncStatusText(data.syncStatus)}</td></tr>
+          </tbody>
+        </table>
       </div>
 
-      <!-- Table Statistics -->
-      <div class="card bg-base-100 border border-base-300">
-        <div class="card-body p-4">
-          <h4 class="font-semibold mb-3">📊 Table Statistics</h4>
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-            <div class="text-center">
-              <div class="text-xl sm:text-2xl font-bold text-primary">${data.tableStats.articles}</div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Articles</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xl sm:text-2xl font-bold text-secondary">${data.tableStats.financial_centers}</div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Financial Centers</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xl sm:text-2xl font-bold text-accent">${data.tableStats.cost_centers}</div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Cost Centers</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xl sm:text-2xl font-bold text-info">${data.tableStats.facts}</div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Facts</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xl sm:text-2xl font-bold text-success">${data.tableStats.plans}</div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Plans</div>
-            </div>
-          </div>
-        </div>
+      <!-- Table Statistics (Compact Table) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">Table</th><th class="text-xs">Count</th></tr></thead>
+          <tbody class="text-xs">
+            <tr><td>Articles</td><td>${data.tableStats.articles}</td></tr>
+            <tr><td>Financial Centers</td><td>${data.tableStats.financial_centers}</td></tr>
+            <tr><td>Cost Centers</td><td>${data.tableStats.cost_centers}</td></tr>
+            <tr><td>Facts</td><td>${data.tableStats.facts}</td></tr>
+            <tr><td>Plans</td><td>${data.tableStats.plans}</td></tr>
+          </tbody>
+        </table>
       </div>
 
-      <!-- Performance Metrics -->
-      <div class="card bg-base-100 border border-base-300">
-        <div class="card-body p-4">
-          <h4 class="font-semibold mb-3">⚡ Performance Metrics</h4>
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Average Query Time</div>
-              <div class="text-lg sm:text-xl font-bold">${(data.performanceMetrics?.avgQueryTimeMs ?? data.performance.avgQueryTime).toFixed(2)} ms</div>
-            </div>
-            <div>
-              <div class="text-xs sm:text-sm opacity-70 truncate">Total Queries Tracked</div>
-              <div class="text-lg sm:text-xl font-bold">${data.performanceMetrics?.totalQueries ?? 0}</div>
-            </div>
-          </div>
-        </div>
+      <!-- Performance Metrics (Compact Table) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">Metric</th><th class="text-xs">Value</th></tr></thead>
+          <tbody class="text-xs">
+            <tr><td>Avg Query Time</td><td>${(data.performanceMetrics?.avgQueryTimeMs ?? data.performance.avgQueryTime).toFixed(2)} ms</td></tr>
+            <tr><td>Total Queries</td><td>${data.performanceMetrics?.totalQueries ?? 0}</td></tr>
+          </tbody>
+        </table>
       </div>
 
       ${this.renderAPIReductionBreakdown()}
@@ -302,9 +270,9 @@ export class DexieDiagnosticModal extends BaseModal {
       ${this.renderConflictMetrics()}
 
       <!-- Actions -->
-      <div class="flex justify-end gap-2 mt-4">
-        <button type="button" class="btn btn-sm btn-outline" onclick="this.closest('dialog').close()">Close</button>
-        <button type="button" class="btn btn-sm btn-primary" onclick="window.location.reload()">Refresh</button>
+      <div class="flex justify-end gap-2 mt-2">
+        <button type="button" class="btn btn-xs btn-outline" onclick="this.closest('dialog').close()">Close</button>
+        <button type="button" class="btn btn-xs btn-ghost" onclick="window.location.reload()">Refresh</button>
       </div>
     `;
   }
@@ -323,23 +291,23 @@ export class DexieDiagnosticModal extends BaseModal {
   }
 
   /**
-   * Render sync status badge
+   * Render sync status as plain text (for table cells)
    */
-  private renderSyncStatus(status: 'idle' | 'syncing' | 'error'): string {
+  private renderSyncStatusText(status: 'idle' | 'syncing' | 'error'): string {
     switch (status) {
       case 'idle':
-        return '<span class="text-info">Idle</span>';
+        return 'Idle';
       case 'syncing':
-        return '<span class="text-warning">Syncing...</span>';
+        return 'Syncing...';
       case 'error':
-        return '<span class="text-error">Error</span>';
+        return 'Error';
       default:
-        return '<span class="text-base-content/50">Unknown</span>';
+        return 'Unknown';
     }
   }
 
   /**
-   * Render pruning metrics (task-010)
+   * Render pruning metrics (task-010) - Compact Table
    */
   private renderPruningMetrics(data: DiagnosticData): string {
     if (!data.pruningStats) {
@@ -349,35 +317,22 @@ export class DexieDiagnosticModal extends BaseModal {
     const stats = data.pruningStats;
 
     return `
-      <!-- Pruning Metrics (task-010) -->
-      <div class="card bg-base-100 border border-base-300">
-        <div class="card-body p-4">
-          <h4 class="font-semibold mb-3">🗑️ Data Cleanup Metrics</h4>
-          <div class="grid grid-cols-3 gap-4">
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Last Pruned</div>
-              <div class="stat-value text-sm">${stats.lastPrunedAt}</div>
-            </div>
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Total Pruned</div>
-              <div class="stat-value text-lg text-warning">${stats.totalPruned.toLocaleString()}</div>
-              <div class="stat-desc text-xs">Records removed</div>
-            </div>
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Next Cleanup</div>
-              <div class="stat-value text-sm">${stats.nextPruneEstimate}</div>
-              <div class="stat-desc text-xs">
-                ${stats.nextPruneEstimate === 'Never' ? 'Auto-pruning disabled' : 'Automatic'}
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Pruning Metrics (Compact Table) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">Cleanup Metric</th><th class="text-xs">Value</th></tr></thead>
+          <tbody class="text-xs">
+            <tr><td>Last Pruned</td><td>${stats.lastPrunedAt}</td></tr>
+            <tr><td>Total Pruned</td><td>${stats.totalPruned.toLocaleString()} records</td></tr>
+            <tr><td>Next Cleanup</td><td>${stats.nextPruneEstimate}</td></tr>
+          </tbody>
+        </table>
       </div>
     `;
   }
 
   /**
-   * Render API calls reduction breakdown (task-015 Phase 5)
+   * Render API calls reduction breakdown (task-015 Phase 5) - Compact Table
    */
   private renderAPIReductionBreakdown(): string {
     try {
@@ -389,44 +344,17 @@ export class DexieDiagnosticModal extends BaseModal {
       }
 
       return `
-        <!-- API Calls Reduction (task-015 Phase 5) -->
-        <div class="card bg-base-100 border border-base-300">
-          <div class="card-body p-4">
-            <h4 class="font-semibold mb-3">📉 API Calls Reduction</h4>
-
-            <!-- Summary -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div class="stat bg-base-200 rounded-lg p-3">
-                <div class="stat-title text-xs">Reduction</div>
-                <div class="stat-value text-lg text-success">${stats.reductionPercent.toFixed(1)}%</div>
-                <div class="stat-desc text-xs">Target: ≥80%</div>
-              </div>
-              <div class="stat bg-base-200 rounded-lg p-3">
-                <div class="stat-title text-xs">API Calls Saved</div>
-                <div class="stat-value text-lg text-primary">${stats.apiCallsReduced.toLocaleString()}</div>
-                <div class="stat-desc text-xs">Served from Dexie</div>
-              </div>
-              <div class="stat bg-base-200 rounded-lg p-3">
-                <div class="stat-title text-xs">Bandwidth Saved</div>
-                <div class="stat-value text-lg text-secondary">${stats.totalBandwidthSaved.toFixed(1)} KB</div>
-                <div class="stat-desc text-xs">~5KB per API call</div>
-              </div>
-              <div class="stat bg-base-200 rounded-lg p-3">
-                <div class="stat-title text-xs">Speedup</div>
-                <div class="stat-value text-lg text-accent">${stats.speedupFactor.toFixed(1)}×</div>
-                <div class="stat-desc text-xs">Dexie vs API</div>
-              </div>
-            </div>
-
-            <!-- Module Breakdown -->
-            <div class="divider text-xs">Breakdown by Module</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              ${this.renderModuleBreakdownCard('Shopping Lists', stats.breakdown.shoppingLists, 'shopping-bag')}
-              ${this.renderModuleBreakdownCard('Facts', stats.breakdown.facts, 'receipt')}
-              ${this.renderModuleBreakdownCard('Recurring Plans', stats.breakdown.recurringPlans, 'calendar')}
-              ${this.renderModuleBreakdownCard('Dashboard', stats.breakdown.dashboard, 'chart-bar')}
-            </div>
-          </div>
+        <!-- API Reduction Summary (Compact Table) -->
+        <div class="overflow-x-auto mb-3">
+          <table class="table table-xs table-zebra w-full">
+            <thead><tr><th class="text-xs">API Metric</th><th class="text-xs">Value</th></tr></thead>
+            <tbody class="text-xs">
+              <tr><td>Reduction</td><td>${stats.reductionPercent.toFixed(1)}% (target ≥80%)</td></tr>
+              <tr><td>API Calls Saved</td><td>${stats.apiCallsReduced.toLocaleString()}</td></tr>
+              <tr><td>Bandwidth Saved</td><td>${stats.totalBandwidthSaved.toFixed(1)} KB</td></tr>
+              <tr><td>Speedup</td><td>${stats.speedupFactor.toFixed(1)}×</td></tr>
+            </tbody>
+          </table>
         </div>
       `;
     } catch (error) {
@@ -436,54 +364,7 @@ export class DexieDiagnosticModal extends BaseModal {
   }
 
   /**
-   * Render individual module breakdown card
-   */
-  private renderModuleBreakdownCard(name: string, breakdown: { dexie: number; api: number; reductionPercent: number }, icon: string): string {
-    const total = breakdown.dexie + breakdown.api;
-
-    // Skip if no calls for this module
-    if (total === 0) {
-      return '';
-    }
-
-    // Determine badge color based on reduction percentage
-    let badgeClass = 'badge-success'; // Green for ≥80%
-    if (breakdown.reductionPercent < 50) {
-      badgeClass = 'badge-error'; // Red for <50%
-    } else if (breakdown.reductionPercent < 80) {
-      badgeClass = 'badge-warning'; // Yellow for 50-80%
-    }
-
-    return `
-      <div class="card bg-base-200 border border-base-300">
-        <div class="card-body p-3">
-          <h5 class="text-sm font-semibold flex items-center gap-2">
-            <span class="opacity-70">${icon === 'shopping-bag' ? '🛒' : icon === 'receipt' ? '💰' : icon === 'calendar' ? '📅' : '📊'}</span>
-            ${name}
-          </h5>
-          <div class="grid grid-cols-3 gap-2 mt-2">
-            <div class="text-center">
-              <div class="text-xs opacity-70">Dexie</div>
-              <div class="text-lg font-bold text-primary">${breakdown.dexie}</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xs opacity-70">API</div>
-              <div class="text-lg font-bold text-warning">${breakdown.api}</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xs opacity-70">Reduction</div>
-              <div class="text-sm font-bold">
-                <span class="badge ${badgeClass} badge-sm">${breakdown.reductionPercent.toFixed(0)}%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Render conflict metrics (task-009)
+   * Render conflict metrics (task-009) - Compact Table
    */
   private renderConflictMetrics(): string {
     if (!this.conflictMetrics) {
@@ -492,49 +373,20 @@ export class DexieDiagnosticModal extends BaseModal {
 
     const metrics = this.conflictMetrics;
 
-    // Determine badge color based on conflict rate
-    let badgeClass = 'badge-success'; // Green for <0.5%
-    if (metrics.conflictRate >= 1.0) {
-      badgeClass = 'badge-error'; // Red for >=1%
-    } else if (metrics.conflictRate >= 0.5) {
-      badgeClass = 'badge-warning'; // Yellow for 0.5-1%
-    }
-
     return `
-      <!-- Conflict Metrics (task-009) -->
-      <div class="card bg-base-100 border border-base-300">
-        <div class="card-body p-4">
-          <h4 class="font-semibold mb-3">⚔️ Conflict Resolution (Last 30 Days)</h4>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Conflict Rate</div>
-              <div class="stat-value text-lg">
-                ${metrics.conflictRate.toFixed(2)}%
-                <span class="badge ${badgeClass} badge-sm ml-2">
-                  ${metrics.conflictRate < 0.5 ? '✓' : metrics.conflictRate < 1.0 ? '⚠' : '✗'}
-                </span>
-              </div>
-              <div class="stat-desc text-xs">Target: &lt;1%</div>
-            </div>
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Total Conflicts</div>
-              <div class="stat-value text-lg">${metrics.totalConflicts}</div>
-              <div class="stat-desc text-xs">
-                Resolved: ${metrics.resolvedConflicts} | Pending: ${metrics.pendingConflicts}
-              </div>
-            </div>
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Server Wins</div>
-              <div class="stat-value text-lg text-primary">${metrics.resolutionBreakdown.server}</div>
-              <div class="stat-desc text-xs">LWW: Server newer</div>
-            </div>
-            <div class="stat bg-base-200 rounded-lg p-3">
-              <div class="stat-title text-xs">Client Wins</div>
-              <div class="stat-value text-lg text-secondary">${metrics.resolutionBreakdown.client}</div>
-              <div class="stat-desc text-xs">LWW: Client newer</div>
-            </div>
-          </div>
-        </div>
+      <!-- Conflict Metrics (Compact Table) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">Conflict Metric</th><th class="text-xs">Value</th></tr></thead>
+          <tbody class="text-xs">
+            <tr><td>Conflict Rate (30d)</td><td>${metrics.conflictRate.toFixed(2)}% (target &lt;1%)</td></tr>
+            <tr><td>Total Conflicts</td><td>${metrics.totalConflicts}</td></tr>
+            <tr><td>Resolved</td><td>${metrics.resolvedConflicts}</td></tr>
+            <tr><td>Pending</td><td>${metrics.pendingConflicts}</td></tr>
+            <tr><td>Server Wins</td><td>${metrics.resolutionBreakdown.server}</td></tr>
+            <tr><td>Client Wins</td><td>${metrics.resolutionBreakdown.client}</td></tr>
+          </tbody>
+        </table>
       </div>
     `;
   }
