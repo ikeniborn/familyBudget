@@ -23,7 +23,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
 
   // Build request data
   const data = {
-    record_type: formData.get('record_type'), // expense/income
+    record_type: 'fact', // Always "fact" for actual transactions (backend expects "fact" or "plan")
     fact_date: apiDate, // YYYY-MM-DD (converted from DD.MM.YYYY)
     financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
     article_id: parseIntOrNull(formData.get('article_id'))!,
