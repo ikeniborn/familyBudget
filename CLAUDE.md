@@ -82,6 +82,8 @@ Family Budget is a family budget management system with Telegram bot and web int
 | **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
 For analysis logs connect to test server via "ssh budget-test".
+Work directory "/opt/budget"
+Git directory "~/familyBudget"
 
 ## Terminology (UI ↔ Code)
 
