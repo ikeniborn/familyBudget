@@ -627,34 +627,6 @@ async def security_settings_page(
     )
 
 
-@web_router.get("/settings", response_class=HTMLResponse)
-async def settings_page(
-    request: Request,
-    current_user: CurrentUser
-):
-    """
-    Application settings page (authenticated).
-
-    Provides interface for managing application settings:
-    - PGlite (offline mode) configuration
-    - Data window settings (30-365 days)
-    - Auto-sync interval
-    - PGlite diagnostics
-    - Automatic data cleanup (pruning)
-    - Retention window configuration
-    """
-    from backend.app.main import templates
-
-    return templates.TemplateResponse(
-        "settings.html",
-        {
-            "request": request,
-            "user": current_user,
-            "page_title": "Настройки приложения"
-        }
-    )
-
-
 @web_router.get("/2fa-setup", response_class=HTMLResponse)
 async def two_factor_setup_page(
     request: Request,

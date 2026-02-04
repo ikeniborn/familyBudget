@@ -3,78 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0;url={{ target_url }}">
-    <title>Loading...</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background: #ffffff;
-            color: #333333;
-        }
-        .container {
-            text-align: center;
-        }
-        .app-icon {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto 24px;
-            animation: bounce 1.2s ease-in-out infinite;
-        }
-        .app-icon img {
-            width: 100%;
-            height: 100%;
-            border-radius: 20%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
-        .loading-text {
-            font-size: 18px;
-            font-weight: 500;
-            color: #666666;
-            letter-spacing: 0.5px;
-        }
-        @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0) scale(1);
-            }
-            50% {
-                transform: translateY(-15px) scale(1.05);
-            }
-        }
-    </style>
+    <title>Redirecting...</title>
+    <script>
+        // Instant redirect with just_logged_in flag
+        // NOTE: Flag initialization now happens in PWA splash screen (pwa-splash-screen.html)
+        // This page exists only for SEO/accessibility fallback
+        (function() {
+            var targetUrl = new URL('{{ target_url }}', window.location.origin);
+            targetUrl.searchParams.set('just_logged_in', 'true');
+
+            console.log('[AUTH_REDIRECT] Instant redirect to:', targetUrl.toString());
+            window.location.replace(targetUrl.toString());
+        })();
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url={{ target_url }}?just_logged_in=true">
+    </noscript>
 </head>
 <body>
-    <div class="container">
-        <div class="app-icon">
-            <img src="/static/icons/icon-192.png" alt="Family Budget">
-        </div>
-        <p class="loading-text">Загрузка...</p>
-    </div>
-    <script>
-        // CRITICAL: Выполняется ДО навигации на target_url
-        // Этот скрипт гарантирует что Dexie флаг установлен ПЕРЕД загрузкой dashboard.min.js
-
-        console.log('[AUTH_REDIRECT] Initializing redirect flow...');
-
-        // Auto-enable Dexie for first-time users (only if not already set)
-        if (localStorage.getItem('dexieActive') === null) {
-            localStorage.setItem('dexieActive', 'true');
-            console.log('[AUTH_REDIRECT] ✅ Dexie auto-enabled for new user');
-        } else {
-            console.log('[AUTH_REDIRECT] Dexie already configured:', localStorage.getItem('dexieActive'));
-        }
-
-        // Set just_logged_in flag for WebAuthn onboarding
-        sessionStorage.setItem('just_logged_in', 'true');
-        console.log('[AUTH_REDIRECT] Session flag set: just_logged_in=true');
-
-        // Redirect to target URL
-        console.log('[AUTH_REDIRECT] Redirecting to:', '{{ target_url }}');
-        window.location.href = '{{ target_url }}';
-    </script>
+    <!-- No visual content - instant redirect -->
 </body>
 </html>

@@ -18,6 +18,28 @@
 // PWA Splash Screen Controller - inline for immediate execution
 // Shows splash on EVERY cold start (app closed and reopened), not on F5 or in-app navigation
 (function() {
+    // Initialize post-auth flags BEFORE checking PWA mode
+    // This ensures flags are set even if splash is skipped
+    function initializePostAuthFlags() {
+        // Auto-enable Dexie for new users (only if not already set)
+        if (localStorage.getItem('dexieActive') === null) {
+            localStorage.setItem('dexieActive', 'true');
+            console.info('[PWA_SPLASH] ✅ Dexie auto-enabled for new user');
+        }
+
+        // Session flag for WebAuthn onboarding (from URL query parameter)
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('just_logged_in') === 'true') {
+            sessionStorage.setItem('just_logged_in', 'true');
+            console.info('[PWA_SPLASH] ✅ Session flag set: just_logged_in=true');
+        }
+
+        console.info('[PWA_SPLASH] Post-auth flags initialized');
+    }
+
+    // Execute flag initialization immediately
+    initializePostAuthFlags();
+
     var splashEl = document.getElementById('pwa-splash');
     if (!splashEl) return;
 
