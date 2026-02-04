@@ -28,20 +28,20 @@ export async function refreshUIAfterSave(config: RefreshConfig): Promise<void> {
 
   try {
     // Refresh quick stats (index.html)
-    const quickStatsEl = document.getElementById('quick-stats-container');
+    const quickStatsEl = document.getElementById('quick-stats');
     if (quickStatsEl && typeof htmx !== 'undefined') {
       htmx.trigger(quickStatsEl, 'load');
     }
 
     // Refresh account balances (index.html)
-    const accountBalancesEl = document.getElementById('account-balances-container');
+    const accountBalancesEl = document.getElementById('account-balances');
     if (accountBalancesEl && typeof htmx !== 'undefined') {
       htmx.trigger(accountBalancesEl, 'load');
     }
 
     // Refresh recent transactions (index.html) - only for facts
     if (config.refreshRecentTransactions) {
-      const recentTransactionsEl = document.getElementById('recent-transactions-container');
+      const recentTransactionsEl = document.getElementById('recent-transactions');
       if (recentTransactionsEl && typeof htmx !== 'undefined') {
         htmx.trigger(recentTransactionsEl, 'load');
       }

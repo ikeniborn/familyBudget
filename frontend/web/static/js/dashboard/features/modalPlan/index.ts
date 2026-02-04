@@ -11,9 +11,16 @@ import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
 import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
+import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
+
+/**
+ * Keyboard shortcuts cleanup function
+ * Stored to remove listeners when modal closes
+ */
+let keyboardShortcutsCleanup: (() => void) | null = null;
 
 /**
  * Cache entry with timestamp and TTL
@@ -421,6 +428,11 @@ export async function openModalPlan(): Promise<void> {
   // Open modal immediately
   modal.showModal();
 
+  // CRITICAL: Wait for DOM to render before loading data
+  // Without this, querySelector in loadTransactionTabData() won't find selectors
+  // Double requestAnimationFrame ensures browser completes render
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
   // Show skeleton while loading
   showSkeleton();
 
@@ -461,6 +473,22 @@ export async function openModalPlan(): Promise<void> {
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
 
+    // UX: Setup keyboard shortcuts (Escape to close, Ctrl+Enter to save)
+    keyboardShortcutsCleanup = setupModalKeyboardShortcuts(
+      'modal_plan',
+      () => {
+        // Save callback: trigger save button click
+        const saveButton = document.querySelector('#modal_plan button[onclick*="savePlanModal"]') as HTMLButtonElement;
+        if (saveButton && !saveButton.disabled) {
+          saveButton.click();
+        }
+      },
+      () => {
+        // Close callback
+        closeModalPlan();
+      }
+    );
+
   } catch (error) {
     debugLog('[ModalPlan] Critical error loading data:', error);
 
@@ -494,4 +522,10 @@ export function closeModalPlan(): void {
 
   // Clear tab cache
   clearTabCache();
+
+  // UX: Cleanup keyboard shortcuts
+  if (keyboardShortcutsCleanup) {
+    keyboardShortcutsCleanup();
+    keyboardShortcutsCleanup = null;
+  }
 }

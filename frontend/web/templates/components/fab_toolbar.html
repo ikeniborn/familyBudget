@@ -455,6 +455,48 @@ function closeFabMenu() {
         mobileFabBtn.dataset.listenerAttached = 'true';
     }
 
+    // Mobile Speed Dial menu buttons initialization
+    if (currentPage === '/' && mobileMenu) {
+        const mobileFactBtn = mobileMenu.querySelector('.mobile-fab-item button[onclick*="openModalFact"]');
+        const mobilePlanBtn = mobileMenu.querySelector('.mobile-fab-item button[onclick*="openModalPlan"]');
+
+        if (mobileFactBtn && mobileFactBtn.dataset.listenerAttached !== 'true') {
+            mobileFactBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof window.openModalFact === 'function') {
+                    window.openModalFact();
+                    closeFabMenu();
+                } else {
+                    console.error('[FAB] window.openModalFact not available');
+                    if (typeof showToast === 'function') {
+                        showToast('Функция временно недоступна. Попробуйте обновить страницу.', 'error');
+                    }
+                }
+            });
+            mobileFactBtn.dataset.listenerAttached = 'true';
+        }
+
+        if (mobilePlanBtn && mobilePlanBtn.dataset.listenerAttached !== 'true') {
+            mobilePlanBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof window.openModalPlan === 'function') {
+                    window.openModalPlan();
+                    closeFabMenu();
+                } else {
+                    console.error('[FAB] window.openModalPlan not available');
+                    if (typeof showToast === 'function') {
+                        showToast('Функция временно недоступна. Попробуйте обновить страницу.', 'error');
+                    }
+                }
+            });
+            mobilePlanBtn.dataset.listenerAttached = 'true';
+        }
+    }
+
     // Desktop FAB initialization
     if (desktopWrapper && desktopFabBtn) {
         const backdrop = document.getElementById('desktop-fab-backdrop');
@@ -490,6 +532,52 @@ function closeFabMenu() {
         }
 
         desktopFabBtn.dataset.listenerAttached = 'true';
+    }
+
+    // Desktop Speed Dial menu buttons initialization
+    if (currentPage === '/' && desktopWrapper) {
+        const desktopFactBtn = desktopWrapper.querySelector('.fab-menu-item button[onclick*="openModalFact"]');
+        const desktopPlanBtn = desktopWrapper.querySelector('.fab-menu-item button[onclick*="openModalPlan"]');
+
+        if (desktopFactBtn && desktopFactBtn.dataset.listenerAttached !== 'true') {
+            desktopFactBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof window.openModalFact === 'function') {
+                    window.openModalFact();
+                    if (typeof window.closeDesktopFabMenu === 'function') {
+                        window.closeDesktopFabMenu();
+                    }
+                } else {
+                    console.error('[FAB] window.openModalFact not available');
+                    if (typeof showToast === 'function') {
+                        showToast('Функция временно недоступна. Попробуйте обновить страницу.', 'error');
+                    }
+                }
+            });
+            desktopFactBtn.dataset.listenerAttached = 'true';
+        }
+
+        if (desktopPlanBtn && desktopPlanBtn.dataset.listenerAttached !== 'true') {
+            desktopPlanBtn.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (typeof window.openModalPlan === 'function') {
+                    window.openModalPlan();
+                    if (typeof window.closeDesktopFabMenu === 'function') {
+                        window.closeDesktopFabMenu();
+                    }
+                } else {
+                    console.error('[FAB] window.openModalPlan not available');
+                    if (typeof showToast === 'function') {
+                        showToast('Функция временно недоступна. Попробуйте обновить страницу.', 'error');
+                    }
+                }
+            });
+            desktopPlanBtn.dataset.listenerAttached = 'true';
+        }
     }
 })();
 
