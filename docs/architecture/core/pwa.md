@@ -1320,6 +1320,113 @@ identify frontend/web/static/icons/icon-maskable-512.png
 
 ---
 
+## PWA Splash Screen & Post-Auth Flow
+
+### Overview
+
+**v11.3.0:** Оптимизирован flow авторизации - убран промежуточный экран "Загрузка...", пользователь видит только **один** PWA splash screen после логина.
+
+### Before (v11.2.x): 2 экрана подряд
+
+1. **auth_redirect.html** (1-2s):
+   - Визуальный контент: иконка 120x120px + текст "Загрузка..."
+   - Логика: установка `dexieActive` и `just_logged_in` флагов
+   - Redirect на dashboard
+
+2. **PWA splash** (2-4s):
+   - Показывается только в PWA режиме при cold start
+   - Иконка 96x96px без текста
+   - Минимум 2 секунды
+
+**Проблема:** Пользователь видит 2 загрузочных экрана подряд (плохой UX).
+
+### After (v11.3.0): 1 экран
+
+**auth_redirect.html:**
+- Убран весь визуальный контент (иконка, текст)
+- Instant redirect с query параметром `?just_logged_in=true`
+- Не показывается пользователю
+
+**PWA splash (pwa-splash-screen.html):**
+- Добавлена функция `initializePostAuthFlags()`
+- Устанавливает `dexieActive` и `just_logged_in` флаги ДО показа splash
+- Парсит query параметр `just_logged_in` из URL
+- Все инициализация происходит во время основного splash
+
+### Flag Initialization Logic
+
+**Файл:** `frontend/web/templates/scripts/pwa-splash-screen.html`
+
+```javascript
+function initializePostAuthFlags() {
+    // 1. Auto-enable Dexie для новых пользователей
+    if (localStorage.getItem('dexieActive') === null) {
+        localStorage.setItem('dexieActive', 'true');
+    }
+
+    // 2. Session flag для WebAuthn onboarding (из URL query)
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('just_logged_in') === 'true') {
+        sessionStorage.setItem('just_logged_in', 'true');
+    }
+
+    console.info('[PWA_SPLASH] Post-auth flags initialized');
+}
+```
+
+**Execution timing:**
+- Вызывается в начале IIFE (до проверки PWA режима)
+- Гарантирует установку флагов даже если splash пропускается (non-PWA режим)
+
+### Auth Flow Sequence (v11.3.0)
+
+```
+User logs in (Telegram OAuth / Email / WebAuthn)
+         ↓
+Backend redirect → /auth_redirect?target_url=/dashboard
+         ↓
+auth_redirect.html: instant redirect (НЕ показывается визуально)
+         ↓
+Redirect → /dashboard?just_logged_in=true
+         ↓
+pwa-splash-screen.html:
+    1. initializePostAuthFlags() ← устанавливает флаги
+    2. Проверка PWA режима
+    3. Показ splash (2s minimum) ← только этот экран видит пользователь
+         ↓
+Dashboard loads → WebAuthn onboarding (если just_logged_in=true)
+```
+
+### Flag Usage
+
+**dexieActive (localStorage):**
+- Purpose: Auto-enable Dexie offline mode для новых пользователей
+- Set by: `initializePostAuthFlags()` (если null)
+- Used by: Dexie initialization в dashboard.min.js
+
+**just_logged_in (sessionStorage):**
+- Purpose: Trigger WebAuthn biometric onboarding
+- Set by: `initializePostAuthFlags()` (парсит URL query)
+- Used by: WebAuthn onboarding modal
+- Lifetime: Session-scoped (исчезает при закрытии таба)
+
+### Files Modified (v11.3.0)
+
+| Файл | Изменение |
+|------|-----------|
+| `frontend/web/templates/auth_redirect.html` | Убран визуальный контент, только instant redirect |
+| `frontend/web/templates/scripts/pwa-splash-screen.html` | Добавлена `initializePostAuthFlags()` |
+| Backend auth endpoints | Добавлен query параметр `?just_logged_in=true` |
+
+### Benefits
+
+- ✅ Один splash screen вместо двух (лучший UX)
+- ✅ Все инициализация происходит во время PWA splash (логичнее)
+- ✅ Нет визуального "мерцания" между экранами
+- ✅ Сохранена вся функциональность (Dexie, WebAuthn onboarding)
+
+---
+
 ### References
 
 - [Web App Manifest - MDN](https://developer.mozilla.org/en-US/docs/Web/Manifest)
