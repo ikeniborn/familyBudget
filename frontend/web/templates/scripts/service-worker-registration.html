@@ -91,7 +91,7 @@
 
         /**
          * Verify that Cache Storage and IndexedDB are completely cleared
-         * Returns: { success: boolean, issues: string[] }
+         * @returns {Promise<{success: boolean, issues: string[]}>} Verification result with list of issues
          */
         async function verifyCleanup() {
             const issues = [];
@@ -126,8 +126,82 @@
         }
 
         /**
+         * Perform retry cleanup actions based on verification issues
+         * Re-clears Cache Storage and re-deletes IndexedDB if needed
+         * @param {{success: boolean, issues: string[]}} result - Verification result from verifyCleanup()
+         * @returns {Promise<void>}
+         */
+        async function retryCleanupActions(result) {
+            console.log('[SW_UPDATE] Retrying cleanup...');
+
+            // Re-clear caches if needed
+            const cacheNamesRetry = await caches.keys();
+            if (cacheNamesRetry.length > 0) {
+                await Promise.all(cacheNamesRetry.map(name => caches.delete(name)));
+                console.log('[SW_UPDATE] Re-cleared', cacheNamesRetry.length, 'caches');
+            }
+
+            // Re-delete IndexedDB if it still exists
+            if (result.issues.some(issue => issue.includes('IndexedDB'))) {
+                console.log('[SW_UPDATE] Re-attempting IndexedDB deletion...');
+                await new Promise((resolve) => {
+                    const req = indexedDB.deleteDatabase('FamilyBudgetDB');
+                    req.onsuccess = () => {
+                        console.log('[SW_UPDATE] IndexedDB re-deleted successfully');
+                        resolve();
+                    };
+                    req.onerror = () => {
+                        console.warn('[SW_UPDATE] IndexedDB re-delete error');
+                        resolve();
+                    };
+                    req.onblocked = () => {
+                        console.warn('[SW_UPDATE] IndexedDB re-delete blocked');
+                        resolve();
+                    };
+                    setTimeout(resolve, 15000);
+                });
+            }
+
+            // Wait before next verification
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        /**
+         * Retry cleanup verification with automatic retry on failure
+         * Attempts cleanup verification up to maxAttempts times, with retry actions between attempts
+         * @param {number} maxAttempts - Maximum number of verification attempts (default: 3)
+         * @returns {Promise<{passed: boolean, attempts: number}>} Verification result and number of attempts used
+         */
+        async function retryCleanupVerification(maxAttempts = 3) {
+            const startTime = performance.now();
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                console.log(`[SW_UPDATE] Verification attempt ${attempt}/${maxAttempts}...`);
+
+                const result = await verifyCleanup();
+
+                if (result.success) {
+                    const duration = (performance.now() - startTime).toFixed(0);
+                    console.log(`[SW_UPDATE] ✅ Step 7/8: Cleanup verified (${attempt} attempt(s), ${duration}ms)`);
+                    return { passed: true, attempts: attempt };
+                }
+
+                console.warn(`[SW_UPDATE] ⚠️ Verification failed (attempt ${attempt}/${maxAttempts}):`, result.issues);
+
+                if (attempt < maxAttempts) {
+                    await retryCleanupActions(result);
+                }
+            }
+
+            const duration = (performance.now() - startTime).toFixed(0);
+            console.error(`[SW_UPDATE] ❌ Verification failed after ${maxAttempts} attempts (${duration}ms)`);
+            return { passed: false, attempts: maxAttempts };
+        }
+
+        /**
          * Handle "Reload now" action
          * Logs out, unregisters Service Worker, clears all caches, storage, then reloads
+         * @returns {Promise<void>}
          */
         async function handleUpdateNow() {
             const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
@@ -215,70 +289,18 @@
                 sessionStorage.clear();
                 console.log('[SW_UPDATE] ✅ Step 6/6: Cleared', ssKeys, 'sessionStorage keys');
 
-                // Step 7/8: Verify cleanup completed
+                // Step 7/8: Verify cleanup completed with retry logic
                 console.log('[SW_UPDATE] Step 7/8: Verifying cleanup...');
-                let verificationPassed = false;
-                let attempt = 0;
-                const maxAttempts = 3;
-
-                while (!verificationPassed && attempt < maxAttempts) {
-                    attempt++;
-                    console.log(`[SW_UPDATE] Verification attempt ${attempt}/${maxAttempts}...`);
-
-                    const result = await verifyCleanup();
-
-                    if (result.success) {
-                        verificationPassed = true;
-                        console.log('[SW_UPDATE] ✅ Step 7/8: Cleanup verified');
-                    } else {
-                        console.warn(`[SW_UPDATE] ⚠️ Verification failed (attempt ${attempt}/${maxAttempts}):`, result.issues);
-
-                        if (attempt < maxAttempts) {
-                            // Retry cleanup
-                            console.log('[SW_UPDATE] Retrying cleanup...');
-
-                            // Re-clear caches if needed
-                            const cacheNamesRetry = await caches.keys();
-                            if (cacheNamesRetry.length > 0) {
-                                await Promise.all(cacheNamesRetry.map(name => caches.delete(name)));
-                                console.log('[SW_UPDATE] Re-cleared', cacheNamesRetry.length, 'caches');
-                            }
-
-                            // Re-delete IndexedDB if it still exists
-                            if (result.issues.some(issue => issue.includes('IndexedDB'))) {
-                                console.log('[SW_UPDATE] Re-attempting IndexedDB deletion...');
-                                await new Promise((resolve) => {
-                                    const req = indexedDB.deleteDatabase('FamilyBudgetDB');
-                                    req.onsuccess = () => {
-                                        console.log('[SW_UPDATE] IndexedDB re-deleted successfully');
-                                        resolve();
-                                    };
-                                    req.onerror = () => {
-                                        console.warn('[SW_UPDATE] IndexedDB re-delete error');
-                                        resolve();
-                                    };
-                                    req.onblocked = () => {
-                                        console.warn('[SW_UPDATE] IndexedDB re-delete blocked');
-                                        resolve();
-                                    };
-                                    setTimeout(resolve, 15000);
-                                });
-                            }
-
-                            // Wait before next verification
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
-                }
+                const verificationResult = await retryCleanupVerification(3);
 
                 // Step 8/8: Handle verification result
-                if (!verificationPassed) {
-                    console.error('[SW_UPDATE] ❌ Step 8/8: Cleanup verification failed after', maxAttempts, 'attempts');
+                if (!verificationResult.passed) {
+                    console.error('[SW_UPDATE] ❌ Step 8/8: Cleanup verification failed after', verificationResult.attempts, 'attempts');
                     console.error('[SW_UPDATE] Manual intervention may be required');
 
                     // Show user confirmation dialog
                     const proceed = confirm(
-                        'Не удалось полностью очистить локальные данные после ' + maxAttempts + ' попыток.\n\n' +
+                        'Не удалось полностью очистить локальные данные после ' + verificationResult.attempts + ' попыток.\n\n' +
                         'Продолжить обновление? (Может потребоваться повторное обновление позже)'
                     );
 
