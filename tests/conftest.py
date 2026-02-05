@@ -20,6 +20,13 @@ os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/familybudget_test"
 )
 
+# Set required settings for tests (dummy values)
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-testing-only")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+os.environ.setdefault("ADMIN_TELEGRAM_ID", "123456789")
+os.environ.setdefault("API_INTERNAL_KEY", "test-internal-api-key")
+os.environ.setdefault("TELEGRAM_WEBAPP_URL", "https://test.example.com")
+
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
 from backend.app.main import app
