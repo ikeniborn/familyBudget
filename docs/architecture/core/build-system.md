@@ -382,6 +382,132 @@ npm run type-check  # Found 0 errors
 
 ---
 
+## Bundle Load Order and Dependencies
+
+### Critical: Dexie Bundle Load Order (v11.2.36+)
+
+**Problem:** External bundles (facts.min.js, plan.bundle.js) extend Dexie class constructor. window.Dexie must be available BEFORE these bundles load.
+
+**Solution:** Async import with synchronous placeholder (v11.2.36)
+
+**Load Sequence (CRITICAL):**
+```html
+<!-- base.html or page templates -->
+<script src="/static/shared/dexie.min.js?v={{version}}"></script>     <!-- 1. MUST load first -->
+<script src="/static/facts/facts.min.js?v={{version}}"></script>      <!-- 2. Depends on window.Dexie -->
+<script src="/static/planning/plan.bundle.js?v={{version}}"></script> <!-- 3. Depends on window.Dexie -->
+```
+
+**Implementation Details:**
+
+**1. Synchronous Placeholder (dexie/index.ts:268-271):**
+```typescript
+// Prevent race condition: set placeholder immediately
+window.Dexie = null; // Signals "loading" state
+```
+
+**2. Async Import (dexie/index.ts:274-289):**
+```typescript
+import('dexie').then(({ default: Dexie }) => {
+  // Attach utilities as static properties
+  Object.assign(Dexie, { getDexieManager, DexieManager, db, toCents, ... });
+
+  // Export real constructor
+  window.Dexie = Dexie as DexieWithUtilities;
+});
+```
+
+**3. Runtime Validation (dexie/index.ts:293-309):**
+```typescript
+// Verify window.Dexie is valid constructor
+if (typeof window.Dexie !== 'function') {
+  throw new Error('window.Dexie is not a constructor');
+}
+
+if (!(window.Dexie.prototype instanceof Object)) {
+  throw new Error('window.Dexie.prototype is invalid');
+}
+
+// Verify utilities attached
+const requiredUtilities = ['getDexieManager', 'DexieManager', 'db'];
+const missingUtilities = requiredUtilities.filter(util => !(util in window.Dexie));
+if (missingUtilities.length > 0) {
+  throw new Error(`Missing utilities: ${missingUtilities.join(', ')}`);
+}
+```
+
+**4. Error Recovery (dexie/index.ts:318-364):**
+```typescript
+}).catch((err) => {
+  // Fallback mode: Create stub object with error methods
+  const fallbackDexie = {
+    getDexieManager: () => { throw new Error('Dexie init failed'); },
+    DexieManager: class DexieManagerFallback {},
+    // ... other stub methods
+  };
+
+  window.Dexie = fallbackDexie;
+  logger.error('Fallback mode active - offline features disabled');
+});
+```
+
+**What Can Go Wrong:**
+
+| Issue | Symptom | Cause | Solution |
+|-------|---------|-------|----------|
+| **TypeError: Class extends value is not a constructor** | External bundle fails to load | dexie.min.js loaded AFTER facts.min.js | Ensure dexie.min.js loads first in HTML |
+| **window.Dexie is null** | External bundle accesses undefined | Async import not completed | Check placeholder logic (should be null, not undefined) |
+| **Missing utilities** | window.Dexie.getDexieManager() fails | Object.assign() failed | Check runtime validation logs |
+| **Fallback mode active** | Offline features disabled | Dexie import failed | Check network, CDN, or module resolution |
+
+**Browser Console Verification:**
+```javascript
+// After page load, check window.Dexie state
+console.log(typeof window.Dexie);        // Should be "function" (constructor)
+console.log(window.Dexie.prototype instanceof Object); // Should be true
+console.log(typeof window.Dexie.getDexieManager);      // Should be "function"
+```
+
+**External Bundle Pattern:**
+```typescript
+// facts.min.js, plan.bundle.js
+import Dexie from 'dexie';  // Vite external config maps to window.Dexie
+
+class FamilyBudgetDB extends Dexie {  // Works because window.Dexie is constructor
+  constructor() {
+    super('FamilyBudgetDB');
+    this.version(1).stores({ ... });
+  }
+}
+```
+
+**Vite Configuration (vite.config.single.ts):**
+```typescript
+// External dependencies (not bundled)
+external: ['dexie'],
+
+// Global variable mapping
+globals: {
+  'dexie': 'window.Dexie'  // import Dexie → window.Dexie
+}
+```
+
+**Migration Notes:**
+- **v11.2.35 and earlier:** window.Dexie was plain object → TypeError on inheritance
+- **v11.2.36:** window.Dexie is Dexie constructor with utilities → inheritance works
+- **Backward compatible:** All existing code accessing window.Dexie.getDexieManager() continues to work
+
+**Related Files:**
+- `frontend/shared/db/dexie/index.ts` - Dexie window export implementation
+- `config/vite.config.single.ts` - External dependency configuration
+- `frontend/web/templates/base.html` - Script load order
+- `frontend/web/templates/facts.html` - Facts bundle usage
+- `frontend/web/templates/planning.html` - Plan bundle usage
+
+**Commit:** `c3c98e14` (v11.2.36)
+
+---
+
 ## Build Pipeline
 
 ### Full Build Sequence

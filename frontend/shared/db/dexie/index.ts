@@ -226,24 +226,30 @@ export async function getDiagnosticData(): Promise<{
  */
 import type Dexie from 'dexie';
 
+/**
+ * Shared type alias for Dexie with utilities
+ * Used in both global declaration and runtime type assertion (DRY principle)
+ */
+type DexieWithUtilities = typeof Dexie & {
+  getDexieManager: typeof getDexieManagerImpl;
+  DexieManager: typeof DexieManager;
+  db: typeof dexieDb;
+  toCents: typeof dexieToCents;
+  fromCents: typeof dexieFromCents;
+  isDexieActive: typeof isDexieActive;
+  setDexieActive: typeof setDexieActive;
+  getState: typeof getState;
+  getDexieFeatureFlags: typeof getDexieFeatureFlags;
+  logger: typeof dexieLogger;
+  // Background initialization API (for base.html compatibility)
+  initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
+  isReady: typeof isReady;
+  getDiagnosticData: typeof getDiagnosticData;
+};
+
 declare global {
   interface Window {
-    Dexie: typeof Dexie & {
-      getDexieManager: typeof getDexieManagerImpl;
-      DexieManager: typeof DexieManager;
-      db: typeof dexieDb;
-      toCents: typeof dexieToCents;
-      fromCents: typeof dexieFromCents;
-      isDexieActive: typeof isDexieActive;
-      setDexieActive: typeof setDexieActive;
-      getState: typeof getState;
-      getDexieFeatureFlags: typeof getDexieFeatureFlags;
-      logger: typeof dexieLogger;
-      // Background initialization API (for base.html compatibility)
-      initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
-      isReady: typeof isReady;
-      getDiagnosticData: typeof getDiagnosticData;
-    };
+    Dexie: DexieWithUtilities;
   }
 }
 
@@ -254,19 +260,26 @@ declare global {
  * window.Dexie MUST be a constructor, not a plain object.
  *
  * Solution:
- * - Import real Dexie constructor from 'dexie' package
+ * - Synchronous placeholder: window.Dexie = null (signals "loading")
+ * - Async import real Dexie constructor from 'dexie' package
  * - Attach utilities as static properties to Dexie class
  * - Export Dexie class with utilities attached
  *
  * Result:
  * - ✅ class FamilyBudgetDB extends window.Dexie (Dexie is a constructor)
  * - ✅ window.Dexie.getDexieManager() (utilities attached as static properties)
+ * - ✅ No race condition (placeholder prevents undefined access)
  *
  * @see config/vite.config.single.ts:103 - external: 'dexie'
  * @see config/vite.config.single.ts:124 - globals: { 'dexie': 'window.Dexie' }
  */
 if (typeof window !== 'undefined') {
   dexieLogger.info('[DEXIE_BUNDLE] ⚙️ Executing window.Dexie assignment');
+
+  // Synchronous placeholder to prevent race condition
+  // External bundles can check: if (!window.Dexie) { /* wait or defer */ }
+  (window as any).Dexie = null;
+  dexieLogger.info('[DEXIE_BUNDLE] 🔄 window.Dexie placeholder set (loading...)');
 
   // Import real Dexie constructor for inheritance support
   import('dexie').then(({ default: Dexie }) => {
@@ -290,30 +303,91 @@ if (typeof window !== 'undefined') {
 
     // Export Dexie class (with utilities attached) to window
     // Type assertion needed because Object.assign() doesn't update TypeScript types
-    window.Dexie = Dexie as typeof Dexie & {
-      getDexieManager: typeof getDexieManagerImpl;
-      DexieManager: typeof DexieManager;
-      db: typeof dexieDb;
-      toCents: typeof dexieToCents;
-      fromCents: typeof dexieFromCents;
-      isDexieActive: typeof isDexieActive;
-      setDexieActive: typeof setDexieActive;
-      getState: typeof getState;
-      getDexieFeatureFlags: typeof getDexieFeatureFlags;
-      logger: typeof dexieLogger;
-      initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
-      isReady: typeof isReady;
-      getDiagnosticData: typeof getDiagnosticData;
-    };
+    window.Dexie = Dexie as DexieWithUtilities;
+
+    // Runtime validation: Verify window.Dexie is a valid constructor
+    if (typeof window.Dexie !== 'function') {
+      throw new Error(
+        '[DEXIE_BUNDLE] Runtime validation failed: window.Dexie is not a function (constructor). ' +
+        `Type: ${typeof window.Dexie}`
+      );
+    }
+
+    if (!(window.Dexie.prototype instanceof Object)) {
+      throw new Error(
+        '[DEXIE_BUNDLE] Runtime validation failed: window.Dexie.prototype is not a valid object. ' +
+        'External bundles cannot extend this constructor.'
+      );
+    }
+
+    // Verify critical utilities are attached
+    const requiredUtilities = ['getDexieManager', 'DexieManager', 'db', 'toCents', 'fromCents'];
+    const missingUtilities = requiredUtilities.filter(util => !(util in window.Dexie));
+    if (missingUtilities.length > 0) {
+      throw new Error(
+        `[DEXIE_BUNDLE] Runtime validation failed: Missing utilities: ${missingUtilities.join(', ')}`
+      );
+    }
 
     dexieLogger.info('[DEXIE_BUNDLE] ✅ window.Dexie assigned (constructor + utilities):', {
       isConstructor: typeof window.Dexie === 'function',
       hasUtilities: Object.keys(window.Dexie).length,
-      canExtend: window.Dexie.prototype instanceof Object
+      canExtend: window.Dexie.prototype instanceof Object,
+      validationPassed: true
     });
 
     dexieLogger.info('Exposed to window.Dexie for external bundles');
   }).catch((err) => {
     dexieLogger.error('[DEXIE_BUNDLE] ❌ Failed to import Dexie constructor:', err);
+
+    // Error recovery: Create fallback placeholder object
+    // Prevents external bundles from crashing when accessing window.Dexie methods
+    const fallbackDexie = {
+      getDexieManager: () => {
+        throw new Error('Dexie initialization failed - cannot get manager. See console for details.');
+      },
+      DexieManager: class DexieManagerFallback {},
+      db: null as any,
+      toCents: (amount: number) => Math.round(amount * 100),
+      fromCents: (cents: number) => cents / 100,
+      isDexieActive: () => false,
+      setDexieActive: () => {
+        dexieLogger.warn('Dexie initialization failed - cannot set active state');
+      },
+      getState: async () => ({ db: null }),
+      getDexieFeatureFlags: () => ({ autoSyncInterval: 30000, enabled: false }),
+      logger: dexieLogger,
+      initializeDatabaseInBackground: async () => {
+        throw new Error('Dexie initialization failed - cannot initialize database');
+      },
+      isReady: () => false,
+      getDiagnosticData: async () => ({
+        initializationStatus: 'failed',
+        lastSyncTimestamp: 'never',
+        isEnabled: false,
+        isInitialized: false,
+        dbSize: 0,
+        dbSizeKB: 0,
+        tables: {},
+        tableStats: { articles: 0, financial_centers: 0, cost_centers: 0, facts: 0, plans: 0 },
+        syncStatus: 'error' as const,
+        performance: { avgQueryTime: 0 },
+        pruningStats: {
+          enabled: false,
+          lastPrunedAt: 'never',
+          totalPruned: 0,
+          nextPruneEstimate: 'never'
+        }
+      })
+    };
+
+    // Assign fallback to prevent undefined errors
+    (window as any).Dexie = fallbackDexie;
+
+    // User notification
+    dexieLogger.error(
+      '[DEXIE_BUNDLE] ⚠️ Fallback mode active - offline features disabled. ' +
+      'Application will work in online-only mode.'
+    );
   });
 }
