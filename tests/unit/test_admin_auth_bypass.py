@@ -25,7 +25,7 @@ class TestAdminAuthBypass:
     """Tests for admin authentication bypass (no 2FA requirement)."""
 
     @pytest.mark.asyncio
-    async def test_admin_login_bypasses_2fa(self, client: AsyncClient, session: AsyncSession):
+    async def test_admin_login_bypasses_2fa(self, client: AsyncClient, db_session: AsyncSession):
         """Admin can login without 2FA requirement."""
 
         # Create admin user
@@ -37,9 +37,9 @@ class TestAdminAuthBypass:
             is_active=True,
             two_factor_enabled=False,
         )
-        session.add(admin)
-        await session.flush()
-        await session.refresh(admin)
+        db_session.add(admin)
+        await db_session.flush()
+        await db_session.refresh(admin)
 
         # Login with email/password
         response = await client.post(
@@ -67,7 +67,7 @@ class TestAdminAuthBypass:
         assert response.cookies["refresh_token"].get("httponly") or "HttpOnly" in str(response.cookies)
 
     @pytest.mark.asyncio
-    async def test_regular_user_requires_2fa(self, client: AsyncClient, session: AsyncSession):
+    async def test_regular_user_requires_2fa(self, client: AsyncClient, db_session: AsyncSession):
         """Regular users still require 2FA for email/password login."""
 
         # Create regular user (NOT admin)
@@ -79,9 +79,9 @@ class TestAdminAuthBypass:
             is_active=True,
             two_factor_enabled=False,
         )
-        session.add(user)
-        await session.flush()
-        await session.refresh(user)
+        db_session.add(user)
+        await db_session.flush()
+        await db_session.refresh(user)
 
         # Login with email/password
         response = await client.post(
@@ -105,7 +105,7 @@ class TestAdminAuthBypass:
         assert "refresh_token" not in response.cookies
 
     @pytest.mark.asyncio
-    async def test_admin_login_sets_cookies(self, client: AsyncClient, session: AsyncSession):
+    async def test_admin_login_sets_cookies(self, client: AsyncClient, db_session: AsyncSession):
         """Admin login sets secure httpOnly cookies."""
 
         # Create admin user
@@ -117,8 +117,8 @@ class TestAdminAuthBypass:
             is_active=True,
             two_factor_enabled=False,
         )
-        session.add(admin)
-        await session.flush()
+        db_session.add(admin)
+        await db_session.flush()
 
         # Login
         response = await client.post(
@@ -142,7 +142,7 @@ class TestAdminAuthBypass:
         assert refresh_cookie is not None
 
     @pytest.mark.asyncio
-    async def test_admin_login_updates_last_login(self, client: AsyncClient, session: AsyncSession):
+    async def test_admin_login_updates_last_login(self, client: AsyncClient, db_session: AsyncSession):
         """Admin login updates last_login_at timestamp."""
 
         # Create admin user
@@ -155,9 +155,9 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
             last_login_at=None,  # Initially None
         )
-        session.add(admin)
-        await session.flush()
-        await session.refresh(admin)
+        db_session.add(admin)
+        await db_session.flush()
+        await db_session.refresh(admin)
 
         admin_id = admin.id
 
@@ -171,7 +171,7 @@ class TestAdminAuthBypass:
 
         # Fetch admin from DB again
         stmt = select(User).where(User.id == admin_id)
-        result = await session.execute(stmt)
+        result = await db_session.execute(stmt)
         updated_admin = result.scalar_one()
 
         # Verify last_login_at was updated
@@ -179,7 +179,7 @@ class TestAdminAuthBypass:
         assert isinstance(updated_admin.last_login_at, datetime)
 
     @pytest.mark.asyncio
-    async def test_admin_login_creates_refresh_token(self, client: AsyncClient, session: AsyncSession):
+    async def test_admin_login_creates_refresh_token(self, client: AsyncClient, db_session: AsyncSession):
         """Admin login creates refresh token in database."""
 
         # Create admin user
@@ -191,9 +191,9 @@ class TestAdminAuthBypass:
             is_active=True,
             two_factor_enabled=False,
         )
-        session.add(admin)
-        await session.flush()
-        await session.refresh(admin)
+        db_session.add(admin)
+        await db_session.flush()
+        await db_session.refresh(admin)
 
         admin_id = admin.id
 
@@ -207,7 +207,7 @@ class TestAdminAuthBypass:
 
         # Check refresh token in database
         stmt = select(RefreshToken).where(RefreshToken.user_id == admin_id)
-        result = await session.execute(stmt)
+        result = await db_session.execute(stmt)
         refresh_tokens = list(result.scalars().all())
 
         # Should have exactly 1 refresh token
@@ -217,7 +217,7 @@ class TestAdminAuthBypass:
         assert refresh_tokens[0].expires_at is not None
 
     @pytest.mark.asyncio
-    async def test_inactive_admin_rejected(self, client: AsyncClient, session: AsyncSession):
+    async def test_inactive_admin_rejected(self, client: AsyncClient, db_session: AsyncSession):
         """Inactive admin cannot login even with valid credentials."""
 
         # Create inactive admin user
@@ -229,8 +229,8 @@ class TestAdminAuthBypass:
             is_active=False,  # Inactive
             two_factor_enabled=False,
         )
-        session.add(admin)
-        await session.flush()
+        db_session.add(admin)
+        await db_session.flush()
 
         # Attempt login
         response = await client.post(
@@ -248,7 +248,7 @@ class TestAdminAuthBypass:
         assert "refresh_token" not in response.cookies
 
     @pytest.mark.asyncio
-    async def test_failed_admin_login_invalid_password(self, client: AsyncClient, session: AsyncSession):
+    async def test_failed_admin_login_invalid_password(self, client: AsyncClient, db_session: AsyncSession):
         """Failed admin login with invalid password returns 401."""
 
         # Create admin user
@@ -260,8 +260,8 @@ class TestAdminAuthBypass:
             is_active=True,
             two_factor_enabled=False,
         )
-        session.add(admin)
-        await session.flush()
+        db_session.add(admin)
+        await db_session.flush()
 
         # Login with wrong password
         response = await client.post(
@@ -344,7 +344,7 @@ class TestAdminUserCreationScript:
     """Tests for scripts/create_admin_user.py functionality."""
 
     @pytest.mark.asyncio
-    async def test_admin_creation_skipped_if_not_configured(self, session: AsyncSession, monkeypatch):
+    async def test_admin_creation_skipped_if_not_configured(self, db_session: AsyncSession, monkeypatch):
         """Admin creation skipped if ADMIN_EMAIL or ADMIN_PASSWORD not set."""
         import os
         import sys
@@ -362,7 +362,7 @@ class TestAdminUserCreationScript:
         assert exit_code == 0
 
     @pytest.mark.asyncio
-    async def test_admin_creation_fails_weak_password(self, session: AsyncSession, monkeypatch):
+    async def test_admin_creation_fails_weak_password(self, db_session: AsyncSession, monkeypatch):
         """Admin creation fails if password doesn't meet OWASP requirements."""
         import os
         import sys
