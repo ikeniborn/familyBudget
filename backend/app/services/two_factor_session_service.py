@@ -36,8 +36,6 @@ Usage:
         await consume_session(session, token)
         # Issue JWT tokens
 """
-from typing import Optional
-
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -113,7 +111,7 @@ async def create_session(
 async def verify_session(
     session: AsyncSession,
     token: str,
-) -> Optional[int]:
+) -> int | None:
     """
     Verify a 2FA session token.
 
@@ -138,7 +136,7 @@ async def verify_session(
     # Find session by token hash
     statement = select(TwoFactorSession).where(
         TwoFactorSession.token_hash == token_hash,
-        TwoFactorSession.used == False,
+        not TwoFactorSession.used,
         TwoFactorSession.expires_at > datetime.utcnow(),
     )
     result = await session.execute(statement)
@@ -178,7 +176,7 @@ async def consume_session(
     # Find and update session
     statement = select(TwoFactorSession).where(
         TwoFactorSession.token_hash == token_hash,
-        TwoFactorSession.used == False,
+        not TwoFactorSession.used,
     )
     result = await session.execute(statement)
     two_fa_session = result.scalar_one_or_none()
@@ -221,7 +219,7 @@ async def cleanup_expired_sessions(
 
     statement = delete(TwoFactorSession).where(
         (TwoFactorSession.expires_at < now) |
-        (TwoFactorSession.used == True)
+        (TwoFactorSession.used)
     )
 
     result = await session.execute(statement)
@@ -233,7 +231,7 @@ async def cleanup_expired_sessions(
 async def get_session_by_user_id(
     session: AsyncSession,
     user_id: int,
-) -> Optional[TwoFactorSession]:
+) -> TwoFactorSession | None:
     """
     Get active (non-expired, non-used) session for a user.
 
@@ -249,7 +247,7 @@ async def get_session_by_user_id(
     """
     statement = select(TwoFactorSession).where(
         TwoFactorSession.user_id == user_id,
-        TwoFactorSession.used == False,
+        not TwoFactorSession.used,
         TwoFactorSession.expires_at > datetime.utcnow(),
     )
     result = await session.execute(statement)
@@ -283,7 +281,7 @@ async def invalidate_user_sessions(
         update(TwoFactorSession)
         .where(
             TwoFactorSession.user_id == user_id,
-            TwoFactorSession.used == False,
+            not TwoFactorSession.used,
         )
         .values(used=True)
     )

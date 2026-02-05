@@ -13,7 +13,7 @@ Features:
 
 import logging
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -127,8 +127,8 @@ async def get_current_user_info(
 async def update_notification_preferences(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    enable_push: Optional[bool] = Query(None, description="Enable/disable Web Push notifications"),
-    enable_telegram: Optional[bool] = Query(None, description="Enable/disable Telegram bot notifications"),
+    enable_push: bool | None = Query(None, description="Enable/disable Web Push notifications"),
+    enable_telegram: bool | None = Query(None, description="Enable/disable Telegram bot notifications"),
 ) -> User:
     """
     Update user notification preferences.

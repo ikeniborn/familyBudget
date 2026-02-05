@@ -172,7 +172,7 @@ class TestExtractUserFromInitData:
 
         extracted = extract_user_from_initdata(user_data)
 
-        assert extracted["telegram_id"] == 123456789
+        assert extracted["id"] == 123456789
         assert extracted["first_name"] == "Test"
         assert extracted["last_name"] == "User"
         assert extracted["username"] == "testuser"
@@ -186,7 +186,7 @@ class TestExtractUserFromInitData:
 
         extracted = extract_user_from_initdata(user_data)
 
-        assert extracted["telegram_id"] == 123456789
+        assert extracted["id"] == 123456789
         assert extracted["first_name"] == "Test"
         assert extracted.get("last_name") is None
         assert extracted.get("username") is None

@@ -13,8 +13,6 @@ Key features:
 - Updated monthly or on-demand
 - Unique constraint on (financial_center_id, year, month)
 """
-from typing import Optional
-
 from datetime import datetime
 from decimal import Decimal
 
@@ -84,7 +82,7 @@ class FinancialCenterBalanceMonthly(SQLModel, table=True):
     __tablename__ = "t_agg_financial_center_balance_monthly"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"

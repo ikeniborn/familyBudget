@@ -5,6 +5,7 @@ This module configures Alembic for managing database migrations in Production Mo
 Production ready since v5.0.0.
 """
 
+import os
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -20,9 +21,7 @@ if str(app_root) not in sys.path:
 # Import all SQLModel models to ensure metadata is populated
 
 # Import metadata from SQLModel
-import os
-
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel  # noqa: E402
 
 # Alembic Config object
 config = context.config

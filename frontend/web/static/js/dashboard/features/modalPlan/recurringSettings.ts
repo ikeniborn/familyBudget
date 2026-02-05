@@ -11,39 +11,59 @@ declare const debugLog: (...args: any[]) => void;
  * Toggle plan mode visibility (regular/recurring/reminder)
  */
 export function togglePlanMode(modalId: string): void {
-  const form = document.getElementById(`form_${modalId}`) as HTMLFormElement;
-  if (!form) return;
+  debugLog(`[togglePlanMode] Called with modalId: ${modalId}`);
 
+  const form = document.getElementById(`form_${modalId}`) as HTMLFormElement;
+  if (!form) {
+    debugLog(`[togglePlanMode] Form not found: form_${modalId}`);
+    return;
+  }
+
+  // Get selected mode
   const modeRadios = form.querySelectorAll<HTMLInputElement>('input[name="plan_mode"]');
   let selectedMode = 'regular';
 
   modeRadios.forEach((radio) => {
     if (radio.checked) {
       selectedMode = radio.value;
+      debugLog(`[togglePlanMode] Selected mode: ${selectedMode}`);
     }
   });
 
-  debugLog('[RecurringSettings] Plan mode changed:', selectedMode);
-
-  // Get containers
+  // Get sections
   const recurringSettings = document.getElementById(`recurring-settings-${modalId}`);
   const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
 
-  if (!recurringSettings || !onetimeReminderSection) return;
+  if (!recurringSettings || !onetimeReminderSection) {
+    debugLog('[togglePlanMode] Missing sections:', {
+      recurringSettings: !!recurringSettings,
+      onetimeReminderSection: !!onetimeReminderSection,
+      expectedIds: {
+        recurring: `recurring-settings-${modalId}`,
+        reminder: `onetime-reminder-section-${modalId}`
+      }
+    });
+    return;
+  }
 
   // Hide all sections first
   recurringSettings.classList.add('hidden');
   onetimeReminderSection.classList.add('hidden');
+  debugLog('[togglePlanMode] All sections hidden');
 
   // Show relevant section
   if (selectedMode === 'recurring') {
     recurringSettings.classList.remove('hidden');
-    // Initialize defaults if needed
+    debugLog('[togglePlanMode] Recurring settings shown');
     initializeRecurringDefaults(modalId);
   } else if (selectedMode === 'reminder') {
     onetimeReminderSection.classList.remove('hidden');
+    debugLog('[togglePlanMode] Reminder section shown');
+  } else {
+    debugLog('[togglePlanMode] Regular mode - no additional sections shown');
   }
-  // regular mode: nothing shown (both hidden)
+
+  debugLog('[RecurringSettings] Plan mode changed:', selectedMode);
 }
 
 /**

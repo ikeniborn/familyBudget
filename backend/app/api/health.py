@@ -9,7 +9,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, Response, status
@@ -42,8 +42,8 @@ class ComponentHealth(BaseModel):
     """Health status of a single component."""
 
     status: str  # "up" | "down" | "degraded"
-    message: Optional[str] = None
-    latency_ms: Optional[float] = None
+    message: str | None = None
+    latency_ms: float | None = None
 
 
 class DetailedHealthResponse(BaseModel):

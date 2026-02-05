@@ -4,8 +4,6 @@ Application settings configuration.
 This module provides centralized configuration management using Pydantic Settings.
 All configuration values are loaded from environment variables or .env file.
 """
-from typing import Optional, Union
-
 from functools import lru_cache
 from pathlib import Path
 
@@ -75,25 +73,25 @@ class Settings(BaseSettings):
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
-    TELEGRAM_BOT_USERNAME: Optional[str] = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
+    TELEGRAM_BOT_USERNAME: str | None = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
 
     # Admin Email Authentication (optional - emergency access without 2FA)
-    ADMIN_EMAIL: Optional[str] = None  # Admin email for emergency login (bypasses 2FA)
-    ADMIN_PASSWORD: Optional[str] = None  # Admin initial password (should be changed)
+    ADMIN_EMAIL: str | None = None  # Admin email for emergency login (bypasses 2FA)
+    ADMIN_PASSWORD: str | None = None  # Admin initial password (should be changed)
 
     # Internal API
     API_INTERNAL_KEY: str  # Shared secret for internal bot-to-backend communication
 
     # CORS
     # Use str | list[str] to prevent Pydantic Settings from auto-parsing as JSON
-    CORS_ORIGINS: Union[str, list[str]] = Field(default="")
+    CORS_ORIGINS: str | list[str] = Field(default="")
 
     # VAPID Keys for Web Push Notifications
     # Generate with: ./scripts/generate_vapid_keys.sh
-    VAPID_PUBLIC_KEY: Optional[str] = None
-    VAPID_PRIVATE_KEY: Optional[str] = None
+    VAPID_PUBLIC_KEY: str | None = None
+    VAPID_PRIVATE_KEY: str | None = None
     VAPID_CONTACT_EMAIL: str = "admin@example.com"
 
     # WebAuthn Biometric Authentication (v6.5.0+)
@@ -113,7 +111,7 @@ class Settings(BaseSettings):
     SYSTEM_TIMEZONE: str = "UTC"
 
     # Redis Configuration
-    REDIS_URL: Optional[str] = None  # e.g., redis://redis:6379/0
+    REDIS_URL: str | None = None  # e.g., redis://redis:6379/0
     REDIS_CACHE_TTL_DEFAULT: int = 60  # Default cache TTL in seconds
 
     # Cache TTL by category (all in seconds)

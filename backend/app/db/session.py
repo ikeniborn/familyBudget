@@ -95,7 +95,7 @@ async def init_db() -> None:
 
     Note: In production, use Alembic migrations instead.
     """
-    async with engine.begin() as conn:
+    async with engine.begin():
         # SQLModel.metadata.create_all would go here
         # But we're using migrations from EPIC-001
         pass

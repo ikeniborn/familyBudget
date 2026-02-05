@@ -15,8 +15,6 @@ Usage:
     now = now_utc()  # For storage
     now_user = now_local(user.timezone)  # For display
 """
-from typing import Optional
-
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, available_timezones
 
@@ -33,7 +31,7 @@ def get_system_timezone() -> ZoneInfo:
     return ZoneInfo(get_settings().SYSTEM_TIMEZONE)
 
 
-def get_user_timezone(user_tz: Optional[str] = None) -> ZoneInfo:
+def get_user_timezone(user_tz: str | None = None) -> ZoneInfo:
     """
     Get user timezone or fallback to system timezone.
 
@@ -48,7 +46,7 @@ def get_user_timezone(user_tz: Optional[str] = None) -> ZoneInfo:
     return get_system_timezone()
 
 
-def to_utc(dt: datetime, user_tz: Optional[str] = None) -> datetime:
+def to_utc(dt: datetime, user_tz: str | None = None) -> datetime:
     """
     Convert datetime from user timezone to UTC for storage.
 
@@ -71,7 +69,7 @@ def to_utc(dt: datetime, user_tz: Optional[str] = None) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def from_utc(dt: datetime, user_tz: Optional[str] = None) -> datetime:
+def from_utc(dt: datetime, user_tz: str | None = None) -> datetime:
     """
     Convert datetime from UTC to user timezone for display.
 
@@ -106,7 +104,7 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def now_local(user_tz: Optional[str] = None) -> datetime:
+def now_local(user_tz: str | None = None) -> datetime:
     """
     Get current datetime in user's timezone.
 
@@ -196,7 +194,7 @@ def get_common_timezones() -> list[dict]:
 
 
 def format_datetime_local(
-    dt: datetime, user_tz: Optional[str] = None, fmt: str = "%d.%m.%Y %H:%M"
+    dt: datetime, user_tz: str | None = None, fmt: str = "%d.%m.%Y %H:%M"
 ) -> str:
     """
     Format datetime in user's timezone.

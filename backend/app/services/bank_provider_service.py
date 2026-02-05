@@ -6,8 +6,6 @@ Provides CRUD operations for bank provider reference table.
 
 Pattern: Service layer (business logic)
 """
-from typing import Optional
-
 import logging
 
 from sqlmodel import select
@@ -59,12 +57,12 @@ class BankProviderService:
             >>> [b.code for b in banks]
             ['alfabank', 'raiffeisen', 'sberbank', 'tinkoff', 'vtb']
         """
-        stmt = select(BankProvider).where(BankProvider.active == True).order_by(BankProvider.name)
+        stmt = select(BankProvider).where(BankProvider.active).order_by(BankProvider.name)
         result = await session.execute(stmt)
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_code(session: AsyncSession, code: str) -> Optional[BankProvider]:
+    async def get_by_code(session: AsyncSession, code: str) -> BankProvider | None:
         """
         Get bank by code.
 
@@ -89,7 +87,7 @@ class BankProviderService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_by_id(session: AsyncSession, bank_id: int) -> Optional[BankProvider]:
+    async def get_by_id(session: AsyncSession, bank_id: int) -> BankProvider | None:
         """
         Get bank by ID.
 

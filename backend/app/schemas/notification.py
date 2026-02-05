@@ -4,8 +4,6 @@ Pydantic schemas for Notification management endpoints.
 This module defines schemas for notification CRUD operations including
 broadcast notification support (user_id=NULL).
 """
-from typing import Optional
-
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -32,7 +30,7 @@ class NotificationCreate(BaseModel):
         - Unique constraint prevents duplicate broadcasts
     """
 
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         gt=0,
         description="User ID for user-specific notification. NULL = broadcast to all users",
@@ -103,7 +101,7 @@ class NotificationRead(BaseModel):
         examples=[1]
     )
 
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         description="User ID (NULL = broadcast)",
         examples=[None, 123]
@@ -114,7 +112,7 @@ class NotificationRead(BaseModel):
         examples=[5]
     )
 
-    article_name: Optional[str] = Field(
+    article_name: str | None = Field(
         default=None,
         description="Budget category name (joined from Article table)",
         examples=["Продукты"]

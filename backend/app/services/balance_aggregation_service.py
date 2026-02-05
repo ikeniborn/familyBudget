@@ -20,8 +20,6 @@ Usage:
     # Get opening balance (uses aggregate if available, fallback to full scan)
     opening_balance = await get_opening_balance(session, fc_id=1, year=2025, month=12)
 """
-from typing import Optional
-
 from calendar import monthrange
 from datetime import date, datetime
 from decimal import Decimal
@@ -37,9 +35,9 @@ from backend.app.models.financial_center_balance_monthly import FinancialCenterB
 
 async def refresh_monthly_balances(
     session: AsyncSession,
-    year: Optional[int] = None,
-    month: Optional[int] = None,
-    financial_center_id: Optional[int] = None,
+    year: int | None = None,
+    month: int | None = None,
+    financial_center_id: int | None = None,
 ) -> dict[str, int]:
     """
     Calculate and save monthly balance snapshots for financial centers.
@@ -89,7 +87,7 @@ async def refresh_monthly_balances(
     processed_months = set()
 
     # Step 1: Get list of financial centers to process
-    fc_query = select(FinancialCenter).where(FinancialCenter.is_active == True)
+    fc_query = select(FinancialCenter).where(FinancialCenter.is_active)
     if financial_center_id is not None:
         fc_query = fc_query.where(FinancialCenter.id == financial_center_id)
 
@@ -317,7 +315,7 @@ async def get_opening_balances_bulk(
     session: AsyncSession,
     year: int,
     month: int,
-    financial_center_ids: Optional[list[int]] = None,
+    financial_center_ids: list[int] | None = None,
 ) -> dict[int, Decimal]:
     """
     Get opening balances for multiple financial centers at once (optimized).
@@ -352,7 +350,7 @@ async def get_opening_balances_bulk(
 
     # Step 1: Get all active financial centers if not specified
     if financial_center_ids is None:
-        fc_query = select(FinancialCenter.id).where(FinancialCenter.is_active == True)
+        fc_query = select(FinancialCenter.id).where(FinancialCenter.is_active)
         fc_result = await session.execute(fc_query)
         financial_center_ids = [fc_id for fc_id, in fc_result.all()]
 

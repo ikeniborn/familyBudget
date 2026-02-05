@@ -4,8 +4,6 @@ Reminder service for scheduled plan notifications.
 Handles CRUD operations for reminders and sending notifications
 via Telegram and Web Push when reminders are due.
 """
-from typing import Optional
-
 from datetime import datetime
 
 import httpx
@@ -29,7 +27,7 @@ logger = get_logger(__name__)
 class ReminderService:
     """Service for scheduled reminder management."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Settings | None = None):
         self.settings = settings or get_settings()
         self.bot_token = self.settings.TELEGRAM_BOT_TOKEN
         self.telegram_api_url = f"https://api.telegram.org/bot{self.bot_token}"
@@ -183,7 +181,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         fact_id: int,
-    ) -> Optional[ScheduledReminder]:
+    ) -> ScheduledReminder | None:
         """
         Get reminder by plan ID.
 
@@ -205,7 +203,7 @@ class ReminderService:
         session: AsyncSession,
         fact_id: int,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get reminder with plan and article info.
 
@@ -385,8 +383,8 @@ class ReminderService:
         article_name: str,
         amount: float,
         fact_date: datetime,
-        description: Optional[str] = None,
-        financial_center_name: Optional[str] = None,
+        description: str | None = None,
+        financial_center_name: str | None = None,
     ) -> str:
         """
         Generate reminder message text.
@@ -575,7 +573,7 @@ class ReminderService:
         self,
         session: AsyncSession,
         user_id: int,
-        status: Optional[str] = None,
+        status: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[dict], int]:

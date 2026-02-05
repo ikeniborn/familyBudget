@@ -86,10 +86,16 @@ export async function loadTransactionCategories(): Promise<void> {
  * Load fact hints for selected category (wrapper)
  */
 function loadFactHintsForCategory(category: Category | null): void {
-  // Import dynamically to avoid circular dependency
-  if (typeof (window as any).loadFactHints === 'function') {
+  // Try new modal_fact hints function first (v10.x+)
+  if (typeof (window as any).loadFactTransactionHints === 'function') {
+    (window as any).loadFactTransactionHints();
+  }
+  // Fallback to legacy modal hints (v9.x)
+  else if (typeof (window as any).loadFactHints === 'function') {
     (window as any).loadFactHints(category);
-  } else debugLog('[loadFactHintsForCategory] loadFactHints not available yet');
+  } else {
+    debugLog('[loadFactHintsForCategory] loadFactHints not available yet');
+  }
 }
 
 // ============================================================================

@@ -22,8 +22,8 @@ t_f_budget_fact:
   - article_id (FK -> t_d_article.id)
   - record_type (fact/plan)
   - NO fact_type column, NO is_current column
-  
-  
+
+
 
 t_d_article (SCD Type 2):
   - id, name

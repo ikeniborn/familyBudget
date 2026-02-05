@@ -10,8 +10,8 @@ Pattern: Service layer (business logic)
 import csv
 import io
 import logging
-from datetime import datetime
-from typing import Any, Optional
+from datetime import date, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +43,9 @@ class GenericCSVParser:
         file_upload_id: int,
         delimiter: str = ';',
         encoding: str = 'utf-8',
-        date_format: Optional[str] = None,
-        number_format: Optional[str] = None,
-        transformations: Optional[dict] = None
+        date_format: str | None = None,
+        number_format: str | None = None,
+        transformations: dict | None = None
     ) -> list[dict[str, Any]]:
         """
         Parse CSV using provided mapping.
@@ -233,7 +233,7 @@ class GenericCSVParser:
         return staging_records
 
     @staticmethod
-    def _parse_date(date_str: str, date_format: Optional[str] = None) -> Optional[datetime.date]:
+    def _parse_date(date_str: str, date_format: str | None = None) -> date | None:
         """
         Parse date from string using specified format with fallback to auto-detect.
 
@@ -298,7 +298,7 @@ class GenericCSVParser:
         return None
 
     @staticmethod
-    def _normalize_amount(amount_str: str, number_format: Optional[str] = None) -> str:
+    def _normalize_amount(amount_str: str, number_format: str | None = None) -> str:
         """
         Normalize amount string to standard format for storage.
 
@@ -429,7 +429,7 @@ class GenericCSVParser:
         return cleaned
 
     @staticmethod
-    def _parse_amount(amount_str: str) -> Optional[float]:
+    def _parse_amount(amount_str: str) -> float | None:
         """
         Parse amount from string (handles Russian format).
 

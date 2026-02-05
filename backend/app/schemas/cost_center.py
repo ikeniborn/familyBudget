@@ -4,8 +4,6 @@ Pydantic schemas for CostCenter endpoints.
 This module defines request/response schemas for CostCenter CRUD operations.
 Cost centers represent projects, departments, and other budget allocation categories.
 """
-from typing import Optional
-
 import re
 from datetime import datetime
 
@@ -32,7 +30,7 @@ class CostCenterCreate(BaseModel):
         examples=["Home Renovation", "Marketing Department", "Vacation 2025"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Kitchen and bathroom renovation project", None]
@@ -44,7 +42,7 @@ class CostCenterCreate(BaseModel):
         examples=[True]
     )
 
-    financial_center_ids: Optional[list[int]] = Field(
+    financial_center_ids: list[int] | None = Field(
         default=None,
         description="List of financial center IDs this cost center is available for. "
                     "NULL/empty = available for all.",
@@ -93,7 +91,7 @@ class CostCenterUpdate(BaseModel):
         - Cannot change user_id (cost centers belong to creator)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -101,19 +99,19 @@ class CostCenterUpdate(BaseModel):
         examples=["Updated Home Renovation"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description with new scope"]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
     )
 
-    financial_center_ids: Optional[list[int]] = Field(
+    financial_center_ids: list[int] | None = Field(
         default=None,
         description="List of financial center IDs. Pass empty list [] to clear all links "
                     "(available for all).",
@@ -122,7 +120,7 @@ class CostCenterUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate cost center name if provided."""
         if v is None:
             return None
@@ -167,13 +165,13 @@ class CostCenterResponse(BaseModel):
         examples=["Home Renovation"]
     )
 
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         description="Business code for external integrations",
         examples=["MVZ-1", "MVZ-2", None]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Kitchen and bathroom renovation", None]
     )

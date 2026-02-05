@@ -16,8 +16,6 @@ Usage:
         session, connected_user_ids, "Title", "Body", data
     )
 """
-from typing import Optional
-
 import logging
 from datetime import datetime
 
@@ -54,8 +52,8 @@ class PushService:
         subscription: PushSubscription,
         title: str,
         body: str,
-        data: Optional[dict] = None,
-        session: Optional[AsyncSession] = None
+        data: dict | None = None,
+        session: AsyncSession | None = None
     ) -> bool:
         """
         Send push notification to a single subscription.
@@ -139,7 +137,7 @@ class PushService:
         user_id: int,
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to all subscriptions of a specific user.
@@ -181,7 +179,7 @@ class PushService:
         connected_user_ids: set[int],
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to all users WITHOUT active SSE connections.
@@ -245,7 +243,7 @@ class PushService:
         session: AsyncSession,
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to ALL users (regardless of SSE status).

@@ -15,7 +15,7 @@ Version: 1.0.0
 Date: 2025-12-27
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -23,11 +23,11 @@ from pydantic import BaseModel, Field
 class ServiceWorkerMetrics(BaseModel):
     """Service Worker cache metrics from a client."""
 
-    version: Optional[str] = Field(None, description="SW cache version (e.g., v20251225_1430)")
+    version: str | None = Field(None, description="SW cache version (e.g., v20251225_1430)")
     cache_count: int = Field(description="Number of caches")
     total_size_bytes: int = Field(description="Total cache size in bytes")
     entries_count: int = Field(description="Number of cached entries")
-    estimation_method: Optional[str] = Field(None, description="Size estimation method (e.g., 'sampled')")
+    estimation_method: str | None = Field(None, description="Size estimation method (e.g., 'sampled')")
 
 
 class IndexedDBMetrics(BaseModel):
@@ -41,9 +41,9 @@ class IndexedDBMetrics(BaseModel):
 class StorageQuotaMetrics(BaseModel):
     """Browser storage quota metrics from a client."""
 
-    quota: Optional[int] = Field(None, description="Total storage quota in bytes (null if unsupported)")
-    usage: Optional[int] = Field(None, description="Used storage in bytes (null if unsupported)")
-    usage_percent: Optional[float] = Field(None, description="Storage usage percentage (null if unsupported)")
+    quota: int | None = Field(None, description="Total storage quota in bytes (null if unsupported)")
+    usage: int | None = Field(None, description="Used storage in bytes (null if unsupported)")
+    usage_percent: float | None = Field(None, description="Storage usage percentage (null if unsupported)")
     supported: bool = Field(description="Whether StorageManager API is supported")
 
 
@@ -189,7 +189,7 @@ class AggregatedCacheMetrics(BaseModel):
     """
 
     client_count: int = Field(description="Number of active clients (with metrics < 5 minutes old)")
-    last_updated: Optional[str] = Field(description="ISO timestamp of last aggregation (null if no clients)")
+    last_updated: str | None = Field(description="ISO timestamp of last aggregation (null if no clients)")
     clients: list[ClientCacheSnapshot] = Field(description="Individual client metrics snapshots")
     aggregated: AggregatedMetrics = Field(description="Aggregated statistics across all clients")
 
@@ -264,7 +264,7 @@ class CacheMetricsSubmitResponse(BaseModel):
     """Response schema for POST /api/v1/admin/cache-metrics."""
 
     status: str = Field(description="Submission status", default="accepted")
-    message: Optional[str] = Field(None, description="Optional message")
+    message: str | None = Field(None, description="Optional message")
 
     class Config:
         """Pydantic configuration."""

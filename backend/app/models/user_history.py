@@ -15,8 +15,6 @@ SECURITY NOTE:
 
     Only non-sensitive fields are tracked for audit purposes.
 """
-from typing import Optional
-
 from datetime import datetime, timezone
 
 from sqlalchemy import ARRAY, BigInteger, Column, DateTime, String
@@ -134,7 +132,7 @@ class UserHistory(SQLModel, table=True):
     __tablename__ = "t_d_user_history"
 
     # Primary key (surrogate key for history records)
-    history_id: Optional[int] = Field(
+    history_id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key for history table"
@@ -153,14 +151,14 @@ class UserHistory(SQLModel, table=True):
     # =========================================================================
 
     # Telegram OAuth (nullable for email-only users)
-    telegram_id: Optional[int] = Field(
+    telegram_id: int | None = Field(
         sa_column=Column(BigInteger, nullable=True, index=True),
         default=None,
         description="Telegram user ID (business key, nullable for email-only users, BIGINT for large IDs)"
     )
 
     # Email authentication (nullable for Telegram-only users)
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None,
         max_length=320,  # RFC 5321 max email length
         description="User email for email-based auth (nullable for Telegram-only users)"
@@ -169,22 +167,22 @@ class UserHistory(SQLModel, table=True):
     # =========================================================================
     # Profile data snapshot (at the time of change)
     # =========================================================================
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None,
         max_length=255,
         description="Username at time of change (snapshot)"
     )
-    first_name: Optional[str] = Field(
+    first_name: str | None = Field(
         default=None,
         max_length=255,
         description="First name at time of change (snapshot)"
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None,
         max_length=255,
         description="Last name at time of change (snapshot)"
     )
-    photo_url: Optional[str] = Field(
+    photo_url: str | None = Field(
         default=None,
         max_length=512,
         description="Photo URL at time of change (snapshot)"
@@ -211,7 +209,7 @@ class UserHistory(SQLModel, table=True):
         description="2FA enabled status at time of change (for security audit)"
     )
 
-    last_login_at: Optional[datetime] = Field(
+    last_login_at: datetime | None = Field(
         default=None,
         nullable=True,
         description="Last login timestamp at time of change (snapshot)"
@@ -221,7 +219,7 @@ class UserHistory(SQLModel, table=True):
     # Google Sheets Integration (v7.x+)
     # =========================================================================
 
-    google_sheets_url: Optional[str] = Field(
+    google_sheets_url: str | None = Field(
         default=None,
         max_length=2048,
         description="Google Sheets URL at time of change (snapshot)"
@@ -245,17 +243,17 @@ class UserHistory(SQLModel, table=True):
     )
 
     # Audit fields (metadata about the change)
-    change_type: Optional[str] = Field(
+    change_type: str | None = Field(
         default=None,
         max_length=50,
         description="Type of change: CREATE/UPDATE/ROLE_CHANGE/LOGIN"
     )
-    changed_fields: Optional[list[str]] = Field(
+    changed_fields: list[str] | None = Field(
         sa_column=Column(ARRAY(String)),
         default=None,
         description="Array of field names that were changed (e.g., ['username', 'photo_url'])"
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         nullable=True,
         description="User ID who made the change (NULL for automatic changes)"

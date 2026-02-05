@@ -18,22 +18,19 @@ Usage:
     # Or for health checks:
     health = await check_redis_health()
 """
-from typing import Optional
-
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 import redis.asyncio as redis
-from redis.asyncio import ConnectionPool, Redis
-
 from backend.app.core.config import get_settings
+from redis.asyncio import ConnectionPool, Redis
 
 logger = logging.getLogger(__name__)
 
 # Global connection pool
-_redis_pool: Optional[ConnectionPool] = None
+_redis_pool: ConnectionPool | None = None
 
 
 async def init_redis_pool() -> None:
@@ -123,11 +120,11 @@ class RedisHealthResult:
     """Redis health check result."""
 
     is_healthy: bool
-    latency_ms: Optional[float] = None
-    used_memory: Optional[str] = None
-    total_keys: Optional[int] = None
-    hit_ratio: Optional[float] = None
-    error: Optional[str] = None
+    latency_ms: float | None = None
+    used_memory: str | None = None
+    total_keys: int | None = None
+    hit_ratio: float | None = None
+    error: str | None = None
 
 
 async def check_redis_health() -> RedisHealthResult:

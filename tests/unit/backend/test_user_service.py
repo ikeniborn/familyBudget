@@ -9,7 +9,7 @@ Tests:
 """
 
 import pytest
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlmodel import select
 
 from backend.app.models.user import User
@@ -119,7 +119,7 @@ async def test_update_user_profile_creates_history(db_session):
     # Check old version closed
     old = history[1]
     assert old.is_current is False
-    assert old.valid_to < datetime(9999, 1, 1)  # Not far future
+    assert old.valid_to < datetime(9999, 1, 1, tzinfo=timezone.utc)  # Not far future (timezone-aware)
     assert old.username == "john_doe"
     assert old.is_admin is False
 

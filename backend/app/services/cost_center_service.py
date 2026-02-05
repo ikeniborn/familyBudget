@@ -18,7 +18,7 @@ Key Functions:
 """
 
 from datetime import date, datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -35,7 +35,7 @@ async def update_cost_center_profile(
     session: AsyncSession,
     cost_center: CostCenter,
     updates: dict[str, Any],
-    changed_by_user_id: Optional[int] = None,
+    changed_by_user_id: int | None = None,
     change_type: str = "UPDATE",
 ) -> CostCenter:
     """
@@ -174,7 +174,7 @@ async def get_cost_center_version_at_date(
     session: AsyncSession,
     cost_center_id: int,
     target_date: date,
-) -> Optional[CostCenterHistory]:
+) -> CostCenterHistory | None:
     """
     Get CostCenter version that was active at a specific date (time-travel query).
 

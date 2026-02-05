@@ -13,7 +13,7 @@ Features:
     - Structured logging with correlation IDs
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import Request, status
 from fastapi.exceptions import HTTPException
@@ -263,8 +263,8 @@ async def generic_exception_handler(
 def format_error_response(
     message: str,
     status_code: int,
-    error_code: Optional[str] = None,
-    details: Optional[dict[str, Any]] = None,
+    error_code: str | None = None,
+    details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Format error response in standardized structure.

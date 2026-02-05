@@ -178,7 +178,7 @@ class TestExportDataIsolation:
 
         content = response.text
         csv_reader = csv.reader(io.StringIO(content))
-        headers = next(csv_reader)
+        next(csv_reader)
 
         # All exported rows should belong to the authenticated user
         # This is ensured by the backend filtering by current_user.id

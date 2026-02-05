@@ -12,7 +12,7 @@ Features:
     - Hierarchy support (parent_id, closure table)
 """
 
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -120,11 +120,11 @@ async def list_articles(
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-    type_filter: Annotated[Optional[str], Query(alias="type")] = None,
-    parent_id: Annotated[Optional[int], Query()] = None,
+    type_filter: Annotated[str | None, Query(alias="type")] = None,
+    parent_id: Annotated[int | None, Query()] = None,
     sort_by: Annotated[Literal["usage_count", "name"], Query()] = "usage_count",
     include_inactive: Annotated[bool, Query()] = False,
-    financial_center_id: Annotated[Optional[int], Query(
+    financial_center_id: Annotated[int | None, Query(
         description="Filter articles by financial center ID. "
                     "Returns articles with NO FC restrictions OR linked to this specific FC."
     )] = None,
@@ -561,7 +561,7 @@ async def get_article_subtree(
     article_id: int,
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    max_depth: Annotated[Optional[int], Query(ge=0, le=10)] = None,
+    max_depth: Annotated[int | None, Query(ge=0, le=10)] = None,
     include_self: Annotated[bool, Query()] = True,
 ) -> ArticleListResponse:
     """
@@ -594,7 +594,7 @@ async def get_article_subtree(
     - Find all articles under category
     """
     # Verify article exists and is accessible
-    article = await get_article(article_id, current_user, session)
+    await get_article(article_id, current_user, session)
 
     # Get subtree using hierarchy service
     subtree_articles = await get_subtree(
@@ -654,7 +654,7 @@ async def get_article_ancestors(
     - Validate hierarchy constraints
     """
     # Verify article exists and is accessible
-    article = await get_article(article_id, current_user, session)
+    await get_article(article_id, current_user, session)
 
     # Get ancestors using hierarchy service
     ancestor_articles = await get_ancestors(

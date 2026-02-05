@@ -4,12 +4,11 @@ Recurring Plan Service for scheduled payment management.
 Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
-from typing import Optional
-
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func as sa_func
+from sqlalchemy import and_, case
+from sqlalchemy import func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -279,8 +278,8 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         plan_id: int,
-        user_id: Optional[int] = None,
-    ) -> Optional[RecurringPlan]:
+        user_id: int | None = None,
+    ) -> RecurringPlan | None:
         """
         Get recurring plan by ID.
 
@@ -302,7 +301,7 @@ class RecurringPlanService:
         session: AsyncSession,
         plan_id: int,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get recurring plan with enriched details (optimized with JOIN).
 
@@ -378,7 +377,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         user_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[dict], int]:
@@ -501,7 +500,7 @@ class RecurringPlanService:
         statement = (
             select(RecurringPlan)
             .where(
-                RecurringPlan.is_active == True,
+                RecurringPlan.is_active,
                 RecurringPlan.next_generation_date <= today + timedelta(days=horizon_days),
             )
         )
@@ -867,10 +866,10 @@ class RecurringPlanService:
     def _calculate_next_occurrence(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
         start_date: date,
         from_date: date,
-    ) -> Optional[date]:
+    ) -> date | None:
         """
         Calculate the next occurrence date after from_date.
 
@@ -980,7 +979,7 @@ class RecurringPlanService:
     def _get_frequency_display(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
     ) -> str:
         """Get human-readable frequency description."""
         if frequency_type == "monthly":
@@ -1103,14 +1102,14 @@ class RecurringPlanService:
 
         # ✅ OPTIMIZATION: Single aggregation query with conditional filters (4→1 queries)
         stmt = select(
-            sa_func.count().filter(RecurringPlan.is_active == True).label("active_count"),
-            sa_func.count().filter(RecurringPlan.is_active == False).label("paused_count"),
+            sa_func.count().filter(RecurringPlan.is_active).label("active_count"),
+            sa_func.count().filter(not RecurringPlan.is_active).label("paused_count"),
             sa_func.sum(
                 case(
                     (
                         and_(
                             RecurringPlan.frequency_type == "monthly",
-                            RecurringPlan.is_active == True
+                            RecurringPlan.is_active
                         ),
                         RecurringPlan.amount
                     ),
@@ -1119,7 +1118,7 @@ class RecurringPlanService:
             ).label("monthly_sum"),
             sa_func.count().filter(
                 and_(
-                    RecurringPlan.is_active == True,
+                    RecurringPlan.is_active,
                     RecurringPlan.next_generation_date <= today
                 )
             ).label("pending_count"),

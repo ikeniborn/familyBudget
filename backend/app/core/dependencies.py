@@ -6,8 +6,6 @@ These dependencies will be used throughout the application for:
 - User authentication and authorization
 - Configuration access
 """
-from typing import Optional
-
 
 # Authentication dependencies (TASK-014)
 from backend.app.core.auth import (
@@ -38,7 +36,7 @@ from backend.app.db.session import get_session
 # Cache Metrics Service (Admin Monitoring)
 from backend.app.services.cache_metrics_service import CacheMetricsService
 
-_cache_metrics_service: Optional[CacheMetricsService] = None
+_cache_metrics_service: CacheMetricsService | None = None
 
 
 def get_cache_metrics_service() -> CacheMetricsService:

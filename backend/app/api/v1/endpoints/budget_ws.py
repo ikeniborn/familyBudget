@@ -38,7 +38,7 @@ from asyncio import Task
 from collections import deque
 from datetime import datetime, timedelta
 from json import JSONDecodeError
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
@@ -49,7 +49,8 @@ from backend.app.api.v1.endpoints.sync_handlers import (
     handle_sync_initial,
 )
 from backend.app.core.dependencies import get_current_user
-from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
+from backend.app.core.json_utils import dumps as json_dumps
+from backend.app.core.json_utils import loads as json_loads
 from backend.app.db.session import get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
@@ -448,8 +449,10 @@ class EventBuffer:
 # ==================== REDIS-BACKED MANAGER ====================
 # Use Redis Pub/Sub for multi-worker support, fallback to in-memory
 
-from backend.app.services.redis_ws_manager import (
+from backend.app.services.redis_ws_manager import (  # noqa: E402
     get_event_buffer as _get_redis_event_buffer,
+)
+from backend.app.services.redis_ws_manager import (  # noqa: E402
     get_ws_manager as _get_redis_ws_manager,
 )
 
@@ -463,7 +466,7 @@ def get_budget_ws_manager():
     return ws_manager
 
 
-async def verify_ws_token(token: str) -> Optional[User]:
+async def verify_ws_token(token: str) -> User | None:
     """
     Verify JWT token from WebSocket query parameter.
 
@@ -808,7 +811,7 @@ async def poll_budget_events(
 
 # ==================== Background Cleanup Task ====================
 
-_cleanup_task: Optional[Task] = None
+_cleanup_task: Task | None = None
 
 
 async def _periodic_cleanup():
@@ -867,7 +870,7 @@ def _get_connected_user_ids() -> set[int]:
     return {uid for uid, _, _, _ in ws_manager.connections}
 
 
-async def _send_push_for_offline_users(title: str, body: str, data: Optional[dict] = None):
+async def _send_push_for_offline_users(title: str, body: str, data: dict | None = None):
     """
     Send push notification to users WITHOUT active WebSocket connections.
     """

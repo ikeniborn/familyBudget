@@ -27,8 +27,6 @@ Usage:
     # Validate password strength
     is_strong, message = validate_password_strength("weak")
 """
-from typing import Optional
-
 import re
 
 from argon2 import PasswordHasher, Type
@@ -103,7 +101,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def verify_password_with_dummy(
     password: str,
-    password_hash: Optional[str],
+    password_hash: str | None,
 ) -> bool:
     """
     Verify password with timing attack protection.
@@ -210,6 +208,13 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
         return False, "Password must contain at least one special character"
 
     # Check against common passwords (top 100)
+    # Remove digits and special characters to check base word
+    # Example: "Password123!" -> "password" (blocked)
+    password_alpha = re.sub(r'[^a-zA-Z]', '', password).lower()
+    if password_alpha in COMMON_PASSWORDS:
+        return False, "This password is too common. Please choose a stronger password"
+
+    # Also check full password (for cases like "password")
     if password.lower() in COMMON_PASSWORDS:
         return False, "This password is too common. Please choose a stronger password"
 

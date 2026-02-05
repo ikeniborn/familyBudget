@@ -22,8 +22,6 @@ Flow:
 
 Table: t_2fa_session
 """
-from typing import Optional
-
 from datetime import datetime
 
 from sqlalchemy import Index
@@ -93,7 +91,7 @@ class TwoFactorSession(SQLModel, table=True):
     )
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-increment primary key"

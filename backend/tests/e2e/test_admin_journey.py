@@ -73,7 +73,7 @@ class TestAdminUserManagement:
 
         assert details["id"] == test_user.id
         assert details["username"] == "testuser"
-        assert details["is_admin"] == False
+        assert not details["is_admin"]
         print(f"✅ Retrieved user details for {details['username']}")
 
         # ===== STEP 4: View All Users Statistics =====

@@ -39,13 +39,15 @@ import logging
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import HTTPException, WebSocket, status
 
 from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.services.redis_pubsub_service import (
     get_events_since as redis_get_events_since,
+)
+from backend.app.services.redis_pubsub_service import (
     publish_event,
     start_pubsub_listener,
     stop_pubsub_listener,
@@ -373,8 +375,8 @@ class RedisEventBuffer:
 
 
 # Global instances
-_redis_ws_manager: Optional[RedisBudgetWebSocketManager] = None
-_redis_event_buffer: Optional[RedisEventBuffer] = None
+_redis_ws_manager: RedisBudgetWebSocketManager | None = None
+_redis_event_buffer: RedisEventBuffer | None = None
 
 
 def get_ws_manager() -> RedisBudgetWebSocketManager:

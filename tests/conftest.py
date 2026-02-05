@@ -9,7 +9,7 @@ import os
 from typing import AsyncGenerator, Generator
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
@@ -19,6 +19,14 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/familybudget_test"
 )
+
+# Set required settings for tests (dummy values)
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-testing-only")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+os.environ.setdefault("ADMIN_TELEGRAM_ID", "123456789")
+os.environ.setdefault("API_INTERNAL_KEY", "test-internal-api-key")
+os.environ.setdefault("TELEGRAM_WEBAPP_URL", "https://test.example.com")
+os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
 
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
@@ -79,14 +87,20 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
 
     Automatically rolls back changes after test completes.
     """
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
+    connection = await engine.connect()
+    transaction = await connection.begin()
+
+    async_session_factory = sessionmaker(
+        bind=connection, class_=AsyncSession, expire_on_commit=False
     )
 
-    async with async_session() as session:
-        async with session.begin():
-            yield session
-            await session.rollback()
+    async with async_session_factory() as session:
+        yield session
+
+        # Rollback transaction to undo all changes
+        await transaction.rollback()
+
+    await connection.close()
 
 
 # ==================== API Client Fixtures ====================
@@ -105,7 +119,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_session] = override_get_session
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()

@@ -9,8 +9,6 @@ Usage:
     Request:  {"google_sheets_url": "https://docs.google.com/spreadsheets/d/..."}
     Response: {"file_content": "base64_csv", "spreadsheet_id": "...", "sheet_gid": "..."}
 """
-from typing import Optional
-
 import base64
 import logging
 
@@ -49,7 +47,7 @@ class GoogleSheetsFetchResponse(BaseModel):
         description="Base64 encoded CSV content (ready for /import/analyze)"
     )
     spreadsheet_id: str = Field(description="Extracted spreadsheet ID")
-    sheet_gid: Optional[str] = Field(
+    sheet_gid: str | None = Field(
         description="Extracted sheet GID (None if not specified)"
     )
 

@@ -12,8 +12,6 @@ GDPR Requirements:
 - Allow withdrawal at any time
 - Append-only records (never delete)
 """
-from typing import Optional
-
 import logging
 from datetime import datetime
 
@@ -64,7 +62,7 @@ def get_user_agent(request: Request) -> str:
 async def get_consent_status(
     request: Request,
     session: AsyncSession = Depends(get_session),
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional)
 ) -> ConsentStatusResponse:
     """
     Get current consent status for the user.

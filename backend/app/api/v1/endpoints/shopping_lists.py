@@ -22,8 +22,6 @@ Endpoints:
 import logging
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +41,8 @@ from backend.app.schemas.shopping_list import (
 )
 from backend.app.services import shopping_list_service
 from backend.app.services.scd2_service import has_changes
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/shopping-lists",

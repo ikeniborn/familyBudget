@@ -256,7 +256,6 @@ async def test_fact_updated_at_changes(session: AsyncSession, test_user: User, t
     await session.commit()
     await session.refresh(fact)
 
-    original_updated_at = fact.updated_at
 
     # Update fact
     fact.amount = Decimal("75.00")

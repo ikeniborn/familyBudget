@@ -71,7 +71,11 @@ export async function refreshUIAfterSave(config: RefreshConfig): Promise<void> {
     if (config.refreshRecentTransactions) {
       const recentTransactionsEl = document.getElementById('recent-transactions');
       if (recentTransactionsEl) {
-        htmx.trigger(recentTransactionsEl, 'load');
+        // Use htmx.ajax to re-fetch content (htmx.trigger doesn't work for hx-get)
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+          target: '#recent-transactions',
+          swap: 'innerHTML',
+        });
       }
     }
 

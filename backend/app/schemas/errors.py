@@ -15,7 +15,7 @@ All error responses follow this structure:
 }
 """
 
-from typing import Any, Optional, Union
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -29,8 +29,8 @@ class ErrorDetail(BaseModel):
 
     message: str = Field(..., description="Human-readable error message")
     status_code: int = Field(..., description="HTTP status code")
-    error_code: Optional[str] = Field(None, description="Machine-readable error code")
-    details: Optional[dict[str, Any]] = Field(None, description="Additional error context")
+    error_code: str | None = Field(None, description="Machine-readable error code")
+    details: dict[str, Any] | None = Field(None, description="Additional error context")
 
     model_config = {
         "json_schema_extra": {
@@ -186,7 +186,7 @@ def get_common_responses(
     include_422: bool = True,
     include_500: bool = True,
     include_503: bool = False,
-) -> dict[Union[int, str], dict[str, Any]]:
+) -> dict[int | str, dict[str, Any]]:
     """
     Get common error responses for endpoint documentation.
 
@@ -212,7 +212,7 @@ def get_common_responses(
         ))
         async def get_article(id: int): ...
     """
-    responses: dict[Union[int, str], dict[str, Any]] = {}
+    responses: dict[int | str, dict[str, Any]] = {}
 
     if include_400:
         responses[400] = BadRequestResponse

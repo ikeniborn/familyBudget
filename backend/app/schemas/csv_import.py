@@ -4,7 +4,7 @@ CSV Import Schemas
 Pydantic models for CSV import API endpoints
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -32,14 +32,14 @@ class CSVAnalyzeResponse(BaseModel):
     delimiter: str = Field(description="Detected delimiter")
     encoding: str = Field(description="Detected encoding")
     has_header: bool = Field(description="Whether first row is header")
-    date_format: Optional[str] = Field(None, description="Detected date format")
-    number_format: Optional[str] = Field(None, description="Detected number format")
+    date_format: str | None = Field(None, description="Detected date format")
+    number_format: str | None = Field(None, description="Detected number format")
     decimal_separator: str = Field(description="Decimal separator")
     thousands_separator: str = Field(description="Thousands separator")
 
     # Columns
     detected_columns: list[str] = Field(description="Detected column names")
-    auto_mapping: dict[str, Optional[str]] = Field(
+    auto_mapping: dict[str, str | None] = Field(
         description="Auto-mapped columns (CSV column → field name)"
     )
     mapping_suggestions: dict[str, list[tuple[str, float]]] = Field(

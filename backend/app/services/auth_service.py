@@ -14,8 +14,6 @@ See: backend/app/services/user_service.py for:
     - create_initial_history(): Create initial history record for new users
     - get_user_history(): Get full change history
 """
-from typing import Optional
-
 from datetime import datetime
 
 from sqlmodel import select
@@ -31,7 +29,7 @@ from backend.app.services.password_service import (
 async def get_user_by_telegram_id(
     session: AsyncSession,
     telegram_id: int,
-) -> Optional[User]:
+) -> User | None:
     """
     Get existing user by Telegram ID.
 
@@ -84,7 +82,7 @@ async def get_user_by_telegram_id(
 async def get_user_by_email(
     session: AsyncSession,
     email: str,
-) -> Optional[User]:
+) -> User | None:
     """
     Get existing user by email address.
 
@@ -114,7 +112,7 @@ async def authenticate_with_password(
     session: AsyncSession,
     email: str,
     password: str,
-) -> Optional[User]:
+) -> User | None:
     """
     Authenticate user with email and password.
 
@@ -216,7 +214,7 @@ async def set_user_password(
 async def get_user_by_id(
     session: AsyncSession,
     user_id: int,
-) -> Optional[User]:
+) -> User | None:
     """
     Get user by ID.
 
@@ -236,10 +234,10 @@ async def link_telegram_to_user(
     session: AsyncSession,
     user: User,
     telegram_id: int,
-    username: Optional[str] = None,
-    first_name: Optional[str] = None,
-    last_name: Optional[str] = None,
-    photo_url: Optional[str] = None,
+    username: str | None = None,
+    first_name: str | None = None,
+    last_name: str | None = None,
+    photo_url: str | None = None,
 ) -> bool:
     """
     Link Telegram account to an existing email user.
