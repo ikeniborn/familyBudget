@@ -143,7 +143,8 @@ class TestIsValidTimezone:
         invalid = [
             "Invalid/Zone",
             "Moscow",
-            "EST",  # Abbreviations are not valid IANA names
+            # Note: EST is technically valid IANA timezone (though deprecated)
+            # "EST",  # Removed - exists in zoneinfo.available_timezones()
             "GMT+3",  # Offset format not valid
             "",
             "Europe",

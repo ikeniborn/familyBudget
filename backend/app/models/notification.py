@@ -70,6 +70,7 @@ class Notification(SQLModel, table=True):
     )
 
     article_id: int = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         foreign_key="t_d_article.id",
         nullable=False,
         index=True,
@@ -78,6 +79,7 @@ class Notification(SQLModel, table=True):
 
     # Notification details
     notification_type: str = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_length=50,
         index=True,
@@ -91,6 +93,7 @@ class Notification(SQLModel, table=True):
     )
 
     plan_amount: Decimal = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_digits=15,
         decimal_places=2,
@@ -98,6 +101,7 @@ class Notification(SQLModel, table=True):
     )
 
     actual_amount: Decimal = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_digits=15,
         decimal_places=2,
@@ -106,11 +110,13 @@ class Notification(SQLModel, table=True):
 
     # Period definition
     period_start: date = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         description="Start of monitored period (e.g., month start)"
     )
 
     period_end: date = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         description="End of monitored period (e.g., month end)"
     )
