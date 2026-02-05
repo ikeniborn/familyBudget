@@ -219,10 +219,16 @@ export async function getDiagnosticData(): Promise<{
 /**
  * Type definition for window.Dexie global API
  * Provides type safety for external bundles accessing Dexie
+ *
+ * window.Dexie is both:
+ * - Dexie class constructor (for inheritance: class MyDB extends window.Dexie)
+ * - Object with utility methods (for backward compatibility: window.Dexie.getDexieManager())
  */
+import type Dexie from 'dexie';
+
 declare global {
   interface Window {
-    Dexie: {
+    Dexie: typeof Dexie & {
       getDexieManager: typeof getDexieManagerImpl;
       DexieManager: typeof DexieManager;
       db: typeof dexieDb;
@@ -244,14 +250,17 @@ declare global {
 /**
  * Expose Dexie API to window.Dexie for external bundles (facts.min.js, etc.)
  *
- * CRITICAL: Vite IIFE bundles do NOT automatically create window globals.
- * External bundles (facts, shopping, etc.) depend on window.Dexie.
- * Without this explicit assignment, they fail with "Dexie is not defined".
+ * CRITICAL: External bundles extend Dexie class (class MyDB extends Dexie).
+ * window.Dexie MUST be a constructor, not a plain object.
  *
- * Strategy:
- * - Import all operations modules dynamically to avoid circular dependencies
- * - Expose minimal API surface (getDexieManager is main entry point)
- * - External bundles call: const manager = await window.Dexie.getDexieManager()
+ * Solution:
+ * - Import real Dexie constructor from 'dexie' package
+ * - Attach utilities as static properties to Dexie class
+ * - Export Dexie class with utilities attached
+ *
+ * Result:
+ * - ✅ class FamilyBudgetDB extends window.Dexie (Dexie is a constructor)
+ * - ✅ window.Dexie.getDexieManager() (utilities attached as static properties)
  *
  * @see config/vite.config.single.ts:103 - external: 'dexie'
  * @see config/vite.config.single.ts:124 - globals: { 'dexie': 'window.Dexie' }
@@ -259,30 +268,52 @@ declare global {
 if (typeof window !== 'undefined') {
   dexieLogger.info('[DEXIE_BUNDLE] ⚙️ Executing window.Dexie assignment');
 
-  // Minimal API: expose only getDexieManager() as entry point
-  // External bundles access full API via: const manager = await window.Dexie.getDexieManager()
-  window.Dexie = {
-    getDexieManager: getDexieManagerImpl,
-    DexieManager: DexieManager,
-    db: dexieDb,
-    toCents: dexieToCents,
-    fromCents: dexieFromCents,
-    isDexieActive,
-    setDexieActive,
-    getState,
-    getDexieFeatureFlags,
-    logger: dexieLogger,
-    // Background initialization API (for base.html compatibility)
-    initializeDatabaseInBackground,
-    isReady,
-    getDiagnosticData,
-  };
+  // Import real Dexie constructor for inheritance support
+  import('dexie').then(({ default: Dexie }) => {
+    // Attach utilities as static properties to Dexie class
+    Object.assign(Dexie, {
+      getDexieManager: getDexieManagerImpl,
+      DexieManager: DexieManager,
+      db: dexieDb,
+      toCents: dexieToCents,
+      fromCents: dexieFromCents,
+      isDexieActive,
+      setDexieActive,
+      getState,
+      getDexieFeatureFlags,
+      logger: dexieLogger,
+      // Background initialization API (for base.html compatibility)
+      initializeDatabaseInBackground,
+      isReady,
+      getDiagnosticData,
+    });
 
-  dexieLogger.info('[DEXIE_BUNDLE] ✅ window.Dexie assigned:', {
-    type: typeof window.Dexie,
-    keys: Object.keys(window.Dexie)
+    // Export Dexie class (with utilities attached) to window
+    // Type assertion needed because Object.assign() doesn't update TypeScript types
+    window.Dexie = Dexie as typeof Dexie & {
+      getDexieManager: typeof getDexieManagerImpl;
+      DexieManager: typeof DexieManager;
+      db: typeof dexieDb;
+      toCents: typeof dexieToCents;
+      fromCents: typeof dexieFromCents;
+      isDexieActive: typeof isDexieActive;
+      setDexieActive: typeof setDexieActive;
+      getState: typeof getState;
+      getDexieFeatureFlags: typeof getDexieFeatureFlags;
+      logger: typeof dexieLogger;
+      initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
+      isReady: typeof isReady;
+      getDiagnosticData: typeof getDiagnosticData;
+    };
+
+    dexieLogger.info('[DEXIE_BUNDLE] ✅ window.Dexie assigned (constructor + utilities):', {
+      isConstructor: typeof window.Dexie === 'function',
+      hasUtilities: Object.keys(window.Dexie).length,
+      canExtend: window.Dexie.prototype instanceof Object
+    });
+
+    dexieLogger.info('Exposed to window.Dexie for external bundles');
+  }).catch((err) => {
+    dexieLogger.error('[DEXIE_BUNDLE] ❌ Failed to import Dexie constructor:', err);
   });
-
-  // Log to confirm window.Dexie is available for external bundles
-  dexieLogger.info('Exposed to window.Dexie for external bundles');
 }
