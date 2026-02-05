@@ -42,6 +42,37 @@
     // Execute flag initialization immediately
     initializePostAuthFlags();
 
+    // Trigger initial Dexie sync for new users
+    if (flags.dexieAutoEnabled || flags.justLoggedIn) {
+        console.info('[PWA_SPLASH] Triggering initial Dexie sync...');
+
+        // Sync handler (extracted to avoid race condition)
+        const syncReferenceData = async () => {
+            if (typeof window.Dexie !== 'undefined') {
+                try {
+                    const dexie = await window.Dexie.getDexieManager();
+                    await dexie.init();
+
+                    console.info('[PWA_SPLASH] Syncing reference data...');
+                    await dexie.syncReferenceData();
+
+                    console.info('[PWA_SPLASH] Initial sync complete');
+                } catch (error) {
+                    console.error('[PWA_SPLASH] Initial sync failed:', error);
+                    // Non-critical - user can work via API fallback
+                }
+            }
+        };
+
+        // Fix race condition: check if DOM already loaded
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', syncReferenceData);
+        } else {
+            // DOM already loaded, execute immediately
+            syncReferenceData();
+        }
+    }
+
     const splashEl = document.getElementById('pwa-splash');
     if (!splashEl) return;
 
