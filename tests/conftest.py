@@ -86,14 +86,19 @@ async def db_session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create a new database session for each test.
 
     Automatically rolls back changes after test completes.
+    Uses nested transaction (savepoint) to ensure rollback works correctly.
     """
-    async_session = sessionmaker(
+    async_session_factory = sessionmaker(
         engine, class_=AsyncSession, expire_on_commit=False
     )
 
-    async with async_session() as session:
+    async with async_session_factory() as session:
+        # Start outer transaction
         async with session.begin():
-            yield session
+            # Create savepoint (nested transaction)
+            async with session.begin_nested():
+                yield session
+            # Rollback outer transaction (discards all changes)
             await session.rollback()
 
 

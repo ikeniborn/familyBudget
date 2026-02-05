@@ -38,7 +38,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
         await session.refresh(admin)
 
         # Login with email/password
@@ -80,7 +80,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(user)
-        await session.commit()
+        await session.flush()
         await session.refresh(user)
 
         # Login with email/password
@@ -118,7 +118,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
 
         # Login
         response = await client.post(
@@ -156,7 +156,7 @@ class TestAdminAuthBypass:
             last_login_at=None,  # Initially None
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
         await session.refresh(admin)
 
         admin_id = admin.id
@@ -192,7 +192,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
         await session.refresh(admin)
 
         admin_id = admin.id
@@ -230,7 +230,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
 
         # Attempt login
         response = await client.post(
@@ -261,7 +261,7 @@ class TestAdminAuthBypass:
             two_factor_enabled=False,
         )
         session.add(admin)
-        await session.commit()
+        await session.flush()
 
         # Login with wrong password
         response = await client.post(
