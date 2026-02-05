@@ -119,9 +119,10 @@ export default defineConfig({
         // Map external modules to global variables (only for IIFE modules)
         // IMPORTANT: Use window.PGlite because PGlite global variable doesn't exist
         // (only window.PGlite Proxy created in index.iife.ts:110)
-        // Note: Dexie is bundled in dashboard.min.js, not external
+        // Dexie is bundled in dashboard.min.js, external for facts/shopping/etc
         globals: {
-          '@db/pglite': 'window.PGlite'
+          '@db/pglite': 'window.PGlite',
+          'dexie': 'window.Dexie'
         }
         // Note: manualChunks not supported for IIFE format
         // PGlite uses dynamic import() for lazy loading instead

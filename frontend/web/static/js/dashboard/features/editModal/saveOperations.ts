@@ -57,6 +57,7 @@ function refreshDashboardWidgets(): void {
  */
 export async function updateFact(event: Event): Promise<void> {
   event.preventDefault();
+  event.stopPropagation();  // Prevent event bubbling
 
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
@@ -259,8 +260,11 @@ export async function updateFact(event: Event): Promise<void> {
     refreshDashboardWidgets();
     showToast(successMessage, 'success');
   } catch (error) {
-    console.error('Error updating fact:', error);
-    showToast('Ошибка: ' + (error as Error).message, 'error');
+    console.error('[SAVE_EDIT] Error updating fact:', error);
+    showToast('Ошибка сохранения: ' + (error as Error).message, 'error');
+
+    // Do NOT reload page - keep modal open for retry
+    // User can fix validation errors and resubmit
   } finally {
     setSubmitLoading(form, false);
   }
