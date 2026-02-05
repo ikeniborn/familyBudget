@@ -6,7 +6,8 @@
  * Changes: SQL queries → Dexie.js Table operations
  */
 
-import { db, toCents, fromCents } from './core/database';
+import { initializeDatabase, toCents, fromCents } from './core/database';
+import type { FamilyBudgetDB } from './core/database';
 import { logger } from './utils/logger';
 import { validateFact } from './utils/validation';
 import { generateUUID } from './utils/hash';
@@ -52,6 +53,7 @@ export type ProgressCallback = (_current: number, _total: number) => void;
  */
 export class DexieManager {
   private state: InitializationStatus = 'not_started';
+  private db: FamilyBudgetDB | null = null;
 
   /**
    * Initialize Dexie database
@@ -67,8 +69,11 @@ export class DexieManager {
     this.state = 'initializing';
 
     try {
+      // Initialize database with dynamic version detection
+      this.db = await initializeDatabase();
+
       // Open database (creates if not exists)
-      await db.open();
+      await this.db.open();
 
       this.state = 'ready';
       logger.info('[DexieManager] ✅ Ready');
@@ -77,6 +82,17 @@ export class DexieManager {
       logger.error('[DexieManager] ❌ Initialization failed:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get database instance
+   * Throws if not initialized
+   */
+  private getDB(): FamilyBudgetDB {
+    if (!this.db) {
+      throw new Error('[DexieManager] Database not initialized! Call init() first.');
+    }
+    return this.db;
   }
 
   /**
@@ -98,7 +114,7 @@ export class DexieManager {
    */
   async close(): Promise<void> {
     logger.info('[DexieManager] Closing database...');
-    await db.close();
+    await this.getDB().close();
     this.state = 'not_started';
     logger.info('[DexieManager] Closed');
   }
@@ -108,8 +124,8 @@ export class DexieManager {
    */
   async clearAll(): Promise<void> {
     logger.warn('[DexieManager] Clearing all data...');
-    await db.transaction('rw', db.tables, async () => {
-      await Promise.all(db.tables.map(table => table.clear()));
+    await this.getDB().transaction('rw', this.getDB().tables, async () => {
+      await Promise.all(this.getDB().tables.map(table => table.clear()));
     });
     logger.info('[DexieManager] All data cleared');
   }
@@ -119,7 +135,7 @@ export class DexieManager {
    */
   async deleteDatabase(): Promise<void> {
     logger.warn('[DexieManager] Deleting database...');
-    await db.delete();
+    await this.getDB().delete();
     this.state = 'not_started';
     logger.info('[DexieManager] Database deleted');
   }
@@ -139,11 +155,11 @@ export class DexieManager {
   }): Promise<LocalArticle[]> {
     logger.debug('[DexieManager] queryArticles', filters);
 
-    let collection = db.articles.toCollection();
+    let collection = this.getDB().articles.toCollection();
 
     // Apply filters
     if (filters?.user_id !== undefined) {
-      collection = db.articles.where('user_id').equals(filters.user_id);
+      collection = this.getDB().articles.where('user_id').equals(filters.user_id);
     }
 
     if (filters?.type !== undefined) {
@@ -168,12 +184,12 @@ export class DexieManager {
 
     // IndexedDB не поддерживает OR conditions
     // Решение: два запроса + merge
-    const userCenters = await db.financialCenters
+    const userCenters = await this.getDB().financialCenters
       .where('user_id').equals(userId)
       .toArray();
 
     if (includeGlobal) {
-      const globalCenters = await db.financialCenters
+      const globalCenters = await this.getDB().financialCenters
         .where('user_id').equals(0)  // global user_id = 0
         .toArray();
       return [...userCenters, ...globalCenters];
@@ -188,7 +204,7 @@ export class DexieManager {
   async queryCostCenters(userId: number): Promise<LocalCostCenter[]> {
     logger.debug('[DexieManager] queryCostCenters', { userId });
 
-    return await db.costCenters
+    return await this.getDB().costCenters
       .where('user_id').equals(userId)
       .toArray();
   }
@@ -270,7 +286,7 @@ export class DexieManager {
       synced_at: null
     };
 
-    await db.budgetFacts.add(factWithCents);
+    await this.getDB().budgetFacts.add(factWithCents);
 
     logger.info('[DexieManager] ✅ Fact created', { temp_id });
     return temp_id;
@@ -287,7 +303,7 @@ export class DexieManager {
       ? { ...updates, amount: toCents(updates.amount) }
       : updates;
 
-    await db.budgetFacts.where('temp_id').equals(temp_id).modify(updatesWithCents);
+    await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify(updatesWithCents);
     logger.info('[DexieManager] ✅ Fact updated', { temp_id });
   }
 
@@ -297,7 +313,7 @@ export class DexieManager {
   async deleteFact(temp_id: string): Promise<void> {
     logger.debug('[DexieManager] deleteFact', { temp_id });
 
-    await db.budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
+    await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
     logger.info('[DexieManager] ✅ Fact deleted (soft)', { temp_id });
   }
 
@@ -312,7 +328,7 @@ export class DexieManager {
 
     // Оптимизация: используем compound index [user_id+date] если возможно
     if (filters?.user_id && filters?.date_from && filters?.date_to) {
-      results = await db.budgetFacts
+      results = await this.getDB().budgetFacts
         .where('[user_id+date]')
         .between(
           [filters.user_id, filters.date_from],
@@ -323,7 +339,7 @@ export class DexieManager {
         .toArray();
     } else {
       // Fallback: filter в памяти
-      results = await db.budgetFacts.toArray();
+      results = await this.getDB().budgetFacts.toArray();
     }
 
     // Apply additional filters
@@ -366,7 +382,7 @@ export class DexieManager {
 
     for (let i = 0; i < factsWithCents.length; i += BATCH_SIZE) {
       const batch = factsWithCents.slice(i, i + BATCH_SIZE);
-      await db.budgetFacts.bulkAdd(batch);
+      await this.getDB().budgetFacts.bulkAdd(batch);
 
       if (onProgress) {
         onProgress(i + batch.length, factsWithCents.length);
@@ -386,7 +402,7 @@ export class DexieManager {
    */
   async bulkInsertArticles(articles: LocalArticle[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertArticles', { count: articles.length });
-    await db.articles.bulkAdd(articles);
+    await this.getDB().articles.bulkAdd(articles);
     if (onProgress) onProgress(articles.length, articles.length);
   }
 
@@ -395,7 +411,7 @@ export class DexieManager {
    */
   async bulkInsertFinancialCenters(centers: LocalFinancialCenter[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertFinancialCenters', { count: centers.length });
-    await db.financialCenters.bulkAdd(centers);
+    await this.getDB().financialCenters.bulkAdd(centers);
     if (onProgress) onProgress(centers.length, centers.length);
   }
 
@@ -404,7 +420,7 @@ export class DexieManager {
    */
   async bulkInsertCostCenters(centers: LocalCostCenter[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertCostCenters', { count: centers.length });
-    await db.costCenters.bulkAdd(centers);
+    await this.getDB().costCenters.bulkAdd(centers);
     if (onProgress) onProgress(centers.length, centers.length);
   }
 
@@ -413,7 +429,7 @@ export class DexieManager {
    */
   async bulkInsertHierarchy(hierarchy: LocalArticleHierarchy[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertHierarchy', { count: hierarchy.length });
-    await db.articleHierarchy.bulkAdd(hierarchy);
+    await this.getDB().articleHierarchy.bulkAdd(hierarchy);
     if (onProgress) onProgress(hierarchy.length, hierarchy.length);
   }
 
@@ -422,7 +438,7 @@ export class DexieManager {
    */
   async bulkUpdateFacts(facts: Partial<LocalBudgetFact>[]): Promise<void> {
     logger.info('[DexieManager] bulkUpdateFacts', { count: facts.length });
-    await db.budgetFacts.bulkPut(facts as LocalBudgetFact[]);
+    await this.getDB().budgetFacts.bulkPut(facts as LocalBudgetFact[]);
   }
 
   /**
@@ -430,9 +446,9 @@ export class DexieManager {
    */
   async bulkSoftDeleteFacts(temp_ids: string[]): Promise<void> {
     logger.info('[DexieManager] bulkSoftDeleteFacts', { count: temp_ids.length });
-    await db.transaction('rw', db.budgetFacts, async () => {
+    await this.getDB().transaction('rw', this.getDB().budgetFacts, async () => {
       for (const temp_id of temp_ids) {
-        await db.budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
+        await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
       }
     });
   }
@@ -447,7 +463,7 @@ export class DexieManager {
   async getPendingOperations(): Promise<LocalBudgetFact[]> {
     logger.debug('[DexieManager] getPendingOperations');
 
-    const pending = await db.budgetFacts
+    const pending = await this.getDB().budgetFacts
       .where('sync_status').equals('pending')
       .toArray();
 
@@ -464,7 +480,7 @@ export class DexieManager {
   async confirmPendingOperation(tempId: string, serverId: number): Promise<void> {
     logger.debug('[DexieManager] confirmPendingOperation', { tempId, serverId });
 
-    await db.budgetFacts
+    await this.getDB().budgetFacts
       .where('temp_id').equals(tempId)
       .modify({ id: serverId, sync_status: 'synced' });
 
@@ -477,7 +493,7 @@ export class DexieManager {
   async getSyncMetadata(entityType: string): Promise<LocalSyncMetadata | undefined> {
     logger.debug('[DexieManager] getSyncMetadata', { entityType });
 
-    return await db.syncMetadata.get(entityType);
+    return await this.getDB().syncMetadata.get(entityType);
   }
 
   /**
@@ -486,7 +502,7 @@ export class DexieManager {
   async updateSyncMetadata(metadata: LocalSyncMetadata): Promise<void> {
     logger.debug('[DexieManager] updateSyncMetadata', metadata);
 
-    await db.syncMetadata.put(metadata);
+    await this.getDB().syncMetadata.put(metadata);
     logger.info('[DexieManager] ✅ Sync metadata updated', { entityType: metadata.entity_type });
   }
 
@@ -512,12 +528,12 @@ export class DexieManager {
 
     // Optimization: use user_id index if available
     if (filters?.user_id) {
-      results = await db.recurringPlans
+      results = await this.getDB().recurringPlans
         .where('user_id')
         .equals(filters.user_id)
         .toArray();
     } else {
-      results = await db.recurringPlans.toArray();
+      results = await this.getDB().recurringPlans.toArray();
     }
 
     // Apply additional filters
@@ -561,7 +577,7 @@ export class DexieManager {
       created_at: new Date()
     };
 
-    const id = await db.recurringPlans.add(newPlan);
+    const id = await this.getDB().recurringPlans.add(newPlan);
     logger.info('[DexieManager] ✅ Recurring plan created', { id });
 
     return id as number;
@@ -576,7 +592,7 @@ export class DexieManager {
   ): Promise<void> {
     logger.debug('[DexieManager] updateRecurringPlan', { id, updates });
 
-    const plan = await db.recurringPlans.get(id);
+    const plan = await this.getDB().recurringPlans.get(id);
 
     if (!plan) {
       throw new Error(`[DexieManager] Recurring plan not found: ${id}`);
@@ -588,7 +604,7 @@ export class DexieManager {
       updateData.amount = toCents(updateData.amount);
     }
 
-    await db.recurringPlans.update(id, updateData);
+    await this.getDB().recurringPlans.update(id, updateData);
     logger.info('[DexieManager] ✅ Recurring plan updated', { id });
   }
 
@@ -598,7 +614,7 @@ export class DexieManager {
   async deleteRecurringPlan(id: number): Promise<void> {
     logger.debug('[DexieManager] deleteRecurringPlan', { id });
 
-    await db.recurringPlans.delete(id);
+    await this.getDB().recurringPlans.delete(id);
     logger.info('[DexieManager] ✅ Recurring plan deleted', { id });
   }
 
@@ -608,7 +624,7 @@ export class DexieManager {
   async getRecurringPlan(id: number): Promise<LocalRecurringPlan | undefined> {
     logger.debug('[DexieManager] getRecurringPlan', { id });
 
-    const plan = await db.recurringPlans.get(id);
+    const plan = await this.getDB().recurringPlans.get(id);
 
     if (!plan) {
       return undefined;
@@ -635,9 +651,9 @@ export class DexieManager {
     }));
 
     // Replace all local data (clear + bulk add)
-    await db.transaction('rw', db.recurringPlans, async () => {
-      await db.recurringPlans.clear();
-      await db.recurringPlans.bulkAdd(plansWithCents);
+    await this.getDB().transaction('rw', this.getDB().recurringPlans, async () => {
+      await this.getDB().recurringPlans.clear();
+      await this.getDB().recurringPlans.bulkAdd(plansWithCents);
     });
 
     logger.info('[DexieManager] ✅ Recurring plans synced', { count: plans.length });
@@ -648,7 +664,7 @@ export class DexieManager {
   // ============================================================
 
   async queryShoppingLists(userId: number): Promise<LocalShoppingList[]> {
-    return await db.shoppingLists.where('creator_id').equals(userId).toArray();
+    return await this.getDB().shoppingLists.where('creator_id').equals(userId).toArray();
   }
 
   async createShoppingList(
@@ -665,7 +681,7 @@ export class DexieManager {
       updated_at: new Date()
     };
 
-    await db.shoppingLists.add(newList);
+    await this.getDB().shoppingLists.add(newList);
     return temp_id;
   }
 
@@ -708,12 +724,12 @@ export class DexieManager {
       nextPruneEstimate: string;
     };
   }> {
-    const articlesCount = await db.articles.count();
-    const factsCount = await db.budgetFacts.count();
-    const shoppingListsCount = await db.shoppingLists.count();
-    const financialCentersCount = await db.financialCenters.count();
-    const costCentersCount = await db.costCenters.count();
-    const recurringPlansCount = await db.recurringPlans.count();
+    const articlesCount = await this.getDB().articles.count();
+    const factsCount = await this.getDB().budgetFacts.count();
+    const shoppingListsCount = await this.getDB().shoppingLists.count();
+    const financialCentersCount = await this.getDB().financialCenters.count();
+    const costCentersCount = await this.getDB().costCenters.count();
+    const recurringPlansCount = await this.getDB().recurringPlans.count();
 
     // Calculate actual DB size (approximate)
     const dbSize = await calculateDatabaseSize();

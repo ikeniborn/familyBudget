@@ -8,8 +8,8 @@
 import { DexieManager } from './DexieManager';
 import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
-import { db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents } from './core/database';
-export { db, toCents, fromCents } from './core/database';
+import { initializeDatabase, getDatabase, db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents } from './core/database';
+export { initializeDatabase, getDatabase, db, toCents, fromCents } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
 
 /**
@@ -233,6 +233,8 @@ import type Dexie from 'dexie';
 type DexieWithUtilities = typeof Dexie & {
   getDexieManager: typeof getDexieManagerImpl;
   DexieManager: typeof DexieManager;
+  initializeDatabase: typeof initializeDatabase;
+  getDatabase: typeof getDatabase;
   db: typeof dexieDb;
   toCents: typeof dexieToCents;
   fromCents: typeof dexieFromCents;
@@ -287,6 +289,8 @@ if (typeof window !== 'undefined') {
     Object.assign(Dexie, {
       getDexieManager: getDexieManagerImpl,
       DexieManager: DexieManager,
+      initializeDatabase,
+      getDatabase,
       db: dexieDb,
       toCents: dexieToCents,
       fromCents: dexieFromCents,
@@ -321,7 +325,7 @@ if (typeof window !== 'undefined') {
     }
 
     // Verify critical utilities are attached
-    const requiredUtilities = ['getDexieManager', 'DexieManager', 'db', 'toCents', 'fromCents'];
+    const requiredUtilities = ['getDexieManager', 'DexieManager', 'initializeDatabase', 'getDatabase', 'db', 'toCents', 'fromCents'];
     const missingUtilities = requiredUtilities.filter(util => !(util in window.Dexie));
     if (missingUtilities.length > 0) {
       throw new Error(
@@ -347,7 +351,17 @@ if (typeof window !== 'undefined') {
         throw new Error('Dexie initialization failed - cannot get manager. See console for details.');
       },
       DexieManager: class DexieManagerFallback {},
-      db: null as any,
+      initializeDatabase: async () => {
+        throw new Error('Dexie initialization failed - cannot initialize database');
+      },
+      getDatabase: () => {
+        throw new Error('Dexie initialization failed - database not available');
+      },
+      db: new Proxy({}, {
+        get() {
+          throw new Error('Dexie initialization failed - database not available');
+        }
+      }) as any,
       toCents: (amount: number) => Math.round(amount * 100),
       fromCents: (cents: number) => cents / 100,
       isDexieActive: () => false,
