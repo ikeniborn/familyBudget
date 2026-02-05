@@ -10,7 +10,7 @@ Pattern: Service layer (business logic)
 import csv
 import io
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ class GenericCSVParser:
         return staging_records
 
     @staticmethod
-    def _parse_date(date_str: str, date_format: str | None = None) -> datetime.date | None:
+    def _parse_date(date_str: str, date_format: str | None = None) -> date | None:
         """
         Parse date from string using specified format with fallback to auto-detect.
 
