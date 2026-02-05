@@ -17,7 +17,8 @@
     "build:css": "npm run build:tailwind && npm run minify:tailwind && npm run minify:overrides && npm run minify:custom-css && npm run minify:choices && npm run minify:lists && npm run minify:vendor-css",
     "build:vendor": "npm run minify:vendor-css && npm run minify:vendor-js",
     "bundle": "node build-all.js",
-    "build:prod": "npm run build:css && npm run build:vendor && npm run bundle",
+    "verify-build": "node scripts/verify-dexie-export.js",
+    "build:prod": "npm run build:css && npm run build:vendor && npm run bundle && npm run verify-build",
     "build": "npm run type-check && npm run build:prod",
     "test:coverage": "vitest run --config config/vitest.config.ts --coverage",
     "prepare": "husky install"

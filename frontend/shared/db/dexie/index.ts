@@ -7,6 +7,7 @@
 import type { DexieManager as DexieManagerType } from './DexieManager';
 import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
+import { db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents } from './core/database';
 export { db, toCents, fromCents } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
 
@@ -120,6 +121,7 @@ export type {
 } from './types/shopping';
 
 // Utils
+import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
 export { generateUUID, calculateContentHash } from './utils/hash';
@@ -140,4 +142,62 @@ export interface ValidationResults {
     costCenterCount: number;
     avgQueryTimeMs: number;
   };
+}
+
+// ============================================================================
+// Window Global Export (IIFE Bundle)
+// ============================================================================
+
+/**
+ * Type definition for window.Dexie global API
+ * Provides type safety for external bundles accessing Dexie
+ */
+declare global {
+  interface Window {
+    Dexie: {
+      getDexieManager: typeof getDexieManagerImpl;
+      db: typeof dexieDb;
+      toCents: typeof dexieToCents;
+      fromCents: typeof dexieFromCents;
+      isDexieActive: typeof isDexieActive;
+      setDexieActive: typeof setDexieActive;
+      getState: typeof getState;
+      getDexieFeatureFlags: typeof getDexieFeatureFlags;
+      logger: typeof dexieLogger;
+    };
+  }
+}
+
+/**
+ * Expose Dexie API to window.Dexie for external bundles (facts.min.js, etc.)
+ *
+ * CRITICAL: Vite IIFE bundles do NOT automatically create window globals.
+ * External bundles (facts, shopping, etc.) depend on window.Dexie.
+ * Without this explicit assignment, they fail with "Dexie is not defined".
+ *
+ * Strategy:
+ * - Import all operations modules dynamically to avoid circular dependencies
+ * - Expose minimal API surface (getDexieManager is main entry point)
+ * - External bundles call: const manager = await window.Dexie.getDexieManager()
+ *
+ * @see config/vite.config.single.ts:103 - external: 'dexie'
+ * @see config/vite.config.single.ts:124 - globals: { 'dexie': 'window.Dexie' }
+ */
+if (typeof window !== 'undefined') {
+  // Minimal API: expose only getDexieManager() as entry point
+  // External bundles access full API via: const manager = await window.Dexie.getDexieManager()
+  window.Dexie = {
+    getDexieManager: getDexieManagerImpl,
+    db: dexieDb,
+    toCents: dexieToCents,
+    fromCents: dexieFromCents,
+    isDexieActive,
+    setDexieActive,
+    getState,
+    getDexieFeatureFlags,
+    logger: dexieLogger,
+  };
+
+  // Log to confirm window.Dexie is available for external bundles
+  dexieLogger.info('Exposed to window.Dexie for external bundles');
 }

@@ -8,6 +8,27 @@
 declare const debugLog: (...args: any[]) => void;
 declare const htmx: any;
 
+/**
+ * Structured logger for UI refresh operations
+ */
+const logger = {
+  info: (message: string, ...args: any[]) => {
+    if (typeof debugLog !== 'undefined') {
+      debugLog(`[UI_REFRESH] ${message}`, ...args);
+    }
+  },
+  warn: (message: string, ...args: any[]) => {
+    if (typeof debugLog !== 'undefined') {
+      debugLog(`[UI_REFRESH] ⚠️  ${message}`, ...args);
+    } else {
+      console.warn(`[UI_REFRESH] ${message}`, ...args);
+    }
+  },
+  error: (message: string, ...args: any[]) => {
+    console.error(`[UI_REFRESH] ${message}`, ...args);
+  },
+};
+
 interface RefreshConfig {
   /** Context name for logging (e.g., 'SaveFactModal', 'SavePlanModal') */
   context: string;
@@ -24,25 +45,32 @@ interface RefreshConfig {
  * @param config - Configuration for which components to refresh
  */
 export async function refreshUIAfterSave(config: RefreshConfig): Promise<void> {
-  debugLog(`[${config.context}] Refreshing UI components...`);
+  logger.info(`[${config.context}] Refreshing UI components...`);
 
   try {
+    // Check if HTMX is available
+    if (typeof htmx === 'undefined') {
+      logger.warn('HTMX undefined, falling back to page reload');
+      window.location.reload();
+      return;
+    }
+
     // Refresh quick stats (index.html)
     const quickStatsEl = document.getElementById('quick-stats');
-    if (quickStatsEl && typeof htmx !== 'undefined') {
+    if (quickStatsEl) {
       htmx.trigger(quickStatsEl, 'load');
     }
 
     // Refresh account balances (index.html)
     const accountBalancesEl = document.getElementById('account-balances');
-    if (accountBalancesEl && typeof htmx !== 'undefined') {
+    if (accountBalancesEl) {
       htmx.trigger(accountBalancesEl, 'load');
     }
 
     // Refresh recent transactions (index.html) - only for facts
     if (config.refreshRecentTransactions) {
       const recentTransactionsEl = document.getElementById('recent-transactions');
-      if (recentTransactionsEl && typeof htmx !== 'undefined') {
+      if (recentTransactionsEl) {
         htmx.trigger(recentTransactionsEl, 'load');
       }
     }
@@ -57,10 +85,16 @@ export async function refreshUIAfterSave(config: RefreshConfig): Promise<void> {
       await (window as any).reloadPlans();
     }
 
-    debugLog(`[${config.context}] UI refresh completed`);
+    logger.info(`[${config.context}] UI refresh completed`);
   } catch (error) {
-    debugLog(`[${config.context}] Error refreshing UI:`, error);
-    // Non-critical error, don't throw
+    logger.error(`[${config.context}] Error refreshing UI:`, error);
+
+    // Show error toast if available
+    if (typeof (window as any).showToast === 'function') {
+      (window as any).showToast('Не удалось обновить интерфейс. Перезагрузите страницу.', 'error');
+    }
+
+    // Non-critical error, don't throw (allows modal to close)
   }
 }
 
