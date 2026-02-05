@@ -7,6 +7,7 @@
  */
 
 import Dexie, { type Table } from 'dexie';
+import { logger } from '../utils/logger';
 import type {
   LocalArticle,
   LocalArticleHierarchy,
@@ -24,6 +25,64 @@ import type {
   LocalSyncMetadata,
   LocalSchemaMigration
 } from '../types/models';
+
+/**
+ * Default schema version
+ * Increment this when adding new migrations
+ */
+const DEFAULT_SCHEMA_VERSION = 1;
+
+/**
+ * Cached database version (to avoid redundant Dexie.exists() calls)
+ */
+let cachedVersion: number | null = null;
+
+/**
+ * Dynamically determine database version
+ * - If DB exists: use Math.max(existing version, DEFAULT_SCHEMA_VERSION)
+ * - If DB new: use DEFAULT_SCHEMA_VERSION
+ * - Caches result to avoid redundant checks
+ *
+ * Prevents VersionError when downgrading code version
+ */
+async function getDatabaseVersion(): Promise<number> {
+  // Return cached version if available
+  if (cachedVersion !== null) {
+    return cachedVersion;
+  }
+
+  const dbName = 'FamilyBudgetDB';
+  const exists = await Dexie.exists(dbName);
+
+  if (!exists) {
+    cachedVersion = DEFAULT_SCHEMA_VERSION;
+    return cachedVersion;
+  }
+
+  // Temporarily open DB to get current version
+  const tempDb = new Dexie(dbName);
+  try {
+    await tempDb.open();
+    const currentVersion = tempDb.verno;
+    tempDb.close();
+
+    // Use maximum of current and default (prevents downgrade)
+    cachedVersion = Math.max(currentVersion, DEFAULT_SCHEMA_VERSION);
+    return cachedVersion;
+  } catch (error) {
+    logger.warn('[Dexie] Failed to get existing version, using default', error);
+    cachedVersion = DEFAULT_SCHEMA_VERSION;
+    return cachedVersion;
+  }
+}
+
+/**
+ * Clear version cache (used when database is deleted)
+ * @internal
+ */
+export function clearVersionCache(): void {
+  cachedVersion = null;
+}
 
 /**
  * Family Budget Dexie Database
@@ -53,11 +112,11 @@ export class FamilyBudgetDB extends Dexie {
   syncMetadata!: Table<LocalSyncMetadata, string>;
   schemaMigrations!: Table<LocalSchemaMigration, number>;
 
-  constructor() {
+  constructor(version: number) {
     super('FamilyBudgetDB');
 
     /**
-     * Version 1: Initial schema
+     * Dynamic version from getDatabaseVersion()
      *
      * ВАЖНО: Indexes определяют как быстро можно искать данные
      * Формат: 'primaryKey, index1, index2, [compound+index]'
@@ -65,7 +124,7 @@ export class FamilyBudgetDB extends Dexie {
      * Compound indexes: [field1+field2] - для query с двумя полями
      * Example: [user_id+date] для быстрого поиска "user's facts in date range"
      */
-    this.version(1).stores({
+    this.version(version).stores({
       // Reference Data
       articles: 'id, user_id, type, parent_id, is_active',
       articleHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id, depth',
@@ -95,8 +154,56 @@ export class FamilyBudgetDB extends Dexie {
   }
 }
 
-// Singleton instance
-export const db = new FamilyBudgetDB();
+// Singleton instance with async initialization
+let dbInstance: FamilyBudgetDB | null = null;
+
+/**
+ * Initialize database with dynamic version detection
+ * Call this before using the database
+ */
+export async function initializeDatabase(): Promise<FamilyBudgetDB> {
+  if (dbInstance) {
+    return dbInstance;
+  }
+
+  const version = await getDatabaseVersion();
+  dbInstance = new FamilyBudgetDB(version);
+
+  logger.info(`[Dexie] Database initialized with version ${version}`);
+  return dbInstance;
+}
+
+/**
+ * Get database instance (synchronous)
+ * Throws if database not initialized
+ */
+export function getDatabase(): FamilyBudgetDB {
+  if (!dbInstance) {
+    throw new Error('[Dexie] Database not initialized! Call initializeDatabase() first.');
+  }
+  return dbInstance;
+}
+
+// Proxy object for backward compatibility
+// Allows accessing db.articles, db.budgetFacts, etc. before initialization
+// Will throw error when trying to use methods if not initialized
+export const db: FamilyBudgetDB = new Proxy({} as FamilyBudgetDB, {
+  get(_target, prop) {
+    // Skip symbols and prototype methods to avoid unexpected behavior
+    if (typeof prop === 'symbol' || prop === 'constructor' || prop === '__proto__') {
+      return undefined;
+    }
+
+    const instance = getDatabase(); // Throws if not initialized
+
+    // Runtime validation: ensure property exists on instance
+    if (!(prop in instance)) {
+      throw new Error(`[Dexie] Property '${String(prop)}' does not exist on FamilyBudgetDB`);
+    }
+
+    return instance[prop as keyof FamilyBudgetDB];
+  }
+});
 
 /**
  * Helper: Convert dollar amount to cents (for storage)
