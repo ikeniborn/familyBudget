@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const dexieMinPath = path.join(__dirname, '../static/js/shared/db/dexie.min.js');
+const dexieMinPath = path.join(__dirname, '../frontend/shared/db/dexie.min.js');
 
 console.log('[VERIFY] Checking Dexie window export...');
 
