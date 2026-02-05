@@ -1,5 +1,5 @@
 /**
- * Lightweight logger for PGlite module
+ * Lightweight logger for Dexie module
  * Replaces direct console.log calls with configurable logging
  */
 
@@ -22,7 +22,7 @@ class Logger {
   private config: LoggerConfig = {
     enabled: true,
     level: 'info',
-    prefix: '[PGLITE]'
+    prefix: '[DEXIE]'
   };
 
   /**
