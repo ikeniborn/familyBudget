@@ -145,6 +145,73 @@ export interface ValidationResults {
 }
 
 // ============================================================================
+// Background Initialization API (for base.html compatibility)
+// ============================================================================
+
+/**
+ * Initialize Dexie database in background (non-blocking)
+ * Wrapper around getDexieManager().init() for backward compatibility with base.html
+ *
+ * @returns Promise that resolves when initialization completes
+ */
+export async function initializeDatabaseInBackground(): Promise<void> {
+  const manager = getDexieManagerImpl();
+  await manager.init();
+}
+
+/**
+ * Check if Dexie database is ready
+ * Wrapper around getDexieManager().isReady() for backward compatibility with base.html
+ *
+ * @returns true if database is initialized and ready to use
+ */
+export function isReady(): boolean {
+  const manager = getDexieManagerImpl();
+  return manager.isReady();
+}
+
+/**
+ * Get diagnostic data for Dexie database
+ * Wrapper around getDexieManager().getDiagnosticData() for backward compatibility with base.html
+ *
+ * @returns Promise with diagnostic data
+ */
+export async function getDiagnosticData(): Promise<{
+  initializationStatus: string;
+  lastSyncTimestamp: string;
+  isEnabled: boolean;
+  isInitialized: boolean;
+  dbSize: number;
+  dbSizeKB: number;
+  tables: Record<string, number>;
+  tableStats: {
+    articles: number;
+    financial_centers: number;
+    cost_centers: number;
+    facts: number;
+    plans: number;
+  };
+  syncStatus: 'error' | 'idle' | 'syncing';
+  performance: { avgQueryTime: number };
+  performanceMetrics?: {
+    avgQueryTimeMs: number;
+    totalQueries: number;
+    avgLoadTimeMs: number;
+    avgSaveTimeMs: number;
+  };
+  pruningStats: {
+    enabled: boolean;
+    lastPrune?: Date;
+    lastPrunedAt: string;
+    totalPruned: number;
+    nextPruneEstimate: string;
+  };
+}> {
+  const manager = getDexieManagerImpl();
+  return manager.getDiagnosticData();
+}
+
+// ============================================================================
 // Window Global Export (IIFE Bundle)
 // ============================================================================
 
@@ -164,6 +231,10 @@ declare global {
       getState: typeof getState;
       getDexieFeatureFlags: typeof getDexieFeatureFlags;
       logger: typeof dexieLogger;
+      // Background initialization API (for base.html compatibility)
+      initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
+      isReady: typeof isReady;
+      getDiagnosticData: typeof getDiagnosticData;
     };
   }
 }
@@ -198,6 +269,10 @@ if (typeof window !== 'undefined') {
     getState,
     getDexieFeatureFlags,
     logger: dexieLogger,
+    // Background initialization API (for base.html compatibility)
+    initializeDatabaseInBackground,
+    isReady,
+    getDiagnosticData,
   };
 
   dexieLogger.info('[DEXIE_BUNDLE] ✅ window.Dexie assigned:', {
