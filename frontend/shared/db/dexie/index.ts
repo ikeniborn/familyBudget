@@ -4,7 +4,7 @@
  */
 
 // Core
-import type { DexieManager as DexieManagerType } from './DexieManager';
+import { DexieManager } from './DexieManager';
 import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
 import { db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents } from './core/database';
@@ -37,7 +37,7 @@ export function setDexieActive(active: boolean): void {
  * Get Dexie state (compatibility wrapper)
  * Возвращает DexieManager для backward compatibility с PGlite кодом
  */
-export async function getState(): Promise<{ db: DexieManagerType | null }> {
+export async function getState(): Promise<{ db: DexieManager | null }> {
   if (!isDexieActive()) {
     return { db: null };
   }
@@ -223,6 +223,7 @@ declare global {
   interface Window {
     Dexie: {
       getDexieManager: typeof getDexieManagerImpl;
+      DexieManager: typeof DexieManager;
       db: typeof dexieDb;
       toCents: typeof dexieToCents;
       fromCents: typeof dexieFromCents;
@@ -261,6 +262,7 @@ if (typeof window !== 'undefined') {
   // External bundles access full API via: const manager = await window.Dexie.getDexieManager()
   window.Dexie = {
     getDexieManager: getDexieManagerImpl,
+    DexieManager: DexieManager,
     db: dexieDb,
     toCents: dexieToCents,
     fromCents: dexieFromCents,
