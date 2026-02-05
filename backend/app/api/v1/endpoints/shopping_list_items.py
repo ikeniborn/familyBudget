@@ -19,7 +19,6 @@ Endpoints:
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -451,7 +450,7 @@ async def suggest_products(
 
 @router.get(
     "/check-duplicate",
-    response_model=Optional[ShoppingListItemResponse],
+    response_model=ShoppingListItemResponse | None,
     summary="Check for duplicate item in list",
     description="Search for existing non-completed item matching product_name and store_id",
 )

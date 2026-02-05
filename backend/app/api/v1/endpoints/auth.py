@@ -21,7 +21,6 @@ Security Features:
 # Standard library imports
 import logging
 from datetime import datetime
-from typing import Union
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
@@ -960,7 +959,7 @@ async def register_email(
 
 @router.post(
     "/login",
-    response_model=Union[EmailLoginResponse, AuthResponse],
+    response_model=EmailLoginResponse | AuthResponse,
     status_code=status.HTTP_200_OK,
     summary="Login with email and password",
     responses=get_common_responses(include_401=True),
