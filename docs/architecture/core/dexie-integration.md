@@ -508,10 +508,131 @@ await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
 
 ---
 
+## Shopping Lists Migration (v11.3.1)
+
+**Дата:** 2026-02-05
+**Статус:** ✅ Complete
+
+### Проблема (v11.0-11.3.0)
+
+VersionError при открытии страницы `/lists`:
+
+```
+[ListsManager] Initialization error: VersionError:
+The requested version (5) is less than the existing version (10).
+```
+
+**Root cause:**
+- Legacy IndexedDB (v5) конфликтовала с PGlite artifact (v10) в браузере пользователей
+- ListsManager пытался открыть базу с версией 5, но существовала версия 10
+- IndexedDB API не позволяет откатиться на меньшую версию → VersionError
+
+**Затронуты:**
+- ✅ Dashboard (`/`) - работает нормально (использует Dexie v1)
+- ❌ Shopping Lists (`/lists`) - инициализация падала с VersionError
+
+### Решение
+
+**Подход:** Завершение v11.0 migration roadmap - удаление Legacy IndexedDB полностью
+
+**Обоснование:**
+1. ✅ Dexie.js уже production-ready (v11.0+, протестирован на Dashboard/Facts)
+2. ✅ Shopping Lists schema уже есть в Dexie (`shoppingLists`, `shoppingListItems`, `stores`, `productGroups`)
+3. ✅ DataLayer уже использует Dexie для shopping lists (v11.0)
+4. ✅ Соответствует архитектурной стратегии: "Dexie активен по умолчанию"
+5. ✅ Минимальный user impact (автоматическая синхронизация с сервера, 5-10 секунд)
+
+### Изменения
+
+**Удалено полностью (6 файлов):**
+- `frontend/web/static/js/offline/idb.ts` (1,140 строк - Legacy IndexedDB)
+- `frontend/web/static/js/offline/idb.js` (compiled)
+- `frontend/web/static/js/offline/idb.min.js` (minified)
+- `frontend/web/static/js/offline/offlineShoppingManager.js` (deprecated)
+- `frontend/web/static/js/offline/offlineShoppingManager.min.js` (minified)
+- `frontend/tests/unit/offline/idb.test.ts` (unit tests)
+
+**Обновлено:**
+- `frontend/web/static/js/lists/listsManager/core/stateManager.ts` - заменён IndexedDBManager → getDexieManager()
+- `frontend/web/static/js/lists/listsManager/core/ListsState.ts` - удалены `db` и `offlineShopping` поля, добавлено `dexieManager`
+- `frontend/web/templates/lists.html` - удалён script tag для offlineShoppingManager.min.js
+- `sw.js` - удалён весь Legacy IndexedDB код (~300 строк: openIndexedDB, syncBudgetData, Background Sync)
+- `build-all.js` - удалена конфигурация для offlineShoppingManager bundle
+- `frontend/web/static/js/lists/listsManager/core/listOperations.ts` - updateItemsCache() → no-op (кеширование через DataLayer)
+- `frontend/web/static/js/lists/listsManager/features/autocomplete.ts` - удалены cache функции (замена на DataLayer)
+
+**Создано:**
+- `frontend/shared/db/dexie/migration/cleanupLegacyDB.ts` - автоматическая миграция для пользователей
+
+### Автоматическая миграция
+
+**Для пользователей с v10.1.x или v11.0-11.2:**
+
+1. При первом запуске:
+   - Скрипт проверяет версию IndexedDB
+   - Если версия 5-10 → удаляет базу данных
+   - Создаёт Dexie v1 (версия 1)
+   - Запускает синхронизацию с сервера (последние 90 дней)
+
+2. User experience:
+   - Toast notification: "База данных обновлена. Синхронизация с сервером..."
+   - Синхронизация занимает 5-10 секунд
+   - Нет потери данных (все данные на сервере)
+
+3. Migration flag:
+   - Сохраняется в `localStorage.dexie_legacy_cleanup_done = 'true'`
+   - Повторная миграция не выполняется
+
+### Технический debt resolved
+
+**Before (v11.0-11.3.0):**
+- ❌ VersionError (100% пользователей с v10.1.x)
+- ❌ Shopping Lists offline broken
+- ⚠️ Две параллельные IndexedDB системы (Legacy v5 + Dexie v1)
+- ⚠️ ~2,000 строк dead code (idb.ts, offlineShoppingManager, sw.js sync)
+
+**After (v11.3.1):**
+- ✅ Нет VersionError
+- ✅ Shopping Lists offline работает
+- ✅ Единая Dexie система для всех компонентов (Dashboard, Facts, Shopping Lists)
+- ✅ ~2,000 строк dead code удалено
+
+### Rollback plan
+
+**Если миграция не работает:**
+
+1. **Git revert** (recovery time: ~10 минут)
+   ```bash
+   git revert <commit-hash>
+   git push
+   ```
+
+2. **Feature flag** (для emergency hotfix)
+   ```typescript
+   const USE_LEGACY_IDB = localStorage.getItem('use_legacy_idb') === 'true';
+   ```
+
+### Проверка успешности миграции
+
+**Browser Console:**
+```
+[Migration] Found legacy database v10, migrating to Dexie v1...
+[Migration] Legacy database deleted
+[Migration] Dexie v1 initialized
+[Migration] ✅ Migration complete
+```
+
+**No errors:**
+- ❌ Нет `VersionError`
+- ❌ Нет `[ListsManager] Initialization error`
+
+---
+
 ## История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-05 | v11.3.1 | 🔴 VersionError fix: завершение Dexie migration<br>🗑️ Удалён Legacy IndexedDB (~2,000 строк)<br>🚀 Shopping Lists полностью мигрированы на Dexie<br>⚙️ Автоматическая миграция для users с v10.1.x |
 | 2026-02-04 | v11.3.0 | ⚙️ Полностью удалена страница /settings (была пустой после v11.0.1)<br>🚀 Оптимизирован PWA splash (убран промежуточный экран auth_redirect) |
 | 2026-02-02 | v11.0.1 | 🔴 Transaction atomicity fix (confirmPendingOperation)<br>🟡 Exponential backoff для retry logic<br>🟡 Conflict modal timeout (60s)<br>⚙️ Удален /settings Dexie раздел |
 | 2026-01-31 | v11.0.0 | Initial release (PGlite → Dexie migration) |

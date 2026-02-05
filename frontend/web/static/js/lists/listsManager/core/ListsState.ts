@@ -86,11 +86,8 @@ export interface ListsState {
   // Hierarchy view instance (HierarchyView class)
   hierarchyView: any | null;
 
-  // IndexedDB instance (offline support)
-  db: any | null;
-
-  // Offline shopping manager (Phase 3.1)
-  offlineShopping: any | null;
+  // Dexie manager (offline support via Dexie.js)
+  dexieManager: any | null;
 
   // Debounced functions
   debouncedSearch: (() => void) | null;
@@ -119,8 +116,7 @@ let state: ListsState = {
   currentDuplicateItem: null,
   choicesInstances: {},
   hierarchyView: null,
-  db: null,
-  offlineShopping: null,
+  dexieManager: null,
   debouncedSearch: null,
   quantityChangeHandler: null,
   handleUnitChange: null,
@@ -171,8 +167,7 @@ export const resetState = (): void => {
     currentDuplicateItem: null,
     choicesInstances: {},
     hierarchyView: null,
-    db: null,
-    offlineShopping: null,
+    dexieManager: null,
     debouncedSearch: null,
     quantityChangeHandler: null,
     handleUnitChange: null,

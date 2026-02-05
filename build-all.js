@@ -111,22 +111,10 @@ const builds = [
   // === Legacy Web modules (offline, utils, budget, workers) ===
   // Offline
   {
-    name: 'idb',
-    input: 'frontend/web/static/js/offline/idb.js',
-    output: 'frontend/web/static/js/offline/idb.min.js',
-    globalName: 'IDB'
-  },
-  {
     name: 'networkDetector',
     input: 'frontend/web/static/js/offline/networkDetector.js',
     output: 'frontend/web/static/js/offline/networkDetector.min.js',
     globalName: 'NetworkDetector'
-  },
-  {
-    name: 'offlineShoppingManager',
-    input: 'frontend/web/static/js/offline/offlineShoppingManager.js',
-    output: 'frontend/web/static/js/offline/offlineShoppingManager.min.js',
-    globalName: 'OfflineShoppingManager'
   },
   {
     name: 'pushManager',

@@ -9,6 +9,7 @@
 import { initializeDatabase, toCents, fromCents, clearVersionCache } from './core/database';
 import type { FamilyBudgetDB } from './core/database';
 import { logger } from './utils/logger';
+import { cleanupLegacyDatabase } from './migration/cleanupLegacyDB';
 import { validateFact } from './utils/validation';
 import { generateUUID } from './utils/hash';
 import {
@@ -69,6 +70,9 @@ export class DexieManager {
     this.state = 'initializing';
 
     try {
+      // Cleanup legacy database (v5-v10) before initializing Dexie v1
+      await cleanupLegacyDatabase();
+
       // Initialize database with dynamic version detection
       this.db = await initializeDatabase();
 
