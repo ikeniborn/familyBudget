@@ -197,7 +197,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install mypy ruff pytest pytest-cov
+          pip install mypy ruff
+          pip install -r backend/requirements-dev.txt
           pip install -r backend/requirements.txt
 
       - name: Python mypy type check

@@ -217,7 +217,8 @@ jobs:
       - name: Install Python dependencies
         if: steps.detect-merge.outputs.is_pr_merge == 'false'
         run: |
-          pip install mypy ruff pytest pytest-cov
+          pip install mypy ruff
+          pip install -r backend/requirements-dev.txt
           pip install -r backend/requirements.txt
 
       - name: Python mypy type check
