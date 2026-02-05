@@ -241,7 +241,9 @@ class TestAdminAuthBypass:
         # Should be rejected with 403
         assert response.status_code == 403
         data = response.json()
-        assert "activation" in data["detail"].lower() or "pending" in data["detail"].lower()
+        # API returns structured error: {"detail": {"message": "...", "status_code": 403}}
+        message = data["detail"]["message"]
+        assert "activation" in message.lower() or "pending" in message.lower()
 
         # Verify NO cookies set
         assert "access_token" not in response.cookies
@@ -272,7 +274,9 @@ class TestAdminAuthBypass:
         # Should return 401
         assert response.status_code == 401
         data = response.json()
-        assert "invalid" in data["detail"].lower() or "password" in data["detail"].lower()
+        # API returns structured error: {"detail": {"message": "...", "status_code": 401}}
+        message = data["detail"]["message"]
+        assert "invalid" in message.lower() or "password" in message.lower()
 
         # Verify NO cookies set
         assert "access_token" not in response.cookies
