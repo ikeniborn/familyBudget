@@ -10,8 +10,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         // Show Dexie initialization progress if enabled
         let progressCheckInterval = null;
-        const showProgress = window.showDexieProgress || showProgress;
-        const hideProgress = window.hideDexieProgress || hideProgress;
+        const showProgress = window.showDexieProgress || (() => {
+            console.debug('[LISTS_INIT] showDexieProgress not available, progress UI disabled');
+        });
+        const hideProgress = window.hideDexieProgress || (() => {
+            console.debug('[LISTS_INIT] hideDexieProgress not available');
+        });
 
         if (localStorage.getItem('dexieActive') === 'true' &&
             typeof showProgress === 'function' &&
@@ -21,19 +25,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
                 progressCheckInterval = setInterval(async () => {
                     try {
-                        const { getState } = await import('/shared/db/dexie.min.js');
-                        const state = getState();
+                        // Use window.Dexie IIFE global (loaded in base.html:459)
+                        const state = window.Dexie?.getState ? await window.Dexie.getState() : null;
 
-                        if (state.initializationStatus === 'initializing' || state.initializationStatus === 'validating') {
+                        if (!state?.db) {
+                            console.warn('[LISTS_INIT] Dexie state not available yet');
+                            return;
+                        }
+
+                        const initStatus = state.db.initializationStatus;
+
+                        if (initStatus === 'initializing' || initStatus === 'validating') {
                             // Show generic message (actual progress comes from progressCallback)
                             showProgress({
                                 phase: 'Initializing',
                                 message: 'Загрузка данных...'
                             });
-                        } else if (state.initializationStatus === 'ready') {
+                        } else if (initStatus === 'ready') {
                             hideProgress();
                             clearInterval(progressCheckInterval);
-                        } else if (state.initializationStatus === 'error') {
+                        } else if (initStatus === 'error') {
                             hideProgress();
                             clearInterval(progressCheckInterval);
                         }
@@ -53,15 +64,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // Wait for bundle to load and export functions
-        let attempts = 0;
-        while (typeof window.loadShoppingLists !== 'function' && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
+        // Scripts load synchronously - no polling needed
         if (typeof window.loadShoppingLists !== 'function') {
-            throw new Error('Lists bundle failed to load after 5 seconds');
+            console.error('[LISTS_INIT] ❌ Lists bundle failed to load');
+            console.error('[LISTS_INIT] Missing window exports:', {
+                loadShoppingLists: typeof window.loadShoppingLists,
+                initializeListsManager: typeof window.initializeListsManager,
+                showLandingView: typeof window.showLandingView
+            });
+            showToast('Ошибка загрузки модуля списков. Пожалуйста, обновите страницу.', 'error');
+            return;
         }
 
         performance.mark('lists-init-start'); // Performance tracking

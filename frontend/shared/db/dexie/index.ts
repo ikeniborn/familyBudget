@@ -184,6 +184,8 @@ declare global {
  * @see config/vite.config.single.ts:124 - globals: { 'dexie': 'window.Dexie' }
  */
 if (typeof window !== 'undefined') {
+  dexieLogger.info('[DEXIE_BUNDLE] ⚙️ Executing window.Dexie assignment');
+
   // Minimal API: expose only getDexieManager() as entry point
   // External bundles access full API via: const manager = await window.Dexie.getDexieManager()
   window.Dexie = {
@@ -197,6 +199,11 @@ if (typeof window !== 'undefined') {
     getDexieFeatureFlags,
     logger: dexieLogger,
   };
+
+  dexieLogger.info('[DEXIE_BUNDLE] ✅ window.Dexie assigned:', {
+    type: typeof window.Dexie,
+    keys: Object.keys(window.Dexie)
+  });
 
   // Log to confirm window.Dexie is available for external bundles
   dexieLogger.info('Exposed to window.Dexie for external bundles');
