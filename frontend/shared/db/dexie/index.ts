@@ -149,6 +149,26 @@ export interface ValidationResults {
 // ============================================================================
 
 /**
+ * Type definition for window.Dexie global API
+ * Provides type safety for external bundles accessing Dexie
+ */
+declare global {
+  interface Window {
+    Dexie: {
+      getDexieManager: typeof getDexieManagerImpl;
+      db: typeof dexieDb;
+      toCents: typeof dexieToCents;
+      fromCents: typeof dexieFromCents;
+      isDexieActive: typeof isDexieActive;
+      setDexieActive: typeof setDexieActive;
+      getState: typeof getState;
+      getDexieFeatureFlags: typeof getDexieFeatureFlags;
+      logger: typeof dexieLogger;
+    };
+  }
+}
+
+/**
  * Expose Dexie API to window.Dexie for external bundles (facts.min.js, etc.)
  *
  * CRITICAL: Vite IIFE bundles do NOT automatically create window globals.
@@ -166,7 +186,7 @@ export interface ValidationResults {
 if (typeof window !== 'undefined') {
   // Minimal API: expose only getDexieManager() as entry point
   // External bundles access full API via: const manager = await window.Dexie.getDexieManager()
-  (window as any).Dexie = {
+  window.Dexie = {
     getDexieManager: getDexieManagerImpl,
     db: dexieDb,
     toCents: dexieToCents,
