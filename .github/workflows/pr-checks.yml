@@ -178,6 +178,31 @@ jobs:
     name: Backend Quality & Tests
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: familybudget_test
+          POSTGRES_USER: familybudget
+          POSTGRES_PASSWORD: test_password_12345678901234567890
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -208,7 +233,25 @@ jobs:
       - name: Python ruff lint
         run: ruff check backend/
 
+      - name: Run database migrations
+        env:
+          POSTGRES_HOST: localhost
+          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
+        run: |
+          alembic -c backend/db/migrations/alembic.ini upgrade head
+
       - name: Backend unit tests
+        env:
+          POSTGRES_HOST: localhost
+          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
+          REDIS_ENABLED: true
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
+          SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
+          TELEGRAM_BOT_TOKEN: test_bot_token_for_ci_only
+          ADMIN_TELEGRAM_ID: 123456789
+          API_INTERNAL_KEY: test_internal_key_for_ci_only
+          CORS_ORIGINS: http://localhost:8000
         run: pytest tests/unit/ --cov --cov-report=xml
 
       - name: Upload backend coverage
