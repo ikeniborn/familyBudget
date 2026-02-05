@@ -15,11 +15,18 @@ declare const debugLog: (...args: any[]) => void;
  * @param data - Sync response with reference data
  */
 export async function handleSyncInitial(data: SyncInitialResponse['data']): Promise<void> {
-  const dexie = await getDexieManager();
+  const dexie = getDexieManager();
 
   if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
+    debugLog('[SYNC] Dexie not ready, initializing...');
+
+    try {
+      await dexie.init();
+      debugLog('[SYNC] Dexie initialized, proceeding with sync');
+    } catch (error) {
+      debugLog('[SYNC] Dexie initialization failed, cannot sync', error);
+      return;
+    }
   }
 
   try {
@@ -139,11 +146,18 @@ export function requestInitialSync(userId: number): void {
  * @param data - Delta updates (created, updated, deleted facts)
  */
 export async function handleSyncIncremental(data: SyncIncrementalResponse['data']): Promise<void> {
-  const dexie = await getDexieManager();
+  const dexie = getDexieManager();
 
   if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
+    debugLog('[SYNC] Dexie not ready, initializing...');
+
+    try {
+      await dexie.init();
+      debugLog('[SYNC] Dexie initialized, proceeding with incremental sync');
+    } catch (error) {
+      debugLog('[SYNC] Dexie initialization failed, cannot sync', error);
+      return;
+    }
   }
 
   try {
@@ -225,11 +239,18 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
  * @param userId - User ID for sync
  */
 export async function requestIncrementalSync(userId: number): Promise<void> {
-  const dexie = await getDexieManager();
+  const dexie = getDexieManager();
 
   if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
+    debugLog('[SYNC] Dexie not ready, initializing...');
+
+    try {
+      await dexie.init();
+      debugLog('[SYNC] Dexie initialized, proceeding with incremental sync request');
+    } catch (error) {
+      debugLog('[SYNC] Dexie initialization failed, cannot request sync', error);
+      return;
+    }
   }
 
   if (!(window as any).budgetWSClient) {
