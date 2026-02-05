@@ -26,6 +26,7 @@ os.environ.setdefault("TELEGRAM_BOT_TOKEN", "0000000000:AAAAAAAAAAAAAAAAAAAAAAAA
 os.environ.setdefault("ADMIN_TELEGRAM_ID", "123456789")
 os.environ.setdefault("API_INTERNAL_KEY", "test-internal-api-key")
 os.environ.setdefault("TELEGRAM_WEBAPP_URL", "https://test.example.com")
+os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
 
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
