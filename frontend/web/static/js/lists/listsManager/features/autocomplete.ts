@@ -159,12 +159,8 @@ async function showProductSuggestions(query: string): Promise<void> {
         const data = await response.json();
         suggestions = data.suggestions || [];
 
-        // Cache suggestions for offline use (only active ones)
-        if (state.db && suggestions.length > 0) {
-          await cacheProductSuggestions(
-            suggestions.filter((s: any) => !s.is_deleted)
-          );
-        }
+        // Cache suggestions (deprecated - Dexie migration)
+        // Caching now handled by DataLayer shoppingListItems table
       }
     } else {
       // Offline: search in cached suggestions
@@ -175,13 +171,8 @@ async function showProductSuggestions(query: string): Promise<void> {
 
   } catch (error) {
     console.error('[Autocomplete] Error fetching suggestions:', error);
-    // Try offline cache on error
-    if (state.db) {
-      const cached = await searchCachedSuggestions(query);
-      if (cached.length > 0) {
-        renderSuggestionsDropdown(cached);
-      }
-    }
+    // Offline fallback removed - Dexie migration
+    // DataLayer handles offline suggestions automatically
   }
 }
 
@@ -439,76 +430,14 @@ function fillFormFromSuggestion(suggestion: any): void {
 /**
  * Cache product suggestions for offline use
  */
-async function cacheProductSuggestions(suggestions: any[]): Promise<void> {
-  const state = getState();
-  if (!state.db) return;
-
-  try {
-    const CACHE_KEY = 'product_suggestions';
-    const CACHE_TTL = 86400; // 24 hours
-
-    // Get existing cache
-    let cached: any[] = await state.db.getCache(CACHE_KEY) || [];
-
-    // Merge new suggestions (avoid duplicates by product_name + store_id)
-    const existing = new Map(
-      cached.map(s => [`${s.product_name}_${s.store_id}`, s])
-    );
-
-    suggestions.forEach(s => {
-      const key = `${s.product_name}_${s.store_id}`;
-      existing.set(key, s);
-    });
-
-    cached = Array.from(existing.values());
-
-    // Limit cache size to 500 entries (most recent)
-    if (cached.length > 500) {
-      cached = cached.slice(-500);
-    }
-
-    await state.db.setCache(CACHE_KEY, cached, CACHE_TTL);
-    debugLog('[Autocomplete] Cached', suggestions.length, 'suggestions');
-
-  } catch (error) {
-    console.error('[Autocomplete] Error caching suggestions:', error);
-  }
-}
-
 /**
- * Search cached suggestions
+ * Search cached suggestions (deprecated - Dexie migration)
+ * Offline search now handled by DataLayer shoppingListItems table
  */
-async function searchCachedSuggestions(query: string): Promise<any[]> {
-  const state = getState();
-  if (!state.db) return [];
-
-  try {
-    const CACHE_KEY = 'product_suggestions';
-    const cached: any[] = await state.db.getCache(CACHE_KEY) || [];
-
-    const lowerQuery = query.toLowerCase();
-
-    // Filter by product name
-    const matches = cached.filter(s =>
-      s.product_name.toLowerCase().includes(lowerQuery)
-    );
-
-    // Sort by relevance (starts with query first)
-    matches.sort((a, b) => {
-      const aStarts = a.product_name.toLowerCase().startsWith(lowerQuery);
-      const bStarts = b.product_name.toLowerCase().startsWith(lowerQuery);
-
-      if (aStarts && !bStarts) return -1;
-      if (!aStarts && bStarts) return 1;
-      return 0;
-    });
-
-    return matches.slice(0, 10); // Limit to 10 results
-
-  } catch (error) {
-    console.error('[Autocomplete] Error searching cached suggestions:', error);
-    return [];
-  }
+async function searchCachedSuggestions(_query: string): Promise<any[]> {
+  // No-op: Legacy IndexedDB removed
+  debugLog('[Autocomplete] Cache search skipped (Dexie migration)');
+  return [];
 }
 
 // ============================================================================

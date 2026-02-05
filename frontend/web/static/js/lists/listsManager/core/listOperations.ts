@@ -492,20 +492,10 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
 // ============================================================================
 
 /**
- * Update items cache in IndexedDB
+ * Update items cache (deprecated - removed in Dexie migration)
+ * Dexie handles caching automatically via shoppingListItems table
  */
 export async function updateItemsCache(): Promise<void> {
-  const state = getState();
-
-  if (state.db && state.currentListId) {
-    const CACHE_KEY = `shopping_list_items_${state.currentListId}`;
-    const CACHE_TTL = 86400; // 24 hours
-
-    try {
-      await state.db.setCache(CACHE_KEY, state.currentItems, CACHE_TTL);
-      debugLog('[ListsManager] Items cache updated');
-    } catch (error) {
-      console.error('[ListsManager] Error updating items cache:', error);
-    }
-  }
+  // No-op: Dexie migration - caching handled by DataLayer
+  debugLog('[ListsManager] Cache update skipped (Dexie handles caching)');
 }

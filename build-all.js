@@ -123,12 +123,6 @@ const builds = [
     globalName: 'NetworkDetector'
   },
   {
-    name: 'offlineShoppingManager',
-    input: 'frontend/web/static/js/offline/offlineShoppingManager.js',
-    output: 'frontend/web/static/js/offline/offlineShoppingManager.min.js',
-    globalName: 'OfflineShoppingManager'
-  },
-  {
     name: 'pushManager',
     input: 'frontend/web/static/js/offline/pushManager.js',
     output: 'frontend/web/static/js/offline/pushManager.min.js',

@@ -14,6 +14,7 @@
 import { getState, updateState } from './ListsState';
 import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsState';
 import { dataLayer } from '../../../data/DataLayer';
+import { getDexieManager } from '@db/dexie';
 import type {
   LocalShoppingList,
   ShoppingListWithStats,
@@ -131,27 +132,23 @@ function convertProductGroup(local: LocalProductGroup): ProductGroup {
 /**
  * Initialize lists manager
  *
- * Sets up IndexedDB for offline support and OfflineShoppingManager
+ * Sets up Dexie for offline support
  */
 export async function initializeListsManager(): Promise<void> {
   debugLog('[ListsManager] Initializing...');
 
   try {
-    // Initialize IndexedDB for offline support
-    if (typeof IndexedDBManager !== 'undefined') {
-      const db = new IndexedDBManager();
-      await db.init();
-      updateState({ db });
-      debugLog('[ListsManager] IndexedDB initialized for offline support');
-    } else {
-      console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
+    // Initialize Dexie for offline support
+    const dexieManager = getDexieManager();
+    if (!dexieManager.isReady()) {
+      await dexieManager.init();
     }
 
-    // Initialize OfflineShoppingManager for offline CRUD operations
-    if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
-      const offlineShopping = new OfflineShoppingManager(window.offlineManager);
-      updateState({ offlineShopping });
-      debugLog('[ListsManager] OfflineShoppingManager initialized');
+    if (dexieManager.isReady()) {
+      updateState({ dexieManager });
+      debugLog('[ListsManager] Dexie initialized for offline support');
+    } else {
+      console.warn('[ListsManager] Dexie initialization failed, offline mode disabled');
     }
 
     // Listen for network status changes (sync when back online)
@@ -169,8 +166,8 @@ export async function initializeListsManager(): Promise<void> {
 
     debugLog('[ListsManager] Initialization complete');
   } catch (error) {
-    console.error('[ListsManager] Initialization error:', error);
-    throw error;
+    console.warn('[ListsManager] Dexie initialization error, continuing without offline support:', error);
+    // Continue without offline support (API-only mode)
   }
 }
 
