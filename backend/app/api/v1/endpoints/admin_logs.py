@@ -10,7 +10,7 @@ Date: 2025-12-27
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -34,12 +34,12 @@ router = APIRouter()
 
 class LogEntry(BaseModel):
     """Single log entry."""
-    timestamp: Optional[str] = Field(None, description="ISO 8601 timestamp")
+    timestamp: str | None = Field(None, description="ISO 8601 timestamp")
     level: str = Field(..., description="Log level: info, warning, error")
     message: str = Field(..., description="Log message")
     module: str = Field(..., description="Module or service name")
-    correlation_id: Optional[str] = Field(None, description="Request correlation ID")
-    user_id: Optional[int] = Field(None, description="User ID (browser logs only)")
+    correlation_id: str | None = Field(None, description="Request correlation ID")
+    user_id: int | None = Field(None, description="User ID (browser logs only)")
 
 
 class LogsResponse(BaseModel):
@@ -75,10 +75,10 @@ class BrowserLogResponse(BaseModel):
 async def get_logs(
     request: Request,
     current_admin: CurrentAdmin,
-    service: Optional[str] = "all",
-    level: Optional[str] = "all",
-    since: Optional[str] = None,
-    until: Optional[str] = None,
+    service: str | None = "all",
+    level: str | None = "all",
+    since: str | None = None,
+    until: str | None = None,
     limit: int = 50
 ) -> LogsResponse:
     """

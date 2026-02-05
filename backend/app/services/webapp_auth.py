@@ -14,8 +14,6 @@ Security Requirements:
     - Timing-attack resistant comparison (hmac.compare_digest)
     - Strict adherence to Telegram's algorithm
 """
-from typing import Optional
-
 import hashlib
 import hmac
 import time
@@ -30,7 +28,7 @@ settings = get_settings()
 AUTH_DATE_EXPIRATION = 3600
 
 
-def validate_webapp_initdata(init_data: str) -> tuple[bool, Optional[dict]]:
+def validate_webapp_initdata(init_data: str) -> tuple[bool, dict | None]:
     """
     Validate Telegram Web App initData string.
 

@@ -7,8 +7,6 @@ File content is NOT stored (metadata only, files deleted after parsing).
 Pattern: Temporary metadata table
 Table: t_import_file_upload
 """
-from typing import Optional
-
 from datetime import datetime
 
 from sqlalchemy import JSON, BigInteger, Column, Text
@@ -45,7 +43,7 @@ class ImportFileUpload(SQLModel, table=True):
     __tablename__ = "t_import_file_upload"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
         description="Auto-incrementing primary key (BIGSERIAL)"
@@ -72,48 +70,48 @@ class ImportFileUpload(SQLModel, table=True):
         description="Original filename (e.g., 'tinkoff_2025_11.csv')"
     )
 
-    file_size: Optional[int] = Field(
+    file_size: int | None = Field(
         default=None,
         description="File size in bytes"
     )
 
-    mime_type: Optional[str] = Field(
+    mime_type: str | None = Field(
         default=None,
         max_length=100,
         description="MIME type (e.g., 'text/csv')"
     )
 
-    temp_file_path: Optional[str] = Field(
+    temp_file_path: str | None = Field(
         default=None,
         max_length=500,
         description="Temporary file path in /tmp (deleted after parsing)"
     )
 
     # CSV structure metadata (populated after analysis)
-    csv_headers: Optional[dict] = Field(
+    csv_headers: dict | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="CSV headers array (e.g., ['Дата', 'Сумма', ...])"
     )
 
-    csv_sample_rows: Optional[list] = Field(
+    csv_sample_rows: list | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="Sample rows (first 5 rows) for UI preview"
     )
 
-    total_rows: Optional[int] = Field(
+    total_rows: int | None = Field(
         default=None,
         description="Total number of rows in CSV"
     )
 
-    csv_delimiter: Optional[str] = Field(
+    csv_delimiter: str | None = Field(
         default=None,
         max_length=5,
         description="Detected CSV delimiter (e.g., ';' or ',')"
     )
 
-    csv_encoding: Optional[str] = Field(
+    csv_encoding: str | None = Field(
         default=None,
         max_length=20,
         description="Detected file encoding (e.g., 'utf-8', 'windows-1251')"
@@ -128,14 +126,14 @@ class ImportFileUpload(SQLModel, table=True):
         description="Status: uploaded → analyzed → parsed"
     )
 
-    error_message: Optional[str] = Field(
+    error_message: str | None = Field(
         default=None,
         sa_column=Column(Text),
         description="Error message if analysis/parsing failed"
     )
 
     # Column mapping reference
-    mapping_id: Optional[int] = Field(
+    mapping_id: int | None = Field(
         default=None,
         foreign_key="t_import_column_mapping.id",
         description="Reference to column mapping used for this file"
@@ -148,12 +146,12 @@ class ImportFileUpload(SQLModel, table=True):
         description="Timestamp when file was uploaded (UTC)"
     )
 
-    analyzed_at: Optional[datetime] = Field(
+    analyzed_at: datetime | None = Field(
         default=None,
         description="Timestamp when CSV analysis completed (UTC)"
     )
 
-    parsed_at: Optional[datetime] = Field(
+    parsed_at: datetime | None = Field(
         default=None,
         description="Timestamp when CSV was parsed to staging (UTC)"
     )

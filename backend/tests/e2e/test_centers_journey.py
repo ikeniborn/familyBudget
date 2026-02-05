@@ -597,7 +597,7 @@ class TestCentersAnalytics:
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={cash_fc_id}"
         )
         assert cash_breakdown.status_code == 200
-        cash_data = cash_breakdown.json()
+        cash_breakdown.json()
         # Note: Actual implementation may vary, adjust assertions accordingly
         print("✅ Category breakdown filtered by ЦФО (Cash)")
 

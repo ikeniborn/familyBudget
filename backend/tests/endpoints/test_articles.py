@@ -422,7 +422,6 @@ async def test_update_article_as_admin(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
     """Test updating article as admin creates new SCD Type 2 version."""
-    original_id = test_article_root.id
 
     response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",

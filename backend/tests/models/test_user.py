@@ -358,7 +358,6 @@ async def test_user_updated_at_changes(session: AsyncSession):
     await session.commit()
     await session.refresh(user)
 
-    original_updated_at = user.updated_at
 
     # Update user
     user.username = "newusername"

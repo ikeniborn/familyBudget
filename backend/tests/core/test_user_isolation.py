@@ -489,7 +489,7 @@ def test_can_access_resource_type_annotations():
     hints = get_type_hints(can_access_resource)
 
     # Should return bool
-    assert hints.get("return") == bool
+    assert hints.get("return") is bool
 
 
 def test_get_user_id_for_create_type_annotations():
@@ -499,4 +499,4 @@ def test_get_user_id_for_create_type_annotations():
     hints = get_type_hints(get_user_id_for_create)
 
     # Should return int
-    assert hints.get("return") == int
+    assert hints.get("return") is int

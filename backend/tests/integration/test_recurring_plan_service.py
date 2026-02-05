@@ -143,7 +143,7 @@ async def test_generate_minimum_3_facts_with_early_end_date(
 
     assert len(facts) == 2, f"Expected exactly 2 facts, got {len(facts)}"
     # Plan should be deactivated after end_date
-    assert plan.is_active == False
+    assert not plan.is_active
 
 
 @pytest.mark.asyncio

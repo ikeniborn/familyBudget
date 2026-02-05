@@ -7,7 +7,7 @@ Articles represent budget categories with hierarchical organization.
 
 import re
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -40,7 +40,7 @@ class ArticleCreate(BaseModel):
         examples=["expense", "debit"]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent article ID for hierarchy (NULL for root articles)",
         examples=[1, None]
@@ -52,7 +52,7 @@ class ArticleCreate(BaseModel):
         examples=[True, False]
     )
 
-    financial_center_ids: Optional[list[int]] = Field(
+    financial_center_ids: list[int] | None = Field(
         default=None,
         description="List of financial center IDs this article is available for. "
                     "NULL/empty = available for all. Only valid for leaf articles.",
@@ -85,7 +85,7 @@ class ArticleCreate(BaseModel):
 
     @field_validator("parent_id")
     @classmethod
-    def parent_id_positive(cls, v: Optional[int]) -> Optional[int]:
+    def parent_id_positive(cls, v: int | None) -> int | None:
         """Validate that parent_id is positive if provided."""
         if v is not None and v <= 0:
             raise ValueError("Parent ID must be a positive integer")
@@ -109,7 +109,7 @@ class ArticleUpdate(BaseModel):
         - Cannot change user_id (articles belong to creator)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -117,25 +117,25 @@ class ArticleUpdate(BaseModel):
         examples=["Updated Food Name"]
     )
 
-    type: Optional[Literal["income", "expense", "debit", "credit"]] = Field(
+    type: Literal["income", "expense", "debit", "credit"] | None = Field(
         default=None,
         description="Article type: income, expense, debit (списание), credit (пополнение)",
         examples=["expense", "credit"]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent article ID for hierarchy",
         examples=[2]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status flag (True = visible in UI, False = archived)",
         examples=[True, False]
     )
 
-    financial_center_ids: Optional[list[int]] = Field(
+    financial_center_ids: list[int] | None = Field(
         default=None,
         description="List of financial center IDs. Pass empty list [] to clear all links "
                     "(available for all). Only valid for leaf articles.",
@@ -144,7 +144,7 @@ class ArticleUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate article name if provided."""
         if v is None:
             return None
@@ -164,7 +164,7 @@ class ArticleUpdate(BaseModel):
 
     @field_validator("parent_id")
     @classmethod
-    def parent_id_positive(cls, v: Optional[int]) -> Optional[int]:
+    def parent_id_positive(cls, v: int | None) -> int | None:
         """Validate that parent_id is positive if provided."""
         if v is not None and v <= 0:
             raise ValueError("Parent ID must be a positive integer")
@@ -217,13 +217,13 @@ class ArticleResponse(BaseModel):
         examples=[123]
     )
 
-    user_name: Optional[str] = Field(
+    user_name: str | None = Field(
         default=None,
         description="Owner user name (first_name from User model, populated in admin endpoints)",
         examples=["Илья", "Радомир", None]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         description="Parent article ID (NULL for root)",
         examples=[1, None]
     )
@@ -238,7 +238,7 @@ class ArticleResponse(BaseModel):
         examples=["expense"]
     )
 
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         description="Business code for external integrations",
         examples=["ART-1", "ART-2", None]
@@ -268,7 +268,7 @@ class ArticleResponse(BaseModel):
     )
 
     # Optional hierarchy info (populated when include_hierarchy=true)
-    hierarchy: Optional[ArticleHierarchyInfo] = Field(
+    hierarchy: ArticleHierarchyInfo | None = Field(
         default=None,
         description="Hierarchy information (optional)"
     )

@@ -14,8 +14,6 @@ Security Features:
       - HTMX (HX-Request: true) → 401 + HX-Redirect header
       - API (Accept: application/json) → JSON 401 response
 """
-from typing import Optional
-
 from collections.abc import Callable
 
 from fastapi import Request, Response, status
@@ -250,7 +248,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
 
         return False
 
-    def _extract_token(self, request: Request) -> Optional[str]:
+    def _extract_token(self, request: Request) -> str | None:
         """
         Extract JWT token from Cookie or Authorization header.
 

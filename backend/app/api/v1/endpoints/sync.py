@@ -13,8 +13,6 @@ Sync Strategy:
     - Reference data is read-only on client (server is source of truth)
     - Transactional data (lists, items) supports bidirectional sync with conflict resolution
 """
-from typing import Optional
-
 import logging
 from datetime import datetime, timezone
 
@@ -50,8 +48,8 @@ class StoreResponse(BaseModel):
     """Store reference data for offline database."""
     id: int
     name: str
-    address: Optional[str]
-    code: Optional[str]
+    address: str | None
+    code: str | None
     is_active: bool
     created_at: datetime
 
@@ -62,9 +60,9 @@ class StoreResponse(BaseModel):
 class ProductGroupResponse(BaseModel):
     """Product Group reference data for offline database."""
     id: int
-    parent_id: Optional[int]
+    parent_id: int | None
     name: str
-    code: Optional[str]
+    code: str | None
     is_active: bool
     created_at: datetime
 
@@ -101,7 +99,7 @@ class ShoppingListDeltaItem(BaseModel):
     id: int
     creator_id: int
     name: str
-    description: Optional[str]
+    description: str | None
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -118,13 +116,13 @@ class ShoppingListItemDeltaItem(BaseModel):
     store_id: int
     product_group_id: int
     product_name: str
-    quantity: Optional[int]
-    unit: Optional[str]
-    comment: Optional[str]
+    quantity: int | None
+    unit: str | None
+    comment: str | None
     is_completed: bool
-    completed_at: Optional[datetime]
-    deleted_at: Optional[datetime]
-    last_modified_by: Optional[int]
+    completed_at: datetime | None
+    deleted_at: datetime | None
+    last_modified_by: int | None
     created_at: datetime
     updated_at: datetime
 
@@ -196,12 +194,12 @@ async def get_shopping_reference_data(
     logger.info(f"[SYNC] User {current_user.id} requesting shopping reference data")
 
     # Fetch all stores
-    stores_query = select(Store).where(Store.is_active == True).order_by(Store.name)
+    stores_query = select(Store).where(Store.is_active).order_by(Store.name)
     stores_result = await session.execute(stores_query)
     stores = stores_result.scalars().all()
 
     # Fetch all product groups
-    product_groups_query = select(ProductGroup).where(ProductGroup.is_active == True).order_by(ProductGroup.name)
+    product_groups_query = select(ProductGroup).where(ProductGroup.is_active).order_by(ProductGroup.name)
     product_groups_result = await session.execute(product_groups_query)
     product_groups = product_groups_result.scalars().all()
 
@@ -225,7 +223,7 @@ async def get_shopping_reference_data(
     )
 
 
-def _build_shopping_lists_queries(since: Optional[datetime]) -> tuple[Select, Select, list[int]]:
+def _build_shopping_lists_queries(since: datetime | None) -> tuple[Select, Select, list[int]]:
     """
     Build queries for shopping lists delta sync.
 
@@ -248,7 +246,7 @@ def _build_shopping_lists_queries(since: Optional[datetime]) -> tuple[Select, Se
     else:
         # Initial sync - return all active lists
         created_query = select(ShoppingList).where(
-            ShoppingList.is_active == True
+            ShoppingList.is_active
         ).order_by(ShoppingList.created_at)
         updated_query = select(ShoppingList).where(False)  # Empty query
         deleted_ids = []
@@ -256,7 +254,7 @@ def _build_shopping_lists_queries(since: Optional[datetime]) -> tuple[Select, Se
     return created_query, updated_query, deleted_ids
 
 
-def _build_shopping_list_items_queries(since: Optional[datetime]) -> tuple[Select, Select, Select]:
+def _build_shopping_list_items_queries(since: datetime | None) -> tuple[Select, Select, Select]:
     """
     Build queries for shopping list items delta sync.
 
@@ -301,7 +299,7 @@ def _build_shopping_list_items_queries(since: Optional[datetime]) -> tuple[Selec
 async def get_shopping_lists_delta(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    since: Optional[datetime] = Query(
+    since: datetime | None = Query(
         None,
         description="Last sync timestamp (ISO 8601). Returns all records if not provided."
     ),
@@ -355,11 +353,11 @@ async def get_shopping_lists_delta(
 
     return ShoppingListsDeltaResponse(
         created=DeltaCreated(
-            lists=[ShoppingListDeltaItem.model_validate(l) for l in created_lists],
+            lists=[ShoppingListDeltaItem.model_validate(lst) for lst in created_lists],
             items=[ShoppingListItemDeltaItem.model_validate(i) for i in created_items]
         ),
         updated=DeltaUpdated(
-            lists=[ShoppingListDeltaItem.model_validate(l) for l in updated_lists],
+            lists=[ShoppingListDeltaItem.model_validate(lst) for lst in updated_lists],
             items=[ShoppingListItemDeltaItem.model_validate(i) for i in updated_items]
         ),
         deleted=DeltaDeleted(

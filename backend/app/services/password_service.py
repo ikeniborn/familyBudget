@@ -27,8 +27,6 @@ Usage:
     # Validate password strength
     is_strong, message = validate_password_strength("weak")
 """
-from typing import Optional
-
 import re
 
 from argon2 import PasswordHasher, Type
@@ -103,7 +101,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 def verify_password_with_dummy(
     password: str,
-    password_hash: Optional[str],
+    password_hash: str | None,
 ) -> bool:
     """
     Verify password with timing attack protection.

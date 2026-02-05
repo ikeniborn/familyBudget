@@ -21,8 +21,6 @@ Security:
     - Origin validation (phishing prevention)
     - Comprehensive audit logging
 """
-from typing import Optional
-
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -62,14 +60,14 @@ class WebAuthnErrorResponse(BaseModel):
     """Error response for WebAuthn operations."""
 
     detail: str
-    error_code: Optional[str] = None
+    error_code: str | None = None
 
 
 class WebAuthnValidationError(BaseModel):
     """Validation error for WebAuthn operations."""
 
     detail: str
-    field: Optional[str] = None
+    field: str | None = None
 
 
 class RegisterVerifyRequest(BaseModel):
@@ -112,9 +110,9 @@ class CredentialResponse(BaseModel):
 
     id: int
     credential_id: str
-    device_name: Optional[str]
+    device_name: str | None
     created_at: str
-    last_used_at: Optional[str]
+    last_used_at: str | None
     backup_state: bool
 
 
@@ -127,8 +125,8 @@ class CredentialListResponse(BaseModel):
 class CredentialRevokeRequest(BaseModel):
     """Request body for credential revocation."""
 
-    password: Optional[str] = None
-    totp_code: Optional[str] = None
+    password: str | None = None
+    totp_code: str | None = None
 
 
 class MessageResponse(BaseModel):

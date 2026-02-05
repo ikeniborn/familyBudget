@@ -7,8 +7,6 @@ for CostCenter table with temporal validity (valid_from, valid_to).
 All changes to CostCenter table are logged here with metadata about what changed,
 when, and who made the change.
 """
-from typing import Optional
-
 from datetime import datetime, timezone
 
 from sqlalchemy import ARRAY, DateTime, String
@@ -119,7 +117,7 @@ class CostCenterHistory(SQLModel, table=True):
     __tablename__ = "t_d_cost_center_history"
 
     # Primary key (surrogate key for history records)
-    history_id: Optional[int] = Field(
+    history_id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key for history table"
@@ -146,11 +144,11 @@ class CostCenterHistory(SQLModel, table=True):
         index=True,
         description="Cost center name at time of change (snapshot, indexed for search)"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Description at time of change (snapshot)"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         nullable=True,
@@ -179,17 +177,17 @@ class CostCenterHistory(SQLModel, table=True):
     )
 
     # Audit fields (metadata about the change)
-    change_type: Optional[str] = Field(
+    change_type: str | None = Field(
         default=None,
         max_length=50,
         description="Type of change: CREATE/UPDATE/ARCHIVE/RESTORE"
     )
-    changed_fields: Optional[list[str]] = Field(
+    changed_fields: list[str] | None = Field(
         sa_column=Column(ARRAY(String)),
         default=None,
         description="Array of field names that were changed (e.g., ['name', 'description'])"
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         nullable=True,
         description="User ID who made the change (NULL for automatic changes)"

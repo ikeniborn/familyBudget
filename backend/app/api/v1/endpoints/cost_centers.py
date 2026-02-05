@@ -11,12 +11,8 @@ Endpoints:
     PUT    /api/v1/cost-centers/{id} - Update cost center (creates new SCD2 version)
     DELETE /api/v1/cost-centers/{id} - Soft delete cost center
 """
-from typing import Optional
-
 import logging
 from datetime import datetime
-
-logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -41,6 +37,8 @@ from backend.app.services.cost_center_service import (
 )
 from backend.app.services.scd2_service import has_changes
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/cost-centers",
     tags=["cost-centers"],
@@ -60,7 +58,7 @@ async def list_cost_centers(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     include_inactive: bool = Query(False, description="Include archived cost centers"),
-    financial_center_id: Optional[int] = Query(
+    financial_center_id: int | None = Query(
         default=None,
         description="Filter cost centers by financial center ID. "
                     "Returns cost centers with NO FC restrictions OR linked to this specific FC."
@@ -81,7 +79,7 @@ async def list_cost_centers(
 
     # Filter archived if not explicitly requested
     if not include_inactive:
-        conditions.append(CostCenter.is_active == True)
+        conditions.append(CostCenter.is_active)
 
     # Filter by financial_center_id (whitelist pattern)
     if financial_center_id is not None:

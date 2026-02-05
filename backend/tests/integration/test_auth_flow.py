@@ -96,7 +96,7 @@ async def test_complete_auth_flow_new_user(client: AsyncClient, session: AsyncSe
     assert auth_json["message"] == "Authentication successful"
 
     # Step 2: Verify user created in database
-    stmt = select(User).where(User.telegram_id == 111222333, User.is_current == True)
+    stmt = select(User).where(User.telegram_id == 111222333, User.is_current)
     result = await session.execute(stmt)
     user = result.scalar_one()
 

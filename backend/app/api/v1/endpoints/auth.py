@@ -18,11 +18,10 @@ Security Features:
     - Token blacklist (revoked tokens cannot be reused)
     - Refresh tokens hashed in database (SHA-256, like password hashing)
 """
-from typing import Optional, Union
-
 # Standard library imports
 import logging
 from datetime import datetime
+from typing import Union
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
@@ -90,7 +89,11 @@ from backend.app.services.totp_service import (
 )
 from backend.app.services.two_factor_session_service import (
     consume_session as consume_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
     create_session as create_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
     verify_session as verify_2fa_session,
 )
 from backend.app.services.user_service import (
@@ -656,7 +659,7 @@ async def telegram_login(
 async def refresh_access_token(
     response: Response,
     session: AsyncSession = Depends(get_session),
-    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ) -> AuthResponse:
     """
     Refresh access token using refresh token.
@@ -834,7 +837,7 @@ async def refresh_access_token(
 async def logout(
     response: Response,
     session: AsyncSession = Depends(get_session),
-    refresh_token: Optional[str] = Cookie(None, alias="refresh_token"),
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
 ) -> dict:
     """
     Logout user by revoking refresh token.
@@ -985,7 +988,7 @@ async def login_email(
     response: Response,
     data: EmailLoginRequest,
     session: AsyncSession = Depends(get_session),
-) -> Union[EmailLoginResponse, AuthResponse]:
+) -> EmailLoginResponse | AuthResponse:
     """Login with email/password, returns 2FA session token or direct auth for admin."""
     # Step 1: Authenticate with email/password (timing-safe)
     user = await authenticate_with_password(session, data.email, data.password)
@@ -1980,11 +1983,11 @@ async def check_auth_methods(
     responses=get_common_responses(include_401=True),
     description="""
     Check if current user has registered WebAuthn biometric credentials.
-    
+
     Used for onboarding flow after successful login:
     - If has_credentials=False → show onboarding modal
     - If has_credentials=True → skip onboarding
-    
+
     Requires: JWT authentication
     """,
 )

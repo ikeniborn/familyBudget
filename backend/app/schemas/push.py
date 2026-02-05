@@ -4,7 +4,7 @@ Pydantic schemas for Push Notification API.
 Defines request/response models for web push notification management.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ class PushSubscription(BaseModel):
     """
     endpoint: str = Field(..., description="Push service endpoint URL")
     keys: PushSubscriptionKeys = Field(..., description="Encryption keys")
-    expirationTime: Optional[int] = Field(None, description="Subscription expiration timestamp")
+    expirationTime: int | None = Field(None, description="Subscription expiration timestamp")
 
 
 class PushSubscriptionCreate(BaseModel):
@@ -111,7 +111,7 @@ class PushNotificationRequest(BaseModel):
     user_id: int = Field(..., description="Target user ID", gt=0)
     title: str = Field(..., description="Notification title", min_length=1, max_length=100)
     body: str = Field(..., description="Notification body", min_length=1, max_length=200)
-    data: Optional[dict[str, Any]] = Field(None, description="Additional notification data")
+    data: dict[str, Any] | None = Field(None, description="Additional notification data")
 
     class Config:
         json_schema_extra = {

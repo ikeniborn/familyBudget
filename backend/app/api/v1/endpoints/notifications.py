@@ -11,7 +11,7 @@ Features:
 """
 
 from datetime import date, datetime
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import func
@@ -135,9 +135,9 @@ async def list_notifications(
     session: AsyncSession = Depends(get_session),
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
-    notification_type: Annotated[Optional[str], Query(max_length=50)] = None,
-    date_from: Annotated[Optional[date], Query(description="Filter notifications created from this date (inclusive)")] = None,
-    date_to: Annotated[Optional[date], Query(description="Filter notifications created until this date (inclusive)")] = None,
+    notification_type: Annotated[str | None, Query(max_length=50)] = None,
+    date_from: Annotated[date | None, Query(description="Filter notifications created from this date (inclusive)")] = None,
+    date_to: Annotated[date | None, Query(description="Filter notifications created until this date (inclusive)")] = None,
 ) -> NotificationList:
     """
     List ALL notifications (no user filtering - broadcast model).

@@ -9,8 +9,6 @@ CRUD operations for recurring (scheduled) payments:
 - List user's recurring plans
 - Get statistics
 """
-from typing import Optional
-
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -70,7 +68,7 @@ def _generate_filter_hash(filters: dict) -> str:
 
 @router.get("/", response_model=RecurringPlanListResponse)
 async def list_recurring_plans(
-    is_active: Optional[bool] = Query(default=None, description="Filter by active status"),
+    is_active: bool | None = Query(default=None, description="Filter by active status"),
     skip: int = Query(default=0, ge=0, description="Pagination offset"),
     limit: int = Query(default=50, ge=1, le=100, description="Pagination limit"),
     current_user: User = Depends(get_current_user),

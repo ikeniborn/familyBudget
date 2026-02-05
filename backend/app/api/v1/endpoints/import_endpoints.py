@@ -13,8 +13,6 @@ Endpoints:
 - POST /import/mappings - Save/update mapping
 - POST /import/files/{file_id}/parse - Parse CSV with mapping → staging
 """
-from typing import Optional
-
 import logging
 import uuid
 from datetime import datetime
@@ -225,7 +223,7 @@ async def upload_file(
     current_user: CurrentUser,
     bank_provider_id: int,
     file: UploadFile = File(...),
-    delimiter: Optional[str] = None,
+    delimiter: str | None = None,
     session: AsyncSession = Depends(get_session)
 ):
     """

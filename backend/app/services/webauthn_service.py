@@ -27,8 +27,6 @@ Usage:
     ...     session, challenge, credential_data, ip, user_agent
     ... )
 """
-from typing import Optional
-
 import base64
 import logging
 import secrets
@@ -75,8 +73,8 @@ CHALLENGE_BYTES = 32  # 32 bytes = 256 bits
 async def create_registration_challenge(
     session: AsyncSession,
     user: User,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> dict:
     """
     Generate WebAuthn registration challenge for credential enrollment.
@@ -175,8 +173,8 @@ async def verify_and_store_credential(
     challenge: str,
     credential: dict,
     device_name: str,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> WebAuthnCredential:
     """
     Verify WebAuthn registration response and store credential.
@@ -322,8 +320,8 @@ async def verify_and_store_credential(
 async def create_authentication_challenge(
     session: AsyncSession,
     identifier: str,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> dict:
     """
     Generate WebAuthn authentication challenge for login.
@@ -442,8 +440,8 @@ async def verify_authentication_and_issue_tokens(
     session: AsyncSession,
     challenge: str,
     credential: dict,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
+    ip_address: str | None = None,
+    user_agent: str | None = None,
 ) -> tuple[User, str, str]:
     """
     Verify WebAuthn authentication response and issue JWT tokens.
@@ -673,7 +671,7 @@ async def _validate_challenge(
     session: AsyncSession,
     challenge: str,
     challenge_type: str,
-    user_id: Optional[int] = None,
+    user_id: int | None = None,
 ) -> WebAuthnChallenge:
     """
     Validate challenge existence, expiry, consumption, and ownership.
@@ -721,12 +719,12 @@ async def _validate_challenge(
 
 async def _log_audit_event(
     session: AsyncSession,
-    user_id: Optional[int],
-    credential_id: Optional[str],
+    user_id: int | None,
+    credential_id: str | None,
     event_type: str,
-    ip_address: Optional[str],
-    user_agent: Optional[str],
-    error_message: Optional[str],
+    ip_address: str | None,
+    user_agent: str | None,
+    error_message: str | None,
 ) -> None:
     """
     Log WebAuthn audit event.

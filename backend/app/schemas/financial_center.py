@@ -4,8 +4,6 @@ Pydantic schemas for FinancialCenter endpoints.
 This module defines request/response schemas for FinancialCenter CRUD operations.
 Financial centers represent bank accounts, wallets, and other financial entities.
 """
-from typing import Optional
-
 import re
 from datetime import datetime
 
@@ -32,7 +30,7 @@ class FinancialCenterCreate(BaseModel):
         examples=["Sberbank Account", "Cash Wallet", "Tinkoff Card"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Main checking account", None]
@@ -86,7 +84,7 @@ class FinancialCenterUpdate(BaseModel):
         - Cannot change user_id (financial centers belong to creator)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -94,13 +92,13 @@ class FinancialCenterUpdate(BaseModel):
         examples=["Updated Sberbank Account"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -108,7 +106,7 @@ class FinancialCenterUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate financial center name if provided."""
         if v is None:
             return None
@@ -153,13 +151,13 @@ class FinancialCenterResponse(BaseModel):
         examples=["Sberbank Account"]
     )
 
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         description="Business code for external integrations",
         examples=["CFO-1", "CFO-2", None]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Main checking account", None]
     )

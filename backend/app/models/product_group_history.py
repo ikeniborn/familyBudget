@@ -7,8 +7,6 @@ for ProductGroup table with temporal validity (valid_from, valid_to).
 All changes to ProductGroup table are logged here with metadata about what changed,
 when, and who made the change.
 """
-from typing import Optional
-
 from datetime import datetime, timezone
 
 from sqlalchemy import ARRAY, DateTime, String
@@ -122,7 +120,7 @@ class ProductGroupHistory(SQLModel, table=True):
     __tablename__ = "t_d_product_group_history"
 
     # Primary key
-    history_id: Optional[int] = Field(
+    history_id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key for history records"
@@ -142,7 +140,7 @@ class ProductGroupHistory(SQLModel, table=True):
         index=True,
         description="Creator user ID (snapshot at time of change)"
     )
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent product group ID for hierarchy (snapshot at time of change)"
     )
@@ -152,11 +150,11 @@ class ProductGroupHistory(SQLModel, table=True):
         index=True,
         description="Product group name snapshot at time of change"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Description snapshot at time of change"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         description="Business code snapshot at time of change"
@@ -187,12 +185,12 @@ class ProductGroupHistory(SQLModel, table=True):
         max_length=50,
         description="Type of change: CREATE, UPDATE, ARCHIVE, RESTORE, HIERARCHY_CHANGE"
     )
-    changed_fields: Optional[list[str]] = Field(
+    changed_fields: list[str] | None = Field(
         default=None,
         sa_column=Column(ARRAY(String), nullable=True),
         description="Array of changed field names (e.g., ['name', 'parent_id']). NULL for CREATE."
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         description="Who made the change (NULL for automatic changes)"
     )

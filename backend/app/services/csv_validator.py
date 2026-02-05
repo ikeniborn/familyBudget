@@ -10,7 +10,7 @@ Validates CSV data before import:
 
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Optional
+from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -87,7 +87,7 @@ class ValidationResult:
 
 def validate_required_field(
     row_index: int, field_name: str, value: Any
-) -> Optional[ValidationError]:
+) -> ValidationError | None:
     """
     Validate that required field is present and not empty.
 
@@ -112,8 +112,8 @@ def validate_required_field(
 
 
 def validate_quantity(
-    row_index: int, value: Optional[str]
-) -> Optional[ValidationError]:
+    row_index: int, value: str | None
+) -> ValidationError | None:
     """
     Validate quantity field (must be positive decimal).
 
@@ -156,7 +156,7 @@ async def validate_store_reference(
     row_index: int,
     store_name: str,
     stores_cache: dict[str, int],
-) -> Optional[ValidationError]:
+) -> ValidationError | None:
     """
     Validate that store exists in database.
 
@@ -175,7 +175,7 @@ async def validate_store_reference(
 
     # Query database
     result = await session.execute(
-        select(Store).where(Store.name == store_name, Store.is_active == True)
+        select(Store).where(Store.name == store_name, Store.is_active)
     )
     store = result.scalar_one_or_none()
 
@@ -199,7 +199,7 @@ async def validate_product_group_reference(
     row_index: int,
     product_group_name: str,
     product_groups_cache: dict[str, int],
-) -> Optional[ValidationError]:
+) -> ValidationError | None:
     """
     Validate that product group exists in database.
 
@@ -219,7 +219,7 @@ async def validate_product_group_reference(
     # Query database
     result = await session.execute(
         select(ProductGroup).where(
-            ProductGroup.name == product_group_name, ProductGroup.is_active == True
+            ProductGroup.name == product_group_name, ProductGroup.is_active
         )
     )
     product_group = result.scalar_one_or_none()
@@ -268,7 +268,7 @@ async def get_or_create_store(
 
     # Try to find existing store
     result = await session.execute(
-        select(Store).where(Store.name == store_name, Store.is_active == True)
+        select(Store).where(Store.name == store_name, Store.is_active)
     )
     store = result.scalar_one_or_none()
 
@@ -345,7 +345,7 @@ async def get_or_create_product_group(
     # Try to find existing product group
     result = await session.execute(
         select(ProductGroup).where(
-            ProductGroup.name == product_group_name, ProductGroup.is_active == True
+            ProductGroup.name == product_group_name, ProductGroup.is_active
         )
     )
     product_group = result.scalar_one_or_none()

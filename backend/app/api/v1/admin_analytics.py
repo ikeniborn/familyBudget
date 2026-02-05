@@ -256,10 +256,8 @@ async def get_top_users(
     # Build query based on metric
     if metric == "transactions":
         sort_expr = func.count(Fact.id).label("value")
-        value_label = "transaction_count"
     else:  # amount
         sort_expr = func.sum(Fact.amount).label("value")
-        value_label = "total_amount"
 
     stmt = select(
         User.id,

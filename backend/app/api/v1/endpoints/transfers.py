@@ -241,12 +241,12 @@ async def create_transfer(
                     )
 
     # 1. Validate articles
-    from_article = await validate_article_type(
+    await validate_article_type(
         session,
         transfer.from_article_id,
         expected_type="debit"
     )
-    to_article = await validate_article_type(
+    await validate_article_type(
         session,
         transfer.to_article_id,
         expected_type="credit"

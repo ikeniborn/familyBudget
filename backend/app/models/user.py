@@ -15,8 +15,6 @@ Constraint: At least one auth method must be set (telegram_id OR email IS NOT NU
 IMPORTANT: This is a breaking change from previous SCD Type 2 implementation.
 Migration required to convert existing data.
 """
-from typing import Optional
-
 from datetime import datetime
 
 from sqlalchemy import BigInteger, CheckConstraint, Column, Index
@@ -116,7 +114,7 @@ class User(SQLModel, table=True):
     )
 
     # Primary key (stable - NEVER changes)
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key (stable - never changes on profile updates)"
@@ -127,21 +125,21 @@ class User(SQLModel, table=True):
     # =========================================================================
 
     # Telegram OAuth (nullable for email-only users)
-    telegram_id: Optional[int] = Field(
+    telegram_id: int | None = Field(
         default=None,
         sa_column=Column(BigInteger, nullable=True, index=True, unique=True),
         description="Telegram user ID (business key, nullable for email-only users, BIGINT for large IDs)"
     )
 
     # Email authentication (nullable for Telegram-only users)
-    email: Optional[str] = Field(
+    email: str | None = Field(
         default=None,
         max_length=320,  # RFC 5321 max email length
         description="User email for email-based auth (unique via partial index, nullable for Telegram-only)"
     )
 
     # Password (Argon2 hash, required for email auth)
-    password_hash: Optional[str] = Field(
+    password_hash: str | None = Field(
         default=None,
         max_length=255,
         description="Argon2 hashed password (required for email authentication)"
@@ -152,7 +150,7 @@ class User(SQLModel, table=True):
     # =========================================================================
 
     # TOTP secret (encrypted, required for email-based login)
-    two_factor_secret: Optional[str] = Field(
+    two_factor_secret: str | None = Field(
         default=None,
         max_length=64,  # base32 encoded secret (32 bytes = ~52 chars)
         description="TOTP secret for 2FA (base32 encoded, required for email login)"
@@ -166,7 +164,7 @@ class User(SQLModel, table=True):
     )
 
     # Backup codes (JSON array of Argon2 hashed codes)
-    backup_codes: Optional[str] = Field(
+    backup_codes: str | None = Field(
         default=None,
         max_length=2000,  # JSON array of ~8 hashed codes
         description="JSON array of Argon2 hashed backup codes (one-time use)"
@@ -176,22 +174,22 @@ class User(SQLModel, table=True):
     # Profile data (SCD Type 1 - in-place updates)
     # =========================================================================
 
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None,
         max_length=255,
         description="Telegram username (SCD1 - in-place update, history in UserHistory)"
     )
-    first_name: Optional[str] = Field(
+    first_name: str | None = Field(
         default=None,
         max_length=255,
         description="User's first name (SCD1 - in-place update)"
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None,
         max_length=255,
         description="User's last name (SCD1 - in-place update)"
     )
-    photo_url: Optional[str] = Field(
+    photo_url: str | None = Field(
         default=None,
         max_length=512,
         description="Local path to cached profile photo (SCD1 - in-place update)"
@@ -233,7 +231,7 @@ class User(SQLModel, table=True):
     # Account Merge Support
     # =========================================================================
 
-    merged_into_user_id: Optional[int] = Field(
+    merged_into_user_id: int | None = Field(
         default=None,
         nullable=True,
         index=True,
@@ -244,7 +242,7 @@ class User(SQLModel, table=True):
     # Google Sheets Integration (v7.x+)
     # =========================================================================
 
-    google_sheets_url: Optional[str] = Field(
+    google_sheets_url: str | None = Field(
         default=None,
         max_length=2048,
         description="Saved Google Sheets URL for shopping list import (SCD1 - in-place update)"
@@ -254,7 +252,7 @@ class User(SQLModel, table=True):
     # Audit fields (SCD Type 1 - in-place updates)
     # =========================================================================
 
-    last_login_at: Optional[datetime] = Field(
+    last_login_at: datetime | None = Field(
         default=None,
         nullable=True,
         index=True,

@@ -19,8 +19,6 @@ Endpoints:
 import logging
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,6 +40,8 @@ from backend.app.services.store_service import (
     create_initial_history,
     update_store_profile,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/stores",
@@ -74,7 +74,7 @@ async def list_stores(
 
     # Filter archived if not explicitly requested
     if not include_inactive:
-        conditions.append(Store.is_active == True)
+        conditions.append(Store.is_active)
 
     # Count total
     count_query = select(func.count()).select_from(Store).where(*conditions)

@@ -367,7 +367,6 @@ async def test_article_updated_at_changes(session: AsyncSession, test_user: User
     await session.commit()
     await session.refresh(article)
 
-    original_updated_at = article.updated_at
 
     # Update article
     article.name = "Food and Drinks"

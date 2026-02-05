@@ -21,9 +21,7 @@ Endpoints:
 
 import logging
 from datetime import datetime
-from typing import Annotated, Optional
-
-logger = logging.getLogger(__name__)
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -50,6 +48,8 @@ from backend.app.services.product_group_service import (
 from backend.app.services.scd2_service import has_changes
 from backend.app.services.store_service import FAR_FUTURE_DATETIME
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/product-groups",
     tags=["product-groups"],
@@ -71,7 +71,7 @@ async def list_product_groups(
     include_inactive: bool = Query(
         False, description="Include archived product groups"
     ),
-    parent_id: Optional[int] = Query(
+    parent_id: int | None = Query(
         None, description="Filter by parent ID (NULL for root groups)"
     ),
 ) -> ProductGroupListResponse:
@@ -89,7 +89,7 @@ async def list_product_groups(
 
     # Filter archived if not explicitly requested
     if not include_inactive:
-        conditions.append(ProductGroup.is_active == True)
+        conditions.append(ProductGroup.is_active)
 
     # Filter by parent_id
     if parent_id is not None:
@@ -510,7 +510,7 @@ async def get_product_group_subtree(
     product_group_id: int,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    max_depth: Annotated[Optional[int], Query(ge=0, le=10)] = None,
+    max_depth: Annotated[int | None, Query(ge=0, le=10)] = None,
     include_self: Annotated[bool, Query()] = True,
 ) -> ProductGroupListResponse:
     """

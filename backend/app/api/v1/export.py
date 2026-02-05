@@ -3,8 +3,6 @@ Export API endpoints.
 
 Provides data export functionality in CSV format.
 """
-from typing import Optional
-
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
@@ -31,8 +29,8 @@ router = APIRouter(prefix="/export", tags=["Export"])
 async def export_facts_csv(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    start_date: Optional[date] = Query(None, description="Start date for filtering"),
-    end_date: Optional[date] = Query(None, description="End date for filtering"),
+    start_date: date | None = Query(None, description="Start date for filtering"),
+    end_date: date | None = Query(None, description="End date for filtering"),
 ):
     """
     Export user's facts (transactions) to CSV format.

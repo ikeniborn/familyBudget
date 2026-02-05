@@ -23,6 +23,7 @@ from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.json_utils import ORJSONResponse, is_orjson_available
 from backend.app.core.logging import get_logger, setup_logging
+from backend.app.core.paths import FrontendPaths
 from backend.app.db.session import close_db, get_session, init_db
 from backend.app.middleware import JWTAuthMiddleware, limiter
 from backend.app.middleware.csp_middleware import CSPMiddleware
@@ -38,6 +39,7 @@ from backend.app.middleware.validation_error_handler import (
     value_error_handler,
 )
 from backend.app.scheduler import start_scheduler, stop_scheduler
+from backend.app.utils.template_filters import register_filters
 
 # Setup structured logging (using settings for level and format)
 _settings = get_settings()
@@ -336,8 +338,6 @@ app.add_exception_handler(Exception, generic_exception_handler)
 
 
 # Configure static files and templates using centralized paths
-from backend.app.core.paths import FrontendPaths
-
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(FrontendPaths.WEB_STATIC)), name="static")
 
@@ -352,8 +352,6 @@ app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="sha
 templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
 # Register custom Jinja2 filters for HTMX partials
-from backend.app.utils.template_filters import register_filters
-
 register_filters(templates.env)
 
 # Add config as global template variable (for feature flags)

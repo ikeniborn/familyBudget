@@ -7,8 +7,6 @@ Supports SCD Type 1 (in-place updates) and default mappings for known banks.
 
 Pattern: Service layer (business logic)
 """
-from typing import Optional
-
 from datetime import datetime
 
 from sqlmodel import select
@@ -52,7 +50,7 @@ class MappingService:
         session: AsyncSession,
         bank_provider_id: int,
         user_id: int
-    ) -> Optional[ImportColumnMapping]:
+    ) -> ImportColumnMapping | None:
         """
         Get saved mapping for user+bank (per-user).
 
@@ -82,7 +80,7 @@ class MappingService:
         bank_provider_id: int,
         user_id: int,
         mapping: dict,
-        transformations: Optional[dict] = None
+        transformations: dict | None = None
     ) -> ImportColumnMapping:
         """
         Save or update mapping (SCD Type 1, per-user per-bank).

@@ -33,7 +33,7 @@ async def refresh_access_token(
     # Check if token exists in database
     query = select(RefreshToken).where(
         RefreshToken.token == refresh_token,
-        RefreshToken.is_revoked == False,
+        not RefreshToken.is_revoked,
         RefreshToken.expires_at > datetime.utcnow()
     )
     result = await session.execute(query)

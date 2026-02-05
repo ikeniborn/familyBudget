@@ -831,7 +831,7 @@ async def test_concurrent_users_working_simultaneously(
     )
     article_a_id = article_a.json()["id"]
 
-    fact_a = await client.post(
+    await client.post(
         "/api/v1/facts",
         json={"article_id": article_a_id, "fact_date": "2025-10-13", "amount": "1000.00"},
     )
@@ -846,7 +846,7 @@ async def test_concurrent_users_working_simultaneously(
     )
     article_b_id = article_b.json()["id"]
 
-    fact_b = await client.post(
+    await client.post(
         "/api/v1/facts",
         json={"article_id": article_b_id, "fact_date": "2025-10-13", "amount": "2000.00"},
     )
