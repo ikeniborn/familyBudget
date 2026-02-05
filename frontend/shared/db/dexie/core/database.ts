@@ -33,18 +33,30 @@ import type {
 const DEFAULT_SCHEMA_VERSION = 1;
 
 /**
+ * Cached database version (to avoid redundant Dexie.exists() calls)
+ */
+let cachedVersion: number | null = null;
+
+/**
  * Dynamically determine database version
  * - If DB exists: use Math.max(existing version, DEFAULT_SCHEMA_VERSION)
  * - If DB new: use DEFAULT_SCHEMA_VERSION
+ * - Caches result to avoid redundant checks
  *
  * Prevents VersionError when downgrading code version
  */
 async function getDatabaseVersion(): Promise<number> {
+  // Return cached version if available
+  if (cachedVersion !== null) {
+    return cachedVersion;
+  }
+
   const dbName = 'FamilyBudgetDB';
   const exists = await Dexie.exists(dbName);
 
   if (!exists) {
-    return DEFAULT_SCHEMA_VERSION;
+    cachedVersion = DEFAULT_SCHEMA_VERSION;
+    return cachedVersion;
   }
 
   // Temporarily open DB to get current version
@@ -55,11 +67,21 @@ async function getDatabaseVersion(): Promise<number> {
     tempDb.close();
 
     // Use maximum of current and default (prevents downgrade)
-    return Math.max(currentVersion, DEFAULT_SCHEMA_VERSION);
+    cachedVersion = Math.max(currentVersion, DEFAULT_SCHEMA_VERSION);
+    return cachedVersion;
   } catch (error) {
     logger.warn('[Dexie] Failed to get existing version, using default', error);
-    return DEFAULT_SCHEMA_VERSION;
+    cachedVersion = DEFAULT_SCHEMA_VERSION;
+    return cachedVersion;
   }
+}
+
+/**
+ * Clear version cache (used when database is deleted)
+ * @internal
+ */
+export function clearVersionCache(): void {
+  cachedVersion = null;
 }
 
 /**
@@ -167,7 +189,18 @@ export function getDatabase(): FamilyBudgetDB {
 // Will throw error when trying to use methods if not initialized
 export const db: FamilyBudgetDB = new Proxy({} as FamilyBudgetDB, {
   get(_target, prop) {
+    // Skip symbols and prototype methods to avoid unexpected behavior
+    if (typeof prop === 'symbol' || prop === 'constructor' || prop === '__proto__') {
+      return undefined;
+    }
+
     const instance = getDatabase(); // Throws if not initialized
+
+    // Runtime validation: ensure property exists on instance
+    if (!(prop in instance)) {
+      throw new Error(`[Dexie] Property '${String(prop)}' does not exist on FamilyBudgetDB`);
+    }
+
     return instance[prop as keyof FamilyBudgetDB];
   }
 });

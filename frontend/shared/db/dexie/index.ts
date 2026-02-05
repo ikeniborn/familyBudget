@@ -8,8 +8,8 @@
 import { DexieManager } from './DexieManager';
 import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
-import { initializeDatabase, getDatabase, db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents } from './core/database';
-export { initializeDatabase, getDatabase, db, toCents, fromCents } from './core/database';
+import { initializeDatabase, getDatabase, db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents, clearVersionCache } from './core/database';
+export { initializeDatabase, getDatabase, db, toCents, fromCents, clearVersionCache } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
 
 /**
@@ -235,6 +235,7 @@ type DexieWithUtilities = typeof Dexie & {
   DexieManager: typeof DexieManager;
   initializeDatabase: typeof initializeDatabase;
   getDatabase: typeof getDatabase;
+  clearVersionCache: typeof clearVersionCache;
   db: typeof dexieDb;
   toCents: typeof dexieToCents;
   fromCents: typeof dexieFromCents;
@@ -291,6 +292,7 @@ if (typeof window !== 'undefined') {
       DexieManager: DexieManager,
       initializeDatabase,
       getDatabase,
+      clearVersionCache,
       db: dexieDb,
       toCents: dexieToCents,
       fromCents: dexieFromCents,
@@ -325,7 +327,7 @@ if (typeof window !== 'undefined') {
     }
 
     // Verify critical utilities are attached
-    const requiredUtilities = ['getDexieManager', 'DexieManager', 'initializeDatabase', 'getDatabase', 'db', 'toCents', 'fromCents'];
+    const requiredUtilities = ['getDexieManager', 'DexieManager', 'initializeDatabase', 'getDatabase', 'clearVersionCache', 'db', 'toCents', 'fromCents'];
     const missingUtilities = requiredUtilities.filter(util => !(util in window.Dexie));
     if (missingUtilities.length > 0) {
       throw new Error(
@@ -357,9 +359,16 @@ if (typeof window !== 'undefined') {
       getDatabase: () => {
         throw new Error('Dexie initialization failed - database not available');
       },
+      clearVersionCache: () => {
+        // No-op in fallback mode (no cache to clear)
+      },
       db: new Proxy({}, {
-        get() {
-          throw new Error('Dexie initialization failed - database not available');
+        get(_target, prop) {
+          // Skip symbols and prototype methods
+          if (typeof prop === 'symbol' || prop === 'constructor' || prop === '__proto__') {
+            return undefined;
+          }
+          throw new Error(`[Dexie] Initialization failed - cannot access '${String(prop)}'`);
         }
       }) as any,
       toCents: (amount: number) => Math.round(amount * 100),

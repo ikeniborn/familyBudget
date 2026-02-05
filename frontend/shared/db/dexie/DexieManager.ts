@@ -6,7 +6,7 @@
  * Changes: SQL queries → Dexie.js Table operations
  */
 
-import { initializeDatabase, toCents, fromCents } from './core/database';
+import { initializeDatabase, toCents, fromCents, clearVersionCache } from './core/database';
 import type { FamilyBudgetDB } from './core/database';
 import { logger } from './utils/logger';
 import { validateFact } from './utils/validation';
@@ -124,8 +124,9 @@ export class DexieManager {
    */
   async clearAll(): Promise<void> {
     logger.warn('[DexieManager] Clearing all data...');
-    await this.getDB().transaction('rw', this.getDB().tables, async () => {
-      await Promise.all(this.getDB().tables.map(table => table.clear()));
+    const db = this.getDB();
+    await db.transaction('rw', db.tables, async () => {
+      await Promise.all(db.tables.map(table => table.clear()));
     });
     logger.info('[DexieManager] All data cleared');
   }
@@ -137,6 +138,8 @@ export class DexieManager {
     logger.warn('[DexieManager] Deleting database...');
     await this.getDB().delete();
     this.state = 'not_started';
+    this.db = null;
+    clearVersionCache(); // Clear cached version for future reinitializations
     logger.info('[DexieManager] Database deleted');
   }
 
@@ -446,9 +449,10 @@ export class DexieManager {
    */
   async bulkSoftDeleteFacts(temp_ids: string[]): Promise<void> {
     logger.info('[DexieManager] bulkSoftDeleteFacts', { count: temp_ids.length });
-    await this.getDB().transaction('rw', this.getDB().budgetFacts, async () => {
+    const db = this.getDB();
+    await db.transaction('rw', db.budgetFacts, async () => {
       for (const temp_id of temp_ids) {
-        await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
+        await db.budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
       }
     });
   }
@@ -651,9 +655,10 @@ export class DexieManager {
     }));
 
     // Replace all local data (clear + bulk add)
-    await this.getDB().transaction('rw', this.getDB().recurringPlans, async () => {
-      await this.getDB().recurringPlans.clear();
-      await this.getDB().recurringPlans.bulkAdd(plansWithCents);
+    const db = this.getDB();
+    await db.transaction('rw', db.recurringPlans, async () => {
+      await db.recurringPlans.clear();
+      await db.recurringPlans.bulkAdd(plansWithCents);
     });
 
     logger.info('[DexieManager] ✅ Recurring plans synced', { count: plans.length });
