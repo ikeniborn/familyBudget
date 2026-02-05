@@ -1,6 +1,7 @@
 /**
  * Dexie.js Public API
  * Экспорт для использования в приложении
+ * Version: 11.2.35 - Force rebuild
  */
 
 // Core
