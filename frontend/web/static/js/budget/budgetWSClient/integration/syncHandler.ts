@@ -10,17 +10,72 @@ import type { SyncInitialResponse, SyncIncrementalResponse } from '../types/even
 declare const debugLog: (...args: any[]) => void;
 
 /**
+ * Ensure Dexie manager is ready for sync operations
+ *
+ * @returns DexieManager instance if ready, null if initialization failed
+ */
+async function ensureDexieReady() {
+  const dexie = getDexieManager();
+
+  if (!dexie.isReady()) {
+    debugLog('[SYNC] Dexie not ready, initializing...');
+    try {
+      await dexie.init();
+      debugLog('[SYNC] Dexie initialized successfully');
+    } catch (error) {
+      debugLog('[SYNC] Dexie initialization failed', error);
+      return null;
+    }
+  }
+
+  return dexie;
+}
+
+/**
+ * Prepare articles for sync by converting ISO date strings to Date objects
+ */
+function prepareArticlesForSync(articles: any[]): any[] {
+  return articles.map(a => ({
+    ...a,
+    created_at: new Date(a.created_at),
+    updated_at: new Date(a.updated_at)
+  }));
+}
+
+/**
+ * Prepare financial centers for sync by converting ISO date strings to Date objects
+ */
+function prepareFinancialCentersForSync(financialCenters: any[]): any[] {
+  return financialCenters.map(fc => ({
+    id: fc.id,
+    user_id: fc.user_id,
+    name: fc.name,
+    description: null,
+    code: null,
+    is_active: fc.is_active,
+    created_at: new Date(fc.created_at),
+    updated_at: new Date(fc.created_at)
+  }));
+}
+
+/**
+ * Prepare cost centers for sync by converting ISO date strings to Date objects
+ */
+function prepareCostCentersForSync(costCenters: any[]): any[] {
+  return costCenters.map(cc => ({
+    ...cc,
+    created_at: new Date(cc.created_at)
+  }));
+}
+
+/**
  * Handle sync_initial response from backend
  *
  * @param data - Sync response with reference data
  */
 export async function handleSyncInitial(data: SyncInitialResponse['data']): Promise<void> {
-  const dexie = await getDexieManager();
-
-  if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
-  }
+  const dexie = await ensureDexieReady();
+  if (!dexie) return;
 
   try {
     debugLog('[SYNC] Starting initial sync', {
@@ -42,28 +97,10 @@ export async function handleSyncInitial(data: SyncInitialResponse['data']): Prom
       }
     };
 
-    // Convert ISO strings to Date objects
-    const articles = data.articles.map(a => ({
-      ...a,
-      created_at: new Date(a.created_at),
-      updated_at: new Date(a.updated_at)
-    }));
-
-    const financialCenters = data.financial_centers.map(fc => ({
-      id: fc.id,
-      user_id: fc.user_id,
-      name: fc.name,
-      description: null,
-      code: null,
-      is_active: fc.is_active,
-      created_at: new Date(fc.created_at),
-      updated_at: new Date(fc.created_at)
-    }));
-
-    const costCenters = data.cost_centers.map(cc => ({
-      ...cc,
-      created_at: new Date(cc.created_at)
-    }));
+    // Convert ISO strings to Date objects using helper functions
+    const articles = prepareArticlesForSync(data.articles);
+    const financialCenters = prepareFinancialCentersForSync(data.financial_centers);
+    const costCenters = prepareCostCentersForSync(data.cost_centers);
 
     // Bulk insert with progress tracking
     await dexie.bulkInsertArticles(articles, onProgress);
@@ -139,12 +176,8 @@ export function requestInitialSync(userId: number): void {
  * @param data - Delta updates (created, updated, deleted facts)
  */
 export async function handleSyncIncremental(data: SyncIncrementalResponse['data']): Promise<void> {
-  const dexie = await getDexieManager();
-
-  if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
-  }
+  const dexie = await ensureDexieReady();
+  if (!dexie) return;
 
   try {
     debugLog('[SYNC] Starting incremental sync', {
@@ -225,12 +258,8 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
  * @param userId - User ID for sync
  */
 export async function requestIncrementalSync(userId: number): Promise<void> {
-  const dexie = await getDexieManager();
-
-  if (!dexie.isReady()) {
-    debugLog('[SYNC] Dexie not initialized');
-    return;
-  }
+  const dexie = await ensureDexieReady();
+  if (!dexie) return;
 
   if (!(window as any).budgetWSClient) {
     debugLog('[SYNC] budgetWSClient not initialized');
