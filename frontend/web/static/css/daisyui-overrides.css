@@ -667,3 +667,18 @@ dialog.modal::backdrop {
     opacity: 0.8;
     background-color: oklch(var(--b3));
 }
+
+/* ============================================== */
+/* 12. Transfer Tab Account Selects Height Fix  */
+/* ============================================== */
+
+/**
+ * Fix for Issue #3: Transfer tab account selects have incorrect height.
+ * DaisyUI .select-sm reduces height, but we need 3rem (48px) for consistency.
+ */
+
+#modal_fact-tab-transfer select[name="from_financial_center_id"],
+#modal_fact-tab-transfer select[name="to_financial_center_id"] {
+    height: 3rem !important;
+    min-height: 3rem;
+}

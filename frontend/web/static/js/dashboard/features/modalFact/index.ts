@@ -39,6 +39,15 @@ interface TransferHintsData {
 }
 
 /**
+ * Transaction hints data structure
+ */
+interface TransactionHintsData {
+  loading?: boolean;
+  period_plan_sum?: number;
+  period_fact_sum?: number;
+}
+
+/**
  * Check if dropdown caches are valid
  */
 function isCacheValid<T>(cache: CacheEntry<T> | null): boolean {
@@ -112,8 +121,27 @@ async function loadTransactionTabData(): Promise<void> {
     debugLog('[ModalFact] Using cached transaction data');
   }
 
-  // Hints are already integrated in loadTransactionCategories callback
-  // No additional setup needed
+  // Setup financial center change listener for transaction hints
+  setupTransactionFCListener();
+
+  debugLog('[ModalFact] Transaction data loaded');
+}
+
+/**
+ * Setup FC change listener for transaction tab hints
+ */
+function setupTransactionFCListener(): void {
+  const fcSelect = document.querySelector<HTMLSelectElement>(
+    '#modal_fact-tab-transaction select[name="financial_center_id"]'
+  );
+
+  if (fcSelect && !fcSelect.dataset.listenerAttached) {
+    fcSelect.addEventListener('change', () => {
+      loadFactTransactionHints();
+    });
+    fcSelect.dataset.listenerAttached = 'true';
+    debugLog('[ModalFact] Transaction FC listener attached');
+  }
 }
 
 /**
@@ -323,6 +351,114 @@ function updateTransferFactHintButtons(direction: 'from' | 'to', data: TransferH
 }
 
 /**
+ * Load fact transaction hints (план/факт за месяц)
+ */
+async function loadFactTransactionHints(): Promise<void> {
+  const state = getState();
+  const categoryTree = state.transactionCategoryTreeSelect;
+  const fcSelect = document.querySelector<HTMLSelectElement>(
+    '#modal_fact-tab-transaction select[name="financial_center_id"]'
+  );
+
+  const categoryId = categoryTree?.getSelectedCategory()?.id;
+  const fcId = fcSelect?.value ? parseInt(fcSelect.value) : null;
+
+  // Update hint buttons to loading or empty state
+  updateTransactionHintButtons(!categoryId || !fcId ? null : { loading: true });
+
+  if (!categoryId || !fcId) {
+    return;
+  }
+
+  // Fetch hints from API
+  try {
+    const dateInput = document.querySelector<HTMLInputElement>(
+      '#modal_fact-tab-transaction input[name="fact_date"]'
+    );
+    let factDate = dateInput?.value || '';
+
+    // Convert DD.MM.YYYY to YYYY-MM-DD
+    if (factDate) {
+      const parts = factDate.split('.');
+      if (parts.length === 3) {
+        factDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      }
+    } else {
+      // Use today's date if not set
+      const today = new Date();
+      factDate = formatDateYYYYMMDD(today);
+    }
+
+    // Get article type from transaction type toggle
+    const expenseBtn = document.querySelector<HTMLLabelElement>(
+      '#modal_fact-tab-transaction .transaction-type-btn[data-type="expense"]'
+    );
+    const articleType = expenseBtn?.classList.contains('btn-active') ? 'expense' : 'income';
+
+    const url = `/api/v1/analytics/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    updateTransactionHintButtons(data);
+
+    debugLog('[ModalFact] Transaction hints loaded:', data);
+  } catch (error) {
+    debugLog('[ModalFact] Error loading transaction hints:', error);
+    updateTransactionHintButtons(null);
+  }
+}
+
+/**
+ * Update transaction hint buttons
+ */
+function updateTransactionHintButtons(data: TransactionHintsData | null): void {
+  const planBtn = document.getElementById('hint-period-plan');
+  const factBtn = document.getElementById('hint-period-fact');
+
+  if (!planBtn || !factBtn) {
+    debugLog('[ModalFact] Hint buttons not found');
+    return;
+  }
+
+  if (data?.loading) {
+    // Create loading spinner elements
+    const planSpinner = document.createElement('span');
+    planSpinner.className = 'loading loading-spinner loading-xs';
+    const factSpinner = document.createElement('span');
+    factSpinner.className = 'loading loading-spinner loading-xs';
+
+    planBtn.replaceChildren(planSpinner);
+    factBtn.replaceChildren(factSpinner);
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  if (!data) {
+    // Reset to placeholder
+    planBtn.textContent = 'План мес: --';
+    factBtn.textContent = 'Факт мес: --';
+    planBtn.classList.add('btn-disabled');
+    factBtn.classList.add('btn-disabled');
+    return;
+  }
+
+  // Update with actual data (format as currency)
+  const planSum = data.period_plan_sum ?? 0;
+  const factSum = data.period_fact_sum ?? 0;
+
+  planBtn.textContent = `План мес: ${planSum.toLocaleString('ru-RU')}`;
+  factBtn.textContent = `Факт мес: ${factSum.toLocaleString('ru-RU')}`;
+  planBtn.classList.remove('btn-disabled');
+  factBtn.classList.remove('btn-disabled');
+}
+
+/**
  * Format date as YYYY-MM-DD for API
  */
 function formatDateYYYYMMDD(date: Date): string {
@@ -459,4 +595,9 @@ export function closeModalFact(): void {
     keyboardShortcutsCleanup();
     keyboardShortcutsCleanup = null;
   }
+}
+
+// Export to window for cross-module access (categoryLoader.ts, typeToggle.ts)
+if (typeof window !== 'undefined') {
+  (window as any).loadFactTransactionHints = loadFactTransactionHints;
 }

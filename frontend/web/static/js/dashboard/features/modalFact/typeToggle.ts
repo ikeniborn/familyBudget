@@ -89,6 +89,12 @@ async function updateCategoryTreeType(type: 'expense' | 'income'): Promise<void>
     // Update category tree type (triggers category reload)
     await categoryTree.updateType(type);
     debugLog('[TypeToggle] CategoryTreeSelect updated to type:', type);
+
+    // Trigger hints reload (after category type change)
+    if (typeof (window as any).loadFactTransactionHints === 'function') {
+      (window as any).loadFactTransactionHints();
+      debugLog('[TypeToggle] Transaction hints reload triggered');
+    }
   } catch (error) {
     debugLog('[TypeToggle] Error updating CategoryTreeSelect:', error);
   }

@@ -317,3 +317,162 @@ Attempt 3: +1000ms delay
 ```
 
 **См. также:** `docs/architecture/pglite-race-conditions.md` для полного описания решения race condition
+
+## UI Enhancements (v11.2.37+)
+
+### Date Button Active State Management
+
+**Problem:** Кнопки "Сегодня/Вчера/Позавчера" не подсвечивались при установке даты.
+
+**Solution:** Добавлена логика управления состоянием кнопок в `dateHelpers.ts`:
+
+```typescript
+// dateHelpers.ts:setFactDate()
+buttons.forEach((btn, index) => {
+  const isActive = index === Math.abs(daysOffset);
+  btn.classList.toggle('btn-active', isActive);
+  btn.classList.toggle('btn-outline', !isActive);
+});
+```
+
+**Affects:**
+- `setFactDate()` - transaction tab
+- `setFactTransferDate()` - transfer tab
+
+**Visual result:**
+- Active button: solid color (DaisyUI `btn-active`)
+- Inactive buttons: outlined (DaisyUI `btn-outline`)
+
+### Recent Transactions HTMX Refresh Pattern
+
+**Problem:** Таблица Recent Transactions не обновлялась после добавления факта/перевода.
+
+**Root cause:** `htmx.trigger(el, 'load')` не перезапускает `hx-get` директивы.
+
+**Solution:** Использовать `htmx.ajax()` для явного HTTP запроса:
+
+```typescript
+// uiRefresh.ts:72-76
+htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+  target: '#recent-transactions',
+  swap: 'innerHTML'
+});
+```
+
+**Why this works:**
+- `htmx.ajax()` делает прямой HTTP запрос и обновляет DOM
+- `htmx.trigger()` только вызывает event listeners, но НЕ `hx-get`
+
+**Endpoint:** `/api/v1/facts/recent-html?limit=10`
+
+### Transaction Hints Loading (v11.2.37+)
+
+**Feature:** Автоматическое обновление подсказок "План/Факт за месяц" при выборе счета/категории/типа операции.
+
+**Implementation:**
+
+**1. Function:** `loadFactTransactionHints()` в `modalFact/index.ts:335-391`
+
+```typescript
+async function loadFactTransactionHints(): Promise<void> {
+  const categoryId = categoryTree?.getSelectedCategory()?.id;
+  const fcId = fcSelect?.value ? parseInt(fcSelect.value) : null;
+
+  if (!categoryId || !fcId) {
+    updateTransactionHintButtons(null); // Reset to placeholder
+    return;
+  }
+
+  // API call: /api/v1/analytics/fact-hints
+  const data = await fetch(url).then(r => r.json());
+  updateTransactionHintButtons(data);
+}
+```
+
+**2. Integration points:**
+
+| Trigger | Location | Implementation |
+|---------|----------|----------------|
+| Financial center change | `modalFact/index.ts:121-133` | `setupTransactionFCListener()` |
+| Category change | `categoryLoader.ts:88-99` | `loadFactHintsForCategory()` callback |
+| Transaction type change | `typeToggle.ts:89-95` | After `categoryTree.updateType()` |
+
+**3. API Endpoint:**
+```
+GET /api/v1/analytics/fact-hints
+Query params:
+  - fact_date: YYYY-MM-DD
+  - article_id: int
+  - article_type: expense|income
+  - financial_center_id: int
+
+Response:
+{
+  "period_plan_sum": 50000,
+  "period_fact_sum": 32500
+}
+```
+
+**4. UI States:**
+
+| State | Display |
+|-------|---------|
+| Loading | Spinner (`loading loading-spinner loading-xs`) |
+| No data | "План мес: --", "Факт мес: --" (disabled) |
+| With data | "План мес: 50 000", "Факт мес: 32 500" (enabled) |
+
+**Limitations:**
+- Legacy modal (`modal_add_transaction`) uses old hints system
+- New modal (`modal_fact`) uses this implementation
+
+### Recurring Plan Form Initialization (Enhanced Debug Logging)
+
+**Feature:** Debug логирование для диагностики проблем видимости формы "Регулярный платеж".
+
+**Implementation:** `recurringSettings.ts:togglePlanMode()`
+
+```typescript
+export function togglePlanMode(modalId: string): void {
+  console.log(`[togglePlanMode] Called with modalId: ${modalId}`);
+
+  // 1. Validate form exists
+  if (!form) {
+    console.error(`[togglePlanMode] Form not found: form_${modalId}`);
+    return;
+  }
+
+  // 2. Log selected mode
+  console.log(`[togglePlanMode] Selected mode: ${selectedMode}`);
+
+  // 3. Validate sections exist
+  if (!recurringSettings || !onetimeReminderSection) {
+    console.error('[togglePlanMode] Missing sections:', {
+      recurringSettings: !!recurringSettings,
+      onetimeReminderSection: !!onetimeReminderSection,
+      expectedIds: {
+        recurring: `recurring-settings-${modalId}`,
+        reminder: `onetime-reminder-section-${modalId}`
+      }
+    });
+    return;
+  }
+
+  // 4. Log state transitions
+  console.log('[togglePlanMode] All sections hidden');
+  console.log('[togglePlanMode] Recurring settings shown');
+}
+```
+
+**Debug output example:**
+```
+[togglePlanMode] Called with modalId: modal_plan
+[togglePlanMode] Selected mode: recurring
+[togglePlanMode] All sections hidden
+[togglePlanMode] Recurring settings shown
+```
+
+**Benefits:**
+- Entry/exit points tracked
+- Element ID validation logged
+- State transitions visible
+- Future debugging easier

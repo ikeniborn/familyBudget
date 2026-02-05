@@ -17,6 +17,18 @@ export function setFactDate(daysOffset: number): void {
     format: 'DD.MM.YYYY',
     offsetUnit: 'day',
   });
+
+  // Update button active state
+  const buttons = document.querySelectorAll<HTMLButtonElement>(
+    '#modal_fact-tab-transaction .flex.gap-1.mb-1 button'
+  );
+
+  buttons.forEach((btn, index) => {
+    // index 0 = Сегодня (offset 0), index 1 = Вчера (offset -1), index 2 = Позавчера (offset -2)
+    const isActive = index === Math.abs(daysOffset);
+    btn.classList.toggle('btn-active', isActive);
+    btn.classList.toggle('btn-outline', !isActive);
+  });
 }
 
 /**
@@ -28,6 +40,17 @@ export function setFactTransferDate(daysOffset: number): void {
     selector: '#modal_fact-tab-transfer input[name="transfer_date"]',
     format: 'DD.MM.YYYY',
     offsetUnit: 'day',
+  });
+
+  // Update button active state for transfer tab
+  const buttons = document.querySelectorAll<HTMLButtonElement>(
+    '#modal_fact-tab-transfer .flex.gap-1.mb-1 button'
+  );
+
+  buttons.forEach((btn, index) => {
+    const isActive = index === Math.abs(daysOffset);
+    btn.classList.toggle('btn-active', isActive);
+    btn.classList.toggle('btn-outline', !isActive);
   });
 }
 
