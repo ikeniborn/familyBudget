@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
+!**NEVER** edit CLAUDE.md. Only user can add or delete tgis file.
+
 ## Project Overview
 
 Family Budget is a family budget management system with Telegram bot and web interface. Built on FastAPI (backend), PostgreSQL (database), Docker deployment.
@@ -32,11 +34,8 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 После разработки решения:
 - Проводить повторную проверку архитектурных решений
-- Верифицировать соответствие требованиям из всех 5 перспектив
-- Использовать инструменты валидации на соответствующих этапах:
-  - PHASE 0: LSP diagnostics (TypeScript/Python)
-  - PHASE 3: Code review (@skill:code-review)
-  - PHASE 4: Tests (pytest, npm test)
+- Верифицировать соответствие требованиям из всех перспектив
+- Задавать уточнющие вопросы на этапе анализа и планирования
 
 ## Quick Start
 
@@ -49,29 +48,13 @@ Family Budget is a family budget management system with Telegram bot and web int
 - npm/Node.js NOT required on server
 - Manual VERSION bump before push
 - Never update manual package.json or package-lock.json. Updated in GitHub Actions CI/CD
-
-**HOTFIX (v11.2.15):**
 - Fixed GitHub Actions deployment hang on port conflict check (non-interactive mode support)
-
-**HOTFIX (v11.2.16):**
 - Fixed Alembic migrations for distroless runtime (use python -m alembic instead of bash)
-
-**HOTFIX (v11.2.17):**
 - Fixed distroless ENTRYPOINT to use venv python (uvicorn module not found error)
-
-**HOTFIX (v11.2.18):**
 - Fixed ENTRYPOINT and HEALTHCHECK to use python3.11 explicitly (symlink 'python' not available in distroless venv)
-
-**HOTFIX (v11.2.19):**
 - Fixed venv creation with --copies flag (symlinks broken when COPY to distroless)
-
-**HOTFIX (v11.2.20):**
 - Added libpython3.11.so.1.0 shared library copy to distroless runtime (required by --copies venv binary)
-
-**HOTFIX (v11.2.21):**
 - Use distroless system Python + PYTHONPATH instead of venv binary (simpler, no symlink/shared library issues)
-
-**HOTFIX (v11.2.22):**
 - Added missing httpx dependency (removed in v11.2.3 optimization, but still used by 5 services)
 
 ### Environments
@@ -84,16 +67,6 @@ Family Budget is a family budget management system with Telegram bot and web int
 For analysis logs connect to test server via "ssh budget-test".
 Work directory "/opt/budget"
 Git directory "~/familyBudget"
-
-## Terminology (UI ↔ Code)
-
-| UI (Russian) | Code | DB Table | Description |
-|--------------|------|----------|-------------|
-| **Счет** | `FinancialCenter` | `t_d_financial_center` | Bank accounts, wallets |
-| **Место затрат** | `CostCenter` | `t_d_cost_center` | Projects, departments |
-| **Статья** | `Article` | `t_d_article` | Budget categories (hierarchical) |
-| **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Income/expenses/transfers |
-
 
 ## Documentation Index
 
