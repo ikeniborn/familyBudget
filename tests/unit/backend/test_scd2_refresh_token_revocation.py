@@ -9,7 +9,7 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
-from backend.app.services.auth_service import update_user_profile
+from backend.app.services.user_service import update_user_profile
 from backend.app.models.user import User
 from backend.app.models.refresh_token import RefreshToken
 
