@@ -171,3 +171,4 @@ MIT License — делайте что хотите! 🎉
 
 Made with ❤️ for families who want to save money 💰
 # Test: VERSION unchanged workflow stop
+
