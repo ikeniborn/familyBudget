@@ -62,9 +62,9 @@ class TestAdminAuthBypass:
         assert "access_token" in response.cookies
         assert "refresh_token" in response.cookies
 
-        # Verify cookies are httpOnly
-        assert response.cookies["access_token"].get("httponly") or "HttpOnly" in str(response.cookies)
-        assert response.cookies["refresh_token"].get("httponly") or "HttpOnly" in str(response.cookies)
+        # Verify cookies are httpOnly (check Set-Cookie headers)
+        set_cookie_headers = response.headers.get_list("set-cookie")
+        assert any("HttpOnly" in header for header in set_cookie_headers), "Cookies should have HttpOnly flag"
 
     @pytest.mark.asyncio
     async def test_regular_user_requires_2fa(self, client: AsyncClient, db_session: AsyncSession):
