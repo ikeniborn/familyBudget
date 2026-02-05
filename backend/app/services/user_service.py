@@ -19,6 +19,7 @@ Key Functions:
 from datetime import date, datetime, timezone
 from typing import Any
 
+from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -210,16 +211,15 @@ async def get_user_version_at_date(
         - Uses valid_from and valid_to for time-travel query
         - Useful for historical reporting (e.g., "who was admin on specific date?")
         - Returns None if user didn't exist at target_date
-        - Target_date converted to datetime for comparison
+        - Uses SQL DATE casting to compare only dates, ignoring time
     """
-    # Convert date to datetime for comparison (timezone-aware UTC, end of day)
-    # Use max.time() to include all records created during target_date
-    target_datetime = datetime.combine(target_date, datetime.max.time(), tzinfo=timezone.utc)
-
+    # Use SQL func.date() to compare only dates, ignoring time component
+    # This correctly handles SCD Type 2 time-travel queries where multiple
+    # versions may exist on the same date with different timestamps
     statement = select(UserHistory).where(
         UserHistory.user_id == user_id,
-        UserHistory.valid_from <= target_datetime,
-        UserHistory.valid_to > target_datetime,
+        func.date(UserHistory.valid_from) <= target_date,
+        func.date(UserHistory.valid_to) > target_date,
     )
 
     result = await session.execute(statement)
