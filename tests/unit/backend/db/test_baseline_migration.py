@@ -16,7 +16,7 @@ from pathlib import Path
 
 
 # Путь к миграции
-MIGRATION_PATH = Path(__file__).parents[4] / "backend" / "db" / "migrations" / "versions" / "20251109_001_baseline_schema_v5_0_0.py"
+MIGRATION_PATH = Path(__file__).parents[4] / "backend" / "db" / "migrations" / "versions" / "20251110_e2558a31af07_baseline_v5_1_0_consolidated.py"
 
 
 class TestBaselineMigrationStructure:
@@ -29,8 +29,8 @@ class TestBaselineMigrationStructure:
     def test_migration_file_has_docstring(self):
         """Verify migration has proper docstring."""
         content = MIGRATION_PATH.read_text()
-        assert '"""Baseline schema v5.0.0' in content
-        assert "Revision ID: 001_baseline" in content
+        assert '"""Baseline schema v5.1.0' in content
+        assert "Revision ID: e2558a31af07" in content
         assert "Revises: None" in content
 
     def test_migration_has_upgrade_function(self):
@@ -46,8 +46,8 @@ class TestBaselineMigrationStructure:
     def test_migration_has_revision_identifiers(self):
         """Verify migration has proper revision identifiers."""
         content = MIGRATION_PATH.read_text()
-        assert "revision: str = '001_baseline'" in content
-        assert "down_revision: Union[str, None] = None" in content
+        assert "revision: str = 'e2558a31af07'" in content
+        assert "down_revision: str | None = None" in content
 
     def test_migration_imports_alembic_op(self):
         """Verify migration imports alembic op."""
