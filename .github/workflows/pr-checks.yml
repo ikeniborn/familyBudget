@@ -243,7 +243,7 @@ jobs:
       - name: Backend unit tests
         env:
           POSTGRES_HOST: localhost
-          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
+          TEST_DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
           REDIS_ENABLED: true
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
