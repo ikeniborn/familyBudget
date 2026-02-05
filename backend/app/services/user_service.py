@@ -212,8 +212,8 @@ async def get_user_version_at_date(
         - Returns None if user didn't exist at target_date
         - Target_date converted to datetime for comparison
     """
-    # Convert date to datetime for comparison
-    target_datetime = datetime.combine(target_date, datetime.min.time())
+    # Convert date to datetime for comparison (timezone-aware UTC)
+    target_datetime = datetime.combine(target_date, datetime.min.time(), tzinfo=timezone.utc)
 
     statement = select(UserHistory).where(
         UserHistory.user_id == user_id,
