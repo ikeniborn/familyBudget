@@ -37,10 +37,11 @@
         }
 
         console.info('[PWA_SPLASH] Post-auth flags initialized:', flags);
+        return flags;
     }
 
     // Execute flag initialization immediately
-    initializePostAuthFlags();
+    const flags = initializePostAuthFlags();
 
     // Trigger initial Dexie sync for new users
     if (flags.dexieAutoEnabled || flags.justLoggedIn) {
