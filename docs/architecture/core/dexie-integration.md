@@ -1,7 +1,8 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Версия:** v11.1.40
+**Последнее обновление:** 2026-02-06 (Schema v2)
+**Версия:** v11.3.7+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
 
@@ -136,9 +137,11 @@ budgetFacts: 'id, temp_id, user_id, article_id, financial_center_id, cost_center
 ### Shopping Lists
 
 ```typescript
-shoppingLists: 'id, temp_id, user_id, is_completed, sync_status'
-shoppingListItems: 'id, temp_id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]'
+shoppingLists: 'temp_id, id, user_id, creator_id, is_completed, sync_status'
+shoppingListItems: 'temp_id, id, creator_id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]'
 ```
+
+**Schema v2 (current):** Added `creator_id` index for Shared Family Budget support
 
 ---
 
@@ -387,6 +390,24 @@ await migrateFromPGlite((progress) => {
   console.log(`Progress: ${progress.current}/${progress.total}`);
 });
 ```
+
+### Schema Versioning
+
+**Version History:**
+
+| Version | Date | Changes | Migration |
+|---------|------|---------|-----------|
+| **v2** | 2026-02-06 | Added `creator_id` indexes to `shoppingLists` and `shoppingListItems` tables | Auto-upgrade on next page load |
+| **v1** | 2026-01-31 | Initial Dexie schema (PGlite replacement) | Manual re-sync from server |
+
+**How Migrations Work:**
+- `DEFAULT_SCHEMA_VERSION` constant in `database.ts` defines current version
+- `getDatabaseVersion()` dynamically detects existing DB version
+- Dexie auto-migrates to higher version on `db.open()`
+- Migration preserves existing data, adds missing indexes
+- Users see seamless upgrade (no manual IndexedDB clearing needed)
+
+**Example:** User with v1 schema visits site after v2 deployment → Dexie automatically upgrades to v2, adds `creator_id` indexes, preserves all existing shopping lists.
 
 ---
 
