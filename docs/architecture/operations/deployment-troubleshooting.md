@@ -773,6 +773,184 @@ sudo bash deploy.sh --sync-mode update --cleanup-mode smart
 
 ---
 
+## Disk Space Issues During Deployment
+
+**НОВОЕ в v11.3.8**: Pre-pull cleanup optimization
+
+### Симптомы
+
+```bash
+Error response from daemon: write /var/lib/docker/tmp/...: no space left on device
+Error: failed to pull image ghcr.io/ikeniborn/familybudget-backend:11.3.8
+```
+
+- Docker pull fails с ошибкой "no space left on device"
+- Деплоймент прерывается на этапе pull images
+- Свободного места <2GB (недостаточно для новых образов)
+
+### Root Cause (До v11.3.8)
+
+**Проблема**: Cleanup старых образов происходил ПОСЛЕ pull новых образов
+
+**Workflow (неоптимальный)**:
+```
+1. Pull новые образы (занимают +2GB)
+2. Start services
+3. Cleanup старых образов (освобождают место)
+```
+
+**Результат**: Если свободного места <2GB → pull fails → деплой ломается
+
+### Решение (v11.3.8+)
+
+**Оптимизация**: Cleanup ПЕРЕД pull (registry-first optimization)
+
+**Новый workflow**:
+```
+1. Cleanup старых образов (освобождают +1-2GB)
+2. Pull новые образы (есть свободное место)
+3. Start services
+```
+
+**Преимущества**:
+- ✅ Освобождает место ДО загрузки новых образов
+- ✅ Предотвращает "no space left" ошибки
+- ✅ Более эффективное использование дискового пространства
+
+### Функция Cleanup
+
+**До v11.3.8**: `cleanup_old_images()` - по возрасту (7 дней)
+- ⚠️ Race condition риск (мог удалить активный образ)
+- ⚠️ Не проверял IMAGE_VERSIONS.json
+
+**После v11.3.8**: `cleanup_old_image_versions()` - по количеству версий (keep last 3)
+- ✅ Проверяет `docker inspect` (защита running containers)
+- ✅ Хранит последние N версий (предсказуемо)
+- ✅ Не зависит от возраста (лучше для CI/CD)
+- ✅ Защита от race conditions
+
+### Manual Cleanup
+
+Если деплой всё равно падает с "no space":
+
+```bash
+# Вариант 1: Использовать новую функцию cleanup (рекомендуется)
+cd /opt/budget
+source scripts/lib/docker.sh
+cleanup_old_image_versions 2  # Хранить только 2 версии (агрессивнее)
+
+# Вариант 2: Удалить ВСЕ неиспользуемые образы
+docker image prune -a --filter "until=24h"
+
+# Вариант 3: Проверить размер Docker volumes
+docker system df -v
+
+# Вариант 4: Очистить Docker build cache
+docker builder prune -a --force
+```
+
+### Prevention
+
+1. **Мониторинг дискового пространства**:
+   ```bash
+   df -h /var/lib/docker
+   # Должно быть >5GB свободного места
+   ```
+
+2. **Регулярный cleanup** (автоматически в v11.3.8+):
+   - Cleanup запускается ПЕРЕД каждым деплоем
+   - Хранит последние 3 версии образов
+   - Удаляет старые версии автоматически
+
+3. **Увеличить диск** (если проблема повторяется):
+   ```bash
+   # Для VPS/Cloud серверов
+   # Увеличить диск через панель управления
+   # Затем расширить файловую систему:
+   sudo resize2fs /dev/vda1
+   ```
+
+### See Also
+- [ci-cd-build-deploy.md - Image Cleanup Strategy](ci-cd-build-deploy.md#image-cleanup-strategy)
+- [ci-cd-build-deploy.md - Disk Space Full](ci-cd-build-deploy.md#issue-8-disk-space-full)
+
+---
+
+## Orphaned Process Cleanup
+
+**НОВОЕ в v11.3.8**: Симметричная политика termination
+
+### Симптомы
+
+```bash
+[WARNING] Orphaned processes detected:
+  12345  alembic current
+  12346  npm install
+```
+
+- Зависшие deployment-related процессы от предыдущих деплоев
+- Процессы остаются активными после failed deployments
+- Накопление процессов между деплоями
+
+### Root Cause (До v11.3.8)
+
+**Несимметричная политика**:
+- **Начало деплоя** (deploy.sh:871): auto-terminate ✅
+- **Конец деплоя** (deploy.sh:1552): только warning ⚠️
+
+**Результат**: Процессы, созданные во время деплоя, не убивались в конце
+
+### Решение (v11.3.8+)
+
+**Симметричная политика termination**:
+
+| Этап | Старое поведение | Новое поведение |
+|------|------------------|-----------------|
+| Начало деплоя | `--terminate` ✅ | `--terminate` ✅ |
+| Конец деплоя | warning только ⚠️ | `--terminate` ✅ |
+
+**Преимущества**:
+- ✅ Предотвращает накопление зависших процессов
+- ✅ Освобождает ресурсы немедленно
+- ✅ Симметричная политика (легче понять)
+- ✅ Безопасно (исключает текущий deployment процесс)
+
+### Tracked Processes
+
+**Что убивается**:
+- `alembic` (migrations)
+- `npm install|update|ci`
+- `npx` (node package runner)
+- `pip install` (Python dependencies)
+- `git clone|pull|fetch`
+- `rsync` (code sync)
+
+**Что НЕ убивается**:
+- Docker daemon (`docker`, `containerd`)
+- Uvicorn workers (`uvicorn.*backend.app.main`)
+- Bot process (`python -m bot.main`)
+- PostgreSQL, Redis, Nginx
+
+### Manual Cleanup
+
+Если зависшие процессы всё ещё есть после деплоя:
+
+```bash
+# Вариант 1: Использовать deployment script
+cd /opt/budget
+source scripts/lib/utils.sh
+check_orphaned_deployment_processes --terminate
+
+# Вариант 2: Найти и убить вручную
+ps aux | grep -E "alembic|npm install|pip install|rsync"
+sudo kill -9 <PID>
+```
+
+### See Also
+- [ci-cd-build-deploy.md - Orphaned Process Cleanup Policy](ci-cd-build-deploy.md#orphaned-process-cleanup-policy)
+
+---
+
 ## Related Issues
 
 ### PostgreSQL Health Check Timeout
