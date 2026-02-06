@@ -750,5 +750,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[WEBAUTHN_CLIENT] Page loaded - checking for quick biometric login');
     await checkQuickBiometricAvailable();
 });
+
+// SW Update Notification - show toast after Service Worker update
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const swUpdated = urlParams.get('sw_updated');
+
+    if (swUpdated === 'true') {
+        // Wait for toast-manager to be initialized
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showUpdateToast);
+        } else {
+            showUpdateToast();
+        }
+
+        function showUpdateToast() {
+            if (typeof showToast === 'function') {
+                showToast(
+                    '✅ Обновление завершено! Пожалуйста, войдите снова.',
+                    'success',
+                    8000  // 8 seconds
+                );
+                console.log('[LOGIN] SW update notification shown');
+            } else {
+                console.warn('[LOGIN] showToast function not available');
+            }
+        }
+
+        // Clean URL (remove sw_updated parameter)
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('sw_updated');
+        window.history.replaceState({}, '', cleanUrl.toString());
+    }
+})();
 </script>
 {% endblock %}

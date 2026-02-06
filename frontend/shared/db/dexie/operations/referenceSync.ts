@@ -30,8 +30,8 @@ export async function syncArticles(userId: number): Promise<{ success: boolean; 
   logger.info('[referenceSync] Syncing articles...', { userId });
 
   try {
-    // Fetch from server
-    const response = await fetchWithTimeout(`/api/v1/articles?user_id=${userId}`, {
+    // Fetch from server (backend uses CurrentUser dependency from session cookie)
+    const response = await fetchWithTimeout(`/api/v1/articles`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -40,7 +40,9 @@ export async function syncArticles(userId: number): Promise<{ success: boolean; 
       throw new Error(`Failed to fetch articles: ${response.status}`);
     }
 
-    const articles: LocalArticle[] = await response.json();
+    // Unwrap API pagination response: { articles: [...], total, limit, offset }
+    const data = await response.json();
+    const articles: LocalArticle[] = data.articles || [];
 
     // Clear existing articles
     await db.articles.where('user_id').equals(userId).delete();
@@ -66,7 +68,8 @@ export async function syncFinancialCenters(userId: number): Promise<{ success: b
   logger.info('[referenceSync] Syncing financial centers...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/financial-centers?user_id=${userId}`, {
+    // Backend uses CurrentUser dependency from session cookie
+    const response = await fetchWithTimeout(`/api/v1/financial-centers`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -75,7 +78,9 @@ export async function syncFinancialCenters(userId: number): Promise<{ success: b
       throw new Error(`Failed to fetch financial centers: ${response.status}`);
     }
 
-    const centers: LocalFinancialCenter[] = await response.json();
+    // Unwrap API pagination response: { financial_centers: [...], total, limit, offset }
+    const data = await response.json();
+    const centers: LocalFinancialCenter[] = data.financial_centers || [];
 
     // Clear existing
     await db.financialCenters.where('user_id').equals(userId).delete();
@@ -101,7 +106,8 @@ export async function syncCostCenters(userId: number): Promise<{ success: boolea
   logger.info('[referenceSync] Syncing cost centers...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/cost-centers?user_id=${userId}`, {
+    // Backend uses CurrentUser dependency from session cookie
+    const response = await fetchWithTimeout(`/api/v1/cost-centers`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -110,7 +116,9 @@ export async function syncCostCenters(userId: number): Promise<{ success: boolea
       throw new Error(`Failed to fetch cost centers: ${response.status}`);
     }
 
-    const centers: LocalCostCenter[] = await response.json();
+    // Unwrap API pagination response: { cost_centers: [...], total, limit, offset }
+    const data = await response.json();
+    const centers: LocalCostCenter[] = data.cost_centers || [];
 
     // Clear existing
     await db.costCenters.where('user_id').equals(userId).delete();
@@ -136,7 +144,8 @@ export async function syncArticleHierarchy(userId: number): Promise<{ success: b
   logger.info('[referenceSync] Syncing article hierarchy...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/articles/hierarchy?user_id=${userId}`, {
+    // Global hierarchy endpoint (not user-specific)
+    const response = await fetchWithTimeout(`/api/v1/articles/hierarchy`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -145,6 +154,7 @@ export async function syncArticleHierarchy(userId: number): Promise<{ success: b
       throw new Error(`Failed to fetch article hierarchy: ${response.status}`);
     }
 
+    // Direct array response (no pagination wrapper for hierarchy)
     const hierarchy: LocalArticleHierarchy[] = await response.json();
 
     // Clear existing
