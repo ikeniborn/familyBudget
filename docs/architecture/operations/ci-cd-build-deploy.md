@@ -31,7 +31,7 @@ Family Budget использует **registry-first архитектуру**: в
 - ✅ Multi-stage Dockerfile с embedded frontend
 - ✅ Кэшбастинг в GitHub Actions
 - ✅ Только semver теги (6.6.0)
-- ✅ Автоматическая очистка старых образов (7 дней)
+- ✅ Автоматическая очистка старых образов (keep last 3 versions)
 - ✅ Селективная пересборка (IMAGE_VERSIONS.json)
 
 ---
@@ -347,9 +347,10 @@ on:
    - `ghcr.io/<owner>/familybudget-redis:6.6.0`
    - `ghcr.io/<owner>/familybudget-postgresql:6.6.0`
 3. `docker compose up -d` (phased startup)
-4. Run migrations
-5. Health checks
-6. **Cleanup old images** (>7 дней)
+4. **Cleanup old images** (pre-pull optimization, keep last 3)
+5. Pull images from ghcr.io
+6. Run migrations
+7. Health checks
 
 **Deployment time**: 2-3 минуты (ВСЕГДА)
 
@@ -389,23 +390,38 @@ git push origin test
 
 ### Automatic Image Cleanup
 
-**НОВОЕ в v9.0**: Автоматическое удаление старых Docker images
+**ОБНОВЛЕНО в v11.3.8**: Безопасная очистка с pre-pull optimization
 
-**Функция**: `cleanup_old_images()` в deploy.sh
+## Image Cleanup Strategy
 
-**Когда запускается**: После успешного `docker compose up`
+**Функция**: `cleanup_old_image_versions()` в scripts/lib/docker.sh
+
+**Когда запускается**: ПЕРЕД pull_from_registry() (PHASE 2: Image Management)
+
+**Зачем перед pull?**
+- Освобождает дисковое пространство ДО загрузки новых образов (до 2GB)
+- Предотвращает ошибки "no space left on device" во время pull
+- Более эффективное использование ресурсов
 
 **Логика**:
-1. Находит все Family Budget образы старше 7 дней
-2. Исключает running containers из удаления
-3. Удаляет старые образы
-4. Логирует в `/opt/budget/logs/cleanup-history.log`
+1. Находит все версии каждого образа (backend, bot, nginx, redis, postgresql)
+2. Сортирует по версии (semver), самые новые первыми
+3. **Защищает running containers**: проверяет `docker inspect` для каждого сервиса
+4. Хранит последние N версий (по умолчанию: 3)
+5. Удаляет старые версии (старше top-3)
 
-**Retention**: 7 дней (настраивается через `CLEANUP_RETENTION_DAYS`)
+**Retention**: Последние 3 версии (настраивается в коде)
+
+**Преимущества vs старая cleanup_old_images()**:
+- ✅ Проверяет `docker inspect` (защита running containers)
+- ✅ Хранит N версий (предсказуемо для частых релизов)
+- ✅ Не зависит от возраста образа (лучше для CI/CD)
+- ✅ Защита от race conditions (нет риска удаления активного образа)
+- ✅ Проверяет IMAGE_VERSIONS.json (source of truth для деплоя)
 
 **Экономия дискового пространства**:
 - 1 версия = ~1.2 GB (5 образов)
-- 7 дней retention = ~7-8 GB
+- 3 версии retention = ~3.6 GB
 - Автоматическая очистка предотвращает disk full
 
 **Log example**:
@@ -414,6 +430,52 @@ git push origin test
 [2026-01-21T10:30:01Z] removed: ghcr.io/<owner>/familybudget-bot:6.5.0
 [2026-01-21T10:30:02Z] skipped: ghcr.io/<owner>/familybudget-backend:6.6.0 (running)
 ```
+
+---
+
+## Orphaned Process Cleanup Policy
+
+**ОБНОВЛЕНО в v11.3.8**: Симметричная политика termination
+
+**Что такое orphaned processes?**
+- Зависшие deployment-related процессы от предыдущих неудачных деплоев:
+  - `alembic` (migrations)
+  - `npm install|update|ci` (frontend dependencies)
+  - `npx` (node package runner)
+  - `pip install` (Python dependencies)
+  - `git clone|pull|fetch` (git operations)
+  - `rsync` (code sync)
+
+**Что НЕ считается orphaned?**
+- Docker daemon (`docker`, `containerd`)
+- Uvicorn workers (`uvicorn.*backend.app.main`)
+- Bot process (`python -m bot.main`)
+- PostgreSQL, Redis, Nginx
+
+**Политика termination**:
+
+| Этап | Действие | Обоснование |
+|------|----------|-------------|
+| **Начало деплоя** (deploy.sh:871) | `check_orphaned_deployment_processes --terminate` | Очистка перед началом (предотвращение конфликтов) |
+| **Конец деплоя** (deploy.sh:1552) | `check_orphaned_deployment_processes --terminate` | Симметричная очистка после завершения |
+
+**До v11.3.8**:
+- Начало: auto-terminate ✅
+- Конец: только warning ⚠️ (процессы накапливались)
+
+**После v11.3.8**:
+- Начало: auto-terminate ✅
+- Конец: auto-terminate ✅ (симметричная политика)
+
+**Безопасность**:
+- Исключает текущий deployment процесс (BASHPID, PPID, $$)
+- После завершения деплоя эти PID'ы уже не активны
+- Termination безопасен и не убивает текущий скрипт
+
+**Преимущества**:
+- ✅ Предотвращает накопление зависших процессов
+- ✅ Освобождает ресурсы немедленно (не ждёт следующего деплоя)
+- ✅ Симметричная политика (легче понять и поддерживать)
 
 ---
 
@@ -605,10 +667,15 @@ docker pull ghcr.io/ikeniborn/familybudget-postgresql:6.6.0
 - Verify Service Worker version in HTML
 - Log deployment success
 
-**6. Cleanup**
-- Remove old images (>7 days retention)
-- Cleanup dangling images
-- Log cleanup history
+**6. Pre-Pull Cleanup**
+- Remove old image versions (keep last 3)
+- Free disk space before pulling new images
+- Safer than post-pull cleanup (no race conditions)
+
+**7. Cleanup (Post-Deployment)**
+- Check for orphaned deployment processes (auto-terminate)
+- Soft Docker system cleanup
+- Optional dockerd restart (if CPU high)
 
 **Время деплоя**: ВСЕГДА 2-3 минуты (только pull + startup)
 
@@ -896,23 +963,28 @@ If new errors appear:
 
 ### Issue 6: Старые образы не удаляются
 
-**Symptom**: Много старых образов (>7 дней)
+**Symptom**: Много старых версий образов (>3 версий на сервис)
 
 **Проверка**:
 ```bash
-docker images | grep familybudget
+docker images | grep familybudget | sort -k2 -V
 ```
 
 **Решение**:
 ```bash
-# Ручной запуск cleanup
+# Ручной запуск cleanup (keep last 3 versions)
 cd /opt/budget
-source deploy.sh
-cleanup_old_images 7
+source scripts/lib/docker.sh
+cleanup_old_image_versions 3
 
-# Или изменить retention
-echo "CLEANUP_RETENTION_DAYS=3" >> .env
+# Или изменить количество хранимых версий (в коде deploy.sh)
+# Найти: cleanup_old_image_versions 3
+# Заменить на: cleanup_old_image_versions 5
 ```
+
+**Note**: С v11.3.8 cleanup_old_images() заменён на cleanup_old_image_versions()
+- Старая функция имела race condition риски (мог удалить активный образ)
+- Новая функция проверяет docker inspect (безопаснее)
 
 ---
 

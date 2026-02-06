@@ -766,91 +766,18 @@ check_git_sync() {
 # See: .github/workflows/build-and-push.yml
 
 
-# Cleanup old Docker images (older than retention_days)
-# Usage: cleanup_old_images [retention_days]
-# Default retention: 7 days
-cleanup_old_images() {
-    local retention_days="${1:-7}"
-    
-    info "Cleaning up Docker images older than ${retention_days} days..."
-    
-    # Get list of currently running images (protect from deletion)
-    local running_images=$(docker ps --format "{{.Image}}" 2>/dev/null || echo "")
-    
-    # Find Family Budget images older than N days
-    local old_images=$(docker images --format "{{.Repository}}:{{.Tag}}\t{{.CreatedAt}}" \
-        | grep -E "familybudget|ghcr.io.*familybudget" \
-        | awk -v days="$retention_days" '
-            {
-                # Parse date (format: "2026-01-20 12:34:56 +0000 UTC")
-                cmd = "date -d\"" $2 " " $3 "\" +%s 2>/dev/null"
-                cmd | getline created_timestamp
-                close(cmd)
-                
-                # Current timestamp
-                "date +%s" | getline current_timestamp
-                close("date +%s")
-                
-                # Calculate age in days
-                age_days = (current_timestamp - created_timestamp) / 86400
-                
-                if (age_days > days) {
-                    print $1
-                }
-            }
-        ')
-    
-    if [[ -z "$old_images" ]]; then
-        info "No old images found (retention: ${retention_days} days)"
-        return 0
-    fi
-    
-    # Cleanup log file
-    local cleanup_log="/opt/budget/logs/cleanup-history.log"
-    mkdir -p "$(dirname "$cleanup_log")"
-    
-    # Remove old images (protect running ones)
-    local removed_count=0
-    local skipped_count=0
-    
-    while IFS= read -r image; do
-        if [[ -n "$image" ]]; then
-            # Check if image is currently running
-            if echo "$running_images" | grep -q "$image"; then
-                debug "Skipping running image: $image"
-                echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] skipped: $image (running)" >> "$cleanup_log"
-                skipped_count=$((skipped_count + 1))
-            else
-                info "Removing old image: $image"
-                if docker rmi "$image" >> "$LOG_FILE" 2>&1; then
-                    success "✓ Removed: $image"
-                    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] removed: $image" >> "$cleanup_log"
-                    removed_count=$((removed_count + 1))
-                else
-                    warning "Failed to remove: $image (may be in use)"
-                    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] failed: $image" >> "$cleanup_log"
-                fi
-            fi
-        fi
-    done <<< "$old_images"
-    
-    # Summary
-    success "Image cleanup complete: ${removed_count} removed, ${skipped_count} skipped"
-    
-    # Docker system prune (dangling images)
-    if [[ $removed_count -gt 0 ]]; then
-        info "Removing dangling images..."
-        docker image prune -f >> "$LOG_FILE" 2>&1 || true
-        success "Dangling images cleaned up"
-    fi
-    
-    # Keep only last 100 entries in cleanup log
-    if [[ -f "$cleanup_log" ]]; then
-        tail -n 100 "$cleanup_log" > "${cleanup_log}.tmp" && mv "${cleanup_log}.tmp" "$cleanup_log"
-    fi
-    
-    return 0
-}
+# REMOVED: cleanup_old_images() function (replaced by cleanup_old_image_versions)
+# Old function had race condition risks:
+# - Only checked docker ps (running containers)
+# - Did NOT check IMAGE_VERSIONS.json (deployment source of truth)
+# - Did NOT check stopped containers (could be restarted)
+# - Could delete active image during deployment (if stopped temporarily)
+#
+# New approach: Use cleanup_old_image_versions() from scripts/lib/docker.sh
+# - Checks docker inspect (actual container image references)
+# - Keeps last N versions (predictable)
+# - Not affected by image age (better for frequent releases)
+# - More reliable protection against active image deletion
 
 main() {
     # Parse arguments
@@ -1110,6 +1037,23 @@ main() {
     fi
     echo ""
 
+    # =============================================================================
+    # REGISTRY-FIRST OPTIMIZATION: Cleanup old images BEFORE pull
+    # =============================================================================
+    # Free disk space before downloading new images (up to 2GB)
+    # This prevents "no space left on device" errors during pull
+    # Note: cleanup_old_image_versions() is safer than cleanup_old_images():
+    # - Checks docker inspect (protects running containers)
+    # - Keeps last N versions (predictable for frequent releases)
+    step "Cleaning Up Old Docker Images (Pre-Pull Optimization)"
+    if cleanup_old_image_versions 3; then
+        success "Old Docker image versions cleaned up successfully"
+        info "Disk space freed for new image pull"
+    else
+        warning "Image cleanup had some issues - continuing anyway"
+    fi
+    echo ""
+
     # Pull images from ghcr.io (backend, bot, nginx, redis, postgresql)
     # Versions exported to .env: BACKEND_VERSION, BOT_VERSION, etc.
     info "Pulling Docker images from registry..."
@@ -1264,9 +1208,9 @@ main() {
     cleanup_docker_images true  # true = auto-cleanup (no confirmation needed)
     echo ""
 
-    # Cleanup old image versions (keep only last 3) to prevent 100+ images accumulation
-    cleanup_old_image_versions 3
-    echo ""
+    # NOTE: cleanup_old_image_versions() moved to PHASE 2 (before pull_from_registry)
+    # This frees disk space BEFORE pulling new images (registry-first optimization)
+    # See: Image Management section above
 
     # Check Docker daemon health and restart if CPU is too high (>50%)
     # High dockerd CPU often indicates accumulated state from many images
@@ -1413,16 +1357,9 @@ main() {
         wait_for_services
         echo ""
 
-        # Cleanup old Docker images (retention: 7 days)
-        # This prevents disk space exhaustion from accumulated image versions
-        # Running images are protected from deletion
-        step "Cleaning Up Old Docker Images"
-        if cleanup_old_images "${CLEANUP_RETENTION_DAYS:-7}"; then
-            success "Old Docker images cleaned up successfully"
-        else
-            warning "Image cleanup had some issues - check logs"
-        fi
-        echo ""
+        # NOTE: Old Docker image cleanup moved to PHASE 2 (before pull_from_registry)
+        # This optimization frees disk space BEFORE pulling new images
+        # No need to cleanup again here - already done during image management phase
 
         # Configure Docker firewall (DOCKER-USER chain)
         # CRITICAL: Block exposed ports 5432 (PostgreSQL) and 8000 (Backend)
@@ -1549,9 +1486,10 @@ main() {
         # Check for orphaned deployment processes after successful deployment
         # This ensures no deployment-related processes (alembic, npm, pip, rsync) remain running
         # Uvicorn workers and other service processes are excluded from this check
-        check_orphaned_deployment_processes || {
-            warning "Orphaned processes detected but deployment completed successfully"
-            warning "These processes will be automatically cleaned up on next deployment"
+        # Symmetrical policy with deployment start (line 871): auto-terminate orphaned processes
+        check_orphaned_deployment_processes --terminate || {
+            warning "Failed to terminate orphaned processes"
+            warning "Manual cleanup may be required"
         }
         echo ""
 
