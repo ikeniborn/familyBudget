@@ -173,9 +173,11 @@ async def test_list_articles_sees_all_shared_references(
     # Admin creates two articles
     await admin_client.post(
         "/api/v1/articles",
+        json={"name": "Food", "type": "expense", "parent_id": None},
     )
     await admin_client.post(
         "/api/v1/articles",
+        json={"name": "Salary", "type": "income", "parent_id": None},
     )
 
     # Regular user sees all articles
@@ -194,23 +196,15 @@ async def test_list_articles_sees_all_shared_references(
 async def test_list_articles_filter_by_type(auth_client: AsyncClient, session: AsyncSession):
     """Test filtering articles by type (income/expense)."""
     # Create income and expense articles
-    from datetime import datetime
-
     expense_article = Article(
         user_id=1,  # Assuming test_user has id=1
         name="Expense 1",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     income_article = Article(
         user_id=1,
         name="Income 1",
         type="income",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(expense_article)
     session.add(income_article)
@@ -258,16 +252,11 @@ async def test_list_articles_filter_root_only(auth_client: AsyncClient, test_art
 async def test_list_articles_pagination(auth_client: AsyncClient, session: AsyncSession):
     """Test pagination of articles list."""
     # Create 10 articles
-    from datetime import datetime
-
     for i in range(10):
         article = Article(
             user_id=1,
             name=f"Article {i}",
             type="expense",
-            is_current=True,
-            valid_from=datetime.utcnow(),
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
         )
         session.add(article)
     await session.commit()
@@ -299,19 +288,20 @@ async def test_list_articles_all_users_see_same_articles(
     # Admin creates article
     await admin_client.post(
         "/api/v1/articles",
+        json={"name": "Shared Article", "type": "expense", "parent_id": None},
     )
 
     # Admin sees article
     admin_response = await admin_client.get("/api/v1/articles")
     assert admin_response.status_code == 200
     admin_codes = {article["name"] for article in admin_response.json()["articles"]}
-    assert "SHARED" in admin_codes
+    assert "Shared Article" in admin_codes
 
     # Regular user sees the same article
     user_response = await auth_client.get("/api/v1/articles")
     assert user_response.status_code == 200
     user_codes = {article["name"] for article in user_response.json()["articles"]}
-    assert "SHARED" in user_codes
+    assert "Shared Article" in user_codes
 
 
 @pytest.mark.asyncio
@@ -401,7 +391,7 @@ async def test_get_article_by_id_unauthenticated(client: AsyncClient, test_artic
 
 
 # ============================================================================
-# PUT /api/v1/articles/{id} - Update Article (SCD Type 2)
+# PUT /api/v1/articles/{id} - Update Article (SCD Type 1)
 # ============================================================================
 
 
@@ -409,7 +399,7 @@ async def test_get_article_by_id_unauthenticated(client: AsyncClient, test_artic
 async def test_update_article_as_admin(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test updating article as admin creates new SCD Type 2 version."""
+    """Test updating article as admin (in-place update, SCD Type 1)."""
 
     response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",
@@ -421,22 +411,17 @@ async def test_update_article_as_admin(
     data = response.json()
     assert data["name"] == "Food and Beverages"
 
-    # Verify SCD Type 2: two versions exist
-    stmt = select(Article).where(Article.code == "FOOD")
+    # Verify SCD Type 1: in-place update (same id, updated name)
+    await session.refresh(test_article_root)
+    assert test_article_root.name == "Food and Beverages"
+
+    # Verify only one article exists with this id (no versioning in main table)
+    stmt = select(Article).where(Article.id == test_article_root.id)
     result = await session.execute(stmt)
-    versions = result.scalars().all()
+    articles = result.scalars().all()
 
-    assert len(versions) == 2
-
-    # Old version: is_current=False
-    old_version = [v for v in versions if not v.is_current][0]
-    assert old_version.name == "Food"
-    assert old_version.is_current is False
-
-    # New version: is_current=True
-    new_version = [v for v in versions if v.is_current][0]
-    assert new_version.name == "Food and Beverages"
-    assert new_version.is_current is True
+    assert len(articles) == 1
+    assert articles[0].name == "Food and Beverages"
 
 
 @pytest.mark.asyncio
@@ -459,14 +444,10 @@ async def test_update_article_change_parent_as_admin(
 ):
     """Test changing article's parent as admin."""
     # Create new potential parent
-    from datetime import datetime
-
     new_parent = Article(
+        user_id=1,  # Assuming test_user has id=1
         name="New Parent",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(new_parent)
     await session.commit()
@@ -536,14 +517,14 @@ async def test_update_article_unauthenticated(client: AsyncClient, test_article_
 async def test_delete_article_as_admin(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test soft deleting article as admin."""
+    """Test soft deleting article as admin (archives via is_active=False)."""
     response = await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 204
 
-    # Verify article is soft deleted (is_current=False)
+    # Verify article is archived (is_active=False) - SCD Type 1 soft delete
     await session.refresh(test_article_root)
-    assert test_article_root.is_current is False
+    assert test_article_root.is_active is False
 
 
 @pytest.mark.asyncio
@@ -637,16 +618,11 @@ async def test_get_article_subtree_max_depth(
 ):
     """Test getting subtree with max_depth parameter."""
     # Create multi-level hierarchy
-    from datetime import datetime
-
     level1 = Article(
         user_id=1,
         parent_id=test_article_root.id,
         name="Level 1",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(level1)
     await session.commit()
@@ -657,9 +633,6 @@ async def test_get_article_subtree_max_depth(
         parent_id=level1.id,
         name="Level 2",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(level2)
     await session.commit()

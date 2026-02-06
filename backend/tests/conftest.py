@@ -166,16 +166,13 @@ async def test_article_root(session: AsyncSession, test_user: User) -> Article:
     Create test root article (no parent).
 
     Returns:
-        Article: Food category (expense, current version)
+        Article: Food category (expense, SCD Type 1)
     """
     article = Article(
         user_id=test_user.id,
         parent_id=None,
         name="Food",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
@@ -191,16 +188,13 @@ async def test_article_child(
     Create test child article.
 
     Returns:
-        Article: Groceries category (child of Food)
+        Article: Groceries category (child of Food, SCD Type 1)
     """
     article = Article(
         user_id=test_user.id,
         parent_id=test_article_root.id,
         name="Groceries",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
@@ -214,7 +208,7 @@ async def test_global_article(session: AsyncSession, test_user: User) -> Article
     Create test income article.
 
     Returns:
-        Article: Salary category (income, current version)
+        Article: Salary category (income, SCD Type 1)
 
     Note: Previously was "global" article, now all articles are user-specific
     """
@@ -223,9 +217,6 @@ async def test_global_article(session: AsyncSession, test_user: User) -> Article
         parent_id=None,
         name="Salary",
         type="income",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
