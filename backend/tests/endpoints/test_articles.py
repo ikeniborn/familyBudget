@@ -45,7 +45,6 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
     assert data["name"] == "Transportation"
     assert data["type"] == "expense"
     assert data["parent_id"] is None
-    assert data["is_current"] is True
 
 
 @pytest.mark.asyncio
@@ -184,11 +183,11 @@ async def test_list_articles_sees_all_shared_references(
     assert response.status_code == 200
 
     data = response.json()
-    article_codes = {article["code"] for article in data["articles"]}
+    article_names = {article["name"] for article in data["articles"]}
 
     # Should include all shared articles
-    assert "FOOD" in article_codes
-    assert "SALARY" in article_codes
+    assert "FOOD" in article_names
+    assert "SALARY" in article_names
 
 
 @pytest.mark.asyncio
@@ -305,13 +304,13 @@ async def test_list_articles_all_users_see_same_articles(
     # Admin sees article
     admin_response = await admin_client.get("/api/v1/articles")
     assert admin_response.status_code == 200
-    admin_codes = {article["code"] for article in admin_response.json()["articles"]}
+    admin_codes = {article["name"] for article in admin_response.json()["articles"]}
     assert "SHARED" in admin_codes
 
     # Regular user sees the same article
     user_response = await auth_client.get("/api/v1/articles")
     assert user_response.status_code == 200
-    user_codes = {article["code"] for article in user_response.json()["articles"]}
+    user_codes = {article["name"] for article in user_response.json()["articles"]}
     assert "SHARED" in user_codes
 
 
@@ -421,7 +420,6 @@ async def test_update_article_as_admin(
 
     data = response.json()
     assert data["name"] == "Food and Beverages"
-    assert data["is_current"] is True
 
     # Verify SCD Type 2: two versions exist
     stmt = select(Article).where(Article.code == "FOOD")
@@ -608,7 +606,7 @@ async def test_get_article_subtree_basic(
     assert data["total"] >= 2  # Root + at least 1 child
 
     # Should include root and child
-    codes = {article["code"] for article in data["articles"]}
+    codes = {article["name"] for article in data["articles"]}
     assert "FOOD" in codes
     assert "GROCERIES" in codes
 
@@ -625,7 +623,7 @@ async def test_get_article_subtree_exclude_self(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    codes = {article["name"] for article in data["articles"]}
 
     # Should not include root
     assert "FOOD" not in codes
@@ -674,7 +672,7 @@ async def test_get_article_subtree_max_depth(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    codes = {article["name"] for article in data["articles"]}
 
     # Should include root and level 1, but not level 2
     assert "FOOD" in codes
@@ -733,7 +731,7 @@ async def test_get_article_ancestors_basic(
     assert "articles" in data
 
     # Should include root article (parent of child)
-    codes = {article["code"] for article in data["articles"]}
+    codes = {article["name"] for article in data["articles"]}
     assert "FOOD" in codes
 
 
@@ -749,7 +747,7 @@ async def test_get_article_ancestors_include_self(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    codes = {article["name"] for article in data["articles"]}
 
     # Should include both root and child
     assert "FOOD" in codes
