@@ -1,0 +1,44 @@
+name: Setup Backend
+description: |
+  Install Python dependencies and run Alembic migrations for backend testing.
+  Requires PostgreSQL to be ready before running.
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: false
+    default: '3.11'
+  database-url:
+    description: PostgreSQL database URL
+    required: true
+  cache-dependency-path:
+    description: Path to requirements.txt for cache key
+    required: false
+    default: backend/requirements.txt
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: ./.github/actions/setup-python
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+
+    - name: Install backend dependencies
+      shell: bash
+      run: |
+        echo "Installing backend dependencies..."
+        cd backend
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        echo "✅ Backend dependencies installed"
+
+    - name: Run Alembic migrations
+      shell: bash
+      env:
+        DATABASE_URL: ${{ inputs.database-url }}
+      run: |
+        echo "Running Alembic migrations..."
+        alembic -c backend/db/migrations/alembic.ini upgrade head
+        echo "✅ Migrations applied successfully"

@@ -5,6 +5,7 @@
 pytest==8.3.4
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
+pytest-xdist==3.6.1  # Parallel test execution
 
 # HTTP Client for Testing
 httpx==0.28.1

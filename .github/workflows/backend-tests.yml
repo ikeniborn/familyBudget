@@ -49,23 +49,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.12
-        uses: ./.github/actions/setup-python
+      - name: Setup test services
+        uses: ./.github/actions/setup-test-services
         with:
+          postgres-password: test_password_12345678901234567890
+
+      - name: Setup backend
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.12'
+          database-url: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
           cache-dependency-path: backend/requirements.txt
-
-      - name: Install backend dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-
-      - name: Run backend migrations
-        env:
-          POSTGRES_HOST: localhost
-          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
-        run: |
-          alembic -c backend/db/migrations/alembic.ini upgrade head
 
       - name: Run backend tests with coverage
         env:
@@ -83,6 +77,7 @@ jobs:
         run: |
           cd backend
           pytest tests/ \
+            -n auto \
             --cov=app \
             --cov-report=html:htmlcov \
             --cov-report=json:coverage.json \
