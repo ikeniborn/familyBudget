@@ -34,6 +34,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+          -c max_locks_per_transaction=256
 
       redis:
         image: redis:7-alpine
