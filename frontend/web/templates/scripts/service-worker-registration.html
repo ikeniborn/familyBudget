@@ -326,9 +326,10 @@
                 console.log('[SW_UPDATE] ✅ All cleanup complete, reloading...');
                 showToast('Обновление завершено!', 'success', 2000);
 
-                // Reload with cache bust (fallback for deprecated reload(true))
-                const url = new URL(window.location.href);
+                // Reload with cache bust + SW update flag for UX notification
+                const url = new URL(window.location.origin + '/login-email');
                 url.searchParams.set('_update', Date.now());
+                url.searchParams.set('sw_updated', 'true');  // Trigger toast on login page
                 console.log('[SW_UPDATE] Navigating to:', url.toString());
                 window.location.href = url.toString();
 

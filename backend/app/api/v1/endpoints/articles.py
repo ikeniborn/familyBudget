@@ -300,6 +300,51 @@ async def list_articles(
 
 
 @router.get(
+    "/hierarchy",
+    response_model=list[dict],
+    responses=get_common_responses(include_403=True),
+)
+async def get_article_hierarchy(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> list[dict]:
+    """
+    Get article hierarchy closure table.
+
+    Returns ALL ancestor-descendant paths for articles accessible to the user.
+    Used for offline Dexie sync.
+
+    **Returns:**
+    - Array of hierarchy records: [{ ancestor_id, descendant_id, depth }, ...]
+
+    **Access Control:**
+    - Regular users: All hierarchy paths (articles are shared across users)
+    - Admin bypass: Not needed (hierarchy is global)
+    """
+    from backend.app.models.hierarchy import ArticleHierarchy
+
+    # Query all hierarchy records (closure table)
+    stmt = select(ArticleHierarchy).order_by(
+        ArticleHierarchy.ancestor_id,
+        ArticleHierarchy.depth
+    )
+    result = await session.execute(stmt)
+    hierarchy_records = result.scalars().all()
+
+    # Convert to simple dict format for frontend
+    hierarchy_list = [
+        {
+            "ancestor_id": record.ancestor_id,
+            "descendant_id": record.descendant_id,
+            "depth": record.depth
+        }
+        for record in hierarchy_records
+    ]
+
+    return hierarchy_list
+
+
+@router.get(
     "/{article_id}",
     response_model=ArticleResponse,
     responses=get_common_responses(include_403=True, include_404=True),

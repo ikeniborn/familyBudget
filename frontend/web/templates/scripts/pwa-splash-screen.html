@@ -54,7 +54,14 @@
                     const dexie = await window.Dexie.getDexieManager();
                     await dexie.init();
 
-                    console.info('[PWA_SPLASH] Syncing reference data...');
+                    // Check userId availability before sync (prevents errors on login page)
+                    const userId = window.userData?.id || window.user?.id;
+                    if (!userId) {
+                        console.warn('[PWA_SPLASH] Skipping sync - userId not available (not authenticated yet)');
+                        return;
+                    }
+
+                    console.info('[PWA_SPLASH] Syncing reference data...', { userId });
                     await dexie.syncReferenceData();
 
                     console.info('[PWA_SPLASH] Initial sync complete');
