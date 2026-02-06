@@ -4355,6 +4355,12 @@ function updateYearlyFrequencyValue(modalId) {
     const daySelect = document.querySelector(`#${modalId} select[name="frequency_value_day"]`);
     const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_yearly"]`);
 
+    // Null safety check (modal elements may not be rendered yet)
+    if (!monthSelect || !daySelect || !hiddenInput) {
+        console.warn(`[PLAN] updateYearlyFrequencyValue: Elements not found for modal ${modalId}`);
+        return;
+    }
+
     const month = parseInt(monthSelect.value);
     const day = parseInt(daySelect.value);
 

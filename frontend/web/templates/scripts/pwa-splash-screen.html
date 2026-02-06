@@ -34,6 +34,12 @@
         if (urlParams.get('just_logged_in') === 'true') {
             sessionStorage.setItem('just_logged_in', 'true');
             flags.justLoggedIn = true;
+
+            // Clean URL (remove query parameter from browser history)
+            // Prevents Dexie sync errors when query parameter triggers initialization on pages with no modals
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            console.log('[PWA_SPLASH] Cleaned URL after reading just_logged_in flag');
         }
 
         console.info('[PWA_SPLASH] Post-auth flags initialized:', flags);

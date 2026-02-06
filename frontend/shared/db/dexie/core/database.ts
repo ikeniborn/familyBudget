@@ -30,7 +30,7 @@ import type {
  * Default schema version
  * Increment this when adding new migrations
  */
-const DEFAULT_SCHEMA_VERSION = 1;
+const DEFAULT_SCHEMA_VERSION = 2;  // Shopping lists creator_id schema fix
 
 /**
  * Cached database version (to avoid redundant Dexie.exists() calls)
@@ -141,8 +141,8 @@ export class FamilyBudgetDB extends Dexie {
 
       // Shopping Lists
       // PRIMARY KEY: temp_id (same offline-first pattern as budgetFacts)
-      shoppingLists: 'temp_id, id, user_id, is_completed, sync_status',
-      shoppingListItems: 'temp_id, id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
+      shoppingLists: 'temp_id, id, user_id, creator_id, is_completed, sync_status',
+      shoppingListItems: 'temp_id, id, creator_id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
       stores: 'id, user_id, name',
       productGroups: 'id, user_id, parent_id, name',
       productGroupHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id, depth',
