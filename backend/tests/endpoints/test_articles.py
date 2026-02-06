@@ -33,7 +33,6 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS",
             "name": "Transportation",
             "type": "expense",
             "parent_id": None,
@@ -43,7 +42,6 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
     assert response.status_code == 201
 
     data = response.json()
-    assert data["code"] == "TRANS"
     assert data["name"] == "Transportation"
     assert data["type"] == "expense"
     assert data["parent_id"] is None
@@ -54,19 +52,20 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
 async def test_create_article_as_regular_user_forbidden(
     auth_client: AsyncClient, test_user: User
 ):
-    """Test that regular users cannot create articles."""
+    """Test that regular users CAN create articles (Shared Budget architecture)."""
     response = await auth_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS",
             "name": "Transportation",
             "type": "expense",
             "parent_id": None,
         }
     )
 
-    assert response.status_code == 403
-    assert "Only administrators can create" in response.json()["detail"]
+    # In Shared Budget architecture, all authenticated users can create articles
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Transportation"
 
 
 @pytest.mark.asyncio
@@ -77,7 +76,6 @@ async def test_create_article_with_parent_as_admin(
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS_CAR",
             "name": "Car Expenses",
             "type": "expense",
             "parent_id": test_article_root.id,
@@ -99,7 +97,6 @@ async def test_all_users_see_shared_articles(
     admin_response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "SHARED_CAT",
             "name": "Shared Category",
             "type": "expense",
             "parent_id": None,
@@ -121,7 +118,6 @@ async def test_create_article_parent_not_found(admin_client: AsyncClient):
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "CHILD",
             "name": "Child Category",
             "type": "expense",
             "parent_id": 99999,  # Non-existent
@@ -137,7 +133,6 @@ async def test_create_article_unauthenticated(client: AsyncClient):
     response = await client.post(
         "/api/v1/articles",
         json={
-            "code": "TEST",
             "name": "Test",
             "type": "expense",
             "parent_id": None,
@@ -179,11 +174,9 @@ async def test_list_articles_sees_all_shared_references(
     # Admin creates two articles
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
     )
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SALARY", "name": "Salary", "type": "income", "parent_id": None},
     )
 
     # Regular user sees all articles
@@ -307,7 +300,6 @@ async def test_list_articles_all_users_see_same_articles(
     # Admin creates article
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
     )
 
     # Admin sees article
@@ -347,7 +339,6 @@ async def test_get_article_by_id_own_article(
 
     data = response.json()
     assert data["id"] == test_article_root.id
-    assert data["code"] == "FOOD"
     assert data["name"] == "Food"
 
 
@@ -359,7 +350,6 @@ async def test_get_article_by_id_shared_reference(
     # Admin creates article
     admin_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
     )
     article_id = admin_response.json()["id"]
 
@@ -380,7 +370,6 @@ async def test_all_users_get_same_article(
     # Admin creates article
     admin_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
     )
     article_id = admin_response.json()["id"]
 
@@ -710,7 +699,6 @@ async def test_get_article_subtree_all_users_can_access(
     # Admin creates hierarchy
     root_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Root", "type": "expense", "parent_id": None},
     )
     root_id = root_response.json()["id"]
 
