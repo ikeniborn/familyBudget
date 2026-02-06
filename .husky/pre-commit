@@ -20,11 +20,12 @@ elif [ -f "/usr/local/bin/npm" ]; then
 fi
 
 # Verify npm is available
+NPM_AVAILABLE=true
 if ! command -v npm >/dev/null 2>&1; then
-  echo "❌ npm not found in PATH"
-  echo "   Please ensure Node.js and npm are installed"
-  echo "   Current PATH: $PATH"
-  exit 1
+  echo "⚠️  npm not found in PATH (optional for server environments)"
+  echo "   TypeScript type-check will be skipped"
+  echo "   Type checking will run in CI/CD pipeline"
+  NPM_AVAILABLE=false
 fi
 
 echo "🔍 Running pre-commit checks..."
@@ -83,17 +84,22 @@ fi
 echo "✅ No console.log found"
 echo ""
 
-# Run TypeScript type checking (only if TypeScript files changed)
+# Run TypeScript type checking (only if TypeScript files changed and npm available)
 CHANGED_TS_ALL=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.ts$' || true)
 
 if [ -n "$CHANGED_TS_ALL" ]; then
-  echo "2️⃣  Running TypeScript type check..."
-  cd "$GIT_ROOT/frontend/web" && npm run type-check
-  if [ $? -ne 0 ]; then
-    echo "❌ Type check failed! Fix errors before committing."
-    exit 1
+  if [ "$NPM_AVAILABLE" = true ]; then
+    echo "2️⃣  Running TypeScript type check..."
+    cd "$GIT_ROOT/frontend/web" && npm run type-check
+    if [ $? -ne 0 ]; then
+      echo "❌ Type check failed! Fix errors before committing."
+      exit 1
+    fi
+    echo "✅ Type check passed"
+  else
+    echo "2️⃣  Skipping type check (npm not available)"
+    echo "   ℹ️  Type checking will run in CI/CD pipeline"
   fi
-  echo "✅ Type check passed"
 else
   echo "2️⃣  Skipping type check (no TypeScript files changed)"
 fi
