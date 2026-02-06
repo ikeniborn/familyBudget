@@ -1,7 +1,8 @@
 name: Setup Test Services
 description: |
-  Health checks for PostgreSQL 16 + Redis 7 test services.
-  NOTE: Services must be defined at job level - this action only validates they are ready.
+  Health checks for PostgreSQL test service.
+  NOTE: Services must be defined at job level - this action only validates PostgreSQL is ready.
+  Redis health check is handled by service health-cmd option (redis-cli not available in runner).
 
 inputs:
   postgres-password:
@@ -19,13 +20,6 @@ runs:
         timeout 30 bash -c 'until pg_isready -h localhost -U familybudget; do sleep 1; done'
         echo "✅ PostgreSQL is ready"
 
-    - name: Wait for Redis
-      shell: bash
-      run: |
-        echo "Waiting for Redis to be ready..."
-        timeout 30 bash -c 'until redis-cli -h localhost ping | grep -q PONG; do sleep 1; done'
-        echo "✅ Redis is ready"
-
     - name: Validate PostgreSQL connection
       shell: bash
       env:
@@ -34,3 +28,6 @@ runs:
         echo "Validating PostgreSQL connection..."
         psql -h localhost -U familybudget -d familybudget_test -c "SELECT version();" > /dev/null
         echo "✅ PostgreSQL connection validated"
+
+    # Note: Redis health check removed - services already have built-in health checks
+    # redis-cli is not available in GitHub Actions runner by default
