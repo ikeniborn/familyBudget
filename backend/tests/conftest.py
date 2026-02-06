@@ -67,32 +67,44 @@ async def engine():
 @pytest_asyncio.fixture(scope="function")
 async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     """
-    Create async database session for tests with transaction rollback.
+    Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Cleanup: Automatic rollback ensures complete isolation without DELETE overhead.
+    Cleanup: TRUNCATE all data after test completes (faster than DELETE).
 
-    Note: This approach provides true test isolation by rolling back all changes
-    after each test, including fixture data. Faster and more reliable than DELETE.
+    Note: Using TRUNCATE CASCADE without RESTART IDENTITY to maintain sequence continuity
+    for tests that may depend on specific ID values.
     """
-    # Create connection and start transaction
-    connection = await engine.connect()
-    transaction = await connection.begin()
-
-    # Create session bound to this transaction
-    session = AsyncSession(bind=connection, expire_on_commit=False)
-
-    try:
+    async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
-    finally:
-        # Cleanup: Rollback transaction (discards all changes including fixtures)
-        await session.close()
-        await transaction.rollback()
-        await connection.close()
+
+    # Cleanup after test: TRUNCATE all data to ensure isolation (faster than DELETE)
+    # Using separate connection to avoid conflicts with test session
+    async with engine.begin() as conn:
+        # TRUNCATE with CASCADE automatically handles FK dependencies
+        # WITHOUT RESTART IDENTITY to preserve sequence state for tests
+        await conn.execute(text("""
+            TRUNCATE TABLE
+                t_f_refresh_token,
+                t_notification,
+                t_f_budget_fact,
+                t_f_shopping_list_item,
+                t_f_shopping_list,
+                t_d_article_hierarchy,
+                t_d_product_group_hierarchy,
+                t_d_financial_center,
+                t_d_cost_center,
+                t_d_article,
+                t_d_product_group,
+                t_d_store,
+                t_d_import_template,
+                t_d_user
+            CASCADE;
+        """))
 
 
-# Note: Transaction rollback handles cleanup automatically
-# No manual DELETE or TRUNCATE needed - all changes rolled back after test
+# Cleanup is now handled by session fixture teardown (see above)
+# No separate cleanup_database fixture needed
 
 
 # ============================================================================
@@ -261,14 +273,12 @@ async def test_fact(
 
 
 @pytest_asyncio.fixture
-async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     """
     Create unauthenticated HTTP client for API testing.
 
     Uses FastAPI TestClient with async support via httpx.AsyncClient.
-    Database session is overridden to use test session.
-
-    IMPORTANT: Uses the same session as test to ensure data visibility.
+    Database session is overridden to use test database.
 
     Returns:
         AsyncClient: HTTP client without authentication
@@ -280,9 +290,10 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session to use test session (same transaction)
+    # Override get_session dependency to use test database
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        yield session
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -296,15 +307,13 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(
-    session: AsyncSession, test_user: User
+    engine, test_user: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for regular user.
 
     Creates JWT token for test_user and includes it in cookies.
     All requests will be authenticated as regular user (not admin).
-
-    IMPORTANT: Uses the same session as test to ensure test_user is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_user
@@ -316,9 +325,10 @@ async def auth_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session to use test session (same transaction)
+    # Override get_session dependency
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        yield session
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -336,15 +346,13 @@ async def auth_client(
 
 @pytest_asyncio.fixture
 async def admin_client(
-    session: AsyncSession, test_admin: User
+    engine, test_admin: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for admin user.
 
     Creates JWT token for test_admin and includes it in cookies.
     All requests will be authenticated as admin user.
-
-    IMPORTANT: Uses the same session as test to ensure test_admin is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_admin
@@ -356,9 +364,10 @@ async def admin_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session to use test session (same transaction)
+    # Override get_session dependency
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        yield session
+        async with AsyncSession(engine, expire_on_commit=False) as session:
+            yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
