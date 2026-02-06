@@ -70,37 +70,34 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Cleanup: TRUNCATE all data after test completes (faster than DELETE).
+    Cleanup: DELETE all data after test completes.
 
-    Note: Using TRUNCATE CASCADE without RESTART IDENTITY to maintain sequence continuity
-    for tests that may depend on specific ID values.
+    Note: Using DELETE instead of TRUNCATE to avoid PostgreSQL configuration
+    requirements in CI/CD (max_locks_per_transaction). DELETE is slower but
+    more reliable across different PostgreSQL configurations.
     """
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
 
-    # Cleanup after test: TRUNCATE all data to ensure isolation (faster than DELETE)
+    # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
     async with engine.begin() as conn:
-        # TRUNCATE with CASCADE automatically handles FK dependencies
-        # WITHOUT RESTART IDENTITY to preserve sequence state for tests
-        await conn.execute(text("""
-            TRUNCATE TABLE
-                t_f_refresh_token,
-                t_notification,
-                t_f_budget_fact,
-                t_f_shopping_list_item,
-                t_f_shopping_list,
-                t_d_article_hierarchy,
-                t_d_product_group_hierarchy,
-                t_d_financial_center,
-                t_d_cost_center,
-                t_d_article,
-                t_d_product_group,
-                t_d_store,
-                t_d_import_template,
-                t_d_user
-            CASCADE;
-        """))
+        # Delete in correct order to handle FK constraints
+        # Note: Could use SET CONSTRAINTS ALL DEFERRED, but DELETE is more portable
+        await conn.execute(text("DELETE FROM t_f_refresh_token"))
+        await conn.execute(text("DELETE FROM t_notification"))
+        await conn.execute(text("DELETE FROM t_f_budget_fact"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list"))
+        await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
+        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
+        await conn.execute(text("DELETE FROM t_d_financial_center"))
+        await conn.execute(text("DELETE FROM t_d_cost_center"))
+        await conn.execute(text("DELETE FROM t_d_article"))
+        await conn.execute(text("DELETE FROM t_d_product_group"))
+        await conn.execute(text("DELETE FROM t_d_store"))
+        await conn.execute(text("DELETE FROM t_d_import_template"))
+        await conn.execute(text("DELETE FROM t_d_user"))
 
 
 # Cleanup is now handled by session fixture teardown (see above)
