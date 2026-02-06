@@ -36,6 +36,7 @@ import type {
   LocalArticleHierarchy,
   LocalRecurringPlan,
   FactFilters,
+  ShoppingListFilters,
   LocalSyncMetadata,
   LocalSyncConflict
 } from './types/models';
@@ -736,8 +737,29 @@ export class DexieManager {
   // SHOPPING LISTS (Placeholder - будет реализовано в operations/)
   // ============================================================
 
-  async queryShoppingLists(userId: number): Promise<LocalShoppingList[]> {
-    return await this.getDB().shoppingLists.where('creator_id').equals(userId).toArray();
+  /**
+   * Query shopping lists with optional filters
+   *
+   * Fixes: "Failed to execute 'bound' on 'IDBKeyRange': The parameter is not a valid key"
+   * Previous signature: queryShoppingLists(userId: number) - incompatible with DataLayer.getShoppingLists(filters)
+   *
+   * @param filters - Optional filters for is_active and sync_status
+   * @returns Filtered shopping lists sorted by created_at desc
+   */
+  async queryShoppingLists(filters?: ShoppingListFilters): Promise<LocalShoppingList[]> {
+    const db = this.getDB();
+    let results = await db.shoppingLists.toArray();
+
+    if (filters) {
+      results = results.filter(list => {
+        if (filters.is_active !== undefined && list.is_active !== filters.is_active) return false;
+        if (filters.sync_status && list.sync_status !== filters.sync_status) return false;
+        return true;
+      });
+    }
+
+    // Sort by created_at descending (newest first)
+    return results.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
   }
 
   async createShoppingList(

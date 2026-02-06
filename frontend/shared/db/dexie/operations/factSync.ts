@@ -12,6 +12,7 @@ import {
   confirmPendingOperation,
   failPendingOperation
 } from './factOperations';
+import { mapAPIFactToLocal, mapLocalFactToAPI, validateMappedFact } from '../utils/apiMapper';
 import type {
   LocalBudgetFact,
   LocalPendingOperation
@@ -102,12 +103,17 @@ async function uploadOperation(op: LocalPendingOperation): Promise<void> {
       throw new Error(`Unknown operation: ${op.operation}`);
   }
 
+  // MAP DEXIE → API before sending
+  const apiPayload = op.operation !== 'delete'
+    ? mapLocalFactToAPI(op.payload as Partial<LocalBudgetFact>)
+    : undefined;
+
   const response = await fetchWithTimeout(endpoint, {
     method,
     headers: {
       'Content-Type': 'application/json'
     },
-    body: op.operation !== 'delete' ? JSON.stringify(op.payload) : undefined,
+    body: apiPayload ? JSON.stringify(apiPayload) : undefined,
     credentials: 'include'
   });
 
@@ -165,21 +171,52 @@ export async function downloadFacts(
       throw new Error(`Failed to fetch facts: ${response.status}`);
     }
 
-    const facts: LocalBudgetFact[] = await response.json();
+    const apiFacts: any[] = await response.json();
 
-    // Bulk insert (amount уже в dollars от сервера)
-    await bulkInsertFacts(facts);
+    // MAP API FIELDS → DEXIE SCHEMA (with error handling)
+    const mappedFacts: LocalBudgetFact[] = [];
+    const errors: string[] = [];
+
+    for (const apiFact of apiFacts) {
+      try {
+        const mapped = mapAPIFactToLocal(apiFact);
+        validateMappedFact(mapped);
+        mappedFacts.push(mapped);
+      } catch (error) {
+        // Log and skip malformed facts
+        const factId = apiFact.id || 'unknown';
+        const errorMsg = (error as Error).message;
+        errors.push(`Fact ${factId}: ${errorMsg}`);
+        logger.warn('[factSync] Skipping malformed fact', {
+          factId,
+          error: errorMsg,
+          rawFact: apiFact
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      logger.warn('[factSync] Skipped malformed facts', {
+        total: apiFacts.length,
+        valid: mappedFacts.length,
+        skipped: errors.length,
+        errors: errors.slice(0, 10)  // First 10 errors only
+      });
+    }
+
+    // Bulk insert (amount уже в cents от сервера)
+    await bulkInsertFacts(mappedFacts);
 
     // Update sync metadata
     await db.syncMetadata.put({
       entity_type: 'budget_facts',
       last_sync_timestamp: new Date(),
       sync_version: 1,
-      total_records: facts.length
+      total_records: mappedFacts.length
     });
 
-    logger.info('[factSync] ✅ Facts downloaded', { count: facts.length });
-    return { success: true, count: facts.length };
+    logger.info('[factSync] ✅ Facts downloaded', { count: mappedFacts.length });
+    return { success: true, count: mappedFacts.length };
   } catch (error) {
     logger.error('[factSync] ❌ Facts download failed:', error);
     return { success: false, count: 0 };
