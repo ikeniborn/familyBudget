@@ -270,12 +270,14 @@ async def test_fact(
 
 
 @pytest_asyncio.fixture
-async def client(engine) -> AsyncGenerator[AsyncClient, None]:
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     Create unauthenticated HTTP client for API testing.
 
     Uses FastAPI TestClient with async support via httpx.AsyncClient.
-    Database session is overridden to use test database.
+    Database session is overridden to use test session.
+
+    IMPORTANT: Uses the same session as test to ensure data visibility.
 
     Returns:
         AsyncClient: HTTP client without authentication
@@ -287,10 +289,9 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency to use test database
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -304,13 +305,15 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(
-    engine, test_user: User
+    session: AsyncSession, test_user: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for regular user.
 
     Creates JWT token for test_user and includes it in cookies.
     All requests will be authenticated as regular user (not admin).
+
+    IMPORTANT: Uses the same session as test to ensure test_user is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_user
@@ -322,10 +325,9 @@ async def auth_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -343,13 +345,15 @@ async def auth_client(
 
 @pytest_asyncio.fixture
 async def admin_client(
-    engine, test_admin: User
+    session: AsyncSession, test_admin: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for admin user.
 
     Creates JWT token for test_admin and includes it in cookies.
     All requests will be authenticated as admin user.
+
+    IMPORTANT: Uses the same session as test to ensure test_admin is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_admin
@@ -361,10 +365,9 @@ async def admin_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
