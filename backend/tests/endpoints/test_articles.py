@@ -186,8 +186,8 @@ async def test_list_articles_sees_all_shared_references(
     article_names = {article["name"] for article in data["articles"]}
 
     # Should include all shared articles
-    assert "FOOD" in article_names
-    assert "SALARY" in article_names
+    assert "Food" in article_names
+    assert "Salary" in article_names
 
 
 @pytest.mark.asyncio
