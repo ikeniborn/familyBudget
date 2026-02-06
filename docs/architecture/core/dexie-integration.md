@@ -443,6 +443,45 @@ npm run test:e2e -- dexie-integration.spec.ts
 
 ## Troubleshooting
 
+### Facts/Plans не загружаются в Dexie после авторизации (v11.3.7)
+
+**Symptoms:**
+- Dexie Diagnostics показывает Facts: 0, Plans: 0
+- Console logs: `[DATA_LAYER] Dexie returned empty, using API fallback`
+- Каждое открытие /facts или /plan загружает данные через API
+
+**Root Cause:**
+- Facts/Plans - transactional data, НЕ загружаются автоматически через `syncReferenceData()`
+- DataLayer fallback на API без кеширования результатов в Dexie
+
+**Solution (v11.3.7):**
+Добавлено автоматическое кеширование API results в Dexie после fallback:
+
+```typescript
+// DataLayer.ts:getFacts() и getRecurringPlans()
+if (result.length === 0) {
+    const apiResult = await this.getFactsFromAPI(filters);
+
+    // CACHE in Dexie for offline access
+    if (apiResult.length > 0) {
+        await pglite.bulkInsertFacts(apiResult);
+        console.info('[DATA_LAYER] Cached API facts in Dexie');
+    }
+
+    return apiResult;
+}
+```
+
+**Impact:**
+- ✅ После первого открытия /facts или /plan данные кешируются в Dexie
+- ✅ Offline mode работает для Facts/Plans после initial load
+- ✅ Уменьшение нагрузки на API при повторных открытиях
+
+**Files Changed:**
+- `frontend/web/static/js/data/DataLayer.ts` (lines 972-991, 1197-1216)
+
+---
+
 ### Dexie не инициализируется
 
 **Symptoms:** `manager.isReady()` возвращает false

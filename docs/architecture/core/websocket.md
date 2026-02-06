@@ -177,6 +177,78 @@ NAV|RTT_FILTER|WS_RTT
 - `POST /api/v1/facts/batch-delete` - Bulk fact deletion (max 100)
 - `POST /api/v1/recurring-plans/batch-delete` - Bulk recurring plan deletion (max 100)
 
+## Troubleshooting
+
+### WebSocket не подключается после авторизации (v11.3.7)
+
+**Symptoms:**
+- WebSocket State: NO_SOCKET
+- Connected: false
+- MultiTab Initialized: false
+- Leader: false
+- Console: `[BudgetWS] Skipping connect - offline mode active`
+
+**Root Cause:**
+`_isOfflineModeActive()` возвращает `true` сразу после авторизации из-за неполной инициализации `offlineManager`:
+
+```javascript
+// budgetWSClient.js:connect()
+if (this._isOfflineModeActive()) {
+    return;  // ← EARLY RETURN БЕЗ _initMultiTab()!
+}
+```
+
+**Why This Happens:**
+1. User авторизуется через Telegram OAuth
+2. Redirect на `/dashboard?just_logged_in=true`
+3. `offlineManager` начинает инициализацию
+4. `budgetWSClient.connect()` вызывается ДО завершения init
+5. `_isOfflineModeActive()` проверяет `window.offlineManager.networkDetector.autoOfflineMode`
+6. Возвращает `true` (флаг еще не установлен корректно)
+7. WebSocket connection пропускается
+
+**Solution (v11.3.7):**
+Добавлена проверка `just_logged_in` флага для skip offline mode check:
+
+```javascript
+_isOfflineModeActive() {
+    // Skip offline mode check during initial login
+    const justLoggedIn = sessionStorage.getItem('just_logged_in');
+    if (justLoggedIn === 'true') {
+        return false;  // Force online mode
+    }
+
+    // Normal checks...
+}
+```
+
+**Impact:**
+- ✅ WebSocket подключается сразу после авторизации
+- ✅ Multi-tab coordination работает корректно
+- ✅ Real-time updates активируются немедленно
+
+**Cleanup:**
+`just_logged_in` флаг автоматически удаляется через 5 секунд после WebSocket init:
+
+```javascript
+// _initMultiTab() finally block
+setTimeout(() => {
+    sessionStorage.removeItem('just_logged_in');
+}, 5000);
+```
+
+**Files Changed:**
+- `frontend/web/static/js/budget/budgetWSClient.js` (lines 312-341, 573-588)
+
+**Verification:**
+Triple-click на зеленый WebSocket индикатор → WebSocket Diagnostics:
+- ✅ Connected: true
+- ✅ WS State: OPEN
+- ✅ Leader: true
+- ✅ MultiTab Initialized: true
+
+---
+
 ## Related Documentation
 
 See `/docs/architecture/pwa.md` for complete PWA architecture, including:
@@ -187,6 +259,7 @@ See `/docs/architecture/pwa.md` for complete PWA architecture, including:
 
 ## Version History
 
+- **v11.3.7:** Fix WebSocket connection after authentication (offline mode timing issue)
 - **v5.8.0:** Navigation detection for RTT filtering
 - **v5.7.0:** 5-layer wake recovery strategy
 - **v5.4.0:** Multi-tab coordination

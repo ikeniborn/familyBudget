@@ -974,6 +974,19 @@ export class DataLayer {
         const apiResult = await this.getFactsFromAPI(filters);
         performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+
+        // CACHE FIX (v11.3.7): Cache API results in Dexie for offline access
+        // This enables offline capability for Facts after first load
+        if (apiResult.length > 0) {
+          try {
+            await pglite.bulkInsertFacts(apiResult);
+            console.info('[DATA_LAYER] Cached API facts in Dexie', { count: apiResult.length });
+          } catch (cacheError) {
+            console.warn('[DATA_LAYER] Failed to cache facts in Dexie', cacheError);
+            // Non-critical error, continue with API result
+          }
+        }
+
         return apiResult;
       }
 
@@ -1186,6 +1199,20 @@ export class DataLayer {
         const apiResult = await this.getRecurringPlansFromAPI(filters);
         performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
+
+        // CACHE FIX (v11.3.7): Cache API results in Dexie for offline access
+        // This enables offline capability for Recurring Plans after first load
+        if (apiResult.length > 0) {
+          try {
+            // Use bulkAdd directly (no wrapper method exists)
+            await pglite.getDB().recurringPlans.bulkAdd(apiResult);
+            console.info('[DATA_LAYER] Cached API recurring plans in Dexie', { count: apiResult.length });
+          } catch (cacheError) {
+            console.warn('[DATA_LAYER] Failed to cache recurring plans in Dexie', cacheError);
+            // Non-critical error, continue with API result
+          }
+        }
+
         return apiResult;
       }
 
