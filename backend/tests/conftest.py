@@ -75,30 +75,33 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
 
-    # Cleanup after test: TRUNCATE all data to ensure isolation (70% faster than DELETE)
+    # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
     async with engine.begin() as conn:
-        # TRUNCATE with CASCADE automatically handles FK dependencies
-        # RESTART IDENTITY resets sequences to initial values
-        # Note: Requires TRUNCATE privilege (normally granted to table owner)
-        await conn.execute(text("""
-            TRUNCATE TABLE
-                t_f_refresh_token,
-                t_notification,
-                t_f_budget_fact,
-                t_f_shopping_list_item,
-                t_f_shopping_list,
-                t_d_article_hierarchy,
-                t_d_product_group_hierarchy,
-                t_d_financial_center,
-                t_d_cost_center,
-                t_d_article,
-                t_d_product_group,
-                t_d_store,
-                t_d_import_template,
-                t_d_user
-            RESTART IDENTITY CASCADE;
-        """))
+        # Disable FK checks temporarily
+        await conn.execute(text("SET session_replication_role = 'replica';"))
+
+        # Delete all data in dependency order
+        await conn.execute(text("DELETE FROM t_f_refresh_token;"))
+        await conn.execute(text("DELETE FROM t_notification;"))
+        await conn.execute(text("DELETE FROM t_f_budget_fact;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list;"))
+        await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
+        await conn.execute(text("DELETE FROM t_d_financial_center;"))
+        await conn.execute(text("DELETE FROM t_d_cost_center;"))
+        await conn.execute(text("DELETE FROM t_d_article;"))
+        await conn.execute(text("DELETE FROM t_d_product_group;"))
+        await conn.execute(text("DELETE FROM t_d_store;"))
+        await conn.execute(text("DELETE FROM t_d_import_template;"))
+        await conn.execute(text("DELETE FROM t_d_user;"))
+
+        # Note: Not resetting sequences - tests don't rely on specific ID values
+        # Sequence names may vary after schema migrations (SCD Type 2 → SCD Type 1)
+
+        # Re-enable FK checks
+        await conn.execute(text("SET session_replication_role = 'origin';"))
 
 
 # Cleanup is now handled by session fixture teardown (see above)
