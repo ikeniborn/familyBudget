@@ -1115,6 +1115,50 @@ function truncateText(text, maxLength = 30) {
     return text.substring(0, maxLength) + '...';
 }
 
+/**
+ * Deferred initialization wrapper for modal elements
+ *
+ * Fixes: "Cannot read properties of null (reading 'addEventListener')"
+ *
+ * Problem: Modal elements may not exist in DOM when DOMContentLoaded fires
+ * Solution: Retry initialization when modal opens via MutationObserver
+ *
+ * @param initFn - Initialization function that returns true if successful
+ * @param maxRetries - Maximum retry attempts (default: 3)
+ * @returns Promise<boolean> - Resolves when initialized or max retries reached
+ */
+async function deferredInit(initFn, maxRetries = 3) {
+    // Try immediate init first
+    if (initFn()) return true;
+
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                // Watch for dialog[open] attribute changes
+                if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                    const modal = mutation.target;
+                    if (modal.open && initFn()) {
+                        observer.disconnect();
+                        resolve(true);
+                        return;
+                    }
+                    if (++attempts >= maxRetries) {
+                        observer.disconnect();
+                        console.warn('[deferredInit] Max retries reached');
+                        resolve(false);
+                    }
+                }
+            }
+        });
+
+        // Observe all dialog modals
+        document.querySelectorAll('dialog.modal').forEach(modal => {
+            observer.observe(modal, { attributes: true });
+        });
+    });
+}
+
 // Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Установить дефолтный период (текущий месяц) в UI перед загрузкой данных
@@ -1150,6 +1194,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initialize visibility on page load
         settingsDiv.classList.toggle('hidden', !checkbox.checked);
     }
+
+    // Initialize reminder time inputs (with deferred init for late DOM loading)
+    deferredInit(() => initializeReminderTimeInputs(modalId));
 
     // Обработчик отправки формы создания плана
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
@@ -1329,29 +1376,36 @@ async function loadArticles() {
         // Edit modal will use ChoicesCategoryTree
         // Initialized dynamically when modal is opened (see showEditModal function)
 
-        // Инициализировать CategoryTreeSelect для create modal
+        // Инициализировать CategoryTreeSelect для create modal (with deferred init)
         allCategories = articles;
-        initializeCreateModalCategories();
+        deferredInit(() => initializeCreateModalCategories());
     } catch (error) {
         console.error('Error loading articles:', error);
     }
 }
 
-// Initialize categories for create modal (with retry capability)
+/**
+ * Initialize categories for create modal
+ *
+ * Called by deferredInit() - returns true if successful, false to retry
+ *
+ * @returns {boolean} True if initialized, false if DOM not ready
+ */
 function initializeCreateModalCategories() {
     const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
 
     if (!createSelect) {
-        console.warn('[Plan Modal] Create modal select not found in DOM yet. Will retry on modal open.');
+        console.warn('[Plan Modal] Create modal select not found in DOM yet');
         return false;
     }
 
     if (!allCategories || allCategories.length === 0) {
-        console.warn('[Plan Modal] Categories not loaded yet. Will retry on modal open.');
+        console.warn('[Plan Modal] Categories not loaded yet');
         return false;
     }
 
     if (createCategoryTreeSelect) {
+        // Already initialized
         return true;
     }
 
@@ -1369,6 +1423,7 @@ function initializeCreateModalCategories() {
             }
         });
 
+        console.log('[Plan Modal] ✅ ChoicesCategoryTree initialized');
         return true;
     } catch (error) {
         console.error('[Plan Modal] Failed to initialize ChoicesCategoryTree:', error);
@@ -3777,16 +3832,40 @@ function initReminderCalendarWidget(modalId) {
         });
     }
 
-    // Add event listeners to update combined datetime
+    // DEPRECATED: Moved to initializeReminderTimeInputs()
+    // Event listeners are now set via deferredInit() to handle late DOM loading
+}
+
+/**
+ * Initialize reminder time input event listeners
+ *
+ * Called by deferredInit() - returns true if successful, false to retry
+ *
+ * @param {string} modalId - Modal identifier (e.g., 'modal_add_plan')
+ * @returns {boolean} True if initialized, false if DOM not ready
+ */
+function initializeReminderTimeInputs(modalId) {
     const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
     const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
 
-    if (hourSelect) {
-        hourSelect.addEventListener('change', () => updateReminderDatetime(modalId));
+    if (!hourSelect || !minuteSelect) {
+        console.warn(`[Plan Modal] Reminder inputs not found for ${modalId}`);
+        return false;
     }
-    if (minuteSelect) {
-        minuteSelect.addEventListener('change', () => updateReminderDatetime(modalId));
-    }
+
+    // Remove existing listeners (in case of re-init)
+    hourSelect.removeEventListener('change', hourSelect._reminderListener);
+    minuteSelect.removeEventListener('change', minuteSelect._reminderListener);
+
+    // Create and store listener references
+    hourSelect._reminderListener = () => updateReminderDatetime(modalId);
+    minuteSelect._reminderListener = () => updateReminderDatetime(modalId);
+
+    hourSelect.addEventListener('change', hourSelect._reminderListener);
+    minuteSelect.addEventListener('change', minuteSelect._reminderListener);
+
+    console.log(`[Plan Modal] ✅ Reminder inputs initialized for ${modalId}`);
+    return true;
 }
 
 // Update hidden reminder_datetime field from separate date/hour/minute
