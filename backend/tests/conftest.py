@@ -70,7 +70,11 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     Create async database session for tests.
 
     Scope: function - new session for each test (isolation).
-    Cleanup: DELETEs all table data after test completes.
+    Cleanup: DELETE all data after test completes.
+
+    Note: Using DELETE instead of TRUNCATE to avoid PostgreSQL configuration
+    requirements in CI/CD (max_locks_per_transaction). DELETE is slower but
+    more reliable across different PostgreSQL configurations.
     """
     async with AsyncSession(engine, expire_on_commit=False) as session:
         yield session
@@ -78,30 +82,22 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
     async with engine.begin() as conn:
-        # Disable FK checks temporarily
-        await conn.execute(text("SET session_replication_role = 'replica';"))
-
-        # Delete all data in dependency order
-        await conn.execute(text("DELETE FROM t_f_refresh_token;"))
-        await conn.execute(text("DELETE FROM t_notification;"))
-        await conn.execute(text("DELETE FROM t_f_budget_fact;"))
-        await conn.execute(text("DELETE FROM t_f_shopping_list_item;"))
-        await conn.execute(text("DELETE FROM t_f_shopping_list;"))
-        await conn.execute(text("DELETE FROM t_d_article_hierarchy;"))
-        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy;"))
-        await conn.execute(text("DELETE FROM t_d_financial_center;"))
-        await conn.execute(text("DELETE FROM t_d_cost_center;"))
-        await conn.execute(text("DELETE FROM t_d_article;"))
-        await conn.execute(text("DELETE FROM t_d_product_group;"))
-        await conn.execute(text("DELETE FROM t_d_store;"))
-        await conn.execute(text("DELETE FROM t_d_import_template;"))
-        await conn.execute(text("DELETE FROM t_d_user;"))
-
-        # Note: Not resetting sequences - tests don't rely on specific ID values
-        # Sequence names may vary after schema migrations (SCD Type 2 → SCD Type 1)
-
-        # Re-enable FK checks
-        await conn.execute(text("SET session_replication_role = 'origin';"))
+        # Delete in correct order to handle FK constraints
+        # Note: Could use SET CONSTRAINTS ALL DEFERRED, but DELETE is more portable
+        await conn.execute(text("DELETE FROM t_f_refresh_token"))
+        await conn.execute(text("DELETE FROM t_notification"))
+        await conn.execute(text("DELETE FROM t_f_budget_fact"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
+        await conn.execute(text("DELETE FROM t_f_shopping_list"))
+        await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
+        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
+        await conn.execute(text("DELETE FROM t_d_financial_center"))
+        await conn.execute(text("DELETE FROM t_d_cost_center"))
+        await conn.execute(text("DELETE FROM t_d_article"))
+        await conn.execute(text("DELETE FROM t_d_product_group"))
+        await conn.execute(text("DELETE FROM t_d_store"))
+        await conn.execute(text("DELETE FROM t_d_import_template"))
+        await conn.execute(text("DELETE FROM t_d_user"))
 
 
 # Cleanup is now handled by session fixture teardown (see above)
@@ -170,16 +166,13 @@ async def test_article_root(session: AsyncSession, test_user: User) -> Article:
     Create test root article (no parent).
 
     Returns:
-        Article: Food category (expense, current version)
+        Article: Food category (expense, SCD Type 1)
     """
     article = Article(
         user_id=test_user.id,
         parent_id=None,
         name="Food",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
@@ -195,16 +188,13 @@ async def test_article_child(
     Create test child article.
 
     Returns:
-        Article: Groceries category (child of Food)
+        Article: Groceries category (child of Food, SCD Type 1)
     """
     article = Article(
         user_id=test_user.id,
         parent_id=test_article_root.id,
         name="Groceries",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
@@ -218,7 +208,7 @@ async def test_global_article(session: AsyncSession, test_user: User) -> Article
     Create test income article.
 
     Returns:
-        Article: Salary category (income, current version)
+        Article: Salary category (income, SCD Type 1)
 
     Note: Previously was "global" article, now all articles are user-specific
     """
@@ -227,9 +217,6 @@ async def test_global_article(session: AsyncSession, test_user: User) -> Article
         parent_id=None,
         name="Salary",
         type="income",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(article)
     await session.commit()
@@ -274,12 +261,14 @@ async def test_fact(
 
 
 @pytest_asyncio.fixture
-async def client(engine) -> AsyncGenerator[AsyncClient, None]:
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     Create unauthenticated HTTP client for API testing.
 
     Uses FastAPI TestClient with async support via httpx.AsyncClient.
-    Database session is overridden to use test database.
+    Database session is overridden to use test session.
+
+    IMPORTANT: Uses the same session as test to ensure data visibility.
 
     Returns:
         AsyncClient: HTTP client without authentication
@@ -291,10 +280,9 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency to use test database
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -308,13 +296,15 @@ async def client(engine) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(
-    engine, test_user: User
+    session: AsyncSession, test_user: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for regular user.
 
     Creates JWT token for test_user and includes it in cookies.
     All requests will be authenticated as regular user (not admin).
+
+    IMPORTANT: Uses the same session as test to ensure test_user is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_user
@@ -326,10 +316,9 @@ async def auth_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -347,13 +336,15 @@ async def auth_client(
 
 @pytest_asyncio.fixture
 async def admin_client(
-    engine, test_admin: User
+    session: AsyncSession, test_admin: User
 ) -> AsyncGenerator[AsyncClient, None]:
     """
     Create authenticated HTTP client for admin user.
 
     Creates JWT token for test_admin and includes it in cookies.
     All requests will be authenticated as admin user.
+
+    IMPORTANT: Uses the same session as test to ensure test_admin is visible.
 
     Returns:
         AsyncClient: HTTP client authenticated as test_admin
@@ -365,10 +356,9 @@ async def admin_client(
     """
     from backend.app.core.dependencies import get_session
 
-    # Override get_session dependency
+    # Override get_session to use test session (same transaction)
     async def override_get_session() -> AsyncGenerator[AsyncSession, None]:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            yield session
+        yield session
 
     app.dependency_overrides[get_session] = override_get_session
 

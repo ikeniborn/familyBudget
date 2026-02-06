@@ -77,7 +77,6 @@ jobs:
         run: |
           cd backend
           pytest tests/ \
-            -n auto \
             --cov=app \
             --cov-report=html:htmlcov \
             --cov-report=json:coverage.json \
