@@ -320,7 +320,8 @@ class BudgetWSClient {
                 return false;  // Force online mode for first login
             }
         } catch (e) {
-            // sessionStorage not available, continue with normal checks
+            debugLog('[BudgetWS] sessionStorage unavailable:', e.message || e);
+            // Continue with normal checks
         }
 
         // Check offlineManager if available (preferred)
@@ -583,7 +584,8 @@ class BudgetWSClient {
                     }, 5000);
                 }
             } catch (e) {
-                // sessionStorage not available, ignore
+                debugLog('[BudgetWS] sessionStorage unavailable for cleanup:', e.message || e);
+                // Ignore - cleanup is non-critical
             }
         }
     }

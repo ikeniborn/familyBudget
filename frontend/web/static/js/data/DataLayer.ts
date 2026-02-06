@@ -981,8 +981,9 @@ export class DataLayer {
           try {
             await pglite.bulkInsertFacts(apiResult);
             console.info('[DATA_LAYER] Cached API facts in Dexie', { count: apiResult.length });
-          } catch (cacheError) {
-            console.warn('[DATA_LAYER] Failed to cache facts in Dexie', cacheError);
+          } catch (cacheError: unknown) {
+            const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
+            console.warn('[DATA_LAYER] Failed to cache facts in Dexie', errorMessage, cacheError);
             // Non-critical error, continue with API result
           }
         }
@@ -1207,8 +1208,9 @@ export class DataLayer {
             // Use bulkAdd directly (no wrapper method exists)
             await pglite.getDB().recurringPlans.bulkAdd(apiResult);
             console.info('[DATA_LAYER] Cached API recurring plans in Dexie', { count: apiResult.length });
-          } catch (cacheError) {
-            console.warn('[DATA_LAYER] Failed to cache recurring plans in Dexie', cacheError);
+          } catch (cacheError: unknown) {
+            const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
+            console.warn('[DATA_LAYER] Failed to cache recurring plans in Dexie', errorMessage, cacheError);
             // Non-critical error, continue with API result
           }
         }
