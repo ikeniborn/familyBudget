@@ -1,0 +1,36 @@
+name: Setup Test Services
+description: |
+  Health checks for PostgreSQL 16 + Redis 7 test services.
+  NOTE: Services must be defined at job level - this action only validates they are ready.
+
+inputs:
+  postgres-password:
+    description: PostgreSQL password for connection validation
+    required: true
+    default: test_password_12345678901234567890
+
+runs:
+  using: composite
+  steps:
+    - name: Wait for PostgreSQL
+      shell: bash
+      run: |
+        echo "Waiting for PostgreSQL to be ready..."
+        timeout 30 bash -c 'until pg_isready -h localhost -U familybudget; do sleep 1; done'
+        echo "✅ PostgreSQL is ready"
+
+    - name: Wait for Redis
+      shell: bash
+      run: |
+        echo "Waiting for Redis to be ready..."
+        timeout 30 bash -c 'until redis-cli -h localhost ping | grep -q PONG; do sleep 1; done'
+        echo "✅ Redis is ready"
+
+    - name: Validate PostgreSQL connection
+      shell: bash
+      env:
+        PGPASSWORD: ${{ inputs.postgres-password }}
+      run: |
+        echo "Validating PostgreSQL connection..."
+        psql -h localhost -U familybudget -d familybudget_test -c "SELECT version();" > /dev/null
+        echo "✅ PostgreSQL connection validated"

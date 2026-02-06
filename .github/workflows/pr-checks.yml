@@ -207,24 +207,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: ./.github/actions/setup-python
+      - name: Setup test services
+        uses: ./.github/actions/setup-test-services
+        with:
+          postgres-password: test_password_12345678901234567890
+
+      - name: Setup backend
+        uses: ./.github/actions/setup-backend
         with:
           python-version: '3.11'
+          database-url: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
 
-      - name: Cache pip packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python dependencies
-        run: |
-          pip install mypy ruff
-          pip install -r backend/requirements-dev.txt
-          pip install -r backend/requirements.txt
+      - name: Install quality tools
+        run: pip install mypy ruff
 
       - name: Python mypy type check
         run: mypy backend/ || true
@@ -232,13 +227,6 @@ jobs:
 
       - name: Python ruff lint
         run: ruff check backend/
-
-      - name: Run database migrations
-        env:
-          POSTGRES_HOST: localhost
-          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
-        run: |
-          alembic -c backend/db/migrations/alembic.ini upgrade head
 
       - name: Backend unit tests
         env:

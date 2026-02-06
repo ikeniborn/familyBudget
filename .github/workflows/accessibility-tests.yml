@@ -41,20 +41,20 @@ jobs:
       - name: Setup Node.js 18
         uses: ./.github/actions/setup-node
 
-      - name: Setup Python 3.12
-        uses: ./.github/actions/setup-python
+      - name: Wait for PostgreSQL
+        run: |
+          timeout 30 bash -c 'until pg_isready -h localhost -U familybudget; do sleep 1; done'
+
+      - name: Setup backend
+        uses: ./.github/actions/setup-backend
         with:
-          cache-dependency-path: backend/requirements.txt
+          python-version: '3.12'
+          database-url: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
 
       - name: Install Node.js dependencies
         run: |
           npm ci
           npm install -D @axe-core/playwright
-
-      - name: Install Python dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
 
       - name: Build frontend
         run: |
@@ -63,13 +63,6 @@ jobs:
 
       - name: Install Playwright
         run: npx playwright install chromium --with-deps
-
-      - name: Run database migrations
-        env:
-          POSTGRES_HOST: localhost
-          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
-        run: |
-          alembic -c backend/db/migrations/alembic.ini upgrade head
 
       - name: Start backend server
         env:
