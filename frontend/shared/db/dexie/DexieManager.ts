@@ -26,6 +26,7 @@ import {
   getConflictMetrics as getConflictMetricsImpl
 } from './operations/conflictOperations';
 import type { ConflictStrategy } from './operations/conflictOperations';
+import { initialReferenceSync } from './operations/referenceSync';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -512,6 +513,69 @@ export class DexieManager {
 
     await this.getDB().syncMetadata.put(metadata);
     logger.info('[DexieManager] ✅ Sync metadata updated', { entityType: metadata.entity_type });
+  }
+
+  /**
+   * Sync reference data from server
+   * Wrapper for initialReferenceSync - syncs Articles, Financial Centers, Cost Centers, Article Hierarchy
+   *
+   * @param userId - User ID for syncing (optional - will auto-detect from window.userData or window.user)
+   * @throws Error if sync fails or userId cannot be determined
+   */
+  async syncReferenceData(userId?: number): Promise<void> {
+    logger.debug('[DexieManager] syncReferenceData', { userId });
+
+    // If userId not provided, try to get from session context
+    let effectiveUserId = userId;
+
+    if (!effectiveUserId) {
+      // Try window.userData.id (primary)
+      if (typeof window !== 'undefined' && (window as any).userData?.id) {
+        effectiveUserId = (window as any).userData.id;
+        logger.debug('[DexieManager] Using userId from window.userData', { userId: effectiveUserId });
+      }
+      // Fallback: window.user.id
+      else if (typeof window !== 'undefined' && (window as any).user?.id) {
+        effectiveUserId = (window as any).user.id;
+        logger.debug('[DexieManager] Using userId from window.user', { userId: effectiveUserId });
+      }
+      // No userId available
+      else {
+        throw new Error(
+          '[DexieManager] userId required for syncReferenceData. ' +
+          'Could not auto-detect from window.userData or window.user. ' +
+          'Please provide userId parameter explicitly.'
+        );
+      }
+    }
+
+    // TypeScript type guard: ensure effectiveUserId is defined
+    if (!effectiveUserId) {
+      throw new Error('[DexieManager] Internal error: userId is undefined after resolution');
+    }
+
+    const result = await initialReferenceSync(effectiveUserId);
+
+    if (!result.success) {
+      const failedSyncs = Object.entries(result.results)
+        .filter(([, r]) => !r.success)
+        .map(([name]) => name);
+
+      throw new Error(
+        `[DexieManager] Reference data sync failed for: ${failedSyncs.join(', ')}. ` +
+        `Details: ${JSON.stringify(result.results)}`
+      );
+    }
+
+    logger.info('[DexieManager] ✅ Reference data synced', {
+      userId: effectiveUserId,
+      counts: {
+        articles: result.results.articles.count,
+        financialCenters: result.results.financialCenters.count,
+        costCenters: result.results.costCenters.count,
+        articleHierarchy: result.results.articleHierarchy.count
+      }
+    });
   }
 
   // ============================================================

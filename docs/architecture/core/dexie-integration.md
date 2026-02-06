@@ -277,6 +277,58 @@ const downloadResult = await downloadFacts(userId, dateFrom, dateTo);
 
 // Full bidirectional sync
 const syncResult = await fullFactSync(userId, dateFrom, dateTo);
+```
+
+### Reference Data Sync
+
+**Purpose:** Sync reference data (Articles, Financial Centers, Cost Centers, Article Hierarchy) from server to local IndexedDB.
+
+**Use case:** Initial data population on first login, periodic refresh, or manual sync trigger.
+
+```typescript
+const manager = getDexieManager();
+await manager.init();
+
+// Option 1: Auto-detect userId from window.userData or window.user
+await manager.syncReferenceData();
+
+// Option 2: Explicit userId
+await manager.syncReferenceData(userId);
+```
+
+**Behavior:**
+- Fetches all reference data from server via `/api/v1/articles`, `/api/v1/financial-centers`, etc.
+- Clears existing user-specific data before inserting new data (avoids duplicates)
+- Updates sync metadata (last sync timestamp, record counts)
+- **Auto-detects userId** from `window.userData.id` or `window.user.id` if not provided
+- **Throws error** if sync fails or userId cannot be determined
+
+**Returns:**
+- Success: Promise resolves (no return value)
+- Failure: Throws error with details about failed syncs
+
+**Example output (success):**
+```
+[DexieManager] ✅ Reference data synced {
+  userId: 1,
+  counts: {
+    articles: 45,
+    financialCenters: 8,
+    costCenters: 12,
+    articleHierarchy: 203
+  }
+}
+```
+
+**Example error (failure):**
+```typescript
+try {
+  await manager.syncReferenceData();
+} catch (error) {
+  console.error('Sync failed:', error);
+  // Error: [DexieManager] Reference data sync failed for: articles, costCenters.
+  // Details: {"articles":{"success":false,"count":0},...}
+}
 // { success: true, uploaded: 5, downloaded: 150, failed: 0 }
 ```
 
