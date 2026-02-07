@@ -2440,6 +2440,14 @@ if (typeof window !== 'undefined') {
     // Create singleton instance
     window.budgetWSClient = new BudgetWSClient();
 
+    // Auto-connect after initialization (v11.4.1)
+    // Delayed to allow page to fully load and offlineManager to initialize
+    setTimeout(() => {
+        if (window.budgetWSClient && window.budgetWSClient.enabled) {
+            window.budgetWSClient.connect();
+        }
+    }, 1000);
+
     // Global online/offline handlers for automatic reconnection
     window.addEventListener('online', () => {
         const client = window.budgetWSClient;

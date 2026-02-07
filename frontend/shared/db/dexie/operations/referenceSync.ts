@@ -172,6 +172,111 @@ export async function syncArticleHierarchy(userId: number): Promise<{ success: b
 }
 
 /**
+ * Sync stores from server (v11.4.1+)
+ */
+export async function syncStores(userId: number): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing stores...', { userId });
+
+  try {
+    const response = await fetchWithTimeout(`/api/v1/lists/stores`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stores: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const stores = data.stores || [];
+
+    // Clear existing
+    await db.stores.where('user_id').equals(userId).delete();
+
+    // Bulk insert
+    if (stores.length > 0) {
+      await db.stores.bulkAdd(stores);
+    }
+
+    logger.info('[referenceSync] ✅ Stores synced', { count: stores.length });
+    return { success: true, count: stores.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Stores sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
+ * Sync product groups from server (v11.4.1+)
+ */
+export async function syncProductGroups(userId: number): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing product groups...', { userId });
+
+  try {
+    const response = await fetchWithTimeout(`/api/v1/lists/product-groups`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch product groups: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const groups = data.product_groups || [];
+
+    // Clear existing
+    await db.productGroups.where('user_id').equals(userId).delete();
+
+    // Bulk insert
+    if (groups.length > 0) {
+      await db.productGroups.bulkAdd(groups);
+    }
+
+    logger.info('[referenceSync] ✅ Product groups synced', { count: groups.length });
+    return { success: true, count: groups.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Product groups sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
+ * Sync shopping lists from server (v11.4.1+)
+ */
+export async function syncShoppingLists(userId: number): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing shopping lists...', { userId });
+
+  try {
+    const response = await fetchWithTimeout(`/api/v1/lists/shopping-lists`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch shopping lists: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const lists = data.shopping_lists || [];
+
+    // Clear existing
+    await db.shoppingLists.where('user_id').equals(userId).delete();
+
+    // Bulk insert
+    if (lists.length > 0) {
+      await db.shoppingLists.bulkAdd(lists);
+    }
+
+    logger.info('[referenceSync] ✅ Shopping lists synced', { count: lists.length });
+    return { success: true, count: lists.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Shopping lists sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
  * Sync recurring plans from server (v11.4.0+)
  */
 export async function syncRecurringPlans(
@@ -258,16 +363,23 @@ export async function initialReferenceSync(
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays)  // v11.4.0+ (non-critical)
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays),  // v11.4.0+ (non-critical)
+    stores: await syncStores(userId),  // v11.4.1+ (non-critical)
+    productGroups: await syncProductGroups(userId),  // v11.4.1+ (non-critical)
+    shoppingLists: await syncShoppingLists(userId)  // v11.4.1+ (non-critical)
   };
 
-  // Plans sync is optional (non-critical) - don't fail entire sync if it fails
+  // Critical syncs (required for app to work)
   const criticalSyncs = ['articles', 'financialCenters', 'costCenters', 'articleHierarchy'];
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
-  if (!results.recurringPlans.success) {
-    logger.warn('[referenceSync] Plans sync failed, but continuing (non-critical)');
-  }
+  // Non-critical syncs (nice to have, but app works without them)
+  const nonCriticalSyncs = ['recurringPlans', 'stores', 'productGroups', 'shoppingLists'];
+  nonCriticalSyncs.forEach(key => {
+    if (!results[key as keyof typeof results].success) {
+      logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);
+    }
+  });
 
   logger.info('[referenceSync] Initial sync complete', { success, results });
 
