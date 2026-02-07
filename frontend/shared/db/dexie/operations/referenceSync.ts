@@ -187,18 +187,32 @@ export async function syncRecurringPlans(
     const toDate = new Date();
     toDate.setDate(toDate.getDate() + syncPeriodDays);
 
-    // Fetch from server with date filtering
-    const params = new URLSearchParams({
+    // Try with date filtering (v11.4.0+)
+    let params = new URLSearchParams({
       is_active: 'true',
       from_date: fromDate.toISOString().split('T')[0],
       to_date: toDate.toISOString().split('T')[0],
       limit: '1000'
     });
 
-    const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
+    let response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
       method: 'GET',
       credentials: 'include'
     });
+
+    // Fallback: if 422 (backend doesn't support date params), retry without them
+    if (response.status === 422) {
+      logger.warn('[referenceSync] Backend does not support from_date/to_date, falling back to simple query');
+      params = new URLSearchParams({
+        is_active: 'true',
+        limit: '1000'
+      });
+
+      response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to fetch recurring plans: ${response.status}`);
@@ -244,10 +258,16 @@ export async function initialReferenceSync(
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays)  // v11.4.0+
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays)  // v11.4.0+ (non-critical)
   };
 
-  const success = Object.values(results).every(r => r.success);
+  // Plans sync is optional (non-critical) - don't fail entire sync if it fails
+  const criticalSyncs = ['articles', 'financialCenters', 'costCenters', 'articleHierarchy'];
+  const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
+
+  if (!results.recurringPlans.success) {
+    logger.warn('[referenceSync] Plans sync failed, but continuing (non-critical)');
+  }
 
   logger.info('[referenceSync] Initial sync complete', { success, results });
 
