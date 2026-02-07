@@ -73,9 +73,14 @@ async def engine():
 
     yield engine
 
-    # Drop all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.drop_all)
+    # Drop all tables (ignore errors in cleanup - safe for test database)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.drop_all)
+    except Exception as e:
+        # Ignore cleanup errors (e.g., OutOfMemoryError in PostgreSQL)
+        # Test database will be cleaned on next run
+        print(f"Warning: Failed to drop tables in teardown: {e}")
 
     await engine.dispose()
 

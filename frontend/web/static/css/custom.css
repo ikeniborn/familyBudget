@@ -872,8 +872,8 @@ html.offline-mode .save-btn:hover {
 .fab-wrapper {
     position: fixed;
     right: 1rem;
-    bottom: 5rem; /* Увеличено с 1rem для отступа от мобильной навигации */
-    z-index: var(--z-fab-desktop); /* 1000 - above backdrop (999) ⚠️ FIXED FROM 998 */
+    bottom: 6rem; /* Увеличено с 5rem для лучшего отступа от мобильной навигации */
+    z-index: var(--z-fab-mobile) !important; /* 40 - below navbar (50), mobile FAB должен быть ниже navbar */
     opacity: 1 !important; /* Гарантированная видимость */
     visibility: visible;
 }
