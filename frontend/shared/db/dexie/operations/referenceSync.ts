@@ -360,7 +360,8 @@ export async function syncRecurringPlans(
 
 /**
  * Initial sync - синхронизация всех справочников
- * v11.4.2: Removed recurringPlans and shoppingLists (moved to on-demand API)
+ * v11.4.3: Restored shoppingLists (transactional data for offline /lists)
+ * v11.4.6: Restored recurringPlans (proactive sync with working endpoint)
  */
 export async function initialReferenceSync(
   userId: number
