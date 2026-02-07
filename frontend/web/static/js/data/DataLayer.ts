@@ -44,6 +44,7 @@ import type {
   FactFilters,
   RecurringPlanFilters
 } from '@db/dexie';
+import { mapAPIFactToLocal } from '@db/dexie/utils/apiMapper';
 import { factsManager } from '../dashboard/features/factsManager';
 import type {
   ArticleListResponse,
@@ -948,25 +949,25 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getFactsFromAPI(filters);
           performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
           return result;
         }
       }
 
-      console.info('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryFacts(filters);
+      console.info('[DATA_LAYER] Using Dexie');
+      const result = await dexie.queryFacts(filters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -975,12 +976,40 @@ export class DataLayer {
         performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
 
-        // CACHE FIX (v11.3.7): Cache API results in Dexie for offline access
-        // This enables offline capability for Facts after first load
+        // CACHE FIX (v11.3.9): Map API → Dexie schema before bulk insert
+        // This generates temp_id (primary key) and handles field name mappings
         if (apiResult.length > 0) {
           try {
-            await pglite.bulkInsertFacts(apiResult);
-            console.info('[DATA_LAYER] Cached API facts in Dexie', { count: apiResult.length });
+            // MAP API → Dexie schema (generates temp_id, sync_status, etc.)
+            const mappedFacts: LocalBudgetFact[] = [];
+            const errors: string[] = [];
+
+            for (const apiFact of apiResult) {
+              try {
+                const mapped = mapAPIFactToLocal(apiFact);  // ✅ Adds temp_id!
+                mappedFacts.push(mapped);
+              } catch (mapError) {
+                const factId = apiFact.id || 'unknown';
+                const errorMsg = mapError instanceof Error ? mapError.message : String(mapError);
+                errors.push(`Fact ${factId}: ${errorMsg}`);
+              }
+            }
+
+            if (mappedFacts.length > 0) {
+              await dexie.bulkInsertFacts(mappedFacts);
+              console.info('[DATA_LAYER] Cached API facts in Dexie', {
+                count: mappedFacts.length,
+                skipped: errors.length
+              });
+            }
+
+            if (errors.length > 0) {
+              console.warn('[DATA_LAYER] Skipped malformed facts during cache', {
+                total: apiResult.length,
+                cached: mappedFacts.length,
+                skipped: errors.length
+              });
+            }
           } catch (cacheError: unknown) {
             const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
             console.warn('[DATA_LAYER] Failed to cache facts in Dexie', errorMessage, cacheError);
@@ -992,7 +1021,7 @@ export class DataLayer {
       }
 
       performanceMonitor.trackDexieCall('getFacts', duration);
-      console.info('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      console.info('[DATA_LAYER] Dexie returned', { count: result.length, source: 'Dexie', durationMs: duration.toFixed(2) });
       return result;
 
     } catch (error) {

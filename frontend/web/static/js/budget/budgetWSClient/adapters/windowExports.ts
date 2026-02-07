@@ -129,6 +129,13 @@ export class BudgetWSClient {
  */
 if (typeof window !== 'undefined') {
   (window as any).BudgetWSClient = BudgetWSClient;
+
+  // Create singleton instance for backward compatibility
+  // index.js expects window.budgetWSClient (instance), not BudgetWSClient (class)
+  (window as any).budgetWSClient = new BudgetWSClient();
+
+  // IMPORTANT: Do NOT auto-connect here
+  // index.js:49 calls connect() explicitly during app initialization
 }
 
 export default BudgetWSClient;
