@@ -3,7 +3,7 @@
  * Синхронизация справочников (Articles, Financial Centers, Cost Centers)
  */
 
-import { db } from '../core/database';
+import { db, toCents } from '../core/database';
 import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import {
@@ -17,6 +17,7 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
+  LocalRecurringPlan,
   LocalSyncMetadata
 } from '../types/models';
 
@@ -294,17 +295,73 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
 }
 
 /**
- * Recurring Plans removed from reference sync (v11.4.2)
- * Reason: Backend endpoint /api/v1/recurring-plans returns 422 error.
- * DataLayer already has fallback to API for getRecurringPlans(),
- * so proactive sync is not required.
+ * Sync recurring plans from server (v11.4.6 - restored)
+ * Supports sync period filtering via from_date/to_date
  *
- * Recurring Plans will be fetched on-demand from API when needed.
+ * v11.4.2: Removed due to 422 error
+ * v11.4.6: Restored with confirmed working endpoint
  */
+export async function syncRecurringPlans(
+  userId: number,
+  syncPeriodDays: number = 90
+): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodDays });
+
+  try {
+    // Calculate date range for sync period
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
+    const toDate = new Date();
+    toDate.setDate(toDate.getDate() + syncPeriodDays);
+
+    // Try with date filtering (v11.4.0+)
+    const params = new URLSearchParams({
+      from_date: fromDate.toISOString().split('T')[0],
+      to_date: toDate.toISOString().split('T')[0],
+      limit: '1000'
+    });
+
+    const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const plans = data.items || data;
+
+    // Convert amounts to cents before storing
+    const plansWithCents = plans.map((plan: LocalRecurringPlan) => ({
+      ...plan,
+      amount: toCents(plan.amount)
+    }));
+
+    // Clear user's existing plans and insert new ones
+    await db.transaction('rw', db.recurringPlans, async () => {
+      await db.recurringPlans.where('user_id').equals(userId).delete();
+      if (plansWithCents.length > 0) {
+        await db.recurringPlans.bulkAdd(plansWithCents);
+      }
+    });
+
+    // Update sync metadata
+    await updateSyncMetadata('recurring_plans', plans.length);
+
+    logger.info('[referenceSync] ✅ Recurring plans synced', { count: plans.length });
+    return { success: true, count: plans.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Recurring plans sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
 
 /**
  * Initial sync - синхронизация всех справочников
- * v11.4.2: Removed recurringPlans and shoppingLists (moved to on-demand API)
+ * v11.4.3: Restored shoppingLists (transactional data for offline /lists)
+ * v11.4.6: Restored recurringPlans (proactive sync with working endpoint)
  */
 export async function initialReferenceSync(
   userId: number
@@ -321,7 +378,8 @@ export async function initialReferenceSync(
     articleHierarchy: await syncArticleHierarchy(userId),
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
     productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
-    shoppingLists: await syncShoppingLists(userId)  // v11.4.3+ (transactional data for offline /lists)
+    shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
+    recurringPlans: await syncRecurringPlans(userId, 90)  // v11.4.6: Restored with working endpoint
   };
 
   // Critical syncs (required for app to work)
@@ -329,7 +387,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists'];
+  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'recurringPlans'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);

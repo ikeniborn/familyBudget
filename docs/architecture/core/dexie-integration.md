@@ -799,10 +799,11 @@ async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringP
 }
 ```
 
-**Reference Sync (v11.4.0+):**
+**Reference Sync (v11.4.6):**
 - Plans синхронизируются автоматически при логине (как Articles/FinancialCenters)
-- Использует sync period для date filtering
+- Использует sync period для date filtering (90 дней по умолчанию)
 - Кеширует Plans в Dexie для offline доступа
+- **Примечание:** временно отключена в v11.4.2 из-за 422 ошибки, восстановлена в v11.4.6 после подтверждения работоспособности endpoint
 
 ### Diagnostic Modal
 
@@ -835,6 +836,7 @@ async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringP
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-07 | v11.4.6 | 🔄 Plans Sync Restoration: восстановлена proactive sync при логине<br>🛡️ Graceful degradation: sync failure не блокирует login (non-critical sync)<br>📝 Documentation sync: актуализация после v11.4.2 removal<br>✅ Cents conversion: amount → toCents(amount) перед сохранением в Dexie |
 | 2026-02-07 | v11.4.0 | ⚙️ Sync Period Configuration: настраиваемый период хранения offline данных (30-180 дней)<br>🚀 Plans proactive sync: автоматическая синхронизация при логине<br>📊 WebSocket diagnostics: мониторинг WebSocket в Dexie Diagnostic Modal<br>🔍 API date filtering: GET /recurring-plans?from_date&to_date для оптимизации sync |
 | 2026-02-05 | v11.3.1 | 🔴 VersionError fix: завершение Dexie migration<br>🗑️ Удалён Legacy IndexedDB (~2,000 строк)<br>🚀 Shopping Lists полностью мигрированы на Dexie<br>⚙️ Автоматическая миграция для users с v10.1.x |
 | 2026-02-04 | v11.3.0 | ⚙️ Полностью удалена страница /settings (была пустой после v11.0.1)<br>🚀 Оптимизирован PWA splash (убран промежуточный экран auth_redirect) |
