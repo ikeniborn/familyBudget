@@ -982,6 +982,36 @@ export class DexieManager {
     const saved = localStorage.getItem('budget_dexie_sync_period');
     return saved ? parseInt(saved, 10) : 90; // Default: 90 days
   }
+
+  /**
+   * Query shopping list items (wrapper for shoppingOperations)
+   * @param shopping_list_temp_id - Shopping list temp_id
+   * @returns Promise with shopping list items
+   */
+  async queryShoppingListItems(shopping_list_temp_id: string): Promise<import('./types/shopping').LocalShoppingListItem[]> {
+    const { queryShoppingListItems } = await import('./operations/shoppingOperations');
+    return queryShoppingListItems(shopping_list_temp_id);
+  }
+
+  /**
+   * Query stores with filters (wrapper for shoppingOperations)
+   * @param filters - Store filters
+   * @returns Promise with stores
+   */
+  async queryStores(filters?: import('./types/shopping').StoreFilters): Promise<import('./types/shopping').LocalStore[]> {
+    const { queryStores } = await import('./operations/shoppingOperations');
+    return queryStores(filters);
+  }
+
+  /**
+   * Query product groups with filters (wrapper for shoppingOperations)
+   * @param filters - Product group filters
+   * @returns Promise with product groups
+   */
+  async queryProductGroups(filters?: import('./types/shopping').ProductGroupFilters): Promise<import('./types/shopping').LocalProductGroup[]> {
+    const { queryProductGroups } = await import('./operations/shoppingOperations');
+    return queryProductGroups(filters);
+  }
 }
 
 /**

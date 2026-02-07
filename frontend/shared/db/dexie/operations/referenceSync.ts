@@ -244,14 +244,54 @@ export async function syncProductGroups(): Promise<{ success: boolean; count: nu
 }
 
 /**
- * Shopping Lists removed from reference sync (v11.4.2)
- * Reason: Shopping Lists are TRANSACTIONAL DATA (user mutations with temp_id),
- * not REFERENCE DATA (read-only global catalogs).
+ * Sync shopping lists from server (v11.4.3+)
  *
- * Shopping Lists sync moved to shoppingSync.ts (similar to Facts sync).
- * Reference sync is only for: Articles, Financial Centers, Cost Centers, Article Hierarchy,
- * Stores, Product Groups.
+ * NOTE: Shopping Lists are TRANSACTIONAL DATA (user mutations), but we cache them
+ * for offline access on /lists page. API returns server IDs, so we map to temp_id.
  */
+export async function syncShoppingLists(userId: number): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing shopping lists...', { userId });
+
+  try {
+    const response = await fetchWithTimeout(`/api/v1/shopping-lists`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch shopping lists: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const lists = data.shopping_lists || [];
+
+    // Transform API data: id → temp_id mapping for Dexie schema compatibility
+    const transformedLists = lists.map((list: any) => ({
+      ...list,
+      temp_id: list.id?.toString() || list.temp_id,  // Use server ID as temp_id if missing
+      creator_id: list.creator_id || userId,          // Fallback to current user
+      is_active: list.is_active ?? true,
+      sync_status: 'synced',
+      synced_at: new Date(),
+      created_at: list.created_at ? new Date(list.created_at) : new Date(),
+      updated_at: list.updated_at ? new Date(list.updated_at) : new Date()
+    }));
+
+    // Clear existing user's lists
+    await db.shoppingLists.where('creator_id').equals(userId).delete();
+
+    // Bulk insert
+    if (transformedLists.length > 0) {
+      await db.shoppingLists.bulkPut(transformedLists);
+    }
+
+    logger.info('[referenceSync] ✅ Shopping lists synced', { count: transformedLists.length });
+    return { success: true, count: transformedLists.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Shopping lists sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
 
 /**
  * Recurring Plans removed from reference sync (v11.4.2)
@@ -280,7 +320,8 @@ export async function initialReferenceSync(
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
-    productGroups: await syncProductGroups()  // v11.4.2+ (global reference data, no userId)
+    productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
+    shoppingLists: await syncShoppingLists(userId)  // v11.4.3+ (transactional data for offline /lists)
   };
 
   // Critical syncs (required for app to work)
@@ -288,7 +329,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['stores', 'productGroups'];
+  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);
