@@ -19,7 +19,7 @@ flowchart TB
         ParallelChecks[Start Parallel Jobs]
         ParallelChecks --> Lint[ESLint Check]
         ParallelChecks --> TypeCheck[TypeScript Type Check]
-        ParallelChecks --> PythonTests[Backend Unit Tests<br/>pytest --cov]
+        ParallelChecks --> PythonTests[Backend Unit Tests<br>pytest --cov]
 
         Lint --> QualityGate
         TypeCheck --> QualityGate
@@ -34,35 +34,35 @@ flowchart TB
 
     subgraph "Frontend Build (TypeScript + Vite)"
         FrontendBuild --> InstallDeps[npm ci]
-        InstallDeps --> CompileTS[Compile TypeScript<br/>ES2020 Modules]
-        CompileTS --> CacheBust[Cache Busting<br/>Append ?v=VERSION to assets]
-        CacheBust --> MinifyCSS[Minify Tailwind CSS<br/>PurgeCSS]
-        MinifyCSS --> FrontendArtifact[Upload Artifact<br/>static/]
+        InstallDeps --> CompileTS[Compile TypeScript<br>ES2020 Modules]
+        CompileTS --> CacheBust[Cache Busting<br>Append ?v=VERSION to assets]
+        CacheBust --> MinifyCSS[Minify Tailwind CSS<br>PurgeCSS]
+        MinifyCSS --> FrontendArtifact[Upload Artifact<br>static/]
     end
 
     FrontendArtifact --> DockerBuild
 
     subgraph "Docker Multi-Stage Build"
         DockerBuild[Build Docker Images]
-        DockerBuild --> BuildApp[Build App Image<br/>Python 3.11 + FastAPI]
-        DockerBuild --> BuildBot[Build Bot Image<br/>python-telegram-bot]
-        DockerBuild --> BuildNginx[Build Nginx Image<br/>Static files from artifact]
+        DockerBuild --> BuildApp[Build App Image<br>Python 3.11 + FastAPI]
+        DockerBuild --> BuildBot[Build Bot Image<br>python-telegram-bot]
+        DockerBuild --> BuildNginx[Build Nginx Image<br>Static files from artifact]
 
         BuildApp --> TagImages
         BuildBot --> TagImages
         BuildNginx --> TagImages
 
-        TagImages[Tag Images<br/>ghcr.io/user/repo:VERSION]
+        TagImages[Tag Images<br>ghcr.io/user/repo:VERSION]
     end
 
     TagImages --> PushRegistry[Push to ghcr.io Registry]
 
-    PushRegistry --> UpdateVersion[Update VERSION File<br/>in Repository]
+    PushRegistry --> UpdateVersion[Update VERSION File<br>in Repository]
 
     UpdateVersion --> DeployTrigger{Branch?}
 
-    DeployTrigger -->|test| DeployDev[Deploy to Development<br/>fbd.ikeniborn.ru]
-    DeployTrigger -->|main| DeployProd[Deploy to Production<br/>fb.ikeniborn.ru]
+    DeployTrigger -->|test| DeployDev[Deploy to Development<br>fbd.ikeniborn.ru]
+    DeployTrigger -->|main| DeployProd[Deploy to Production<br>fb.ikeniborn.ru]
 
     subgraph "Deployment Flow (Registry-First)"
         DeployDev --> SSHConnect1[SSH to Dev Server]
@@ -71,8 +71,8 @@ flowchart TB
         SSHConnect1 --> PullImages1[docker pull ghcr.io/.../app:VERSION]
         SSHConnect2 --> PullImages2[docker pull ghcr.io/.../app:VERSION]
 
-        PullImages1 --> CheckPort1{Port 8000<br/>Available?}
-        PullImages2 --> CheckPort2{Port 8000<br/>Available?}
+        PullImages1 --> CheckPort1{Port 8000<br>Available?}
+        PullImages2 --> CheckPort2{Port 8000<br>Available?}
 
         CheckPort1 -->|In Use| StopOld1[docker compose down]
         CheckPort2 -->|In Use| StopOld2[docker compose down]
@@ -83,11 +83,11 @@ flowchart TB
         StopOld1 --> ComposeUp1[docker compose up -d]
         StopOld2 --> ComposeUp2[docker compose up -d]
 
-        ComposeUp1 --> RunMigrations1[docker exec app<br/>python -m alembic upgrade head]
-        ComposeUp2 --> RunMigrations2[docker exec app<br/>python -m alembic upgrade head]
+        ComposeUp1 --> RunMigrations1[docker exec app<br>python -m alembic upgrade head]
+        ComposeUp2 --> RunMigrations2[docker exec app<br>python -m alembic upgrade head]
 
-        RunMigrations1 --> HealthCheck1{Health Check<br/>200 OK?}
-        RunMigrations2 --> HealthCheck2{Health Check<br/>200 OK?}
+        RunMigrations1 --> HealthCheck1{Health Check<br>200 OK?}
+        RunMigrations2 --> HealthCheck2{Health Check<br>200 OK?}
 
         HealthCheck1 -->|Fail| Rollback1[Rollback to Previous]
         HealthCheck2 -->|Fail| Rollback2[Rollback to Previous]
@@ -117,17 +117,17 @@ flowchart TB
 ```mermaid
 graph TB
     subgraph "Multi-Stage Build"
-        BuilderStage[Builder Stage<br/>python:3.11-slim]
-        RuntimeStage[Runtime Stage<br/>gcr.io/distroless/python3]
+        BuilderStage[Builder Stage<br>python:3.11-slim]
+        RuntimeStage[Runtime Stage<br>gcr.io/distroless/python3]
 
-        BuilderStage --> InstallDeps[Install Dependencies<br/>pip install -r requirements.txt]
+        BuilderStage --> InstallDeps[Install Dependencies<br>pip install -r requirements.txt]
         InstallDeps --> CopyApp[Copy Application Code]
         CopyApp --> CompilePython[Compile Python Bytecode]
 
         CompilePython --> RuntimeStage
         RuntimeStage --> CopyVenv[Copy venv from Builder]
         CopyVenv --> SetEnv[Set PYTHONPATH]
-        SetEnv --> FinalImage[Final Image<br/>~200MB]
+        SetEnv --> FinalImage[Final Image<br>~200MB]
     end
 
     style BuilderStage fill:#FF9800,stroke:#E65100,color:#fff

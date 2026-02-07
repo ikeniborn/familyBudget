@@ -9,26 +9,26 @@
 ```mermaid
 graph TB
     subgraph "Core Features"
-        Transactions[Transactions<br/>Budget Facts]
-        Categories[Categories<br/>Hierarchical Tree]
-        Accounts[Accounts<br/>Balance Tracking]
+        Transactions[Transactions<br>Budget Facts]
+        Categories[Categories<br>Hierarchical Tree]
+        Accounts[Accounts<br>Balance Tracking]
     end
 
     subgraph "Advanced Features"
-        Transfers[Transfers System<br/>Double-Entry Bookkeeping]
-        Recurring[Recurring Plans<br/>MMDD Encoding]
-        ShoppingLists[Shopping Lists<br/>Offline-First]
+        Transfers[Transfers System<br>Double-Entry Bookkeeping]
+        Recurring[Recurring Plans<br>MMDD Encoding]
+        ShoppingLists[Shopping Lists<br>Offline-First]
     end
 
     subgraph "Integration Features"
-        CSVImport[CSV Import<br/>Bank Integration]
-        Backup[Backup System<br/>Full Export/Restore]
-        Notifications[Notifications<br/>Web Push + Telegram]
+        CSVImport[CSV Import<br>Bank Integration]
+        Backup[Backup System<br>Full Export/Restore]
+        Notifications[Notifications<br>Web Push + Telegram]
     end
 
     subgraph "Real-Time Features"
-        WebSocket[WebSocket Updates<br/>Multi-Tab Sync]
-        OfflineSync[Offline Sync<br/>Dexie.js Queue]
+        WebSocket[WebSocket Updates<br>Multi-Tab Sync]
+        OfflineSync[Offline Sync<br>Dexie.js Queue]
     end
 
     Transactions --> Transfers
@@ -84,16 +84,16 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    Scheduler[APScheduler<br/>Daily 00:00 UTC] --> FetchPlans[Fetch Active Plans<br/>WHERE is_active = true]
+    Scheduler[APScheduler<br>Daily 00:00 UTC] --> FetchPlans[Fetch Active Plans<br>WHERE is_active = true]
 
-    FetchPlans --> CheckDay{Today matches<br/>execution_day?}
+    FetchPlans --> CheckDay{Today matches<br>execution_day?}
 
     CheckDay -->|No| Skip[Skip Plan]
-    CheckDay -->|Yes| CreateFact[Create Budget Fact<br/>from Plan Template]
+    CheckDay -->|Yes| CreateFact[Create Budget Fact<br>from Plan Template]
 
-    CreateFact --> LogExecution[INSERT INTO<br/>recurring_execution<br/>Log Success]
+    CreateFact --> LogExecution[INSERT INTO<br>recurring_execution<br>Log Success]
 
-    LogExecution --> SendNotification[Send Notification<br/>Web Push + Telegram]
+    LogExecution --> SendNotification[Send Notification<br>Web Push + Telegram]
 
     SendNotification --> NextPlan{More Plans?}
     NextPlan -->|Yes| FetchPlans
@@ -119,21 +119,21 @@ execution_day = 101  // Jan 1st
 stateDiagram-v2
     [*] --> Online
     Online --> CreateItem: User adds item
-    CreateItem --> SaveDexie: Save to Dexie.js<br/>sync_status = 'synced'
-    SaveDexie --> BroadcastTabs: BroadcastChannel<br/>notify other tabs
+    CreateItem --> SaveDexie: Save to Dexie.js<br>sync_status = 'synced'
+    SaveDexie --> BroadcastTabs: BroadcastChannel<br>notify other tabs
 
     BroadcastTabs --> Online
 
     Online --> Offline: Network Lost
     Offline --> CreateItemOffline: User adds item offline
-    CreateItemOffline --> QueueDexie: Save to Dexie.js<br/>sync_status = 'pending'
+    CreateItemOffline --> QueueDexie: Save to Dexie.js<br>sync_status = 'pending'
     QueueDexie --> ShowOfflineBadge
 
     ShowOfflineBadge --> Offline
     Offline --> Online: Network Restored
 
     Online --> SyncQueue: SyncManager processes queue
-    SyncQueue --> APISync: POST /api/lists/:id/items<br/>with sync_queue_id
+    SyncQueue --> APISync: POST /api/lists/:id/items<br>with sync_queue_id
     APISync --> UpdateStatus: Update sync_status = 'synced'
     UpdateStatus --> [*]
 ```

@@ -78,16 +78,16 @@ erDiagram
 graph LR
     subgraph "t_f_budget_fact (Parent Table)"
         direction TB
-        Parent[Partitioned by fact_date<br/>RANGE monthly]
+        Parent[Partitioned by fact_date<br>RANGE monthly]
     end
 
     subgraph "96 Monthly Partitions"
-        P202201[fact_202201<br/>2022-01-01 to 2022-01-31]
-        P202202[fact_202202<br/>2022-02-01 to 2022-02-28]
-        P202203[fact_202203<br/>...]
+        P202201[fact_202201<br>2022-01-01 to 2022-01-31]
+        P202202[fact_202202<br>2022-02-01 to 2022-02-28]
+        P202203[fact_202203<br>...]
         Pdots[...]
-        P202601[fact_202601<br/>2026-01-01 to 2026-01-31]
-        P202602[fact_202602<br/>2026-02-01 to 2026-02-28]
+        P202601[fact_202601<br>2026-01-01 to 2026-01-31]
+        P202602[fact_202602<br>2026-02-01 to 2026-02-28]
     end
 
     Parent --> P202201
@@ -192,16 +192,16 @@ erDiagram
 ```mermaid
 graph TB
     subgraph "Core Dimensions"
-        article[t_d_article<br/>Categories]
-        user[t_d_user<br/>Users]
-        currency[t_d_currency<br/>Currencies]
-        account[t_d_account<br/>Accounts]
-        family[t_d_family<br/>Family Groups]
+        article[t_d_article<br>Categories]
+        user[t_d_user<br>Users]
+        currency[t_d_currency<br>Currencies]
+        account[t_d_account<br>Accounts]
+        family[t_d_family<br>Family Groups]
     end
 
     subgraph "Supporting Tables"
-        user_family[t_d_user_family<br/>User-Family Links]
-        article_hierarchy[t_d_article_hierarchy<br/>Closure Table]
+        user_family[t_d_user_family<br>User-Family Links]
+        article_hierarchy[t_d_article_hierarchy<br>Closure Table]
     end
 
     user -->|M:N| user_family
@@ -219,7 +219,7 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Transactional Data"
-        fact[t_f_budget_fact<br/>96 partitions]
+        fact[t_f_budget_fact<br>96 partitions]
     end
 
     style fact fill:#FF5722,stroke:#D84315,color:#fff
@@ -229,11 +229,11 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Authentication"
-        sessions[user_sessions<br/>JWT refresh tokens]
-        webauthn_cred[webauthn_credentials<br/>Biometric public keys]
-        webauthn_challenge[webauthn_challenges<br/>Challenge-response]
-        totp[totp_secrets<br/>2FA secrets]
-        backup_codes[backup_codes<br/>2FA recovery]
+        sessions[user_sessions<br>JWT refresh tokens]
+        webauthn_cred[webauthn_credentials<br>Biometric public keys]
+        webauthn_challenge[webauthn_challenges<br>Challenge-response]
+        totp[totp_secrets<br>2FA secrets]
+        backup_codes[backup_codes<br>2FA recovery]
     end
 
     style sessions fill:#3F51B5,stroke:#283593,color:#fff
@@ -243,8 +243,8 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Recurring Payments"
-        recurring_plan[t_s_recurring_plan<br/>Templates]
-        recurring_exec[t_s_recurring_execution<br/>Execution log]
+        recurring_plan[t_s_recurring_plan<br>Templates]
+        recurring_exec[t_s_recurring_execution<br>Execution log]
     end
 
     recurring_plan -->|1:N| recurring_exec
@@ -256,9 +256,9 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Shopping Lists (Offline-First)"
-        shopping_list[t_s_shopping_list<br/>Lists]
-        shopping_item[t_s_shopping_item<br/>Items]
-        shopping_share[t_s_shopping_list_share<br/>Shared access]
+        shopping_list[t_s_shopping_list<br>Lists]
+        shopping_item[t_s_shopping_item<br>Items]
+        shopping_share[t_s_shopping_list_share<br>Shared access]
     end
 
     shopping_list -->|1:N| shopping_item
@@ -271,8 +271,8 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Notifications"
-        notification[t_s_notification<br/>Messages]
-        web_push[web_push_subscriptions<br/>VAPID endpoints]
+        notification[t_s_notification<br>Messages]
+        web_push[web_push_subscriptions<br>VAPID endpoints]
     end
 
     style notification fill:#FF9800,stroke:#E65100,color:#fff

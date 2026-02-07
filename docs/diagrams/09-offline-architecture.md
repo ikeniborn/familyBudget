@@ -11,17 +11,17 @@ stateDiagram-v2
     [*] --> Initializing
     Initializing --> CheckingConnectivity: NetworkDetector starts
 
-    CheckingConnectivity --> Online: navigator.onLine = true<br/>Health check succeeds
-    CheckingConnectivity --> Offline: navigator.onLine = false<br/>OR Health check fails
+    CheckingConnectivity --> Online: navigator.onLine = true<br>Health check succeeds
+    CheckingConnectivity --> Offline: navigator.onLine = false<br>OR Health check fails
 
-    Online --> Offline: Network lost<br/>(online event → false)
-    Offline --> Online: Network restored<br/>(online event → true)
+    Online --> Offline: Network lost<br>(online event → false)
+    Offline --> Online: Network restored<br>(online event → true)
 
-    Online --> HealthCheckOnline: Periodic health check<br/>every 30s
+    Online --> HealthCheckOnline: Periodic health check<br>every 30s
     HealthCheckOnline --> Online: 200 OK
     HealthCheckOnline --> Offline: Timeout/Error
 
-    Offline --> HealthCheckOffline: Periodic health check<br/>every 5s (faster retry)
+    Offline --> HealthCheckOffline: Periodic health check<br>every 5s (faster retry)
     HealthCheckOffline --> Online: 200 OK
     HealthCheckOffline --> Offline: Still failing
 
@@ -58,45 +58,17 @@ async function healthCheck(): Promise<boolean> {
 
 ---
 
-## Dexie.js Schema (9 Tables)
+## Dexie.js Schema (15 Tables)
 
 ```mermaid
 erDiagram
-    budget_facts {
-        string id PK
+    budgetFacts {
+        bigint budget_fact_id PK
         string sync_queue_id UK
         bigint user_id
         date fact_date
         string sync_status "pending|synced|failed"
-        bigint amount_cents
-        timestamp created_at
-        int retry_count
-    }
-
-    shopping_lists {
-        string id PK
-        string sync_queue_id UK
-        string name
-        string sync_status
-        timestamp created_at
-    }
-
-    shopping_items {
-        string id PK
-        string sync_queue_id UK
-        string list_id FK
-        string name
-        boolean purchased
-        string sync_status
-    }
-
-    sync_queue {
-        string id PK
-        string sync_queue_id UK
-        string operation "create|update|delete"
-        string entity_type "fact|list|item"
-        json payload
-        int retry_count
+        bigint amount_cents "Stored in cents"
         timestamp created_at
     }
 
@@ -107,31 +79,102 @@ erDiagram
         boolean is_active
     }
 
-    accounts {
-        int account_id PK
-        string account_name
+    articleHierarchy {
+        bigint ancestor_id PK_FK
+        bigint descendant_id PK_FK
+        int depth
+    }
+
+    financialCenters {
+        int financial_center_id PK
+        string name
         boolean is_active
     }
 
-    currencies {
-        int currency_id PK
-        string currency_code
-        string currency_symbol
+    costCenters {
+        int cost_center_id PK
+        string name
+        boolean is_active
     }
 
-    preferences {
+    pendingOperations {
+        int id PK
+        string sync_queue_id UK
+        string operation "create|update|delete"
+        string entity_type "fact|list|item"
+        json payload
+        int retry_count
+        timestamp created_at
+    }
+
+    syncConflicts {
+        int id PK
+        string entity_type
+        string entity_id
+        string conflict_type
+        json local_data
+        json server_data
+        timestamp created_at
+    }
+
+    recurringPlans {
+        bigint recurring_plan_id PK
+        bigint user_id
+        bigint article_id FK
+        boolean is_active
+        int execution_day "MMDD encoding"
+    }
+
+    shoppingLists {
+        bigint shopping_list_id PK
+        string sync_queue_id UK
+        bigint creator_id
+        string name
+        string sync_status "pending|synced|failed"
+        timestamp created_at
+    }
+
+    shoppingListItems {
+        bigint shopping_item_id PK
+        string sync_queue_id UK
+        bigint list_id FK
+        string name
+        boolean purchased
+        string sync_status "pending|synced|failed"
+    }
+
+    stores {
+        int store_id PK
+        string name
+    }
+
+    productGroups {
+        int product_group_id PK
+        string name
+    }
+
+    productGroupHierarchy {
+        int ancestor_id PK_FK
+        int descendant_id PK_FK
+        int depth
+    }
+
+    syncMetadata {
         string key PK
         json value
+        timestamp last_synced_at
     }
 
-    websocket_events {
+    schemaMigrations {
         int id PK
-        timestamp timestamp
-        string event_type
-        json payload
+        int version
+        timestamp applied_at
     }
 
-    shopping_lists ||--o{ shopping_items : "list_id"
+    articles ||--o{ articleHierarchy : "ancestor/descendant"
+    shoppingLists ||--o{ shoppingListItems : "list_id"
+    productGroups ||--o{ productGroupHierarchy : "ancestor/descendant"
+    recurringPlans }o--|| articles : "article_id"
 ```
 
 ---
@@ -142,36 +185,36 @@ erDiagram
 flowchart TB
     Start([Network Restored]) --> SyncManager[SyncManager Activated]
 
-    SyncManager --> FetchQueue[Fetch from sync_queue<br/>WHERE sync_status = 'pending']
+    SyncManager --> FetchQueue[Fetch from pendingOperations<br>WHERE sync_status = 'pending']
 
-    FetchQueue --> HasItems{Queue<br/>Empty?}
+    FetchQueue --> HasItems{Queue<br>Empty?}
     HasItems -->|Yes| Complete([Sync Complete])
     HasItems -->|No| NextItem[Get next item]
 
-    NextItem --> BuildRequest[Build API Request<br/>Include sync_queue_id]
+    NextItem --> BuildRequest[Build API Request<br>Include sync_queue_id]
 
-    BuildRequest --> SendAPI[Send to API<br/>POST/PUT/DELETE]
+    BuildRequest --> SendAPI[Send to API<br>POST/PUT/DELETE]
 
     SendAPI --> APIResponse{Response}
 
     APIResponse -->|201/200| Success[Update sync_status = 'synced']
-    Success --> RemoveQueue[Remove from sync_queue]
+    Success --> RemoveQueue[Remove from pendingOperations]
     RemoveQueue --> MoreItems
 
-    APIResponse -->|409 Conflict| AlreadySynced[Update sync_status = 'synced'<br/>Server has newer version]
+    APIResponse -->|409 Conflict| AlreadySynced[Update sync_status = 'synced'<br>Server has newer version]
     AlreadySynced --> RemoveQueue
 
-    APIResponse -->|400 Validation| ValidationError[Update sync_status = 'failed'<br/>Show error to user]
+    APIResponse -->|400 Validation| ValidationError[Update sync_status = 'failed'<br>Show error to user]
     ValidationError --> LogError[Log to console]
     LogError --> MoreItems
 
     APIResponse -->|500/Network Error| IncrementRetry[Increment retry_count]
-    IncrementRetry --> CheckRetries{retry_count<br/>> 5?}
+    IncrementRetry --> CheckRetries{retry_count<br>> 5?}
 
-    CheckRetries -->|Yes| MarkFailed[Update sync_status = 'failed'<br/>Max retries exceeded]
+    CheckRetries -->|Yes| MarkFailed[Update sync_status = 'failed'<br>Max retries exceeded]
     MarkFailed --> MoreItems
 
-    CheckRetries -->|No| ExponentialBackoff[Wait 2^retry_count seconds<br/>2s, 4s, 8s, 16s, 32s...]
+    CheckRetries -->|No| ExponentialBackoff[Wait 2^retry_count seconds<br>2s, 4s, 8s, 16s, 32s...]
     ExponentialBackoff --> MoreItems
 
     MoreItems{More Items?}
@@ -190,20 +233,20 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    SyncAttempt([Sync Operation]) --> ServerFetch[Fetch server version<br/>by sync_queue_id]
+    SyncAttempt([Sync Operation]) --> ServerFetch[Fetch server version<br>by sync_queue_id]
 
-    ServerFetch --> ServerExists{Server has<br/>record?}
+    ServerFetch --> ServerExists{Server has<br>record?}
 
-    ServerExists -->|No| NoConflict[No conflict<br/>Create on server]
+    ServerExists -->|No| NoConflict[No conflict<br>Create on server]
     NoConflict --> Success([Sync Success])
 
-    ServerExists -->|Yes| CompareTimestamp{Compare<br/>updated_at}
+    ServerExists -->|Yes| CompareTimestamp{Compare<br>updated_at}
 
-    CompareTimestamp -->|Local newer| LastWriteWins[Last-write-wins<br/>Update server<br/>Show warning]
-    CompareTimestamp -->|Server newer| ServerWins[Use server version<br/>Overwrite local]
-    CompareTimestamp -->|Same timestamp| NoOp[No operation needed<br/>Already in sync]
+    CompareTimestamp -->|Local newer| LastWriteWins[Last-write-wins<br>Update server<br>Show warning]
+    CompareTimestamp -->|Server newer| ServerWins[Use server version<br>Overwrite local]
+    CompareTimestamp -->|Same timestamp| NoOp[No operation needed<br>Already in sync]
 
-    LastWriteWins --> LogConflict[Log conflict to console<br/>+ WebSocket event]
+    LastWriteWins --> LogConflict[Log conflict to console<br>+ WebSocket event]
     ServerWins --> LogConflict
     NoOp --> Success
 
@@ -247,12 +290,12 @@ sequenceDiagram
     participant Tab2 as Tab 2 (Background)
     participant Tab3 as Tab 3 (Background)
 
-    Tab1->>Dexie: Add new fact<br/>{id: 'abc', ...}
+    Tab1->>Dexie: Add new fact<br>{id: 'abc', ...}
     Dexie-->>Tab1: Success
 
-    Tab1->>Channel: postMessage<br/>{type: 'fact_created', id: 'abc'}
+    Tab1->>Channel: postMessage<br>{type: 'fact_created', id: 'abc'}
 
-    Note over Channel: Instant broadcast<br/>to all tabs
+    Note over Channel: Instant broadcast<br>to all tabs
 
     Channel->>Tab2: Receive message
     Channel->>Tab3: Receive message
@@ -268,7 +311,7 @@ sequenceDiagram
     Tab2->>Tab2: Update UI
     Tab3->>Tab3: Update UI
 
-    Note over Tab1,Tab3: All tabs synchronized<br/>without API calls
+    Note over Tab1,Tab3: All tabs synchronized<br>without API calls
 ```
 
 ### Benefits

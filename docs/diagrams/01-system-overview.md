@@ -9,41 +9,41 @@
 ```mermaid
 graph TB
     subgraph "External Actors"
-        User([User<br/>Web Browser])
-        TelegramUser([User<br/>Telegram App])
-        Bank([Bank Systems<br/>CSV Exports])
+        User([User<br>Web Browser])
+        TelegramUser([User<br>Telegram App])
+        Bank([Bank Systems<br>CSV Exports])
     end
 
     subgraph "Family Budget System"
         subgraph "Frontend Layer"
-            PWA[Progressive Web App<br/>HTMX + Tailwind + DaisyUI]
-            SW[Service Worker<br/>Offline Caching]
-            Dexie[Dexie.js<br/>IndexedDB Storage]
+            PWA[Progressive Web App<br>HTMX + Tailwind + DaisyUI]
+            SW[Service Worker<br>Offline Caching]
+            Dexie[Dexie.js<br>IndexedDB Storage]
         end
 
         subgraph "Backend Layer"
-            API[FastAPI Backend<br/>REST API + WebSocket]
-            Auth[Authentication Service<br/>JWT + OAuth + WebAuthn]
-            Bot[Telegram Bot<br/>python-telegram-bot]
-            Scheduler[APScheduler<br/>Recurring Tasks]
+            API[FastAPI Backend<br>REST API + WebSocket]
+            Auth[Authentication Service<br>JWT + OAuth + WebAuthn]
+            Bot[Telegram Bot<br>python-telegram-bot]
+            Scheduler[APScheduler<br>Recurring Tasks]
         end
 
         subgraph "Data Layer"
-            PG[(PostgreSQL 16<br/>39 Tables + Partitions)]
-            Redis[(Redis<br/>Pub/Sub + Session)]
+            PG[(PostgreSQL 16<br>39 Tables + Partitions)]
+            Redis[(Redis<br>Pub/Sub + Session)]
         end
 
         subgraph "Infrastructure"
-            Docker[Docker Compose<br/>5 Services]
-            Nginx[Nginx<br/>Reverse Proxy]
-            Backup[Backup System<br/>Automated Snapshots]
+            Docker[Docker Compose<br>5 Services]
+            Nginx[Nginx<br>Reverse Proxy]
+            Backup[Backup System<br>Automated Snapshots]
         end
     end
 
     subgraph "External Services"
-        TelegramAPI[Telegram Bot API<br/>OAuth + Messaging]
-        WebPush[Web Push Service<br/>VAPID Notifications]
-        GitHub[GitHub Registry<br/>ghcr.io Images]
+        TelegramAPI[Telegram Bot API<br>OAuth + Messaging]
+        WebPush[Web Push Service<br>VAPID Notifications]
+        GitHub[GitHub Registry<br>ghcr.io Images]
     end
 
     %% User interactions

@@ -21,7 +21,7 @@ Family Budget frontend is built with:
 ```mermaid
 graph TB
     subgraph "Base Template (base.html)"
-        BaseHTML[base.html<br/>Shell HTML]
+        BaseHTML[base.html<br>Shell HTML]
         BaseHead[Head: CSS, meta tags]
         BaseScripts[Scripts: HTMX, Alpine.js, init]
         BaseNav[Navigation bar]
@@ -29,42 +29,42 @@ graph TB
     end
 
     subgraph "Main Pages"
-        Index[index.html<br/>Dashboard]
-        Facts[facts.html<br/>Transactions List]
-        Plan[plan.html<br/>Budget Planning]
-        Lists[lists.html<br/>Shopping Lists]
-        Analytics[analytics.html<br/>Charts & Reports]
-        Security[security.html<br/>Auth Settings]
+        Index[index.html<br>Dashboard]
+        Facts[facts.html<br>Transactions List]
+        Plan[plan.html<br>Budget Planning]
+        Lists[lists.html<br>Shopping Lists]
+        Analytics[analytics.html<br>Charts & Reports]
+        Security[security.html<br>Auth Settings]
     end
 
     subgraph "Modals (Tab-Based)"
-        FactModal[FactModal<br/>Create/Edit Transaction]
-        TransferModal[TransferModal<br/>Transfer Between Accounts]
-        RecurringModal[RecurringModal<br/>Recurring Payment Setup]
-        CategoryModal[CategoryModal<br/>Category Management]
-        ListItemModal[ListItemModal<br/>Shopping Item]
+        FactModal[FactModal<br>Create/Edit Transaction]
+        TransferModal[TransferModal<br>Transfer Between Accounts]
+        RecurringModal[RecurringModal<br>Recurring Payment Setup]
+        CategoryModal[CategoryModal<br>Category Management]
+        ListItemModal[ListItemModal<br>Shopping Item]
     end
 
     subgraph "Reusable Components"
-        CategoryTreeSelect[CategoryTreeSelect<br/>Hierarchical Picker]
-        AccountSelect[AccountSelect<br/>Account Dropdown]
-        CurrencySelect[CurrencySelect<br/>Currency Picker]
-        DatePicker[DatePicker<br/>Date Input]
-        AmountInput[AmountInput<br/>Rubles + Cents]
+        CategoryTreeSelect[CategoryTreeSelect<br>Hierarchical Picker]
+        AccountSelect[AccountSelect<br>Account Dropdown]
+        CurrencySelect[CurrencySelect<br>Currency Picker]
+        DatePicker[DatePicker<br>Date Input]
+        AmountInput[AmountInput<br>Rubles + Cents]
     end
 
     subgraph "TypeScript Modules (ES Modules)"
-        NetworkDetector[NetworkDetector<br/>Online/Offline Detection]
-        SyncManager[SyncManager<br/>Offline Sync Queue]
-        WebSocketClient[WebSocketClient<br/>Real-Time Updates]
-        DexieDB[DexieDB<br/>IndexedDB Wrapper]
-        CacheBusting[CacheBusting<br/>Asset Version Management]
+        NetworkDetector[NetworkDetector<br>Online/Offline Detection]
+        SyncManager[SyncManager<br>Offline Sync Queue]
+        WebSocketClient[WebSocketClient<br>Real-Time Updates]
+        DexieDB[DexieDB<br>IndexedDB Wrapper]
+        CacheBusting[CacheBusting<br>Asset Version Management]
     end
 
     subgraph "Service Worker"
-        SWCache[Cache Strategy<br/>Static: cache-first<br/>API: network-first]
-        SWOffline[Offline Fallback<br/>Show cached pages]
-        SWSync[Background Sync<br/>Queue failed requests]
+        SWCache[Cache Strategy<br>Static: cache-first<br>API: network-first]
+        SWOffline[Offline Fallback<br>Show cached pages]
+        SWSync[Background Sync<br>Queue failed requests]
     end
 
     BaseHTML --> BaseHead
@@ -195,18 +195,18 @@ graph TB
 ```mermaid
 graph TB
     subgraph "FactModal (3 Tabs)"
-        FactTab1[Tab 1: Fact<br/>Income/Expense]
-        FactTab2[Tab 2: Plan<br/>Budget Planning]
-        FactTab3[Tab 3: Transfer<br/>Between Accounts]
+        FactTab1[Tab 1: Fact<br>Income/Expense]
+        FactTab2[Tab 2: Plan<br>Budget Planning]
+        FactTab3[Tab 3: Transfer<br>Between Accounts]
     end
 
     subgraph "Shared Components in Modal"
-        TabsNav[Tabs Navigation<br/>DaisyUI tabs]
-        CategoryTree[CategoryTreeSelect<br/>3-level hierarchy]
-        AccountDropdown[AccountSelect<br/>Cash/Card/Deposit]
-        AmountField[AmountInput<br/>Rubles.Cents format]
-        DateField[DatePicker<br/>ISO date input]
-        SubmitBtn[Submit Button<br/>HTMX POST]
+        TabsNav[Tabs Navigation<br>DaisyUI tabs]
+        CategoryTree[CategoryTreeSelect<br>3-level hierarchy]
+        AccountDropdown[AccountSelect<br>Cash/Card/Deposit]
+        AmountField[AmountInput<br>Rubles.Cents format]
+        DateField[DatePicker<br>ISO date input]
+        SubmitBtn[Submit Button<br>HTMX POST]
     end
 
     FactTab1 --> TabsNav
@@ -283,10 +283,10 @@ graph TB
 
 ```mermaid
 flowchart TB
-    Request([Browser request]) --> SWIntercept{Service Worker<br/>intercepts}
+    Request([Browser request]) --> SWIntercept{Service Worker<br>intercepts}
 
-    SWIntercept -->|Static assets<br/>/static/*| CacheFirst
-    SWIntercept -->|API calls<br/>/api/*| NetworkFirst
+    SWIntercept -->|Static assets<br>/static/*| CacheFirst
+    SWIntercept -->|API calls<br>/api/*| NetworkFirst
     SWIntercept -->|HTML pages| NetworkFirst
 
     subgraph "Cache-First Strategy"
@@ -298,7 +298,7 @@ flowchart TB
     end
 
     subgraph "Network-First Strategy"
-        NetworkFirst --> TryNetwork{Network<br/>available?}
+        NetworkFirst --> TryNetwork{Network<br>available?}
         TryNetwork -->|Yes| FetchNetwork2[Fetch from network]
         FetchNetwork2 --> Success2{Success?}
         Success2 -->|Yes| UpdateCache2[Update cache]
@@ -341,35 +341,33 @@ script.src = `/static/js/module.js?v=${VERSION}`;
 ## Dexie.js Schema
 
 ```javascript
-// dexieDB.ts
+// frontend/shared/db/dexie/core/database.ts
 import Dexie from 'dexie';
 
 const db = new Dexie('FamilyBudgetDB');
-db.version(1).stores({
-    // Transactions (offline-first)
-    budget_facts: '++id, sync_queue_id, user_id, fact_date, sync_status',
+db.version(3).stores({
+    // Reference Data (5 tables)
+    articles: 'article_id, article_name, article_category, is_active',
+    articleHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id',
+    financialCenters: 'financial_center_id, name, is_active',  // NOT "accounts"!
+    costCenters: 'cost_center_id, name, is_active',
 
-    // Categories (for offline form population)
-    articles: 'article_id, article_name, article_category',
+    // Transactional Data (4 tables)
+    budgetFacts: 'budget_fact_id, sync_queue_id, user_id, fact_date, sync_status, amount_cents',
+    pendingOperations: '++id, sync_queue_id, operation, entity_type, retry_count',  // NOT "sync_queue"!
+    syncConflicts: '++id, entity_type, entity_id, conflict_type, created_at',
+    recurringPlans: 'recurring_plan_id, user_id, article_id, is_active',
 
-    // Accounts
-    accounts: 'account_id, account_name, is_active',
+    // Shopping Lists (5 tables)
+    shoppingLists: 'shopping_list_id, sync_queue_id, creator_id, name, sync_status',
+    shoppingListItems: 'shopping_item_id, sync_queue_id, list_id, name, purchased, sync_status',
+    stores: 'store_id, name',  // Global reference data
+    productGroups: 'product_group_id, name',  // Global reference data
+    productGroupHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id',
 
-    // Currencies
-    currencies: 'currency_id, currency_code',
-
-    // Shopping lists (offline-first)
-    shopping_lists: '++id, sync_queue_id, name, sync_status',
-    shopping_items: '++id, sync_queue_id, list_id, name, sync_status',
-
-    // Sync queue (pending operations)
-    sync_queue: '++id, sync_queue_id, operation, entity_type, retry_count',
-
-    // User preferences
-    preferences: 'key',
-
-    // WebSocket event log (for debugging)
-    websocket_events: '++id, timestamp, event_type'
+    // Metadata (2 tables)
+    syncMetadata: 'key, value, last_synced_at',  // NOT "preferences"!
+    schemaMigrations: '++id, version, applied_at'
 });
 ```
 
@@ -405,12 +403,12 @@ sequenceDiagram
 
     Note over Server: Database change detected
 
-    Server->>WS: WebSocket message<br/>{type: 'fact_created', data: {...}}
+    Server->>WS: WebSocket message<br>{type: 'fact_created', data: {...}}
 
     WS->>WS: Parse message
 
     alt Message has html_fragment
-        WS->>UI: HTMX swap OOB<br/>Update #facts-list
+        WS->>UI: HTMX swap OOB<br>Update #facts-list
     else Message is data-only
         WS->>Dexie: Update IndexedDB
         Dexie-->>WS: Success
@@ -421,11 +419,11 @@ sequenceDiagram
 
     Note over WS: Connection lost
 
-    WS->>WS: Exponential backoff reconnect<br/>2s, 4s, 8s, 16s, 32s...
+    WS->>WS: Exponential backoff reconnect<br>2s, 4s, 8s, 16s, 32s...
 
     WS->>Server: Reconnect attempt
     Server-->>WS: Connection accepted
-    WS->>Server: Send last_event_id<br/>Request missed events
+    WS->>Server: Send last_event_id<br>Request missed events
     Server-->>WS: Send buffered events
 ```
 
@@ -460,25 +458,25 @@ channel.onmessage = async (event) => {
 ```mermaid
 graph LR
     subgraph "Entry Point"
-        Init[init.ts<br/>Application Initialization]
+        Init[init.ts<br>Application Initialization]
     end
 
     subgraph "Core Modules"
-        Network[networkDetector.ts<br/>Online/Offline Detection]
-        Sync[syncManager.ts<br/>Offline Sync Queue]
-        WS[webSocketClient.ts<br/>Real-Time Updates]
-        DB[dexieDB.ts<br/>IndexedDB Wrapper]
-        Cache[cacheBusting.ts<br/>Asset Versioning]
+        Network[networkDetector.ts<br>Online/Offline Detection]
+        Sync[syncManager.ts<br>Offline Sync Queue]
+        WS[webSocketClient.ts<br>Real-Time Updates]
+        DB[dexieDB.ts<br>IndexedDB Wrapper]
+        Cache[cacheBusting.ts<br>Asset Versioning]
     end
 
     subgraph "UI Modules"
-        Modal[modalManager.ts<br/>Modal Lifecycle]
-        Toast[toastNotifications.ts<br/>User Feedback]
-        Forms[formValidation.ts<br/>Client-Side Validation]
+        Modal[modalManager.ts<br>Modal Lifecycle]
+        Toast[toastNotifications.ts<br>User Feedback]
+        Forms[formValidation.ts<br>Client-Side Validation]
     end
 
     subgraph "Build Output"
-        Bundle[Compiled JS<br/>ES2020 Modules]
+        Bundle[Compiled JS<br>ES2020 Modules]
     end
 
     Init -->|imports| Network
@@ -522,15 +520,15 @@ npm run build:ts
 ```mermaid
 graph TB
     subgraph "Breakpoints (Tailwind)"
-        Mobile[Mobile<br/>< 640px]
-        Tablet[Tablet<br/>640px - 1024px]
-        Desktop[Desktop<br/>> 1024px]
+        Mobile[Mobile<br>< 640px]
+        Tablet[Tablet<br>640px - 1024px]
+        Desktop[Desktop<br>> 1024px]
     end
 
     subgraph "Layout Adjustments"
-        MobileLayout[Stack vertically<br/>Full-width cards<br/>Bottom navigation]
-        TabletLayout[2-column grid<br/>Sidebar navigation<br/>Compact tables]
-        DesktopLayout[3-column grid<br/>Fixed sidebar<br/>Data tables]
+        MobileLayout[Stack vertically<br>Full-width cards<br>Bottom navigation]
+        TabletLayout[2-column grid<br>Sidebar navigation<br>Compact tables]
+        DesktopLayout[3-column grid<br>Fixed sidebar<br>Data tables]
     end
 
     Mobile --> MobileLayout
@@ -538,9 +536,9 @@ graph TB
     Desktop --> DesktopLayout
 
     subgraph "iOS Safari Quirks"
-        ViewportFix[100vh issue<br/>Use 100dvh instead]
-        InputZoom[Input zoom<br/>font-size >= 16px]
-        SafeArea[Safe area insets<br/>env(safe-area-inset-*)]
+        ViewportFix[100vh issue<br>Use 100dvh instead]
+        InputZoom[Input zoom<br>font-size >= 16px]
+        SafeArea[Safe area insets<br>env(safe-area-inset-*)]
     end
 
     MobileLayout -.->|Fixes| ViewportFix
