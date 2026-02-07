@@ -174,7 +174,7 @@ erDiagram
     articles ||--o{ articleHierarchy : "ancestor/descendant"
     shoppingLists ||--o{ shoppingListItems : "list_id"
     productGroups ||--o{ productGroupHierarchy : "ancestor/descendant"
-    recurringPlans }o--|| articles : "article_id"
+    recurringPlans }o--|| articles : "article_id (v11.4.6: sync restored)"
 ```
 
 ---
@@ -401,5 +401,5 @@ journey
 
 ---
 
-**Version**: 11.4.4
-**Created**: 2026-02-07
+**Version**: 11.4.6
+**Updated**: 2026-02-07 (Plans sync restoration)
