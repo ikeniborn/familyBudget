@@ -214,6 +214,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+      - postgres_backups:/app/backups
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:

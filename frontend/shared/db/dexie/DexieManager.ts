@@ -17,7 +17,9 @@ import {
   startAutoPruning,
   stopAutoPruning,
   isAutoPruningEnabled,
-  calculateDatabaseSize
+  calculateDatabaseSize,
+  setupVisibilityPruning,
+  setupIdlePruning
 } from './operations/pruningOperations';
 import {
   detectConflict,
@@ -88,6 +90,11 @@ export class DexieManager {
 
       this.state = 'ready';
       logger.info('[DexieManager] ✅ Ready');
+
+      // Initialize hybrid pruning strategy (after successful init)
+      const retentionDays = this.getSyncPeriodDays();
+      setupVisibilityPruning(retentionDays);
+      setupIdlePruning(retentionDays);
     } catch (error) {
       this.state = 'error';
       logger.error('[DexieManager] ❌ Initialization failed:', error);

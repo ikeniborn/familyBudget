@@ -842,3 +842,105 @@ async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringP
 | 2026-02-04 | v11.3.0 | ⚙️ Полностью удалена страница /settings (была пустой после v11.0.1)<br>🚀 Оптимизирован PWA splash (убран промежуточный экран auth_redirect) |
 | 2026-02-02 | v11.0.1 | 🔴 Transaction atomicity fix (confirmPendingOperation)<br>🟡 Exponential backoff для retry logic<br>🟡 Conflict modal timeout (60s)<br>⚙️ Удален /settings Dexie раздел |
 | 2026-01-31 | v11.0.0 | Initial release (PGlite → Dexie migration) |
+
+---
+
+## Pruning Strategy
+
+Family Budget использует **hybrid pruning approach** для автоматического удаления старых синхронизированных данных из Dexie.js.
+
+### Механизмы Pruning
+
+| Механизм | Триггер | Browser Support | Приоритет |
+|----------|---------|-----------------|-----------|
+| **setInterval** | Каждые 60 минут | 100% | Primary |
+| **Visibility API** | При возврате на вкладку | 98%+ | Supplement |
+| **requestIdleCallback** | Browser idle time | 90%+ (Chrome/Firefox) | Enhancement |
+
+### 1. setInterval (Primary)
+
+**Описание:** Основной механизм - запускается каждые 60 минут независимо от активности пользователя.
+
+**Файл:** `frontend/shared/db/dexie/operations/pruningOperations.ts:63`
+
+**Код:**
+```typescript
+startAutoPruning() // Runs every 60 minutes
+```
+
+**Когда работает:** Всегда (пока вкладка открыта)
+
+### 2. Visibility API (Supplement)
+
+**Описание:** Дополнительный pruning при возврате пользователя на вкладку (после переключения с другой вкладки).
+
+**Триггер:** `document.visibilityState === 'visible'`
+
+**Преимущества:**
+- Запускается сразу после возврата пользователя
+- Не ждёт 60-минутного интервала
+- Работает в 98%+ браузеров
+
+**Код:**
+```typescript
+setupVisibilityPruning() // Runs when tab becomes visible
+```
+
+**Файл:** `frontend/shared/db/dexie/operations/pruningOperations.ts:115`
+
+### 3. requestIdleCallback (Enhancement)
+
+**Описание:** Фоновый pruning во время простоя браузера (zero user impact).
+
+**Триггер:** Browser idle detection (timeout fallback 2 min)
+
+**Преимущества:**
+- Не блокирует UI операции
+- Запускается в фоновом режиме
+- Safari fallback (setTimeout)
+
+**Код:**
+```typescript
+setupIdlePruning() // Runs during browser idle
+```
+
+**Файл:** `frontend/shared/db/dexie/operations/pruningOperations.ts:141`
+
+### Browser Compatibility
+
+| Browser | setInterval | Visibility API | requestIdleCallback |
+|---------|-------------|----------------|---------------------|
+| Chrome | ✅ | ✅ | ✅ |
+| Firefox | ✅ | ✅ | ✅ |
+| Safari | ✅ | ✅ | ❌ (setTimeout fallback) |
+| Edge | ✅ | ✅ | ✅ |
+
+### Why Not Periodic Background Sync?
+
+**Periodic Background Sync API** (Web API standard) требует:
+- PWA в standalone mode (installed app)
+- HTTPS connection
+- Web App Manifest с permissions
+- Battery optimization may delay execution
+
+**Статус в Family Budget:**
+- ❌ Not used (requires PWA installation)
+- ✅ Hybrid approach работает во всех контекстах (browser tab, PWA, mobile)
+
+### Configuration
+
+**Retention Period:** 30-180 дней (настраивается в Dexie Diagnostic Modal)
+
+**Default:** 30 дней (via `DexieManager.getSyncPeriodDays()`)
+
+**Pruning Interval:** 60 минут (setInterval default)
+
+**Manual Trigger:** `/diagnostics` dialog → "Run Pruning Now" button
+
+### Recent Changes (v11.4.6)
+
+- ✅ Добавлен Visibility API pruning
+- ✅ Добавлен requestIdleCallback pruning
+- ✅ Обновлены console messages (информативные, не warnings)
+- ✅ Документирована hybrid strategy
+- ✅ Автоматическая инициализация при запуске DexieManager

@@ -655,7 +655,8 @@
                 }
             });
         } else {
-            console.warn('[PRUNING] Periodic Background Sync not supported (fallback to manual)');
+            console.info('[PRUNING] Using hybrid pruning strategy (setInterval + Visibility API + Idle Detection)');
+            console.info('[PRUNING] Periodic Background Sync unavailable (requires PWA standalone mode)');
         }
     }
 </script>
