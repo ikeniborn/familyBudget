@@ -555,7 +555,10 @@ export class DexieManager {
       throw new Error('[DexieManager] Internal error: userId is undefined after resolution');
     }
 
-    const result = await initialReferenceSync(effectiveUserId);
+    // Get sync period from localStorage (v11.4.0+)
+    const syncPeriodDays = this.getSyncPeriodDays();
+
+    const result = await initialReferenceSync(effectiveUserId, syncPeriodDays);
 
     if (!result.success) {
       const failedSyncs = Object.entries(result.results)
@@ -935,10 +938,12 @@ export class DexieManager {
 
   /**
    * Prune old synced facts
+   * @param retentionDays - Number of days to keep (optional, defaults to getSyncPeriodDays())
    */
-  async pruneFacts(retentionDays: number = 30): Promise<number> {
-    logger.debug('[DexieManager] pruneFacts', { retentionDays });
-    return await pruneFacts(retentionDays);
+  async pruneFacts(retentionDays?: number): Promise<number> {
+    const days = retentionDays ?? this.getSyncPeriodDays();
+    logger.debug('[DexieManager] pruneFacts', { retentionDays: days });
+    return await pruneFacts(days);
   }
 
   /**
@@ -962,6 +967,15 @@ export class DexieManager {
    */
   isAutoPruningEnabled(): boolean {
     return isAutoPruningEnabled();
+  }
+
+  /**
+   * Get sync period for offline data retention (v11.4.0+)
+   * @returns Number of days to keep Facts/Plans in Dexie
+   */
+  getSyncPeriodDays(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period');
+    return saved ? parseInt(saved, 10) : 90; // Default: 90 days
   }
 }
 

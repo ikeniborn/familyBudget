@@ -740,10 +740,102 @@ The requested version (5) is less than the existing version (10).
 
 ---
 
+## Sync Period Configuration (v11.4.0+)
+
+### Overview
+
+Пользователи могут настроить период хранения offline данных (Facts и Plans) через **Dexie Diagnostic Modal**.
+
+### Features
+
+**Configurable retention:**
+- Default: 90 days (90 дней назад + 90 дней вперёд для Plans)
+- Range: 30-180 days (шаг 30 дней)
+- Сохраняется в `localStorage.budget_dexie_sync_period`
+
+**UI controls:**
+- Slider в Dexie Diagnostic Modal (triple-click на Dexie icon)
+- Real-time preview (oninput) + pruning on change (onchange)
+- Automatic Facts pruning при изменении периода
+
+**API integration:**
+- Backend: `GET /api/v1/recurring-plans?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD`
+- Frontend: DataLayer автоматически добавляет date filtering к запросам Plans
+- Dexie: Фильтрация Plans по `next_generation_date` в памяти
+
+### Implementation
+
+**DexieManager (v11.4.0+):**
+```typescript
+// Get sync period from localStorage
+getSyncPeriodDays(): number {
+  const saved = localStorage.getItem('budget_dexie_sync_period');
+  return saved ? parseInt(saved, 10) : 90;
+}
+
+// Prune with configurable period
+async pruneFacts(retentionDays?: number): Promise<number> {
+  const days = retentionDays ?? this.getSyncPeriodDays();
+  return await pruneFacts(days);
+}
+```
+
+**DataLayer Plans sync:**
+```typescript
+async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
+  const syncPeriodDays = this.dexieManager?.getSyncPeriodDays?.() ?? 90;
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - syncPeriodDays);
+  const toDate = new Date();
+  toDate.setDate(toDate.getDate() + syncPeriodDays);
+
+  const syncFilters: RecurringPlanFilters = {
+    ...filters,
+    from_date: filters?.from_date ?? fromDate.toISOString().split('T')[0],
+    to_date: filters?.to_date ?? toDate.toISOString().split('T')[0]
+  };
+
+  // Use syncFilters for API/Dexie requests
+}
+```
+
+**Reference Sync (v11.4.0+):**
+- Plans синхронизируются автоматически при логине (как Articles/FinancialCenters)
+- Использует sync period для date filtering
+- Кеширует Plans в Dexie для offline доступа
+
+### Diagnostic Modal
+
+**WebSocket status (v11.4.0+):**
+- Connection state (CONNECTING/OPEN/CLOSING/CLOSED/NO_SOCKET)
+- Enabled/disabled status
+- Offline mode detection (via `offlineManager.networkDetector.autoOfflineMode`)
+
+**Sync period display:**
+- Facts: X records (90 days)
+- Plans: X records (90 days)
+- Slider для изменения периода (30-180 дней)
+
+### Troubleshooting
+
+**Plans не синхронизируются:**
+1. Check localStorage: `localStorage.getItem('budget_dexie_sync_period')`
+2. Check Dexie Diagnostic Modal: Plans count должен быть > 0 после логина
+3. Check browser console: `[referenceSync] Recurring plans synced: { count: X }`
+
+**WebSocket NO_SOCKET state:**
+1. Check browser console: `window.offlineManager?.networkDetector?.autoOfflineMode`
+2. Check backend logs: `docker logs familybudget-backend --tail=200 | grep WS`
+3. Check token endpoint: `curl -X POST https://fbd.ikeniborn.ru/api/v1/budget/ws/token`
+4. Check nginx config: WebSocket upgrade headers должны быть настроены
+
+---
+
 ## История изменений
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-07 | v11.4.0 | ⚙️ Sync Period Configuration: настраиваемый период хранения offline данных (30-180 дней)<br>🚀 Plans proactive sync: автоматическая синхронизация при логине<br>📊 WebSocket diagnostics: мониторинг WebSocket в Dexie Diagnostic Modal<br>🔍 API date filtering: GET /recurring-plans?from_date&to_date для оптимизации sync |
 | 2026-02-05 | v11.3.1 | 🔴 VersionError fix: завершение Dexie migration<br>🗑️ Удалён Legacy IndexedDB (~2,000 строк)<br>🚀 Shopping Lists полностью мигрированы на Dexie<br>⚙️ Автоматическая миграция для users с v10.1.x |
 | 2026-02-04 | v11.3.0 | ⚙️ Полностью удалена страница /settings (была пустой после v11.0.1)<br>🚀 Оптимизирован PWA splash (убран промежуточный экран auth_redirect) |
 | 2026-02-02 | v11.0.1 | 🔴 Transaction atomicity fix (confirmPendingOperation)<br>🟡 Exponential backoff для retry logic<br>🟡 Conflict modal timeout (60s)<br>⚙️ Удален /settings Dexie раздел |

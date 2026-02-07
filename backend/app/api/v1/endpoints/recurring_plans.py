@@ -69,6 +69,12 @@ def _generate_filter_hash(filters: dict) -> str:
 @router.get("/", response_model=RecurringPlanListResponse)
 async def list_recurring_plans(
     is_active: bool | None = Query(default=None, description="Filter by active status"),
+    from_date: str | None = Query(
+        default=None, description="Filter by next_execution_date >= from_date (YYYY-MM-DD)"
+    ),
+    to_date: str | None = Query(
+        default=None, description="Filter by next_execution_date <= to_date (YYYY-MM-DD)"
+    ),
     skip: int = Query(default=0, ge=0, description="Pagination offset"),
     limit: int = Query(default=50, ge=1, le=100, description="Pagination limit"),
     current_user: User = Depends(get_current_user),
@@ -82,8 +88,12 @@ async def list_recurring_plans(
     **Optimization (v6.6.0):** Uses Redis caching with 2-minute TTL.
     Cache invalidated after mutations. Different filter combinations cached separately.
 
+    **Date filtering (v11.4.0):** Support from_date/to_date for sync period optimization.
+
     Args:
         is_active: Optional filter by active status
+        from_date: Include plans with next_execution_date >= from_date (YYYY-MM-DD)
+        to_date: Include plans with next_execution_date <= to_date (YYYY-MM-DD)
         skip: Pagination offset
         limit: Pagination limit (max 100)
         current_user: Authenticated user
@@ -99,8 +109,12 @@ async def list_recurring_plans(
         "skip": skip,
         "limit": limit,
         "is_active": is_active,
+        "from_date": from_date,
+        "to_date": to_date,
     }
-    filter_hash = _generate_filter_hash(filters) if is_active is not None else None
+    filter_hash = _generate_filter_hash(filters) if any(
+        [is_active is not None, from_date, to_date]
+    ) else None
 
     # Try cache first
     cache_key = CacheKey.recurring_plan_list(current_user.id, filter_hash)
@@ -120,6 +134,8 @@ async def list_recurring_plans(
         session=session,
         user_id=current_user.id,
         is_active=is_active,
+        from_date=from_date,
+        to_date=to_date,
         skip=skip,
         limit=limit,
     )

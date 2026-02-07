@@ -1188,15 +1188,30 @@ export class DataLayer {
   async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const startTime = performance.now();
 
+    // Calculate sync period (v11.4.0+)
+    const syncPeriodDays = this.dexie?.getSyncPeriodDays?.() ?? 90;
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
+    const toDate = new Date();
+    toDate.setDate(toDate.getDate() + syncPeriodDays);
+
+    // Merge sync period with user filters
+    const syncFilters: RecurringPlanFilters = {
+      ...filters,
+      from_date: filters?.from_date ?? fromDate.toISOString().split('T')[0],
+      to_date: filters?.to_date ?? toDate.toISOString().split('T')[0]
+    };
+
     console.info('[DATA_LAYER] getRecurringPlans', {
-      filters,
+      filters: syncFilters,
+      syncPeriodDays,
       usePGlite: this.shouldUsePGlite()
     });
 
     try {
       // API-FIRST
       if (!this.shouldUsePGlite()) {
-        const result = await this.getRecurringPlansFromAPI(filters);
+        const result = await this.getRecurringPlansFromAPI(syncFilters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getRecurringPlans', duration);
         console.info('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
@@ -1214,19 +1229,19 @@ export class DataLayer {
 
         if (!pglite.isReady()) {
           console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
-          const result = await this.getRecurringPlansFromAPI(filters);
+          const result = await this.getRecurringPlansFromAPI(syncFilters);
           performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
           return result;
         }
       }
 
       console.info('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryRecurringPlans(filters);
+      const result = await pglite.queryRecurringPlans(syncFilters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
         console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
-        const apiResult = await this.getRecurringPlansFromAPI(filters);
+        const apiResult = await this.getRecurringPlansFromAPI(syncFilters);
         performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
         console.info('[DATA_LAYER] API fallback returned', { count: apiResult.length });
 
@@ -1253,7 +1268,7 @@ export class DataLayer {
 
     } catch (error) {
       console.error('[DATA_LAYER] Error in getRecurringPlans', error);
-      const result = await this.getRecurringPlansFromAPI(filters);
+      const result = await this.getRecurringPlansFromAPI(syncFilters);
       performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
       return result;
     }
@@ -1286,6 +1301,12 @@ export class DataLayer {
     }
     if (filters?.frequency) {
       params.set('frequency', filters.frequency);
+    }
+    if (filters?.from_date) {
+      params.set('from_date', filters.from_date);
+    }
+    if (filters?.to_date) {
+      params.set('to_date', filters.to_date);
     }
 
     const response = await fetch(`/api/v1/recurring-plans?${params.toString()}`, {

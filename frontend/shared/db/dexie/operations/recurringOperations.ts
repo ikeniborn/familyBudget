@@ -19,6 +19,8 @@ export interface RecurringPlanFilters {
   cost_center_id?: number;
   is_active?: boolean;
   frequency?: string;
+  from_date?: string;  // Filter by next_generation_date >= from_date (YYYY-MM-DD) - v11.4.0+
+  to_date?: string;    // Filter by next_generation_date <= to_date (YYYY-MM-DD) - v11.4.0+
 }
 
 /**
@@ -52,6 +54,10 @@ export async function queryRecurringPlans(filters?: RecurringPlanFilters): Promi
       if (filters.cost_center_id && plan.cost_center_id !== filters.cost_center_id) return false;
       if (filters.is_active !== undefined && plan.is_active !== filters.is_active) return false;
       if (filters.frequency && plan.frequency !== filters.frequency) return false;
+
+      // Date filtering (v11.4.0+)
+      if (filters.from_date && plan.next_generation_date < filters.from_date) return false;
+      if (filters.to_date && plan.next_generation_date > filters.to_date) return false;
 
       return true;
     });

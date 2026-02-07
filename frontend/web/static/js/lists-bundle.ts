@@ -15,6 +15,9 @@ import './lists/importManager';
 // Dexie progress notification (v11.0+)
 import { showDexieProgress, hideDexieProgress } from './notifications/dexieProgressToast';
 
+// Dexie diagnostic modal (v11.4.0+)
+import { openDexieDiagnostic } from './modules/uiComponents/modals/DexieDiagnosticModal';
+
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
   // Initialization
@@ -227,7 +230,10 @@ const windowExports = {
 
   // PGlite progress notifications (v10.1.38+)
   showDexieProgress,
-  hideDexieProgress
+  hideDexieProgress,
+
+  // Dexie diagnostic modal (v11.4.0+)
+  openDexieDiagnostic
 };
 
 // Экспорт в window (Object.assign - надёжнее работает после минификации)

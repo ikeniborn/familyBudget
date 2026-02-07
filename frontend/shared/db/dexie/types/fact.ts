@@ -101,6 +101,7 @@ export interface LocalRecurringPlan {
   day_of_month: number | null;
   frequency: string;
   is_active: boolean;
+  next_generation_date: string;  // YYYY-MM-DD (v11.4.0+)
 
   created_at: Date;
 }
@@ -131,4 +132,6 @@ export interface RecurringPlanFilters {
   cost_center_id?: number;
   is_active?: boolean;
   frequency?: string;
+  from_date?: string;  // Filter by next_generation_date >= from_date (YYYY-MM-DD) - v11.4.0+
+  to_date?: string;    // Filter by next_generation_date <= to_date (YYYY-MM-DD) - v11.4.0+
 }

@@ -378,6 +378,8 @@ class RecurringPlanService:
         session: AsyncSession,
         user_id: int,
         is_active: bool | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
         skip: int = 0,
         limit: int = 50,
     ) -> tuple[list[dict], int]:
@@ -388,6 +390,8 @@ class RecurringPlanService:
             session: Database session
             user_id: User ID
             is_active: Optional filter by active status
+            from_date: Filter by next_generation_date >= from_date (YYYY-MM-DD)
+            to_date: Filter by next_generation_date <= to_date (YYYY-MM-DD)
             skip: Pagination offset
             limit: Pagination limit
 
@@ -400,6 +404,14 @@ class RecurringPlanService:
         if is_active is not None:
             base_query = base_query.where(RecurringPlan.is_active == is_active)
 
+        # Date filtering (v11.4.0+)
+        if from_date:
+            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            base_query = base_query.where(RecurringPlan.next_generation_date >= from_date_obj)
+        if to_date:
+            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            base_query = base_query.where(RecurringPlan.next_generation_date <= to_date_obj)
+
         # Get total count
         count_query = (
             select(sa_func.count())
@@ -408,6 +420,12 @@ class RecurringPlanService:
         )
         if is_active is not None:
             count_query = count_query.where(RecurringPlan.is_active == is_active)
+        if from_date:
+            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            count_query = count_query.where(RecurringPlan.next_generation_date >= from_date_obj)
+        if to_date:
+            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            count_query = count_query.where(RecurringPlan.next_generation_date <= to_date_obj)
 
         count_result = await session.execute(count_query)
         total = count_result.scalar() or 0
@@ -422,6 +440,12 @@ class RecurringPlanService:
 
         if is_active is not None:
             query = query.where(RecurringPlan.is_active == is_active)
+        if from_date:
+            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            query = query.where(RecurringPlan.next_generation_date >= from_date_obj)
+        if to_date:
+            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            query = query.where(RecurringPlan.next_generation_date <= to_date_obj)
 
         query = (
             query

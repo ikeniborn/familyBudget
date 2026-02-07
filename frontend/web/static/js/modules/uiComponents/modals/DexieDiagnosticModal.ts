@@ -17,6 +17,7 @@
 import { BaseModal } from './BaseModal';
 import { getDexieManager } from '@db/dexie';
 import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
+import { logger } from '@db/dexie/utils/logger';
 
 // TODO: Move these types to @db/dexie when getDiagnosticData is implemented
 interface DiagnosticData {
@@ -50,6 +51,16 @@ interface DiagnosticData {
     lastPrunedAt: string;
     totalPruned: number;
     nextPruneEstimate: string;
+  };
+  syncPeriod: {
+    facts: number;
+    plans: number;
+  };
+  websocket?: {
+    connected: boolean;
+    state: string;
+    enabled: boolean;
+    offlineMode: boolean;
   };
 }
 
@@ -161,7 +172,13 @@ export class DexieDiagnosticModal extends BaseModal {
         return;
       }
 
-      const data = await pglite.getDiagnosticData();
+      const baseData = await pglite.getDiagnosticData();
+
+      // Add sync period information (v11.4.0+)
+      const syncPeriodDays = pglite.getSyncPeriodDays?.() ?? 90;
+
+      // Add WebSocket diagnostics (v11.4.0+)
+      const budgetWSClient = (window as any).budgetWSClient;
 
       // Load conflict metrics (task-009)
       try {
@@ -170,6 +187,23 @@ export class DexieDiagnosticModal extends BaseModal {
         console.warn('[CONFLICT_METRICS] Failed to load conflict metrics', error);
         this.conflictMetrics = null;
       }
+
+      // Build complete diagnostic data object
+      const data: DiagnosticData = {
+        ...baseData,
+        syncPeriod: {
+          facts: syncPeriodDays,
+          plans: syncPeriodDays
+        },
+        websocket: {
+          connected: budgetWSClient?.ws?.readyState === 1,  // WebSocket.OPEN = 1
+          state: budgetWSClient?.ws
+            ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][budgetWSClient.ws.readyState]
+            : 'NO_SOCKET',
+          enabled: budgetWSClient?.enabled ?? false,
+          offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? false
+        }
+      };
 
       // Use DOMParser to safely render HTML (prevents XSS)
       this.renderDiagnosticContentSafe(data);
@@ -246,8 +280,14 @@ export class DexieDiagnosticModal extends BaseModal {
             <tr><td>Articles</td><td>${data.tableStats.articles}</td></tr>
             <tr><td>Financial Centers</td><td>${data.tableStats.financial_centers}</td></tr>
             <tr><td>Cost Centers</td><td>${data.tableStats.cost_centers}</td></tr>
-            <tr><td>Facts</td><td>${data.tableStats.facts}</td></tr>
-            <tr><td>Plans</td><td>${data.tableStats.plans}</td></tr>
+            <tr>
+              <td>Facts</td>
+              <td>${data.tableStats.facts} <span class="text-xs opacity-60">(${data.syncPeriod.facts} days)</span></td>
+            </tr>
+            <tr>
+              <td>Plans</td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} days)</span></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -268,6 +308,29 @@ export class DexieDiagnosticModal extends BaseModal {
       ${this.renderPruningMetrics(data)}
 
       ${this.renderConflictMetrics()}
+
+      ${this.renderWebSocketDiagnostics(data)}
+
+      <!-- Sync Period Controls (v11.4.0+) -->
+      <div class="mb-3">
+        <h3 class="text-xs font-semibold mb-2">Sync Period (Offline Data Retention)</h3>
+
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text text-xs">Facts & Plans retention (days):</span>
+          </label>
+          <input type="range" min="30" max="180" step="30"
+                 value="${data.syncPeriod.facts}"
+                 class="range range-xs range-primary"
+                 id="sync-period-slider"
+                 oninput="window.updateSyncPeriodDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriod?.(this.value)">
+          <div class="w-full flex justify-between text-xs px-2 opacity-60">
+            <span>30</span><span>60</span><span>90</span><span>120</span><span>150</span><span>180</span>
+          </div>
+          <div class="text-xs text-center mt-1" id="sync-period-value">${data.syncPeriod.facts} days</div>
+        </div>
+      </div>
 
       <!-- Actions -->
       <div class="flex justify-end gap-2 mt-2">
@@ -390,6 +453,74 @@ export class DexieDiagnosticModal extends BaseModal {
       </div>
     `;
   }
+
+  /**
+   * Render WebSocket diagnostics (v11.4.0+)
+   */
+  private renderWebSocketDiagnostics(data: DiagnosticData): string {
+    if (!data.websocket) {
+      return '';
+    }
+
+    const ws = data.websocket;
+    const stateClass = ws.connected ? 'text-success' : 'text-error';
+    const stateIcon = ws.connected ? '✓' : '✗';
+
+    return `
+      <!-- WebSocket Diagnostics (v11.4.0+) -->
+      <div class="overflow-x-auto mb-3">
+        <table class="table table-xs table-zebra w-full">
+          <thead><tr><th class="text-xs">WebSocket</th><th class="text-xs">Value</th></tr></thead>
+          <tbody class="text-xs">
+            <tr>
+              <td>Connection</td>
+              <td class="${stateClass}">${stateIcon} ${ws.connected ? 'Connected' : 'Disconnected'}</td>
+            </tr>
+            <tr><td>State</td><td>${ws.state}</td></tr>
+            <tr><td>Enabled</td><td>${ws.enabled ? 'Yes' : 'No'}</td></tr>
+            <tr><td>Offline Mode</td><td>${ws.offlineMode ? 'Active' : 'Inactive'}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  /**
+   * Update sync period display (real-time slider feedback)
+   */
+  private updateSyncPeriodDisplay(days: number): void {
+    const valueEl = document.getElementById('sync-period-value');
+    if (valueEl) {
+      valueEl.textContent = `${days} days`;
+    }
+  }
+
+  /**
+   * Update sync period and trigger pruning
+   */
+  private async updateSyncPeriod(days: number): Promise<void> {
+    try {
+      // Save to localStorage
+      localStorage.setItem('budget_dexie_sync_period', days.toString());
+
+      // Update display
+      this.updateSyncPeriodDisplay(days);
+
+      // Get DexieManager instance
+      const dexieManager = await getDexieManager();
+
+      // Trigger pruning with new period
+      if (dexieManager?.pruneFacts) {
+        await dexieManager.pruneFacts(days);
+        logger.info('[SYNC_PERIOD] Facts pruned with new period:', days);
+
+        // Refresh modal data
+        await this.loadDiagnosticData();
+      }
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update sync period', error);
+    }
+  }
 }
 
 /**
@@ -405,6 +536,15 @@ export function openDexieDiagnostic(): void {
     diagnosticModalInstance = new DexieDiagnosticModal();
     document.body.appendChild(diagnosticModalInstance.render());
   }
+
+  // Export handlers to window for onclick/oninput usage
+  (window as any).updateSyncPeriodDisplay = (days: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodDisplay'](days);
+  };
+
+  (window as any).updateSyncPeriod = (days: number) => {
+    diagnosticModalInstance?.['updateSyncPeriod'](days);
+  };
 
   diagnosticModalInstance.open();
 }

@@ -172,19 +172,79 @@ export async function syncArticleHierarchy(userId: number): Promise<{ success: b
 }
 
 /**
+ * Sync recurring plans from server (v11.4.0+)
+ */
+export async function syncRecurringPlans(
+  userId: number,
+  syncPeriodDays: number = 90
+): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodDays });
+
+  try {
+    // Calculate date range for sync period
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
+    const toDate = new Date();
+    toDate.setDate(toDate.getDate() + syncPeriodDays);
+
+    // Fetch from server with date filtering
+    const params = new URLSearchParams({
+      is_active: 'true',
+      from_date: fromDate.toISOString().split('T')[0],
+      to_date: toDate.toISOString().split('T')[0],
+      limit: '1000'
+    });
+
+    const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch recurring plans: ${response.status}`);
+    }
+
+    // Unwrap API pagination response: { items: [...], total, skip, limit }
+    const data = await response.json();
+    const plans = data.items || [];
+
+    // Clear existing plans within date range (avoid stale data)
+    await db.recurringPlans.where('user_id').equals(userId).delete();
+
+    // Bulk insert
+    if (plans.length > 0) {
+      await db.recurringPlans.bulkAdd(plans);
+    }
+
+    // Update sync metadata
+    await updateSyncMetadata('recurring_plans', plans.length);
+
+    logger.info('[referenceSync] ✅ Recurring plans synced', { count: plans.length });
+    return { success: true, count: plans.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Recurring plans sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
  * Initial sync - синхронизация всех справочников
  */
-export async function initialReferenceSync(userId: number): Promise<{
+export async function initialReferenceSync(
+  userId: number,
+  syncPeriodDays: number = 90
+): Promise<{
   success: boolean;
   results: Record<string, { success: boolean; count: number }>;
 }> {
-  logger.info('[referenceSync] Starting initial sync...', { userId });
+  logger.info('[referenceSync] Starting initial sync...', { userId, syncPeriodDays });
 
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
-    articleHierarchy: await syncArticleHierarchy(userId)
+    articleHierarchy: await syncArticleHierarchy(userId),
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays)  // v11.4.0+
   };
 
   const success = Object.values(results).every(r => r.success);
