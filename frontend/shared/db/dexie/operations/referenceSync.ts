@@ -178,7 +178,7 @@ export async function syncStores(userId: number): Promise<{ success: boolean; co
   logger.info('[referenceSync] Syncing stores...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/lists/stores`, {
+    const response = await fetchWithTimeout(`/api/v1/stores`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -213,7 +213,7 @@ export async function syncProductGroups(userId: number): Promise<{ success: bool
   logger.info('[referenceSync] Syncing product groups...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/lists/product-groups`, {
+    const response = await fetchWithTimeout(`/api/v1/product-groups`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -248,7 +248,7 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
   logger.info('[referenceSync] Syncing shopping lists...', { userId });
 
   try {
-    const response = await fetchWithTimeout(`/api/v1/lists/shopping-lists`, {
+    const response = await fetchWithTimeout(`/api/v1/shopping-lists`, {
       method: 'GET',
       credentials: 'include'
     });
@@ -294,7 +294,6 @@ export async function syncRecurringPlans(
 
     // Try with date filtering (v11.4.0+)
     let params = new URLSearchParams({
-      is_active: 'true',
       from_date: fromDate.toISOString().split('T')[0],
       to_date: toDate.toISOString().split('T')[0],
       limit: '1000'
@@ -309,7 +308,6 @@ export async function syncRecurringPlans(
     if (response.status === 422) {
       logger.warn('[referenceSync] Backend does not support from_date/to_date, falling back to simple query');
       params = new URLSearchParams({
-        is_active: 'true',
         limit: '1000'
       });
 
