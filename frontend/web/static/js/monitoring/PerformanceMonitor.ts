@@ -90,6 +90,8 @@ export interface DetailedPerformanceStats extends PerformanceStats {
 export class PerformanceMonitor {
   private apiMetrics: Map<string, number[]> = new Map();
   private dexieMetrics: Map<string, number[]> = new Map();
+  private cacheHits: Map<string, number> = new Map();
+  private cacheMisses: Map<string, number> = new Map();
 
   /**
    * Track an API call
@@ -115,6 +117,96 @@ export class PerformanceMonitor {
       this.dexieMetrics.set(method, []);
     }
     this.dexieMetrics.get(method)!.push(durationMs);
+  }
+
+  /**
+   * Track cache hit (data retrieved from Dexie)
+   *
+   * @param method - Method name (e.g., 'getArticles')
+   * @param source - Cache source ('dexie' or 'api')
+   */
+  trackCacheHit(method: string, source: 'dexie' | 'api' = 'dexie'): void {
+    const key = `${method}:${source}`;
+    this.cacheHits.set(key, (this.cacheHits.get(key) || 0) + 1);
+  }
+
+  /**
+   * Track cache miss (data fetched from API)
+   *
+   * @param method - Method name (e.g., 'getArticles')
+   * @param source - Fallback source ('api')
+   */
+  trackCacheMiss(method: string, source: 'api' = 'api'): void {
+    const key = `${method}:${source}`;
+    this.cacheMisses.set(key, (this.cacheMisses.get(key) || 0) + 1);
+  }
+
+  /**
+   * Get cache hit ratio
+   *
+   * @param method - Optional method name to filter by
+   * @returns Cache hit ratio (0-100%)
+   */
+  getCacheHitRatio(method?: string): number {
+    let hits = 0;
+    let misses = 0;
+
+    if (method) {
+      hits = this.cacheHits.get(`${method}:dexie`) || 0;
+      misses = this.cacheMisses.get(`${method}:api`) || 0;
+    } else {
+      hits = Array.from(this.cacheHits.values()).reduce((a, b) => a + b, 0);
+      misses = Array.from(this.cacheMisses.values()).reduce((a, b) => a + b, 0);
+    }
+
+    const total = hits + misses;
+    return total > 0 ? (hits / total) * 100 : 0;
+  }
+
+  /**
+   * Get cache statistics
+   *
+   * @returns Cache hit/miss statistics
+   */
+  getCacheStats(): {
+    hits: number;
+    misses: number;
+    hitRatio: number;
+    byMethod: Map<string, { hits: number; misses: number; hitRatio: number }>;
+  } {
+    const hits = Array.from(this.cacheHits.values()).reduce((a, b) => a + b, 0);
+    const misses = Array.from(this.cacheMisses.values()).reduce((a, b) => a + b, 0);
+    const hitRatio = this.getCacheHitRatio();
+
+    // Collect unique methods
+    const methods = new Set<string>();
+    for (const key of this.cacheHits.keys()) {
+      methods.add(key.split(':')[0]);
+    }
+    for (const key of this.cacheMisses.keys()) {
+      methods.add(key.split(':')[0]);
+    }
+
+    const byMethod = new Map<string, { hits: number; misses: number; hitRatio: number }>();
+    for (const method of methods) {
+      const methodHits = this.cacheHits.get(`${method}:dexie`) || 0;
+      const methodMisses = this.cacheMisses.get(`${method}:api`) || 0;
+      const methodTotal = methodHits + methodMisses;
+      const methodHitRatio = methodTotal > 0 ? (methodHits / methodTotal) * 100 : 0;
+
+      byMethod.set(method, {
+        hits: methodHits,
+        misses: methodMisses,
+        hitRatio: parseFloat(methodHitRatio.toFixed(1))
+      });
+    }
+
+    return {
+      hits,
+      misses,
+      hitRatio: parseFloat(hitRatio.toFixed(1)),
+      byMethod
+    };
   }
 
   /**

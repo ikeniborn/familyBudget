@@ -26,7 +26,12 @@ import {
   getConflictMetrics as getConflictMetricsImpl
 } from './operations/conflictOperations';
 import type { ConflictStrategy } from './operations/conflictOperations';
-import { initialReferenceSync } from './operations/referenceSync';
+import {
+  initialReferenceSync,
+  syncArticles,
+  syncFinancialCenters,
+  syncCostCenters
+} from './operations/referenceSync';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -577,6 +582,42 @@ export class DexieManager {
         articleHierarchy: result.results.articleHierarchy.count
       }
     });
+  }
+
+  /**
+   * Sync articles from server
+   * Wrapper for syncArticles operation
+   *
+   * @param userId - User ID for syncing
+   * @returns Sync result with count
+   */
+  async syncArticles(userId: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncArticles', { userId });
+    return await syncArticles(userId);
+  }
+
+  /**
+   * Sync financial centers from server
+   * Wrapper for syncFinancialCenters operation
+   *
+   * @param userId - User ID for syncing
+   * @returns Sync result with count
+   */
+  async syncFinancialCenters(userId: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncFinancialCenters', { userId });
+    return await syncFinancialCenters(userId);
+  }
+
+  /**
+   * Sync cost centers from server
+   * Wrapper for syncCostCenters operation
+   *
+   * @param userId - User ID for syncing
+   * @returns Sync result with count
+   */
+  async syncCostCenters(userId: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncCostCenters', { userId });
+    return await syncCostCenters(userId);
   }
 
   // ============================================================
