@@ -7,6 +7,7 @@ Use these files to understand component relationships when planning changes or o
 
 | Directory | Description | Files |
 |-----------|-------------|-------|
+| **[📊 diagrams/](../diagrams/)** | **Mermaid architecture diagrams (system, auth, DB, flows, security)** | **10** |
 | [core/](./core/) | Core architecture concepts (authentication, PWA, websocket, etc.) | 6 |
 | [features/](./features/) | Feature documentation (transfers, recurring plans, notifications, etc.) | 8 |
 | [frontend/](./frontend/) | Frontend architecture (responsive design, z-index, modals, etc.) | 9 |
@@ -21,7 +22,24 @@ Use these files to understand component relationships when planning changes or o
 | [web/](./web/) | Frontend components | 5 |
 | [guides/](./guides/) | Development guides (YAML files) | 5 YAML |
 
-**Total: ~90 files (39 markdown + 51 YAML)**
+**Total: ~100 files (49 markdown + 51 YAML)**
+
+### Visual Architecture (Mermaid Diagrams) 🆕
+
+**See [diagrams/README.md](../diagrams/README.md) for comprehensive visual architecture**
+
+| Diagram | Description |
+|---------|-------------|
+| [01. System Overview](../diagrams/01-system-overview.md) | C4 Context Diagram - components and integrations |
+| [02. Authentication Flows](../diagrams/02-authentication-flows.md) | Telegram OAuth, Email+2FA, JWT, WebAuthn |
+| [03. Database Schema](../diagrams/03-database-schema.md) | 39 tables, Star Schema, Closure Table, SCD Type 2 |
+| [04. Data Flows](../diagrams/04-data-flows.md) | Transactions, offline sync, transfers, WebSocket |
+| [05. Frontend Architecture](../diagrams/05-frontend-architecture.md) | Components, modals, Service Worker, Dexie.js |
+| [06. Backend API](../diagrams/06-backend-api.md) | REST endpoints, middleware, security layers |
+| [07. CI/CD Pipeline](../diagrams/07-cicd-pipeline.md) | GitHub Actions → Docker → Deployment |
+| [08. Features Map](../diagrams/08-features-map.md) | Feature dependencies and interactions |
+| [09. Offline Architecture](../diagrams/09-offline-architecture.md) | NetworkDetector, sync queue, conflict resolution |
+| [10. Security Architecture](../diagrams/10-security-architecture.md) | Middleware chain, 2FA, rate limiting |
 
 ### Core Architecture Documents
 
