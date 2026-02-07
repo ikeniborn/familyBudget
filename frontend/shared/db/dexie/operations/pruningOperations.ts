@@ -144,7 +144,7 @@ export function setupIdlePruning(retentionDays: number = 30): void {
   const schedulePruning = () => {
     if ('requestIdleCallback' in window) {
       // Chrome, Firefox, Edge support
-      requestIdleCallback(async () => {
+      window.requestIdleCallback(async () => {
         logger.info('[PRUNING] Browser idle - running pruning check');
         try {
           await pruneFacts(retentionDays);
