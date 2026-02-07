@@ -193,7 +193,7 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant Redis
 
-    Note over Frontend: User authenticated<br>access_token expires in 15min
+    Note over Frontend: User authenticated<br>access_token expires in 7 days
 
     Frontend->>API: GET /api/budget/facts<br>Authorization: Bearer {access_token}
 
@@ -205,7 +205,7 @@ sequenceDiagram
         API->>DB: SELECT budget_facts WHERE user_id = ?
         DB->>API: Return data
         API->>Frontend: 200 OK {data}
-    else Access Token Expired (15min)
+    else Access Token Expired (7 days)
         API->>Frontend: 401 Unauthorized<br>{error: "Token expired"}
 
         Note over Frontend: Automatic token refresh

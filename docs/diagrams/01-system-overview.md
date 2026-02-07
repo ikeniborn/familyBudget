@@ -137,7 +137,7 @@ graph TB
 
 ## Security Layers
 
-- **Authentication**: JWT tokens (15min access + 7d refresh) with rotation
+- **Authentication**: JWT tokens (7 days access + 30 days refresh) with rotation
 - **Authorization**: User/Family/Admin roles with row-level security
 - **Rate Limiting**: 5 attempts/minute per endpoint
 - **Partition Pruning**: Mandatory fact_date filter for queries

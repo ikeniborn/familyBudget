@@ -346,7 +346,7 @@ import Dexie from 'dexie';
 
 const db = new Dexie('FamilyBudgetDB');
 db.version(3).stores({
-    // Reference Data (5 tables)
+    // Reference Data (4 tables)
     articles: 'article_id, article_name, article_category, is_active',
     articleHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id',
     financialCenters: 'financial_center_id, name, is_active',  // NOT "accounts"!
