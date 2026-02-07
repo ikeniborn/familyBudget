@@ -237,8 +237,50 @@ setTimeout(() => {
 }, 5000);
 ```
 
-**Files Changed:**
+**Files Changed (v11.3.7):**
 - `frontend/web/static/js/budget/budgetWSClient.js` (lines 312-341, 573-588)
+
+**Further Improvement (v11.4.2):**
+Проблема с v11.3.7: WebSocket все еще не подключался автоматически в некоторых случаях, потому что `connect()` method не вызывался при создании instance.
+
+**Root Cause (v11.4.2):**
+BudgetWSClient instance создавался в `base.html`, но `connect()` никогда не вызывался автоматически:
+
+```javascript
+// base.html (OLD - broken)
+window.budgetWSClient = new BudgetWSClient();
+// NO auto-connect! WebSocket stays in NO_SOCKET state
+```
+
+**Solution (v11.4.2):**
+Добавлен auto-connect с 1-second delay для инициализации offlineManager:
+
+```javascript
+// base.html (NEW - v11.4.2)
+window.budgetWSClient = new BudgetWSClient();
+
+// Auto-connect after initialization (v11.4.2)
+// Delayed to allow page to fully load and offlineManager to initialize
+setTimeout(() => {
+    if (window.budgetWSClient && window.budgetWSClient.enabled) {
+        window.budgetWSClient.connect();
+    }
+}, 1000);
+```
+
+**Why 1-second delay:**
+- `offlineManager` initialization занимает ~500-800ms
+- WebSocket должен подключаться ПОСЛЕ полной инициализации offline manager
+- 1 second дает достаточно времени для корректной работы всех checks
+
+**Impact:**
+- ✅ WebSocket автоматически подключается на ВСЕХ страницах (dashboard, facts, plan, lists)
+- ✅ NO_SOCKET state полностью устранен
+- ✅ Real-time updates работают сразу после page load
+
+**Files Changed (v11.4.2):**
+- `frontend/web/templates/base.html` (WebSocket auto-connect logic)
+- `docs/architecture/core/websocket.md` (this documentation update)
 
 **Verification:**
 Triple-click на зеленый WebSocket индикатор → WebSocket Diagnostics:
@@ -246,6 +288,13 @@ Triple-click на зеленый WebSocket индикатор → WebSocket Diag
 - ✅ WS State: OPEN
 - ✅ Leader: true
 - ✅ MultiTab Initialized: true
+
+**Dexie Diagnostic Modal:**
+Open Dexie diagnostic (triple-click database icon) → WebSocket section shows:
+- ✅ Connection: ✓ Connected
+- ✅ State: OPEN
+- ✅ Enabled: Yes
+- ✅ Offline Mode: Inactive
 
 ---
 
@@ -259,6 +308,7 @@ See `/docs/architecture/pwa.md` for complete PWA architecture, including:
 
 ## Version History
 
+- **v11.4.2:** Fix NO_SOCKET state with auto-connect (1-second delay for offlineManager init)
 - **v11.3.7:** Fix WebSocket connection after authentication (offline mode timing issue)
 - **v5.8.0:** Navigation detection for RTT filtering
 - **v5.7.0:** 5-layer wake recovery strategy

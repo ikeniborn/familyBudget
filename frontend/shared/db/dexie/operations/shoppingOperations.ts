@@ -10,7 +10,11 @@ import { generateUUID } from '../utils/hash';
 import type {
   LocalShoppingList,
   LocalShoppingListItem,
-  ShoppingListFilters
+  LocalStore,
+  LocalProductGroup,
+  ShoppingListFilters,
+  StoreFilters,
+  ProductGroupFilters
 } from '../types/shopping';
 
 /**
@@ -157,4 +161,47 @@ export async function bulkInsertShoppingListItems(
   await db.shoppingListItems.bulkPut(items);
 
   logger.info('[shoppingOps] ✅ Bulk insert complete', { count: items.length });
+}
+
+/**
+ * Query stores с фильтрами
+ */
+export async function queryStores(
+  filters?: StoreFilters
+): Promise<LocalStore[]> {
+  logger.debug('[shoppingOps] queryStores', filters);
+
+  let results = await db.stores.toArray();
+
+  // Apply filters
+  if (filters) {
+    results = results.filter(store => {
+      if (filters.is_active !== undefined && store.is_active !== filters.is_active) return false;
+      return true;
+    });
+  }
+
+  return results.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Query product groups с фильтрами
+ */
+export async function queryProductGroups(
+  filters?: ProductGroupFilters
+): Promise<LocalProductGroup[]> {
+  logger.debug('[shoppingOps] queryProductGroups', filters);
+
+  let results = await db.productGroups.toArray();
+
+  // Apply filters
+  if (filters) {
+    results = results.filter(group => {
+      if (filters.parent_id !== undefined && group.parent_id !== filters.parent_id) return false;
+      if (filters.is_active !== undefined && group.is_active !== filters.is_active) return false;
+      return true;
+    });
+  }
+
+  return results.sort((a, b) => a.name.localeCompare(b.name));
 }

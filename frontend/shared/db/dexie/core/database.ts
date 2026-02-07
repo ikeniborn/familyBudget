@@ -30,7 +30,7 @@ import type {
  * Default schema version
  * Increment this when adding new migrations
  */
-const DEFAULT_SCHEMA_VERSION = 2;  // Shopping lists creator_id schema fix
+const DEFAULT_SCHEMA_VERSION = 3;  // Remove user_id from Stores/ProductGroups (global reference data)
 
 /**
  * Cached database version (to avoid redundant Dexie.exists() calls)
@@ -112,11 +112,13 @@ export class FamilyBudgetDB extends Dexie {
   syncMetadata!: Table<LocalSyncMetadata, string>;
   schemaMigrations!: Table<LocalSchemaMigration, number>;
 
-  constructor(version: number) {
+  constructor(_version: number) {
     super('FamilyBudgetDB');
 
     /**
-     * Dynamic version from getDatabaseVersion()
+     * Version 1: Initial schema (migrated from PGlite v7)
+     * Version 2: Shopping lists creator_id schema fix
+     * Version 3: Remove user_id from Stores/ProductGroups (global reference data)
      *
      * ВАЖНО: Indexes определяют как быстро можно искать данные
      * Формат: 'primaryKey, index1, index2, [compound+index]'
@@ -124,32 +126,45 @@ export class FamilyBudgetDB extends Dexie {
      * Compound indexes: [field1+field2] - для query с двумя полями
      * Example: [user_id+date] для быстрого поиска "user's facts in date range"
      */
-    this.version(version).stores({
-      // Reference Data
+
+    // Version 1-2: Legacy schemas (kept for migration path)
+    this.version(1).stores({
       articles: 'id, user_id, type, parent_id, is_active',
       articleHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id, depth',
       financialCenters: 'id, user_id, is_active',
       costCenters: 'id, user_id, is_active',
-
-      // Transactional Data
-      // ВАЖНО: amount хранится как integer (cents), не decimal
-      // PRIMARY KEY: temp_id (offline-first: temp_id always exists, id filled after sync)
       budgetFacts: 'temp_id, id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
       pendingOperations: '++id, content_hash, entity_type, temp_id, server_id, next_retry_at',
       syncConflicts: '++id, entity_type, temp_id, entity_id',
       recurringPlans: 'id, user_id, article_id, financial_center_id, is_active',
-
-      // Shopping Lists
-      // PRIMARY KEY: temp_id (same offline-first pattern as budgetFacts)
       shoppingLists: 'temp_id, id, user_id, creator_id, is_completed, sync_status',
       shoppingListItems: 'temp_id, id, creator_id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
       stores: 'id, user_id, name',
       productGroups: 'id, user_id, parent_id, name',
       productGroupHierarchy: '[ancestor_id+descendant_id], ancestor_id, descendant_id, depth',
-
-      // Metadata
       syncMetadata: 'entity_type, last_sync_timestamp',
       schemaMigrations: 'version, applied_at'
+    });
+
+    this.version(2).stores({
+      shoppingLists: 'temp_id, id, user_id, creator_id, is_completed, sync_status'
+    });
+
+    // Version 3: Fix Stores/ProductGroups schema (remove user_id - global reference data)
+    this.version(3).stores({
+      shoppingLists: 'temp_id, id, creator_id, is_active, sync_status',
+      stores: 'id, name, is_active',
+      productGroups: 'id, parent_id, name, is_active'
+    }).upgrade(async tx => {
+      // Migration: Rebuild stores and productGroups without user_id
+      // Data will be re-synced from server on next initialReferenceSync
+      logger.info('[Dexie Migration v3] Rebuilding Stores and Product Groups schema...');
+
+      // Clear old data (will be re-synced)
+      await tx.table('stores').clear();
+      await tx.table('productGroups').clear();
+
+      logger.info('[Dexie Migration v3] ✅ Schema migration complete. Data will be re-synced.');
     });
   }
 }

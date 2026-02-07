@@ -34,6 +34,9 @@ interface DiagnosticData {
     cost_centers: number;
     facts: number;
     plans: number;
+    stores: number;           // v11.4.2+
+    productGroups: number;    // v11.4.2+
+    shoppingLists: number;    // v11.4.2+
   };
   syncStatus: 'error' | 'idle' | 'syncing';
   performance: {
@@ -288,6 +291,9 @@ export class DexieDiagnosticModal extends BaseModal {
               <td>Plans</td>
               <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} days)</span></td>
             </tr>
+            <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
+            <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
+            <tr><td>Shopping Lists</td><td>${data.tableStats.shoppingLists}</td></tr>
           </tbody>
         </table>
       </div>

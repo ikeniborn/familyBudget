@@ -172,10 +172,11 @@ export async function syncArticleHierarchy(userId: number): Promise<{ success: b
 }
 
 /**
- * Sync stores from server (v11.4.1+)
+ * Sync stores from server (v11.4.2+)
+ * Global reference data (не привязаны к пользователю)
  */
-export async function syncStores(userId: number): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing stores...', { userId });
+export async function syncStores(): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing stores...');
 
   try {
     const response = await fetchWithTimeout(`/api/v1/stores`, {
@@ -190,12 +191,12 @@ export async function syncStores(userId: number): Promise<{ success: boolean; co
     const data = await response.json();
     const stores = data.stores || [];
 
-    // Clear existing
-    await db.stores.where('user_id').equals(userId).delete();
+    // Clear existing (global reference data - no user filtering)
+    await db.stores.clear();
 
-    // Bulk insert
+    // Bulk insert (use bulkPut for primary key 'id')
     if (stores.length > 0) {
-      await db.stores.bulkAdd(stores);
+      await db.stores.bulkPut(stores);
     }
 
     logger.info('[referenceSync] ✅ Stores synced', { count: stores.length });
@@ -207,10 +208,11 @@ export async function syncStores(userId: number): Promise<{ success: boolean; co
 }
 
 /**
- * Sync product groups from server (v11.4.1+)
+ * Sync product groups from server (v11.4.2+)
+ * Global reference data (не привязаны к пользователю)
  */
-export async function syncProductGroups(userId: number): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing product groups...', { userId });
+export async function syncProductGroups(): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing product groups...');
 
   try {
     const response = await fetchWithTimeout(`/api/v1/product-groups`, {
@@ -225,12 +227,12 @@ export async function syncProductGroups(userId: number): Promise<{ success: bool
     const data = await response.json();
     const groups = data.product_groups || [];
 
-    // Clear existing
-    await db.productGroups.where('user_id').equals(userId).delete();
+    // Clear existing (global reference data - no user filtering)
+    await db.productGroups.clear();
 
-    // Bulk insert
+    // Bulk insert (use bulkPut for primary key 'id')
     if (groups.length > 0) {
-      await db.productGroups.bulkAdd(groups);
+      await db.productGroups.bulkPut(groups);
     }
 
     logger.info('[referenceSync] ✅ Product groups synced', { count: groups.length });
@@ -242,129 +244,43 @@ export async function syncProductGroups(userId: number): Promise<{ success: bool
 }
 
 /**
- * Sync shopping lists from server (v11.4.1+)
+ * Shopping Lists removed from reference sync (v11.4.2)
+ * Reason: Shopping Lists are TRANSACTIONAL DATA (user mutations with temp_id),
+ * not REFERENCE DATA (read-only global catalogs).
+ *
+ * Shopping Lists sync moved to shoppingSync.ts (similar to Facts sync).
+ * Reference sync is only for: Articles, Financial Centers, Cost Centers, Article Hierarchy,
+ * Stores, Product Groups.
  */
-export async function syncShoppingLists(userId: number): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing shopping lists...', { userId });
-
-  try {
-    const response = await fetchWithTimeout(`/api/v1/shopping-lists`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch shopping lists: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const lists = data.shopping_lists || [];
-
-    // Clear existing
-    await db.shoppingLists.where('user_id').equals(userId).delete();
-
-    // Bulk insert
-    if (lists.length > 0) {
-      await db.shoppingLists.bulkAdd(lists);
-    }
-
-    logger.info('[referenceSync] ✅ Shopping lists synced', { count: lists.length });
-    return { success: true, count: lists.length };
-  } catch (error) {
-    logger.error('[referenceSync] ❌ Shopping lists sync failed:', error);
-    return { success: false, count: 0 };
-  }
-}
 
 /**
- * Sync recurring plans from server (v11.4.0+)
+ * Recurring Plans removed from reference sync (v11.4.2)
+ * Reason: Backend endpoint /api/v1/recurring-plans returns 422 error.
+ * DataLayer already has fallback to API for getRecurringPlans(),
+ * so proactive sync is not required.
+ *
+ * Recurring Plans will be fetched on-demand from API when needed.
  */
-export async function syncRecurringPlans(
-  userId: number,
-  syncPeriodDays: number = 90
-): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodDays });
-
-  try {
-    // Calculate date range for sync period
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
-    const toDate = new Date();
-    toDate.setDate(toDate.getDate() + syncPeriodDays);
-
-    // Try with date filtering (v11.4.0+)
-    let params = new URLSearchParams({
-      from_date: fromDate.toISOString().split('T')[0],
-      to_date: toDate.toISOString().split('T')[0],
-      limit: '1000'
-    });
-
-    let response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
-      method: 'GET',
-      credentials: 'include'
-    });
-
-    // Fallback: if 422 (backend doesn't support date params), retry without them
-    if (response.status === 422) {
-      logger.warn('[referenceSync] Backend does not support from_date/to_date, falling back to simple query');
-      params = new URLSearchParams({
-        limit: '1000'
-      });
-
-      response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
-        method: 'GET',
-        credentials: 'include'
-      });
-    }
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch recurring plans: ${response.status}`);
-    }
-
-    // Unwrap API pagination response: { items: [...], total, skip, limit }
-    const data = await response.json();
-    const plans = data.items || [];
-
-    // Clear existing plans within date range (avoid stale data)
-    await db.recurringPlans.where('user_id').equals(userId).delete();
-
-    // Bulk insert
-    if (plans.length > 0) {
-      await db.recurringPlans.bulkAdd(plans);
-    }
-
-    // Update sync metadata
-    await updateSyncMetadata('recurring_plans', plans.length);
-
-    logger.info('[referenceSync] ✅ Recurring plans synced', { count: plans.length });
-    return { success: true, count: plans.length };
-  } catch (error) {
-    logger.error('[referenceSync] ❌ Recurring plans sync failed:', error);
-    return { success: false, count: 0 };
-  }
-}
 
 /**
  * Initial sync - синхронизация всех справочников
+ * v11.4.2: Removed recurringPlans and shoppingLists (moved to on-demand API)
  */
 export async function initialReferenceSync(
-  userId: number,
-  syncPeriodDays: number = 90
+  userId: number
 ): Promise<{
   success: boolean;
   results: Record<string, { success: boolean; count: number }>;
 }> {
-  logger.info('[referenceSync] Starting initial sync...', { userId, syncPeriodDays });
+  logger.info('[referenceSync] Starting initial sync...', { userId });
 
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodDays),  // v11.4.0+ (non-critical)
-    stores: await syncStores(userId),  // v11.4.1+ (non-critical)
-    productGroups: await syncProductGroups(userId),  // v11.4.1+ (non-critical)
-    shoppingLists: await syncShoppingLists(userId)  // v11.4.1+ (non-critical)
+    stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
+    productGroups: await syncProductGroups()  // v11.4.2+ (global reference data, no userId)
   };
 
   // Critical syncs (required for app to work)
@@ -372,7 +288,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['recurringPlans', 'stores', 'productGroups', 'shoppingLists'];
+  const nonCriticalSyncs = ['stores', 'productGroups'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);

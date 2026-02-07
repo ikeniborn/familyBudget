@@ -555,10 +555,7 @@ export class DexieManager {
       throw new Error('[DexieManager] Internal error: userId is undefined after resolution');
     }
 
-    // Get sync period from localStorage (v11.4.0+)
-    const syncPeriodDays = this.getSyncPeriodDays();
-
-    const result = await initialReferenceSync(effectiveUserId, syncPeriodDays);
+    const result = await initialReferenceSync(effectiveUserId);
 
     if (!result.success) {
       const failedSyncs = Object.entries(result.results)
@@ -805,6 +802,9 @@ export class DexieManager {
       cost_centers: number;
       facts: number;
       plans: number;
+      stores: number;           // v11.4.2+
+      productGroups: number;    // v11.4.2+
+      shoppingLists: number;    // v11.4.2+
     };
     syncStatus: 'error' | 'idle' | 'syncing';
     performance: { avgQueryTime: number };
@@ -828,6 +828,8 @@ export class DexieManager {
     const financialCentersCount = await this.getDB().financialCenters.count();
     const costCentersCount = await this.getDB().costCenters.count();
     const recurringPlansCount = await this.getDB().recurringPlans.count();
+    const storesCount = await this.getDB().stores.count();
+    const productGroupsCount = await this.getDB().productGroups.count();
 
     // Calculate actual DB size (approximate)
     const dbSize = await calculateDatabaseSize();
@@ -851,7 +853,10 @@ export class DexieManager {
         financial_centers: financialCentersCount,
         cost_centers: costCentersCount,
         facts: factsCount,
-        plans: recurringPlansCount
+        plans: recurringPlansCount,
+        stores: storesCount,
+        productGroups: productGroupsCount,
+        shoppingLists: shoppingListsCount
       },
       syncStatus: 'idle' as const,
       performance: {
