@@ -8,9 +8,12 @@
 
 Family Budget supports 4 authentication methods:
 1. Telegram OAuth (HMAC-SHA256 validation)
-2. Email + Password + 2FA (TOTP)
-3. JWT Token Lifecycle (access + refresh rotation)
-4. WebAuthn Biometric Authentication
+2. Email + Password + 2FA (TOTP) - **Mandatory for regular users**
+3. Email + Password (Admin Only) - **Security exception for emergency access**
+4. JWT Token Lifecycle (access + refresh rotation)
+5. WebAuthn Biometric Authentication
+
+**Note**: Admin users can bypass 2FA requirement for emergency access, but 2FA is strongly recommended.
 
 ---
 
@@ -83,33 +86,58 @@ sequenceDiagram
     Note over API: Verify password<br>argon2id.verify(password, hashed_password)
 
     alt Password Valid
-        alt 2FA Enabled
-            API->>Frontend: 200 OK<br>{requires_2fa: true, temp_token}
-            Frontend->>User: Show 2FA code input
-
-            User->>TOTP: Open authenticator app
-            TOTP->>User: Display 6-digit code
-            User->>Frontend: Enter 2FA code
-
-            Frontend->>API: POST /auth/verify-2fa<br>{temp_token, code}
-
-            Note over API: Verify TOTP code<br>pyotp.TOTP(secret).verify(code, valid_window=1)
-
-            alt 2FA Valid
-                API->>DB: INSERT INTO user_sessions (refresh_token_hash, ...)
-                Note over API: Generate JWT tokens
-                API->>Frontend: 200 OK<br>{access_token, refresh_token, user}
-            else 2FA Invalid
-                API->>DB: UPDATE user SET failed_2fa_attempts + 1
-                API->>Frontend: 401 Unauthorized<br>{error: "Invalid 2FA code", attempts_left}
-            end
-        else 2FA Disabled
+        alt User is Admin (Security Exception)
+            Note over API: Admin bypass 2FA requirement<br>Emergency access exception
             Note over API: Generate JWT tokens
             API->>DB: INSERT INTO user_sessions (refresh_token_hash, ...)
             API->>Frontend: 200 OK + Set-Cookie headers<br>httpOnly cookies (access_token, refresh_token)
-        end
+            Frontend->>User: Redirect to dashboard (cookies auto-sent)
+        else 2FA Enabled (Regular Users)
+            API->>Frontend: 200 OK<br>{requires_2fa: true, temp_token}
+            Frontend->>User: Show 2FA code input (with "Use backup code" link)
 
-        Frontend->>User: Redirect to dashboard (cookies auto-sent)
+            alt User enters TOTP code
+                User->>TOTP: Open authenticator app
+                TOTP->>User: Display 6-digit code
+                User->>Frontend: Enter TOTP code
+
+                Frontend->>API: POST /auth/verify-2fa<br>{temp_token, code, type: "totp"}
+
+                Note over API: Verify TOTP code<br>pyotp.TOTP(secret).verify(code, valid_window=1)
+
+                alt TOTP Valid
+                    API->>DB: INSERT INTO user_sessions (refresh_token_hash, ...)
+                    Note over API: Generate JWT tokens
+                    API->>Frontend: 200 OK + Set-Cookie headers<br>httpOnly cookies (access_token, refresh_token)
+                    Frontend->>User: Redirect to dashboard (cookies auto-sent)
+                else TOTP Invalid
+                    API->>DB: UPDATE user SET failed_2fa_attempts + 1
+                    API->>Frontend: 401 Unauthorized<br>{error: "Invalid 2FA code", attempts_left}
+                end
+            else User enters Backup Code
+                User->>Frontend: Click "Use backup code"
+                Frontend->>User: Show backup code input (16-char hex)
+                User->>Frontend: Enter backup code
+
+                Frontend->>API: POST /auth/verify-2fa<br>{temp_token, code, type: "backup"}
+
+                Note over API: Verify backup code<br>SHA256(code) in backup_codes WHERE used=false
+
+                alt Backup Code Valid
+                    API->>DB: UPDATE backup_codes SET used=true<br>Mark as single-use
+                    API->>DB: INSERT INTO user_sessions (refresh_token_hash, ...)
+                    Note over API: Generate JWT tokens
+                    API->>Frontend: 200 OK + Set-Cookie headers<br>httpOnly cookies (access_token, refresh_token)<br>+ Warning: "Backup code used, X codes remaining"
+                    Frontend->>User: Redirect to dashboard + Show warning
+                else Backup Code Invalid/Used
+                    API->>Frontend: 401 Unauthorized<br>{error: "Invalid or already used backup code"}
+                end
+            end
+        else 2FA Disabled (First-time User)
+            Note over API: Redirect to 2FA setup<br>Mandatory for regular users
+            API->>Frontend: 302 Redirect<br>/2fa-setup-login
+            Frontend->>User: Show QR code setup page
+        end
     else Password Invalid
         API->>DB: UPDATE user SET failed_login_attempts + 1
         API->>Frontend: 401 Unauthorized<br>{error: "Invalid credentials", attempts_left}
@@ -119,8 +147,40 @@ sequenceDiagram
 ### Security Notes
 - **Argon2id Hashing**: Password stored with memory-hard parameters (OWASP 2023)
 - **TOTP (RFC 6238)**: Time-based one-time password with 30s window
+- **Mandatory 2FA**: Required for all regular users (enforced at login)
+- **Admin Bypass**: Admins can skip 2FA for emergency access (security exception)
 - **Rate Limiting**: 5 failed attempts → 15min lockout
 - **Backup Codes**: 10 single-use codes generated on 2FA setup
+
+### Backup Codes (2FA Recovery)
+
+**Purpose**: Allow account recovery when TOTP device is unavailable (lost phone, reset authenticator app)
+
+**Generation** (during 2FA setup):
+1. Generate 10 random codes (16-character hexadecimal)
+2. Hash with SHA256 before storing (prevent exposure if DB compromised)
+3. Display plaintext codes to user ONCE
+4. User must save codes securely (password manager, printed copy)
+
+**Format**: `a3f9d2c1b4e8f7a6` (example)
+
+**Usage**:
+- Click "Use backup code" link on 2FA verification page
+- Enter any unused backup code
+- Code is marked as `used=true` in database (single-use only)
+- User receives warning: "Backup code used, X codes remaining"
+
+**Security Properties**:
+- **Single-use**: Each code can only be used once
+- **Hashed storage**: SHA256 hash stored, not plaintext
+- **Limited quantity**: Only 10 codes generated
+- **Regeneration**: User can regenerate new set (invalidates old codes)
+
+**Best Practices**:
+- Store codes in password manager or encrypted file
+- Print codes and store in secure physical location
+- Do NOT share codes or store in plain text
+- Regenerate codes after use if device is recovered
 
 ---
 

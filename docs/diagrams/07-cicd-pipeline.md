@@ -3,6 +3,7 @@
 **Type**: Pipeline Flow Diagram
 **Purpose**: GitHub Actions workflow from git push to production deployment
 **Last Updated**: 2026-02-07
+**Verified**: 2026-02-07 (against .github/workflows/build-and-push.yml)
 
 ## Pipeline Overview
 

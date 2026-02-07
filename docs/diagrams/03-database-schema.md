@@ -1,16 +1,20 @@
 # Database Schema
 
 **Type**: Entity Relationship Diagram
-**Purpose**: Comprehensive view of PostgreSQL database schema with 39 tables
+**Purpose**: Comprehensive view of PostgreSQL database schema with 37+ tables
 **Last Updated**: 2026-02-07
+**Verified**: 2026-02-07 (against backend/app/models/)
 
 ## Overview
 
 Family Budget uses PostgreSQL 16 with:
-- **39 tables** organized in 5 groups
+- **37+ tables** (verified from backend/app/models/)
+  - Core tables: 30 models
+  - History tables: 7 (SCD Type 2: article, cost_center, financial_center, user, store, product_group, budget_fact)
+  - System tables: Alembic migrations, etc.
 - **Star Schema** (1 fact table + 4 dimension tables)
-- **Closure Table** pattern for hierarchical categories
-- **SCD Type 2** history tracking (8 history tables)
+- **Closure Table** pattern for hierarchical categories (ArticleHierarchy, ProductGroupHierarchy)
+- **SCD Type 2** history tracking (7 history tables)
 - **Table Partitioning** (96 monthly partitions on fact table)
 
 ---
