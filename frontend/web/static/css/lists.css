@@ -1556,7 +1556,7 @@ img[loading="lazy"] {
 /* Mobile: slightly smaller FAB */
 @media (max-width: 640px) {
     .fab-menu {
-        bottom: 1rem;
+        bottom: 2rem; /* +1rem increase from 1rem */
         right: 1rem;
     }
 
@@ -1608,19 +1608,19 @@ img[loading="lazy"] {
 /* iOS safe area support for FAB */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .fab-menu {
-        bottom: calc(1.5rem + env(safe-area-inset-bottom));
+        bottom: calc(2.5rem + env(safe-area-inset-bottom)); /* +1rem increase from 1.5rem */
     }
 
     @media (max-width: 640px) {
         .fab-menu {
-            bottom: calc(1rem + env(safe-area-inset-bottom));
+            bottom: calc(2rem + env(safe-area-inset-bottom)); /* +1rem increase from 1rem */
         }
     }
 
     /* Position above common FAB toolbar on mobile/tablet */
     @media (max-width: 1023px) {
         .fab-menu {
-            bottom: calc(64px + 1.5rem + env(safe-area-inset-bottom)); /* 1.5rem = 24px spacing (8px more than before) */
+            bottom: calc(64px + 2.5rem + env(safe-area-inset-bottom)); /* +1rem spacing increase (was 1.5rem) */
         }
     }
 }

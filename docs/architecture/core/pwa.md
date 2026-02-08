@@ -2539,6 +2539,8 @@ Family Budget implements comprehensive safe-area inset support for notched devic
 - ✅ Pending sync badge - offset from notch and rounded corners
 - ✅ Main content - bottom padding clears FAB toolbar + home indicator
 - ✅ FAB toolbar - bottom padding clears home indicator
+- ✅ **Mobile FAB (v11.4.9+)** - `calc(7rem + env(safe-area-inset-bottom))` для главной страницы
+- ✅ **Lists FAB (v11.4.9+)** - `calc(2.5rem + env(safe-area-inset-bottom))` для списков (desktop) и `calc(64px + 2.5rem + env(safe-area-inset-bottom))` (mobile/tablet)
 
 **Viewport Configuration:**
 ```html
@@ -2565,6 +2567,64 @@ console.log('[PWA_SAFE_AREA] top:',
     getComputedStyle(document.documentElement)
         .getPropertyValue('--safe-area-inset-top'));
 ```
+
+**FAB Positioning Examples (v11.4.9+):**
+
+*Mobile FAB (custom.css):*
+```css
+.fab-wrapper {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(7rem + env(safe-area-inset-bottom));
+    /* 7rem = 112px clearance above 64px navbar + 48px spacing */
+    /* safe-area-inset-bottom adds ~34px on iPhone X+ */
+}
+
+@media (min-width: 1024px) {
+    .fab-wrapper {
+        bottom: 2rem; /* No navbar on desktop, reduced spacing */
+    }
+}
+```
+
+*Lists FAB (lists.css):*
+```css
+/* iOS safe area support */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .fab-menu {
+        /* Desktop: 2.5rem base + safe-area */
+        bottom: calc(2.5rem + env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 640px) {
+        .fab-menu {
+            /* Mobile small: 2rem base + safe-area */
+            bottom: calc(2rem + env(safe-area-inset-bottom));
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .fab-menu {
+            /* Mobile/tablet: navbar height + spacing + safe-area */
+            bottom: calc(64px + 2.5rem + env(safe-area-inset-bottom));
+        }
+    }
+}
+
+/* Fallback for browsers without safe-area support */
+@media (max-width: 640px) {
+    .fab-menu {
+        bottom: 2rem; /* No safe-area on old browsers */
+    }
+}
+```
+
+**Spacing Guidelines:**
+- Mobile navbar height: **64px** (4rem)
+- Mobile FAB base spacing: **7rem** (112px) = navbar + 48px clearance
+- Lists FAB base spacing: **2.5rem** (40px) on desktop, **2rem** (32px) on mobile ≤640px
+- iOS safe-area adds: ~**34px** on iPhone X/11/12/13/14, ~**34px** on iPhone 14 Pro/15 Pro (Dynamic Island)
+- +1rem increase from previous version (v11.4.8) for improved accessibility
 
 ---
 
