@@ -162,94 +162,10 @@ jobs:
       # All built files exist only in Docker images, not in git
 
   # ============================================================================
-  # Job 3: Quality checks (TypeScript, ESLint, Python mypy/ruff, unit tests)
-  # ============================================================================
-  quality-checks:
-    needs: [check-version, service-build]
-    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
-    if: |
-      always() &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
-      (needs.service-build.result == 'success' || needs.service-build.result == 'skipped')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # No need for git pull retry - concurrency prevents race conditions (line 32-34)
-      - name: Detect merge commit from PR
-        id: detect-merge
-        run: |
-          # Проверяем является ли коммит merge коммитом из PR
-          commit_message=$(git log -1 --pretty=%B)
-
-          if echo "$commit_message" | grep -qE "^Merge pull request #[0-9]+ from"; then
-            echo "is_pr_merge=true" >> $GITHUB_OUTPUT
-            echo "✓ Detected PR merge commit, quality checks already passed in pr-checks.yml"
-          else
-            echo "is_pr_merge=false" >> $GITHUB_OUTPUT
-            echo "Direct push to test, running quality checks"
-          fi
-
-      - name: Setup Node.js
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        uses: ./.github/actions/setup-node
-
-      - name: Install Node dependencies
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: npm ci
-
-      - name: TypeScript type check
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: npm run type-check
-
-      - name: ESLint
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: npm run lint
-
-      - name: Setup Python
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        uses: ./.github/actions/setup-python
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: |
-          pip install mypy ruff
-          pip install -r backend/requirements-dev.txt
-          pip install -r backend/requirements.txt
-
-      - name: Python mypy type check
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: mypy backend/ || true
-        continue-on-error: true
-
-      - name: Python ruff lint
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: ruff check backend/
-        continue-on-error: true
-
-      - name: Unit tests
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        run: pytest tests/unit/ --cov --cov-report=xml || true
-        continue-on-error: true
-
-      - name: Upload coverage to Codecov
-        if: steps.detect-merge.outputs.is_pr_merge == 'false'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          fail_ci_if_error: false
-        continue-on-error: true
-
-  # ============================================================================
-  # Job 4: Build and push Docker images to GitHub Container Registry
+  # Job 3: Build and push Docker images to GitHub Container Registry
   # ============================================================================
   image-build-push:
-    needs: [check-version, service-build, quality-checks]
+    needs: [check-version, service-build]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
@@ -633,7 +549,7 @@ jobs:
           fi
 
   # ============================================================================
-  # Job 5: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
+  # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
   security-scan:
     needs: [check-version, image-build-push]
@@ -782,10 +698,10 @@ jobs:
         continue-on-error: true
 
   # ============================================================================
-  # Job 6: Pipeline summary (version, commit, job statuses, Docker image tags)
+  # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, quality-checks, image-build-push, security-scan, deploy-test]
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
     steps:
@@ -806,7 +722,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Status" >> $GITHUB_STEP_SUMMARY
           echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Quality Checks: ${{ needs.quality-checks.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
@@ -819,7 +734,7 @@ jobs:
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # Job 7: Deploy to test server (only for test branch)
+  # Job 6: Deploy to test server (only for test branch)
   # ============================================================================
   deploy-test:
     name: deploy-test

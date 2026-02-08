@@ -1,0 +1,11 @@
+{
+  "autofix_proposal": {
+    "category": "{{category: enum syntax|linting|type-checking|known-failing-tests|security}}",
+    "tool": "{{tool: string}}",
+    "command": "{{command: string}}",
+    "description": "{{description: string, min 10 chars}}",
+    "file": "{{optional: string}}",
+    "fix": "{{optional: string}}",
+    "user_confirmation_required": "{{user_confirmation_required: boolean, default true}}"
+  }
+}
