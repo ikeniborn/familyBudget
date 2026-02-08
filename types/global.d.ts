@@ -75,6 +75,16 @@ interface Window {
   DEBUG_MODE?: boolean;
   LOGGING_CONFIG?: LoggingConfig;
   FEATURE_FLAGS?: FeatureFlags;
+
+  // User Identity
+  // Primary source (set in base.html)
+  userData?: {
+    id: number;
+    username: string;
+    isAdmin: boolean;
+  };
+
+  // Legacy (deprecated, for backward compatibility only)
   currentUser?: User;
 
   // Core Classes (types inferred from implementations)

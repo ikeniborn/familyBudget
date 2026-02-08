@@ -794,6 +794,11 @@
             username: "{{ user.username or user.first_name or 'User' }}",
             isAdmin: {{ 'true' if user.is_admin else 'false' }}
         };
+
+        // Validation: Ensure User ID initialized
+        if (!window.userData || !window.userData.id) {
+            console.error('[CRITICAL] User ID not initialized in window.userData');
+        }
     </script>
 
     <!-- Logs Collector for Admin Logs Page -->
