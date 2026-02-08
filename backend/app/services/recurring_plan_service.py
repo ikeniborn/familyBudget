@@ -7,6 +7,7 @@ of BudgetFact records based on frequency settings.
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+from fastapi import HTTPException
 from sqlalchemy import and_, case
 from sqlalchemy import func as sa_func
 from sqlmodel import select
@@ -32,6 +33,33 @@ DEFAULT_GENERATION_HORIZON_DAYS = 90
 
 # Maximum iterations to prevent infinite loops
 MAX_ITERATIONS = 1000
+
+
+def _parse_date_safe(date_str: str, field_name: str) -> date:
+    """
+    Safely parse date string to date object with validation.
+
+    Args:
+        date_str: Date string in YYYY-MM-DD format
+        field_name: Field name for error message (e.g., "from_date", "to_date")
+
+    Returns:
+        date: Parsed date object
+
+    Raises:
+        HTTPException: 422 if date format is invalid
+    """
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError as e:
+        logger.warning(
+            f"[RECURRING_PLAN] Invalid {field_name} format: {date_str}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {field_name} format. Use YYYY-MM-DD (e.g., 2025-11-09)",
+        ) from e
 
 
 class RecurringPlanService:
@@ -406,10 +434,10 @@ class RecurringPlanService:
 
         # Date filtering (v11.4.0+)
         if from_date:
-            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            from_date_obj = _parse_date_safe(from_date, "from_date")
             base_query = base_query.where(RecurringPlan.next_generation_date >= from_date_obj)
         if to_date:
-            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            to_date_obj = _parse_date_safe(to_date, "to_date")
             base_query = base_query.where(RecurringPlan.next_generation_date <= to_date_obj)
 
         # Get total count
@@ -421,10 +449,10 @@ class RecurringPlanService:
         if is_active is not None:
             count_query = count_query.where(RecurringPlan.is_active == is_active)
         if from_date:
-            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            from_date_obj = _parse_date_safe(from_date, "from_date")
             count_query = count_query.where(RecurringPlan.next_generation_date >= from_date_obj)
         if to_date:
-            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            to_date_obj = _parse_date_safe(to_date, "to_date")
             count_query = count_query.where(RecurringPlan.next_generation_date <= to_date_obj)
 
         count_result = await session.execute(count_query)
@@ -441,10 +469,10 @@ class RecurringPlanService:
         if is_active is not None:
             query = query.where(RecurringPlan.is_active == is_active)
         if from_date:
-            from_date_obj = datetime.strptime(from_date, "%Y-%m-%d").date()
+            from_date_obj = _parse_date_safe(from_date, "from_date")
             query = query.where(RecurringPlan.next_generation_date >= from_date_obj)
         if to_date:
-            to_date_obj = datetime.strptime(to_date, "%Y-%m-%d").date()
+            to_date_obj = _parse_date_safe(to_date, "to_date")
             query = query.where(RecurringPlan.next_generation_date <= to_date_obj)
 
         query = (
