@@ -30,6 +30,20 @@ interface ChoicesInstance {
   setChoiceByValue(value: string): void;
 }
 
+/** API response interface for shopping list creation */
+interface CreateListAPIResponse {
+  id: number;
+  temp_id?: string;
+  name: string;
+  description?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  total_items?: number;
+  completed_items?: number;
+  completion_percentage?: number;
+}
+
 declare global {
   interface Window {
     deleteListId?: number;
@@ -85,7 +99,7 @@ export async function handleCreateList(event: Event): Promise<void> {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const result = await response.json();
+    const result: CreateListAPIResponse = await response.json();
     showToast('Список создан', 'success');
 
     // Close modal
@@ -106,11 +120,23 @@ export async function handleCreateList(event: Event): Promise<void> {
       completion_percentage: result.completion_percentage ?? 0
     };
 
-    // Update state optimistically
+    // Update state optimistically with duplicate check
     const currentState = getState();
-    updateState({
-      shoppingLists: [...currentState.shoppingLists, newList]
-    });
+    const existingIndex = currentState.shoppingLists.findIndex(l => l.id === newList.id);
+
+    if (existingIndex >= 0) {
+      // Replace existing list (handle edge case of duplicate)
+      const updated = [...currentState.shoppingLists];
+      updated[existingIndex] = newList;
+      updateState({ shoppingLists: updated });
+      debugLog('[ListsManager] Replaced existing list in state', { listId: newList.id });
+    } else {
+      // Add new list
+      updateState({
+        shoppingLists: [...currentState.shoppingLists, newList]
+      });
+      debugLog('[ListsManager] Added new list to state', { listId: newList.id });
+    }
 
     // Trigger background sync to Dexie (non-blocking)
     queueMicrotask(async () => {

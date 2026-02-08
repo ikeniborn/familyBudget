@@ -4,11 +4,18 @@
  */
 
 /**
+ * Cached user ID from API (to avoid repeated API calls)
+ * Set to null initially, populated on first API fallback
+ */
+let cachedUserId: number | null = null;
+
+/**
  * Get current user ID using robust fallback chain
  * Priority:
  * 1. window.userData.id (set by base.html - PRIMARY)
  * 2. window.currentUser.id (legacy compatibility - deprecated)
- * 3. API call /api/v1/users/me (last resort)
+ * 3. Cached user ID from previous API call
+ * 4. API call /api/v1/users/me (last resort)
  *
  * NOTE: offlineManager removed in v11.1.40 (no longer used)
  */
@@ -24,7 +31,12 @@ export async function getCurrentUserId(): Promise<number> {
     return (window as any).currentUser.id;
   }
 
-  // FALLBACK 2: API call (last resort)
+  // FALLBACK 2: Cached user ID from previous API call
+  if (cachedUserId !== null) {
+    return cachedUserId;
+  }
+
+  // FALLBACK 3: API call (last resort)
   try {
     const response = await fetch('/api/v1/users/me', {
       credentials: 'include',
@@ -35,6 +47,7 @@ export async function getCurrentUserId(): Promise<number> {
       const user = await response.json();
       if (user && typeof user.id === 'number') {
         console.info('[userHelpers] User ID from API:', user.id);
+        cachedUserId = user.id; // Cache the result
         return user.id;
       }
     }
@@ -51,6 +64,13 @@ export async function getCurrentUserId(): Promise<number> {
  */
 export function requireUserId(): Promise<number> {
   return getCurrentUserId();
+}
+
+/**
+ * Clear cached user ID (useful on logout or user change)
+ */
+export function clearUserIdCache(): void {
+  cachedUserId = null;
 }
 
 /**

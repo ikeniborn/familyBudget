@@ -798,6 +798,14 @@
         // Validation: Ensure User ID initialized
         if (!window.userData || !window.userData.id) {
             console.error('[CRITICAL] User ID not initialized in window.userData');
+
+            // Show visual notification to user
+            if (typeof showToast !== 'undefined') {
+                showToast('Ошибка инициализации. Обновите страницу.', 'error');
+            } else {
+                // Fallback: show native alert if showToast not loaded
+                alert('Ошибка инициализации. Пожалуйста, обновите страницу.');
+            }
         }
     </script>
 
