@@ -291,6 +291,20 @@ PHASE 5C → Documentation + Summary
 |-------|---------|-------------|
 | **advanced-patterns** | SCD Type 2, Closure Table, Shared Family Budget patterns | Complex DB operations, transfers |
 
+**Testing & Validation:**
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **test-code** | Comprehensive testing framework (7-stage pipeline: syntax, quality, runtime, deps, e2e) | PHASE 4 (Validation) перед git commit |
+
+**Key features:**
+- ✅ Adaptive testing на основе git diff (backend → pytest+e2e, frontend → vitest+e2e)
+- ✅ Interactive auto-fix proposals (syntax, linting, type-checking, known-failing-tests)
+- ✅ TOON format для >= 5 test results (40-50% token savings)
+- ✅ E2E tests всегда запускаются (Playwright: 8 tests × 6 browsers, ~5-6 min)
+- ✅ Known failing tests detection (28 tests в conftest.py) + auto-fix proposals
+- ✅ Coverage thresholds: Backend 30%, Frontend 4-60%
+
 ---
 
 ## Key Principles
