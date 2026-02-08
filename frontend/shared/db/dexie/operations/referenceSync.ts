@@ -327,6 +327,25 @@ export async function syncRecurringPlans(
     });
 
     if (!response.ok) {
+      // Enhanced logging for 422 errors
+      if (response.status === 422) {
+        try {
+          const errorData = await response.json();
+          logger.error('[referenceSync] ❌ Recurring plans sync failed: Invalid params', {
+            status: response.status,
+            from_date: params.get('from_date'),
+            to_date: params.get('to_date'),
+            error: errorData
+          });
+        } catch {
+          // If response is not JSON, log basic info
+          logger.error('[referenceSync] ❌ Recurring plans 422 error (non-JSON response)', {
+            status: response.status,
+            from_date: params.get('from_date'),
+            to_date: params.get('to_date')
+          });
+        }
+      }
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 

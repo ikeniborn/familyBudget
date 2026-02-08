@@ -12,6 +12,7 @@ CRUD operations for recurring (scheduled) payments:
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import backend.app.api.v1.endpoints.budget_ws as ws
@@ -62,19 +63,38 @@ def _generate_filter_hash(filters: dict) -> str:
     return hashlib.md5(filter_str.encode()).hexdigest()[:12]
 
 
+class RecurringPlanListParams(BaseModel):
+    """Query parameters for list_recurring_plans endpoint with date validation."""
+
+    from_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description="Filter: next_execution_date >= from_date (YYYY-MM-DD)",
+    )
+    to_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description="Filter: next_execution_date <= to_date (YYYY-MM-DD)",
+    )
+
+    @field_validator("to_date")
+    @classmethod
+    def validate_date_range(cls, v: str | None, info) -> str | None:
+        """Validate from_date <= to_date when both provided."""
+        if v and info.data.get("from_date"):
+            if info.data["from_date"] > v:
+                raise ValueError("from_date must be <= to_date")
+        return v
+
+
 # NOTE: General route "/" must be defined BEFORE parameterized routes "/{id}"
 # to ensure FastAPI matches them correctly (routes are matched in definition order)
 
 
 @router.get("/", response_model=RecurringPlanListResponse)
 async def list_recurring_plans(
+    params: RecurringPlanListParams = Depends(),
     is_active: bool | None = Query(default=None, description="Filter by active status"),
-    from_date: str | None = Query(
-        default=None, description="Filter by next_execution_date >= from_date (YYYY-MM-DD)"
-    ),
-    to_date: str | None = Query(
-        default=None, description="Filter by next_execution_date <= to_date (YYYY-MM-DD)"
-    ),
     skip: int = Query(default=0, ge=0, description="Pagination offset"),
     limit: int = Query(default=50, ge=1, le=100, description="Pagination limit"),
     current_user: User = Depends(get_current_user),
@@ -109,11 +129,11 @@ async def list_recurring_plans(
         "skip": skip,
         "limit": limit,
         "is_active": is_active,
-        "from_date": from_date,
-        "to_date": to_date,
+        "from_date": params.from_date,
+        "to_date": params.to_date,
     }
     filter_hash = _generate_filter_hash(filters) if any(
-        [is_active is not None, from_date, to_date]
+        [is_active is not None, params.from_date, params.to_date]
     ) else None
 
     # Try cache first
@@ -134,8 +154,8 @@ async def list_recurring_plans(
         session=session,
         user_id=current_user.id,
         is_active=is_active,
-        from_date=from_date,
-        to_date=to_date,
+        from_date=params.from_date,
+        to_date=params.to_date,
         skip=skip,
         limit=limit,
     )
