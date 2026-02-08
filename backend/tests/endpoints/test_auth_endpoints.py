@@ -98,8 +98,6 @@ def generate_valid_telegram_auth_data(
 @pytest.mark.asyncio
 async def test_telegram_login_new_user(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with pre-registered user (admin-created user)."""
-    from datetime import datetime
-
     # Pre-create user (admin registration required for new users)
     new_user = User(
         telegram_id=123456789,
@@ -152,8 +150,6 @@ async def test_telegram_login_new_user(client: AsyncClient, session: AsyncSessio
 async def test_telegram_login_existing_user(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with existing user (no new version created if no changes)."""
     # Create existing user
-    from datetime import datetime
-
     existing_user = User(
         telegram_id=123456789,
         username="johndoe",
@@ -193,8 +189,6 @@ async def test_telegram_login_existing_user(client: AsyncClient, session: AsyncS
 async def test_telegram_login_user_data_changed(client: AsyncClient, session: AsyncSession):
     """Test Telegram login updates user data (SCD Type 1 - in-place update)."""
     # Create existing user
-    from datetime import datetime
-
     existing_user = User(
         telegram_id=123456789,
         username="johndoe",
@@ -237,8 +231,6 @@ async def test_telegram_login_user_data_changed(client: AsyncClient, session: As
 @pytest.mark.asyncio
 async def test_telegram_login_minimal_fields(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with minimal required fields (no username, last_name)."""
-    from datetime import datetime
-
     # Pre-create user (admin registration required)
     minimal_user = User(
         telegram_id=123456789,
@@ -328,8 +320,6 @@ async def test_telegram_login_tampered_data(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_telegram_login_cookie_attributes(client: AsyncClient, session: AsyncSession):
     """Test that JWT cookie has correct security attributes."""
-    from datetime import datetime
-
     # Pre-create user (admin registration required)
     cookie_user = User(
         telegram_id=123456789,
