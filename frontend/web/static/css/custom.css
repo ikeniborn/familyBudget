@@ -1013,3 +1013,85 @@ html.offline-mode .save-btn:hover {
         height: 1.25rem !important;
     }
 }
+
+/* ==================================
+   FAB Material Design Sizing Standards
+   Applied to /, /facts, /plan pages
+   ================================== */
+
+/* Mobile: 48px FAB */
+@media (max-width: 640px) {
+    .desktop-fab-wrapper .fab-button,
+    .fab-wrapper .fab-button {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+    }
+}
+
+/* Desktop: 56px FAB (default already set above) */
+@media (min-width: 1024px) {
+    .desktop-fab-wrapper .fab-button,
+    .fab-wrapper .fab-button {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+
+    .desktop-fab-wrapper .fab-button svg,
+    .fab-wrapper .fab-button svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Large desktop: 64px FAB (≥1280px) - already exists but ensure consistency */
+@media (min-width: 1280px) {
+    .desktop-fab-wrapper .fab-button,
+    .fab-wrapper .fab-button {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        min-height: 64px !important;
+    }
+
+    .desktop-fab-wrapper .fab-button svg,
+    .fab-wrapper .fab-button svg {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* FAB Speed Dial animations - enhanced from lists.css */
+.fab-menu-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-fab-wrapper.closed .fab-menu-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+    pointer-events: none;
+}
+
+.desktop-fab-wrapper.open .fab-menu-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Staggered animation - extend existing nth-child rules */
+.fab-menu-item:nth-child(5) { transition-delay: 0.25s; }
+.fab-menu-item:nth-child(6) { transition-delay: 0.3s; }
+
+/* Main FAB rotation on open */
+.desktop-fab-wrapper .fab-button {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-fab-wrapper.open .fab-button {
+    transform: rotate(45deg); /* + becomes × */
+}

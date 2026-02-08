@@ -75,28 +75,6 @@ function hideFAB(): void {
 }
 
 /**
- * Show add item FAB (detail view only, ALL devices)
- * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
- */
-function showAddItemFAB(): void {
-  debugLog('[FAB] showAddItemFAB() called');
-
-  const addItemFab = document.getElementById('add-item-fab');
-  if (addItemFab) addItemFab.classList.remove('hidden');
-}
-
-/**
- * Hide add item FAB (when switching to landing view, ALL devices)
- * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
- */
-function hideAddItemFAB(): void {
-  debugLog('[FAB] hideAddItemFAB() called');
-
-  const addItemFab = document.getElementById('add-item-fab');
-  if (addItemFab) addItemFab.classList.add('hidden');
-}
-
-/**
  * Show create list FAB (landing view only, ALL devices)
  * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
@@ -428,9 +406,8 @@ export async function renderLandingView(): Promise<void> {
   closeImportWizard();
 
   // Desktop FAB visibility: Landing View
-  // Hide detail view FABs (mass operations + add item)
+  // Hide detail view FAB (mass operations Speed Dial)
   hideFAB();
-  hideAddItemFAB();
   // Show create list FAB
   showCreateListFAB();
 
@@ -553,9 +530,8 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Desktop FAB visibility: Detail View
   // Hide create list FAB (only visible in landing view)
   hideCreateListFAB();
-  // Show detail view FABs (mass operations + add item)
+  // Show detail view Speed Dial (mass operations including add item)
   showFAB();
-  showAddItemFAB();
 
   // Load items for this list
   await loadShoppingListItems(listId);

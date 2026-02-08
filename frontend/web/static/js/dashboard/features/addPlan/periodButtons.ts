@@ -7,16 +7,6 @@ declare const debugLog: (...args: any[]) => void;
  */
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-/**
- * Short month names for period button labels
- * Used across all period button setup functions to avoid duplication
- */
-const MONTH_NAMES_SHORT = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-
-// ============================================================================
 // Period Buttons Setup
 // ============================================================================
 
@@ -24,6 +14,7 @@ const MONTH_NAMES_SHORT = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'И
  * Update period button texts with current month names
  */
 export function updatePlanPeriodButtons(): void {
+  const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
   const now = new Date();
 
   const buttons = [
@@ -40,7 +31,7 @@ export function updatePlanPeriodButtons(): void {
     const monthIndex = targetDate.getMonth();
     const year = targetDate.getFullYear();
 
-    button.textContent = `${MONTH_NAMES_SHORT[monthIndex]} ${year}`;
+    button.textContent = `${monthNamesShort[monthIndex]} ${year}`;
     button.dataset.year = String(year);
     button.dataset.month = String(monthIndex + 1).padStart(2, '0');
   });
@@ -72,7 +63,8 @@ export function setupPlanPeriodButtons(): void {
   periodButtons.forEach((btn) => {
     const offset = parseInt(btn.dataset.offset || '0');
     const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-    const label = `${MONTH_NAMES_SHORT[date.getMonth()]} ${date.getFullYear()}`;
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     btn.textContent = label;
     btn.dataset.year = String(date.getFullYear());
     btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
@@ -108,52 +100,6 @@ export function setupPlanPeriodButtons(): void {
     });
 
     // Mark listener as attached
-    button.dataset.listenerAttached = 'true';
-  });
-}
-
-/**
- * Set up handlers for transfer period selection buttons
- */
-export function setupPlanTransferPeriodButtons(): void {
-  const periodButtons = document.querySelectorAll('#modal_plan-tab-transfer .transfer-period-btn') as NodeListOf<HTMLButtonElement>;
-  const hiddenInput = document.querySelector('#modal_plan-tab-transfer input[name="transfer_plan_month"]') as HTMLInputElement | null;
-
-  if (periodButtons.length === 0 || !hiddenInput) {
-    console.error('[setupPlanTransferPeriodButtons] Buttons or input not found');
-    return;
-  }
-
-  // Initialize button labels with month names
-  const today = new Date();
-  periodButtons.forEach((btn) => {
-    const offset = parseInt(btn.dataset.offset || '0');
-    const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
-    const label = `${MONTH_NAMES_SHORT[date.getMonth()]} ${date.getFullYear()}`;
-    btn.textContent = label;
-    btn.dataset.year = String(date.getFullYear());
-    btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
-  });
-
-  // Set default value
-  const firstButton = periodButtons[0];
-  if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
-    hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
-  }
-
-  // Click handlers
-  periodButtons.forEach(button => {
-    if (button.dataset.listenerAttached === 'true') return;
-
-    button.addEventListener('click', function() {
-      periodButtons.forEach(btn => btn.classList.remove('btn-active'));
-      this.classList.add('btn-active');
-      const year = this.dataset.year;
-      const month = this.dataset.month;
-      hiddenInput.value = `${year}-${month}`;
-      debugLog('Selected transfer plan period:', hiddenInput.value);
-    });
-
     button.dataset.listenerAttached = 'true';
   });
 }
