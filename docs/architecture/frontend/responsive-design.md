@@ -146,6 +146,25 @@ Family Budget uses Tailwind CSS breakpoint system:
 - Prevents navigation bar overlap with Home indicator
 - Calculated as: `calc(0.5rem + env(safe-area-inset-bottom))`
 
+### FAB Positioning and Spacing (v11.4.9+)
+
+**Mobile FAB (custom.css):**
+- Base position: `bottom: calc(7rem + env(safe-area-inset-bottom))`
+- Desktop (≥1024px): `bottom: 2rem` (no navbar, reduced spacing)
+- Rationale: 7rem = 112px clearance from bottom navbar (64px height) + 48px spacing
+- iOS safe-area adds ~34px on devices with notch/Dynamic Island
+
+**Lists FAB (lists.css):**
+- Desktop (≥1024px): `bottom: calc(2.5rem + env(safe-area-inset-bottom))`
+- Mobile 641-1023px: `bottom: calc(64px + 2.5rem + env(safe-area-inset-bottom))`
+- Mobile ≤640px: `bottom: calc(2rem + env(safe-area-inset-bottom))`
+- Fallback (old browsers): `bottom: 2rem` (without safe-area support)
+
+**Spacing Guidelines:**
+- +1rem increase from previous version for improved accessibility
+- All FAB elements use `env(safe-area-inset-bottom)` for iOS compatibility
+- Responsive spacing ensures no overlap with mobile navbar (64px)
+
 ### Responsive Breakpoints
 
 | Breakpoint | Device | Navigation Style |
