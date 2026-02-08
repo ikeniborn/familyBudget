@@ -1574,7 +1574,6 @@ img[loading="lazy"] {
     }
 
     /* NOTE: bottom position adjusted below at @media (max-width: 767px) to avoid mobile menu overlap */
-}
 
     /* FAB для массовых операций (Detail View) */
     .fab-main {
