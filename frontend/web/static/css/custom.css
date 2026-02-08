@@ -872,7 +872,7 @@ html.offline-mode .save-btn:hover {
 .fab-wrapper {
     position: fixed;
     right: 1rem;
-    bottom: 6rem; /* Увеличено с 5rem для лучшего отступа от мобильной навигации */
+    bottom: calc(7rem + env(safe-area-inset-bottom)); /* +1rem для iOS home indicator + safe-area support */
     z-index: var(--z-fab-mobile) !important; /* 40 - below navbar (50), mobile FAB должен быть ниже navbar */
     opacity: 1 !important; /* Гарантированная видимость */
     visibility: visible;
