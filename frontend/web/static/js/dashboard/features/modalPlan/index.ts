@@ -10,7 +10,7 @@ import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
-import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
+import { setupPlanPeriodButtons, setupPlanTransferPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import type { Category } from '../../types/dashboard';
 
@@ -185,7 +185,7 @@ async function loadTransferTabData(): Promise<void> {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="from_article_id"]',
         {
-          type: 'expense', // FROM is always expense (debit)
+          type: 'debit', // FROM is always debit (списание)
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -199,7 +199,7 @@ async function loadTransferTabData(): Promise<void> {
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="to_article_id"]',
         {
-          type: 'income', // TO is always income (credit)
+          type: 'credit', // TO is always credit (пополнение)
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -446,17 +446,18 @@ export async function openModalPlan(): Promise<void> {
       loadTransferTabData()
     ]);
 
-    // Setup recurring settings listeners
+    // CRITICAL FIX: Hide skeleton BEFORE period buttons setup
+    hideSkeleton();
+
+    // Setup recurring settings listeners AFTER skeleton hidden
     setupRecurringListeners('modal_plan');
 
     // Setup plan type toggle listeners
     setupPlanTypeToggle();
 
-    // CRITICAL FIX: Hide skeleton BEFORE period buttons setup
-    hideSkeleton();
-
     // Setup period buttons AFTER skeleton hidden
     setupPlanPeriodButtons();
+    setupPlanTransferPeriodButtons(); // NEW: Setup transfer period buttons
 
     // Reset to transaction tab (default)
     switchTab('transaction');
