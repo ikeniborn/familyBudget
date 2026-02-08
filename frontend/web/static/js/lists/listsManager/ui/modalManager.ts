@@ -90,9 +90,39 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Close modal
     closeCreateListModal();
 
-    // Reload and open new list
+    // Reload shopping lists from API/Dexie
     await loadShoppingLists();
-    await renderDetailView(result.id);
+
+    // Find newly created list in state (fallback: search by name if ID not found)
+    // CRITICAL: After creation, list may not be immediately available by server ID
+    // due to sync delays or Dexie indexing. Try multiple strategies:
+    const state = getState();
+    let listId = result.id;
+
+    // Strategy 1: Find by server ID (preferred)
+    let foundList = state.shoppingLists.find(l => l.id === result.id);
+
+    // Strategy 2: Find most recently created list with matching name
+    // NOTE: API response doesn't include temp_id, so we can't search by it
+    if (!foundList) {
+      const matchingLists = state.shoppingLists
+        .filter(l => l.name === result.name)
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      if (matchingLists.length > 0) {
+        foundList = matchingLists[0];
+        listId = foundList.id;
+      }
+    }
+
+    if (!foundList) {
+      console.error('[ListsManager] Created list not found in state after reload:', result);
+      showToast('Список создан, но не найден. Обновите страницу.', 'warning');
+      return;
+    }
+
+    // Open the newly created list
+    await renderDetailView(listId);
   } catch (error) {
     console.error('[ListsManager] Error creating list:', error);
     showToast('Ошибка создания списка', 'error');

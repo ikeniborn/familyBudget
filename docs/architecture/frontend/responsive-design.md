@@ -67,10 +67,12 @@ Family Budget uses Tailwind CSS breakpoint system:
 | `/facts` | Показан | 2 (факт) | Показан | 2 (факт) |
 | `/plan` | Показан | 2 (план) | Показан | 2 (план) |
 | `/analytics` | Скрыт | - | Скрыт | - |
-| `/lists` | Показан* | Direct action** | Скрыт | - |
+| `/lists` | Показан* | Direct action** | Показан* | Direct action** |
 
 \* На /lists кнопка "+" работает без меню (direct action)
 \** В списке списков → создать список; внутри списка → добавить товар
+
+**UPDATE v11.4.9:** /lists FAB теперь видим на ВСЕХ устройствах (mobile AND desktop)
 
 ### Dynamic Breakpoint Switching (v7.x+)
 
@@ -944,3 +946,111 @@ console.log({
 - [DaisyUI Responsive Utilities](https://daisyui.com/docs/utilities/)
 - Project file: `frontend/web/templates/index.html`
 - Build system: `/docs/architecture/build-system.md`
+
+---
+
+## Shopping Lists FAB Visibility (v11.4.9+)
+
+**Date:** 2026-02-08 (enabled mobile FAB)
+**Issue:** FAB buttons hidden on mobile via CSS @media (max-width: 1023px) + JS isDesktop() checks
+**Solution:** Removed mobile-hiding logic, FAB now visible on ALL devices
+
+### Behavior Changes
+
+**BEFORE v11.4.9 (Desktop Only):**
+- ❌ Mobile: FAB hidden via CSS media query
+- ❌ Mobile: JavaScript `isDesktop()` checks prevented FAB from showing
+- ✅ Desktop (≥1024px): FAB visible
+
+**AFTER v11.4.9 (ALL Devices):**
+- ✅ Mobile (<768px): FAB visible, positioned above mobile menu (btm-nav)
+- ✅ Desktop (≥1024px): FAB visible, same position as before
+- ✅ Mobile menu (btm-nav) provides ADDITIONAL option, FAB remains PRIMARY
+
+### Mobile FAB Positioning
+
+**Challenge:** Mobile menu (btm-nav) height = 4rem (64px) at bottom of screen
+
+**Solution:** Adjust FAB bottom position on mobile (<768px):
+
+```css
+/* Mobile menu adjustment (< 768px) */
+@media (max-width: 767px) {
+  /* FAB Speed Dial (Detail View) */
+  #lists-fab-menu {
+    bottom: calc(4rem + 1rem) !important; /* 4rem menu + 1rem spacing */
+  }
+
+  /* FAB Create List (Landing View) */
+  #create-list-fab {
+    bottom: calc(4rem + 1rem) !important;
+  }
+
+  /* FAB Add Item (Detail View) - above Speed Dial */
+  #add-item-fab {
+    bottom: calc(4rem + 1rem + 3.5rem) !important; /* +3.5rem above Speed Dial */
+  }
+}
+```
+
+**iOS Safe Area Support:**
+```css
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 767px) {
+    #create-list-fab {
+      bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
+```
+
+### FAB Visibility Breakpoints
+
+| Breakpoint | Mobile Menu (btm-nav) | FAB Buttons | FAB Bottom Position |
+|------------|----------------------|-------------|---------------------|
+| < 768px | Visible (md:hidden) | Visible | calc(4rem + 1rem) |
+| 768px - 1023px | Hidden (md:hidden becomes visible) | Visible | 1.5rem (default) |
+| ≥ 1024px | Hidden | Visible | 1.5rem (default) |
+
+**Note:** Mobile menu uses Tailwind `md:hidden` (< 768px), NOT lg breakpoint (1024px)
+
+### JavaScript Changes
+
+**Removed isDesktop() checks from 6 functions:**
+
+1. `showFAB()` - removed `if (!isDesktopResult) return;`
+2. `hideFAB()` - removed `if (!isDesktopResult) return;`
+3. `showAddItemFAB()` - removed `if (!isDesktopResult) return;`
+4. `hideAddItemFAB()` - removed `if (!isDesktopResult) return;`
+5. `showCreateListFAB()` - removed `if (!isDesktopResult) return;`
+6. `hideCreateListFAB()` - removed `if (!isDesktopResult) return;`
+7. `updateFABVisibility()` - removed `&& isDesktopResult` condition
+
+**Deleted unused function:**
+- `isDesktop()` - no longer needed
+
+### User Experience
+
+**Mobile (<768px):**
+- Primary: FAB buttons (bottom-right, above mobile menu)
+- Secondary: Mobile menu "Добавить" button (bottom nav bar)
+- Both options available - user choice
+
+**Desktop (≥768px):**
+- FAB buttons (bottom-right)
+- No mobile menu
+
+### Breaking Changes
+
+**v11.4.9:**
+- ⚠️ FAB buttons now visible on mobile (previously desktop-only)
+- ✅ Backward compatible (no API changes)
+- ✅ UX improvement (consistent across devices)
+
+### Related Files
+
+- **CSS:** `frontend/web/static/css/lists.css:1557-1650` (mobile positioning)
+- **CSS:** `frontend/web/static/css/custom.css:755-762` (removed mobile-hiding rule)
+- **JS:** `frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts:65-166` (removed isDesktop checks)
+- **Template:** `frontend/web/templates/components/lists/fab_buttons.html` (updated comments)
+- **Mobile Menu:** `frontend/web/templates/components/lists/mobile_menu.html` (unchanged, still available)

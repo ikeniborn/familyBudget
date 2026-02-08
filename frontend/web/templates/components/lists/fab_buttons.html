@@ -1,9 +1,10 @@
 {#
   COMPONENT: FAB Buttons (Floating Action Buttons)
   Purpose: Fixed-position action buttons for lists page
-  Desktop Only: Hidden via CSS @media (pointer: coarse)
+  Available on: ALL devices (desktop, mobile, PWA)
   Context-aware visibility controlled by JavaScript
   Used in: lists.html
+  NOTE: Previously desktop-only, now enabled for mobile per user requirement
 #}
 
 {% macro lists_fab_buttons() %}
@@ -11,9 +12,9 @@
 <!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
 <!-- ============================================== -->
 
-<!-- FAB для добавления товара (Detail View только на десктопе) -->
+<!-- FAB для добавления товара (Detail View - ALL devices) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
+<!-- NOTE: Now visible on mobile AND desktop -->
 <button id="add-item-fab"
         onclick="window.openAddItemModal()"
         class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
@@ -25,9 +26,9 @@
     </svg>
 </button>
 
-<!-- FAB для создания списка (Landing View только на десктопе) -->
+<!-- FAB для создания списка (Landing View - ALL devices) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
+<!-- NOTE: Now visible on mobile AND desktop -->
 <button id="create-list-fab"
         onclick="window.openCreateListModal()"
         class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
@@ -39,9 +40,9 @@
     </svg>
 </button>
 
-<!-- FAB Speed Dial для массовых операций (Detail View, Desktop Only) -->
+<!-- FAB Speed Dial для массовых операций (Detail View - ALL devices) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
+<!-- NOTE: Now visible on mobile AND desktop -->
 <div id="lists-fab-menu" class="fab-menu lists-fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3">
     <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
     <button onclick="window.toggleListsFAB()" class="fab-main lists-fab-main btn btn-primary btn-circle btn-lg shadow-xl" aria-label="Массовые операции">
@@ -75,8 +76,8 @@
     </div>
 </div>
 
-<!-- FAB Backdrop (Desktop Only) -->
+<!-- FAB Backdrop (ALL devices) -->
 <!-- IMPORTANT: Visibility controlled by toggleListsFAB(), not Tailwind -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
+<!-- NOTE: Now works on mobile AND desktop -->
 <div id="lists-fab-backdrop" class="lists-fab-backdrop fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden" onclick="window.toggleListsFAB()"></div>
 {% endmacro %}

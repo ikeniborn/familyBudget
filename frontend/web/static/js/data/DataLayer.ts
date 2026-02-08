@@ -737,11 +737,54 @@ export class DataLayer {
       }
 
       console.debug('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryShoppingListItems({
-        ...filters,
-        shopping_list_temp_id: listTempId
-      });
+      let result = await pglite.queryShoppingListItems(listTempId);  // ← FIX: Pass only string, not object
       const duration = performance.now() - startTime;
+
+      // Apply filters in-memory (client-side filtering)
+      // OPTIMIZATION: Single filter pass instead of 5 sequential filters
+      // Reduces O(5n) to O(n) and avoids creating 4 intermediate arrays
+      if (filters) {
+        const originalCount = result.length;  // Capture count BEFORE filtering
+
+        result = result.filter((item: LocalShoppingListItem) => {
+          // Filter by completion status
+          if (filters.is_completed !== undefined && item.is_completed !== filters.is_completed) {
+            return false;
+          }
+
+          // Filter by store
+          if (filters.store_id !== undefined && item.store_id !== filters.store_id) {
+            return false;
+          }
+
+          // Filter by product group
+          if (filters.product_group_id !== undefined && item.product_group_id !== filters.product_group_id) {
+            return false;
+          }
+
+          // Filter by sync status
+          if (filters.sync_status !== undefined && item.sync_status !== filters.sync_status) {
+            return false;
+          }
+
+          // Filter by deleted status
+          // deleted filter: true = only deleted (deleted_at !== null), false = only active (deleted_at === null)
+          if (filters.deleted !== undefined) {
+            const isDeleted = item.deleted_at !== null;
+            if (filters.deleted !== isDeleted) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        console.debug('[DATA_LAYER] Applied in-memory filters', {
+          originalCount,
+          filteredCount: result.length,
+          filtersApplied: filters
+        });
+      }
 
       if (result.length === 0) {
         console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
@@ -1327,7 +1370,7 @@ export class DataLayer {
    */
   private async getRecurringPlansFromAPI(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const params = new URLSearchParams();
-    params.set('limit', '1000');
+    params.set('limit', '100');  // ← FIX: Backend constraint is le=100 (recurring_plans.py:99)
 
     if (filters?.user_id !== undefined) {
       params.set('user_id', filters.user_id.toString());

@@ -5,6 +5,8 @@ Tests verify that the list_recurring_plans endpoint correctly validates:
 - Date format (YYYY-MM-DD)
 - Date logic (from_date <= to_date)
 - Accepts valid past dates (historical queries)
+
+Added as part of fix for HTTP 422 error in recurring-plans sync.
 """
 
 import pytest
