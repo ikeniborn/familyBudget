@@ -557,9 +557,14 @@ async def test_delete_article_as_regular_user_forbidden(
     response = await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 403
-    # Error response uses "message" field instead of "detail"
+    # Error response can have nested structure: {"detail": {"message": "...", "status_code": 403}}
     response_json = response.json()
-    assert "Only administrators can delete" in response_json.get("message", response_json.get("detail", ""))
+    detail = response_json.get("detail", {})
+    if isinstance(detail, dict):
+        error_msg = detail.get("message", "")
+    else:
+        error_msg = str(detail)
+    assert "Only administrators can delete" in error_msg
 
 
 @pytest.mark.asyncio
@@ -672,11 +677,12 @@ async def test_get_article_subtree_max_depth(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["name"] for article in data["articles"]}
+    names = {article["name"] for article in data["articles"]}
 
     # Should include root and level 1, but not level 2
-    assert "FOOD" in codes
-    assert "LVL1" in codes
+    assert "Food" in names  # test_article_root fixture
+    assert "Level 1" in names  # level1 article created above
+    assert "Level 2" not in names  # level2 should be excluded (max_depth=1)
     # max_depth might or might not include LVL2 depending on implementation
     # Adjust assertion based on actual behavior
 
@@ -697,7 +703,13 @@ async def test_get_article_subtree_all_users_can_access(
     # Admin creates hierarchy
     root_response = await admin_client.post(
         "/api/v1/articles",
+        json={
+            "name": "Shared Root",
+            "type": "expense",
+            "parent_id": None,
+        },
     )
+    assert root_response.status_code == 201
     root_id = root_response.json()["id"]
 
     # Regular user can get subtree
@@ -731,8 +743,8 @@ async def test_get_article_ancestors_basic(
     assert "articles" in data
 
     # Should include root article (parent of child)
-    codes = {article["name"] for article in data["articles"]}
-    assert "FOOD" in codes
+    names = {article["name"] for article in data["articles"]}
+    assert "Food" in names  # test_article_root fixture
 
 
 @pytest.mark.asyncio
@@ -747,11 +759,11 @@ async def test_get_article_ancestors_include_self(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["name"] for article in data["articles"]}
+    names = {article["name"] for article in data["articles"]}
 
     # Should include both root and child
-    assert "FOOD" in codes
-    assert "GROCERIES" in codes
+    assert "Food" in names  # test_article_root fixture
+    assert "Groceries" in names  # test_article_child fixture
 
 
 @pytest.mark.asyncio
