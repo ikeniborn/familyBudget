@@ -130,6 +130,12 @@ const builds = [
     globalName: 'Logger'
   },
   {
+    name: 'logging',
+    input: 'frontend/web/static/js/config/logging.js',
+    output: 'frontend/web/static/js/config/logging.min.js',
+    globalName: 'LoggingConfig'
+  },
+  {
     name: 'modalKeyboardAdapter',
     input: 'frontend/web/static/js/utils/modalKeyboardAdapter.js',
     output: 'frontend/web/static/js/utils/modalKeyboardAdapter.min.js',
