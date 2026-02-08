@@ -65,6 +65,12 @@ interface DiagnosticData {
     enabled: boolean;
     offlineMode: boolean;
   };
+  syncMetadata?: {
+    recurring_plans?: {
+      last_sync_timestamp: Date | null;
+      total_records: number;
+    };
+  };
 }
 
 interface ConflictMetrics {
@@ -191,6 +197,15 @@ export class DexieDiagnosticModal extends BaseModal {
         this.conflictMetrics = null;
       }
 
+      // Load sync metadata for Plans sync status check (v11.4.10+)
+      let plansSyncMetadata;
+      try {
+        plansSyncMetadata = await pglite.getSyncMetadata('recurring_plans');
+      } catch (error) {
+        console.warn('[SYNC_METADATA] Failed to load Plans sync metadata', error);
+        plansSyncMetadata = undefined;
+      }
+
       // Build complete diagnostic data object
       const data: DiagnosticData = {
         ...baseData,
@@ -205,6 +220,12 @@ export class DexieDiagnosticModal extends BaseModal {
             : 'NO_SOCKET',
           enabled: budgetWSClient?.enabled ?? false,
           offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? false
+        },
+        syncMetadata: {
+          recurring_plans: plansSyncMetadata ? {
+            last_sync_timestamp: plansSyncMetadata.last_sync_timestamp,
+            total_records: plansSyncMetadata.total_records
+          } : undefined
         }
       };
 
@@ -246,6 +267,14 @@ export class DexieDiagnosticModal extends BaseModal {
     while (doc.body.firstChild) {
       this.diagnosticContainer.appendChild(doc.body.firstChild);
     }
+
+    // Attach event listener for Retry Sync button (v11.4.10+)
+    const retrySyncBtn = this.diagnosticContainer.querySelector('#retry-plans-sync-btn');
+    if (retrySyncBtn) {
+      retrySyncBtn.addEventListener('click', async () => {
+        await this.handleRetrySyncPlans();
+      });
+    }
   }
 
   /**
@@ -255,6 +284,89 @@ export class DexieDiagnosticModal extends BaseModal {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Check if Plans sync warning should be shown
+   *
+   * Warning is shown when:
+   * - Plans count is 0 AND
+   * - syncMetadata for recurring_plans is missing OR last sync is older than 24 hours
+   *
+   * @param data - Diagnostic data
+   * @returns true if warning should be shown
+   */
+  private shouldShowPlansSyncWarning(data: DiagnosticData): boolean {
+    // If plans count > 0, no warning needed
+    if (data.tableStats.plans > 0) {
+      return false;
+    }
+
+    // If no sync metadata, show warning (sync may have failed)
+    if (!data.syncMetadata?.recurring_plans) {
+      return true;
+    }
+
+    // If sync metadata exists but no last_sync_timestamp, show warning
+    const lastSync = data.syncMetadata.recurring_plans.last_sync_timestamp;
+    if (!lastSync) {
+      return true;
+    }
+
+    // If last sync is older than 24 hours, show warning
+    const now = new Date();
+    const lastSyncDate = new Date(lastSync);
+    const hoursSinceSync = (now.getTime() - lastSyncDate.getTime()) / (1000 * 60 * 60);
+
+    return hoursSinceSync > 24;
+  }
+
+  /**
+   * Handle Retry Sync Plans button click
+   *
+   * Triggers manual sync of recurring plans and reloads diagnostic data
+   */
+  private async handleRetrySyncPlans(): Promise<void> {
+    try {
+      logger.info('[DIAGNOSTIC] Retrying Plans sync...');
+
+      const dexieManager = await getDexieManager();
+
+      // Get userId from window context (same as DexieManager.syncReferenceData)
+      let userId: number | undefined;
+      if (typeof window !== 'undefined' && (window as any).userData?.id) {
+        userId = (window as any).userData.id;
+      } else if (typeof window !== 'undefined' && (window as any).user?.id) {
+        userId = (window as any).user.id;
+      }
+
+      if (!userId) {
+        throw new Error('No user ID available for sync (check window.userData or window.user)');
+      }
+
+      // Trigger manual sync
+      await dexieManager.syncRecurringPlans(userId);
+
+      // Reload diagnostic data to reflect changes
+      await this.loadDiagnosticData();
+
+      logger.info('[DIAGNOSTIC] Plans sync retry completed');
+    } catch (error) {
+      logger.error('[DIAGNOSTIC] Plans sync retry failed:', error);
+
+      // Show error in UI
+      if (this.diagnosticContainer) {
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-error mb-3';
+        errorAlert.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Failed to retry Plans sync: ${error instanceof Error ? error.message : 'Unknown error'}</span>
+        `;
+        this.diagnosticContainer.prepend(errorAlert);
+      }
+    }
   }
 
   /**
@@ -297,6 +409,25 @@ export class DexieDiagnosticModal extends BaseModal {
           </tbody>
         </table>
       </div>
+
+      ${this.shouldShowPlansSyncWarning(data) ? `
+        <!-- Plans Sync Warning (v11.4.10+) -->
+        <div class="alert alert-warning mb-3 text-xs">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="font-semibold">Plans sync may have failed</p>
+            <p class="text-xs opacity-80">Plans count is 0 and sync metadata is missing or outdated. Check browser console for errors.</p>
+            <button id="retry-plans-sync-btn" class="btn btn-xs btn-warning mt-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Retry Sync
+            </button>
+          </div>
+        </div>
+      ` : ''}
 
       <!-- Performance Metrics (Compact Table) -->
       <div class="overflow-x-auto mb-3">

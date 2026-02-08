@@ -3,6 +3,7 @@
 **Since version:** 6.2.0
 **Author:** Claude Code
 **Date:** 2025-12-26
+**Last Updated:** 2026-02-08 (v11.4.10 - Offline Sync Diagnostics)
 
 ## Overview
 
@@ -211,6 +212,103 @@ day = frequency_value % 100  # 15
 month_names = ["января", "февраля", "марта", ...]
 text = f"Ежегодно, {day} {month_names[month-1]}"  # "Ежегодно, 15 марта"
 ```
+
+## Offline Sync (Dexie) (v11.4.6+)
+
+Recurring plans синхронизируются в локальное хранилище Dexie для offline-доступа.
+
+### Sync Behavior
+
+**Proactive Sync at Login:**
+- Вызывается автоматически при `initialReferenceSync()` (первый вход пользователя)
+- API endpoint: `GET /api/v1/recurring-plans?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&limit=1000`
+- Sync period: **±90 days** от текущей даты (configurable via `syncPeriodDays`)
+
+**Date Filtering:**
+- Синхронизируются только планы с `next_generation_date` в диапазоне ±90 дней
+- Неактивные планы (`is_active = false`) **не синхронизируются**
+- Plans без `next_generation_date` (еще не сгенерированы) **не синхронизируются**
+
+**Example:**
+```typescript
+// Today: 2026-02-08
+// Sync range: 2025-11-10 to 2026-05-09
+
+// Synced:
+plan1 = { next_generation_date: '2026-03-01', is_active: true }  // ✅
+plan2 = { next_generation_date: '2025-12-15', is_active: true }  // ✅
+
+// NOT synced:
+plan3 = { next_generation_date: '2026-08-01', is_active: true }  // ❌ Outside range
+plan4 = { next_generation_date: '2026-03-01', is_active: false } // ❌ Inactive
+plan5 = { next_generation_date: null, is_active: true }          // ❌ No generation date
+```
+
+### Non-Critical Sync Status
+
+Plans sync помечен как **non-critical** - если sync fails, приложение продолжает работать без уведомления пользователя:
+
+```typescript
+// referenceSync.ts
+const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'recurringPlans'];
+```
+
+**Поведение при sync failure:**
+- Error логируется в browser console: `[referenceSync] ❌ Recurring plans sync failed:`
+- NO user notification (silent failure)
+- UI продолжает работать без offline Plans
+
+### Troubleshooting "Plans: 0"
+
+**Diagnostics Modal показывает "Plans: 0"** - две возможные причины:
+
+#### 1. Expected Behavior (No Warning)
+- У пользователя нет активных планов **OR**
+- Все планы вне диапазона ±90 дней **OR**
+- Все планы неактивны (`is_active = false`)
+
+**Diagnosis:**
+- Dexie Diagnostics modal: NO warning shown
+- Browser console: `[referenceSync] ✅ Recurring plans synced { count: 0 }`
+
+#### 2. Sync Failure (Warning Shown)
+- API endpoint failed **OR**
+- Network timeout **OR**
+- Dexie transaction error
+
+**Diagnosis:**
+- Dexie Diagnostics modal: ⚠️ "Plans sync may have failed"
+- Browser console: `[referenceSync] ❌ Recurring plans sync failed: <error>`
+- Click **"Retry Sync"** button to manually retry
+
+**См. также:** [Dexie Integration - Troubleshooting Plans Sync](../core/dexie-integration.md#plans-sync-failures-v11410) для детальной диагностики.
+
+### Amount Conversion (toCents)
+
+Перед сохранением в Dexie, `amount` конвертируется в cents:
+
+```typescript
+// referenceSync.ts:356-359
+const plansWithCents = plans.map((plan: LocalRecurringPlan) => ({
+  ...plan,
+  amount: toCents(plan.amount)  // 100.50 → 10050
+}));
+```
+
+**Rationale:**
+- Избежать floating-point precision errors (0.1 + 0.2 = 0.30000000000000004)
+- Consistent с backend storage (PostgreSQL numeric(15,2))
+
+**См. также:** [Dexie Integration - toCents/fromCents](../core/dexie-integration.md#tocents--fromcents-conversion)
+
+### Related Files
+
+| Component | File | Lines |
+|-----------|------|-------|
+| Sync Logic | `frontend/shared/db/dexie/operations/referenceSync.ts` | 304-378 |
+| DexieManager Wrapper | `frontend/shared/db/dexie/DexieManager.ts` | 632-643 |
+| Diagnostics UI | `frontend/web/static/js/modules/uiComponents/modals/DexieDiagnosticModal.ts` | 303-332 |
+| API Endpoint | `backend/app/api/v1/endpoints/recurring_plans.py` | - |
 
 ## Backend Implementation
 

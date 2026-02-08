@@ -1,8 +1,8 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Последнее обновление:** 2026-02-06 (Schema v2)
-**Версия:** v11.3.7+
+**Последнее обновление:** 2026-02-08 (v11.4.10 - Plans Sync Troubleshooting)
+**Версия:** v11.4.10+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
 
@@ -1032,5 +1032,111 @@ shoppingListItems: '++id, temp_id, [shopping_list_temp_id+is_completed], [shoppi
 - DexieManager.queryShoppingListItems() signature UNCHANGED (still accepts string)
 - DataLayer.getShoppingListItems() behavior UNCHANGED (still accepts filters)
 - Internal filtering moved from Dexie query → in-memory (transparent to callers)
+
+---
+
+## Troubleshooting
+
+### Plans Sync Failures (v11.4.10+)
+
+**Symptom:** Dexie Diagnostics modal shows "Plans: 0" when user expects recurring plans to be synced.
+
+**Root Causes:**
+
+#### 1. No Active Plans in Database (Expected Behavior)
+**Diagnosis:**
+- Plans count = 0
+- NO warning shown in Diagnostics modal
+- Browser console shows: `[referenceSync] ✅ Recurring plans synced { count: 0 }`
+
+**Explanation:**
+- User has no active recurring plans in backend DB **OR**
+- All plans have `next_generation_date` outside ±90 days sync period **OR**
+- All plans are inactive (`is_active = false`)
+
+**Resolution:**
+- This is **NOT a bug** - expected behavior
+- Create active recurring plans in UI if needed
+- Check plan `next_generation_date` falls within sync period
+
+#### 2. Sync Failure (Technical Issue)
+**Diagnosis:**
+- Plans count = 0
+- ⚠️ Warning shown in Diagnostics modal: "Plans sync may have failed"
+- Browser console shows: `[referenceSync] ❌ Recurring plans sync failed: <error>`
+
+**Common errors:**
+- **422 Validation Error:** Invalid date parameters in API request
+  - Check Network tab: `/api/v1/recurring-plans?from_date=...&to_date=...`
+  - Verify `from_date` and `to_date` format (YYYY-MM-DD)
+- **Network Error:** Connection timeout or CORS issue
+  - Check browser Network tab for failed requests
+  - Verify API endpoint is accessible
+- **Transaction Error:** Dexie `bulkAdd()` failed
+  - Check console for IndexedDB quota exceeded
+  - Check for data format issues (e.g., invalid `amount` type)
+
+**Resolution Steps:**
+
+1. **Check Browser Console:**
+   ```javascript
+   // Look for sync errors
+   [referenceSync] ❌ Recurring plans sync failed: <error message>
+   ```
+
+2. **Check Network Tab:**
+   - Filter by: `recurring-plans`
+   - Expected: `200 OK` with `{ items: [...], total: X }`
+   - If `422`: Fix API date parameter validation
+   - If `500`: Check backend logs
+
+3. **Check IndexedDB:**
+   - DevTools → Application → IndexedDB → `budget_dexie`
+   - Table: `syncMetadata`
+   - Find: `entity_type = 'recurring_plans'`
+   - Check: `last_sync_timestamp` (when was last sync?)
+
+4. **Retry Sync Manually:**
+   - Open Dexie Diagnostics modal (click Dexie badge)
+   - If warning shown, click **"Retry Sync"** button
+   - Check browser console for retry result
+
+5. **Query Backend DB (Server Access Required):**
+   ```sql
+   -- Check if user has recurring plans
+   SELECT COUNT(*) FROM t_d_recurring_plan WHERE user_id = <USER_ID>;
+
+   -- Check if plans are in sync range
+   SELECT COUNT(*) FROM t_d_recurring_plan
+   WHERE user_id = <USER_ID>
+     AND is_active = true
+     AND next_generation_date >= CURRENT_DATE - INTERVAL '90 days'
+     AND next_generation_date <= CURRENT_DATE + INTERVAL '90 days';
+   ```
+
+**Enhanced Diagnostics (v11.4.10+):**
+- DexieManager logs Plans count in success message:
+  ```javascript
+  [DexieManager] ✅ Reference data synced {
+    counts: {
+      articles: 90,
+      // ...
+      recurringPlans: 0,  // Now logged!
+      shoppingLists: 11
+    }
+  }
+  ```
+- Diagnostics modal shows warning when sync fails
+- "Retry Sync" button for manual sync trigger
+
+**Related Files:**
+- **Sync Logic:** `frontend/shared/db/dexie/operations/referenceSync.ts:304-378` (syncRecurringPlans)
+- **Diagnostics UI:** `frontend/web/static/js/modules/uiComponents/modals/DexieDiagnosticModal.ts:303-332` (shouldShowPlansSyncWarning)
+- **DexieManager:** `frontend/shared/db/dexie/DexieManager.ts:632-643` (syncRecurringPlans wrapper)
+- **API Endpoint:** `backend/app/api/v1/endpoints/recurring_plans.py` (GET /api/v1/recurring-plans)
+
+**See Also:**
+- [Recurring Plans Architecture](../features/recurring-plans.md) - Sync behavior and date filtering
+- [Backend Endpoints](../backend/endpoints/recurring_plans.md) - API documentation
 
 **Backward Compatibility:** ✅ Full (zero breaking changes at API level)
