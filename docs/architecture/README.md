@@ -357,6 +357,33 @@ git pull → docker pull (ghcr.io) → docker up → migrations
 - **Documentation:** [transfers-module.md](./transfers-module.md)
 - **See:** Branch `dev/transfer_ts_migration_20260115091447`
 
+### 2026-02-08: Fix Recurring Plans Date Validation 422 Error (v11.4.8)
+- **Change:** Added comprehensive date validation for recurring plans list endpoint query parameters
+- **Problem:** HTTP 422 validation error when syncing recurring plans with date filters from frontend
+  - Frontend calculates date range (today ± 90 days) and passes to API: `from_date=2025-11-09&to_date=2026-05-08`
+  - Backend `datetime.strptime()` raised `ValueError` for invalid date formats, not handled → HTTP 500
+  - No validation for date logic (`from_date <= to_date`) at API layer
+  - Frontend Dexie sync crashed silently on 422 errors without detailed logging
+- **Solution:**
+  - Created Pydantic model `RecurringPlanListParams` with date format validation (pattern: `^\d{4}-\d{2}-\d{2}$`)
+  - Added `@field_validator` to check `from_date <= to_date` logic
+  - Implemented `_parse_date_safe()` helper function that catches `ValueError` → HTTP 422 with clear message
+  - Replaced all 6 `strptime()` calls in `recurring_plan_service.py` with `_parse_date_safe()`
+  - Enhanced frontend logging for 422 errors in `referenceSync.ts` (logs date params + error response)
+- **Impact:**
+  - ✅ Fixes stable 422 error when syncing recurring plans with past dates
+  - ✅ Clear validation error messages for invalid date formats (e.g., "2025/11/09" → "Use YYYY-MM-DD")
+  - ✅ Prevents `from_date > to_date` logic errors at API layer
+  - ✅ Better debugging: frontend logs date params when 422 occurs
+  - ✅ Graceful degradation: invalid requests return 422 instead of 500
+- **Files Modified:**
+  - `backend/app/api/v1/endpoints/recurring_plans.py` - Added `RecurringPlanListParams` Pydantic model
+  - `backend/app/services/recurring_plan_service.py` - Added `_parse_date_safe()`, replaced 6 strptime calls
+  - `backend/tests/api/test_recurring_plans_date_validation.py` - 7 unit tests for date validation scenarios
+  - `frontend/shared/db/dexie/operations/referenceSync.ts` - Enhanced 422 error logging
+- **Tests:** 7 new unit tests covering invalid format, date logic, past dates, partial filters
+- **See:** Commit `a31a2153` in branch `dev/fix-recurring-plans-422_20260208193000`
+
 ### 2026-01-14: Fix Recurring Plans 422 Error (v7.x.x)
 - **Change:** Added missing reminder fields (`enable_reminder`, `reminder_hour`, `reminder_minute`) to GET `/api/v1/recurring-plans/` response
 - **Problem:** HTTP 422 validation error when loading recurring plans list on budget-test
