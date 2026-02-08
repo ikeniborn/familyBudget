@@ -12,20 +12,6 @@
 <!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
 <!-- ============================================== -->
 
-<!-- FAB для добавления товара (Detail View - ALL devices) -->
-<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- NOTE: Now visible on mobile AND desktop -->
-<button id="add-item-fab"
-        onclick="window.openAddItemModal()"
-        class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
-        style="pointer-events: auto;"
-        aria-label="Добавить товар"
-        title="Добавить товар">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-    </svg>
-</button>
-
 <!-- FAB для создания списка (Landing View - ALL devices) -->
 <!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
 <!-- NOTE: Now visible on mobile AND desktop -->
@@ -54,22 +40,32 @@
     </button>
 
     <!-- Speed Dial items -->
+    <!-- NEW: Добавить товар (первый в Speed Dial) -->
+    <div id="fab-item-add-product" class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Добавить товар</span>
+        <button onclick="window.openAddItemModal()" class="btn btn-primary btn-circle shadow-lg" aria-label="Добавить товар">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+        </button>
+    </div>
+
     <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Удалить выполненные</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Удалить выполненные</span>
         <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
             🗑️
         </button>
     </div>
 
     <div id="fab-item-mark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Отметить все</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Отметить все</span>
         <button onclick="window.markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
             ✅
         </button>
     </div>
 
     <div id="fab-item-unmark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Снять все отметки</span>
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Снять все отметки</span>
         <button onclick="window.unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
             ❌
         </button>

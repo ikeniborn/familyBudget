@@ -1423,7 +1423,6 @@ img[loading="lazy"] {
 /* Desktop FAB buttons - custom sizing (replaces DaisyUI btn-lg) */
 @media (min-width: 1024px) {
     /* Main FAB buttons */
-    #add-item-fab,
     #create-list-fab,
     .fab-main {
         width: 56px !important;
@@ -1435,7 +1434,6 @@ img[loading="lazy"] {
     }
 
     /* Icons inside main FAB */
-    #add-item-fab svg,
     #create-list-fab svg,
     .fab-main svg {
         width: 24px;
@@ -1461,7 +1459,6 @@ img[loading="lazy"] {
 /* Large desktop: increased FAB (≥1280px) */
 @media (min-width: 1280px) {
     /* Main FAB buttons */
-    #add-item-fab,
     #create-list-fab,
     .fab-main {
         width: 64px !important;
@@ -1471,7 +1468,6 @@ img[loading="lazy"] {
     }
 
     /* Icons scale proportionally */
-    #add-item-fab svg,
     #create-list-fab svg,
     .fab-main svg {
         width: 28px;
@@ -1620,11 +1616,6 @@ img[loading="lazy"] {
     #create-list-fab {
         bottom: calc(4rem + 1rem) !important; /* 4rem mobile menu + 1rem spacing */
     }
-
-    /* FAB Add Item (Detail View) - position above mobile menu */
-    #add-item-fab {
-        bottom: calc(4rem + 1rem + 3.5rem) !important; /* 4rem mobile menu + 1rem spacing + 3.5rem (above Speed Dial) */
-    }
 }
 
 /* iOS safe area support for FAB */
@@ -1648,10 +1639,6 @@ img[loading="lazy"] {
 
         #create-list-fab {
             bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
-        }
-
-        #add-item-fab {
-            bottom: calc(4rem + 1rem + 3.5rem + env(safe-area-inset-bottom)) !important;
         }
     }
 }

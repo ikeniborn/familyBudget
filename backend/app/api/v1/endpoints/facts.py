@@ -757,7 +757,8 @@ async def get_recent_facts_html(
                         <th title="Напоминание">🔔</th>
                         <th title="Регламентный платеж">🔄</th>
                         <th title="Создано offline">☁️</th>
-                        <th>⚙️ Действия</th>
+                        <th class="w-8"></th>
+                        <th class="w-8"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -832,11 +833,7 @@ async def get_recent_facts_html(
 
             # Desktop table row with edit and delete buttons (at the end, after ☁️)
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
-            delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-            </button>'''
+            delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
             table_html += f"""
                     <tr>
                         <td>{record_type_badge_sm}</td>
@@ -848,12 +845,8 @@ async def get_recent_facts_html(
                         <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
                         <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
-                        <td>
-                            <div class="flex gap-1 justify-center">
-                                {edit_button}
-                                {delete_button}
-                            </div>
-                        </td>
+                        <td class="text-center">{edit_button}</td>
+                        <td class="text-center">{delete_button}</td>
                     </tr>
             """
 
