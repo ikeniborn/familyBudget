@@ -24,6 +24,7 @@ import {
   toggleItemCompleted as toggleItemCompletedDexie,
   deleteShoppingListItem
 } from '@db/dexie';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Type Definitions
@@ -95,13 +96,13 @@ export async function createItem(data: ItemData): Promise<any> {
         throw new Error('Current shopping list not found or missing temp_id');
       }
 
-      // Get user ID
-      const userId = (window as any).offlineManager
-        ? await (window as any).offlineManager.getCurrentUserId()
-        : null;
-
-      if (!userId) {
-        throw new Error('User ID not available');
+      // Get user ID using standardized helper
+      let userId: number;
+      try {
+        userId = await getCurrentUserId();
+      } catch (error) {
+        console.error('[LIST_OPS] User ID unavailable:', error);
+        throw new Error('User ID not available. Please refresh the page and log in again.');
       }
 
       // Create in PGlite (auto-adds to pending queue)
