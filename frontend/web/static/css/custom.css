@@ -752,22 +752,15 @@ html.offline-mode .save-btn:hover {
    ======================================== */
 
 /* ============================================== */
-/* Shopping Lists - Desktop-only FAB Buttons    */
+/* Shopping Lists - FAB Buttons (All Devices)   */
 /* ============================================== */
 
-/* Force hide desktop-only FAB buttons on mobile (< 1024px) */
-/* This prevents any JavaScript detection bugs from showing desktop buttons on mobile */
-@media (max-width: 1023px) {
-    /* FAB: Add item button (detail view - desktop only) */
-    #add-item-fab,
-    /* FAB: Create list button (landing view - desktop only) */
-    #create-list-fab,
-    /* FAB: Mass operations speed dial (detail view - desktop only) */
-    #lists-fab-menu {
-        display: none !important;
-        visibility: hidden !important;
-    }
-}
+/* NOTE: FAB buttons are now visible on ALL devices (desktop AND mobile)
+ * Previous behavior: hidden on mobile via @media (max-width: 1023px)
+ * NEW behavior: Visible on all devices
+ * Reason: User confirmed FAB should be accessible on mobile/PWA
+ * Mobile menu (btm-nav) provides ADDITIONAL option, but FAB remains primary
+ */
 
 /* ============================================== */
 /* PGlite Indicator Pulse Animation              */

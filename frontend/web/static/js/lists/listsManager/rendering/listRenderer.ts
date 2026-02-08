@@ -40,13 +40,6 @@ function escapeHtml(unsafe: string | null | undefined): string {
 }
 
 /**
- * Check if current device is desktop (width >= 768px)
- */
-function isDesktop(): boolean {
-  return window.innerWidth >= 768;
-}
-
-/**
  * Update mobile "Add" button UI (icon, tooltip, aria-label)
  * Extracted to avoid code duplication
  */
@@ -60,86 +53,75 @@ async function updateMobileUI(): Promise<void> {
 // ============================================================================
 
 /**
- * Show FAB menu (detail view only - mass operations, desktop only)
+ * Show FAB menu (detail view only - mass operations, ALL devices)
+ * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
 function showFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] showFAB() called');
 
   const fabMenu = document.getElementById('lists-fab-menu');
   if (fabMenu) fabMenu.classList.remove('hidden');
 }
 
 /**
- * Hide FAB menu (when switching to landing view, desktop only)
+ * Hide FAB menu (when switching to landing view, ALL devices)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 function hideFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] hideFAB() called');
 
   const fabMenu = document.getElementById('lists-fab-menu');
   if (fabMenu) fabMenu.classList.add('hidden');
 }
 
 /**
- * Show add item FAB (detail view only - desktop only)
+ * Show add item FAB (detail view only, ALL devices)
+ * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
 function showAddItemFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] showAddItemFAB() called');
 
   const addItemFab = document.getElementById('add-item-fab');
   if (addItemFab) addItemFab.classList.remove('hidden');
 }
 
 /**
- * Hide add item FAB (when switching to landing view, desktop only)
+ * Hide add item FAB (when switching to landing view, ALL devices)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 function hideAddItemFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] hideAddItemFAB() called');
 
   const addItemFab = document.getElementById('add-item-fab');
   if (addItemFab) addItemFab.classList.add('hidden');
 }
 
 /**
- * Show create list FAB (landing view only - desktop only)
+ * Show create list FAB (landing view only, ALL devices)
+ * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
 function showCreateListFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] showCreateListFAB() called');
 
   const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.remove('hidden');
 }
 
 /**
- * Hide create list FAB (when switching to detail view, desktop only)
+ * Hide create list FAB (when switching to detail view, ALL devices)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 function hideCreateListFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] hideCreateListFAB() called');
 
   const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.add('hidden');
 }
 
 /**
- * Update FAB visibility based on current view
+ * Update FAB visibility based on current view (ALL devices)
  * Shows FAB when in detail view (regardless of item count)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 export function updateFABVisibility(): void {
   const fabMenu = document.getElementById('lists-fab-menu');
@@ -147,19 +129,17 @@ export function updateFABVisibility(): void {
 
   const state = getState();
   const inDetailView = state.currentListId !== null;
-  const isDesktopResult = isDesktop();
 
   debugLog('[FAB] updateFABVisibility', {
     inDetailView,
-    isDesktop: isDesktopResult,
     currentListId: state.currentListId,
   });
 
-  if (inDetailView && isDesktopResult) {
-    // Detail view: show FAB
+  if (inDetailView) {
+    // Detail view: show FAB (mobile AND desktop)
     if (fabMenu) fabMenu.classList.remove('hidden');
   } else {
-    // Landing view or mobile: hide FAB
+    // Landing view: hide FAB
     if (fabMenu) fabMenu.classList.add('hidden');
     if (fabBackdrop) fabBackdrop.classList.add('hidden');
   }

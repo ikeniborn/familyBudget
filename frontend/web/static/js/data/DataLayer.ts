@@ -737,11 +737,31 @@ export class DataLayer {
       }
 
       console.debug('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryShoppingListItems({
-        ...filters,
-        shopping_list_temp_id: listTempId
-      });
+      let result = await pglite.queryShoppingListItems(listTempId);  // ← FIX: Pass only string, not object
       const duration = performance.now() - startTime;
+
+      // Apply filters in-memory (client-side filtering)
+      if (filters) {
+        if (filters.is_completed !== undefined) {
+          result = result.filter((item: LocalShoppingListItem) => item.is_completed === filters.is_completed);
+        }
+        if (filters.store_id !== undefined) {
+          result = result.filter((item: LocalShoppingListItem) => item.store_id === filters.store_id);
+        }
+        if (filters.product_group_id !== undefined) {
+          result = result.filter((item: LocalShoppingListItem) => item.product_group_id === filters.product_group_id);
+        }
+        if (filters.sync_status !== undefined) {
+          result = result.filter((item: LocalShoppingListItem) => item.sync_status === filters.sync_status);
+        }
+        if (filters.deleted !== undefined) {
+          // deleted filter: true = only deleted (deleted_at !== null), false = only active (deleted_at === null)
+          result = result.filter((item: LocalShoppingListItem) =>
+            filters.deleted ? item.deleted_at !== null : item.deleted_at === null
+          );
+        }
+        console.debug('[DATA_LAYER] Applied in-memory filters', { originalCount: result.length, filters });
+      }
 
       if (result.length === 0) {
         console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
@@ -1327,7 +1347,7 @@ export class DataLayer {
    */
   private async getRecurringPlansFromAPI(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const params = new URLSearchParams();
-    params.set('limit', '1000');
+    params.set('limit', '100');  // ← FIX: Backend constraint is le=100 (recurring_plans.py:99)
 
     if (filters?.user_id !== undefined) {
       params.set('user_id', filters.user_id.toString());
