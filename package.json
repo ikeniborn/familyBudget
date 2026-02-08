@@ -21,6 +21,13 @@
     "build:prod": "npm run build:css && npm run build:vendor && npm run bundle && npm run verify-build",
     "build": "npm run type-check && npm run build:prod",
     "test:coverage": "vitest run --config config/vitest.config.ts --coverage",
+    "test:e2e": "playwright test --config=config/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=config/playwright.config.ts --ui",
+    "test:e2e:headed": "playwright test --config=config/playwright.config.ts --headed",
+    "test:e2e:debug": "playwright test --config=config/playwright.config.ts --debug",
+    "test:e2e:chromium": "playwright test --config=config/playwright.config.ts --project=chromium",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:codegen": "playwright codegen https://fbd.ikeniborn.ru --load-storage=tests/e2e/.auth/user.json",
     "prepare": "husky install"
   },
   "repository": {

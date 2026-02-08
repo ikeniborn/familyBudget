@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import * as path from 'path';
 
 /**
  * Playwright configuration for E2E tests.
@@ -6,7 +7,10 @@ import { defineConfig, devices } from '@playwright/test';
  * Tests Web Apps UI flows in a real browser environment.
  */
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: path.join(__dirname, '../tests/e2e'),
+
+  /* Only match .spec.ts files (exclude Vitest .test.ts files) */
+  testMatch: /.*\.spec\.ts$/,
 
   /* Run tests in files in parallel */
   fullyParallel: true,

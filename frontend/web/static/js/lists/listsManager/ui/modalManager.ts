@@ -9,11 +9,13 @@
  */
 
 import { getState, updateState, type ShoppingList } from '../core/ListsState';
-import { loadShoppingLists } from '../core/stateManager';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
-import { isDexieActive, getDexieManager } from '@shared/db/dexie';
+
+declare const window: Window & {
+  dexieManager?: any;
+};
 
 // ============================================================================
 // Type Definitions
@@ -141,8 +143,8 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Trigger background sync to Dexie (non-blocking)
     queueMicrotask(async () => {
       try {
-        if (isDexieActive()) {
-          const dexie = getDexieManager();
+        if (window.dexieManager) {
+          const dexie = window.dexieManager;
 
           // Convert to LocalShoppingList type for Dexie
           const localList = {
