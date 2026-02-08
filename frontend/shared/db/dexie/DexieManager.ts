@@ -32,7 +32,8 @@ import {
   initialReferenceSync,
   syncArticles,
   syncFinancialCenters,
-  syncCostCenters
+  syncCostCenters,
+  syncRecurringPlans
 } from './operations/referenceSync';
 import type {
   LocalArticle,
@@ -586,7 +587,10 @@ export class DexieManager {
         articles: result.results.articles.count,
         financialCenters: result.results.financialCenters.count,
         costCenters: result.results.costCenters.count,
-        articleHierarchy: result.results.articleHierarchy.count
+        articleHierarchy: result.results.articleHierarchy.count,
+        // Non-critical syncs (for debugging/visibility)
+        recurringPlans: result.results.recurringPlans.count,
+        shoppingLists: result.results.shoppingLists.count
       }
     });
   }
@@ -625,6 +629,19 @@ export class DexieManager {
   async syncCostCenters(userId: number): Promise<{ success: boolean; count: number }> {
     logger.debug('[DexieManager] syncCostCenters', { userId });
     return await syncCostCenters(userId);
+  }
+
+  /**
+   * Sync recurring plans from server (v11.4.10+)
+   * Wrapper for syncRecurringPlans operation
+   *
+   * @param userId - User ID for syncing
+   * @param syncPeriodDays - Number of days to sync (default: 90)
+   * @returns Sync result with count
+   */
+  async syncRecurringPlans(userId: number, syncPeriodDays?: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncRecurringPlans', { userId, syncPeriodDays });
+    return await syncRecurringPlans(userId, syncPeriodDays);
   }
 
   // ============================================================
