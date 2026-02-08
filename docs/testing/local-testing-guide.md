@@ -62,11 +62,82 @@ npm run test:e2e:ui -- webapp/test_mobile_navigation.spec.ts
 npm run test:e2e:ui -- webapp/test_offline_functionality.spec.ts
 ```
 
-**Всего тестов:** 45 E2E тестов (6 spec файлов)
+**Всего тестов:** 52 E2E тестов (7 spec файлов: form_submission, mobile_navigation, offline_functionality, recurring_plans, shopping_lists, transfers, csv_import)
 
 ---
 
-### 2. Component тесты (Vitest) - Unit/Integration
+### 2. Visual Regression тесты (Playwright) - UI snapshot comparison
+
+**Назначение:** Автоматическое обнаружение визуальных изменений UI компонентов через сравнение скриншотов
+
+**Расположение:** `tests/e2e/webapp/test_visual_regression.spec.ts`
+
+**Команды:**
+
+```bash
+# Запустить visual regression тесты
+npm run test:e2e:ui -- webapp/test_visual_regression.spec.ts
+
+# Обновить baseline screenshots (после намеренных UI изменений)
+npm run test:e2e -- --update-snapshots webapp/test_visual_regression.spec.ts
+
+# Запустить в headed mode (видеть скриншоты)
+npm run test:e2e:headed -- webapp/test_visual_regression.spec.ts
+```
+
+**Тестируемые компоненты:**
+
+1. **Dashboard** (desktop + mobile)
+   - Полная страница dashboard
+   - Summary cards секция
+   - Responsive layout
+
+2. **Transaction Modal** (desktop + mobile)
+   - Пустая форма
+   - Табы (Расход/Доход/Перевод)
+   - Разные состояния формы
+
+3. **Lists Page** (desktop + mobile)
+   - Полная страница списков
+   - Empty state (если нет списков)
+   - List item карточки
+
+4. **Mobile Navigation**
+   - Bottom navigation bar
+   - Active/inactive states
+   - Header на разных страницах
+   - FAB button (closed/open Speed Dial)
+
+**Как работает:**
+
+1. **Первый запуск:** Создаются baseline screenshots в `tests/e2e/webapp/test_visual_regression.spec.ts-snapshots/`
+2. **Последующие запуски:** Новые скриншоты сравниваются с baseline, тест падает если визуальные отличия превышают `maxDiffPixels`
+3. **Обновление baseline:** После намеренных UI изменений запустите `--update-snapshots`
+
+**Примеры использования:**
+
+```bash
+# После изменения стилей Dashboard - обновить baseline
+npm run test:e2e -- --update-snapshots webapp/test_visual_regression.spec.ts -g "Dashboard"
+
+# Проверить визуальные изменения Modal после рефакторинга
+npm run test:e2e:ui -- webapp/test_visual_regression.spec.ts -g "Transaction Modal"
+
+# Проверить mobile navigation на всех разрешениях
+npm run test:e2e:headed -- webapp/test_visual_regression.spec.ts -g "Mobile Navigation"
+```
+
+**Всего тестов:** 15 visual regression тестов (4 компонента × ~4 теста)
+
+**⚠️ Важно:**
+- Baseline screenshots **НЕ коммитятся в git** (в `.gitignore`)
+- Каждый разработчик создает свои baselines локально
+- Visual regression тесты могут падать из-за различий в шрифтах/рендеринге между системами
+- Используйте `maxDiffPixels` для допустимого порога отличий
+
+---
+
+### 3. Component тесты (Vitest) - Unit/Integration
 
 **Назначение:** Тестирование frontend компонентов в изоляции (без backend)
 
@@ -105,7 +176,7 @@ npx vitest frontend/tests/unit/features/listsManager/
 
 ---
 
-### 3. Backend тесты (pytest) - Unit/Integration
+### 4. Backend тесты (pytest) - Unit/Integration
 
 **Назначение:** Тестирование backend API, database, business logic
 

@@ -1,5 +1,5 @@
 ---
-name: Test Code - Comprehensive Testing Framework
+name: test-code
 description: Автоматизация тестирования изменений (syntax, quality, runtime, dependencies, e2e) с адаптивным выбором тестов на основе git diff
 version: 1.0.0
 author: Family Budget Team
@@ -17,7 +17,7 @@ architecture_refs:
   - $ref: ../../docs/architecture/operations/deployment-troubleshooting.md
   - $ref: ../_shared/validation-logic.md
   - $ref: ../_shared/syntax-commands.json
-user-invocable: false
+user-invocable: true
 ---
 
 # Test Code - Comprehensive Testing Framework
