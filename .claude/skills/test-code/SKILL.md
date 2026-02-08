@@ -17,7 +17,8 @@ architecture_refs:
   - $ref: ../../docs/architecture/operations/deployment-troubleshooting.md
   - $ref: ../_shared/validation-logic.md
   - $ref: ../_shared/syntax-commands.json
-user-invocable: false
+user-invocable: true
+context: fork
 ---
 
 # Test Code - Comprehensive Testing Framework
