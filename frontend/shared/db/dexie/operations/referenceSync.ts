@@ -318,7 +318,7 @@ export async function syncRecurringPlans(
     const params = new URLSearchParams({
       from_date: fromDate.toISOString().split('T')[0],
       to_date: toDate.toISOString().split('T')[0],
-      limit: '1000'
+      limit: '100'  // Matches DataLayer.ts:1373 (fixed in 329f1822) and backend constraint
     });
 
     const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {

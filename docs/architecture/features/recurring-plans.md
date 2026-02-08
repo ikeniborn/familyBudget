@@ -3,7 +3,7 @@
 **Since version:** 6.2.0
 **Author:** Claude Code
 **Date:** 2025-12-26
-**Last Updated:** 2026-02-08 (v11.4.10 - Offline Sync Diagnostics)
+**Last Updated:** 2026-02-08 (v11.4.12 - HTTP 422 Fix + NULL Handling)
 
 ## Overview
 
@@ -217,31 +217,33 @@ text = f"Ежегодно, {day} {month_names[month-1]}"  # "Ежегодно, 1
 
 Recurring plans синхронизируются в локальное хранилище Dexie для offline-доступа.
 
-### Sync Behavior
+### Sync Behavior (v11.4.12+)
 
 **Proactive Sync at Login:**
 - Вызывается автоматически при `initialReferenceSync()` (первый вход пользователя)
-- API endpoint: `GET /api/v1/recurring-plans?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&limit=1000`
+- API endpoint: `GET /api/v1/recurring-plans?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&limit=100`
 - Sync period: **±90 days** от текущей даты (configurable via `syncPeriodDays`)
+- Backend limit: Maximum 1000 plans per sync (enforces `le=1000`)
 
 **Date Filtering:**
-- Синхронизируются только планы с `next_generation_date` в диапазоне ±90 дней
-- Неактивные планы (`is_active = false`) **не синхронизируются**
-- Plans без `next_generation_date` (еще не сгенерированы) **не синхронизируются**
+- Синхронизируются планы с `next_generation_date` в диапазоне ±90 дней **ИЛИ** `next_generation_date = NULL`
+- NULL plans включаются для offline diagnostics (completed/inactive plans)
+- Неактивные планы (`is_active = false`) **синхронизируются** (если NULL или в date range)
+- Max payload size: ~500KB (gzipped ~150KB)
 
-**Example:**
+**Example (v11.4.12+):**
 ```typescript
 // Today: 2026-02-08
 // Sync range: 2025-11-10 to 2026-05-09
 
 // Synced:
-plan1 = { next_generation_date: '2026-03-01', is_active: true }  // ✅
-plan2 = { next_generation_date: '2025-12-15', is_active: true }  // ✅
+plan1 = { next_generation_date: '2026-03-01', is_active: true }  // ✅ In range
+plan2 = { next_generation_date: '2025-12-15', is_active: true }  // ✅ In range
+plan4 = { next_generation_date: '2026-03-01', is_active: false } // ✅ In range (inactive OK)
+plan5 = { next_generation_date: null, is_active: false }         // ✅ NULL (completed/inactive)
 
 // NOT synced:
 plan3 = { next_generation_date: '2026-08-01', is_active: true }  // ❌ Outside range
-plan4 = { next_generation_date: '2026-03-01', is_active: false } // ❌ Inactive
-plan5 = { next_generation_date: null, is_active: true }          // ❌ No generation date
 ```
 
 ### Non-Critical Sync Status

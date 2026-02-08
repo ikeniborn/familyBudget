@@ -1,7 +1,7 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Последнее обновление:** 2026-02-08 (v11.4.10 - Plans Sync Troubleshooting)
+**Последнее обновление:** 2026-02-08 (v11.4.12 - HTTP 422 Fix)
 **Версия:** v11.4.10+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
@@ -1106,13 +1106,60 @@ shoppingListItems: '++id, temp_id, [shopping_list_temp_id+is_completed], [shoppi
    -- Check if user has recurring plans
    SELECT COUNT(*) FROM t_d_recurring_plan WHERE user_id = <USER_ID>;
 
-   -- Check if plans are in sync range
+   -- Check if plans are in sync range (v11.4.12+ includes NULL)
    SELECT COUNT(*) FROM t_d_recurring_plan
    WHERE user_id = <USER_ID>
-     AND is_active = true
-     AND next_generation_date >= CURRENT_DATE - INTERVAL '90 days'
-     AND next_generation_date <= CURRENT_DATE + INTERVAL '90 days';
+     AND (
+       (next_generation_date >= CURRENT_DATE - INTERVAL '90 days'
+        AND next_generation_date <= CURRENT_DATE + INTERVAL '90 days')
+       OR next_generation_date IS NULL
+     );
    ```
+
+### HTTP 422 Error on Plans Sync (v11.4.12 Fix)
+
+**Symptom:** Console shows `GET /api/v1/recurring-plans 422 (Unprocessable Content)`
+
+**Root Causes:**
+
+#### 1. Duplicate Sync Code (FIXED in v11.4.12)
+**Historical Issue:**
+- `referenceSync.ts:321` - proactive background sync (dashboard) → sent `limit=1000` ❌
+- `DataLayer.ts:1373` - on-demand API calls → ALREADY FIXED `limit=100` ✅ (commit 329f1822)
+
+**Fix Applied:**
+- Changed `referenceSync.ts:321` to `limit: '100'` (matches backend constraint)
+- Backend limit increased to `le=1000` for architectural consistency (aligns with other endpoints)
+- Manual VERSION bump: `11.4.11` → `11.4.12` (CI/CD rebuilds dashboard.min.js)
+
+**Why Both Frontend AND Backend Fixes?**
+- **Short-term (Frontend):** Immediate fix for HTTP 422 error (limit=1000 → limit=100)
+- **Long-term (Backend):** Architectural consistency - ALL endpoints now use `le=1000`
+- Allows reverting frontend to `limit=1000` in future (cleaner, no workaround needed)
+
+#### 2. Invalid Date Format
+**Backend requires** `YYYY-MM-DD` format (regex: `^\d{4}-\d{2}-\d{2}$`)
+
+**Check:**
+```javascript
+// Browser console - verify date calculation in referenceSync.ts:312-315
+const fromDate = new Date();
+fromDate.setDate(fromDate.getDate() - 90);
+console.log(fromDate.toISOString().split('T')[0]);  // Should be YYYY-MM-DD
+```
+
+**Solution:** Verify date format before API call
+
+#### 3. from_date > to_date
+**Field validator requires** `from_date <= to_date`
+
+**Solution:** Check date range logic in `referenceSync.ts:312-315`
+
+**Verification After Fix:**
+1. Upgrade to v11.4.12+ (CI/CD builds new dashboard.min.js)
+2. Check browser console: NO 422 errors for recurring-plans endpoint
+3. Network tab shows: `GET /api/v1/recurring-plans?...&limit=100` (Status 200)
+4. Dexie Diagnostics modal: Plans count > 0, no warning
 
 **Enhanced Diagnostics (v11.4.10+):**
 - DexieManager logs Plans count in success message:

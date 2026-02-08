@@ -96,7 +96,7 @@ async def list_recurring_plans(
     params: RecurringPlanListParams = Depends(),
     is_active: bool | None = Query(default=None, description="Filter by active status"),
     skip: int = Query(default=0, ge=0, description="Pagination offset"),
-    limit: int = Query(default=50, ge=1, le=100, description="Pagination limit"),
+    limit: int = Query(default=50, ge=1, le=1000, description="Pagination limit"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),

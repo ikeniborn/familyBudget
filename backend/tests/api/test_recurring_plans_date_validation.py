@@ -120,3 +120,55 @@ class TestRecurringPlansDateValidation:
         data = response.json()
         assert "items" in data
         assert "total" in data
+
+    @pytest.mark.asyncio
+    async def test_list_recurring_plans_limit_1000(
+        self,
+        auth_client: AsyncClient
+    ):
+        """Test that limit=1000 is accepted (v11.4.12+)."""
+        response = await auth_client.get(
+            "/api/v1/recurring-plans?limit=1000",
+            follow_redirects=True
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert "total" in data
+        # Verify limit parameter accepted without 422 error
+
+    @pytest.mark.asyncio
+    async def test_list_recurring_plans_null_generation_date(
+        self,
+        auth_client: AsyncClient,
+        db_session,
+        test_user
+    ):
+        """Test that plans with NULL next_generation_date are included in date range."""
+        from backend.app.models.recurring_plan import RecurringPlan
+
+        # Create plan with NULL next_generation_date (inactive/completed)
+        plan = RecurringPlan(
+            user_id=test_user.id,
+            article_id=1,  # Assumes test fixture article exists
+            amount=100.00,
+            next_generation_date=None,  # NULL value
+            is_active=False
+        )
+        db_session.add(plan)
+        await db_session.commit()
+        await db_session.refresh(plan)
+
+        # Query with date range
+        response = await auth_client.get(
+            "/api/v1/recurring-plans?from_date=2025-01-01&to_date=2026-12-31",
+            follow_redirects=True
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        # Verify NULL plan is included
+        assert len(data["items"]) >= 1
+        null_plan = next((p for p in data["items"] if p["id"] == plan.id), None)
+        assert null_plan is not None
+        assert null_plan["next_generation_date"] is None
