@@ -21,7 +21,8 @@ class TestRecurringPlansDateValidation:
     ):
         """Invalid from_date format returns 422."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?from_date=invalid-date&limit=10"
+            "/api/v1/recurring-plans?from_date=invalid-date&limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 422
         error_detail = response.json()["detail"]
@@ -35,7 +36,8 @@ class TestRecurringPlansDateValidation:
     ):
         """Invalid to_date format returns 422."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?to_date=2025/11/09&limit=10"  # Wrong separator
+            "/api/v1/recurring-plans?to_date=2025/11/09&limit=10",  # Wrong separator
+            follow_redirects=True
         )
         assert response.status_code == 422
         error_detail = response.json()["detail"]
@@ -48,7 +50,8 @@ class TestRecurringPlansDateValidation:
     ):
         """from_date > to_date returns 422."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?from_date=2026-05-08&to_date=2025-11-09&limit=10"
+            "/api/v1/recurring-plans?from_date=2026-05-08&to_date=2025-11-09&limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 422
         error_detail = response.json()["detail"]
@@ -63,7 +66,8 @@ class TestRecurringPlansDateValidation:
         """Valid past dates (90 days ago) return 200."""
         # Simulate frontend date calculation (today - 90 days, today + 90 days)
         response = await auth_client.get(
-            "/api/v1/recurring-plans?from_date=2025-11-09&to_date=2026-05-08&limit=10"
+            "/api/v1/recurring-plans?from_date=2025-11-09&to_date=2026-05-08&limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 200
         data = response.json()
@@ -79,7 +83,8 @@ class TestRecurringPlansDateValidation:
     ):
         """Providing only from_date is valid."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?from_date=2025-01-01&limit=10"
+            "/api/v1/recurring-plans?from_date=2025-01-01&limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 200
         data = response.json()
@@ -92,7 +97,8 @@ class TestRecurringPlansDateValidation:
     ):
         """Providing only to_date is valid."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?to_date=2026-12-31&limit=10"
+            "/api/v1/recurring-plans?to_date=2026-12-31&limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 200
         data = response.json()
@@ -105,7 +111,8 @@ class TestRecurringPlansDateValidation:
     ):
         """No date filters returns all plans (200)."""
         response = await auth_client.get(
-            "/api/v1/recurring-plans?limit=10"
+            "/api/v1/recurring-plans?limit=10",
+            follow_redirects=True
         )
         assert response.status_code == 200
         data = response.json()
