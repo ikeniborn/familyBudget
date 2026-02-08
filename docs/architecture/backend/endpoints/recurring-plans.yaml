@@ -106,6 +106,22 @@ routes:
         type: string
         enum: [plan, fact]
         description: "Filter by record type"
+      - name: from_date
+        type: string
+        format: date
+        description: |
+          Start date for filtering (YYYY-MM-DD).
+
+          ADDED in v11.4.8 (commit a31a2153): Date range validation.
+          Validates from_date < to_date using string comparison (works for ISO dates).
+      - name: to_date
+        type: string
+        format: date
+        description: |
+          End date for filtering (YYYY-MM-DD).
+
+          ADDED in v11.4.8 (commit a31a2153): Date range validation.
+          Validates to_date > from_date using string comparison.
       - name: skip
         type: integer
         default: 0
@@ -113,8 +129,15 @@ routes:
       - name: limit
         type: integer
         default: 50
+        minimum: 1
         maximum: 100
-        description: "Maximum records to return"
+        description: |
+          Maximum records to return (ge=1, le=100).
+
+          IMPORTANT: Backend constraint is le=100 (recurring_plans.py:99).
+          Frontend MUST NOT exceed this limit (v11.4.9 fix: changed from 1000 to 100).
+
+          Other endpoints support le=1000, but recurring-plans has STRICTER limit.
 
     responses:
       200:

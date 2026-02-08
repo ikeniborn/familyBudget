@@ -102,13 +102,8 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Strategy 1: Find by server ID (preferred)
     let foundList = state.shoppingLists.find(l => l.id === result.id);
 
-    // Strategy 2: Find by temp_id if API returned it
-    if (!foundList && result.temp_id) {
-      foundList = state.shoppingLists.find(l => l.temp_id === result.temp_id);
-      if (foundList) listId = foundList.id;
-    }
-
-    // Strategy 3: Find most recently created list with matching name
+    // Strategy 2: Find most recently created list with matching name
+    // NOTE: API response doesn't include temp_id, so we can't search by it
     if (!foundList) {
       const matchingLists = state.shoppingLists
         .filter(l => l.name === result.name)

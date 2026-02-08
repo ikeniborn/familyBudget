@@ -741,26 +741,49 @@ export class DataLayer {
       const duration = performance.now() - startTime;
 
       // Apply filters in-memory (client-side filtering)
+      // OPTIMIZATION: Single filter pass instead of 5 sequential filters
+      // Reduces O(5n) to O(n) and avoids creating 4 intermediate arrays
       if (filters) {
-        if (filters.is_completed !== undefined) {
-          result = result.filter((item: LocalShoppingListItem) => item.is_completed === filters.is_completed);
-        }
-        if (filters.store_id !== undefined) {
-          result = result.filter((item: LocalShoppingListItem) => item.store_id === filters.store_id);
-        }
-        if (filters.product_group_id !== undefined) {
-          result = result.filter((item: LocalShoppingListItem) => item.product_group_id === filters.product_group_id);
-        }
-        if (filters.sync_status !== undefined) {
-          result = result.filter((item: LocalShoppingListItem) => item.sync_status === filters.sync_status);
-        }
-        if (filters.deleted !== undefined) {
+        const originalCount = result.length;  // Capture count BEFORE filtering
+
+        result = result.filter((item: LocalShoppingListItem) => {
+          // Filter by completion status
+          if (filters.is_completed !== undefined && item.is_completed !== filters.is_completed) {
+            return false;
+          }
+
+          // Filter by store
+          if (filters.store_id !== undefined && item.store_id !== filters.store_id) {
+            return false;
+          }
+
+          // Filter by product group
+          if (filters.product_group_id !== undefined && item.product_group_id !== filters.product_group_id) {
+            return false;
+          }
+
+          // Filter by sync status
+          if (filters.sync_status !== undefined && item.sync_status !== filters.sync_status) {
+            return false;
+          }
+
+          // Filter by deleted status
           // deleted filter: true = only deleted (deleted_at !== null), false = only active (deleted_at === null)
-          result = result.filter((item: LocalShoppingListItem) =>
-            filters.deleted ? item.deleted_at !== null : item.deleted_at === null
-          );
-        }
-        console.debug('[DATA_LAYER] Applied in-memory filters', { originalCount: result.length, filters });
+          if (filters.deleted !== undefined) {
+            const isDeleted = item.deleted_at !== null;
+            if (filters.deleted !== isDeleted) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+
+        console.debug('[DATA_LAYER] Applied in-memory filters', {
+          originalCount,
+          filteredCount: result.length,
+          filtersApplied: filters
+        });
       }
 
       if (result.length === 0) {

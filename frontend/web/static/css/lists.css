@@ -1573,6 +1573,9 @@ img[loading="lazy"] {
         right: 1rem !important;
     }
 
+    /* NOTE: bottom position adjusted below at @media (max-width: 767px) to avoid mobile menu overlap */
+}
+
     /* FAB для массовых операций (Detail View) */
     .fab-main {
         width: 48px !important;
@@ -1605,6 +1608,26 @@ img[loading="lazy"] {
     }
 }
 
+/* Mobile menu adjustment: Position FAB above mobile menu (< 768px) */
+/* Mobile menu (btm-nav md:hidden) visible when width < 768px, height = 4rem (64px) */
+@media (max-width: 767px) {
+    /* FAB Speed Dial (Detail View) - position above mobile menu */
+    .fab-menu,
+    #lists-fab-menu {
+        bottom: calc(4rem + 1rem) !important; /* 4rem mobile menu + 1rem spacing */
+    }
+
+    /* FAB Create List (Landing View) - position above mobile menu */
+    #create-list-fab {
+        bottom: calc(4rem + 1rem) !important; /* 4rem mobile menu + 1rem spacing */
+    }
+
+    /* FAB Add Item (Detail View) - position above mobile menu */
+    #add-item-fab {
+        bottom: calc(4rem + 1rem + 3.5rem) !important; /* 4rem mobile menu + 1rem spacing + 3.5rem (above Speed Dial) */
+    }
+}
+
 /* iOS safe area support for FAB */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .fab-menu {
@@ -1617,10 +1640,19 @@ img[loading="lazy"] {
         }
     }
 
-    /* Position above common FAB toolbar on mobile/tablet */
-    @media (max-width: 1023px) {
-        .fab-menu {
-            bottom: calc(64px + 1.5rem + env(safe-area-inset-bottom)); /* 1.5rem = 24px spacing (8px more than before) */
+    /* Position above mobile menu on devices with safe area (iOS notch support) */
+    @media (max-width: 767px) {
+        .fab-menu,
+        #lists-fab-menu {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important; /* 4rem mobile menu + 1rem spacing + safe area */
+        }
+
+        #create-list-fab {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+        }
+
+        #add-item-fab {
+            bottom: calc(4rem + 1rem + 3.5rem + env(safe-area-inset-bottom)) !important;
         }
     }
 }
