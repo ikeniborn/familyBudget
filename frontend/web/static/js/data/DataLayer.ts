@@ -788,7 +788,14 @@ export class DataLayer {
 
       if (result.length === 0) {
         console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
-        const apiResult = await this.getShoppingListItemsFromAPI(listTempId, filters);
+        let apiResult = await this.getShoppingListItemsFromAPI(listTempId, filters);
+
+        // CRITICAL FIX: Ensure temp_id exists for all API items (for bulk delete compatibility)
+        apiResult = apiResult.map(item => ({
+          ...item,
+          temp_id: item.temp_id || `item_${item.id}_${Date.now()}`
+        }));
+
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
         console.debug('[DATA_LAYER] API fallback returned', { count: apiResult.length });
         return apiResult;

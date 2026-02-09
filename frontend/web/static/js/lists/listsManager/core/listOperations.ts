@@ -449,7 +449,26 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
       const tempIds = itemsToDelete.map(item => item.temp_id).filter(Boolean) as string[];
 
       if (tempIds.length !== itemIds.length) {
-        throw new Error('Some items missing temp_id, cannot delete via PGlite');
+        // FALLBACK: If temp_id missing, use API-only deletion (skip Dexie)
+        console.warn('[LIST_OPS] Some items missing temp_id, using API-only deletion');
+
+        // API-only bulk delete
+        await Promise.all(
+          itemIds.map(id =>
+            fetch(`/api/v1/shopping-list-items/${id}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin'
+            })
+          )
+        );
+
+        // Reload from server to sync state
+        if (state.currentListId) {
+          await loadShoppingListItems(state.currentListId);
+        }
+        renderCurrentView();
+        return;
       }
 
       // Delete each item in PGlite (parallel)
