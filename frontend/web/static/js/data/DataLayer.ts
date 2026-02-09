@@ -1444,20 +1444,27 @@ export class DataLayer {
     const today = new Date();
 
     // Calculate from_date (start of month N months ago)
-    const fromDate = new Date(today);
-    fromDate.setMonth(fromDate.getMonth() - months);
-    fromDate.setDate(1); // First day of month
-    fromDate.setHours(0, 0, 0, 0);
+    const fromYear = today.getFullYear();
+    const fromMonth = today.getMonth() - months;
+    const fromDate = new Date(fromYear, fromMonth, 1);
 
     // Calculate to_date (end of month N months ahead)
-    const toDate = new Date(today);
-    toDate.setMonth(toDate.getMonth() + months + 1); // Next month after target
-    toDate.setDate(0); // Last day of previous month
-    toDate.setHours(23, 59, 59, 999);
+    // Use next month's day 0 = last day of target month
+    const toYear = today.getFullYear();
+    const toMonth = today.getMonth() + months + 1;
+    const toDate = new Date(toYear, toMonth, 0);
+
+    // Format dates manually to avoid timezone issues
+    const formatDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     return {
-      fromDate: fromDate.toISOString().split('T')[0],  // YYYY-MM-DD
-      toDate: toDate.toISOString().split('T')[0]       // YYYY-MM-DD
+      fromDate: formatDate(fromDate),
+      toDate: formatDate(toDate)
     };
   }
 
