@@ -90,6 +90,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
         await conn.execute(text("DELETE FROM t_f_budget_fact"))
         await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
         await conn.execute(text("DELETE FROM t_f_shopping_list"))
+        await conn.execute(text("DELETE FROM t_d_recurring_plan"))  # Must be before financial_center (FK constraint)
         await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
         await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
         await conn.execute(text("DELETE FROM t_d_financial_center"))
