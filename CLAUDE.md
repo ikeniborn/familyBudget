@@ -67,12 +67,12 @@ Family Budget is a family budget management system with Telegram bot and web int
 **Quick Start (Recommended):**
 ```bash
 # Run all tests (backend + frontend + e2e)
-./run-tests.sh all
+./tests/run-tests.sh all
 
 # Run specific test suite
-./run-tests.sh backend   # Backend pytest tests
-./run-tests.sh frontend  # TypeScript type checking
-./run-tests.sh e2e       # Playwright E2E tests
+./tests/run-tests.sh backend   # Backend pytest tests
+./tests/run-tests.sh frontend  # TypeScript type checking
+./tests/run-tests.sh e2e       # Playwright E2E tests
 ```
 
 **1. Initial Setup (one-time):**
