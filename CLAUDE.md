@@ -39,8 +39,8 @@ Family Budget is a family budget management system with Telegram bot and web int
 
 ## Quick Start
 
-### Local Development (Code Validation Only)
-**CRITICAL:** НЕ запускайте сервисы локально (`uvicorn`, `docker compose up`). Только validation.
+### Local Development & Testing
+**CRITICAL:** НЕ запускайте сервисы локально (`uvicorn`, `docker compose up`). Тестирование выполняется локально через pytest в виртуальном окружении.
 
 **BREAKING CHANGE (v9.0):**
 - All builds (frontend, Docker) happen in GitHub Actions CI/CD
@@ -56,6 +56,166 @@ Family Budget is a family budget management system with Telegram bot and web int
 - Added libpython3.11.so.1.0 shared library copy to distroless runtime (required by --copies venv binary)
 - Use distroless system Python + PYTHONPATH instead of venv binary (simpler, no symlink/shared library issues)
 - Added missing httpx dependency (removed in v11.2.3 optimization, but still used by 5 services)
+
+**BREAKING CHANGE (v11.4.12):**
+- Tests removed from CI/CD pipeline → run locally via pytest
+- Virtual environment required: `backend/.venv/`
+- Install dependencies: `backend/.venv/bin/pip install -r requirements-dev.txt -r requirements.txt`
+
+### Local Testing Setup
+
+**Quick Start (Recommended):**
+```bash
+# Run all tests (backend + frontend + e2e)
+./run-tests.sh all
+
+# Run specific test suite
+./run-tests.sh backend   # Backend pytest tests
+./run-tests.sh frontend  # TypeScript type checking
+./run-tests.sh e2e       # Playwright E2E tests
+```
+
+**1. Initial Setup (one-time):**
+```bash
+# Create virtual environment
+cd backend
+python3 -m venv .venv
+
+# Install dependencies
+.venv/bin/pip install -r requirements-dev.txt -r requirements.txt
+```
+
+**2. Run Tests:**
+```bash
+# Start test database first
+docker-compose -f docker-compose-test.yml up -d
+
+# Wait for database to be ready
+until docker exec familybudget-postgres-test pg_isready -U familybudget 2>/dev/null; do
+  echo "Waiting for PostgreSQL..."; sleep 1
+done
+
+# Apply migrations (first time only or after schema changes)
+DATABASE_URL="postgresql://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
+  backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
+
+# Load test environment variables and run tests
+set -a && source backend/.env.test && set +a && \
+PYTHONPATH=$PWD backend/.venv/bin/pytest backend/tests/ -v
+
+# Specific test file
+PYTHONPATH=$PWD backend/.venv/bin/pytest backend/tests/api/test_recurring_plans_date_validation.py -v
+
+# With coverage
+PYTHONPATH=$PWD backend/.venv/bin/pytest backend/tests/ --cov=app --cov-report=term-missing
+
+# Parallel execution (faster)
+PYTHONPATH=$PWD backend/.venv/bin/pytest backend/tests/ -n auto
+
+# Stop test database
+docker-compose -f docker-compose-test.yml down
+```
+
+**3. Available Test Dependencies:**
+- `pytest==8.3.4` - Testing framework
+- `pytest-asyncio==0.24.0` - Async test support
+- `pytest-cov==6.0.0` - Coverage reports
+- `pytest-xdist==3.6.1` - Parallel test execution
+- `httpx==0.28.1` - HTTP client for API tests
+- `black==24.10.0` - Code formatter
+- `ruff==0.8.4` - Linter
+
+**4. Test Organization:**
+- `tests/api/` - API endpoint tests
+- `tests/services/` - Business logic tests
+- `tests/integration/` - Integration tests (require DB)
+- `tests/conftest.py` - Shared fixtures
+
+**5. IMPORTANT:**
+- ❌ DO NOT run services locally (uvicorn, docker compose up)
+- ✅ Tests use test PostgreSQL database (docker-compose-test.yml)
+- ✅ Frontend builds still happen in CI/CD (GitHub Actions)
+- ✅ Docker builds still happen in CI/CD
+
+### E2E Testing (Playwright)
+
+**1. Prerequisites:**
+```bash
+# Install Playwright browsers (first time only)
+npx playwright install
+
+# Create test user credentials (see docs/testing/e2e-test-user-setup.md)
+cat > .env.test << 'EOF'
+TEST_USER_EMAIL=e2e-test@example.com
+TEST_USER_PASSWORD=E2eTestPassword123!
+BASE_URL=https://fbd.ikeniborn.ru
+EOF
+chmod 600 .env.test
+```
+
+**2. E2E Test Suites (10 files):**
+- `test_webapp_loading.spec.ts` - Basic page loading and rendering
+- `test_form_submission.spec.ts` - Form validation and submission flows
+- `test_mobile_navigation.spec.ts` - Mobile responsive navigation
+- `test_modal_responsive.spec.ts` - Modal behavior across devices
+- `test_offline_functionality.spec.ts` - Offline mode and sync
+- `test_recurring_plans.spec.ts` - Recurring payment plans
+- `test_shopping_lists.spec.ts` - Shopping list CRUD operations
+- `test_transfers.spec.ts` - Transfer creation and deduplication
+- `test_csv_import.spec.ts` - CSV import workflows
+- `test_visual_regression.spec.ts` - Visual regression testing (4 components)
+
+**3. Run E2E Tests:**
+```bash
+# All tests (6 browsers: chromium, firefox, webkit, mobile chrome, mobile safari, tablet)
+npm run test:e2e
+
+# Specific browser
+npm run test:e2e:chromium
+
+# Interactive UI mode (best for development)
+npm run test:e2e:ui
+
+# Headed mode (see browser)
+npm run test:e2e:headed
+
+# Debug mode (step through tests)
+npm run test:e2e:debug
+
+# View HTML report
+npm run test:e2e:report
+
+# Generate tests via recording
+npm run test:e2e:codegen
+```
+
+**4. E2E Test Configuration:**
+- **Config:** `config/playwright.config.ts`
+- **Test Directory:** `tests/e2e/webapp/`
+- **Auth Storage:** `tests/e2e/.auth/user.json` (auto-generated)
+- **Reports:** `playwright-report/` (HTML reports)
+- **Screenshots:** Auto-captured on failure
+- **Videos:** Retained on failure only
+
+**5. Local vs Remote Testing:**
+```bash
+# Test against remote test server (default)
+BASE_URL=https://fbd.ikeniborn.ru npm run test:e2e
+
+# Test against local docker compose (NOT recommended per CLAUDE.md rules)
+# BASE_URL=http://localhost:8000 npm run test:e2e
+```
+
+**6. Visual Regression Tests:**
+- 4 critical UI components tested for visual changes
+- Snapshots stored in `tests/e2e/webapp/test_visual_regression.spec.ts-snapshots/`
+- Update snapshots: `npm run test:e2e -- --update-snapshots`
+
+**7. Known Limitations:**
+- E2E tests require deployed application (fbd.ikeniborn.ru)
+- Test user must be created manually (see docs/testing/e2e-test-user-setup.md)
+- Visual regression tests are browser-specific (chromium snapshots)
+- ~5-6 minutes for full test suite (10 tests × 6 browsers)
 
 ### Environments
 

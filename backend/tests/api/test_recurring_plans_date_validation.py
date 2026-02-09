@@ -141,23 +141,41 @@ class TestRecurringPlansDateValidation:
     async def test_list_recurring_plans_null_generation_date(
         self,
         auth_client: AsyncClient,
-        db_session,
-        test_user
+        session,
+        test_user,
+        test_article_root
     ):
         """Test that plans with NULL next_generation_date are included in date range."""
+        from datetime import date
         from backend.app.models.recurring_plan import RecurringPlan
+        from backend.app.models.financial_center import FinancialCenter
+
+        # Create test financial center
+        financial_center = FinancialCenter(
+            user_id=test_user.id,
+            name="Test Cash",
+            type="cash"
+        )
+        session.add(financial_center)
+        await session.commit()
+        await session.refresh(financial_center)
 
         # Create plan with NULL next_generation_date (inactive/completed)
         plan = RecurringPlan(
             user_id=test_user.id,
-            article_id=1,  # Assumes test fixture article exists
+            article_id=test_article_root.id,
+            financial_center_id=financial_center.id,
             amount=100.00,
+            frequency_type="monthly",
+            frequency_value=15,
+            start_date=date(2025, 1, 1),
+            record_type="plan",
             next_generation_date=None,  # NULL value
             is_active=False
         )
-        db_session.add(plan)
-        await db_session.commit()
-        await db_session.refresh(plan)
+        session.add(plan)
+        await session.commit()
+        await session.refresh(plan)
 
         # Query with date range
         response = await auth_client.get(
