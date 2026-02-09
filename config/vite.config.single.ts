@@ -98,15 +98,16 @@ export default defineConfig({
       },
 
       // External dependencies (modules that should NOT be bundled)
-      // Dexie is bundled in dashboard, external for others (except dashboard and dexie bundles)
+      // Dexie is bundled in dashboard, dexie, and lists bundles (dynamic import('dexie') requires bundling)
       // '@db/dexie' path alias must also be external to prevent bundling shared/db/dexie/ code
-      external: (entryName === 'dexie' || entryName === 'dashboard') ? [] : ['dexie', '@db/dexie'],
+      external: (entryName === 'dexie' || entryName === 'dashboard' || entryName === 'lists') ? [] : ['dexie', '@db/dexie'],
 
       // Tree-shaking configuration (v10.1.48: prevent removal of window exports)
       // CRITICAL: dashboard bundle uses side-effect-based window assignments via initWindowExports()
-      // dexie bundle also uses window.Dexie assignment (side-effect) → disable for both
-      // Production tree-shaking removes these assignments → disable for dashboard and dexie
-      treeshake: (entryName === 'dashboard' || entryName === 'dexie') ? false : 'recommended',
+      // dexie bundle also uses window.Dexie assignment (side-effect) → disable for these bundles
+      // lists bundle now includes dexie (dynamic import fix) → also disable tree-shaking
+      // Production tree-shaking removes these assignments → disable for dashboard, dexie, and lists
+      treeshake: (entryName === 'dashboard' || entryName === 'dexie' || entryName === 'lists') ? false : 'recommended',
 
       output: {
         // All modules use IIFE format for synchronous window global creation
@@ -118,7 +119,8 @@ export default defineConfig({
           constBindings: true
         },
         // Map external modules to global variables (only for IIFE modules)
-        // Dexie is bundled in dashboard.min.js, external for facts/shopping/etc
+        // Dexie is bundled in dashboard, dexie, and lists bundles
+        // For other bundles (facts, plans, etc.), 'dexie' is external → mapped to window.Dexie
         // '@db/dexie' path alias also mapped to window.Dexie to prevent bundling
         globals: {
           'dexie': 'window.Dexie',
