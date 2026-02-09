@@ -15,6 +15,9 @@ import './lists/importManager';
 // Dexie progress notification (v11.0+)
 import { showDexieProgress, hideDexieProgress } from './notifications/dexieProgressToast';
 
+// Dexie operations (v11.4.12+)
+import { addItemToList } from '../../../shared/db/dexie/index';
+
 // Dexie diagnostic modal (v11.4.0+)
 import { openDexieDiagnostic } from './modules/uiComponents/modals/DexieDiagnosticModal';
 
@@ -227,6 +230,9 @@ const windowExports = {
       }
     }
   },
+
+  // Dexie operations (v11.4.12+)
+  addItemToList,
 
   // PGlite progress notifications (v10.1.38+)
   showDexieProgress,
