@@ -986,6 +986,210 @@ html.offline-mode .save-btn:hover {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ==================================
+   FAB Common Styles - Shared Desktop FAB Components
+   Применяется к /, /facts, /plan (НЕ /lists - там отдельная система)
+   ================================== */
+
+/* Base FAB Common Wrapper */
+.fab-common-wrapper {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 0.75rem;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: var(--z-fab-desktop); /* 1002 */
+}
+
+/* Main FAB Button - Base Size (Desktop ≥1024px: 56px) */
+.fab-common-main-btn {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 3px 5px -1px rgba(0, 0, 0, 0.2),
+        0 6px 10px 0 rgba(0, 0, 0, 0.14),
+        0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Main FAB Icon */
+.fab-common-main-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Speed Dial Action Buttons */
+.fab-common-action-btn {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Speed Dial Action Icons */
+.fab-common-icon {
+    width: 20px;  /* Slightly smaller for visual hierarchy */
+    height: 20px;
+}
+
+/* Speed Dial Menu Items */
+.fab-common-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Speed Dial Badge Labels (desktop only) */
+.fab-common-badge {
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Closed State - Menu Items Hidden */
+.fab-common-wrapper.closed .fab-common-menu-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+    pointer-events: none;
+}
+
+/* Open State - Menu Items Visible */
+.fab-common-wrapper.open .fab-common-menu-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Staggered Animation Cascade */
+.fab-common-menu-item:nth-child(2) { transition-delay: 0.05s; }
+.fab-common-menu-item:nth-child(3) { transition-delay: 0.1s; }
+
+/* Main Button Rotation on Open */
+.fab-common-wrapper.open .fab-common-main-btn {
+    transform: rotate(90deg);
+}
+
+/* Desktop FAB Backdrop */
+.fab-common-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    z-index: var(--z-fab-backdrop); /* 1000 - below modal backdrop 999 */
+    transition: opacity 0.3s ease-out;
+}
+
+/* Backdrop Visible When FAB Open */
+.fab-common-wrapper.open ~ .fab-common-backdrop {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: block !important;
+}
+
+/* Accessibility - Touch Optimization */
+.fab-common-main-btn,
+.fab-common-action-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Accessibility - Visible Focus States */
+.fab-common-main-btn:focus,
+.fab-common-action-btn:focus {
+    outline: 3px solid var(--fallback-p, oklch(var(--p)));
+    outline-offset: 2px;
+}
+
+/* Mobile (<640px): 48px FAB */
+@media (max-width: 640px) {
+    .fab-common-main-btn,
+    .fab-common-action-btn {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+    }
+
+    .fab-common-main-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .fab-common-icon {
+        width: 24px;  /* Standard icon size for 48px button */
+        height: 24px;
+    }
+
+    /* Mobile: Position above bottom navbar */
+    .fab-common-wrapper {
+        bottom: calc(4rem + 1rem) !important; /* 4rem navbar + 1rem spacing */
+        right: 1rem !important;
+    }
+}
+
+/* XL Desktop (≥1280px): 64px FAB */
+@media (min-width: 1280px) {
+    .fab-common-main-btn,
+    .fab-common-action-btn {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        min-height: 64px !important;
+    }
+
+    .fab-common-main-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .fab-common-icon {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* iOS Safe Area Support */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    @media (max-width: 767px) {
+        .fab-common-wrapper {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+        }
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .fab-common-wrapper,
+    .fab-common-menu-item,
+    .fab-common-main-btn,
+    .fab-common-backdrop {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print: Hide FAB */
+@media print {
+    .fab-common-wrapper,
+    .fab-common-backdrop {
+        display: none !important;
+    }
+}
+
 /* ============= Delete Button Mobile Fix ============= */
 
 /* Гарантированная видимость delete кнопки на мобильных */
