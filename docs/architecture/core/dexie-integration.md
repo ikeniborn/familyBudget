@@ -1,8 +1,8 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Последнее обновление:** 2026-02-08 (v11.4.12 - HTTP 422 Fix)
-**Версия:** v11.4.10+
+**Последнее обновление:** 2026-02-09 (v11.5.0 - Separate Sync Periods)
+**Версия:** v11.5.0+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
 
@@ -740,37 +740,74 @@ The requested version (5) is less than the existing version (10).
 
 ---
 
-## Sync Period Configuration (v11.4.0+)
+## Sync Period Configuration (v11.5.0+)
 
 ### Overview
 
-Пользователи могут настроить период хранения offline данных (Facts и Plans) через **Dexie Diagnostic Modal**.
+Пользователи могут настроить период хранения offline данных через **Dexie Diagnostic Modal** с раздельными настройками для Facts и Plans.
 
-### Features
+### Features (v11.5.0+)
 
-**Configurable retention:**
-- Default: 90 days (90 дней назад + 90 дней вперёд для Plans)
-- Range: 30-180 days (шаг 30 дней)
-- Сохраняется в `localStorage.budget_dexie_sync_period`
+**🆕 Separate Retention Periods:**
+- **Facts:** 30-180 days (шаг 30 дней) - для транзакций
+- **Plans:** 1-6 months (шаг 1 месяц) - для recurring plans с загрузкой **полных месяцев**
+- **Default:** Facts: 90 days, Plans: 3 months
+- **Storage:**
+  - `localStorage.budget_dexie_sync_period_facts` (дни)
+  - `localStorage.budget_dexie_sync_period_plans` (месяцы)
+  - Legacy key: `budget_dexie_sync_period` (автоматическая миграция)
 
-**UI controls:**
-- Slider в Dexie Diagnostic Modal (triple-click на Dexie icon)
+**UI controls (v11.5.0+):**
+- **Два раздельных слайдера** в Dexie Diagnostic Modal:
+  - Facts retention slider: 30-180 days
+  - Plans retention slider: 1-6 months
 - Real-time preview (oninput) + pruning on change (onchange)
 - Automatic Facts pruning при изменении периода
+- Plans re-sync при изменении периода (на следующей загрузке)
 
 **API integration:**
 - Backend: `GET /api/v1/recurring-plans?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD`
 - Frontend: DataLayer автоматически добавляет date filtering к запросам Plans
+- **🆕 Full months calculation:** Plans загружаются по **полным месяцам** (с 1-го по последнее число)
 - Dexie: Фильтрация Plans по `next_generation_date` в памяти
 
 ### Implementation
 
-**DexieManager (v11.4.0+):**
+**DexieManager (v11.5.0+):**
 ```typescript
-// Get sync period from localStorage
+// Get sync period for Facts (days)
 getSyncPeriodDays(): number {
-  const saved = localStorage.getItem('budget_dexie_sync_period');
-  return saved ? parseInt(saved, 10) : 90;
+  const saved = localStorage.getItem('budget_dexie_sync_period_facts');
+  if (!saved) {
+    // Fallback to legacy key for backward compatibility
+    const legacy = localStorage.getItem('budget_dexie_sync_period');
+    return legacy ? parseInt(legacy, 10) : 90;
+  }
+  return parseInt(saved, 10);
+}
+
+// Get sync period for Plans (months) - NEW in v11.5.0
+getSyncPeriodMonths(): number {
+  const saved = localStorage.getItem('budget_dexie_sync_period_plans');
+  return saved ? parseInt(saved, 10) : 3; // Default: 3 months
+}
+
+// Set sync period for Facts (days) - NEW in v11.5.0
+setSyncPeriodDays(days: number): void {
+  if (days < 30 || days > 180) {
+    throw new Error('[DexieManager] Invalid sync period: must be 30-180 days');
+  }
+  localStorage.setItem('budget_dexie_sync_period_facts', days.toString());
+  logger.info('[DexieManager] Facts sync period updated', { days });
+}
+
+// Set sync period for Plans (months) - NEW in v11.5.0
+setSyncPeriodMonths(months: number): void {
+  if (months < 1 || months > 6) {
+    throw new Error('[DexieManager] Invalid sync period: must be 1-6 months');
+  }
+  localStorage.setItem('budget_dexie_sync_period_plans', months.toString());
+  logger.info('[DexieManager] Plans sync period updated', { months });
 }
 
 // Prune with configurable period
@@ -780,23 +817,57 @@ async pruneFacts(retentionDays?: number): Promise<number> {
 }
 ```
 
-**DataLayer Plans sync:**
+**DataLayer Plans sync (v11.5.0+):**
 ```typescript
 async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
-  const syncPeriodDays = this.dexieManager?.getSyncPeriodDays?.() ?? 90;
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - syncPeriodDays);
-  const toDate = new Date();
-  toDate.setDate(toDate.getDate() + syncPeriodDays);
+  // NEW: Use months instead of days
+  const syncPeriodMonths = this.dexieManager?.getSyncPeriodMonths?.() ?? 3;
+
+  // Calculate full months range (start of month N months ago to end of month N months ahead)
+  const { fromDate, toDate } = this.calculateFullMonthsRange(syncPeriodMonths);
 
   const syncFilters: RecurringPlanFilters = {
     ...filters,
-    from_date: filters?.from_date ?? fromDate.toISOString().split('T')[0],
-    to_date: filters?.to_date ?? toDate.toISOString().split('T')[0]
+    from_date: filters?.from_date ?? fromDate,  // YYYY-MM-01
+    to_date: filters?.to_date ?? toDate         // YYYY-MM-31
   };
 
   // Use syncFilters for API/Dexie requests
 }
+
+// NEW in v11.5.0: Calculate full months range
+private calculateFullMonthsRange(months: number): { fromDate: string; toDate: string } {
+  const today = new Date();
+
+  // Calculate from_date (start of month N months ago)
+  const fromDate = new Date(today.getFullYear(), today.getMonth() - months, 1);
+
+  // Calculate to_date (end of month N months ahead)
+  const toDate = new Date(today.getFullYear(), today.getMonth() + months + 1, 0);
+
+  // Format manually to avoid timezone issues
+  const formatDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    fromDate: formatDate(fromDate),
+    toDate: formatDate(toDate)
+  };
+}
+```
+
+**Example calculation (v11.5.0+):**
+```
+Today: 2025-02-09, syncPeriodMonths: 3
+→ from_date: 2024-11-01 (start of November)
+→ to_date: 2025-05-31 (end of May)
+
+API Request:
+GET /api/v1/recurring-plans?from_date=2024-11-01&to_date=2025-05-31&limit=100
 ```
 
 **Reference Sync (v11.4.6):**
@@ -812,17 +883,28 @@ async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringP
 - Enabled/disabled status
 - Offline mode detection (via `offlineManager.networkDetector.autoOfflineMode`)
 
-**Sync period display:**
-- Facts: X records (90 days)
-- Plans: X records (90 days)
-- Slider для изменения периода (30-180 дней)
+**Sync period display (v11.5.0+):**
+- Facts: X records (Y days) - с отдельным слайдером 30-180 дней
+- Plans: X records (Y months) - с отдельным слайдером 1-6 месяцев
+- **🆕 Два раздельных слайдера:**
+  - Facts retention slider: изменение сразу вызывает pruning
+  - Plans retention slider: изменение применяется при следующей синхронизации
 
 ### Troubleshooting
 
-**Plans не синхронизируются:**
-1. Check localStorage: `localStorage.getItem('budget_dexie_sync_period')`
+**Plans не синхронизируются (v11.5.0+):**
+1. Check localStorage:
+   ```javascript
+   localStorage.getItem('budget_dexie_sync_period_facts')  // Facts period (days)
+   localStorage.getItem('budget_dexie_sync_period_plans')  // Plans period (months)
+   localStorage.getItem('budget_dexie_sync_period')        // Legacy key (fallback)
+   ```
 2. Check Dexie Diagnostic Modal: Plans count должен быть > 0 после логина
-3. Check browser console: `[referenceSync] Recurring plans synced: { count: X }`
+3. Check browser console: `[referenceSync] Recurring plans synced: { count: X, syncPeriodMonths: Y }`
+4. Check Network tab: Verify API request uses full months:
+   ```
+   GET /api/v1/recurring-plans?from_date=YYYY-MM-01&to_date=YYYY-MM-31
+   ```
 
 **WebSocket NO_SOCKET state:**
 1. Check browser console: `window.offlineManager?.networkDetector?.autoOfflineMode`
@@ -836,6 +918,7 @@ async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringP
 
 | Дата | Версия | Изменения |
 |------|--------|-----------|
+| 2026-02-09 | v11.5.0 | 🔀 **Separate Sync Periods:** раздельные настройки для Facts (30-180 дней) и Plans (1-6 месяцев)<br>📅 **Full Months Calculation:** Plans загружаются по полным месяцам (с 1-го по последнее число)<br>🎛️ **Dual Sliders UI:** два независимых слайдера в Dexie Diagnostic Modal<br>🔄 **localStorage Migration:** автоматическая миграция legacy key → separate keys<br>🐛 **Bug Fixes:** исправлен date calculation overflow и timezone offset (2 критических бага)<br>✅ **Backward Compatible:** getSyncPeriodDays() с fallback на legacy key |
 | 2026-02-07 | v11.4.6 | 🔄 Plans Sync Restoration: восстановлена proactive sync при логине<br>🛡️ Graceful degradation: sync failure не блокирует login (non-critical sync)<br>📝 Documentation sync: актуализация после v11.4.2 removal<br>✅ Cents conversion: amount → toCents(amount) перед сохранением в Dexie |
 | 2026-02-07 | v11.4.0 | ⚙️ Sync Period Configuration: настраиваемый период хранения offline данных (30-180 дней)<br>🚀 Plans proactive sync: автоматическая синхронизация при логине<br>📊 WebSocket diagnostics: мониторинг WebSocket в Dexie Diagnostic Modal<br>🔍 API date filtering: GET /recurring-plans?from_date&to_date для оптимизации sync |
 | 2026-02-05 | v11.3.1 | 🔴 VersionError fix: завершение Dexie migration<br>🗑️ Удалён Legacy IndexedDB (~2,000 строк)<br>🚀 Shopping Lists полностью мигрированы на Dexie<br>⚙️ Автоматическая миграция для users с v10.1.x |
@@ -929,15 +1012,28 @@ setupIdlePruning() // Runs during browser idle
 
 ### Configuration
 
-**Retention Period:** 30-180 дней (настраивается в Dexie Diagnostic Modal)
+**Retention Period (v11.5.0+):**
+- **Facts:** 30-180 дней (настраивается в Dexie Diagnostic Modal)
+- **Plans:** 1-6 месяцев (настраивается отдельным слайдером)
 
-**Default:** 30 дней (via `DexieManager.getSyncPeriodDays()`)
+**Default:**
+- Facts: 90 дней (via `DexieManager.getSyncPeriodDays()`)
+- Plans: 3 месяца (via `DexieManager.getSyncPeriodMonths()`)
 
 **Pruning Interval:** 60 минут (setInterval default)
 
 **Manual Trigger:** `/diagnostics` dialog → "Run Pruning Now" button
 
-### Recent Changes (v11.4.6)
+### Recent Changes (v11.5.0)
+
+- ✅ Раздельные sync periods для Facts (дни) и Plans (месяцы)
+- ✅ Два независимых слайдера в Dexie Diagnostic Modal
+- ✅ Автоматическая миграция localStorage keys
+- ✅ Full months calculation для Plans (загрузка полных месяцев)
+- ✅ Исправлены критические баги (date overflow, timezone offset)
+- ✅ Backward compatibility через fallback на legacy key
+
+### Previous Changes (v11.4.6)
 
 - ✅ Добавлен Visibility API pruning
 - ✅ Добавлен requestIdleCallback pruning
@@ -1051,13 +1147,13 @@ shoppingListItems: '++id, temp_id, [shopping_list_temp_id+is_completed], [shoppi
 
 **Explanation:**
 - User has no active recurring plans in backend DB **OR**
-- All plans have `next_generation_date` outside ±90 days sync period **OR**
+- All plans have `next_generation_date` outside configured sync period (default: ±3 months) **OR**
 - All plans are inactive (`is_active = false`)
 
 **Resolution:**
 - This is **NOT a bug** - expected behavior
 - Create active recurring plans in UI if needed
-- Check plan `next_generation_date` falls within sync period
+- Check plan `next_generation_date` falls within sync period (adjustable in Dexie Diagnostic Modal: 1-6 months)
 
 #### 2. Sync Failure (Technical Issue)
 **Diagnosis:**
@@ -1106,14 +1202,15 @@ shoppingListItems: '++id, temp_id, [shopping_list_temp_id+is_completed], [shoppi
    -- Check if user has recurring plans
    SELECT COUNT(*) FROM t_d_recurring_plan WHERE user_id = <USER_ID>;
 
-   -- Check if plans are in sync range (v11.4.12+ includes NULL)
+   -- Check if plans are in sync range (v11.5.0+ uses configurable months, default: 3)
    SELECT COUNT(*) FROM t_d_recurring_plan
    WHERE user_id = <USER_ID>
      AND (
-       (next_generation_date >= CURRENT_DATE - INTERVAL '90 days'
-        AND next_generation_date <= CURRENT_DATE + INTERVAL '90 days')
+       (next_generation_date >= CURRENT_DATE - INTERVAL '3 months'
+        AND next_generation_date <= CURRENT_DATE + INTERVAL '3 months')
        OR next_generation_date IS NULL
      );
+   -- Note: Adjust '3 months' based on user's configured sync period (1-6 months)
    ```
 
 ### HTTP 422 Error on Plans Sync (v11.4.12 Fix)
