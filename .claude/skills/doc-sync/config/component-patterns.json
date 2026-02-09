@@ -1,0 +1,126 @@
+{
+  "description": "Patterns для категоризации файлов и mapping на типы компонентов",
+  "version": "1.0.0",
+  "patterns": {
+    "api_endpoints": {
+      "glob": "backend/app/api/v1/endpoints/*.py",
+      "doc_pattern": "docs/architecture/endpoints/{basename}.yaml",
+      "extraction_method": "fastapi_decorator_parsing",
+      "examples": [
+        {
+          "file": "backend/app/api/v1/endpoints/articles.py",
+          "doc": "docs/architecture/endpoints/articles.yaml"
+        }
+      ]
+    },
+    "database_models": {
+      "glob": "backend/app/models/*.py",
+      "doc_pattern": "docs/architecture/database/dimensions.yaml",
+      "extraction_method": "sqlalchemy_model_parsing",
+      "notes": "All dimension models go to dimensions.yaml, fact models to facts.yaml",
+      "examples": [
+        {
+          "file": "backend/app/models/article.py",
+          "doc": "docs/architecture/database/dimensions.yaml",
+          "yaml_path": "#/tables/t_d_article"
+        }
+      ]
+    },
+    "database_migrations": {
+      "glob": "backend/db/migrations/versions/*.py",
+      "doc_pattern": "docs/architecture/database/migrations.yaml",
+      "extraction_method": "alembic_migration_parsing",
+      "notes": "Migrations documented in chronological order"
+    },
+    "frontend_modules": {
+      "glob": "frontend/web/static/js/**/*.ts",
+      "doc_pattern": "docs/architecture/web/js-modules.yaml",
+      "extraction_method": "typescript_export_parsing",
+      "examples": [
+        {
+          "file": "frontend/web/static/js/modals/modalManager.ts",
+          "doc": "docs/architecture/web/js-modules.yaml",
+          "yaml_path": "#/modules/modalManager"
+        }
+      ]
+    },
+    "jinja2_templates": {
+      "glob": "frontend/web/templates/**/*.html",
+      "doc_pattern": "docs/architecture/web/templates.yaml",
+      "extraction_method": "jinja2_template_parsing",
+      "notes": "Extract extends, includes, macros",
+      "examples": [
+        {
+          "file": "frontend/web/templates/articles/list.html",
+          "doc": "docs/architecture/web/templates.yaml",
+          "yaml_path": "#/templates/articles/list"
+        }
+      ]
+    },
+    "services": {
+      "glob": "backend/app/services/*.py",
+      "doc_pattern": "docs/architecture/functionality/{basename}.yaml",
+      "extraction_method": "python_class_parsing",
+      "examples": [
+        {
+          "file": "backend/app/services/article_service.py",
+          "doc": "docs/architecture/functionality/budget-management.yaml",
+          "yaml_path": "#/module/services/1"
+        }
+      ]
+    }
+  },
+  "extraction_methods": {
+    "fastapi_decorator_parsing": {
+      "description": "Parse @router.get/post/put/delete decorators",
+      "ast_node": "FunctionDef",
+      "decorator_patterns": ["router.get", "router.post", "router.put", "router.delete"],
+      "extract_fields": ["path", "method", "query_params", "response_model", "dependencies"]
+    },
+    "sqlalchemy_model_parsing": {
+      "description": "Parse SQLAlchemy model classes and Column definitions",
+      "ast_node": "ClassDef",
+      "base_class": "Base",
+      "extract_fields": ["table_name", "columns", "indexes", "constraints", "relationships"]
+    },
+    "typescript_export_parsing": {
+      "description": "Parse TypeScript export statements",
+      "ast_method": "regex",
+      "patterns": [
+        "export function (\\w+)",
+        "export class (\\w+)",
+        "export interface (\\w+)"
+      ],
+      "extract_fields": ["name", "type", "signature"]
+    },
+    "jinja2_template_parsing": {
+      "description": "Parse Jinja2 templates for extends, includes, macros",
+      "ast_method": "regex",
+      "patterns": [
+        "{% extends \"(.+?)\" %}",
+        "{% include \"(.+?)\" %}",
+        "{% macro (\\w+)"
+      ],
+      "extract_fields": ["base_template", "includes", "macros"]
+    }
+  },
+  "staleness_criteria": {
+    "missing_component": {
+      "severity": "high",
+      "description": "Component exists in code but not documented"
+    },
+    "signature_mismatch": {
+      "severity": "medium",
+      "description": "Code signature differs from documentation"
+    },
+    "outdated_timestamp": {
+      "severity": "low",
+      "description": "Code modified after documentation",
+      "threshold_days": 7
+    },
+    "deprecated_component": {
+      "severity": "medium",
+      "description": "Component documented but removed from code"
+    }
+  }
+}
