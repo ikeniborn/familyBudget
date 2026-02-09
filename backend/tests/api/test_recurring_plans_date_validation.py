@@ -147,8 +147,9 @@ class TestRecurringPlansDateValidation:
     ):
         """Test that plans with NULL next_generation_date are included in date range."""
         from datetime import date
-        from backend.app.models.recurring_plan import RecurringPlan
+
         from backend.app.models.financial_center import FinancialCenter
+        from backend.app.models.recurring_plan import RecurringPlan
 
         # Create test financial center
         financial_center = FinancialCenter(
