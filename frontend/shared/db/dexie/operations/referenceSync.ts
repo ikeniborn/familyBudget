@@ -295,29 +295,68 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
 }
 
 /**
- * Sync recurring plans from server (v11.4.6 - restored)
+ * Calculate date range for full months (v11.5.0+)
+ *
+ * @param months - Number of months to include in each direction
+ * @returns Object with fromDate and toDate in YYYY-MM-DD format
+ *
+ * EXAMPLES:
+ * - Today: 2025-02-09, months: 3
+ *   → from_date: 2024-11-01, to_date: 2025-05-31
+ *
+ * - Today: 2025-01-15, months: 2
+ *   → from_date: 2024-11-01, to_date: 2025-03-31
+ */
+function calculateFullMonthsRange(months: number): { fromDate: string; toDate: string } {
+  const today = new Date();
+
+  // Calculate from_date (start of month N months ago)
+  const fromYear = today.getFullYear();
+  const fromMonth = today.getMonth() - months;
+  const fromDate = new Date(fromYear, fromMonth, 1);
+
+  // Calculate to_date (end of month N months ahead)
+  // Use next month's day 0 = last day of target month
+  const toYear = today.getFullYear();
+  const toMonth = today.getMonth() + months + 1;
+  const toDate = new Date(toYear, toMonth, 0);
+
+  // Format dates manually to avoid timezone issues
+  const formatDate = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  return {
+    fromDate: formatDate(fromDate),
+    toDate: formatDate(toDate)
+  };
+}
+
+/**
+ * Sync recurring plans from server (v11.5.0+)
  * Supports sync period filtering via from_date/to_date
  *
  * v11.4.2: Removed due to 422 error
  * v11.4.6: Restored with confirmed working endpoint
+ * v11.5.0: Changed to month-based period (full months calculation)
  */
 export async function syncRecurringPlans(
   userId: number,
-  syncPeriodDays: number = 90
+  syncPeriodMonths: number = 3
 ): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodDays });
+  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodMonths });
 
   try {
-    // Calculate date range for sync period
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
-    const toDate = new Date();
-    toDate.setDate(toDate.getDate() + syncPeriodDays);
+    // Calculate full months range
+    const { fromDate, toDate } = calculateFullMonthsRange(syncPeriodMonths);
 
-    // Try with date filtering (v11.4.0+)
+    // Try with date filtering (v11.5.0+)
     const params = new URLSearchParams({
-      from_date: fromDate.toISOString().split('T')[0],
-      to_date: toDate.toISOString().split('T')[0],
+      from_date: fromDate,  // YYYY-MM-DD (start of month)
+      to_date: toDate,      // YYYY-MM-DD (end of month)
       limit: '100'  // Matches DataLayer.ts:1373 (fixed in 329f1822) and backend constraint
     });
 
@@ -381,6 +420,7 @@ export async function syncRecurringPlans(
  * Initial sync - синхронизация всех справочников
  * v11.4.3: Restored shoppingLists (transactional data for offline /lists)
  * v11.4.6: Restored recurringPlans (proactive sync with working endpoint)
+ * v11.5.0: Changed recurringPlans to month-based sync (3 months default)
  */
 export async function initialReferenceSync(
   userId: number
@@ -390,6 +430,10 @@ export async function initialReferenceSync(
 }> {
   logger.info('[referenceSync] Starting initial sync...', { userId });
 
+  // Get sync period for plans from DexieManager (v11.5.0+)
+  const dexieManager = await import('../DexieManager').then(m => m.getDexieManager());
+  const syncPeriodMonths = (await dexieManager).getSyncPeriodMonths?.() ?? 3;
+
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
@@ -398,7 +442,7 @@ export async function initialReferenceSync(
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
     productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
-    recurringPlans: await syncRecurringPlans(userId, 90)  // v11.4.6: Restored with working endpoint
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths)  // v11.5.0: Month-based sync
   };
 
   // Critical syncs (required for app to work)

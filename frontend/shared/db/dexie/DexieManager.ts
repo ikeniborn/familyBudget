@@ -80,6 +80,9 @@ export class DexieManager {
     this.state = 'initializing';
 
     try {
+      // Migrate legacy sync period to separate facts/plans settings (v11.5.0+)
+      this.migrateSyncPeriodSettings();
+
       // Cleanup legacy database (v5-v10) before initializing Dexie v1
       await cleanupLegacyDatabase();
 
@@ -136,6 +139,41 @@ export class DexieManager {
     await this.getDB().close();
     this.state = 'not_started';
     logger.info('[DexieManager] Closed');
+  }
+
+  /**
+   * Migrate legacy sync period to separate facts/plans settings (v11.5.0+)
+   */
+  private migrateSyncPeriodSettings(): void {
+    const legacyKey = 'budget_dexie_sync_period';
+    const factsKey = 'budget_dexie_sync_period_facts';
+    const plansKey = 'budget_dexie_sync_period_plans';
+
+    // Skip if already migrated
+    if (localStorage.getItem(factsKey) || localStorage.getItem(plansKey)) {
+      return;
+    }
+
+    const legacyValue = localStorage.getItem(legacyKey);
+
+    if (legacyValue) {
+      // Migrate: keep facts period, convert to months for plans
+      localStorage.setItem(factsKey, legacyValue); // e.g., "90"
+
+      const daysAsMonths = Math.round(parseInt(legacyValue, 10) / 30);
+      const plansMonths = Math.max(1, Math.min(6, daysAsMonths));
+      localStorage.setItem(plansKey, plansMonths.toString());
+
+      logger.info('[DexieManager] Migrated sync period settings', {
+        legacy: legacyValue,
+        facts: legacyValue,
+        plans: plansMonths
+      });
+    } else {
+      // Set defaults
+      localStorage.setItem(factsKey, '90');
+      localStorage.setItem(plansKey, '3');
+    }
   }
 
   /**
@@ -632,16 +670,16 @@ export class DexieManager {
   }
 
   /**
-   * Sync recurring plans from server (v11.4.10+)
+   * Sync recurring plans from server (v11.5.0+)
    * Wrapper for syncRecurringPlans operation
    *
    * @param userId - User ID for syncing
-   * @param syncPeriodDays - Number of days to sync (default: 90)
+   * @param syncPeriodMonths - Number of months to sync (default: 3)
    * @returns Sync result with count
    */
-  async syncRecurringPlans(userId: number, syncPeriodDays?: number): Promise<{ success: boolean; count: number }> {
-    logger.debug('[DexieManager] syncRecurringPlans', { userId, syncPeriodDays });
-    return await syncRecurringPlans(userId, syncPeriodDays);
+  async syncRecurringPlans(userId: number, syncPeriodMonths?: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncRecurringPlans', { userId, syncPeriodMonths });
+    return await syncRecurringPlans(userId, syncPeriodMonths);
   }
 
   // ============================================================
@@ -886,6 +924,10 @@ export class DexieManager {
       totalPruned: number;
       nextPruneEstimate: string;
     };
+    syncPeriod: {
+      facts: number;
+      plans: number;
+    };
   }> {
     const articlesCount = await this.getDB().articles.count();
     const factsCount = await this.getDB().budgetFacts.count();
@@ -939,6 +981,10 @@ export class DexieManager {
         lastPrunedAt: 'Never',
         totalPruned: 0,
         nextPruneEstimate: isAutoPruningEnabled() ? '1 hour' : 'Disabled'
+      },
+      syncPeriod: {
+        facts: this.getSyncPeriodDays(),
+        plans: this.getSyncPeriodMonths()
       }
     };
   }
@@ -1041,11 +1087,49 @@ export class DexieManager {
 
   /**
    * Get sync period for offline data retention (v11.4.0+)
-   * @returns Number of days to keep Facts/Plans in Dexie
+   * @returns Number of days to keep Facts in Dexie
    */
   getSyncPeriodDays(): number {
-    const saved = localStorage.getItem('budget_dexie_sync_period');
-    return saved ? parseInt(saved, 10) : 90; // Default: 90 days
+    const saved = localStorage.getItem('budget_dexie_sync_period_facts');
+    if (!saved) {
+      // Fallback to legacy key for backward compatibility
+      const legacy = localStorage.getItem('budget_dexie_sync_period');
+      return legacy ? parseInt(legacy, 10) : 90;
+    }
+    return parseInt(saved, 10);
+  }
+
+  /**
+   * Get sync period for Plans (months) (v11.5.0+)
+   * @returns Number of months to keep Plans in Dexie (1-6)
+   */
+  getSyncPeriodMonths(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period_plans');
+    return saved ? parseInt(saved, 10) : 3; // Default: 3 months
+  }
+
+  /**
+   * Set sync period for Facts (days) (v11.5.0+)
+   * @param days - Number of days to keep Facts (30-180)
+   */
+  setSyncPeriodDays(days: number): void {
+    if (days < 30 || days > 180) {
+      throw new Error('[DexieManager] Invalid sync period: must be 30-180 days');
+    }
+    localStorage.setItem('budget_dexie_sync_period_facts', days.toString());
+    logger.info('[DexieManager] Facts sync period updated', { days });
+  }
+
+  /**
+   * Set sync period for Plans (months) (v11.5.0+)
+   * @param months - Number of months to keep Plans (1-6)
+   */
+  setSyncPeriodMonths(months: number): void {
+    if (months < 1 || months > 6) {
+      throw new Error('[DexieManager] Invalid sync period: must be 1-6 months');
+    }
+    localStorage.setItem('budget_dexie_sync_period_plans', months.toString());
+    logger.info('[DexieManager] Plans sync period updated', { months });
   }
 
   /**

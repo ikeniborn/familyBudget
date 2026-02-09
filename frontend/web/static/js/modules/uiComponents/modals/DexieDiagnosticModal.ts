@@ -448,24 +448,46 @@ export class DexieDiagnosticModal extends BaseModal {
 
       ${this.renderWebSocketDiagnostics(data)}
 
-      <!-- Sync Period Controls (v11.4.0+) -->
+      <!-- Sync Period Controls (v11.5.0+) -->
       <div class="mb-3">
         <h3 class="text-xs font-semibold mb-2">Sync Period (Offline Data Retention)</h3>
 
-        <div class="form-control">
+        <!-- Facts Slider (Days) -->
+        <div class="form-control mb-3">
           <label class="label">
-            <span class="label-text text-xs">Facts & Plans retention (days):</span>
+            <span class="label-text text-xs">Facts retention (days):</span>
           </label>
           <input type="range" min="30" max="180" step="30"
                  value="${data.syncPeriod.facts}"
                  class="range range-xs range-primary"
-                 id="sync-period-slider"
-                 oninput="window.updateSyncPeriodDisplay?.(this.value)"
-                 onchange="window.updateSyncPeriod?.(this.value)">
+                 id="sync-period-facts-slider"
+                 oninput="window.updateSyncPeriodFactsDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodFacts?.(this.value)">
           <div class="w-full flex justify-between text-xs px-2 opacity-60">
             <span>30</span><span>60</span><span>90</span><span>120</span><span>150</span><span>180</span>
           </div>
-          <div class="text-xs text-center mt-1" id="sync-period-value">${data.syncPeriod.facts} days</div>
+          <div class="text-xs text-center mt-1" id="sync-period-facts-value">
+            ${data.syncPeriod.facts} days
+          </div>
+        </div>
+
+        <!-- Plans Slider (Months) -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text text-xs">Plans retention (months):</span>
+          </label>
+          <input type="range" min="1" max="6" step="1"
+                 value="${data.syncPeriod.plans}"
+                 class="range range-xs range-secondary"
+                 id="sync-period-plans-slider"
+                 oninput="window.updateSyncPeriodPlansDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodPlans?.(this.value)">
+          <div class="w-full flex justify-between text-xs px-2 opacity-60">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          </div>
+          <div class="text-xs text-center mt-1" id="sync-period-plans-value">
+            ${data.syncPeriod.plans} months
+          </div>
         </div>
       </div>
 
@@ -623,39 +645,57 @@ export class DexieDiagnosticModal extends BaseModal {
   }
 
   /**
-   * Update sync period display (real-time slider feedback)
+   * Update Facts sync period display (real-time slider feedback) (v11.5.0+)
    */
-  private updateSyncPeriodDisplay(days: number): void {
-    const valueEl = document.getElementById('sync-period-value');
+  private updateSyncPeriodFactsDisplay(days: number): void {
+    const valueEl = document.getElementById('sync-period-facts-value');
     if (valueEl) {
       valueEl.textContent = `${days} days`;
     }
   }
 
   /**
-   * Update sync period and trigger pruning
+   * Update Facts sync period and trigger pruning (v11.5.0+)
    */
-  private async updateSyncPeriod(days: number): Promise<void> {
+  private async updateSyncPeriodFacts(days: number): Promise<void> {
     try {
-      // Save to localStorage
-      localStorage.setItem('budget_dexie_sync_period', days.toString());
-
-      // Update display
-      this.updateSyncPeriodDisplay(days);
-
-      // Get DexieManager instance
       const dexieManager = await getDexieManager();
+      dexieManager.setSyncPeriodDays(days);
+      this.updateSyncPeriodFactsDisplay(days);
 
-      // Trigger pruning with new period
       if (dexieManager?.pruneFacts) {
         await dexieManager.pruneFacts(days);
         logger.info('[SYNC_PERIOD] Facts pruned with new period:', days);
-
-        // Refresh modal data
         await this.loadDiagnosticData();
       }
     } catch (error) {
-      logger.error('[SYNC_PERIOD] Failed to update sync period', error);
+      logger.error('[SYNC_PERIOD] Failed to update Facts sync period', error);
+    }
+  }
+
+  /**
+   * Update Plans sync period display (real-time slider feedback) (v11.5.0+)
+   */
+  private updateSyncPeriodPlansDisplay(months: number): void {
+    const valueEl = document.getElementById('sync-period-plans-value');
+    if (valueEl) {
+      valueEl.textContent = `${months} months`;
+    }
+  }
+
+  /**
+   * Update Plans sync period (re-sync on next load) (v11.5.0+)
+   */
+  private async updateSyncPeriodPlans(months: number): Promise<void> {
+    try {
+      const dexieManager = await getDexieManager();
+      dexieManager.setSyncPeriodMonths(months);
+      this.updateSyncPeriodPlansDisplay(months);
+
+      logger.info('[SYNC_PERIOD] Plans sync period updated (will apply on next sync):', months);
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update Plans sync period', error);
     }
   }
 }
@@ -674,13 +714,21 @@ export function openDexieDiagnostic(): void {
     document.body.appendChild(diagnosticModalInstance.render());
   }
 
-  // Export handlers to window for onclick/oninput usage
-  (window as any).updateSyncPeriodDisplay = (days: number) => {
-    diagnosticModalInstance?.['updateSyncPeriodDisplay'](days);
+  // Export handlers for both sliders (v11.5.0+)
+  (window as any).updateSyncPeriodFactsDisplay = (days: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodFactsDisplay'](days);
   };
 
-  (window as any).updateSyncPeriod = (days: number) => {
-    diagnosticModalInstance?.['updateSyncPeriod'](days);
+  (window as any).updateSyncPeriodFacts = (days: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodFacts'](days);
+  };
+
+  (window as any).updateSyncPeriodPlansDisplay = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansDisplay'](months);
+  };
+
+  (window as any).updateSyncPeriodPlans = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlans'](months);
   };
 
   diagnosticModalInstance.open();
