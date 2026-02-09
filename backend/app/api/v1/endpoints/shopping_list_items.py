@@ -147,8 +147,20 @@ async def list_shopping_list_items(
     count_result = await session.execute(count_query)
     total = len(count_result.all())
 
+    # Generate temp_id for items if not exists (for offline compatibility)
+    import time
+    response_items = []
+    for item in items:
+        item_dict = ShoppingListItemResponse.model_validate(item).model_dump()
+
+        # Generate temp_id if missing (format: item_{id}_{timestamp})
+        if not item_dict.get('temp_id'):
+            item_dict['temp_id'] = f"item_{item.id}_{int(time.time() * 1000)}"
+
+        response_items.append(ShoppingListItemResponse(**item_dict))
+
     return ShoppingListItemListResponse(
-        items=[ShoppingListItemResponse.model_validate(item) for item in items],
+        items=response_items,
         total=total,
         limit=limit,
         offset=offset,
