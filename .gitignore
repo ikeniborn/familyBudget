@@ -291,11 +291,6 @@ nginx/conf.d/app.conf
 *.bmp
 *.svg
 
-# Frontend API (legacy)
-frontend-api/
-
-# Workflow files (legacy)
-plans/
 
 # Uploads and temporary files
 uploads/
