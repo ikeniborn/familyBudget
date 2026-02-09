@@ -731,7 +731,12 @@
     }
 
     .hierarchy-item:hover .hierarchy-item-actions {
-        display: flex;  /* Show on hover - quantity shifts left */
+        display: flex;         /* Show on hover - quantity shifts left */
+        align-items: center;   /* Vertical centering */
+        justify-content: flex-end;  /* Align to right */
+        gap: 0.375rem;         /* Spacing between buttons */
+        flex-shrink: 0;        /* Don't shrink buttons */
+        margin-left: 1rem;     /* Space from quantity */
     }
 }
 
