@@ -210,6 +210,12 @@ class ShoppingListItemResponse(BaseModel):
         examples=[1]
     )
 
+    temp_id: str | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (format: item_{id}_{timestamp})",
+        examples=["item_123_1707409123456"]
+    )
+
     store_id: int = Field(
         description="Store ID (which store to buy from)",
         examples=[5]
