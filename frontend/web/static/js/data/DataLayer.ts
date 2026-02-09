@@ -1283,23 +1283,22 @@ export class DataLayer {
   async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const startTime = performance.now();
 
-    // Calculate sync period (v11.4.0+)
-    const syncPeriodDays = this.dexie?.getSyncPeriodDays?.() ?? 90;
-    const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - syncPeriodDays);
-    const toDate = new Date();
-    toDate.setDate(toDate.getDate() + syncPeriodDays);
+    // Calculate sync period using MONTHS (v11.5.0+)
+    const syncPeriodMonths = this.dexie?.getSyncPeriodMonths?.() ?? 3;
+
+    // Calculate full months range
+    const { fromDate, toDate } = this.calculateFullMonthsRange(syncPeriodMonths);
 
     // Merge sync period with user filters
     const syncFilters: RecurringPlanFilters = {
       ...filters,
-      from_date: filters?.from_date ?? fromDate.toISOString().split('T')[0],
-      to_date: filters?.to_date ?? toDate.toISOString().split('T')[0]
+      from_date: filters?.from_date ?? fromDate,
+      to_date: filters?.to_date ?? toDate
     };
 
     console.debug('[DATA_LAYER] getRecurringPlans', {
       filters: syncFilters,
-      syncPeriodDays,
+      syncPeriodMonths,
       usePGlite: this.shouldUsePGlite()
     });
 
@@ -1433,6 +1432,34 @@ export class DataLayer {
   // =============================================================================
   // Performance Metrics
   // =============================================================================
+
+  /**
+   * Calculate date range for full months (v11.5.0+)
+   * Same logic as referenceSync.ts
+   *
+   * @param months - Number of months to include in each direction
+   * @returns Object with fromDate and toDate in YYYY-MM-DD format
+   */
+  private calculateFullMonthsRange(months: number): { fromDate: string; toDate: string } {
+    const today = new Date();
+
+    // Calculate from_date (start of month N months ago)
+    const fromDate = new Date(today);
+    fromDate.setMonth(fromDate.getMonth() - months);
+    fromDate.setDate(1); // First day of month
+    fromDate.setHours(0, 0, 0, 0);
+
+    // Calculate to_date (end of month N months ahead)
+    const toDate = new Date(today);
+    toDate.setMonth(toDate.getMonth() + months + 1); // Next month after target
+    toDate.setDate(0); // Last day of previous month
+    toDate.setHours(23, 59, 59, 999);
+
+    return {
+      fromDate: fromDate.toISOString().split('T')[0],  // YYYY-MM-DD
+      toDate: toDate.toISOString().split('T')[0]       // YYYY-MM-DD
+    };
+  }
 
   /**
    * Get performance statistics
