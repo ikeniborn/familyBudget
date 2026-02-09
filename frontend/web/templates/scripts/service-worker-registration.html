@@ -213,36 +213,24 @@
             showToast('Обновление приложения...', 'info', 15000);
 
             try {
-                // Step 1/6: API Logout (best effort)
-                console.log('[SW_UPDATE] Step 1/6: Logout API...');
-                try {
-                    await Promise.race([
-                        fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' }),
-                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
-                    ]);
-                    console.log('[SW_UPDATE] ✅ Step 1/6: Logged out');
-                } catch (e) {
-                    console.warn('[SW_UPDATE] ⚠️ Step 1/6: Logout failed:', e.message);
-                }
-
-                // Step 2/6: Unregister Service Worker
-                console.log('[SW_UPDATE] Step 2/6: Unregister SW...');
+                // Step 1/5: Unregister Service Worker
+                console.log('[SW_UPDATE] Step 1/5: Unregister SW...');
                 const registration = await navigator.serviceWorker.getRegistration();
                 if (registration) {
                     await registration.unregister();
-                    console.log('[SW_UPDATE] ✅ Step 2/6: SW unregistered');
+                    console.log('[SW_UPDATE] ✅ Step 1/5: SW unregistered');
                 } else {
-                    console.log('[SW_UPDATE] ✅ Step 2/6: No SW to unregister');
+                    console.log('[SW_UPDATE] ✅ Step 1/5: No SW to unregister');
                 }
 
-                // Step 3/6: Clear caches
-                console.log('[SW_UPDATE] Step 3/6: Clear caches...');
+                // Step 2/5: Clear caches
+                console.log('[SW_UPDATE] Step 2/5: Clear caches...');
                 const cacheNames = await caches.keys();
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
-                console.log('[SW_UPDATE] ✅ Step 3/6: Cleared', cacheNames.length, 'caches');
+                console.log('[SW_UPDATE] ✅ Step 2/5: Cleared', cacheNames.length, 'caches');
 
-                // Step 3.5/8: Close Dexie connections
-                console.log('[SW_UPDATE] Step 3.5/8: Closing Dexie connections...');
+                // Step 2.5/5: Close Dexie connections
+                console.log('[SW_UPDATE] Step 2.5/5: Closing Dexie connections...');
                 try {
                     // Dynamic import to get DexieManager (same pattern as periodic pruning)
                     const { getDexieManager } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
@@ -250,53 +238,54 @@
 
                     if (dexieManager && dexieManager.isReady()) {
                         await dexieManager.close();
-                        console.log('[SW_UPDATE] ✅ Step 3.5/8: Dexie connections closed');
+                        console.log('[SW_UPDATE] ✅ Step 2.5/5: Dexie connections closed');
                         // Wait 500ms for connections to actually close
                         await new Promise(resolve => setTimeout(resolve, 500));
                     } else {
-                        console.log('[SW_UPDATE] ℹ️ Step 3.5/8: Dexie not initialized, skipping');
+                        console.log('[SW_UPDATE] ℹ️ Step 2.5/5: Dexie not initialized, skipping');
                     }
                 } catch (e) {
-                    console.warn('[SW_UPDATE] ⚠️ Step 3.5/8: Error closing Dexie:', e.message);
+                    console.warn('[SW_UPDATE] ⚠️ Step 2.5/5: Error closing Dexie:', e.message);
                 }
 
-                // Step 4/6: Delete IndexedDB
-                console.log('[SW_UPDATE] Step 4/6: Delete IndexedDB...');
+                // Step 3/5: Delete IndexedDB
+                console.log('[SW_UPDATE] Step 3/5: Delete IndexedDB...');
                 await new Promise((resolve) => {
                     const req = indexedDB.deleteDatabase('FamilyBudgetDB');
-                    req.onsuccess = () => { console.log('[SW_UPDATE] ✅ Step 4/6: IndexedDB deleted'); resolve(); };
-                    req.onerror = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB error'); resolve(); };
-                    req.onblocked = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB blocked'); resolve(); };
+                    req.onsuccess = () => { console.log('[SW_UPDATE] ✅ Step 3/5: IndexedDB deleted'); resolve(); };
+                    req.onerror = () => { console.warn('[SW_UPDATE] ⚠️ Step 3/5: IndexedDB error'); resolve(); };
+                    req.onblocked = () => { console.warn('[SW_UPDATE] ⚠️ Step 3/5: IndexedDB blocked'); resolve(); };
                     setTimeout(resolve, 15000); // Increased for large databases
                 });
 
-                // Step 5/6: Clear localStorage + set skip flag
-                console.log('[SW_UPDATE] Step 5/6: Clear localStorage...');
+                // Step 4/5: Clear localStorage + set skip flag
+                // NO token preservation needed - JWT tokens in httpOnly cookies (access_token, refresh_token)
+                console.log('[SW_UPDATE] Step 4/5: Clear localStorage...');
                 const lsKeys = Object.keys(localStorage).length;
                 localStorage.clear();
                 if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
                 // NEW: Skip SW registration on next load to keep cache empty
                 localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
-                console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
+                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
 
                 // Set Cache API flag for SW to detect post-update mode
                 // This is more reliable than MessageChannel after unregister()
                 await caches.open('__sw_update_mode__');
                 console.log('[SW_UPDATE] Cache flag __sw_update_mode__ created');
 
-                // Step 6/6: Clear sessionStorage
-                console.log('[SW_UPDATE] Step 6/6: Clear sessionStorage...');
+                // Step 5/5: Clear sessionStorage
+                console.log('[SW_UPDATE] Step 5/5: Clear sessionStorage...');
                 const ssKeys = Object.keys(sessionStorage).length;
                 sessionStorage.clear();
-                console.log('[SW_UPDATE] ✅ Step 6/6: Cleared', ssKeys, 'sessionStorage keys');
+                console.log('[SW_UPDATE] ✅ Step 5/5: Cleared', ssKeys, 'sessionStorage keys');
 
-                // Step 7/8: Verify cleanup completed with retry logic
-                console.log('[SW_UPDATE] Step 7/8: Verifying cleanup...');
+                // Step 6/7: Verify cleanup completed with retry logic
+                console.log('[SW_UPDATE] Step 6/7: Verifying cleanup...');
                 const verificationResult = await retryCleanupVerification(3);
 
-                // Step 8/8: Handle verification result
+                // Step 7/7: Handle verification result
                 if (!verificationResult.passed) {
-                    console.error('[SW_UPDATE] ❌ Step 8/8: Cleanup verification failed after', verificationResult.attempts, 'attempts');
+                    console.error('[SW_UPDATE] ❌ Step 7/7: Cleanup verification failed after', verificationResult.attempts, 'attempts');
                     console.error('[SW_UPDATE] Manual intervention may be required');
 
                     // Show user confirmation dialog
@@ -313,7 +302,7 @@
 
                     console.log('[SW_UPDATE] User chose to proceed despite verification failure');
                 } else {
-                    console.log('[SW_UPDATE] ✅ Step 8/8: All verification checks passed');
+                    console.log('[SW_UPDATE] ✅ Step 7/7: All verification checks passed');
                 }
 
                 // Close modal
@@ -323,15 +312,13 @@
 
                 // Success feedback
                 console.log('[SW_UPDATE] ========================================');
-                console.log('[SW_UPDATE] ✅ All cleanup complete, reloading...');
+                console.log('[SW_UPDATE] ✅ All cleanup complete, reloading current page...');
                 showToast('Обновление завершено!', 'success', 2000);
 
-                // Reload with cache bust + SW update flag for UX notification
-                const url = new URL(window.location.origin + '/login-email');
-                url.searchParams.set('_update', Date.now());
-                url.searchParams.set('sw_updated', 'true');  // Trigger toast on login page
-                console.log('[SW_UPDATE] Navigating to:', url.toString());
-                window.location.href = url.toString();
+                // Reload current page (hard reload with cache bust)
+                // User session preserved - JWT tokens in httpOnly cookies (access_token, refresh_token)
+                console.log('[SW_UPDATE] Reloading current page...');
+                window.location.reload(true);
 
             } catch (error) {
                 console.error('[SW_UPDATE] ❌ ERROR:', error);
