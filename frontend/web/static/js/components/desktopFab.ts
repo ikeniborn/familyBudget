@@ -14,6 +14,7 @@ declare const debugLog: (...args: any[]) => void;
  */
 export function toggleDesktopFabMenu(): void {
   const wrapper = document.getElementById('desktop-fab-wrapper');
+  const backdrop = document.getElementById('desktop-fab-backdrop');
 
   if (!wrapper) {
     console.error('[FAB] Desktop FAB elements not found');
@@ -26,10 +27,20 @@ export function toggleDesktopFabMenu(): void {
     // Закрыть меню
     wrapper.classList.remove('open');
     wrapper.classList.add('closed');
+
+    // Скрыть backdrop
+    if (backdrop) {
+      backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
+    }
   } else {
     // Открыть меню
     wrapper.classList.remove('closed');
     wrapper.classList.add('open');
+
+    // Показать backdrop
+    if (backdrop) {
+      backdrop.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+    }
   }
 }
 
@@ -39,10 +50,16 @@ export function toggleDesktopFabMenu(): void {
  */
 export function closeDesktopFabMenu(): void {
   const wrapper = document.getElementById('desktop-fab-wrapper');
+  const backdrop = document.getElementById('desktop-fab-backdrop');
 
   if (wrapper) {
     wrapper.classList.remove('open');
     wrapper.classList.add('closed');
+  }
+
+  // Скрыть backdrop
+  if (backdrop) {
+    backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
   }
 }
 

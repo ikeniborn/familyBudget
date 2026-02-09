@@ -34,8 +34,8 @@
    * ======================================== */
   --z-fab-lists: 1003;      /* Lists page FAB main button (⋮) */
   --z-fab-lists-menu: 1001; /* Lists page FAB menu items */
-  --z-fab-desktop: 1000;    /* Desktop FAB (≥1024px) */
-  --z-fab-backdrop: 998;    /* Desktop FAB backdrop (below modal backdrop 999) */
+  --z-fab-desktop: 1002;    /* Desktop FAB (≥1024px) - FIXED: was 1000, now above backdrop */
+  --z-fab-backdrop: 1000;   /* Desktop FAB backdrop (below modal backdrop 999) */
   --z-fab-mobile: 40;       /* Mobile FAB (<1024px, below navbar) */
 
   /* ========================================

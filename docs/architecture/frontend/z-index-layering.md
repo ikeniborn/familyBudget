@@ -13,7 +13,8 @@ Uses CSS custom properties (variables) for maintainability.
 | Calendar Modal | --z-calendar-modal | 2000 | Flatpickr (modal context) | Date pickers in modals |
 | Dialog Modals | --z-dialog | 1050 | DaisyUI .dialog, .modal | Confirmation prompts |
 | Lists FAB Menu | --z-fab-lists | 1001-1003 | Lists page FAB buttons | Context actions |
-| Desktop FAB | --z-fab-desktop | 1000 | .fab-wrapper | Main actions (≥1024px) |
+| Desktop FAB | --z-fab-desktop | 1002 | .fab-wrapper | Main actions (≥1024px) |
+| FAB Backdrop | --z-fab-backdrop | 1000 | .fab-common-backdrop | Desktop FAB overlay |
 | Toast Backdrop | --z-toast | 1000 | Toast notifications | User feedback |
 | Modal Backdrops | --z-modal-backdrop | 999 | .modal-backdrop, cookie consent | Overlay dimming |
 | Standard Modals | --z-modal | 900 | Generic modals | Content overlays |
@@ -36,11 +37,12 @@ Uses CSS custom properties (variables) for maintainability.
 
 #### Desktop FAB (.fab-wrapper)
 - **CSS Variable:** `var(--z-fab-desktop)`
-- **Value:** 1000
+- **Value:** 1002 (FIXED: was 1000, updated in v11.4.13)
 - **Breakpoint:** ≥ 1024px
 - **Position:** Bottom-right corner
-- **File:** `custom.css` line 963
-- **Rationale:** Above modal backdrop (999) for always-visible actions
+- **File:** `custom.css` line 963, `z-index-variables.css` line 37
+- **Rationale:** Above FAB backdrop (1000) but below modal backdrop (999). Prevents FAB being clickable over modals.
+- **Critical Fix:** Z-index conflict with modal backdrop (999) resolved. FAB now correctly positioned below modal layer.
 
 #### Lists FAB (.lists-fab-menu)
 - **CSS Variable:** `var(--z-fab-lists)`
@@ -48,6 +50,22 @@ Uses CSS custom properties (variables) for maintainability.
 - **Context:** /lists page only
 - **File:** `fab_buttons.html` lines 20-81
 - **Rationale:** Slightly above desktop FAB for page-specific priority
+
+#### FAB Common System (.fab-common-* v11.4.13+)
+- **Purpose:** Standardized FAB design for /, /facts, /plan pages
+- **Components:**
+  - `.fab-common-wrapper` - Main container (z-index: var(--z-fab-desktop))
+  - `.fab-common-main-btn` - Primary action button (adaptive 48→56→64px)
+  - `.fab-common-action-btn` - Speed Dial menu items
+  - `.fab-common-backdrop` - Semi-transparent overlay (z-index: 1000)
+- **Features:**
+  - Adaptive sizing: 48px mobile, 56px desktop, 64px XL
+  - Speed Dial animations with staggered cascade (0.05s, 0.1s delays)
+  - Backdrop overlay with 0.3s opacity transition
+  - Main button 90° rotation on open
+  - Badge labels (desktop only, hidden on mobile)
+- **File:** `custom.css` lines ~989-1200
+- **Migration:** Replaced hardcoded desktop-fab-wrapper styles, added backdrop support
 
 ### Modal System
 
@@ -99,7 +117,8 @@ Uses CSS custom properties (variables) for maintainability.
   /* FAB System */
   --z-fab-lists: 1003;
   --z-fab-lists-menu: 1001;
-  --z-fab-desktop: 1000;
+  --z-fab-desktop: 1002;
+  --z-fab-backdrop: 1000;
   --z-fab-mobile: 40;
 
   /* Toast */
