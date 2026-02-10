@@ -1042,6 +1042,14 @@ body.modal-open .fab-common-wrapper {
     justify-content: center;
 }
 
+/* Smaller action buttons (btn-sm) - 48px */
+.fab-common-action-btn.btn-sm {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+}
+
 /* Speed Dial Action Icons */
 .fab-common-icon {
     width: 20px;  /* Slightly smaller for visual hierarchy */
@@ -1117,7 +1125,7 @@ body.modal-open .fab-common-wrapper {
     outline-offset: 2px;
 }
 
-/* Mobile (<640px): 48px FAB */
+/* Mobile (<640px): 48px FAB, action buttons (btn-sm) 40px */
 @media (max-width: 640px) {
     .fab-common-main-btn,
     .fab-common-action-btn {
@@ -1125,6 +1133,13 @@ body.modal-open .fab-common-wrapper {
         height: 48px !important;
         min-width: 48px !important;
         min-height: 48px !important;
+    }
+
+    .fab-common-action-btn.btn-sm {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
     }
 
     .fab-common-main-icon {
@@ -1144,7 +1159,7 @@ body.modal-open .fab-common-wrapper {
     }
 }
 
-/* XL Desktop (≥1280px): 64px FAB */
+/* XL Desktop (≥1280px): 64px FAB, action buttons (btn-sm) 56px */
 @media (min-width: 1280px) {
     .fab-common-main-btn,
     .fab-common-action-btn {
@@ -1152,6 +1167,13 @@ body.modal-open .fab-common-wrapper {
         height: 64px !important;
         min-width: 64px !important;
         min-height: 64px !important;
+    }
+
+    .fab-common-action-btn.btn-sm {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
     }
 
     .fab-common-main-icon {
