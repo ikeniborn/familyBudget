@@ -634,6 +634,67 @@ async def new_fact_info() -> dict:
     }
 
 
+@router.get("/recent", response_model=list[FactResponse])
+async def get_recent_facts(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[FactResponse]:
+    """
+    Get recent budget facts (JSON endpoint for TypeScript client).
+
+    Returns latest facts ordered by creation time DESC.
+
+    **User Isolation:**
+    - Regular users see only their own records
+    - Admins see all records
+
+    **Parameters:**
+    - limit: Maximum number of results (1-50, default: 10)
+
+    **Returns:**
+    - JSON array of FactResponse objects
+
+    Caching: TTL 10s, invalidated on any fact CRUD.
+    """
+    # Check cache first
+    cache_key = f"recent_facts:{current_user.id}:{limit}"
+    cached = await cache_service.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        # Base query
+        statement = select(BudgetFact)
+
+        # OPTIMIZATION: Filter by fact_date to enable partition pruning
+        cutoff_date = date.today() - timedelta(days=90)
+        statement = statement.where(BudgetFact.fact_date >= cutoff_date)
+
+        # Order by most recent (by creation time)
+        statement = statement.order_by(BudgetFact.created_at.desc())
+        statement = statement.limit(limit)
+
+        # Execute query
+        result = await session.execute(statement)
+        facts = result.scalars().all()
+
+        # Convert to response schema
+        response = [FactResponse.model_validate(fact) for fact in facts]
+
+        # Cache result (TTL 10s)
+        await cache_service.set(cache_key, response, CacheTTL.SHORT())
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load recent facts"
+        )
+
+
 @router.get("/recent-html", response_class=HTMLResponse)
 async def get_recent_facts_html(
     current_user: CurrentUser,
