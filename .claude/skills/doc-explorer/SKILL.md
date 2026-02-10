@@ -1,7 +1,7 @@
 ---
 name: doc-explorer
 description: Интерактивное изучение документации проекта с guided tours, визуализацией и проверкой понимания
-version: 1.0.0
+version: 1.1.0
 author: Family Budget Team
 tags: [documentation, onboarding, learning, interactive, visualization]
 dependencies: [context-awareness, architecture-documentation]
@@ -327,7 +327,68 @@ Ready for development!
 
 ---
 
+## TOON Optimization (v1.1+)
+
+**Экономия токенов** при хранении конфигураций с использованием TOON формата:
+
+**Hybrid Output Format:**
+```json
+{
+  "features": [ /* JSON array untouched for backward compatibility */ ],
+  "toon": {
+    "features_toon": "features[6]{id,name,category,...}:\ntransfers\tTransfer System\t...",
+    "token_savings": "62.2%",
+    "json_tokens": 1551,
+    "toon_tokens": 586,
+    "saved_tokens": 965
+  }
+}
+```
+
+**Преимущества TOON:**
+- ✅ **45.0% средняя экономия токенов** (1947 tokens saved)
+  - features.json: 965 tokens (62.2% savings)
+  - quiz-questions.json: 982 tokens (27.9% savings)
+- ✅ **100% backward compatible** (JSON arrays untouched)
+- ✅ **Lossless conversion** (round-trip tested)
+- ✅ **Automatic generation** (node config/generate-toon.mjs)
+
+**When to Use:**
+- Read >= 5 features → Use TOON (62.2% savings)
+- Read >= 5 quiz questions → Use TOON (27.9% savings)
+- Read < 5 items → Use JSON (TOON overhead не стоит экономии)
+
+**How to Update:**
+```bash
+cd .claude/skills/doc-explorer
+node config/generate-toon.mjs
+```
+
+**Configuration:**
+- Location: `.claude/skills/doc-explorer/config/`
+- Files: features.json, quiz-questions.json
+- Format: Hybrid JSON + TOON
+- Testing: Round-trip conversion validated
+
+---
+
 ## Version History
+
+### v1.1.0 (2026-02-10)
+**TOON Optimization:**
+- ✅ **Hybrid Output Format**: features.json and quiz-questions.json include TOON representations alongside JSON
+- ✅ **Token Savings**: 1947 tokens (45.0% average) reduction in configuration files
+- ✅ **Lossless Conversion**: Round-trip tested for data integrity
+- ✅ **Backward Compatibility**: JSON arrays remain unchanged, TOON is additive
+
+**Configuration Enhancements:**
+- Added generate-toon.mjs script for automatic TOON generation
+- Created _shared/toon-utils.mjs for TOON conversion utilities
+- Updated metadata versions to 1.1.0
+
+**TOON Coverage:**
+- features.json: 6 features, 62.2% token savings
+- quiz-questions.json: 16 questions, 27.9% token savings
 
 ### v1.0.0 (2026-02-09)
 

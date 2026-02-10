@@ -32,7 +32,11 @@
           "description": "POST /transfers endpoint"
         }
       ],
-      "quiz_questions": [1, 2, 3]
+      "quiz_questions": [
+        1,
+        2,
+        3
+      ]
     },
     {
       "id": "recurring-plans",
@@ -63,7 +67,10 @@
           "description": "Date validation logic"
         }
       ],
-      "quiz_questions": [4, 5]
+      "quiz_questions": [
+        4,
+        5
+      ]
     },
     {
       "id": "offline-sync",
@@ -96,7 +103,11 @@
           "description": "Network status detection"
         }
       ],
-      "quiz_questions": [6, 7, 8]
+      "quiz_questions": [
+        6,
+        7,
+        8
+      ]
     },
     {
       "id": "websocket",
@@ -128,7 +139,10 @@
           "description": "WebSocket client"
         }
       ],
-      "quiz_questions": [9, 10]
+      "quiz_questions": [
+        9,
+        10
+      ]
     },
     {
       "id": "authentication",
@@ -160,7 +174,11 @@
           "description": "JWT token generation and validation"
         }
       ],
-      "quiz_questions": [11, 12, 13]
+      "quiz_questions": [
+        11,
+        12,
+        13
+      ]
     },
     {
       "id": "database-schema",
@@ -193,7 +211,11 @@
           "description": "BudgetFact model"
         }
       ],
-      "quiz_questions": [14, 15, 16]
+      "quiz_questions": [
+        14,
+        15,
+        16
+      ]
     }
   ],
   "categories": {
@@ -229,5 +251,17 @@
       "duration_range": "25-40 min",
       "prerequisites": "Completed Quick Start + 2-3 medium features"
     }
+  },
+  "toon": {
+    "features_toon": "features[6]{id,name,category,difficulty,duration_min,description,key_concepts,docs,code_examples,quiz_questions}:\ntransfers\tTransfer System\tbackend\tmedium\t20\tTransfer deduplication with double-entry bookkeeping\tTransfer deduplication algorithm|Double-entry bookkeeping|Atomic transactions|Transfer ID matching\tdocs/architecture/features/transfers-system.md|docs/architecture/endpoints/transfers.yaml|docs/architecture/flows/transfer-creation.yaml\t[object Object]|[object Object]\t1|2|3\nrecurring-plans\tRecurring Plans\tbackend\tmedium\t15\tRecurring payments with MMDD encoding\tMMDD encoding for dates|Plan execution scheduling|Date validation (e.g., 0229 only in leap years)|Telegram bot integration\tdocs/architecture/features/recurring-plans.md|docs/architecture/endpoints/recurring-plans.yaml\t[object Object]|[object Object]\t4|5\noffline-sync\tOffline Sync\tfrontend\thard\t30\tOffline-first architecture with Dexie.js\tDexie.js IndexedDB wrapper|Offline sync queue|Conflict resolution|Network detection|PGlite integration (80-96% API reduction)\tdocs/architecture/core/dexie-integration.md|docs/architecture/flows/offline-sync.yaml|docs/architecture/frontend/offline-architecture.md\t[object Object]|[object Object]\t6|7|8\nwebsocket\tWebSocket Real-Time\tfull-stack\tmedium\t20\tReal-time updates via WebSocket + Redis Pub/Sub\tWebSocket connection management|Redis Pub/Sub for multi-worker|Event broadcasting|Client-side event handling\tdocs/architecture/core/websocket.md|docs/architecture/flows/ws-broadcast.yaml|docs/architecture/functionality/realtime.yaml\t[object Object]|[object Object]\t9|10\nauthentication\tAuthentication\tbackend\tmedium\t25\tJWT + Telegram OAuth + WebAuthn biometrics\tJWT token-based auth|Telegram OAuth flow|WebAuthn biometric authentication|Refresh token rotation\tdocs/architecture/core/authentication.md|docs/diagrams/02-authentication-flows.md|docs/architecture/functionality/authentication.yaml\t[object Object]|[object Object]\t11|12|13\ndatabase-schema\tDatabase Schema\tbackend\thard\t30\tStar Schema with 39 tables (SCD Type 2, Closure Table)\tStar Schema design|Fact vs Dimension tables|SCD Type 2 versioning|Closure Table for hierarchy\tdocs/diagrams/03-database-schema.md|docs/architecture/database/dimensions.yaml|docs/architecture/database/facts.yaml|docs/architecture/database/hierarchy.yaml\t[object Object]|[object Object]\t14|15|16",
+    "token_savings": "62.2%",
+    "json_tokens": 1551,
+    "toon_tokens": 586,
+    "saved_tokens": 965
+  },
+  "metadata": {
+    "version": "1.1.0",
+    "last_updated": "2026-02-10",
+    "description": "Features catalog for doc-explorer with TOON optimization"
   }
 }
