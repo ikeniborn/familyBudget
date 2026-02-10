@@ -9,6 +9,7 @@
 
 import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
+import { escapeHtml } from '../facts/utilities/htmlSanitizer';
 
 // Import BudgetShared from global window object
 declare const BudgetShared: {
@@ -276,7 +277,9 @@ export async function loadFacts(): Promise<void> {
 
 /**
  * Truncate text to specified length
- * @param text - Text to truncate
+ * NOTE: Input should be ALREADY escaped via escapeHtml()
+ *
+ * @param text - Text to truncate (pre-escaped)
  * @param maxLength - Maximum length
  * @returns Truncated text with ellipsis
  */
@@ -349,13 +352,14 @@ function renderFactsTable(facts: BudgetFact[]): void {
       articleColorClass = 'text-warning';
     }
 
-    const description = fact.description || '—';
-    const descriptionTruncated = truncateText(description, 30);
-    const financialCenter = fact.financial_center_name || '—';
-    const costCenter = fact.cost_center_name || '—';
+    const description = escapeHtml(fact.description || '—');
+    const descriptionTruncated = truncateText(description, 30); // Already escaped
+    const financialCenter = escapeHtml(fact.financial_center_name || '—');
+    const costCenter = escapeHtml(fact.cost_center_name || '—');
     const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
     const shortDate = formattedDate.slice(0, 5); // DD.MM
-    const articleName = fact.article_name || '—';
+    const articleName = escapeHtml(fact.article_name || '—');
+    const userName = escapeHtml(fact.user_name || '—');
 
     // Desktop table row
     tableHtml += `
@@ -368,7 +372,7 @@ function renderFactsTable(facts: BudgetFact[]): void {
         <td><span class="${articleColorClass}">${articleName}</span></td>
         <td class="${articleColorClass} font-bold">${PlanHelpers.formatDesktopAmount(fact.amount, fact.article_type)}</td>
         <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
-        <td>${fact.user_name || '—'}</td>
+        <td>${userName}</td>
         <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
         <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
         <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
