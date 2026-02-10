@@ -664,8 +664,14 @@ async def get_recent_facts(
         return cached
 
     try:
-        # Base query
-        statement = select(BudgetFact)
+        # Base query with JOINs for enriched response (same as list_facts)
+        statement = (
+            select(BudgetFact, Article, FinancialCenter, CostCenter, User)
+            .join(Article, BudgetFact.article_id == Article.id)
+            .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+            .outerjoin(User, BudgetFact.user_id == User.id)
+        )
 
         # OPTIMIZATION: Filter by fact_date to enable partition pruning
         cutoff_date = date.today() - timedelta(days=90)
@@ -677,15 +683,50 @@ async def get_recent_facts(
 
         # Execute query
         result = await session.execute(statement)
-        facts = result.scalars().all()
+        rows = result.all()
 
-        # Convert to response schema
-        response = [FactResponse.model_validate(fact) for fact in facts]
+        # Enrich facts with article and center data
+        enriched_facts = []
+        for fact, article, financial_center, cost_center, user in rows:
+            # Get user name with fallback chain
+            user_name = None
+            if user:
+                user_name = (
+                    user.first_name or
+                    user.username or
+                    user.last_name or
+                    (f"User {user.telegram_id}" if user.telegram_id else None) or
+                    f"Пользователь #{user.id}"
+                )
+
+            fact_dict = {
+                "id": fact.id,
+                "user_id": fact.user_id,
+                "user_name": user_name,
+                "article_id": fact.article_id,
+                "article_type": article.type,
+                "article_name": article.name,
+                "fact_date": fact.fact_date,
+                "amount": fact.amount,
+                "description": fact.description,
+                "financial_center_id": fact.financial_center_id,
+                "financial_center_name": financial_center.name if financial_center else None,
+                "cost_center_id": fact.cost_center_id,
+                "cost_center_name": cost_center.name if cost_center else None,
+                "record_type": fact.record_type,
+                "is_offline_sync": fact.is_offline_sync,
+                "recurring_plan_id": fact.recurring_plan_id,
+                "recurring_plan": None,  # Not loaded for performance (list endpoint)
+                "has_reminder": False,  # Not loaded for performance (list endpoint)
+                "created_at": fact.created_at,
+                "updated_at": fact.updated_at,
+            }
+            enriched_facts.append(fact_dict)
 
         # Cache result (TTL 10s)
-        await cache_service.set(cache_key, response, CacheTTL.SHORT())
+        await cache_service.set(cache_key, enriched_facts, CacheTTL.SHORT())
 
-        return response
+        return enriched_facts
 
     except Exception as e:
         logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
