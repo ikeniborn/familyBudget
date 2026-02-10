@@ -10,7 +10,7 @@ import { loadFactsWithCount } from '../integration/factsAPI';
 import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
-import { escapeHtml, sanitizeErrorMessage } from '../utilities/htmlSanitizer';
+import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
 import { factsControllerLogger as logger } from '../utilities/logger';
 
 // ============================================================================

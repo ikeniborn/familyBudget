@@ -9,7 +9,7 @@
 
 import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
-import { escapeHtml } from '../facts/utilities/htmlSanitizer';
+import { escapeHtml } from '../shared/htmlSanitizer';
 
 // Import BudgetShared from global window object
 declare const BudgetShared: {
