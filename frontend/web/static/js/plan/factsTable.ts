@@ -10,6 +10,7 @@
 import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
 import { escapeHtml } from '../shared/htmlSanitizer';
+import { TableFormatters } from '../shared/tableUtils';
 
 // Import BudgetShared from global window object
 declare const BudgetShared: {
@@ -275,19 +276,7 @@ export async function loadFacts(): Promise<void> {
 // Table Rendering
 // ============================================================================
 
-/**
- * Truncate text to specified length
- * NOTE: Input should be ALREADY escaped via escapeHtml()
- *
- * @param text - Text to truncate (pre-escaped)
- * @param maxLength - Maximum length
- * @returns Truncated text with ellipsis
- */
-function truncateText(text: string | null, maxLength: number = 30): string {
-  if (!text || text === '—') return text || '—';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
-}
+// truncateText function removed - use TableFormatters.truncateText() instead
 
 /**
  * Render facts table (desktop + mobile views)
@@ -341,19 +330,11 @@ function renderFactsTable(facts: BudgetFact[]): void {
 
   facts.forEach(fact => {
     // Get color class for article type
-    let articleColorClass = '';
-    if (fact.article_type === 'expense') {
-      articleColorClass = 'text-error';
-    } else if (fact.article_type === 'income') {
-      articleColorClass = 'text-success';
-    } else if (fact.article_type === 'debit') {
-      articleColorClass = 'text-info';
-    } else if (fact.article_type === 'credit') {
-      articleColorClass = 'text-warning';
-    }
+    const articleColorClass = TableFormatters.getArticleColorClass(fact.article_type, 'text');
 
-    const description = escapeHtml(fact.description || '—');
-    const descriptionTruncated = truncateText(description, 30); // Already escaped
+    // TableFormatters.truncateText() includes XSS protection
+    const description = escapeHtml(fact.description || '—');  // Full text for title attribute
+    const descriptionTruncated = TableFormatters.truncateText(fact.description || '—', 30);  // Truncated for display
     const financialCenter = escapeHtml(fact.financial_center_name || '—');
     const costCenter = escapeHtml(fact.cost_center_name || '—');
     const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
@@ -370,7 +351,7 @@ function renderFactsTable(facts: BudgetFact[]): void {
         <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
         <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
         <td><span class="${articleColorClass}">${articleName}</span></td>
-        <td class="${articleColorClass} font-bold">${PlanHelpers.formatDesktopAmount(fact.amount, fact.article_type)}</td>
+        <td class="${articleColorClass} font-bold">${TableFormatters.formatAmount(fact.amount, fact.article_type)}</td>
         <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
         <td>${userName}</td>
         <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
@@ -390,8 +371,8 @@ function renderFactsTable(facts: BudgetFact[]): void {
     `;
 
     // Mobile list item
-    const mobileAmountClass = PlanHelpers.getMobileAmountClass(fact.article_type);
-    const mobileAmount = PlanHelpers.formatMobileAmount(fact.amount, fact.article_type);
+    const mobileAmountClass = TableFormatters.getArticleColorClass(fact.article_type, 'amount');
+    const mobileAmount = TableFormatters.formatAmount(fact.amount, fact.article_type);
     const reminderIcon = remindersMap.has(fact.id)
       ? '<span class="text-info text-xs" title="Напоминание">🔔</span>'
       : '';
