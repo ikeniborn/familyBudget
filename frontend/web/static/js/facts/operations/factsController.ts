@@ -11,6 +11,7 @@ import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage } from '../c
 import { buildFilterQuery } from './filterOperations';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
+import { TableFormatters } from '../../shared/tableUtils';
 import { factsControllerLogger as logger } from '../utilities/logger';
 
 // ============================================================================
@@ -629,30 +630,21 @@ export function renderFactRow(fact: FactRow): string {
 
     // Format amount (numeric values are safe)
     const amount = fact.fact_sum ?? fact.amount ?? 0;
-    const amountFormatted = Number(amount).toFixed(2);
+    const amountFormatted = TableFormatters.formatAmount(amount, fact.article_type ?? 'expense');
 
     // Determine color class based on article_type
-    let articleColorClass = '';
-    if (fact.article_type === 'expense') {
-        articleColorClass = 'text-error';
-    } else if (fact.article_type === 'income') {
-        articleColorClass = 'text-success';
-    } else if (fact.article_type === 'debit') {
-        articleColorClass = 'text-info';
-    } else if (fact.article_type === 'credit') {
-        articleColorClass = 'text-warning';
-    }
+    const articleColorClass = TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'text');
 
     // Escape all user-generated content to prevent XSS
-    const articleName = escapeHtml(truncateText(fact.article_name ?? '', 30));
-    const financialCenterName = escapeHtml(truncateText(fact.financial_center_name ?? '', 20));
+    const articleName = TableFormatters.truncateText(fact.article_name ?? '', 30);  // Already escaped
+    const financialCenterName = TableFormatters.truncateText(fact.financial_center_name ?? '', 20);  // Already escaped
     const costCenterName = fact.cost_center_name
-        ? escapeHtml(truncateText(fact.cost_center_name, 20))
+        ? TableFormatters.truncateText(fact.cost_center_name, 20)  // Already escaped
         : '—';
 
     const commentText = fact.fact_comment ?? fact.description ?? null;
     const comment = commentText
-        ? escapeHtml(truncateText(commentText, 40))
+        ? TableFormatters.truncateText(commentText, 40)  // Already escaped
         : '—';
 
     return `
@@ -700,28 +692,16 @@ export function renderFactMobileCard(fact: FactRow): string {
 
     // Format amount with color
     const amount = fact.fact_sum ?? fact.amount ?? 0;
-    const amountFormatted = Number(amount).toFixed(2);
+    const amountFormatted = TableFormatters.formatAmount(amount, fact.article_type ?? 'expense');
 
     // Determine color class based on article_type or amount sign
-    let amountClass = 'text-base-content';
-    if (fact.article_type === 'expense') {
-        amountClass = 'amount-expense';
-    } else if (fact.article_type === 'income') {
-        amountClass = 'amount-income';
-    } else if (fact.article_type === 'debit') {
-        amountClass = 'amount-debit';
-    } else if (fact.article_type === 'credit') {
-        amountClass = 'amount-credit';
-    } else {
-        // Fallback: use amount sign
-        amountClass = Number(amount) < 0 ? 'amount-expense' : 'amount-income';
-    }
+    const amountClass = TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'amount');
 
     // Escape user content
     const articleName = escapeHtml(fact.article_name ?? '—');
     const financialCenter = escapeHtml(fact.financial_center_name ?? '—');
     const commentText = fact.fact_comment ?? fact.description ?? '';
-    const description = commentText ? escapeHtml(truncateText(commentText, 30)) : '—';
+    const description = commentText ? TableFormatters.truncateText(commentText, 30) : '—';  // Already escaped
 
     return `
         <div class="transaction-item py-2" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
@@ -739,14 +719,7 @@ export function renderFactMobileCard(fact: FactRow): string {
     `;
 }
 
-/**
- * Truncate text to max length with ellipsis
- */
-export function truncateText(text: string | null | undefined, maxLength: number = 30): string {
-    if (!text || text === '—') return text || '—';
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + '...';
-}
+// truncateText function removed - use TableFormatters.truncateText() instead
 
 /**
  * Update pagination controls
