@@ -1713,5 +1713,5 @@ img[loading="lazy"] {
 }
 
 .lists-fab-backdrop {
-    z-index: var(--z-fab-desktop);  /* 1000 - same as desktop FAB backdrop */
+    z-index: var(--z-fab-backdrop);  /* 1000 - correct backdrop z-index (below menu items 1001) */
 }

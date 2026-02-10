@@ -646,20 +646,9 @@ body.modal-open .fab-common-wrapper {
     stroke-width: 2.5;
 }
 
-/* Large desktop: increased FAB size */
-@media (min-width: 1280px) {
-    .fab-button {
-        width: 64px;
-        height: 64px;
-        min-width: 64px;
-        min-height: 64px;
-    }
-
-    .fab-button svg {
-        width: 28px;
-        height: 28px;
-    }
-}
+/* REMOVED: Large desktop увеличение до 64px удалено для консистентности с /lists (Phase 1)
+ * FAB остаётся 56px на всех desktop экранах (эталон от /lists)
+ */
 
 /* Desktop FAB dropdown menu */
 .desktop-fab-wrapper .dropdown-content {

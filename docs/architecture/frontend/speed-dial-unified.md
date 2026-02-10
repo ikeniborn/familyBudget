@@ -462,7 +462,28 @@ document.body.addEventListener('htmx:afterSwap', function(event) {
 
 ## Changelog
 
-### v1.0 (2026-02-10)
+### v1.0.1 (2026-02-10) - Bugfix Release
+
+**Fixed Bugs:**
+1. **Lists FAB backdrop z-index** (lists.css:1716):
+   - ❌ **Bug**: Backdrop перекрывал menu items (z-index 1002 > 1001), затемняя кнопки
+   - ✅ **Fix**: Изменён на `var(--z-fab-backdrop)` (1000), теперь backdrop ниже menu items
+
+2. **Desktop FAB размер на ≥1280px** (custom.css:650-662):
+   - ❌ **Bug**: FAB увеличивался до 64px (иконки 28px) на больших экранах
+   - ✅ **Fix**: Удалён media query, FAB остаётся 56px (иконки 24px) на всех desktop экранах
+
+**Modified Files:**
+- `frontend/web/static/css/lists.css` (1 правка)
+- `frontend/web/static/css/custom.css` (1 правка)
+
+**Impact:**
+- Lists FAB кнопки теперь интерактивны при открытом меню
+- Desktop FAB иконки правильного размера на всех экранах
+
+---
+
+### v1.0 (2026-02-10) - Initial Release
 
 **Implemented:**
 - ✅ Phase 1: Унификация CSS позиционирования и размеров
