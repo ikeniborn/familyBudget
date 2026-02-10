@@ -96,6 +96,11 @@ import {
   savePlanModal as savePlanModalImpl,
 } from '../features/modalPlan/saveOperations';
 
+// Recent Transactions (Table Optimization v2.0)
+import {
+  loadRecentTransactions as loadRecentTransactionsImpl,
+} from '../recentTransactions';
+
 import {
   togglePlanMode as togglePlanModeNewImpl,
   updateFrequencyFields as updateFrequencyFieldsNewImpl,
@@ -592,6 +597,14 @@ async function deleteFailedRecords(): Promise<void> {
 }
 
 // ============================================================================
+// Recent Transactions (Table Optimization v2.0)
+// ============================================================================
+
+async function loadRecentTransactions(): Promise<void> {
+  return loadRecentTransactionsImpl();
+}
+
+// ============================================================================
 // Transfer placeholders (handled by transfers module)
 // ============================================================================
 
@@ -675,6 +688,9 @@ export const dashboardExports: DashboardExports = {
   deletePendingRecord,
   retryFailedItems,
   deleteFailedRecords,
+
+  // Recent Transactions (Table Optimization v2.0)
+  loadRecentTransactions,
 
   // Transfer (delegated to transfers module)
   setTransferRecordType,
