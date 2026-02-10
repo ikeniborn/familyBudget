@@ -275,10 +275,86 @@ Git directory "~/familyBudget"
 
 ---
 
-## Общие навыки 
+## Execution Flow
 
-@skill:context-awareness для изучаения проекта
-@skill:thinking-framework для размышлений
-@skill:structured-planning → для планированя
-@skill:code-review для ревью кода 
+```
+PHASE 0 → Context & Complexity Assessment
+   @skill:context-awareness → {project_context}
+   @skill:doc-explorer → {documentation_context} [optional]
+      → Interactive documentation exploration with guided tours
+      → Helps understand project architecture before implementation
+   @skill:lsp-integration → {lsp_status} [optional]
+   @skill:context7-integration → {library_docs} [optional]
+   @skill:adaptive-workflow → {complexity, workflow_mode, skip[], required[]}
 
+PHASE 1 → Analysis & Planning
+   @skill:thinking-framework → COT reasoning
+   @skill:structured-planning → {task_plan}
+   @skill:plan-validation → {plan_validation_result}
+      → Validates plan BEFORE execution (4-level validation)
+      → BLOCKS approval if blocking_issues detected
+
+   TaskCreate [for non-trivial tasks]
+
+PHASE 1.5 → Pre-Approval Actions [MANDATORY]
+   ⚠️ Execute BEFORE approval
+
+   IF plan_validation_result.passed == false:
+      BLOCK execution, show blocking_issues, require fixes
+
+   @skill:git-workflow [mode: create-branch]
+   → Input: {branch_name, base_branch}
+   → Output: {git_branch_result.switched === true}
+
+PHASE 2 → Approval [conditional: skip if minimal]
+   @skill:approval-gates → {user_approval}
+      → Reads plan_validation_result (blocks if failed)
+
+PHASE 3 → Execution
+   Domain skills execution
+   @skill:code-review
+   @skill:error-handling [on recoverable errors]
+   @skill:rollback-recovery [on critical failures]
+
+   TaskUpdate: pending → in_progress → completed
+
+PHASE 4 → Post-Execution Validation
+   @skill:validation-framework → {validation_results}
+      → Validates execution results (acceptance criteria, tests, completion)
+      → Triggers error-handling if validation fails
+
+   @skill:test-code → {test_results} [adaptive, based on git diff]
+      → Automatic test selection: syntax, quality, runtime, dependencies, e2e
+      → Runs pytest (backend), TypeScript checks (frontend), Playwright (e2e)
+      → Triggers error-handling if tests fail
+
+PHASE 5A → Git Commit & Push
+   @skill:git-workflow [mode: commit-and-push] → {commit_result}
+
+PHASE 5B → Documentation Sync [conditional: if code or docs changed]
+   @skill:doc-sync → {sync_result}
+      → Detects outdated documentation by comparing code changes
+      → Generates documentation updates (LSP integration for API changes)
+      → BLOCKS commit if critical documentation drift detected
+
+   @skill:architecture-documentation → {arch_docs} [optional]
+      → Generates YAML/TOON architectural documentation
+      → Creates component dependency diagrams
+
+PHASE 5C → PR Automation [optional]
+   @skill:pr-automation → {pr_result}
+
+PHASE 5D → Task Summary
+   @skill:git-workflow → @template:task-summary
+```
+## Key Principles
+
+**SGR (Structured Generation & Reasoning):**
+- Thinking → Structured Output → Execute → Validate → Commit
+
+**Progress Tracking:**
+- task_plan (static blueprint) - created in PHASE 1
+- TaskCreate (dynamic tracking) - updated in PHASE 3
+
+**Data Flow:**
+- PHASE N output → PHASE N+1 input
