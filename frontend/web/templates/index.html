@@ -242,17 +242,19 @@
 <!-- Confirm Dialog (custom modal for delete confirmations) -->
 <script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
 
-<!-- Recent Transactions Module (ES Module) -->
-<script type="module">
-  import { loadRecentTransactions } from '/static/js/dashboard/recentTransactions.js';
-
+<!-- Recent Transactions Module (from dashboard bundle) -->
+<script>
   document.addEventListener('DOMContentLoaded', async () => {
-    await loadRecentTransactions();
+    if (window.Dashboard && window.Dashboard.loadRecentTransactions) {
+      await window.Dashboard.loadRecentTransactions();
+    }
   });
 
-  // Reload on WebSocket update (optional)
+  // Reload on WebSocket update
   window.addEventListener('fact:created', async () => {
-    await loadRecentTransactions();
+    if (window.Dashboard && window.Dashboard.loadRecentTransactions) {
+      await window.Dashboard.loadRecentTransactions();
+    }
   });
 </script>
 
