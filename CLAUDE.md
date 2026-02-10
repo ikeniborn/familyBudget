@@ -280,7 +280,7 @@ Git directory "~/familyBudget"
 ```
 PHASE 0 → Context & Complexity Assessment
    @skill:context-awareness → {project_context}
-   @skill:doc-explorer → {documentation_context} [optional]
+   @skill:doc-explorer → {documentation_context}
       → Interactive documentation exploration with guided tours
       → Helps understand project architecture before implementation
    @skill:lsp-integration → {lsp_status} [optional]
