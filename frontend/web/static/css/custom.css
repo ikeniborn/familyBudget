@@ -437,10 +437,22 @@ html.offline-mode .save-btn:hover {
         }
     }
 
-    /* Hide desktop FAB when modal is open (v11.x+ fix) */
-    body:has(.modal.modal-open) .desktop-fab-wrapper {
-        z-index: 950;
+    /* Hide all FAB components when modal is open (v11.x+ fix) */
+    body:has(.modal.modal-open) .desktop-fab-wrapper,
+    body:has(.modal.modal-open) .fab-wrapper,
+    body:has(.modal.modal-open) #lists-fab-menu {
+        display: none !important;
+        visibility: hidden;
     }
+}
+
+/* Fallback for browsers without :has() support (Phase 2: Z-Index fix) */
+body.modal-open .desktop-fab-wrapper,
+body.modal-open .fab-wrapper,
+body.modal-open #lists-fab-menu,
+body.modal-open .fab-common-wrapper {
+    display: none !important;
+    visibility: hidden;
 }
 
 /* Navigation container */
@@ -865,7 +877,7 @@ html.offline-mode .save-btn:hover {
 .fab-wrapper {
     position: fixed;
     right: 1rem;
-    bottom: calc(7rem + env(safe-area-inset-bottom)); /* +1rem для iOS home indicator + safe-area support */
+    bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)); /* 4rem navbar + 1rem spacing + safe area (ЭТАЛОН от /lists) */
     z-index: var(--z-fab-mobile) !important; /* 40 - below navbar (50), mobile FAB должен быть ниже navbar */
     opacity: 1 !important; /* Гарантированная видимость */
     visibility: visible;
@@ -874,13 +886,13 @@ html.offline-mode .save-btn:hover {
 @media (min-width: 1024px) {
     .fab-wrapper {
         right: 2rem;
-        bottom: 2rem; /* На desktop меньше отступ, т.к. нет нижней навигации */
+        bottom: 1.5rem; /* 24px от края на desktop (ЭТАЛОН от /lists) */
     }
 }
 
 .fab-button {
-    width: 56px;
-    height: 56px;
+    width: 48px;  /* Mobile: 48px (ЭТАЛОН от /lists) */
+    height: 48px;
     border-radius: 50%;
     background-color: hsl(var(--p));
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -895,10 +907,11 @@ html.offline-mode .save-btn:hover {
     box-shadow: 0 6px 8px rgba(0,0,0,0.15);
 }
 
-@media (min-width: 1280px) {
+/* Tablet и выше: увеличиваем размер до 56px */
+@media (min-width: 640px) {
     .fab-button {
-        width: 64px;
-        height: 64px;
+        width: 56px;
+        height: 56px;
     }
 }
 
@@ -1253,22 +1266,8 @@ html.offline-mode .save-btn:hover {
     }
 }
 
-/* Large desktop: 64px FAB (≥1280px) - already exists but ensure consistency */
-@media (min-width: 1280px) {
-    .desktop-fab-wrapper .fab-button,
-    .fab-wrapper .fab-button {
-        width: 64px !important;
-        height: 64px !important;
-        min-width: 64px !important;
-        min-height: 64px !important;
-    }
-
-    .desktop-fab-wrapper .fab-button svg,
-    .fab-wrapper .fab-button svg {
-        width: 28px;
-        height: 28px;
-    }
-}
+/* Desktop: фиксированный 56px для всех экранов ≥1024px (ЭТАЛОН от /lists) */
+/* Увеличение до 64px удалено для консистентности с /lists page */
 
 /* FAB Speed Dial animations - enhanced from lists.css */
 .fab-menu-item {
@@ -1287,9 +1286,9 @@ html.offline-mode .save-btn:hover {
     pointer-events: auto;
 }
 
-/* Staggered animation - extend existing nth-child rules */
-.fab-menu-item:nth-child(5) { transition-delay: 0.25s; }
-.fab-menu-item:nth-child(6) { transition-delay: 0.3s; }
+/* Staggered animation - consistent with plan (Phase 3) */
+.fab-menu-item:nth-child(1) { transition-delay: 0.05s; }
+.fab-menu-item:nth-child(2) { transition-delay: 0.1s; }
 
 /* Main FAB rotation on open */
 .desktop-fab-wrapper .fab-button {

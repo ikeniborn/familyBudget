@@ -1,6 +1,9 @@
 <!-- Adaptive FAB Navigation: Mobile = Bottom nav | Desktop = Floating button -->
 <nav id="fab-toolbar" class="fab-container">
 
+    <!-- ARIA live region for screen readers (Phase 3: Accessibility) -->
+    <div id="fab-status" role="status" aria-live="polite" class="sr-only"></div>
+
     <!-- Mobile/Tablet Navigation (< 1024px) -->
     <div class="mobile-nav-wrapper">
         <div class="nav-container">
@@ -320,6 +323,26 @@ const FAB_PAGE_CONTEXT = {
         }
     });
 
+    // HTMX navigation handler (Phase 4: Dynamic FAB visibility)
+    // Re-apply FAB visibility logic after HTMX page swaps
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Check if swap was a full page navigation (hx-push-url)
+        const isPushUrl = event.detail.xhr?.getResponseHeader('HX-Push-Url');
+        if (isPushUrl || event.detail.pathInfo?.requestPath) {
+            // Wait for next tick to ensure URL is updated
+            setTimeout(() => {
+                const newContext = FAB_PAGE_CONTEXT[window.location.pathname];
+                const contextChanged = newContext !== context;
+
+                if (contextChanged) {
+                    // URL changed, re-apply FAB visibility
+                    applyFabPageContext();
+                    debugLog('[FAB] Re-applied visibility after HTMX navigation');
+                }
+            }, 0);
+        }
+    });
+
 })();
 
 // ============= Speed Dial Controls =============
@@ -386,6 +409,7 @@ function toggleFabMenu() {
     const currentPage = window.location.pathname;
     const wrapper = document.getElementById('fab-wrapper');
     const menu = document.getElementById('fab-speed-dial-menu');
+    const status = document.getElementById('fab-status');
 
     if (!wrapper || !menu) {
         console.error('[FAB] Speed dial elements not found');
@@ -400,10 +424,20 @@ function toggleFabMenu() {
             // Закрыть меню
             wrapper.classList.remove('open');
             menu.style.display = 'none';
+
+            // Accessibility: объявить состояние для screen readers
+            if (status) {
+                status.textContent = 'Меню действий закрыто.';
+            }
         } else {
             // Открыть меню
             wrapper.classList.add('open');
             menu.style.display = 'flex';
+
+            // Accessibility: объявить состояние для screen readers
+            if (status) {
+                status.textContent = 'Меню действий открыто. 2 опции доступны: Добавить план и Добавить факт.';
+            }
         }
     } else {
         // На других страницах - прямой вызов модального окна
@@ -417,10 +451,16 @@ function toggleFabMenu() {
 function closeFabMenu() {
     const wrapper = document.getElementById('fab-wrapper');
     const menu = document.getElementById('fab-speed-dial-menu');
+    const status = document.getElementById('fab-status');
 
     if (wrapper && menu) {
         wrapper.classList.remove('open');
         menu.style.display = 'none';
+
+        // Accessibility: объявить состояние для screen readers
+        if (status) {
+            status.textContent = 'Меню действий закрыто.';
+        }
     }
 }
 

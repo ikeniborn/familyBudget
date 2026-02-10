@@ -43,10 +43,10 @@
 | **Breakpoint адаптации** | 1024px | 1024px | N/A |
 | **Z-Index (mobile)** | `var(--z-fab-mobile)` = 40 | `var(--z-fab-lists)` = 1003 | N/A |
 | **Z-Index (desktop)** | `var(--z-fab-desktop)` = 1002 | `var(--z-fab-lists)` = 1003 | N/A |
-| **Позиция (mobile)** | `right: 1rem; bottom: calc(7rem + safe-area)` | `right: 1rem; bottom: calc(4rem + 1rem + safe-area)` | N/A |
-| **Позиция (desktop)** | `right: 1.5rem; bottom: 1.5rem` | `right: 1.5rem; bottom: 1.5rem` | N/A |
-| **Размер FAB (mobile)** | 48px (< 640px) → 56px (≥ 640px) | 48px | N/A |
-| **Размер FAB (desktop)** | 56px → 64px (≥ 1280px) | 56px → 64px (≥ 1280px) | N/A |
+| **Позиция (mobile)** | `right: 1rem; bottom: calc(4rem + 1rem + safe-area)` <br/> **(v11.0: исправлено с calc(7rem))** | `right: 1rem; bottom: calc(4rem + 1rem + safe-area)` | N/A |
+| **Позиция (desktop)** | `right: 2rem; bottom: 1.5rem` <br/> **(v11.0: исправлено с 2rem)** | `right: 1.5rem; bottom: 1.5rem` | N/A |
+| **Размер FAB (mobile)** | 48px (< 640px) → 56px (≥ 640px) | 48px (< 640px) → 56px (≥ 640px) | N/A |
+| **Размер FAB (desktop)** | **56px фиксированный** <br/> **(v11.0: убрано увеличение до 64px)** | **56px фиксированный** <br/> **(v11.0: убрано увеличение до 64px)** | N/A |
 | **Анимация** | ✅ Вращение иконки 45° (Speed Dial) | ✅ Вращение иконки 90° | N/A |
 | **Backdrop затемнение** | ✅ `rgba(0,0,0,0.3)` | ✅ `rgba(0,0,0,0.3)` | N/A |
 | **Offline режим** | ✅ Скрывает онлайн-кнопки в Bottom Nav | ❌ Не применяется | N/A |
@@ -402,7 +402,48 @@ Layer 1:  Base Content (1)
 
 ---
 
-## Рекомендации по улучшению
+## Unified System (v11.0+)
+
+**Статус:** ✅ Implemented (2026-02-10)
+**Документация:** [docs/architecture/frontend/speed-dial-unified.md](../architecture/frontend/speed-dial-unified.md)
+
+### Обзор
+
+С версии v11.0 была проведена **полная унификация Speed Dial системы** на основе эталонной реализации от `/lists` page. Все расхождения в позиционировании, размерах и функциональности были устранены.
+
+### Ключевые изменения
+
+1. **Позиционирование (Phase 1)**
+   - ✅ Mobile bottom: `calc(7rem)` → `calc(4rem + 1rem)` (-2rem correction)
+   - ✅ Desktop bottom: `2rem` → `1.5rem` (-0.5rem correction)
+
+2. **Адаптивные размеры (Phase 1)**
+   - ✅ Mobile (< 640px): **48px** (было 56px)
+   - ✅ Desktop (≥ 1024px): **56px фиксированный** (убрано увеличение до 64px)
+
+3. **Z-Index fixes (Phase 2)**
+   - ✅ FAB скрывается при открытых модалях
+   - ✅ Правильная иерархия слоёв
+
+4. **Accessibility (Phase 3)**
+   - ✅ ARIA live regions для screen readers
+
+5. **Offline mode (Phase 3)**
+   - ✅ Desktop FAB адаптируется к offline статусу
+
+6. **Page visibility (Phase 4)**
+   - ✅ FAB показывается ТОЛЬКО на /, /facts, /plan, /lists
+
+**Изменённые файлы:**
+- `frontend/web/static/css/custom.css` (6 правок)
+- `frontend/web/templates/components/fab_toolbar.html` (4 правки)
+- `frontend/web/static/js/components/desktopFab.ts` (3 правки)
+
+---
+
+## Рекомендации по улучшению (Archive - v10.x)
+
+**Примечание:** Рекомендации ниже были реализованы в v11.0 Unified System.
 
 ### 1. Унификация поведения
 
