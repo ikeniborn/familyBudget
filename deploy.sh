@@ -944,6 +944,46 @@ main() {
     fi
     echo ""
 
+    # AUTO-SYNC: VERSION → .env (if mismatch detected)
+    # Ensures .env VERSION always matches VERSION file (single source of truth)
+    # This prevents Docker containers from loading stale VERSION via environment variables
+    if [[ -f "$DEPLOY_DIR/VERSION" && -f "$DEPLOY_DIR/.env" ]]; then
+        VERSION_FROM_FILE=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
+        VERSION_FROM_ENV=$(grep -oP '^VERSION=\K.*' "$DEPLOY_DIR/.env" 2>/dev/null || echo "")
+
+        if [[ "$VERSION_FROM_FILE" != "$VERSION_FROM_ENV" ]]; then
+            print_message warning "VERSION mismatch detected: VERSION ($VERSION_FROM_FILE) ≠ .env ($VERSION_FROM_ENV)"
+            print_message info "Auto-syncing .env to match VERSION file (single source of truth)..."
+
+            # Update .env to match VERSION file
+            if grep -q '^VERSION=' "$DEPLOY_DIR/.env"; then
+                # VERSION exists in .env - update it
+                sed -i "s|^VERSION=.*|VERSION=$VERSION_FROM_FILE|" "$DEPLOY_DIR/.env"
+            else
+                # VERSION doesn't exist in .env - append it
+                echo "VERSION=$VERSION_FROM_FILE" >> "$DEPLOY_DIR/.env"
+            fi
+
+            if [[ $? -eq 0 ]]; then
+                # Verify sync was successful
+                local synced_version=$(grep -oP '^VERSION=\K.*' "$DEPLOY_DIR/.env")
+                if [[ "$synced_version" == "$VERSION_FROM_FILE" ]]; then
+                    print_message success ".env synchronized: VERSION=$VERSION_FROM_ENV → VERSION=$VERSION_FROM_FILE"
+                    print_message info "Note: Backend container restart required for changes to take effect"
+                else
+                    print_message error "Verification failed: expected $VERSION_FROM_FILE, got $synced_version"
+                    exit 1
+                fi
+            else
+                print_message error "Failed to update .env"
+                exit 1
+            fi
+        else
+            print_message info "VERSION and .env are synchronized: $VERSION_FROM_FILE"
+        fi
+    fi
+    echo ""
+
     # Analyze sync changes for smart restart decisions
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
