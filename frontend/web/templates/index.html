@@ -57,11 +57,7 @@
             <div id="recent-transactions-card" class="card bg-base-100 shadow-xl" data-offline-hidden="true">
                 <div class="card-body">
                     <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📈 Последние записи</h2>
-                    <div id="recent-transactions"
-                         hx-get="/api/v1/facts/recent-html?limit=10"
-                         hx-trigger="load"
-                         hx-swap="innerHTML"
-                         class="min-h-[200px]">
+                    <div id="recent-transactions" class="min-h-[200px]" data-offline-hidden="true">
                         <div class="flex items-center justify-center py-8">
                             <span class="loading loading-spinner loading-lg text-primary"></span>
                         </div>
@@ -245,6 +241,20 @@
 <script src="/static/js/htmxWidgets.js?v=PLACEHOLDER"></script>
 <!-- Confirm Dialog (custom modal for delete confirmations) -->
 <script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
+
+<!-- Recent Transactions Module (ES Module) -->
+<script type="module">
+  import { loadRecentTransactions } from '/static/js/dashboard/recentTransactions.js';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await loadRecentTransactions();
+  });
+
+  // Reload on WebSocket update (optional)
+  window.addEventListener('fact:created', async () => {
+    await loadRecentTransactions();
+  });
+</script>
 
 <!-- Dashboard JavaScript is now loaded from dashboard.min.js module above -->
 <!-- The module auto-initializes and exports functions to window.Dashboard -->

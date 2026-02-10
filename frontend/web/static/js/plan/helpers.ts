@@ -347,45 +347,10 @@ export function flattenArticleTree(nodes: ArticleNode[]): FlatArticle[] {
  * @param type - Article type ('expense', 'income', 'debit', 'credit')
  * @returns CSS class name for color coding
  */
-export function getMobileAmountClass(type: string): string {
-  const colorMap: Record<string, string> = {
-    'expense': 'amount-expense',
-    'income': 'amount-income',
-    'debit': 'amount-debit',
-    'credit': 'amount-credit'
-  };
-  return colorMap[type] || 'amount-expense';
-}
-
-/**
- * Format amount with sign for mobile view (compact display without currency symbol)
- * @param amount - Numeric amount to format
- * @param type - Article type for determining sign
- * @returns Formatted string like "+1000" or "-1000"
- */
-export function formatMobileAmount(amount: number, type: string): string {
-  const value = parseFloat(String(amount)).toLocaleString('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  });
-  const sign = (type === 'income' || type === 'credit') ? '+' : '-';
-  return `${sign}${value}`;
-}
-
-/**
- * Format amount with sign for desktop view
- * @param amount - Numeric amount to format
- * @param type - Article type for determining sign
- * @returns Formatted string like "+1000" or "-1000"
- */
-export function formatDesktopAmount(amount: number, type: string): string {
-  const value = parseFloat(String(amount)).toLocaleString('ru-RU', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  });
-  const sign = (type === 'income' || type === 'credit') ? '+' : '-';
-  return `${sign}${value}`;
-}
+// Removed duplicate functions - use TableFormatters from shared/tableUtils.ts instead:
+// - getMobileAmountClass() → TableFormatters.getArticleColorClass(type, 'amount')
+// - formatMobileAmount() → TableFormatters.formatAmount(amount, type)
+// - formatDesktopAmount() → TableFormatters.formatAmount(amount, type)
 
 // ============================================================================
 // Notification Functions
