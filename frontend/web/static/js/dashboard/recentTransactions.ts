@@ -84,8 +84,7 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
             <th title="Напоминание">🔔</th>
             <th title="Регламентный платеж">🔄</th>
             <th title="Создано offline">☁️</th>
-            <th class="w-8"></th>
-            <th class="w-8"></th>
+            <th>⚙️ Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -147,7 +146,11 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
 
     // Desktop row
     const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard(${fact.id})">✏️</button>`;
-    const deleteButton = `<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard(${fact.id}, ${fact.recurring_plan_id ? 1 : 0})">🗑️</button>`;
+    const deleteButton = `<button class="btn btn-xs btn-error btn-square" onclick="deleteFactFromDashboard(${fact.id}, ${fact.recurring_plan_id ? 1 : 0})" title="Удалить">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      </svg>
+    </button>`;
 
     desktopHTML += `
       <tr>
@@ -160,8 +163,12 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
         <td class="text-center" title="${reminderTitle}">${reminderIcon}</td>
         <td class="text-center" title="${recurringTitle}">${recurringIcon}</td>
         <td class="text-center" title="${offlineTitle}">${offlineIcon}</td>
-        <td class="text-center">${editButton}</td>
-        <td class="text-center">${deleteButton}</td>
+        <td>
+          <div class="flex gap-1">
+            ${editButton}
+            ${deleteButton}
+          </div>
+        </td>
       </tr>
     `;
 
