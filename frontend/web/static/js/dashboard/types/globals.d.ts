@@ -358,6 +358,9 @@ export interface DashboardExports {
   retryFailedItems(): Promise<void>;
   deleteFailedRecords(): Promise<void>;
 
+  // Recent Transactions (Table Optimization v2.0)
+  loadRecentTransactions(): Promise<void>;
+
   // Transfer (delegated to transfers module)
   setTransferRecordType(type: RecordType): void;
   saveTransfer(button: HTMLElement): void;

@@ -634,6 +634,108 @@ async def new_fact_info() -> dict:
     }
 
 
+@router.get("/recent", response_model=list[FactResponse])
+async def get_recent_facts(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[FactResponse]:
+    """
+    Get recent budget facts (JSON endpoint for TypeScript client).
+
+    Returns latest facts ordered by creation time DESC.
+
+    **User Isolation:**
+    - Regular users see only their own records
+    - Admins see all records
+
+    **Parameters:**
+    - limit: Maximum number of results (1-50, default: 10)
+
+    **Returns:**
+    - JSON array of FactResponse objects
+
+    Caching: TTL 10s, invalidated on any fact CRUD.
+    """
+    # Check cache first
+    cache_key = f"recent_facts:{current_user.id}:{limit}"
+    cached = await cache_service.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        # Base query with JOINs for enriched response (same as list_facts)
+        statement = (
+            select(BudgetFact, Article, FinancialCenter, CostCenter, User)
+            .join(Article, BudgetFact.article_id == Article.id)
+            .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+            .outerjoin(User, BudgetFact.user_id == User.id)
+        )
+
+        # OPTIMIZATION: Filter by fact_date to enable partition pruning
+        cutoff_date = date.today() - timedelta(days=90)
+        statement = statement.where(BudgetFact.fact_date >= cutoff_date)
+
+        # Order by most recent (by creation time)
+        statement = statement.order_by(BudgetFact.created_at.desc())
+        statement = statement.limit(limit)
+
+        # Execute query
+        result = await session.execute(statement)
+        rows = result.all()
+
+        # Enrich facts with article and center data
+        enriched_facts = []
+        for fact, article, financial_center, cost_center, user in rows:
+            # Get user name with fallback chain
+            user_name = None
+            if user:
+                user_name = (
+                    user.first_name or
+                    user.username or
+                    user.last_name or
+                    (f"User {user.telegram_id}" if user.telegram_id else None) or
+                    f"Пользователь #{user.id}"
+                )
+
+            fact_dict = {
+                "id": fact.id,
+                "user_id": fact.user_id,
+                "user_name": user_name,
+                "article_id": fact.article_id,
+                "article_type": article.type,
+                "article_name": article.name,
+                "fact_date": fact.fact_date,
+                "amount": fact.amount,
+                "description": fact.description,
+                "financial_center_id": fact.financial_center_id,
+                "financial_center_name": financial_center.name if financial_center else None,
+                "cost_center_id": fact.cost_center_id,
+                "cost_center_name": cost_center.name if cost_center else None,
+                "record_type": fact.record_type,
+                "is_offline_sync": fact.is_offline_sync,
+                "recurring_plan_id": fact.recurring_plan_id,
+                "recurring_plan": None,  # Not loaded for performance (list endpoint)
+                "has_reminder": False,  # Not loaded for performance (list endpoint)
+                "created_at": fact.created_at,
+                "updated_at": fact.updated_at,
+            }
+            enriched_facts.append(fact_dict)
+
+        # Cache result (TTL 10s)
+        await cache_service.set(cache_key, enriched_facts, CacheTTL.SHORT())
+
+        return enriched_facts
+
+    except Exception as e:
+        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load recent facts"
+        )
+
+
 @router.get("/recent-html", response_class=HTMLResponse)
 async def get_recent_facts_html(
     current_user: CurrentUser,

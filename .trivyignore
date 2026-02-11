@@ -137,3 +137,12 @@ CVE-2026-1299
 #    - XML parsing errors (CVE-2026-24515)
 # 3. Upgrade Python 3.11 packages when Debian releases security update (DSA)
 # 4. Consider upgrade to Python 3.12+ if patches delayed beyond 2026-04-01
+
+# CVE-2026-26007: cryptography SECT curves subgroup validation (HIGH)
+# Package: cryptography 46.0.4 (transitive via python-jose[cryptography]==3.4.0)
+# Fixed in: cryptography 46.0.5
+# Impact: Subgroup attack on SECT curves - leak of private key LSBs, ECDSA forgery
+# Risk: LOW for this app (we don't use SECT curves, only NIST P-256/P-384/P-521)
+# Action: Upgrade python-jose or pin cryptography>=46.0.5 when fix is stable
+# Review: Weekly (security patches)
+CVE-2026-26007
