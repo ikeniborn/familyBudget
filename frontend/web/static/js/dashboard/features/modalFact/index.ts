@@ -279,7 +279,7 @@ async function loadFactTransferHints(direction: 'from' | 'to'): Promise<void> {
     }
 
     const articleType = direction === 'from' ? 'expense' : 'income';
-    const url = `/api/v1/hints/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+    const url = `/api/v1/analytics/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
 
     const response = await fetch(url);
 
