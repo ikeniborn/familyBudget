@@ -24,8 +24,8 @@ export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
     transfer_date: transferDate, // YYYY-MM-01 (backend expects transfer_date, not transfer_period)
     from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
-    from_article_id: parseIntOrNull(formData.get('from_article_id')),
-    to_article_id: parseIntOrNull(formData.get('to_article_id')),
+    from_article_id: parseIntOrNull(formData.get('from_article_id'))!, // required field (HTML required attr ensures non-null)
+    to_article_id: parseIntOrNull(formData.get('to_article_id'))!,     // required field (HTML required attr ensures non-null)
     amount: parseFloat(formData.get('amount') as string),
     description: formData.get('description') || null
   };
