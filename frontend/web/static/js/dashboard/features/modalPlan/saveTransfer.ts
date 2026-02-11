@@ -14,10 +14,14 @@ import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
 export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
   const formData = new FormData(form);
 
+  // Convert YYYY-MM to YYYY-MM-01 (first day of month)
+  const period = formData.get('transfer_period') as string; // YYYY-MM
+  const transferDate = period ? `${period}-01` : null; // YYYY-MM-01
+
   // Build request data for plan transfer
   const data = {
     record_type: 'plan',
-    transfer_period: formData.get('transfer_period'), // YYYY-MM
+    transfer_date: transferDate, // YYYY-MM-01 (backend expects transfer_date, not transfer_period)
     from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
     from_article_id: parseIntOrNull(formData.get('from_article_id')),
