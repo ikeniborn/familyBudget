@@ -422,12 +422,13 @@ html.offline-mode .save-btn:hover {
     }
 
     /* FAB menu items ordering - items appear ABOVE button */
+    /* With column-reverse: lower order = bottom, higher order = top */
     .desktop-fab-wrapper .fab-menu-item {
-        order: -1;
+        order: 999;  /* Higher order = visually above (top) with column-reverse */
     }
 
     .desktop-fab-wrapper .fab-button {
-        order: 999;
+        order: -1;  /* Lower order = visually below (bottom) with column-reverse */
     }
 
     /* Fallback для браузеров без gap support (Safari < 14.1, IE11) */
