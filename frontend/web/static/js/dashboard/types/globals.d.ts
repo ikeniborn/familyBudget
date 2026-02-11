@@ -225,8 +225,7 @@ declare global {
     filterCostCenterDropdown?: (formSelectorOrFcId: string | number | null, financialCenterId?: number | null) => Promise<void>;
 
     // Add plan
-    loadPlanCategories?: () => Promise<void>;
-    savePlan?: (button: HTMLElement) => void;
+    // Legacy types removed (v11.x+): loadPlanCategories, savePlan
     togglePlanMode?: (modalId: string) => void;
     toggleReminderSettings?: (modalId: string) => void;
 
@@ -329,11 +328,8 @@ export interface DashboardExports {
   filterCostCenterDropdown(formSelectorOrFcId: string | number | null, financialCenterId?: number | null): Promise<void>;
   loadFactHints(category?: Category | null): Promise<void>;
 
-  // Add plan (Phase 3) - kept for backward compatibility
-  loadPlanCategories(): Promise<void>;
-  savePlan(button: HTMLElement): void;
-  savePlanOffline(button: HTMLElement): Promise<void>;
-  loadPlanHints(category?: Category | null): Promise<void>;
+  // Add plan (Phase 3)
+  // Legacy types removed (v11.x+): loadPlanCategories, savePlan, savePlanOffline, loadPlanHints
 
   // Plan mode (Phase 3)
   togglePlanMode(modalId: string): void;

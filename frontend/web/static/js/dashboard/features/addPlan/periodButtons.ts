@@ -131,9 +131,8 @@ export function setupPlanTypeButtons(): void {
       // Reload only plan categories with new type
       debugLog('Plan type changed to:', this.dataset.type);
 
-      if (window.Dashboard?.loadPlanCategories) {
-        window.Dashboard.loadPlanCategories();
-      }
+      // Legacy: loadPlanCategories removed (v11.x+)
+      // New modal_plan uses typeToggle.ts with categoryTree.updateType()
     });
 
     button.dataset.listenerAttached = 'true';
