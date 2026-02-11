@@ -81,11 +81,35 @@ await loadFinancialCenters([
 
 ## Legacy Forms (Deprecated)
 
-**⚠️ НЕ используйте:**
-- `#form_modal_add_transaction` (удалён в v10.x)
-- `#form_modal_add_plan` (удалён в v10.x)
+### Legacy Removal (v11.x+)
 
-Эти селекторы больше не существуют. Используйте новые табовые селекторы:
+**⚠️ Полностью удалены в v11.x:**
+
+**Modal IDs:**
+- `#modal_add_transaction` → используйте `#modal_fact`
+- `#modal_add_plan` → используйте `#modal_plan`
+
+**Form IDs:**
+- `#form_modal_add_transaction` → используйте `#form_modal_fact`
+- `#form_modal_add_plan` → используйте `#form_modal_plan`
+
+**TypeScript modules (удалены):**
+- `features/addPlan/planForm.ts` → заменён на `modalPlan/saveOperations.ts`
+- `features/addPlan/planHints.ts` → заменён на `modalPlan/index.ts`
+
+**Legacy functions (удалены из windowExports.ts):**
+- `loadPlanCategories()` → используйте `modalPlan/index.ts` (автоматическая загрузка)
+- `savePlan()` → используйте `savePlanModal()`
+- `savePlanOffline()` → заменён на Dexie integration в `modalPlan/saveTransaction.ts`
+- `loadPlanHints()` → используйте `loadPlanTransactionHints()` в `modalPlan/index.ts`
+
+**Migration completed:**
+- Все страницы теперь используют табовую архитектуру v9.0+
+- Inline JavaScript удалён из templates
+- Единая точка входа: `window.openModalPlan()`, `window.openModalFact()`
+- ~3416 строк мертвого кода удалено (plan.html: 5780 → 2364 строк)
+
+**Используйте новые табовые селекторы:**
 - `#modal_fact-tab-transaction`
 - `#modal_fact-tab-transfer`
 - `#modal_plan-tab-transaction`
