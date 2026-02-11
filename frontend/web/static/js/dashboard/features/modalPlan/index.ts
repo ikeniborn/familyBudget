@@ -180,12 +180,12 @@ async function loadTransferTabData(): Promise<void> {
       '#modal_plan-tab-transfer select[name="to_financial_center_id"]'
     ]);
 
-    // 2. Initialize ChoicesCategoryTree for FROM (debit/expense)
+    // 2. Initialize ChoicesCategoryTree for FROM (debit - списание)
     if ((window as any).BudgetShared?.ChoicesCategoryTree) {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="from_article_id"]',
         {
-          type: 'expense', // FROM is always expense (debit)
+          type: 'debit', // FROM is debit (списание с счёта)
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -195,11 +195,11 @@ async function loadTransferTabData(): Promise<void> {
         }
       );
 
-      // 3. Initialize ChoicesCategoryTree for TO (credit/income)
+      // 3. Initialize ChoicesCategoryTree for TO (credit - пополнение)
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="to_article_id"]',
         {
-          type: 'income', // TO is always income (credit)
+          type: 'credit', // TO is credit (пополнение счёта)
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
