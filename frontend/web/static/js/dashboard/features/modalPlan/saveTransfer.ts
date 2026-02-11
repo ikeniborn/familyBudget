@@ -15,7 +15,7 @@ export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
   const formData = new FormData(form);
 
   // Convert YYYY-MM to YYYY-MM-01 (first day of month)
-  const period = formData.get('transfer_period') as string; // YYYY-MM
+  const period = formData.get('transfer_plan_month') as string; // YYYY-MM (field name from plan_transfer_tab.html)
   const transferDate = period ? `${period}-01` : null; // YYYY-MM-01
 
   // Build request data for plan transfer
