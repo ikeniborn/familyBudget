@@ -17,6 +17,8 @@ declare const debugLog: (...args: any[]) => void;
 /**
  * Load fact hints (current period plan/fact amounts) for the selected category.
  * Displays hints in modal_add_transaction buttons (hint-period-plan, hint-period-fact).
+ * @deprecated Legacy function for modal_add_transaction (removed in v11.x)
+ * Use loadFactTransactionHints() from modalFact/index.ts for new modals
  */
 export async function loadFactHints(category: Category | null = null): Promise<void> {
   if (window.DEBUG_MODE) {
