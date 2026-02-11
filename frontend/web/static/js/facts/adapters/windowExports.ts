@@ -103,17 +103,15 @@ async function openAddTransactionModal(): Promise<void> {
     // Try modern modal first (v10.x+)
     let modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
 
-    // Fallback to legacy modal (v9.x)
-    if (!modal) {
-        modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
-    }
+    // Legacy fallback removed in v11.x (modal_add_transaction deleted)
+    // Only modal_fact is used now
 
     if (modal?.showModal) {
         // Set default date to today
         setTransactionDate(0);
         modal.showModal();
     } else {
-        console.warn('[FactsManager] Transaction modal not found (tried modal_fact and modal_add_transaction)');
+        console.warn('[FactsManager] Transaction modal not found (modal_fact)');
     }
 }
 
@@ -212,8 +210,8 @@ function setTransactionDate(offsetDays: number): void {
         date.toISOString().split('T')[0]
     );
 
-    // Find date input in transaction modal
-    const dateInput = document.querySelector('#modal_add_transaction input[name="fact_date"]') as HTMLInputElement;
+    // Find date input in transaction modal (v9.0+ uses modal_fact)
+    const dateInput = document.querySelector('#modal_fact input[name="fact_date"]') as HTMLInputElement;
     if (dateInput) {
         dateInput.value = formattedDate;
         // Trigger change event for any listeners

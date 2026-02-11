@@ -126,6 +126,8 @@ export async function saveTransactionOffline(button: HTMLElement): Promise<void>
 
 /**
  * Set transaction date with offset from today
+ * @deprecated Legacy function for modal_add_transaction (removed in v11.x)
+ * Use setFactDate() from modalFact/dateHelpers.ts for new modals
  */
 export function setTransactionDate(daysOffset: number): void {
   const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]') as HTMLInputElement | null;

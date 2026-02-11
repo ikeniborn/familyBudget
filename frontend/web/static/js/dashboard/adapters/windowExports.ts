@@ -42,13 +42,9 @@ import {
   // v10.1.51: setupTransactionTypeButtons moved to modal open handler
 } from '../features/addTransaction';
 
-// Add Plan imports (Phase 3) - kept for backward compatibility with legacy inline JavaScript
+// Legacy add plan imports removed (v11.x+)
+// Reminder and recurring settings still imported from addPlan
 import {
-  loadPlanCategories as loadPlanCategoriesImpl,
-  savePlan as savePlanImpl,
-  savePlanOffline as savePlanOfflineImpl,
-  loadPlanHints as loadPlanHintsImpl,
-  // v10.1.51: setupPlanPeriodButtons and setupPlanTypeButtons moved to openModalPlan()
   toggleReminderSettings as toggleReminderSettingsImpl,
   togglePlanMode as togglePlanModeImpl,
   prefillReminderDateTime as prefillReminderDateTimeImpl,
@@ -492,21 +488,8 @@ async function loadFactHints(category: Category | null = null): Promise<void> {
 // Add Plan (Phase 3 - IMPLEMENTED)
 // ============================================================================
 
-async function loadPlanCategories(): Promise<void> {
-  return loadPlanCategoriesImpl();
-}
-
-function savePlan(button: HTMLElement): void {
-  return savePlanImpl(button);
-}
-
-async function savePlanOffline(button: HTMLElement): Promise<void> {
-  return savePlanOfflineImpl(button);
-}
-
-async function loadPlanHints(category: Category | null = null): Promise<void> {
-  return loadPlanHintsImpl(category);
-}
+// Legacy functions removed (v11.x+): loadPlanCategories, savePlan, savePlanOffline, loadPlanHints
+// New implementation in features/modalPlan/ used instead
 
 function togglePlanMode(modalId: string): void {
   // Use new implementation for modal_plan, old for legacy modals
@@ -664,11 +647,8 @@ export const dashboardExports: DashboardExports = {
   filterCostCenterDropdown,
   loadFactHints,
 
-  // Add plan (Phase 3 - IMPLEMENTED, kept for backward compatibility)
-  loadPlanCategories,
-  savePlan,
-  savePlanOffline,
-  loadPlanHints,
+  // Add plan (Phase 3 - IMPLEMENTED)
+  // Legacy exports removed (v11.x+): loadPlanCategories, savePlan, savePlanOffline, loadPlanHints
   togglePlanMode,
   toggleReminderSettings,
   prefillReminderDateTime,
@@ -742,8 +722,7 @@ export function initWindowExports(): void {
   window.setTransactionDate = setTransactionDate;
 
   // Expose add plan functions globally for onclick handlers
-  window.loadPlanCategories = loadPlanCategories;
-  window.savePlan = savePlan;
+  // Legacy exports removed (v11.x+): loadPlanCategories, savePlan
   window.togglePlanMode = togglePlanMode;
   window.toggleReminderSettings = toggleReminderSettings;
 

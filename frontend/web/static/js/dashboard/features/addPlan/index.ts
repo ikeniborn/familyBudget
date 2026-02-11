@@ -4,16 +4,8 @@
  * Exports all plan form functionality.
  */
 
-// Plan form operations
-export {
-  loadPlanCategories,
-  savePlan,
-  savePlanOffline,
-  openAddPlanModal,
-} from './planForm';
-
-// Plan hints
-export { loadPlanHints } from './planHints';
+// Legacy plan form and hints removed (v11.x+)
+// New implementation in ../modalPlan/ used instead
 
 // Period buttons
 export {

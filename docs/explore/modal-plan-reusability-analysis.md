@@ -510,5 +510,236 @@ const createSelect = document.querySelector('#form_modal_add_plan select[name="a
 **Дополнительные файлы для анализа:**
 - `frontend/web/templates/components/tabs/plan_transaction_tab.html`
 - `frontend/web/templates/components/tabs/plan_transfer_tab.html`
-- `frontend/web/static/js/dashboard/features/addPlan/planForm.ts`
-- `frontend/web/static/js/dashboard/features/addPlan/planHints.ts`
+- ~~`frontend/web/static/js/dashboard/features/addPlan/planForm.ts`~~ (удалён в v11.x)
+- ~~`frontend/web/static/js/dashboard/features/addPlan/planHints.ts`~~ (удалён в v11.x)
+
+---
+
+## Результаты очистки кода (v11.x)
+
+**Дата выполнения:** 2026-02-11
+**Коммит:** 1ae39eee "refactor: remove legacy modal code and duplication"
+**Ветка:** dev/cleanup_legacy_modal_code_20260211
+
+### Выполненные работы:
+
+#### 1. Удаление мертвого inline JavaScript
+
+**Файл:** `frontend/web/templates/plan.html`
+
+**Удалено:** Строки 899-4314 (~3416 строк)
+
+**Содержимое удаленного кода:**
+- `loadPlanHints(category)` - загрузка подсказок для `#form_modal_add_plan`
+- `savePlan(button)` - сохранение плана через `#form_modal_add_plan`
+- `initializePlanModal('modal_add_plan')` - инициализация legacy модалки
+- `setupModalObserver()` - MutationObserver для `modal_add_plan`
+- ~20 вспомогательных функций для recurring планов, reminder настроек
+
+**Почему код был мертвым:**
+- Селектор `#form_modal_add_plan` не существовал в DOM (модалка была удалена в v10.x)
+- `querySelector()` возвращал `null`
+- Event listeners НЕ устанавливались
+- FAB кнопка вызывала `window.openModalPlan()` (новый код v9.0+)
+
+**Результат:**
+```
+plan.html: 5780 строк → 2364 строки (58% reduction, ~50KB saved)
+```
+
+#### 2. Удаление дублированных модалок
+
+**Файл:** `frontend/web/templates/index.html`
+
+**Удалено:**
+```jinja
+{{ modal_fact('modal_add_transaction') }}  # Строка 181
+{{ modal_plan('modal_add_plan') }}          # Строка 184
+```
+
+**Сохранено (актуальные v9.0+):**
+```jinja
+{{ modal_fact('modal_fact') }}   # Строка 265
+{{ modal_plan('modal_plan') }}   # Строка 266
+```
+
+**Результат:** ~20KB saved (2 duplicate modals removed)
+
+---
+
+**Файл:** `frontend/web/templates/facts.html`
+
+**Удалено:**
+```jinja
+{{ modal_fact('modal_add_transaction') }}  # Строка 203
+```
+
+**Сохранено (актуальная v9.0+):**
+```jinja
+{{ modal_fact('modal_fact') }}  # Строка 209
+```
+
+**Результат:** ~10KB saved (1 duplicate modal removed)
+
+#### 3. Удаление legacy TypeScript модулей
+
+**Удалены файлы:**
+- ✅ `frontend/web/static/js/dashboard/features/addPlan/planForm.ts` (188 строк)
+- ✅ `frontend/web/static/js/dashboard/features/addPlan/planHints.ts` (162 строки)
+
+**Причина удаления:**
+- `planForm.ts:29` - ищет `#form_modal_add_plan` (не существует)
+- `planHints.ts:18` - ищет `#form_modal_add_plan` (не существует)
+- Никогда не вызываются, т.к. селекторы не найдены
+
+**Заменены на:**
+- `features/modalPlan/saveOperations.ts` - роутер для transaction/transfer сохранения
+- `features/modalPlan/saveTransaction.ts` - логика сохранения transaction
+- `features/modalPlan/index.ts` - загрузка данных с skeleton loader
+
+#### 4. Очистка windowExports.ts
+
+**Удалены импорты (строки 47-50):**
+```typescript
+loadPlanCategories as loadPlanCategoriesImpl,
+savePlan as savePlanImpl,
+savePlanOffline as savePlanOfflineImpl,
+loadPlanHints as loadPlanHintsImpl,
+```
+
+**Удалены функции-обертки:**
+```typescript
+async function loadPlanCategories(): Promise<void> { ... }
+function savePlan(button: HTMLElement): void { ... }
+async function savePlanOffline(button: HTMLElement): Promise<void> { ... }
+async function loadPlanHints(category: Category | null = null): Promise<void> { ... }
+```
+
+**Удалены экспорты:**
+- `dashboardExports` объект (строки 651-654)
+- `window` экспорты (строки 725-726)
+
+**Сохранено:**
+- `togglePlanMode(modalId)` - роутинг на новую/старую реализацию
+- Reminder и recurring функции (используются новыми модалками)
+
+#### 5. Очистка типов (globals.d.ts)
+
+**Удалены типы:**
+```typescript
+// Window interface
+loadPlanCategories?: () => Promise<void>;
+savePlan?: (button: HTMLElement) => void;
+
+// DashboardExports interface
+loadPlanCategories(): Promise<void>;
+savePlan(button: HTMLElement): void;
+savePlanOffline(button: HTMLElement): Promise<void>;
+loadPlanHints(category?: Category | null): Promise<void>;
+```
+
+#### 6. Очистка periodButtons.ts
+
+**Изменено:**
+```typescript
+// ❌ Было:
+if (window.Dashboard?.loadPlanCategories) {
+  window.Dashboard.loadPlanCategories();
+}
+
+// ✅ Стало:
+// Legacy: loadPlanCategories removed (v11.x+)
+// New modal_plan uses typeToggle.ts with categoryTree.updateType()
+```
+
+**Обоснование:**
+- Новые модалки используют `typeToggle.ts` для переключения типа категории
+- `categoryTree.updateType(type)` автоматически перезагружает категории
+- Legacy вызов больше не нужен
+
+### Итоговые метрики:
+
+| Метрика | Значение |
+|---------|----------|
+| **Удалено строк кода** | 3416 (plan.html) + 350 (TypeScript) = **3766 строк** |
+| **Удалено файлов** | 2 (planForm.ts, planHints.ts) |
+| **Размер plan.html** | 5780 → 2364 строк (**58% reduction**) |
+| **Размер index.html** | **~20KB saved** |
+| **Размер facts.html** | **~10KB saved** |
+| **Общий эффект** | **~80KB** мертвого кода удалено |
+| **TypeScript компиляция** | ✅ 0 ошибок |
+| **Build размер** | 800.19 KB (gzip: 141.68 KB) |
+
+### Архитектурные улучшения:
+
+**Было (v10.x):**
+```
+plan.html:
+  - 5780 строк (3416 мертвого inline JS)
+  - Дублирование модалок на 3 страницах
+  - Legacy TypeScript модули (planForm, planHints)
+  - Экспорты для обратной совместимости
+```
+
+**Стало (v11.x):**
+```
+plan.html:
+  - 2364 строки (только актуальный код)
+  - Единые модалки v9.0+ (modal_fact, modal_plan)
+  - Модульная архитектура (modalPlan/, modalFact/)
+  - Чистые экспорты (только используемые функции)
+```
+
+### Преимущества:
+
+1. ✅ **Уменьшение размера:** ~80KB мертвого кода удалено
+2. ✅ **Упрощенная поддержка:** Один модуль вместо двух (modalPlan vs planForm)
+3. ✅ **Консистентное UX:** Все страницы используют v9.0+ табовую архитектуру
+4. ✅ **Уменьшение путаницы:** Нет дублированных модалок и мертвого кода
+5. ✅ **Чистый код:** Удалены неиспользуемые импорты и экспорты
+
+### Что НЕ было удалено (и почему):
+
+**Сохраненные файлы:**
+- ✅ `periodButtons.ts` - используется новыми модалками (date range selection)
+- ✅ `reminderSettings.ts` - используется для reminder mode
+- ✅ `recurringSettings.ts` - используется для recurring планов (v10.x+)
+
+**Сохраненные функции:**
+- ✅ `togglePlanMode(modalId)` - роутинг для совместимости (modal_plan → новая реализация)
+- ✅ Reminder экспорты - используются из inline JavaScript на других страницах
+- ✅ Recurring экспорты - используются из inline JavaScript на других страницах
+
+### Тестирование:
+
+**TypeScript компиляция:**
+```bash
+npm run type-check
+✅ No errors found
+```
+
+**Build:**
+```bash
+npm run build
+✅ Build completed in 1.71s
+✅ dashboard.min.js: 800.19 KB (gzip: 141.68 KB)
+```
+
+**Pre-commit hooks:**
+```
+✅ No console.log found
+✅ Type check passed
+```
+
+### Документация:
+
+**Обновлены файлы:**
+- ✅ `docs/architecture/frontend/modal-architecture.md` - раздел "Legacy Removal (v11.x+)"
+- ✅ `docs/explore/modal-plan-reusability-analysis.md` - раздел "Результаты очистки кода"
+
+### Ссылки:
+
+- **План очистки:** `docs/plans/cleanup-legacy-modal-code.md`
+- **Коммит:** 1ae39eee "refactor: remove legacy modal code and duplication"
+- **Архитектура модалок:** `docs/architecture/frontend/modal-architecture.md`
+- **ES Modules миграция:** `docs/architecture/migrations/es-modules-migration.md`
