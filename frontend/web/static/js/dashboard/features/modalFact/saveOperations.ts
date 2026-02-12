@@ -94,8 +94,34 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
 
   } catch (error) {
     debugLog('[SaveFactModal] Error:', error);
+
+    // Parse error message for specific validation errors (v11.4.38)
+    let errorMessage = 'Ошибка сохранения';
+    if (error instanceof Error && error.message.includes('HTTP 422')) {
+      try {
+        // Extract JSON from error message "HTTP 422: {...}"
+        const jsonStart = error.message.indexOf('{');
+        if (jsonStart !== -1) {
+          const jsonStr = error.message.substring(jsonStart);
+          const errorData = JSON.parse(jsonStr);
+
+          // Check for "same financial center" validation error
+          if (errorData.detail?.errors) {
+            const sameAccountError = errorData.detail.errors.find((err: any) =>
+              err.message?.includes('must be different')
+            );
+            if (sameAccountError) {
+              errorMessage = 'Счета "Откуда" и "Куда" должны быть разными';
+            }
+          }
+        }
+      } catch (parseError) {
+        debugLog('[SaveFactModal] Failed to parse error:', parseError);
+      }
+    }
+
     if (typeof (window as any).showToast === 'function') {
-      (window as any).showToast('Ошибка сохранения', 'error');
+      (window as any).showToast(errorMessage, 'error');
     }
   } finally {
     setButtonLoading(button, false);
