@@ -98,7 +98,11 @@ export async function createShoppingListItem(
 
   await db.shoppingListItems.add(newItem);
 
-  logger.info('[shoppingOps] ✅ Shopping item created', { temp_id });
+  logger.info('[shoppingOps] ✅ Shopping item created', {
+    temp_id,
+    shopping_list_temp_id: newItem.shopping_list_temp_id,
+    product_name: newItem.product_name
+  });
   return temp_id;
 }
 
@@ -114,6 +118,20 @@ export async function queryShoppingListItems(
     .where('shopping_list_temp_id')
     .equals(shopping_list_temp_id)
     .toArray();
+
+  // DEBUG: Log all items in DB to troubleshoot empty results
+  if (items.length === 0) {
+    const allItems = await db.shoppingListItems.toArray();
+    logger.warn('[shoppingOps] ⚠️ No items found for list', {
+      requestedListId: shopping_list_temp_id,
+      totalItemsInDB: allItems.length,
+      sampleItems: allItems.slice(0, 3).map(item => ({
+        temp_id: item.temp_id,
+        shopping_list_temp_id: item.shopping_list_temp_id,
+        product_name: item.product_name
+      }))
+    });
+  }
 
   return items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 }
