@@ -469,6 +469,65 @@ function formatDateYYYYMMDD(date: Date): string {
 }
 
 /**
+ * Initialize calendar widgets for fact date inputs
+ */
+function initFactDateCalendars(): void {
+  // Transaction tab date input
+  const factDateInput = document.getElementById('fact_date_input') as HTMLInputElement;
+  const factDateBtn = document.getElementById('fact_date_calendar_btn') as HTMLButtonElement;
+
+  if (factDateInput && factDateBtn && (window as any).BudgetShared?.CalendarWidget) {
+    try {
+      new (window as any).BudgetShared.CalendarWidget({
+        inputElement: factDateInput,
+        mode: 'single',
+        triggerContainer: '#fact_date_calendar_btn',
+        onSelect: (date: Date) => {
+          // Format date as DD.MM.YYYY and update input
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          factDateInput.value = `${day}.${month}.${year}`;
+
+          // Trigger change event for hint updates
+          factDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      debugLog('[ModalFact] Transaction date calendar widget initialized');
+    } catch (error) {
+      console.error('[ModalFact] Failed to initialize transaction date calendar:', error);
+    }
+  }
+
+  // Transfer tab date input
+  const transferDateInput = document.getElementById('fact_transfer_date_input') as HTMLInputElement;
+  const transferDateBtn = document.getElementById('fact_transfer_date_calendar_btn') as HTMLButtonElement;
+
+  if (transferDateInput && transferDateBtn && (window as any).BudgetShared?.CalendarWidget) {
+    try {
+      new (window as any).BudgetShared.CalendarWidget({
+        inputElement: transferDateInput,
+        mode: 'single',
+        triggerContainer: '#fact_transfer_date_calendar_btn',
+        onSelect: (date: Date) => {
+          // Format date as DD.MM.YYYY and update input
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          transferDateInput.value = `${day}.${month}.${year}`;
+
+          // Trigger change event for hint updates
+          transferDateInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      debugLog('[ModalFact] Transfer date calendar widget initialized');
+    } catch (error) {
+      console.error('[ModalFact] Failed to initialize transfer date calendar:', error);
+    }
+  }
+}
+
+/**
  * Setup save button click listener as fallback
  * Ensures save button works even if onclick attribute fails
  */
@@ -550,6 +609,9 @@ export async function openModalFact(): Promise<void> {
     if (typeof (window as any).setFactTransferDate === 'function') {
       (window as any).setFactTransferDate(0); // Transfer tab: 0 = today
     }
+
+    // Initialize calendar widgets for date inputs
+    initFactDateCalendars();
 
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
