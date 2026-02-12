@@ -224,6 +224,10 @@ async function loadTransferTabData(): Promise<void> {
       debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
     }
 
+    // Update transfer period buttons text with month and year
+    const { updateTransferPeriodButtonsText } = await import('./dateHelpers');
+    updateTransferPeriodButtonsText();
+
     debugLog('[ModalPlan] Transfer data loaded');
   } catch (error) {
     debugLog('[ModalPlan] Error loading transfer data:', error);
