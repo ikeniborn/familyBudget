@@ -702,6 +702,18 @@ start_application_services() {
             if save_html_templates_checksum "$SCRIPT_DIR"; then
                 success "HTML templates checksum saved"
             fi
+
+            # Clear nginx proxy cache after backend recreation (v11.4.46+)
+            # Backend serves static files, nginx needs to clear proxy_temp
+            # This ensures fresh static assets reach clients after backend update
+            if docker compose ps nginx -q 2>/dev/null | grep -q .; then
+                info "Clearing nginx cache (backend recreated)..."
+                if docker compose exec -T nginx sh -c "rm -rf /var/cache/nginx/*" >> "$LOG_FILE" 2>&1; then
+                    success "Nginx cache cleared"
+                else
+                    warning "Failed to clear nginx cache (non-critical)"
+                fi
+            fi
         fi
     else
         info "No services need recreation (code unchanged)"

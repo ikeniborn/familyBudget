@@ -34,6 +34,7 @@ from backend.app.middleware.error_handler import (
     http_exception_handler,
 )
 from backend.app.middleware.logging_middleware import LoggingMiddleware
+from backend.app.middleware.static_cache_middleware import StaticCacheMiddleware
 from backend.app.middleware.validation_error_handler import (
     validation_exception_handler,
     value_error_handler,
@@ -306,6 +307,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files cache middleware (Cache-Control headers for versioned assets)
+app.add_middleware(StaticCacheMiddleware)
 
 # Security middleware (CSP, XSS protection, etc.)
 app.add_middleware(CSPMiddleware)

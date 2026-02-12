@@ -54,7 +54,7 @@ COPY bot/healthcheck.py /app/healthcheck.py
 
 # Python-based healthcheck (no pgrep in distroless)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["python", "/app/healthcheck.py"]
+    CMD ["/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
@@ -71,4 +71,4 @@ LABEL org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
-CMD ["python", "-m", "bot.main"]
+CMD ["-m", "bot.main"]
