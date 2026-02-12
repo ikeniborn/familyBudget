@@ -2265,9 +2265,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Загрузить категории, счета и МЗ для обеих форм
+    // Загрузить категории, счета и МЗ для всех форм
     loadCategories();
     loadFinancialCenters();
+    loadTransferFinancialCenters();
     loadCostCenters();
 
     // Инициализация кнопок типа факта (Расход/Доход)
@@ -2984,11 +2985,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Загрузить категории для обеих форм (первоначальная загрузка)
+// Загрузить категории для всех форм (первоначальная загрузка)
 async function loadCategories() {
     try {
         await loadTransactionCategories();
         await loadPlanCategories();
+        await loadTransferCategories();
         debugLog('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
@@ -3073,6 +3075,50 @@ async function loadPlanCategories() {
     } catch (error) {
         console.error('Failed to load plan categories:', error);
         showToast('Ошибка при загрузке категорий планов', 'error');
+    }
+}
+
+// Загрузить категории для формы переводов
+async function loadTransferCategories() {
+    try {
+        const fromArticleSelect = document.querySelector('#from_article');
+        const toArticleSelect = document.querySelector('#to_article');
+
+        if (!fromArticleSelect || !toArticleSelect) {
+            debugLog('[loadTransferCategories] Select elements not found - skipping');
+            return;
+        }
+
+        // Защита от дублирования при будущем появлении transfers.min.js
+        if (window.fromTransferCategoryTree) {
+            debugLog('[loadTransferCategories] Already initialized - skipping');
+            return;
+        }
+
+        // FROM = debit = expense categories
+        window.fromTransferCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
+            type: 'expense',
+            showLeafOnly: true,
+            mode: 'create',
+            onCategoryChange: (category) => {
+                debugLog('[Transfer FROM] Category changed:', category);
+            }
+        });
+
+        // TO = credit = income categories
+        window.toTransferCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
+            type: 'income',
+            showLeafOnly: true,
+            mode: 'create',
+            onCategoryChange: (category) => {
+                debugLog('[Transfer TO] Category changed:', category);
+            }
+        });
+
+        debugLog('[index.html] Transfer categories loaded');
+    } catch (error) {
+        console.error('[Transfer] Failed to load categories:', error);
+        showToast('Ошибка при загрузке категорий переводов', 'error');
     }
 }
 
@@ -3202,6 +3248,57 @@ async function loadFinancialCenters() {
     } catch (error) {
         console.error('Failed to load accounts:', error);
         showToast('Ошибка при загрузке счетов', 'error');
+    }
+}
+
+// Загрузить счета для формы переводов
+async function loadTransferFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
+        if (!response.ok) {
+            if (response.status === 401) {
+                debugLog('[loadTransferFinancialCenters] User not authenticated');
+                return;
+            }
+            console.warn('[Transfer] Failed to fetch accounts: HTTP', response.status);
+            showToast('Не удалось загрузить список счетов для переводов', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        if (centers.length === 0) {
+            console.warn('[Transfer] No accounts returned from API');
+            showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
+            return;
+        }
+
+        // Заполнить оба селектора переводов
+        const fromSelect = document.querySelector('#from_financial_center');
+        const toSelect = document.querySelector('#to_financial_center');
+
+        [fromSelect, toSelect].forEach(select => {
+            if (!select) return;
+
+            // Очистить кроме первой опции (placeholder)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Добавить счета
+            centers.forEach(fc => {
+                const option = document.createElement('option');
+                option.value = fc.id;
+                option.textContent = fc.name;
+                select.appendChild(option);
+            });
+        });
+
+        debugLog('[index.html] Transfer financial centers loaded:', centers.length);
+    } catch (error) {
+        console.error('[Transfer] Failed to load financial centers:', error);
+        showToast('Ошибка при загрузке счетов для переводов', 'error');
     }
 }
 
