@@ -3095,25 +3095,29 @@ async function loadTransferCategories() {
             return;
         }
 
-        // FROM = debit = expense categories
-        window.fromTransferCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
-            type: 'expense',
-            showLeafOnly: true,
-            mode: 'create',
-            onCategoryChange: (category) => {
-                debugLog('[Transfer FROM] Category changed:', category);
+        // FROM = debit (списание)
+        window.fromTransferCategoryTree = new BudgetShared.ChoicesCategoryTree(
+            '#from_article',
+            'debit',
+            {
+                mode: 'create',
+                onCategoryChange: (category) => {
+                    debugLog('[Transfer FROM] Category changed:', category);
+                }
             }
-        });
+        );
 
-        // TO = credit = income categories
-        window.toTransferCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
-            type: 'income',
-            showLeafOnly: true,
-            mode: 'create',
-            onCategoryChange: (category) => {
-                debugLog('[Transfer TO] Category changed:', category);
+        // TO = credit (пополнение)
+        window.toTransferCategoryTree = new BudgetShared.ChoicesCategoryTree(
+            '#to_article',
+            'credit',
+            {
+                mode: 'create',
+                onCategoryChange: (category) => {
+                    debugLog('[Transfer TO] Category changed:', category);
+                }
             }
-        });
+        );
 
         debugLog('[index.html] Transfer categories loaded');
     } catch (error) {
