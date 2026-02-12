@@ -284,6 +284,10 @@ nginx/conf.d/app.conf
 **/sync_web.sh
 
 # Screenshots and images (documentation assets excluded)
+# Exception: PWA splash screens (required for iOS) and favicon
+!frontend/web/static/icons/splash/*.png
+!frontend/web/static/icons/favicon.ico
+!frontend/web/static/icons/*.png
 *.png
 *.jpg
 *.jpeg

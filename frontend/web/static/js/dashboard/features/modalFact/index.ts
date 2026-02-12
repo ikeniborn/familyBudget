@@ -474,22 +474,16 @@ function formatDateYYYYMMDD(date: Date): string {
 function initFactDateCalendars(): void {
   // Transaction tab date input
   const factDateInput = document.getElementById('fact_date_input') as HTMLInputElement;
-  const factDateBtn = document.getElementById('fact_date_calendar_btn') as HTMLButtonElement;
 
-  if (factDateInput && factDateBtn && (window as any).BudgetShared?.CalendarWidget) {
+  if (factDateInput && (window as any).BudgetShared?.CalendarWidget) {
     try {
       new (window as any).BudgetShared.CalendarWidget({
         inputElement: factDateInput,
         mode: 'single',
         triggerContainer: '#fact_date_calendar_btn',
-        onSelect: (date: Date) => {
-          // Format date as DD.MM.YYYY and update input
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          factDateInput.value = `${day}.${month}.${year}`;
-
-          // Trigger change event for hint updates
+        onSelect: (_displayDate: string) => {
+          // CalendarWidget already sets input.value to DD.MM.YYYY
+          // Just trigger change event for hint updates
           factDateInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
       });
@@ -501,22 +495,16 @@ function initFactDateCalendars(): void {
 
   // Transfer tab date input
   const transferDateInput = document.getElementById('fact_transfer_date_input') as HTMLInputElement;
-  const transferDateBtn = document.getElementById('fact_transfer_date_calendar_btn') as HTMLButtonElement;
 
-  if (transferDateInput && transferDateBtn && (window as any).BudgetShared?.CalendarWidget) {
+  if (transferDateInput && (window as any).BudgetShared?.CalendarWidget) {
     try {
       new (window as any).BudgetShared.CalendarWidget({
         inputElement: transferDateInput,
         mode: 'single',
         triggerContainer: '#fact_transfer_date_calendar_btn',
-        onSelect: (date: Date) => {
-          // Format date as DD.MM.YYYY and update input
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          transferDateInput.value = `${day}.${month}.${year}`;
-
-          // Trigger change event for hint updates
+        onSelect: (_displayDate: string) => {
+          // CalendarWidget already sets input.value to DD.MM.YYYY
+          // Just trigger change event for hint updates
           transferDateInput.dispatchEvent(new Event('change', { bubbles: true }));
         }
       });
