@@ -1,8 +1,8 @@
 {
   "backend": {
-    "version": "11.4.39",
-    "hash": "69aadb10",
-    "lastModified": "2026-02-12T08:55:47Z",
+    "version": "11.4.40",
+    "hash": "9c1d9e00",
+    "lastModified": "2026-02-12T09:47:59Z",
     "paths": [
       "backend/",
       "frontend/",
