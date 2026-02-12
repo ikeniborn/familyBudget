@@ -8,19 +8,11 @@
 import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
 
-declare const debugLog: (...args: any[]) => void;
-
 /**
  * Save plan transfer
  */
 export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
   const formData = new FormData(form);
-
-  // DEBUG: Log all form data
-  debugLog('[SavePlanTransfer] FormData entries:');
-  for (const [key, value] of formData.entries()) {
-    debugLog(`  ${key}:`, value);
-  }
 
   // Convert YYYY-MM to YYYY-MM-01 (first day of month)
   const period = formData.get('transfer_plan_month') as string; // YYYY-MM (field name from plan_transfer_tab.html)
