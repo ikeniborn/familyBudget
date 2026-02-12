@@ -1732,8 +1732,8 @@ async function loadAnalyticsArticleFilter(articleType = null) {
         select.innerHTML = '<option value="">Все категории</option>';
 
         // Build tree and flatten (same as plan filter)
-        const tree = buildArticleTree(articles);
-        const flatNodes = flattenArticleTree(tree);
+        const tree = PlanApp.Helpers.buildArticleTree(articles);
+        const flatNodes = PlanApp.Helpers.flattenArticleTree(tree);
 
         // Group by type while preserving hierarchical order
         const groupedByType = { 'expense': [], 'income': [], 'debit': [], 'credit': [] };
