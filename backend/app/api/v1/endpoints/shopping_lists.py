@@ -118,8 +118,8 @@ async def create_shopping_list(
     # Generate server-side temp_id if not provided by client (offline sync fallback)
     temp_id = shopping_list_data.temp_id
     if temp_id is None:
-        import random
-        temp_id = random.randint(0, 9007199254740991)  # MAX_SAFE_INTEGER (int53)
+        import secrets
+        temp_id = secrets.randbelow(9007199254740991)  # Crypto-secure random (MAX_SAFE_INTEGER - int53)
 
     shopping_list = ShoppingList(
         creator_id=current_user.id,  # Tracks owner for delete permission

@@ -206,8 +206,8 @@ async def create_shopping_list_item(
     # Generate server-side temp_id if not provided by client (offline sync fallback)
     temp_id = item_data.temp_id
     if temp_id is None:
-        import random
-        temp_id = random.randint(0, 9007199254740991)  # MAX_SAFE_INTEGER (int53)
+        import secrets
+        temp_id = secrets.randbelow(9007199254740991)  # Crypto-secure random (MAX_SAFE_INTEGER - int53)
 
     item = ShoppingListItem(
         creator_id=current_user.id,  # Audit trail

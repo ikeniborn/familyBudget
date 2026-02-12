@@ -173,7 +173,9 @@ export class FamilyBudgetDB extends Dexie {
       // Indexes unchanged (Dexie auto-handles number type for temp_id)
       budgetFacts: 'temp_id, id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
       shoppingLists: 'temp_id, id, creator_id, is_active, sync_status',
-      shoppingListItems: 'temp_id, id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]'
+      shoppingListItems: 'temp_id, id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]',
+      // Backup table for orphaned items discovered during migration
+      _migrationOrphanedItemsBackup: '++id, item_temp_id, shopping_list_temp_id, product_name, migration_timestamp'
     }).upgrade(async tx => {
       logger.info('[Dexie Migration v4] Migrating temp_id: string (UUID) → number (int53)...');
 
@@ -280,6 +282,9 @@ async function migrateShoppingListItems(tx: Transaction): Promise<void> {
     listTempIdMap.set(numericTempId, numericTempId); // numeric → numeric
   }
 
+  // Collect orphaned items for backup BEFORE filtering
+  const orphanedItems: any[] = [];
+
   // Migrate items with foreign key update
   const migratedItems = items
     .map((item: any) => {
@@ -300,6 +305,17 @@ async function migrateShoppingListItems(tx: Transaction): Promise<void> {
 
       if (numericListTempId === undefined) {
         logger.error(`[Migration v4] shoppingListItems: Orphaned item ${item.temp_id} (parent: ${item.shopping_list_temp_id} not found)`);
+
+        // Backup orphaned item before skipping
+        orphanedItems.push({
+          item_temp_id: item.temp_id,
+          shopping_list_temp_id: item.shopping_list_temp_id,
+          product_name: item.product_name || 'Unknown',
+          migration_timestamp: new Date().toISOString(),
+          // Include full record for potential recovery
+          original_record: JSON.stringify(item)
+        });
+
         return null; // Skip orphaned items
       }
 
@@ -313,6 +329,12 @@ async function migrateShoppingListItems(tx: Transaction): Promise<void> {
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  // Save orphaned items to backup table
+  if (orphanedItems.length > 0) {
+    await tx.table('_migrationOrphanedItemsBackup').bulkAdd(orphanedItems);
+    logger.warn(`[Migration v4] shoppingListItems: Backed up ${orphanedItems.length} orphaned items to _migrationOrphanedItemsBackup table`);
+  }
 
   // Replace records (bulkPut overwrites by primary key)
   await itemsTable.bulkPut(migratedItems);
