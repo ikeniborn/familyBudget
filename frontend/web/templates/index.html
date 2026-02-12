@@ -3095,11 +3095,11 @@ async function loadTransferCategories() {
             return;
         }
 
-        // FROM = debit (списание)
+        // FROM = debit (списание) - type inside options object
         window.fromTransferCategoryTree = new BudgetShared.ChoicesCategoryTree(
             '#from_article',
-            'debit',
             {
+                type: 'debit',
                 mode: 'create',
                 onCategoryChange: (category) => {
                     debugLog('[Transfer FROM] Category changed:', category);
@@ -3107,11 +3107,11 @@ async function loadTransferCategories() {
             }
         );
 
-        // TO = credit (пополнение)
+        // TO = credit (пополнение) - type inside options object
         window.toTransferCategoryTree = new BudgetShared.ChoicesCategoryTree(
             '#to_article',
-            'credit',
             {
+                type: 'credit',
                 mode: 'create',
                 onCategoryChange: (category) => {
                     debugLog('[Transfer TO] Category changed:', category);
