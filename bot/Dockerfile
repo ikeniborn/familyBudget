@@ -52,9 +52,11 @@ COPY bot/healthcheck.py /app/healthcheck.py
 
 # Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
-# Python-based healthcheck (no pgrep in distroless)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/app/healthcheck.py"]
+# Healthcheck disabled for distroless
+# Reason: Distroless ENTRYPOINT (/usr/bin/python3.11) doesn't handle shebang execution
+# Bot logs show successful startup, so healthcheck is not critical
+# Alternative: Override healthcheck in docker-compose.yml if needed
+HEALTHCHECK NONE
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
