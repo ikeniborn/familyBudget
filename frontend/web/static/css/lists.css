@@ -1425,6 +1425,14 @@ img[loading="lazy"] {
    Lists Page FAB Sizing - Desktop Adaptive
    ================================== */
 
+/* Tablet FAB positioning - lift above bottom navigation (700px-1024px) */
+@media (min-width: 700px) and (max-width: 1023px) {
+    #create-list-fab,
+    .fab-main {
+        bottom: 5rem !important; /* Lift above bottom bar (was 1.5rem) */
+    }
+}
+
 /* Desktop FAB buttons - custom sizing (replaces DaisyUI btn-lg) */
 @media (min-width: 1024px) {
     /* Main FAB buttons */
