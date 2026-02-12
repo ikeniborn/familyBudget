@@ -6,7 +6,7 @@
 import { db } from '../core/database';
 import { logger } from '../utils/logger';
 import { validateShoppingItem } from '../utils/validation';
-import { generateUUID } from '../utils/hash';
+import { generateNumericTempId } from '../utils/hash';
 import type {
   LocalShoppingList,
   LocalShoppingListItem,
@@ -25,10 +25,10 @@ import type {
  */
 export async function createShoppingList(
   list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
-): Promise<string> {
+): Promise<number> {
   logger.debug('[shoppingOps] createShoppingList', list);
 
-  const temp_id = generateUUID();
+  const temp_id = generateNumericTempId();
 
   const newList: LocalShoppingList = {
     id: null,
@@ -75,7 +75,7 @@ export async function queryShoppingLists(
  */
 export async function createShoppingListItem(
   item: Omit<LocalShoppingListItem, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
-): Promise<string> {
+): Promise<number> {
   logger.debug('[shoppingOps] createShoppingListItem', item);
 
   // Validate
@@ -85,7 +85,7 @@ export async function createShoppingListItem(
     position: item.position
   });
 
-  const temp_id = generateUUID();
+  const temp_id = generateNumericTempId();
 
   const newItem: LocalShoppingListItem = {
     id: null,
@@ -110,7 +110,7 @@ export async function createShoppingListItem(
  * Query shopping list items для списка
  */
 export async function queryShoppingListItems(
-  shopping_list_temp_id: string
+  shopping_list_temp_id: number
 ): Promise<LocalShoppingListItem[]> {
   logger.debug('[shoppingOps] queryShoppingListItems', { shopping_list_temp_id });
 
@@ -140,7 +140,7 @@ export async function queryShoppingListItems(
  * Update shopping list item
  */
 export async function updateShoppingListItem(
-  temp_id: string,
+  temp_id: number,
   updates: Partial<Pick<LocalShoppingListItem, 'product_name' | 'quantity' | 'is_completed' | 'position'>>
 ): Promise<void> {
   logger.debug('[shoppingOps] updateShoppingListItem', { temp_id, updates });
@@ -157,7 +157,7 @@ export async function updateShoppingListItem(
 /**
  * Delete shopping list item (soft delete)
  */
-export async function deleteShoppingListItem(temp_id: string): Promise<void> {
+export async function deleteShoppingListItem(temp_id: number): Promise<void> {
   logger.debug('[shoppingOps] deleteShoppingListItem', { temp_id });
 
   await db.shoppingListItems.where('temp_id').equals(temp_id).modify({

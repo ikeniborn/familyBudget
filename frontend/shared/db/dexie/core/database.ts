@@ -6,8 +6,9 @@
  * Migration: PGlite NUMERIC → Dexie integer (multiply by 100)
  */
 
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 import { logger } from '../utils/logger';
+import { hashStringToInt53 } from '../utils/hash';
 import type {
   LocalArticle,
   LocalArticleHierarchy,
@@ -30,7 +31,7 @@ import type {
  * Default schema version
  * Increment this when adding new migrations
  */
-const DEFAULT_SCHEMA_VERSION = 3;  // Remove user_id from Stores/ProductGroups (global reference data)
+const DEFAULT_SCHEMA_VERSION = 4;  // Migrate temp_id from UUID (string) to numeric (int53)
 
 /**
  * Cached database version (to avoid redundant Dexie.exists() calls)
@@ -166,7 +167,158 @@ export class FamilyBudgetDB extends Dexie {
 
       logger.info('[Dexie Migration v3] ✅ Schema migration complete. Data will be re-synced.');
     });
+
+    // Version 4: Migrate temp_id from UUID (string) to numeric (int53)
+    this.version(4).stores({
+      // Indexes unchanged (Dexie auto-handles number type for temp_id)
+      budgetFacts: 'temp_id, id, user_id, article_id, financial_center_id, cost_center_id, date, sync_status, [user_id+date], [user_id+sync_status]',
+      shoppingLists: 'temp_id, id, creator_id, is_active, sync_status',
+      shoppingListItems: 'temp_id, id, shopping_list_temp_id, position, sync_status, [shopping_list_temp_id+position]'
+    }).upgrade(async tx => {
+      logger.info('[Dexie Migration v4] Migrating temp_id: string (UUID) → number (int53)...');
+
+      try {
+        // CRITICAL ORDER: Migrate parent tables BEFORE child tables (FK integrity)
+
+        // 1. Migrate budgetFacts (no foreign keys)
+        await migrateTempIds(tx, 'budgetFacts');
+
+        // 2. Migrate shoppingLists (parent table)
+        await migrateTempIds(tx, 'shoppingLists');
+
+        // 3. Migrate shoppingListItems (child table with FK to shoppingLists)
+        // IMPORTANT: Must be AFTER shoppingLists migration
+        await migrateShoppingListItems(tx);
+
+        logger.info('[Dexie Migration v4] ✅ Migration complete. All temp_id fields are now numeric.');
+      } catch (error) {
+        logger.error('[Dexie Migration v4] ❌ Migration failed:', error);
+        throw error; // Rollback migration
+      }
+    });
   }
+}
+
+/**
+ * Migrate table temp_id from UUID string to numeric (generic)
+ *
+ * IMPORTANT: temp_id is primary key! Cannot use .update() on primary key.
+ * Strategy: .bulkPut() creates new records with numeric temp_id (replaces old UUID records)
+ *
+ * @param tx - Dexie transaction
+ * @param tableName - Table name to migrate
+ */
+async function migrateTempIds(tx: Transaction, tableName: string): Promise<void> {
+  const table = tx.table(tableName);
+  const records = await table.toArray();
+
+  if (records.length === 0) {
+    logger.info(`[Migration v4] ${tableName}: No records to migrate (skipped)`);
+    return;
+  }
+
+  // Map records: UUID temp_id → numeric temp_id
+  const migratedRecords = records.map((record: any) => {
+    // Validate temp_id exists and is string (UUID)
+    if (!record.temp_id || typeof record.temp_id !== 'string') {
+      logger.warn(`[Migration v4] ${tableName}: Invalid temp_id type for record`, record);
+      return null;
+    }
+
+    // Convert UUID → numeric
+    const numericTempId = hashStringToInt53(record.temp_id);
+
+    return {
+      ...record,
+      temp_id: numericTempId
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null); // Remove null entries
+
+  // Replace records (bulkPut overwrites by primary key)
+  // Old UUID records are deleted, new numeric records are created
+  await table.bulkPut(migratedRecords);
+
+  logger.info(`[Migration v4] ${tableName}: ${migratedRecords.length}/${records.length} records migrated`);
+}
+
+/**
+ * Migrate shoppingListItems with foreign key integrity
+ *
+ * CRITICAL: Must preserve foreign key relationship (shopping_list_temp_id → shoppingLists.temp_id)
+ * Strategy:
+ * 1. Build UUID → numeric mapping from shoppingLists (BEFORE migration)
+ * 2. Migrate items: update both temp_id AND shopping_list_temp_id
+ * 3. Use .bulkPut() to replace records
+ *
+ * @param tx - Dexie transaction
+ */
+async function migrateShoppingListItems(tx: Transaction): Promise<void> {
+  const itemsTable = tx.table('shoppingListItems');
+  const listsTable = tx.table('shoppingLists');
+
+  const items = await itemsTable.toArray();
+  const lists = await listsTable.toArray();
+
+  if (items.length === 0) {
+    logger.info('[Migration v4] shoppingListItems: No records to migrate (skipped)');
+    return;
+  }
+
+  // Build UUID → numeric mapping for foreign key
+  // IMPORTANT: Use current lists (already migrated) to get numeric temp_ids
+  const listTempIdMap = new Map<string | number, number>();
+
+  for (const list of lists) {
+    const numericTempId = typeof list.temp_id === 'number'
+      ? list.temp_id
+      : hashStringToInt53(list.temp_id);
+
+    // Map both old UUID and new numeric (for robustness)
+    if (typeof list.temp_id === 'string') {
+      listTempIdMap.set(list.temp_id, numericTempId); // UUID → numeric
+    }
+    listTempIdMap.set(numericTempId, numericTempId); // numeric → numeric
+  }
+
+  // Migrate items with foreign key update
+  const migratedItems = items
+    .map((item: any) => {
+      // Validate temp_id
+      if (!item.temp_id || typeof item.temp_id !== 'string') {
+        logger.warn('[Migration v4] shoppingListItems: Invalid temp_id for item', item);
+        return null;
+      }
+
+      // Validate shopping_list_temp_id
+      if (!item.shopping_list_temp_id) {
+        logger.warn('[Migration v4] shoppingListItems: Missing shopping_list_temp_id for item', item);
+        return null;
+      }
+
+      // Get numeric FK (from mapping)
+      const numericListTempId = listTempIdMap.get(item.shopping_list_temp_id);
+
+      if (numericListTempId === undefined) {
+        logger.error(`[Migration v4] shoppingListItems: Orphaned item ${item.temp_id} (parent: ${item.shopping_list_temp_id} not found)`);
+        return null; // Skip orphaned items
+      }
+
+      // Convert item temp_id to numeric
+      const numericItemTempId = hashStringToInt53(item.temp_id);
+
+      return {
+        ...item,
+        temp_id: numericItemTempId,
+        shopping_list_temp_id: numericListTempId // Update FK
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  // Replace records (bulkPut overwrites by primary key)
+  await itemsTable.bulkPut(migratedItems);
+
+  const orphanedCount = items.length - migratedItems.length;
+  logger.info(`[Migration v4] shoppingListItems: ${migratedItems.length}/${items.length} records migrated (${orphanedCount} orphaned skipped)`);
 }
 
 // Singleton instance with async initialization

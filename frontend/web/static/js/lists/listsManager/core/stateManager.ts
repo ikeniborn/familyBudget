@@ -217,17 +217,48 @@ export async function loadShoppingLists(): Promise<void> {
 }
 
 /**
+ * Helper: Get numeric temp_id from server ID
+ *
+ * @param serverId - Server-assigned list ID
+ * @returns Numeric temp_id for Dexie query
+ */
+async function getListTempId(serverId: number): Promise<number> {
+  const state = getState();
+  const list = state.shoppingLists.find(l => l.id === serverId);
+
+  if (list?.temp_id) {
+    return typeof list.temp_id === 'number' ? list.temp_id : 0;
+  }
+
+  // Fallback: query Dexie directly using public API
+  try {
+    const dexieManager = await getDexieManager();
+    const allLists = await dexieManager.queryShoppingLists();
+    const dexieList = allLists.find(l => l.id === serverId);
+
+    return dexieList?.temp_id || 0; // Return 0 if not found (error case)
+  } catch (error) {
+    console.warn('[ListsManager] Failed to get temp_id from Dexie:', error);
+    return 0;
+  }
+}
+
+/**
  * Load items for specific shopping list (PGlite-first with API fallback)
  *
- * @param listId - Shopping list ID or temp_id (string for PGlite, number for API)
+ * @param listId - Shopping list ID or temp_id (number for both Dexie and API)
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
+ * FIXED (v11.6.0): Use numeric temp_id instead of string conversion (bug fix)
  */
 export async function loadShoppingListItems(listId: number | string): Promise<void> {
   try {
-    // DataLayer automatically handles PGlite-first + API fallback
-    // Convert listId to string for PGlite temp_id compatibility
-    const listTempId = String(listId);
+    // Accept both numeric ID (server) and temp_id (client)
+    // CRITICAL FIX: Use numeric temp_id instead of string conversion
+    const listTempId = typeof listId === 'string'
+      ? parseInt(listId, 10) || await getListTempId(parseInt(listId, 10))
+      : await getListTempId(listId);
+
     const localItems = await dataLayer.getShoppingListItems(listTempId);
 
     // Convert to UI types (use numeric listId for compatibility)
@@ -235,7 +266,7 @@ export async function loadShoppingListItems(listId: number | string): Promise<vo
     const currentItems = localItems.map(item => convertShoppingListItem(item, numericListId));
 
     updateState({ currentItems });
-    debugLog('[ListsManager] Loaded items:', currentItems.length);
+    debugLog('[ListsManager] Loaded items:', currentItems.length, 'for temp_id:', listTempId);
 
     // Load stores and product groups for dropdowns
     await loadStoresAndGroups();

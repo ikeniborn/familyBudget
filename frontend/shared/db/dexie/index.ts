@@ -84,7 +84,7 @@ export {
 } from './operations/shoppingOperations';
 
 // toggleItemCompleted implementation (wrapper around updateShoppingListItem)
-export async function toggleItemCompleted(temp_id: string, is_completed: boolean): Promise<void> {
+export async function toggleItemCompleted(temp_id: number, is_completed: boolean): Promise<void> {
   const { updateShoppingListItem } = await import('./operations/shoppingOperations');
   await updateShoppingListItem(temp_id, { is_completed });
 }
@@ -125,7 +125,7 @@ export type {
 import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
-export { generateUUID, calculateContentHash } from './utils/hash';
+export { generateUUID, generateNumericTempId, hashStringToInt53, calculateContentHash } from './utils/hash';
 export {
   validateArticle,
   validateFact,

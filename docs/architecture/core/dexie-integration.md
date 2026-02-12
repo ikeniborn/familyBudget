@@ -1,8 +1,8 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Последнее обновление:** 2026-02-09 (v11.5.0 - Separate Sync Periods)
-**Версия:** v11.5.0+
+**Последнее обновление:** 2026-02-12 (v11.6.0 - Numeric temp_id Migration)
+**Версия:** v11.6.0+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
 
@@ -397,6 +397,8 @@ await migrateFromPGlite((progress) => {
 
 | Version | Date | Changes | Migration |
 |---------|------|---------|-----------|
+| **v4** | 2026-02-12 | **Numeric temp_id migration**: Changed `temp_id` from UUID (string, 36 chars) to numeric int53 format. Uses crypto-secure random generation (`crypto.getRandomValues()`). **CRITICAL FIX:** Resolved shopping list items loading bug caused by temp_id format mismatch ("list_35" vs "35"). Migrates UUID→number for all records using `bulkPut()` strategy with FK integrity preservation. | Auto-upgrade on next page load (UUID records replaced with numeric temp_id) |
+| **v3** | 2026-02-08 | Added sync_hash indexes and compound indexes for performance optimization | Auto-upgrade on next page load |
 | **v2** | 2026-02-06 | Added `creator_id` indexes to `shoppingLists` and `shoppingListItems` tables | Auto-upgrade on next page load |
 | **v1** | 2026-01-31 | Initial Dexie schema (PGlite replacement) | Manual re-sync from server |
 
@@ -408,6 +410,70 @@ await migrateFromPGlite((progress) => {
 - Users see seamless upgrade (no manual IndexedDB clearing needed)
 
 **Example:** User with v1 schema visits site after v2 deployment → Dexie automatically upgrades to v2, adds `creator_id` indexes, preserves all existing shopping lists.
+
+#### Schema v4: Numeric temp_id Migration (v11.6.0)
+
+**Проблема:**
+- Backend API не возвращал `temp_id` при создании shopping list
+- Frontend создавал fallback: `temp_id = "list_" + id` (строка, например `"list_35"`)
+- При загрузке товаров: `String(currentListId)` → `"35"` (несоответствие формата!)
+- Dexie query: `WHERE shopping_list_temp_id = "35"` → не находил записи (в БД хранилось `"list_35"`)
+- **Следствие:** Пустой список товаров после создания, хотя данные есть в IndexedDB
+
+**Решение v4:**
+1. **Тип temp_id:** UUID (string, 36 chars) → **numeric int53** (0-9,007,199,254,740,991)
+2. **Генерация:** Crypto-secure random (`crypto.getRandomValues()`)
+3. **Миграция:** Автоматическая UUID→number конвертация с FK integrity preservation
+4. **Backend sync:** PostgreSQL получает `temp_id BIGINT` колонки (Alembic migration)
+
+**Migration Strategy:**
+- **Parent tables first:** `shoppingLists`, `budgetFacts` (no dependencies)
+- **Child tables second:** `shoppingListItems` (FK to `shoppingLists.temp_id`)
+- **Primary key replacement:** `bulkPut()` strategy (cannot update PK via `.update()`)
+- **FK mapping:** Build UUID→numeric map BEFORE parent migration, update child FK references
+
+**Bug Fix:**
+- `stateManager.ts`: Added `getListTempId()` helper для numeric temp_id resolution
+- `modalManager.ts`: Generate numeric temp_id on client BEFORE API call (no more "list_35" fallback!)
+
+**Code Example (migration):**
+```typescript
+// Parent table migration (generic)
+async function migrateTempIds(tx: Transaction, tableName: string): Promise<void> {
+  const table = tx.table(tableName);
+  const records = await table.toArray();
+
+  // UUID → numeric conversion
+  const migratedRecords = records.map(record => ({
+    ...record,
+    temp_id: hashStringToInt53(record.temp_id)
+  }));
+
+  // Replace records (bulkPut overwrites by primary key)
+  await table.bulkPut(migratedRecords);
+}
+
+// Child table migration (FK-aware)
+async function migrateShoppingListItems(tx: Transaction): Promise<void> {
+  const items = await tx.table('shoppingListItems').toArray();
+  const lists = await tx.table('shoppingLists').toArray();
+
+  // Build UUID→numeric mapping for FK (BEFORE parent migration)
+  const listTempIdMap = new Map<string, number>();
+  for (const list of lists) {
+    listTempIdMap.set(list.temp_id, hashStringToInt53(list.temp_id));
+  }
+
+  // Migrate items with FK update
+  const migratedItems = items.map(item => ({
+    ...item,
+    temp_id: hashStringToInt53(item.temp_id),
+    shopping_list_temp_id: listTempIdMap.get(item.shopping_list_temp_id)! // Update FK
+  }));
+
+  await tx.table('shoppingListItems').bulkPut(migratedItems);
+}
+```
 
 ---
 

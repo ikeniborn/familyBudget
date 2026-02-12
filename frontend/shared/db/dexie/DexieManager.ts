@@ -11,7 +11,7 @@ import type { FamilyBudgetDB } from './core/database';
 import { logger } from './utils/logger';
 import { cleanupLegacyDatabase } from './migration/cleanupLegacyDB';
 import { validateFact } from './utils/validation';
-import { generateUUID } from './utils/hash';
+import { generateNumericTempId } from './utils/hash';
 import {
   pruneFacts,
   startAutoPruning,
@@ -319,7 +319,7 @@ export class DexieManager {
    */
   async createFact(
     fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
-  ): Promise<string> {
+  ): Promise<number> {
     logger.debug('[DexieManager] createFact', fact);
 
     // Validate before insert
@@ -331,7 +331,7 @@ export class DexieManager {
       article_id: fact.article_id
     });
 
-    const temp_id = generateUUID();
+    const temp_id = generateNumericTempId();
 
     // Convert amount to cents
     const factWithCents: LocalBudgetFact = {
@@ -355,7 +355,7 @@ export class DexieManager {
   /**
    * Update budget fact по temp_id
    */
-  async updateFact(temp_id: string, updates: Partial<LocalBudgetFact>): Promise<void> {
+  async updateFact(temp_id: number, updates: Partial<LocalBudgetFact>): Promise<void> {
     logger.debug('[DexieManager] updateFact', { temp_id, updates });
 
     // Convert amount to cents if updated
@@ -370,7 +370,7 @@ export class DexieManager {
   /**
    * Delete budget fact (soft delete) по temp_id
    */
-  async deleteFact(temp_id: string): Promise<void> {
+  async deleteFact(temp_id: number): Promise<void> {
     logger.debug('[DexieManager] deleteFact', { temp_id });
 
     await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
@@ -504,7 +504,7 @@ export class DexieManager {
   /**
    * Bulk soft delete facts
    */
-  async bulkSoftDeleteFacts(temp_ids: string[]): Promise<void> {
+  async bulkSoftDeleteFacts(temp_ids: number[]): Promise<void> {
     logger.info('[DexieManager] bulkSoftDeleteFacts', { count: temp_ids.length });
     const db = this.getDB();
     await db.transaction('rw', db.budgetFacts, async () => {
@@ -538,7 +538,7 @@ export class DexieManager {
   /**
    * Confirm pending operation (after successful sync)
    */
-  async confirmPendingOperation(tempId: string, serverId: number): Promise<void> {
+  async confirmPendingOperation(tempId: number, serverId: number): Promise<void> {
     logger.debug('[DexieManager] confirmPendingOperation', { tempId, serverId });
 
     await this.getDB().budgetFacts
@@ -867,8 +867,8 @@ export class DexieManager {
 
   async createShoppingList(
     list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
-  ): Promise<string> {
-    const temp_id = generateUUID();
+  ): Promise<number> {
+    const temp_id = generateNumericTempId();
 
     const newList: LocalShoppingList = {
       id: null,
@@ -1040,7 +1040,7 @@ export class DexieManager {
   async createConflictRecord(
     entityType: string,
     entityId: number | null,
-    tempId: string | null,
+    tempId: number | null,
     local: Record<string, unknown>,
     remote: Record<string, unknown>
   ): Promise<void> {
@@ -1137,7 +1137,7 @@ export class DexieManager {
    * @param shopping_list_temp_id - Shopping list temp_id
    * @returns Promise with shopping list items
    */
-  async queryShoppingListItems(shopping_list_temp_id: string): Promise<import('./types/shopping').LocalShoppingListItem[]> {
+  async queryShoppingListItems(shopping_list_temp_id: number): Promise<import('./types/shopping').LocalShoppingListItem[]> {
     const { queryShoppingListItems } = await import('./operations/shoppingOperations');
     return queryShoppingListItems(shopping_list_temp_id);
   }

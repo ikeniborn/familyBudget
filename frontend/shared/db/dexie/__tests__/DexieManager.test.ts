@@ -179,7 +179,7 @@ describe('DexieManager', () => {
     it('should bulk insert facts', async () => {
       const facts = Array.from({ length: 100 }, (_, i) => ({
         id: null,
-        temp_id: `temp_${i}`,
+        temp_id: 1000000 + i,  // Numeric temp_id (int53)
         user_id: 1,
         article_id: 1,
         financial_center_id: 1,

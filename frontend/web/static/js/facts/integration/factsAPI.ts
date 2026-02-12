@@ -332,7 +332,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
 /**
  * Helper: Find fact temp_id by server ID
  */
-async function findFactTempId(factId: number): Promise<string | null> {
+async function findFactTempId(factId: number): Promise<number | null> {
     const pglite = await getDexieManager();
     if (!isDexieActive() || !pglite.isReady()) {
         return null;

@@ -24,11 +24,19 @@ class FactCreate(BaseModel):
         - fact_date: Required, cannot be in future
         - amount: Required, must be > 0
         - description: Optional, max 1000 characters
+        - temp_id: Optional, client-generated numeric temp_id
 
     Notes:
         - user_id is set automatically from current_user
         - financial_center_id and cost_center_id are optional (for future use)
+        - temp_id: Client can provide numeric temp_id for offline sync
     """
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
+    )
 
     article_id: int = Field(
         ...,
@@ -350,6 +358,12 @@ class FactResponse(BaseModel):
     id: int = Field(
         description="Fact ID (primary key)",
         examples=[1, 123]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     user_id: int = Field(
