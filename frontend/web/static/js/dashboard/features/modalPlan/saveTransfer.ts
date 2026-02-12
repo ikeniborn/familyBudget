@@ -34,8 +34,8 @@ export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
     from_article_id: parseIntOrNull(formData.get('from_article_id'))!, // required field (HTML required attr ensures non-null)
     to_article_id: parseIntOrNull(formData.get('to_article_id'))!,     // required field (HTML required attr ensures non-null)
-    amount: parseFloat(formData.get('amount') as string),
-    description: formData.get('description') || null
+    amount: parseFloat(formData.get('transfer_amount') as string), // Prefixed to avoid conflict with transaction tab
+    description: formData.get('transfer_description') || null // Prefixed to avoid conflict with transaction tab
   };
 
   // POST /api/v1/transfers
