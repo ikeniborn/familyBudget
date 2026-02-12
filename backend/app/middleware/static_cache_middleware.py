@@ -17,7 +17,6 @@ Cache Strategy:
 Author: Family Budget Team
 """
 
-from starlette.datastructures import MutableHeaders
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -56,8 +55,6 @@ class StaticCacheMiddleware(BaseHTTPMiddleware):
 
         # Add Cache-Control header if determined
         if cache_control:
-            headers = MutableHeaders(response.headers)
-            headers["Cache-Control"] = cache_control
-            response.headers = headers
+            response.headers["Cache-Control"] = cache_control
 
         return response
