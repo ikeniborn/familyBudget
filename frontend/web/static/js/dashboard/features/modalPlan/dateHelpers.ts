@@ -9,12 +9,12 @@ import { setDateWithOffset, updateButtonActiveState } from '../../shared/utils/d
 
 /**
  * Update transfer period button text with month and year
- * e.g. "Февраль 2026" instead of "Текущий"
+ * e.g. "Фев 2026" instead of "Текущий"
  */
 export function updateTransferPeriodButtonsText(): void {
   const monthNames = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+    'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'
   ];
 
   const buttons = document.querySelectorAll<HTMLButtonElement>('.transfer-period-btn');
