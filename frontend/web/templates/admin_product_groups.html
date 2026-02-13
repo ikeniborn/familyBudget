@@ -571,7 +571,7 @@ async function deleteProductGroup(groupId) {
     if (!group) {
         console.error(`Product group with ID ${groupId} not found in productGroupsData`);
         showToast('❌ Группа товаров не найдена', 'error');
-        return;
+        throw new Error(`Product group with ID ${groupId} not found`);
     }
 
     const confirmed = await showConfirmDialog(

@@ -468,7 +468,7 @@ async function deleteStore(storeId) {
     if (!store) {
         console.error(`Store with ID ${storeId} not found in storesData`);
         showToast('❌ Магазин не найден', 'error');
-        return;
+        throw new Error(`Store with ID ${storeId} not found`);
     }
 
     const confirmed = await showConfirmDialog(

@@ -482,7 +482,7 @@ async def update_article(
     logger = logging.getLogger(__name__)
     logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
 
-    if not changed:
+    if not changed and financial_center_ids is None:
         # No changes, return existing article
         logger.info("[ARTICLE UPDATE] No changes detected, returning old article")
         return old_article
