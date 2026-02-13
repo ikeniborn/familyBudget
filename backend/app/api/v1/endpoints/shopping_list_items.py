@@ -126,27 +126,25 @@ async def list_shopping_list_items(
             detail="Either shopping_list_id or shopping_list_temp_id must be provided",
         )
 
-    # Build query (exclude soft-deleted items)
-    query = select(ShoppingListItem).where(
-        ShoppingListItem.deleted_at.is_(None),
-    )
-
     # CRITICAL CHANGE: Support temp_id via JOIN to ShoppingList
+    # Resolve shopping_list_id from temp_id if needed
+    resolved_list_id: int | None = None
+
     if shopping_list_temp_id:
         # NEW: Filter by temp_id (BIGINT) via JOIN to ShoppingList
         from backend.app.models.shopping_list import ShoppingList
 
         # Find shopping list by temp_id
-        list_query = select(ShoppingList).where(
+        list_query = select(ShoppingList.id).where(
             ShoppingList.temp_id == shopping_list_temp_id
         )
         list_result = await session.execute(list_query)
-        shopping_list = list_result.scalar_one_or_none()
+        resolved_list_id = list_result.scalar_one_or_none()
 
-        if not shopping_list:
+        if not resolved_list_id:
             # Shopping list not found by temp_id
             logger.warning(
-                f"Shopping list not found by temp_id={shopping_list_temp_id}"
+                f"[LIST_ITEMS] Shopping list not found by temp_id={shopping_list_temp_id}"
             )
             return ShoppingListItemListResponse(
                 items=[],
@@ -155,15 +153,22 @@ async def list_shopping_list_items(
                 offset=offset,
             )
 
-        # Filter items by shopping list server_id
-        query = query.where(
-            ShoppingListItem.shopping_list_id == shopping_list.id
+        logger.debug(
+            f"[LIST_ITEMS] Using temp_id parameter: temp_id={shopping_list_temp_id}, "
+            f"resolved_list_id={resolved_list_id}"
         )
     else:
-        # OLD: Filter by server_id (backward compatibility)
-        query = query.where(
-            ShoppingListItem.shopping_list_id == shopping_list_id
+        # OLD: Use server_id directly (backward compatibility)
+        resolved_list_id = shopping_list_id
+        logger.debug(
+            f"[LIST_ITEMS] Using server_id parameter (legacy): shopping_list_id={shopping_list_id}"
         )
+
+    # Build query (exclude soft-deleted items)
+    query = select(ShoppingListItem).where(
+        ShoppingListItem.shopping_list_id == resolved_list_id,
+        ShoppingListItem.deleted_at.is_(None),
+    )
 
     # Apply filters
     if is_completed is not None:
@@ -185,19 +190,9 @@ async def list_shopping_list_items(
 
     # Count total (without pagination, exclude soft-deleted)
     count_query = select(ShoppingListItem).where(
+        ShoppingListItem.shopping_list_id == resolved_list_id,
         ShoppingListItem.deleted_at.is_(None),
     )
-
-    # Apply same filtering logic as main query
-    if shopping_list_temp_id:
-        # Use shopping_list.id from above
-        count_query = count_query.where(
-            ShoppingListItem.shopping_list_id == shopping_list.id
-        )
-    else:
-        count_query = count_query.where(
-            ShoppingListItem.shopping_list_id == shopping_list_id
-        )
 
     if is_completed is not None:
         count_query = count_query.where(ShoppingListItem.is_completed == is_completed)
