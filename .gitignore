@@ -348,3 +348,5 @@ frontend/web/static/sw.min.js
 frontend/web/static/sw.min.js.map
 frontend/web/static/sw.min.js.gz
 backend/.env.test
+
+.claude/sessions/
