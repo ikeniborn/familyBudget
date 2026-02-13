@@ -171,7 +171,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteArticleFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -753,10 +753,36 @@ function closeEditModal() {
 }
 
 // Delete article from edit modal (mobile only)
-function deleteArticleFromEditModal() {
+async function deleteArticleFromEditModal() {
     const articleId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deactivateArticle(articleId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Create overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление категории...</p>
+        </div>
+    `;
+
+    // Add overlay to modal
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Wait for deletion to complete
+        await deactivateArticle(articleId);
+
+        // ✅ Close modal AFTER successful deletion
+        closeEditModal();
+    } catch (error) {
+        // Error already handled in deactivateArticle()
+        // Remove overlay to allow retry
+        overlay.remove();
+    }
 }
 
 // Update article
@@ -839,6 +865,19 @@ async function updateArticle(event) {
 
 // Deactivate article
 async function deactivateArticle(articleId) {
+    // ✅ Normalize ID to integer for correct comparison
+    const articleIdInt = typeof articleId === 'string' ? parseInt(articleId, 10) : articleId;
+
+    // ✅ Find article with normalized ID
+    const article = articlesData.find(a => a.id === articleIdInt);
+
+    // ✅ Check for undefined BEFORE using article
+    if (!article) {
+        console.error(`Article with ID ${articleId} not found in articlesData`);
+        showNotification('❌ Категория не найдена', 'error');
+        return;
+    }
+
     // First confirmation - warning about physical deletion
     const firstConfirm = await showConfirmDialog(
         '⚠️ ВНИМАНИЕ: Физическое удаление категории!\n\n' +
@@ -873,7 +912,7 @@ async function deactivateArticle(articleId) {
     }
 
     try {
-        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+        const response = await fetch(`/api/v1/admin/articles/${articleIdInt}`, {
             method: 'DELETE',
             credentials: 'include',
         });

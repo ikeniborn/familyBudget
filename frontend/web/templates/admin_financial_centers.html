@@ -93,7 +93,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteCenterFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -309,10 +309,36 @@ function closeEditModal() {
 }
 
 // Delete center from edit modal (mobile only)
-function deleteCenterFromEditModal() {
+async function deleteCenterFromEditModal() {
     const centerId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deleteCenter(centerId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Create overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление счета...</p>
+        </div>
+    `;
+
+    // Add overlay to modal
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Wait for deletion to complete
+        await deleteCenter(centerId);
+
+        // ✅ Close modal AFTER successful deletion
+        closeEditModal();
+    } catch (error) {
+        // Error already handled in deleteCenter()
+        // Remove overlay to allow retry
+        overlay.remove();
+    }
 }
 
 // Update financial center
@@ -367,6 +393,19 @@ async function updateCenter(event) {
 
 // Delete financial center
 async function deleteCenter(centerId) {
+    // ✅ Normalize ID to integer for correct comparison
+    const centerIdInt = typeof centerId === 'string' ? parseInt(centerId, 10) : centerId;
+
+    // ✅ Find center with normalized ID
+    const center = centersData.find(c => c.id === centerIdInt);
+
+    // ✅ Check for undefined BEFORE using center
+    if (!center) {
+        console.error(`Financial center with ID ${centerId} not found in centersData`);
+        showNotification('❌ Счет не найден', 'error');
+        return;
+    }
+
     // First confirmation - warning about cascade deletion
     const firstConfirm = await showConfirmDialog(
         '⚠️ ВНИМАНИЕ: Удаление счета приведёт к каскадному удалению!\n\n' +
@@ -399,7 +438,7 @@ async function deleteCenter(centerId) {
     }
 
     try {
-        const response = await fetch(`/api/v1/financial-centers/${centerId}`, {
+        const response = await fetch(`/api/v1/financial-centers/${centerIdInt}`, {
             method: 'DELETE',
             credentials: 'include',
         });
