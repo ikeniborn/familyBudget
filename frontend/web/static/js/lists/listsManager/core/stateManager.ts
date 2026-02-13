@@ -256,10 +256,14 @@ async function getListTempId(serverId: number): Promise<number> {
     const allLists = await dexieManager.queryShoppingLists();
     const dexieList = allLists.find(l => l.id === serverId);
 
-    return dexieList?.temp_id || 0; // Return 0 if not found (error case)
+    // CRITICAL FIX (v11.6.1): Return serverId for legacy lists without temp_id
+    // Backend supports backward compatible shopping_list_id parameter
+    // Heuristic: temp_id (BIGINT) >= 10000, server_id (INTEGER) < 10000
+    return dexieList?.temp_id || serverId;
   } catch (error) {
     console.warn('[ListsManager] Failed to get temp_id from Dexie:', error);
-    return 0;
+    // Return serverId as fallback (backward compatible with shopping_list_id)
+    return serverId;
   }
 }
 

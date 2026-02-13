@@ -828,8 +828,20 @@ export class DataLayer {
   ): Promise<LocalShoppingListItem[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
-    // CRITICAL FIX: Use shopping_list_temp_id (BIGINT) instead of shopping_list_id (INTEGER)
-    params.set('shopping_list_temp_id', listTempId.toString());
+
+    // CRITICAL FIX (v11.6.1): Support legacy lists without temp_id
+    // Heuristic: temp_id (BIGINT) >= 10000, server_id (INTEGER) < 10000
+    // For old lists (created before PR #416), getListTempId returns server_id
+    // Backend supports backward compatible shopping_list_id parameter
+    if (listTempId < 10000) {
+      // Legacy list without temp_id - use server_id parameter
+      params.set('shopping_list_id', listTempId.toString());
+      console.debug('[DATA_LAYER] Using shopping_list_id (legacy):', listTempId);
+    } else {
+      // New list with temp_id - use temp_id parameter
+      params.set('shopping_list_temp_id', listTempId.toString());
+      console.debug('[DATA_LAYER] Using shopping_list_temp_id:', listTempId);
+    }
 
     if (filters?.is_completed !== undefined) {
       params.set('is_completed', filters.is_completed.toString());
