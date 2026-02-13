@@ -115,6 +115,31 @@ export interface ItemCompletedEvent {
 }
 
 // ============================================================================
+// Shopping List Events
+// ============================================================================
+
+export interface ShoppingListCreatedEvent {
+  id: number;
+  name: string;
+  description: string | null;
+  creator_id: number;
+  is_active: boolean;
+  total_items: number;
+  completed_items: number;
+  completion_percentage: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShoppingListUpdatedEvent extends ShoppingListCreatedEvent {
+  // Same structure as created
+}
+
+export interface ShoppingListDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
 // Multi-Tab Coordination Events
 // ============================================================================
 

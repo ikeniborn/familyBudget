@@ -930,6 +930,12 @@ SAFE_ITEM_FIELDS = {
     "is_completed", "store_id", "product_group_id", "sort_order",
 }
 
+SAFE_SHOPPING_LIST_FIELDS = {
+    "id", "name", "description", "creator_id",
+    "is_active", "total_items", "completed_items",
+    "completion_percentage", "created_at", "updated_at",
+}
+
 SAFE_PLAN_FIELDS = {
     "id", "article_id", "financial_center_id", "cost_center_id",
     "frequency_type", "frequency_value", "start_date", "end_date",
@@ -957,6 +963,11 @@ def _filter_item_data(item_data: dict) -> dict:
 def _filter_plan_data(plan_data: dict) -> dict:
     """Filter recurring plan data to include only safe fields."""
     return {k: v for k, v in plan_data.items() if k in SAFE_PLAN_FIELDS}
+
+
+def _filter_shopping_list_data(list_data: dict) -> dict:
+    """Filter shopping list data to include only safe fields."""
+    return {k: v for k, v in list_data.items() if k in SAFE_SHOPPING_LIST_FIELDS}
 
 
 async def _broadcast_and_buffer(event_type: str, data: dict):
@@ -1144,6 +1155,28 @@ async def broadcast_item_completed(item_id: int, shopping_list_id: int, is_compl
     """Broadcast item completed event."""
     logger.debug(f"broadcast_item_completed: item_id={item_id}, list_id={shopping_list_id}, completed={is_completed}")
     await _broadcast_and_buffer("item_completed", {"id": item_id, "shopping_list_id": shopping_list_id, "is_completed": is_completed})
+
+
+# Shopping list broadcast functions
+
+async def broadcast_shopping_list_created(list_data: dict):
+    """Broadcast shopping list created event."""
+    filtered_data = _filter_shopping_list_data(list_data)
+    logger.debug(f"broadcast_shopping_list_created: list_id={list_data.get('id')}")
+    await _broadcast_and_buffer("shopping_list_created", filtered_data)
+
+
+async def broadcast_shopping_list_updated(list_data: dict):
+    """Broadcast shopping list updated event."""
+    filtered_data = _filter_shopping_list_data(list_data)
+    logger.debug(f"broadcast_shopping_list_updated: list_id={list_data.get('id')}")
+    await _broadcast_and_buffer("shopping_list_updated", filtered_data)
+
+
+async def broadcast_shopping_list_deleted(list_id: int):
+    """Broadcast shopping list deleted event."""
+    logger.debug(f"broadcast_shopping_list_deleted: list_id={list_id}")
+    await _broadcast_and_buffer("shopping_list_deleted", {"id": list_id})
 
 
 # WebAuthn credential broadcast functions
