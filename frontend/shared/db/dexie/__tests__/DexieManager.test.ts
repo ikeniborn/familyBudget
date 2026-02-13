@@ -98,7 +98,7 @@ describe('DexieManager', () => {
       });
 
       expect(temp_id).toBeDefined();
-      expect(typeof temp_id).toBe('string');
+      expect(typeof temp_id).toBe('number');
     });
 
     it('should query facts', async () => {
