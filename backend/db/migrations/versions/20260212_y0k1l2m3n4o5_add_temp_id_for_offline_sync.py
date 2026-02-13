@@ -1,7 +1,7 @@
 """Add temp_id columns for offline sync
 
 Revision ID: y0k1l2m3n4o5
-Revises: x9k0l1m2n3o4
+Revises: a4b5c6d7e8f9
 Create Date: 2026-02-12
 
 This migration adds temp_id BIGINT columns to track client-side temporary IDs
@@ -24,7 +24,7 @@ from alembic import op
 
 # Revision identifiers
 revision = 'y0k1l2m3n4o5'
-down_revision = 'x9k0l1m2n3o4'
+down_revision = 'a4b5c6d7e8f9'
 branch_labels = None
 depends_on = None
 
