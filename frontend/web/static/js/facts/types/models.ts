@@ -16,7 +16,7 @@
  */
 export interface BudgetFact {
     id: number;
-    temp_id?: string;              // PGlite temp_id for offline operations (task-015 Phase 4.4)
+    temp_id?: number;              // Numeric temp_id for offline operations (int53)
     fact_date: string; // ISO date (YYYY-MM-DD)
     article_id: number;
     article_name: string;

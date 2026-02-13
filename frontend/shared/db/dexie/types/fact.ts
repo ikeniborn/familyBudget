@@ -12,7 +12,7 @@
  */
 export interface LocalBudgetFact {
   id: number | null;          // Server ID (null for pending creates)
-  temp_id: string;            // Client-side UUID
+  temp_id: number;            // Client-side numeric int53 (crypto-secure random)
   user_id: number;
 
   // Foreign keys
@@ -48,7 +48,7 @@ export interface LocalPendingOperation {
   id: number;
   operation: 'create' | 'update' | 'delete';
   entity_type: string;        // 'fact' | 'article' | etc
-  temp_id: string | null;     // For creates
+  temp_id: number | null;     // For creates (numeric int53)
   server_id: number | null;   // For updates/deletes
 
   // Operation payload (JSON)
@@ -74,7 +74,7 @@ export interface LocalSyncConflict {
   id: number;
   entity_type: string;
   entity_id: number | null;
-  temp_id: string | null;
+  temp_id: number | null;
 
   // Conflict data
   local_version: Record<string, unknown>;   // JSON

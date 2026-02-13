@@ -12,6 +12,7 @@ import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
+import { generateNumericTempId } from '@db/dexie';
 
 declare const window: Window & {
   dexieManager?: any;
@@ -35,7 +36,7 @@ interface ChoicesInstance {
 /** API response interface for shopping list creation */
 interface CreateListAPIResponse {
   id: number;
-  temp_id?: string;
+  temp_id?: number;
   name: string;
   description?: string;
   is_active?: boolean;
@@ -82,9 +83,14 @@ export async function handleCreateList(event: Event): Promise<void> {
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
 
+  // Generate numeric temp_id on client (crypto-secure random int53)
+  // CRITICAL FIX (v11.6.0): Client-side generation eliminates fallback bug
+  const temp_id = generateNumericTempId();
+
   const data = {
     name: formData.get('name'),
-    description: formData.get('description') || null
+    description: formData.get('description') || null,
+    temp_id: temp_id  // Send numeric temp_id to backend
   };
 
   try {
@@ -111,7 +117,7 @@ export async function handleCreateList(event: Event): Promise<void> {
     // This eliminates race condition with Dexie sync latency
     const newList: ShoppingList = {
       id: result.id,
-      temp_id: result.temp_id || `list_${result.id}`, // Ensure temp_id exists
+      temp_id: result.temp_id || temp_id, // Use client-generated temp_id as fallback (should never happen)
       name: result.name,
       description: result.description || undefined,
       is_active: result.is_active ?? true,

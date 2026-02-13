@@ -6,7 +6,7 @@
 import { db, toCents, fromCents } from '../core/database';
 import { logger } from '../utils/logger';
 import { validateFact } from '../utils/validation';
-import { calculateContentHash, generateUUID } from '../utils/hash';
+import { calculateContentHash, generateNumericTempId } from '../utils/hash';
 import type {
   LocalBudgetFact,
   LocalPendingOperation,
@@ -23,13 +23,13 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
  * ВАЖНО: amount конвертируется в cents
  *
  * @param fact - Partial fact data
- * @returns temp_id (UUID)
+ * @returns temp_id (numeric int53)
  */
 export async function createFact(
   fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
-): Promise<string> {
+): Promise<number> {
   try {
-    const temp_id = generateUUID();
+    const temp_id = generateNumericTempId();
     const content_hash = await calculateContentHash(fact as Record<string, unknown>);
 
     logger.debug('[Dexie] Creating fact', { temp_id, fact });
@@ -91,7 +91,7 @@ export async function createFact(
  * @param updates - Partial fact data to update
  */
 export async function updateFact(
-  temp_id: string,
+  temp_id: number,
   updates: Partial<Pick<LocalBudgetFact, 'date' | 'amount' | 'article_id' | 'financial_center_id' | 'cost_center_id' | 'comment'>>
 ): Promise<void> {
   try {
@@ -144,7 +144,7 @@ export async function updateFact(
  *
  * @param temp_id - Fact temp_id
  */
-export async function deleteFact(temp_id: string): Promise<void> {
+export async function deleteFact(temp_id: number): Promise<void> {
   try {
     logger.debug('[Dexie] Deleting fact', { temp_id });
 
@@ -291,7 +291,7 @@ export async function getPendingOperations(): Promise<LocalPendingOperation[]> {
  * Confirm pending operation (после успешной sync)
  */
 export async function confirmPendingOperation(
-  temp_id: string,
+  temp_id: number,
   server_id: number
 ): Promise<void> {
   logger.debug('[Dexie] confirmPendingOperation', { temp_id, server_id });
@@ -330,7 +330,7 @@ function calculateBackoffDelay(attempts: number): number {
  * Fail pending operation (increment attempts + exponential backoff)
  */
 export async function failPendingOperation(
-  temp_id: string,
+  temp_id: number,
   error: string
 ): Promise<void> {
   logger.warn('[Dexie] failPendingOperation', { temp_id, error });

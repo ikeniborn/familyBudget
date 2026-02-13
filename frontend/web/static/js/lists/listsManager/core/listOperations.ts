@@ -446,7 +446,7 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
     if (isDexieActive() && pglite.isReady()) {
       // Find items and get temp_ids
       const itemsToDelete = state.currentItems.filter(item => itemIds.includes(item.id));
-      const tempIds = itemsToDelete.map(item => item.temp_id).filter(Boolean) as string[];
+      const tempIds = itemsToDelete.map(item => item.temp_id).filter(Boolean) as number[];
 
       if (tempIds.length !== itemIds.length) {
         // FALLBACK: If temp_id missing, use API-only deletion (skip Dexie)

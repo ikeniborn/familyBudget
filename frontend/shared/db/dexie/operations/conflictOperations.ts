@@ -119,7 +119,7 @@ export async function resolveConflict(
 export async function createConflictRecord(
   entityType: string,
   entityId: number | null,
-  tempId: string | null,
+  tempId: number | null,
   local: Record<string, unknown>,
   remote: Record<string, unknown>
 ): Promise<void> {

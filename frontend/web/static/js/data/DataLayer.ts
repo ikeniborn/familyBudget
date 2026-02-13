@@ -698,7 +698,7 @@ export class DataLayer {
    * NEW STRATEGY (API-First with Opt-In PGlite)
    */
   async getShoppingListItems(
-    listTempId: string,
+    listTempId: number,
     filters?: ShoppingListItemFilters
   ): Promise<LocalShoppingListItem[]> {
     const startTime = performance.now();
@@ -793,7 +793,7 @@ export class DataLayer {
         // CRITICAL FIX: Ensure temp_id exists for all API items (for bulk delete compatibility)
         apiResult = apiResult.map(item => ({
           ...item,
-          temp_id: item.temp_id || `item_${item.id}_${Date.now()}`
+          temp_id: item.temp_id || ((item.id || 0) * 1000000 + Date.now() % 1000000)  // Numeric fallback: id*1M + timestamp
         }));
 
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
@@ -821,12 +821,12 @@ export class DataLayer {
    * @returns Array of shopping list items
    */
   private async getShoppingListItemsFromAPI(
-    listTempId: string,
+    listTempId: number,
     filters?: ShoppingListItemFilters
   ): Promise<LocalShoppingListItem[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
-    params.set('shopping_list_id', listTempId);
+    params.set('shopping_list_id', listTempId.toString());
 
     if (filters?.is_completed !== undefined) {
       params.set('is_completed', filters.is_completed.toString());

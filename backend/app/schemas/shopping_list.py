@@ -17,11 +17,13 @@ class ShoppingListCreate(BaseModel):
     Validation Rules:
         - name: Required, max 255 characters
         - description: Optional
+        - temp_id: Optional, client-generated numeric temp_id
 
     Notes:
         - creator_id is set automatically from current_user
         - All users can create shopping lists
         - Lists are SHARED (visible to all users)
+        - temp_id: Client can provide numeric temp_id for offline sync
     """
 
     name: str = Field(
@@ -42,6 +44,12 @@ class ShoppingListCreate(BaseModel):
         default=True,
         description="Active status (True = visible in UI, False = archived/completed)",
         examples=[True]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     @field_validator("name")
@@ -134,11 +142,18 @@ class ShoppingListResponse(BaseModel):
     Notes:
         - SHARED model: Visible to all users
         - Only creator can DELETE (checked at API level)
+        - temp_id: Client-side temporary ID for offline sync
     """
 
     id: int = Field(
         description="Shopping list ID (surrogate key)",
         examples=[1]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     creator_id: int = Field(
@@ -255,6 +270,12 @@ class ShoppingListWithItemsResponse(BaseModel):
     id: int = Field(
         description="Shopping list ID",
         examples=[1]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     creator_id: int = Field(

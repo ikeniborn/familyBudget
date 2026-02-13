@@ -22,11 +22,19 @@ class ShoppingListItemCreate(BaseModel):
         - quantity: Optional (decimal)
         - unit: Optional, max 50 characters
         - comment: Optional
+        - temp_id: Optional, client-generated numeric temp_id
 
     Notes:
         - creator_id is set automatically from current_user
         - All users can create items in any shopping list (SHARED model)
+        - temp_id: Client can provide numeric temp_id for offline sync
     """
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
+    )
 
     shopping_list_id: int = Field(
         ...,
@@ -210,10 +218,10 @@ class ShoppingListItemResponse(BaseModel):
         examples=[1]
     )
 
-    temp_id: str | None = Field(
+    temp_id: int | None = Field(
         default=None,
-        description="Client-side temporary ID for offline sync (format: item_{id}_{timestamp})",
-        examples=["item_123_1707409123456"]
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     store_id: int = Field(
@@ -446,10 +454,10 @@ class SyncItemCreate(BaseModel):
     Similar to ShoppingListItemCreate but with temp_id for client tracking.
     """
 
-    temp_id: str = Field(
+    temp_id: int = Field(
         ...,
-        description="Temporary client-side ID for tracking",
-        examples=["temp_item_1736935500_abc123"]
+        description="Temporary client-side ID for tracking (int53 from JavaScript)",
+        examples=[123456789012345]
     )
 
     store_id: int = Field(..., description="Store ID")
@@ -595,7 +603,7 @@ class SyncCreatedItem(BaseModel):
     Maps temp_id to server-assigned ID.
     """
 
-    temp_id: str = Field(description="Client's temporary ID")
+    temp_id: int = Field(description="Client's temporary ID (int53 from JavaScript)")
     item: ShoppingListItemResponse = Field(description="Created item with server ID")
 
 

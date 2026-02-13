@@ -190,7 +190,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     // Convert date strings to Date objects and add sync fields
     const created = data.created.map(f => ({
       ...f,
-      temp_id: f.id?.toString() || '', // Server facts use id as temp_id
+      temp_id: f.temp_id || 0, // Use server-provided temp_id (numeric)
       sync_status: 'synced' as const,  // Server facts are always synced
       synced_at: new Date(),             // Current time
       created_at: new Date(f.created_at),
@@ -199,7 +199,7 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
 
     const updated = data.updated.map(f => ({
       ...f,
-      temp_id: f.id?.toString() || '', // Server facts use id as temp_id
+      temp_id: f.temp_id || 0, // Use server-provided temp_id (numeric)
       sync_status: 'synced' as const,
       synced_at: new Date(),
       created_at: new Date(f.created_at),
@@ -216,8 +216,8 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     }
 
     if (data.deleted.length > 0) {
-      // Convert server IDs to temp_ids (TODO: server should send temp_ids instead)
-      await dexie.bulkSoftDeleteFacts(data.deleted.map(String));
+      // Use temp_ids from server (numeric)
+      await dexie.bulkSoftDeleteFacts(data.deleted);
     }
 
     // Update sync metadata with new timestamp

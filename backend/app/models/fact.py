@@ -58,6 +58,14 @@ class BudgetFact(SQLModel, table=True):
         description="Auto-incrementing primary key (BIGSERIAL in PostgreSQL)"
     )
 
+    # Client-side temporary ID for offline sync
+    temp_id: int | None = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)"
+    )
+
     # Foreign keys to dimensions (required)
     user_id: int = Field(
         nullable=False,

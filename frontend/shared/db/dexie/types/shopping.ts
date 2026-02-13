@@ -51,7 +51,7 @@ export interface LocalProductGroupHierarchy {
  */
 export interface LocalShoppingList {
   id: number | null;          // Server ID (null for pending creates)
-  temp_id: string;            // Client-side UUID
+  temp_id: number;            // Client-side numeric int53 (crypto-secure random)
   creator_id: number;         // Audit only (NOT for filtering)
 
   // Business attributes
@@ -99,11 +99,11 @@ export interface ShoppingListWithStats extends Omit<LocalShoppingList, 'total_it
  */
 export interface LocalShoppingListItem {
   id: number | null;
-  temp_id: string;
+  temp_id: number;
   creator_id: number;
 
-  // Foreign keys (temp_id for offline creates)
-  shopping_list_temp_id: string;
+  // Foreign keys (numeric temp_id for offline creates)
+  shopping_list_temp_id: number;
   store_id: number;
   product_group_id: number;
 
@@ -154,7 +154,7 @@ export interface ShoppingListFilters {
  * Filters for querying shopping list items
  */
 export interface ShoppingListItemFilters {
-  shopping_list_temp_id?: string;
+  shopping_list_temp_id?: number;
   store_id?: number;
   product_group_id?: number;
   is_completed?: boolean;

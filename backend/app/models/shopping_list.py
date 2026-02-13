@@ -81,6 +81,14 @@ class ShoppingList(SQLModel, table=True):
         description="Surrogate primary key"
     )
 
+    # Client-side temporary ID for offline sync
+    temp_id: int | None = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)"
+    )
+
     # Foreign keys
     creator_id: int = Field(
         foreign_key="t_d_user.id",
