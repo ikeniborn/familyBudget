@@ -12,6 +12,7 @@ Key features:
 """
 from datetime import datetime
 
+from sqlalchemy import BigInteger
 from sqlmodel import Field, SQLModel
 
 
@@ -86,6 +87,7 @@ class ShoppingList(SQLModel, table=True):
         default=None,
         nullable=True,
         index=True,
+        sa_type=BigInteger,
         description="Client-side temporary ID for offline sync (int53 from JavaScript)"
     )
 

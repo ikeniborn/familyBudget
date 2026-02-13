@@ -13,6 +13,7 @@ Key features:
 from datetime import datetime
 from decimal import Decimal
 
+from sqlalchemy import BigInteger
 from sqlmodel import Field, SQLModel
 
 
@@ -118,6 +119,7 @@ class ShoppingListItem(SQLModel, table=True):
         default=None,
         nullable=True,
         index=True,
+        sa_type=BigInteger,
         description="Client-side temporary ID for offline sync (int53 from JavaScript)"
     )
 

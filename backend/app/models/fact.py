@@ -10,6 +10,7 @@ Table: t_f_budget_fact
 from datetime import date, datetime
 from decimal import Decimal
 
+from sqlalchemy import BigInteger
 from sqlmodel import Field, SQLModel
 
 
@@ -63,6 +64,7 @@ class BudgetFact(SQLModel, table=True):
         default=None,
         nullable=True,
         index=True,
+        sa_type=BigInteger,
         description="Client-side temporary ID for offline sync (int53 from JavaScript)"
     )
 
