@@ -231,7 +231,6 @@ jobs:
 
       - name: Python ruff lint
         run: ruff check backend/
-        continue-on-error: true  # Allow merge (ruff version mismatch: local 0.15.0 vs CI 0.8.4)
 
       - name: Backend unit tests
         env:
