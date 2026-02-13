@@ -22,6 +22,7 @@ import type {
   LocalStore,
   LocalProductGroup
 } from '@db/dexie';
+import { isValidListId } from '../../utils/listIdUtils';
 
 // ============================================================================
 // Type Definitions
@@ -234,6 +235,13 @@ export async function loadShoppingLists(): Promise<void> {
  * @returns Numeric temp_id for Dexie query
  */
 async function getListTempId(serverId: number): Promise<number> {
+  // CRITICAL: Validate serverId before proceeding
+  if (!isValidListId(serverId)) {
+    throw new Error(
+      `[ListsManager] Invalid server ID: ${serverId} (must be positive integer)`
+    );
+  }
+
   const state = getState();
   const list = state.shoppingLists.find(l => l.id === serverId);
 
@@ -258,8 +266,19 @@ async function getListTempId(serverId: number): Promise<number> {
 
     // CRITICAL FIX (v11.6.1): Return serverId for legacy lists without temp_id
     // Backend supports backward compatible shopping_list_id parameter
-    // Heuristic: temp_id (BIGINT) >= 10000, server_id (INTEGER) < 10000
-    return dexieList?.temp_id || serverId;
+    // See listIdUtils.ts for heuristic details (LIST_ID_HEURISTIC_THRESHOLD)
+    const resolvedId = dexieList?.temp_id || serverId;
+
+    // Validate resolved ID before returning
+    if (!isValidListId(resolvedId)) {
+      console.error(
+        `[ListsManager] Resolved invalid ID: ${resolvedId} from serverId: ${serverId}`
+      );
+      // Last resort: return serverId (backend will handle via shopping_list_id)
+      return serverId;
+    }
+
+    return resolvedId;
   } catch (error) {
     console.warn('[ListsManager] Failed to get temp_id from Dexie:', error);
     // Return serverId as fallback (backward compatible with shopping_list_id)

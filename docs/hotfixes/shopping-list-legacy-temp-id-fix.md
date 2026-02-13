@@ -25,9 +25,36 @@
 
 ### Changes
 
-#### 1. `stateManager.ts` - getListTempId fallback
+#### 1. `listIdUtils.ts` - Centralized heuristic utilities (NEW)
+
+**File:** `frontend/web/static/js/lists/utils/listIdUtils.ts` (new file)
+
+**Purpose:** Centralized utilities for distinguishing temp_id from server_id.
+
+**Key exports:**
+- `LIST_ID_HEURISTIC_THRESHOLD = 10_000` - Configurable threshold constant
+- `getListIdType(listId)` - Returns 'temp_id', 'server_id', or 'invalid'
+- `isValidListId(listId)` - Validates list ID (positive integer check)
+- `getApiParameterName(listId)` - Returns correct API parameter name
+- `debugLogListIdHeuristic()` - Conditional debug logging (dev only)
+
+**Rationale:**
+- Eliminates magic numbers (10000 → constant)
+- Centralized validation and error handling
+- Runtime type safety (invalid ID detection)
+- Conditional logging (production-safe)
+
+---
+
+#### 2. `stateManager.ts` - Enhanced getListTempId with validation
 
 **File:** `frontend/web/static/js/lists/listsManager/core/stateManager.ts`
+
+**Changes:**
+- Added `isValidListId()` validation at entry point
+- Added validation for resolved ID before returning
+- Enhanced error handling with fallback to serverId
+- Removed hardcoded 0 return (security improvement)
 
 **Before:**
 ```typescript
@@ -36,17 +63,34 @@ return dexieList?.temp_id || 0; // Returns 0 for legacy lists
 
 **After:**
 ```typescript
-// Return serverId for legacy lists without temp_id
-return dexieList?.temp_id || serverId; // Returns server_id instead of 0
+if (!isValidListId(serverId)) {
+  throw new Error(`Invalid server ID: ${serverId}`);
+}
+// ... logic ...
+const resolvedId = dexieList?.temp_id || serverId;
+if (!isValidListId(resolvedId)) {
+  console.error(`Resolved invalid ID: ${resolvedId}`);
+  return serverId; // Safe fallback
+}
+return resolvedId;
 ```
 
-**Rationale:** Backend supports backward compatible `shopping_list_id` parameter.
+**Security improvements:**
+- Rejects invalid IDs (0, negative, NaN)
+- Double validation (input + output)
+- Never returns 0 (unsafe value)
 
 ---
 
-#### 2. `DataLayer.ts` - Heuristic parameter selection
+#### 3. `DataLayer.ts` - Centralized heuristic with error handling
 
 **File:** `frontend/web/static/js/data/DataLayer.ts`
+
+**Changes:**
+- Uses `getApiParameterName()` from listIdUtils
+- Added `isValidListId()` validation
+- Conditional debug logging (dev only, no production pollution)
+- Try-catch fallback for heuristic failures
 
 **Before:**
 ```typescript
@@ -55,23 +99,26 @@ params.set('shopping_list_temp_id', listTempId.toString()); // Always uses temp_
 
 **After:**
 ```typescript
-// Heuristic: temp_id (BIGINT) >= 10000, server_id (INTEGER) < 10000
-if (listTempId < 10000) {
-  // Legacy list without temp_id - use server_id parameter
-  params.set('shopping_list_id', listTempId.toString());
-  console.debug('[DATA_LAYER] Using shopping_list_id (legacy):', listTempId);
-} else {
-  // New list with temp_id - use temp_id parameter
+if (!isValidListId(listTempId)) {
+  throw new Error(`Invalid list ID: ${listTempId}`);
+}
+
+try {
+  const paramName = getApiParameterName(listTempId); // Centralized heuristic
+  params.set(paramName, listTempId.toString());
+  debugLogListIdHeuristic(listTempId, paramName); // Dev only
+} catch (error) {
+  // Fallback: use temp_id parameter (safer default)
+  console.error('Heuristic failed, using temp_id parameter:', error);
   params.set('shopping_list_temp_id', listTempId.toString());
-  console.debug('[DATA_LAYER] Using shopping_list_temp_id:', listTempId);
 }
 ```
 
-**Rationale:**
-- temp_id is BIGINT (~4.5 quadrillion range, int53)
-- server_id is INTEGER (< 10000 in typical databases)
-- Heuristic: values < 10000 are server_id, values >= 10000 are temp_id
-- No breaking changes, backward compatible
+**Benefits:**
+- No hardcoded magic numbers
+- Production-safe logging
+- Graceful fallback on heuristic failure
+- Centralized logic (DRY principle)
 
 ---
 
@@ -118,9 +165,19 @@ docker compose logs backend | grep "LIST_ITEMS.*shopping_list_id=35"
 
 ### Files Changed
 
+**v11.6.1 - Initial hotfix:**
 1. `frontend/web/static/js/lists/listsManager/core/stateManager.ts` (+3 lines)
 2. `frontend/web/static/js/data/DataLayer.ts` (+13 lines)
 3. `backend/tests/api/test_shopping_list_items_legacy_fix.py` (+241 lines, new file)
+4. `docs/hotfixes/shopping-list-legacy-temp-id-fix.md` (+219 lines, new file)
+
+**v11.6.2 - Code review improvements:**
+5. `frontend/web/static/js/lists/utils/listIdUtils.ts` (+185 lines, new file)
+6. `frontend/web/static/js/lists/utils/listIdUtils.test.ts` (+165 lines, new file)
+7. `backend/tests/integration/test_legacy_lists_workflow.py` (+295 lines, new file)
+8. Updated: stateManager.ts (+15 lines for validation)
+9. Updated: DataLayer.ts (+10 lines for centralized heuristic)
+10. Updated: docs/hotfixes (updated with v11.6.2 changes)
 
 ### Backward Compatibility
 

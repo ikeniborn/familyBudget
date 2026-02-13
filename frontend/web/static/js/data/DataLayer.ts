@@ -26,6 +26,11 @@ import { getDexieManager, DexieManager } from '@db/dexie';
 import { isDexieActive } from '@db/dexie';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
+import {
+  getApiParameterName,
+  debugLogListIdHeuristic,
+  isValidListId
+} from '../lists/utils/listIdUtils';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -826,21 +831,29 @@ export class DataLayer {
     listTempId: number,
     filters?: ShoppingListItemFilters
   ): Promise<LocalShoppingListItem[]> {
+    // CRITICAL: Validate listTempId before API call
+    if (!isValidListId(listTempId)) {
+      throw new Error(
+        `[DATA_LAYER] Invalid list ID for API request: ${listTempId}`
+      );
+    }
+
     const params = new URLSearchParams();
     params.set('limit', '1000');
 
     // CRITICAL FIX (v11.6.1): Support legacy lists without temp_id
-    // Heuristic: temp_id (BIGINT) >= 10000, server_id (INTEGER) < 10000
-    // For old lists (created before PR #416), getListTempId returns server_id
+    // Uses centralized heuristic from listIdUtils.ts
     // Backend supports backward compatible shopping_list_id parameter
-    if (listTempId < 10000) {
-      // Legacy list without temp_id - use server_id parameter
-      params.set('shopping_list_id', listTempId.toString());
-      console.debug('[DATA_LAYER] Using shopping_list_id (legacy):', listTempId);
-    } else {
-      // New list with temp_id - use temp_id parameter
+    try {
+      const paramName = getApiParameterName(listTempId);
+      params.set(paramName, listTempId.toString());
+
+      // Conditional debug logging (only in development)
+      debugLogListIdHeuristic(listTempId, paramName);
+    } catch (error) {
+      // Fallback: if heuristic fails, use temp_id parameter (safer default)
+      console.error('[DATA_LAYER] Heuristic failed, using temp_id parameter:', error);
       params.set('shopping_list_temp_id', listTempId.toString());
-      console.debug('[DATA_LAYER] Using shopping_list_temp_id:', listTempId);
     }
 
     if (filters?.is_completed !== undefined) {
