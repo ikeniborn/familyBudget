@@ -816,7 +816,9 @@ export class DataLayer {
   /**
    * Fetch shopping list items from REST API
    *
-   * @param listTempId - Shopping list ID (can be numeric ID or temp_id)
+   * CRITICAL FIX v11.7.0: Use shopping_list_temp_id (BIGINT) to prevent INTEGER overflow
+   *
+   * @param listTempId - Shopping list temp_id (always present, even for offline lists)
    * @param filters - Optional filters
    * @returns Array of shopping list items
    */
@@ -826,7 +828,8 @@ export class DataLayer {
   ): Promise<LocalShoppingListItem[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
-    params.set('shopping_list_id', listTempId.toString());
+    // CRITICAL FIX: Use shopping_list_temp_id (BIGINT) instead of shopping_list_id (INTEGER)
+    params.set('shopping_list_temp_id', listTempId.toString());
 
     if (filters?.is_completed !== undefined) {
       params.set('is_completed', filters.is_completed.toString());

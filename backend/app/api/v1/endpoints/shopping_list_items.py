@@ -80,7 +80,14 @@ router = APIRouter(
 async def list_shopping_list_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    shopping_list_id: int = Query(..., description="Shopping list ID to filter"),
+    shopping_list_id: int | None = Query(
+        None,
+        description="Shopping list server ID (legacy, INTEGER)"
+    ),
+    shopping_list_temp_id: int | None = Query(
+        None,
+        description="Shopping list temp ID (preferred, BIGINT)"
+    ),
     is_completed: bool | None = Query(
         None, description="Filter by completion status (True/False/None)"
     ),
@@ -92,10 +99,16 @@ async def list_shopping_list_items(
     """
     List shopping list items with optional filters.
 
+    **NEW v11.7.0:** Accepts `shopping_list_temp_id` (BIGINT) for offline-first support.
+
+    **Backward Compatible:** Still accepts `shopping_list_id` (INTEGER) for old clients.
+
+    **Priority:** If both provided, `shopping_list_temp_id` takes precedence.
+
     Shared references architecture: All users see all items.
 
     **Filters:**
-    - shopping_list_id: Required (which list to display)
+    - shopping_list_id OR shopping_list_temp_id: Required (which list to display)
     - is_completed: Optional (True for completed, False for incomplete, None for all)
     - store_id: Optional (filter by store)
     - product_group_id: Optional (filter by product group)
@@ -106,11 +119,51 @@ async def list_shopping_list_items(
     - Filter by store (shopping trip planning)
     - Filter by product group (category grouping)
     """
+    # Validate: at least one ID must be provided
+    if not shopping_list_id and not shopping_list_temp_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either shopping_list_id or shopping_list_temp_id must be provided",
+        )
+
     # Build query (exclude soft-deleted items)
     query = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
         ShoppingListItem.deleted_at.is_(None),
     )
+
+    # CRITICAL CHANGE: Support temp_id via JOIN to ShoppingList
+    if shopping_list_temp_id:
+        # NEW: Filter by temp_id (BIGINT) via JOIN to ShoppingList
+        from backend.app.models.shopping_list import ShoppingList
+
+        # Find shopping list by temp_id
+        list_query = select(ShoppingList).where(
+            ShoppingList.temp_id == shopping_list_temp_id
+        )
+        list_result = await session.execute(list_query)
+        shopping_list = list_result.scalar_one_or_none()
+
+        if not shopping_list:
+            # Shopping list not found by temp_id
+            logger.warning(
+                f"Shopping list not found by temp_id={shopping_list_temp_id}"
+            )
+            return ShoppingListItemListResponse(
+                items=[],
+                total=0,
+                limit=limit,
+                offset=offset,
+            )
+
+        # Filter items by shopping list server_id
+        query = query.where(
+            ShoppingListItem.shopping_list_id == shopping_list.id
+        )
+    else:
+        # OLD: Filter by server_id (backward compatibility)
+        query = query.where(
+            ShoppingListItem.shopping_list_id == shopping_list_id
+        )
 
     # Apply filters
     if is_completed is not None:
@@ -132,9 +185,20 @@ async def list_shopping_list_items(
 
     # Count total (without pagination, exclude soft-deleted)
     count_query = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
         ShoppingListItem.deleted_at.is_(None),
     )
+
+    # Apply same filtering logic as main query
+    if shopping_list_temp_id:
+        # Use shopping_list.id from above
+        count_query = count_query.where(
+            ShoppingListItem.shopping_list_id == shopping_list.id
+        )
+    else:
+        count_query = count_query.where(
+            ShoppingListItem.shopping_list_id == shopping_list_id
+        )
+
     if is_completed is not None:
         count_query = count_query.where(ShoppingListItem.is_completed == is_completed)
     if store_id is not None:
