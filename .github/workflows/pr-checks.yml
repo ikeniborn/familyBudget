@@ -223,8 +223,10 @@ jobs:
 
       - name: Python mypy type check
         run: |
-          cd backend
-          python -m mypy app/ --config-file=../pyproject.toml
+          python -m mypy backend/app/ \
+            --config-file=pyproject.toml \
+            --explicit-package-bases \
+            --namespace-packages
         continue-on-error: false
 
       - name: Python ruff lint
