@@ -10,7 +10,7 @@ import * as tableBuilder from '@web/lists/listsManager/rendering/tableBuilder';
 
 // Mock global functions
 global.showToast = vi.fn();
-global.confirm = vi.fn();
+global.showConfirmDialog = vi.fn();
 
 describe('multiSelect', () => {
     let mockState: any;
@@ -185,23 +185,26 @@ describe('multiSelect', () => {
 
             await deleteSelected();
 
-            expect(global.confirm).not.toHaveBeenCalled();
+            expect(global.showConfirmDialog).not.toHaveBeenCalled();
             expect(global.fetch).not.toHaveBeenCalled();
         });
 
         it('should show confirmation dialog with count', async () => {
             mockState.selectedItemIds = new Set([1, 2]);
-            (global.confirm as any).mockReturnValue(false);
+            (global.showConfirmDialog as any).mockResolvedValue(false);
 
             await deleteSelected();
 
-            expect(global.confirm).toHaveBeenCalledWith('Удалить выбранные товары (2)?');
+            expect(global.showConfirmDialog).toHaveBeenCalledWith(
+                'Удалить выбранные товары (2)?\nЭто действие необратимо.',
+                '🗑️ Удаление товаров'
+            );
             expect(global.fetch).not.toHaveBeenCalled();
         });
 
         it('should delete selected items on confirmation', async () => {
             mockState.selectedItemIds = new Set([1, 3]);
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockResolvedValue({
                 ok: true,
                 json: async () => ({ deleted: 2 })
@@ -234,7 +237,7 @@ describe('multiSelect', () => {
             mockState.currentView = 'hierarchy';
             mockState.hierarchyView = mockHierarchyView;
             mockState.selectedItemIds = new Set([1]);
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockResolvedValue({ ok: true });
 
             await deleteSelected();
@@ -245,7 +248,7 @@ describe('multiSelect', () => {
 
         it('should handle API errors', async () => {
             mockState.selectedItemIds = new Set([1, 2]);
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockResolvedValue({
                 ok: false,
                 status: 500,
@@ -266,7 +269,7 @@ describe('multiSelect', () => {
 
         it('should handle network errors', async () => {
             mockState.selectedItemIds = new Set([1]);
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockRejectedValue(new Error('Network error'));
 
             const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -281,7 +284,7 @@ describe('multiSelect', () => {
 
         it('should not delete when user cancels', async () => {
             mockState.selectedItemIds = new Set([1, 2, 3, 4]);
-            (global.confirm as any).mockReturnValue(false);
+            (global.showConfirmDialog as any).mockResolvedValue(false);
 
             await deleteSelected();
 
@@ -410,7 +413,7 @@ describe('multiSelect', () => {
     describe('integration scenarios', () => {
         it('should handle select all → delete workflow', async () => {
             mockState.selectedItemIds = new Set();
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockResolvedValue({ ok: true });
 
             // Select all
@@ -425,7 +428,7 @@ describe('multiSelect', () => {
 
         it('should handle select completed → delete workflow', async () => {
             mockState.selectedItemIds = new Set();
-            (global.confirm as any).mockReturnValue(true);
+            (global.showConfirmDialog as any).mockResolvedValue(true);
             (global.fetch as any).mockResolvedValue({ ok: true });
 
             // Select completed

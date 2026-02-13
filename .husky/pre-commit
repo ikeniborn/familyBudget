@@ -1,9 +1,80 @@
+#!/usr/bin/env bash
+
+# Save git repository root
+GIT_ROOT=$(git rev-parse --show-toplevel)
+
+# Setup PATH to find npm (for VS Code and other GUI tools)
+# Check common npm installation locations
+if command -v npm >/dev/null 2>&1; then
+  # npm already in PATH
+  :
+elif [ -f "$HOME/.nvm/nvm.sh" ]; then
+  # Standard NVM installation
+  . "$HOME/.nvm/nvm.sh"
+elif [ -d "$HOME/.nvm-isolated/versions/node" ]; then
+  # Isolated NVM installation (iclaude)
+  export PATH="$HOME/.nvm-isolated/versions/node/$(ls -1 "$HOME/.nvm-isolated/versions/node" | tail -1)/bin:$PATH"
+elif [ -f "/usr/local/bin/npm" ]; then
+  # System npm
+  export PATH="/usr/local/bin:$PATH"
+fi
+
+# Verify npm is available
+NPM_AVAILABLE=true
+if ! command -v npm >/dev/null 2>&1; then
+  echo "⚠️  npm not found in PATH (optional for server environments)"
+  echo "   TypeScript type-check will be skipped"
+  echo "   Type checking will run in CI/CD pipeline"
+  NPM_AVAILABLE=false
+fi
+
 echo "🔍 Running pre-commit checks..."
 echo ""
 
-# Check for console.log in staged TypeScript files (exclude tests, JSDoc, DEBUG_MODE guards)
+# ============================================================================
+# Auto-sync package.json version with VERSION file
+# ============================================================================
+if git diff --cached --name-only | grep -q '^VERSION$'; then
+  echo "0️⃣  VERSION file changed, syncing package.json..."
+
+  VERSION=$(cat "$GIT_ROOT/VERSION" | tr -d '[:space:]')
+  CURRENT_PKG_VERSION=$(grep -m1 '"version"' "$GIT_ROOT/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
+
+  if [ "$VERSION" != "$CURRENT_PKG_VERSION" ]; then
+    echo "   📝 Syncing package.json: $CURRENT_PKG_VERSION → $VERSION"
+
+    # Update package.json
+    sed -i.bak "s/\"version\": \"$CURRENT_PKG_VERSION\"/\"version\": \"$VERSION\"/" "$GIT_ROOT/package.json"
+    rm -f "$GIT_ROOT/package.json.bak"
+
+    # Update package-lock.json (2 locations: root .version and .packages."".version)
+    # Use jq for reliable JSON manipulation
+    if command -v jq >/dev/null 2>&1; then
+      jq --arg v "$VERSION" '.version = $v' "$GIT_ROOT/package-lock.json" > "$GIT_ROOT/package-lock.json.tmp"
+      jq --arg v "$VERSION" '.packages."".version = $v' "$GIT_ROOT/package-lock.json.tmp" > "$GIT_ROOT/package-lock.json"
+      rm -f "$GIT_ROOT/package-lock.json.tmp"
+    else
+      echo "   ⚠️  jq not found, using fallback sed (may not update all locations)"
+      # Get current version from package-lock.json
+      CURRENT_LOCK_VERSION=$(grep -m1 '"version"' "$GIT_ROOT/package-lock.json" | sed 's/.*"version": "\(.*\)".*/\1/')
+      sed -i.bak "s/\"version\": \"$CURRENT_LOCK_VERSION\"/\"version\": \"$VERSION\"/" "$GIT_ROOT/package-lock.json"
+      rm -f "$GIT_ROOT/package-lock.json.bak"
+    fi
+
+    # Stage updated files
+    git add "$GIT_ROOT/package.json" "$GIT_ROOT/package-lock.json"
+
+    echo "   ✅ package.json and package-lock.json synced to $VERSION"
+    echo "   ℹ️  Files staged: package.json, package-lock.json"
+  else
+    echo "   ✅ package.json already in sync with VERSION ($VERSION)"
+  fi
+  echo ""
+fi
+
+# Check for console.log in staged TypeScript files (exclude tests, E2E helpers, JSDoc, DEBUG_MODE guards)
 echo "1️⃣  Checking for console.log in staged files..."
-CONSOLE_LOG_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v 'logger\.ts$' | xargs grep -n 'console\.log' 2>/dev/null | grep -v '^\s*//' | grep -v '^\s*\*' | grep -v 'DEBUG_MODE.*console\.log' | grep -v 'console\.log\.bind' || true)
+CONSOLE_LOG_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v 'logger\.ts$' | grep -v 'tests/e2e/' | xargs grep -n 'console\.log' 2>/dev/null | grep -v '^\s*//' | grep -v '^\s*\*' | grep -v 'DEBUG_MODE.*console\.log' | grep -v 'console\.log\.bind' || true)
 if [ -n "$CONSOLE_LOG_FILES" ]; then
   echo "$CONSOLE_LOG_FILES"
   echo "❌ console.log found in staged TypeScript files"
@@ -13,24 +84,35 @@ fi
 echo "✅ No console.log found"
 echo ""
 
-# Run TypeScript type checking
-echo "2️⃣  Running TypeScript type check..."
-npm run type-check
-if [ $? -ne 0 ]; then
-  echo "❌ Type check failed! Fix errors before committing."
-  exit 1
+# Run TypeScript type checking (only if TypeScript files changed and npm available)
+CHANGED_TS_ALL=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.ts$' || true)
+
+if [ -n "$CHANGED_TS_ALL" ]; then
+  if [ "$NPM_AVAILABLE" = true ]; then
+    echo "2️⃣  Running TypeScript type check..."
+    cd "$GIT_ROOT/frontend/web" && npm run type-check
+    if [ $? -ne 0 ]; then
+      echo "❌ Type check failed! Fix errors before committing."
+      exit 1
+    fi
+    echo "✅ Type check passed"
+  else
+    echo "2️⃣  Skipping type check (npm not available)"
+    echo "   ℹ️  Type checking will run in CI/CD pipeline"
+  fi
+else
+  echo "2️⃣  Skipping type check (no TypeScript files changed)"
 fi
-echo "✅ Type check passed"
 echo ""
 
-# Run unit tests (fast only, no coverage)
-echo "3️⃣  Running unit tests..."
-npm test -- --run --reporter=dot 2>&1 | tail -5
-if [ $? -ne 0 ]; then
-  echo "❌ Tests failed! Fix failing tests before committing."
-  exit 1
-fi
-echo "✅ All tests passed"
+# ============================================================================
+# Unit tests moved to CI/CD for better performance
+# ============================================================================
+# Rationale: Unit tests (~30s+) are now run in GitHub Actions with full coverage
+# Pre-commit focuses on fast checks (~10-15s) for immediate feedback
+# Use SKIP_TESTS=1 environment variable if needed for WIP commits
+echo "ℹ️  Unit tests will run in CI/CD pipeline"
 echo ""
 
 echo "✅ All pre-commit checks passed!"
+echo "💡 Tip: Unit tests run in GitHub Actions with full coverage reporting"

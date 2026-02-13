@@ -18,85 +18,87 @@ Security Features:
     - Token blacklist (revoked tokens cannot be reused)
     - Refresh tokens hashed in database (SHA-256, like password hashing)
 """
+# Standard library imports
+import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
+from backend.app.core.dependencies import CurrentUser, get_session
+from backend.app.core.logging_utils import hash_email_for_logging
 from backend.app.middleware.rate_limiter import limiter
-from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import (
+    AddEmailRequest,
+    AuthMethodsResponse,
     AuthResponse,
-    TelegramAuthData,
-    UserResponse,
-    EmailRegisterRequest,
+    BackupCodesResponse,
     EmailLoginRequest,
     EmailLoginResponse,
-    TwoFactorVerifyRequest,
-    TwoFactorSetupAndVerifyRequest,
-    TwoFactorSetupResponse,
-    TwoFactorVerifySetupRequest,
-    TwoFactorSetupCompleteResponse,
-    TwoFactorDisableRequest,
-    BackupCodesResponse,
-    AddEmailRequest,
-    SetPasswordRequest,
+    EmailRegisterRequest,
     LinkTelegramRequest,
     MessageResponse,
     RegistrationSuccessResponse,
-    AuthMethodsResponse,
+    SetPasswordRequest,
+    TelegramAuthData,
+    TwoFactorDisableRequest,
+    TwoFactorSetupAndVerifyRequest,
+    TwoFactorSetupCompleteResponse,
+    TwoFactorSetupResponse,
+    TwoFactorVerifyRequest,
+    TwoFactorVerifySetupRequest,
+    UserResponse,
     WebAuthnCredentialInfo,
 )
 from backend.app.services.auth_service import (
-    get_user_by_telegram_id,
+    add_email_to_user,
+    authenticate_with_password,
     get_user_by_email,
     get_user_by_id,
-    authenticate_with_password,
-    add_email_to_user,
-    set_user_password,
+    get_user_by_telegram_id,
     link_telegram_to_user,
+    set_user_password,
 )
 from backend.app.services.avatar_service import download_user_avatar
-from backend.app.services.password_service import (
-    hash_password,
-    validate_password_strength,
-    verify_password,
-)
-from backend.app.services.totp_service import (
-    generate_secret,
-    get_totp_uri,
-    verify_totp,
-    generate_backup_codes,
-    verify_backup_code,
-    get_remaining_backup_codes_count,
-)
-from backend.app.services.two_factor_session_service import (
-    create_session as create_2fa_session,
-    verify_session as verify_2fa_session,
-    consume_session as consume_2fa_session,
-)
-from backend.app.services.user_service import (
-    update_user_profile,
-    create_initial_history,
-)
 from backend.app.services.jwt import (
     create_access_token,
     create_refresh_token,
     decode_refresh_token,
     hash_token,
 )
+from backend.app.services.password_service import (
+    hash_password,
+    validate_password_strength,
+    verify_password,
+)
 from backend.app.services.telegram_auth import validate_telegram_auth
+from backend.app.services.totp_service import (
+    generate_backup_codes,
+    generate_secret,
+    get_totp_uri,
+    verify_backup_code,
+    verify_totp,
+)
+from backend.app.services.two_factor_session_service import (
+    consume_session as consume_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
+    create_session as create_2fa_session,
+)
+from backend.app.services.two_factor_session_service import (
+    verify_session as verify_2fa_session,
+)
+from backend.app.services.user_service import (
+    create_initial_history,
+)
 from backend.app.services.webauthn_service import user_has_webauthn_credentials
-
-# Standard library imports
-import logging
-from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 settings = get_settings()
@@ -166,7 +168,7 @@ async def telegram_login_page(request: Request) -> HTMLResponse:
 
 @router.get(
     "/telegram-callback",
-    response_class=RedirectResponse,
+    response_class=HTMLResponse,
     summary="Telegram Widget Callback",
     description="""
     Handle callback from Telegram Login Widget.
@@ -210,7 +212,7 @@ async def telegram_callback(
     request: Request,
     response: Response,
     session: AsyncSession = Depends(get_session),
-) -> RedirectResponse:
+) -> HTMLResponse:
     """
     Handle Telegram Login Widget callback.
 
@@ -222,7 +224,7 @@ async def telegram_callback(
         session: Async database session
 
     Returns:
-        RedirectResponse: Redirect to dashboard on success
+        HTMLResponse: Redirect template to dashboard on success
 
     Raises:
         HTTPException: 401 if hash validation fails
@@ -353,8 +355,13 @@ async def telegram_callback(
     session.add(db_refresh_token)
     await session.commit()
 
-    # Step 7: Create redirect response to dashboard with login flag for WebAuthn onboarding
-    redirect = RedirectResponse(url="/?just_logged_in=true", status_code=status.HTTP_303_SEE_OTHER)
+    # Step 7: Create redirect template response to enable PGlite BEFORE dashboard loads
+    # This prevents race condition where PGlite tries to init before localStorage flag is set
+    from backend.app.main import templates
+    response = templates.TemplateResponse("auth_redirect.html", {
+        "request": request,
+        "target_url": "/"
+    })
 
     # Step 7.5: Determine secure cookie flag based on environment
     # In production with SSL, cookies should be secure=True (HTTPS only)
@@ -362,7 +369,7 @@ async def telegram_callback(
     secure_cookie = settings.APP_ENV == "production" and settings.SSL_TYPE != "none"
 
     # Step 8: Set JWT access token in httpOnly cookie
-    redirect.set_cookie(
+    response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
@@ -372,7 +379,7 @@ async def telegram_callback(
     )
 
     # Step 9: Set JWT refresh token in httpOnly cookie
-    redirect.set_cookie(
+    response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
@@ -381,7 +388,7 @@ async def telegram_callback(
         max_age=60 * 60 * 24 * 30,  # 30 days in seconds
     )
 
-    return redirect
+    return response
 
 
 @router.post(
@@ -987,7 +994,7 @@ async def login_email(
 
     if user is None:
         logger.warning(
-            f"[AUTH_EMAIL] Failed login attempt: email={data.email}, "
+            f"[AUTH_EMAIL] Failed login attempt: email_hash={hash_email_for_logging(data.email)}, "
             f"reason=invalid_credentials, "
             f"ip={request.client.host if request.client else 'unknown'}"
         )
@@ -1000,7 +1007,8 @@ async def login_email(
     if not user.is_active:
         logger.warning(
             f"[AUTH_EMAIL] Inactive user login attempt: user_id={user.id}, "
-            f"email={data.email}, ip={request.client.host if request.client else 'unknown'}"
+            f"email_hash={hash_email_for_logging(data.email)}, "
+            f"ip={request.client.host if request.client else 'unknown'}"
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -1013,7 +1021,7 @@ async def login_email(
     if user.is_admin:
         logger.info(
             f"[AUTH_EMAIL] Admin login bypass: user_id={user.id}, "
-            f"email={data.email}, bypassing 2FA requirement, "
+            f"bypassing 2FA requirement, "
             f"ip={request.client.host if request.client else 'unknown'}"
         )
 
@@ -1103,7 +1111,7 @@ async def login_email(
 
     logger.info(
         f"[AUTH_EMAIL] Regular user login: user_id={user.id}, "
-        f"email={data.email}, 2FA required"
+        f"2FA required"
     )
 
     # Step 3: Create 2FA session (5-min TTL)
@@ -1898,7 +1906,7 @@ async def check_auth_methods(
     session: AsyncSession = Depends(get_session),
 ) -> AuthMethodsResponse:
     """Check available authentication methods for user."""
-    logger.info(f"[AUTH_METHODS] Checking methods for identifier: {identifier}")
+    logger.info(f"[AUTH_METHODS] Checking methods for identifier_hash: {hash_email_for_logging(identifier)}")
 
     # Try to find user by email first
     user = await get_user_by_email(session, identifier)
@@ -1910,7 +1918,7 @@ async def check_auth_methods(
         user = result.first()
 
     if user is None:
-        logger.warning(f"[AUTH_METHODS] User not found: {identifier}")
+        logger.warning(f"[AUTH_METHODS] User not found: identifier_hash={hash_email_for_logging(identifier)}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -1974,11 +1982,11 @@ async def check_auth_methods(
     responses=get_common_responses(include_401=True),
     description="""
     Check if current user has registered WebAuthn biometric credentials.
-    
+
     Used for onboarding flow after successful login:
     - If has_credentials=False → show onboarding modal
     - If has_credentials=True → skip onboarding
-    
+
     Requires: JWT authentication
     """,
 )

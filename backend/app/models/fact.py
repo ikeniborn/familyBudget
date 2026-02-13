@@ -7,11 +7,10 @@ This table stores actual income/expense transactions with references to dimensio
 Pattern: Fact table (partitioned by month at DB level)
 Table: t_f_budget_fact
 """
-
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
+from sqlalchemy import BigInteger
 from sqlmodel import Field, SQLModel
 
 
@@ -54,10 +53,19 @@ class BudgetFact(SQLModel, table=True):
     __tablename__ = "t_f_budget_fact"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key (BIGSERIAL in PostgreSQL)"
+    )
+
+    # Client-side temporary ID for offline sync
+    temp_id: int | None = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        sa_type=BigInteger,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)"
     )
 
     # Foreign keys to dimensions (required)
@@ -76,13 +84,13 @@ class BudgetFact(SQLModel, table=True):
     )
 
     # Optional foreign keys to additional dimensions
-    financial_center_id: Optional[int] = Field(
+    financial_center_id: int | None = Field(
         default=None,
         foreign_key="t_d_financial_center.id",
         description="Financial center (optional dimension for advanced budgeting)"
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         foreign_key="t_d_cost_center.id",
         description="Cost center (optional dimension for advanced budgeting)"
@@ -102,7 +110,7 @@ class BudgetFact(SQLModel, table=True):
         description="Transaction amount (always stored as positive value, sign determined by article_type)"
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=None,  # TEXT field in PostgreSQL
         description="Optional transaction description/notes"
@@ -116,14 +124,14 @@ class BudgetFact(SQLModel, table=True):
     )
 
     # Transfer support
-    transfer_id: Optional[int] = Field(
+    transfer_id: int | None = Field(
         default=None,
         nullable=True,
         description="Links paired expense/income transactions for transfers between financial centers"
     )
 
     # Recurring plan support (no FK due to partitioning)
-    recurring_plan_id: Optional[int] = Field(
+    recurring_plan_id: int | None = Field(
         default=None,
         nullable=True,
         index=True,
@@ -138,7 +146,7 @@ class BudgetFact(SQLModel, table=True):
     )
 
     # Deduplication support for offline sync
-    content_hash: Optional[str] = Field(
+    content_hash: str | None = Field(
         default=None,
         max_length=32,
         nullable=True,
@@ -146,7 +154,7 @@ class BudgetFact(SQLModel, table=True):
         description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection"
     )
 
-    sync_hash: Optional[str] = Field(
+    sync_hash: str | None = Field(
         default=None,
         max_length=32,
         nullable=True,

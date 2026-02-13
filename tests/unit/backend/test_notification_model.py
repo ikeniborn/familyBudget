@@ -189,9 +189,13 @@ class TestNotificationModel:
 
     def test_missing_required_fields(self):
         """Test validation fails when required fields are missing."""
+        # Import NotificationCreate schema for validation testing
+        # (Notification SQLModel with table=True doesn't validate required fields for ORM compatibility)
+        from backend.app.schemas.notification import NotificationCreate
+
         # Missing article_id
         with pytest.raises(ValidationError) as exc_info:
-            Notification(
+            NotificationCreate(
                 notification_type="budget_threshold",
                 plan_amount=Decimal("10000.00"),
                 actual_amount=Decimal("9000.00"),
@@ -202,7 +206,7 @@ class TestNotificationModel:
 
         # Missing notification_type
         with pytest.raises(ValidationError) as exc_info:
-            Notification(
+            NotificationCreate(
                 article_id=1,
                 plan_amount=Decimal("10000.00"),
                 actual_amount=Decimal("9000.00"),
@@ -213,7 +217,7 @@ class TestNotificationModel:
 
         # Missing plan_amount
         with pytest.raises(ValidationError) as exc_info:
-            Notification(
+            NotificationCreate(
                 article_id=1,
                 notification_type="budget_threshold",
                 actual_amount=Decimal("9000.00"),

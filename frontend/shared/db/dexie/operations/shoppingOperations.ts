@@ -1,0 +1,225 @@
+/**
+ * Shopping Lists operations (CRUD)
+ * Упрощенная реализация для миграции
+ */
+
+import { db } from '../core/database';
+import { logger } from '../utils/logger';
+import { validateShoppingItem } from '../utils/validation';
+import { generateNumericTempId } from '../utils/hash';
+import type {
+  LocalShoppingList,
+  LocalShoppingListItem,
+  LocalStore,
+  LocalProductGroup,
+  ShoppingListFilters,
+  StoreFilters,
+  ProductGroupFilters
+} from '../types/shopping';
+
+/**
+ * Create shopping list
+ *
+ * @param list - Shopping list data
+ * @returns temp_id
+ */
+export async function createShoppingList(
+  list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
+): Promise<number> {
+  logger.debug('[shoppingOps] createShoppingList', list);
+
+  const temp_id = generateNumericTempId();
+
+  const newList: LocalShoppingList = {
+    id: null,
+    temp_id,
+    ...list,
+    sync_status: 'pending',
+    created_at: new Date(),
+    updated_at: new Date()
+  };
+
+  await db.shoppingLists.add(newList);
+
+  logger.info('[shoppingOps] ✅ Shopping list created', { temp_id });
+  return temp_id;
+}
+
+/**
+ * Query shopping lists с фильтрами
+ */
+export async function queryShoppingLists(
+  filters?: ShoppingListFilters
+): Promise<LocalShoppingList[]> {
+  logger.debug('[shoppingOps] queryShoppingLists', filters);
+
+  let results = await db.shoppingLists.toArray();
+
+  // Apply filters
+  if (filters) {
+    results = results.filter(list => {
+      if (filters.is_active !== undefined && list.is_active !== filters.is_active) return false;
+      if (filters.sync_status && list.sync_status !== filters.sync_status) return false;
+      return true;
+    });
+  }
+
+  return results.sort((a, b) => b.created_at.getTime() - a.created_at.getTime());
+}
+
+/**
+ * Create shopping list item
+ *
+ * @param item - Shopping item data
+ * @returns temp_id
+ */
+export async function createShoppingListItem(
+  item: Omit<LocalShoppingListItem, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
+): Promise<number> {
+  logger.debug('[shoppingOps] createShoppingListItem', item);
+
+  // Validate
+  validateShoppingItem({
+    name: item.product_name,
+    quantity: item.quantity,
+    position: item.position
+  });
+
+  const temp_id = generateNumericTempId();
+
+  const newItem: LocalShoppingListItem = {
+    id: null,
+    temp_id,
+    ...item,
+    sync_status: 'pending',
+    created_at: new Date(),
+    updated_at: new Date()
+  };
+
+  await db.shoppingListItems.add(newItem);
+
+  logger.info('[shoppingOps] ✅ Shopping item created', {
+    temp_id,
+    shopping_list_temp_id: newItem.shopping_list_temp_id,
+    product_name: newItem.product_name
+  });
+  return temp_id;
+}
+
+/**
+ * Query shopping list items для списка
+ */
+export async function queryShoppingListItems(
+  shopping_list_temp_id: number
+): Promise<LocalShoppingListItem[]> {
+  logger.debug('[shoppingOps] queryShoppingListItems', { shopping_list_temp_id });
+
+  const items = await db.shoppingListItems
+    .where('shopping_list_temp_id')
+    .equals(shopping_list_temp_id)
+    .toArray();
+
+  // DEBUG: Log all items in DB to troubleshoot empty results
+  if (items.length === 0) {
+    const allItems = await db.shoppingListItems.toArray();
+    logger.warn('[shoppingOps] ⚠️ No items found for list', {
+      requestedListId: shopping_list_temp_id,
+      totalItemsInDB: allItems.length,
+      sampleItems: allItems.slice(0, 3).map(item => ({
+        temp_id: item.temp_id,
+        shopping_list_temp_id: item.shopping_list_temp_id,
+        product_name: item.product_name
+      }))
+    });
+  }
+
+  return items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+}
+
+/**
+ * Update shopping list item
+ */
+export async function updateShoppingListItem(
+  temp_id: number,
+  updates: Partial<Pick<LocalShoppingListItem, 'product_name' | 'quantity' | 'is_completed' | 'position'>>
+): Promise<void> {
+  logger.debug('[shoppingOps] updateShoppingListItem', { temp_id, updates });
+
+  await db.shoppingListItems.where('temp_id').equals(temp_id).modify({
+    ...updates,
+    sync_status: 'pending',
+    updated_at: new Date()
+  });
+
+  logger.info('[shoppingOps] ✅ Shopping item updated', { temp_id });
+}
+
+/**
+ * Delete shopping list item (soft delete)
+ */
+export async function deleteShoppingListItem(temp_id: number): Promise<void> {
+  logger.debug('[shoppingOps] deleteShoppingListItem', { temp_id });
+
+  await db.shoppingListItems.where('temp_id').equals(temp_id).modify({
+    sync_status: 'deleted',
+    updated_at: new Date()
+  });
+
+  logger.info('[shoppingOps] ✅ Shopping item deleted', { temp_id });
+}
+
+/**
+ * Bulk insert shopping list items
+ */
+export async function bulkInsertShoppingListItems(
+  items: LocalShoppingListItem[]
+): Promise<void> {
+  logger.info('[shoppingOps] bulkInsertShoppingListItems', { count: items.length });
+
+  await db.shoppingListItems.bulkPut(items);
+
+  logger.info('[shoppingOps] ✅ Bulk insert complete', { count: items.length });
+}
+
+/**
+ * Query stores с фильтрами
+ */
+export async function queryStores(
+  filters?: StoreFilters
+): Promise<LocalStore[]> {
+  logger.debug('[shoppingOps] queryStores', filters);
+
+  let results = await db.stores.toArray();
+
+  // Apply filters
+  if (filters) {
+    results = results.filter(store => {
+      if (filters.is_active !== undefined && store.is_active !== filters.is_active) return false;
+      return true;
+    });
+  }
+
+  return results.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Query product groups с фильтрами
+ */
+export async function queryProductGroups(
+  filters?: ProductGroupFilters
+): Promise<LocalProductGroup[]> {
+  logger.debug('[shoppingOps] queryProductGroups', filters);
+
+  let results = await db.productGroups.toArray();
+
+  // Apply filters
+  if (filters) {
+    results = results.filter(group => {
+      if (filters.parent_id !== undefined && group.parent_id !== filters.parent_id) return false;
+      if (filters.is_active !== undefined && group.is_active !== filters.is_active) return false;
+      return true;
+    });
+  }
+
+  return results.sort((a, b) => a.name.localeCompare(b.name));
+}

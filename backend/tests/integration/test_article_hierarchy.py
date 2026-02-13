@@ -16,9 +16,7 @@ from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.article import Article
 from backend.app.models.hierarchy import ArticleHierarchy
-
 
 # ============================================================================
 # Create Hierarchy Tests
@@ -658,14 +656,14 @@ async def test_hierarchy_across_types(auth_client: AsyncClient, admin_client: As
         "/api/v1/articles",
         json={"code": "INCOME", "name": "Income", "type": "income", "parent_id": None},
     )
-    income_root_id = income_root_resp.json()["id"]
+    income_root_resp.json()["id"]
 
     # Create expense root
     expense_root_resp = await admin_client.post(
         "/api/v1/articles",
         json={"code": "EXPENSES", "name": "Expenses", "type": "expense", "parent_id": None},
     )
-    expense_root_id = expense_root_resp.json()["id"]
+    expense_root_resp.json()["id"]
 
     # Both should be created successfully
     assert income_root_resp.status_code == 201

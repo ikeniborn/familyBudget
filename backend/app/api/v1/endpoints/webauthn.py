@@ -21,22 +21,22 @@ Security:
     - Origin validation (phishing prevention)
     - Comprehensive audit logging
 """
-
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import get_session, CurrentUser
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_webauthn_credential_added,
+    broadcast_webauthn_credential_revoked,
+)
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.middleware.rate_limiter import limiter
-from backend.app.models.user import User
 from backend.app.models.webauthn_credential import WebAuthnCredential
-from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import AuthResponse, UserResponse
-from backend.app.services.jwt import create_access_token, create_refresh_token, hash_token
+from backend.app.services.jwt import hash_token
 from backend.app.services.password_service import verify_password
 from backend.app.services.totp_service import verify_totp as verify_totp_code
 from backend.app.services.webauthn_service import (
@@ -44,10 +44,6 @@ from backend.app.services.webauthn_service import (
     create_registration_challenge,
     verify_and_store_credential,
     verify_authentication_and_issue_tokens,
-)
-from backend.app.api.v1.endpoints.budget_ws import (
-    broadcast_webauthn_credential_added,
-    broadcast_webauthn_credential_revoked,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,14 +60,14 @@ class WebAuthnErrorResponse(BaseModel):
     """Error response for WebAuthn operations."""
 
     detail: str
-    error_code: Optional[str] = None
+    error_code: str | None = None
 
 
 class WebAuthnValidationError(BaseModel):
     """Validation error for WebAuthn operations."""
 
     detail: str
-    field: Optional[str] = None
+    field: str | None = None
 
 
 class RegisterVerifyRequest(BaseModel):
@@ -114,9 +110,9 @@ class CredentialResponse(BaseModel):
 
     id: int
     credential_id: str
-    device_name: Optional[str]
+    device_name: str | None
     created_at: str
-    last_used_at: Optional[str]
+    last_used_at: str | None
     backup_state: bool
 
 
@@ -129,8 +125,8 @@ class CredentialListResponse(BaseModel):
 class CredentialRevokeRequest(BaseModel):
     """Request body for credential revocation."""
 
-    password: Optional[str] = None
-    totp_code: Optional[str] = None
+    password: str | None = None
+    totp_code: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -251,7 +247,7 @@ async def register_verify(
         )
 
         # Broadcast credential added event via WebSocket
-        logger.debug(f"[WEBAUTHN][REGISTER_VERIFY] Broadcasting credential_added event via WebSocket")
+        logger.debug("[WEBAUTHN][REGISTER_VERIFY] Broadcasting credential_added event via WebSocket")
         await broadcast_webauthn_credential_added(
             user_id=current_user.id,
             credential_data={
@@ -387,8 +383,9 @@ async def authenticate_verify(
         )
 
         # Store refresh token hash in database (same as Telegram OAuth)
-        from backend.app.models.refresh_token import RefreshToken
         from datetime import datetime, timedelta
+
+        from backend.app.models.refresh_token import RefreshToken
 
         refresh_token_record = RefreshToken(
             user_id=user.id,
@@ -522,7 +519,7 @@ async def revoke_credential(
 
     # Verification logic depends on user auth method
     if current_user.password_hash and data.password:
-        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Verifying password for email user...")
+        logger.debug("[WEBAUTHN][REVOKE_CREDENTIAL] Verifying password for email user...")
         if not verify_password(data.password, current_user.password_hash):
             logger.warning(
                 f"[WEBAUTHN][REVOKE_CREDENTIAL] Password verification failed: "
@@ -532,10 +529,10 @@ async def revoke_credential(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid password",
             )
-        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Password verification: PASSED")
+        logger.debug("[WEBAUTHN][REVOKE_CREDENTIAL] Password verification: PASSED")
 
     elif current_user.two_factor_enabled and data.totp_code:
-        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Verifying TOTP code for Telegram user...")
+        logger.debug("[WEBAUTHN][REVOKE_CREDENTIAL] Verifying TOTP code for Telegram user...")
         if not verify_totp_code(current_user.two_factor_secret, data.totp_code):
             logger.warning(
                 f"[WEBAUTHN][REVOKE_CREDENTIAL] TOTP verification failed: "
@@ -545,7 +542,7 @@ async def revoke_credential(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid TOTP code",
             )
-        logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] TOTP verification: PASSED")
+        logger.debug("[WEBAUTHN][REVOKE_CREDENTIAL] TOTP verification: PASSED")
 
     else:
         logger.warning(
@@ -605,7 +602,7 @@ async def revoke_credential(
     )
 
     # Broadcast credential revoked event via WebSocket
-    logger.debug(f"[WEBAUTHN][REVOKE_CREDENTIAL] Broadcasting credential_revoked event via WebSocket")
+    logger.debug("[WEBAUTHN][REVOKE_CREDENTIAL] Broadcasting credential_revoked event via WebSocket")
     await broadcast_webauthn_credential_revoked(
         user_id=current_user.id,
         credential_id=credential_id,

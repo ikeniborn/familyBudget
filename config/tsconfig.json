@@ -1,0 +1,64 @@
+{
+  "compilerOptions": {
+    /* Language and Environment */
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",  // CHANGED: Support Rollup bundler (was: "node")
+
+    /* Strict Type Checking */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    /* Additional Checks */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Emit */
+    "declaration": false,  // CHANGED: No .d.ts files for browser bundles (was: true)
+    "sourceMap": true,     // CHANGED: Enable source maps for debugging (was: false)
+    "removeComments": false,
+    "noEmit": false,       // CHANGED: Allow Rollup to compile (was: true)
+
+    /* Interop Constraints */
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Path Mapping */
+    "baseUrl": "..",
+    "paths": {
+      "@web/*": ["frontend/web/static/js/*"],
+      "@webapp/*": ["frontend/webapp/static/js/*"],
+      "@shared/*": ["frontend/shared/static/js/*"],
+      "@components/*": ["frontend/web/static/js/modules/uiComponents/*"],
+      "@db/*": ["frontend/shared/db/*"]
+    }
+  },
+
+  "include": [
+    "../frontend/web/static/js/**/*.ts",
+    "../frontend/webapp/static/js/**/*.ts",
+    "../frontend/shared/static/js/**/*.ts",
+    "../frontend/shared/db/**/*.ts",
+    "../types/**/*.d.ts"
+  ],
+
+  "exclude": [
+    "../node_modules",
+    "../frontend/**/vendor",
+    "../frontend/**/*.min.js",
+    "../frontend/**/*.temp.js",
+    "../frontend/**/dist",      // NEW: Exclude Rollup output directories
+    "../frontend/**/*.bundle.js", // NEW: Exclude bundle files
+    "../.nvm-isolated"
+  ]
+}

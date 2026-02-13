@@ -1,0 +1,203 @@
+{#
+    PWA Splash Screen Module
+    Controls splash screen visibility for PWA cold starts.
+
+    Features:
+        - Shows splash only on PWA cold start (app reopened)
+        - Skips splash on F5 reload or in-session navigation
+        - Session-based detection using sessionStorage
+        - Performance API for reload detection
+        - 2 second minimum display time
+
+    Note:
+        - Splash HTML must be present in base.html before this script
+        - Critical CSS for .pwa-splash must remain inline for instant rendering
+        - Runs as IIFE for immediate execution
+#}
+<script>
+// PWA Splash Screen Controller - inline for immediate execution
+// Shows splash on EVERY cold start (app closed and reopened), not on F5 or in-app navigation
+(function() {
+    // Initialize post-auth flags BEFORE checking PWA mode
+    // This ensures flags are set even if splash is skipped
+    function initializePostAuthFlags() {
+        const flags = { dexieAutoEnabled: false, justLoggedIn: false };
+
+        // Auto-enable Dexie for new users (only if not already set)
+        if (localStorage.getItem('dexieActive') === null) {
+            localStorage.setItem('dexieActive', 'true');
+            flags.dexieAutoEnabled = true;
+        }
+
+        // Session flag for WebAuthn onboarding (from URL query parameter)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('just_logged_in') === 'true') {
+            sessionStorage.setItem('just_logged_in', 'true');
+            flags.justLoggedIn = true;
+
+            // Clean URL (remove query parameter from browser history)
+            // Prevents Dexie sync errors when query parameter triggers initialization on pages with no modals
+            const cleanUrl = window.location.origin + window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+            console.log('[PWA_SPLASH] Cleaned URL after reading just_logged_in flag');
+        }
+
+        console.info('[PWA_SPLASH] Post-auth flags initialized:', flags);
+        return flags;
+    }
+
+    // Execute flag initialization immediately
+    const flags = initializePostAuthFlags();
+
+    // Trigger initial Dexie sync for new users
+    if (flags.dexieAutoEnabled || flags.justLoggedIn) {
+        console.info('[PWA_SPLASH] Triggering initial Dexie sync...');
+
+        // Sync handler (extracted to avoid race condition)
+        const syncReferenceData = async () => {
+            if (typeof window.Dexie !== 'undefined') {
+                try {
+                    const dexie = await window.Dexie.getDexieManager();
+                    await dexie.init();
+
+                    // Check userId availability before sync (prevents errors on login page)
+                    const userId = window.userData?.id || window.user?.id;
+                    if (!userId) {
+                        console.warn('[PWA_SPLASH] Skipping sync - userId not available (not authenticated yet)');
+                        return;
+                    }
+
+                    console.info('[PWA_SPLASH] Syncing reference data...', { userId });
+                    await dexie.syncReferenceData();
+
+                    console.info('[PWA_SPLASH] Initial sync complete');
+                } catch (error) {
+                    console.error('[PWA_SPLASH] Initial sync failed:', error);
+                    // Non-critical - user can work via API fallback
+                }
+            }
+        };
+
+        // Fix race condition: check if DOM already loaded
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', syncReferenceData);
+        } else {
+            // DOM already loaded, execute immediately
+            syncReferenceData();
+        }
+    }
+
+    const splashEl = document.getElementById('pwa-splash');
+    if (!splashEl) return;
+
+    // Only show splash in PWA mode (standalone)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                  window.navigator.standalone === true;
+
+    if (!isPWA) {
+        splashEl.remove();
+        return;
+    }
+
+    // Detect page reload (F5) using Performance API
+    const navEntry = window.performance && window.performance.getEntriesByType &&
+                     window.performance.getEntriesByType('navigation')[0];
+    const isReload = navEntry && navEntry.type === 'reload';
+
+    // Session-based detection: cold start = no sessionStorage flag yet
+    const SPLASH_SESSION_KEY = 'pwa_splash_shown';
+    let isColdStart = false;
+
+    // Try sessionStorage (may fail in private browsing mode)
+    try {
+        isColdStart = !sessionStorage.getItem(SPLASH_SESSION_KEY);
+    } catch (e) {
+        console.warn('[PWA_SPLASH] sessionStorage unavailable (private mode?), fallback to always show:', e);
+        isColdStart = true; // Fallback: show splash if storage unavailable
+    }
+
+    // Console logging for debugging
+    console.log('[PWA_SPLASH] Display check:', {
+        isPWA: isPWA,
+        isColdStart: isColdStart,
+        isReload: isReload,
+        navType: navEntry ? navEntry.type : 'unknown',
+        timestamp: Date.now()
+    });
+
+    // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
+    if (!isColdStart || isReload) {
+        try {
+            console.log('[PWA_SPLASH] Skipping splash:', {
+                reason: !isColdStart ? 'session active' : 'page reload',
+                sessionFlag: sessionStorage.getItem(SPLASH_SESSION_KEY),
+                timestamp: Date.now()
+            });
+        } catch (e) {
+            console.log('[PWA_SPLASH] Skipping splash (storage unavailable)');
+        }
+        splashEl.remove();
+        return;
+    }
+
+    // Mark session as splash-shown (persists until tab close)
+    const startTimestamp = Date.now();
+    try {
+        sessionStorage.setItem(SPLASH_SESSION_KEY, startTimestamp.toString());
+    } catch (e) {
+        console.warn('[PWA_SPLASH] Failed to set sessionStorage:', e);
+    }
+
+    console.log('[PWA_SPLASH] Cold start detected, showing splash', {
+        startTimestamp: startTimestamp,
+        duration: '2s'
+    });
+
+    // Show splash for 2 seconds on cold start
+    const MIN_DISPLAY_TIME = 2000;
+    let pageLoaded = false;
+    let timerDone = false;
+
+    function tryHideSplash() {
+        if (timerDone && pageLoaded) {
+            const hideTimestamp = Date.now();
+            const actualDuration = hideTimestamp - startTimestamp;
+
+            console.log('[PWA_SPLASH] Hiding splash', {
+                timerDone: timerDone,
+                pageLoaded: pageLoaded,
+                plannedDuration: '2s',
+                actualDuration: actualDuration + 'ms',
+                hideTimestamp: hideTimestamp
+            });
+
+            splashEl.classList.add('hidden');
+            setTimeout(function() {
+                splashEl.remove();
+                console.log('[PWA_SPLASH] Splash removed from DOM', {
+                    totalTime: (Date.now() - startTimestamp) + 'ms'
+                });
+            }, 300);
+        }
+    }
+
+    setTimeout(function() {
+        timerDone = true;
+        tryHideSplash();
+    }, MIN_DISPLAY_TIME);
+
+    console.log('[PWA_SPLASH] DOMContentLoaded fired');
+
+    if (document.readyState === 'complete') {
+        pageLoaded = true;
+        console.log('[PWA_SPLASH] Page already loaded (readyState: complete)');
+        tryHideSplash();
+    } else {
+        window.addEventListener('load', function() {
+            pageLoaded = true;
+            console.log('[PWA_SPLASH] Page loaded, checking if ready to hide');
+            tryHideSplash();
+        });
+    }
+})();
+</script>

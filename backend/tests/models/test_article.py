@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.user import User
 
-
 # ============================================================================
 # Article Creation Tests
 # ============================================================================
@@ -56,7 +55,7 @@ async def test_create_article_with_code(session: AsyncSession, test_user: User):
 
 
 @pytest.mark.asyncio
-async def test_create_global_article(session: AsyncSession):
+async def test_create_global_article(session: AsyncSession, test_user):
     """Test creating global article (no user_id)."""
     article = Article(
         user_id=test_user.id,
@@ -368,7 +367,6 @@ async def test_article_updated_at_changes(session: AsyncSession, test_user: User
     await session.commit()
     await session.refresh(article)
 
-    original_updated_at = article.updated_at
 
     # Update article
     article.name = "Food and Drinks"

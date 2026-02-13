@@ -1,21 +1,14 @@
 name: API Contract Tests
 
 on:
-  push:
+  pull_request:
     branches:
-      - main
       - test
-      - 'feature/**'
-      - 'fix/**'
     paths:
       - 'backend/app/api/**'
       - 'backend/app/models/**'
       - 'docs/architecture/endpoints/**'
       - '.github/workflows/api-contract-tests.yml'
-  pull_request:
-    branches:
-      - main
-      - test
 
 permissions:
   contents: read
@@ -23,8 +16,9 @@ permissions:
 jobs:
   openapi-validation:
     name: OpenAPI Schema Validation
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
+    # Re-enabled: Fixed FastAPI startup with improved health check retry logic
 
     services:
       postgres:
@@ -48,16 +42,14 @@ jobs:
           fetch-depth: 2
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
+        uses: ./.github/actions/setup-python
         with:
-          python-version: '3.12'
-          cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
       - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+        uses: ./.github/actions/setup-node
         with:
-          node-version: '18'
+          enable-cache: 'false'
 
       - name: Install backend dependencies
         run: |
@@ -88,18 +80,48 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
         run: |
           cd backend
-          uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
-          sleep 10
 
-          # Wait for backend
-          for i in {1..30}; do
-            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-              echo "Backend ready"
+          # Start backend in background with logging
+          uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
+          BACKEND_PID=$!
+
+          echo "Started backend with PID: $BACKEND_PID"
+          sleep 5  # Initial wait for startup
+
+          # Improved health check with exponential backoff
+          MAX_ATTEMPTS=60
+          ATTEMPT=1
+          WAIT_TIME=1
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            # Check if process is still running
+            if ! kill -0 $BACKEND_PID 2>/dev/null; then
+              echo "❌ Backend process died! Logs:"
+              cat backend.log
+              exit 1
+            fi
+
+            # Try health check
+            if curl -f -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "✅ Backend ready after $ATTEMPT attempts"
+              curl -s http://localhost:8000/health
               break
             fi
-            echo "Waiting for backend... ($i/30)"
-            sleep 1
+
+            echo "⏳ Attempt $ATTEMPT/$MAX_ATTEMPTS: waiting ${WAIT_TIME}s..."
+            sleep $WAIT_TIME
+
+            # Exponential backoff (max 5s)
+            WAIT_TIME=$((WAIT_TIME < 5 ? WAIT_TIME + 1 : 5))
+            ATTEMPT=$((ATTEMPT + 1))
           done
+
+          # Final check
+          if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+            echo "❌ Backend failed to start after $MAX_ATTEMPTS attempts. Logs:"
+            cat backend.log
+            exit 1
+          fi
 
       - name: Generate current OpenAPI spec
         run: |
@@ -133,18 +155,42 @@ jobs:
           # Restart backend with previous code
           cd backend
           pip install -r requirements.txt
-          uvicorn backend.app.main:app --host 0.0.0.0 --port 8001 &
-          sleep 10
 
-          # Wait for backend
-          for i in {1..30}; do
-            if curl -s http://localhost:8001/health > /dev/null 2>&1; then
-              echo "Previous backend ready"
+          # Start previous backend with logging
+          uvicorn backend.app.main:app --host 0.0.0.0 --port 8001 > backend-prev.log 2>&1 &
+          PREV_PID=$!
+
+          echo "Started previous backend with PID: $PREV_PID"
+          sleep 5
+
+          # Improved health check
+          MAX_ATTEMPTS=60
+          ATTEMPT=1
+          WAIT_TIME=1
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            if ! kill -0 $PREV_PID 2>/dev/null; then
+              echo "❌ Previous backend died! Logs:"
+              cat backend-prev.log
+              exit 1
+            fi
+
+            if curl -f -s http://localhost:8001/health > /dev/null 2>&1; then
+              echo "✅ Previous backend ready after $ATTEMPT attempts"
               break
             fi
-            echo "Waiting for previous backend... ($i/30)"
-            sleep 1
+
+            echo "⏳ Attempt $ATTEMPT/$MAX_ATTEMPTS: waiting ${WAIT_TIME}s..."
+            sleep $WAIT_TIME
+            WAIT_TIME=$((WAIT_TIME < 5 ? WAIT_TIME + 1 : 5))
+            ATTEMPT=$((ATTEMPT + 1))
           done
+
+          if [ $ATTEMPT -gt $MAX_ATTEMPTS ]; then
+            echo "❌ Previous backend failed to start. Logs:"
+            cat backend-prev.log
+            exit 1
+          fi
 
           # Generate spec
           curl http://localhost:8001/openapi.json > ../openapi-previous.json
@@ -194,9 +240,9 @@ jobs:
 
   typescript-types-validation:
     name: TypeScript Types Consistency
-    runs-on: ubuntu-latest
-    needs: openapi-validation
-    if: always()
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    needs: openapi-validation  # Wait for OpenAPI spec generation
+    # Re-enabled: openapi-validation is now working
     timeout-minutes: 5
 
     steps:
@@ -204,9 +250,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+        uses: ./.github/actions/setup-node
         with:
-          node-version: '18'
+          enable-cache: 'false'
 
       - name: Install dependencies
         run: npm install openapi-typescript
@@ -217,24 +263,52 @@ jobs:
           name: openapi-specs
 
       - name: Generate TypeScript types from OpenAPI
-        continue-on-error: true
         run: |
-          npx openapi-typescript openapi-current.json \
-            --output frontend/web/static/js/types/api-generated.ts || true
+          echo "Generating TypeScript types from OpenAPI schema..."
 
-      - name: Check for type mismatches
-        continue-on-error: true
+          # Ensure output directory exists
+          mkdir -p frontend/web/static/js/types
+
+          # Generate types
+          npx openapi-typescript openapi-current.json \
+            --output frontend/web/static/js/types/api-generated.ts
+
+          echo "✅ TypeScript types generated successfully"
+
+          # Show file size
+          ls -lh frontend/web/static/js/types/api-generated.ts
+
+      - name: Check for API breaking changes (TypeScript types)
         run: |
+          # Check if committed types file exists
+          if [ ! -f frontend/web/static/js/types/api-generated.ts ]; then
+            echo "⚠️ No committed TypeScript types found"
+            echo "This is the first API contract test run"
+            echo "Please commit the generated types file"
+            exit 0
+          fi
+
+          # Compare generated types with committed version
           if git diff --quiet frontend/web/static/js/types/api-generated.ts 2>/dev/null; then
             echo "✅ TypeScript types are in sync with OpenAPI spec"
+            echo "✅ No API breaking changes detected"
           else
-            echo "## ⚠️ TypeScript Types Out of Sync" >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ API Breaking Changes Detected" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The generated TypeScript types differ from committed version." >> $GITHUB_STEP_SUMMARY
+            echo "The generated TypeScript types differ from the committed version." >> $GITHUB_STEP_SUMMARY
+            echo "This indicates potential breaking changes to the API contract." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Changes:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
             git diff frontend/web/static/js/types/api-generated.ts >> $GITHUB_STEP_SUMMARY || true
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Action Required:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the API changes carefully" >> $GITHUB_STEP_SUMMARY
+            echo "2. Update frontend code to handle new types" >> $GITHUB_STEP_SUMMARY
+            echo "3. Regenerate types: \`npx openapi-typescript http://localhost:8000/openapi.json -o frontend/web/static/js/types/api-generated.ts\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. Commit the updated types file" >> $GITHUB_STEP_SUMMARY
 
-            echo "::warning::TypeScript types need regeneration. Run: npx openapi-typescript openapi.json"
+            echo "::error::API breaking changes detected! TypeScript types changed."
+            exit 1
           fi

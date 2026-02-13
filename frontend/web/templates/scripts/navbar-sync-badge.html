@@ -1,0 +1,113 @@
+{#
+    Navbar Sync Badge Manager Module
+    Manages the sync badge in navbar showing pending offline records count.
+
+    Features:
+        - Navbar sync badge count updates
+        - Periodic sync badge refresh (every 5 seconds)
+        - Sync status animations (pulse, syncing spinner)
+
+    Functions:
+        - updateNavbarSyncBadge(count): Update navbar sync badge count
+        - periodicSyncBadgeUpdate(): Periodic update from OfflineManager
+        - updatePendingSyncBadge(count, isSyncing): Update badge with sync status
+
+    Called by:
+        - OfflineManager loadPendingRecords()
+        - Periodic interval (every 5s)
+        - Network status change events
+#}
+{% if user %}
+<script>
+    // ============================================================================
+    // Navbar Sync Badge Management
+    // ============================================================================
+
+    /**
+     * Update navbar sync badge count
+     * Called from loadPendingRecords() and periodic updates
+     * @param {number} count - Number of pending items
+     */
+    function updateNavbarSyncBadge(count) {
+        const wrapper = document.getElementById('navbar-sync-badge-wrapper');
+        const countEl = document.getElementById('navbar-sync-count');
+
+        if (!wrapper || !countEl) {
+            console.warn('[SYNC] Navbar sync badge elements not found');
+            return;
+        }
+
+        if (count > 0) {
+            wrapper.classList.remove('hidden');
+            countEl.textContent = count;
+            wrapper.setAttribute('data-tip', `${count} ${count === 1 ? 'запись ожидает' : 'записей ожидают'} синхронизации`);
+        } else {
+            wrapper.classList.add('hidden');
+            countEl.textContent = '0';
+        }
+    }
+
+    /**
+     * Periodic sync badge update (every 5 seconds)
+     * Keeps navbar badge in sync with pending records
+     */
+    async function periodicSyncBadgeUpdate() {
+        try {
+            // Use Dexie to get pending operations
+            const dexie = await window.Dexie.getDexieManager();
+            const pendingOps = await dexie.getPendingOperations();
+            updateNavbarSyncBadge(pendingOps.length);
+        } catch (error) {
+            // Dexie not available - skip badge update
+            updateNavbarSyncBadge(0);
+        }
+    }
+
+    /**
+     * Update pending sync badge in navbar
+     * Called by offlineManager and loadPendingRecords
+     *
+     * @param {number} count - Number of pending items
+     * @param {boolean} isSyncing - Whether sync is in progress
+     */
+    function updatePendingSyncBadge(count, isSyncing = false) {
+        const wrapper = document.getElementById('navbar-sync-badge-wrapper');
+        const badge = document.getElementById('navbar-sync-count');
+        const btn = document.getElementById('navbar-sync-btn');
+
+        if (!wrapper || !badge || !btn) {
+            console.warn('[NAV_SYNC] Badge elements not found');
+            return;
+        }
+
+        // Update count
+        badge.textContent = count;
+
+        // Show/hide wrapper
+        if (count > 0) {
+            wrapper.classList.remove('hidden');
+
+            // Pulse animation on count change (if not syncing)
+            if (!isSyncing) {
+                wrapper.classList.add('pulse-pending');
+                setTimeout(() => wrapper.classList.remove('pulse-pending'), 500);
+            }
+        } else {
+            wrapper.classList.add('hidden');
+        }
+
+        // Syncing animation
+        if (isSyncing) {
+            btn.classList.add('syncing');
+        } else {
+            btn.classList.remove('syncing');
+        }
+
+        // Update tooltip
+        const tooltip = count === 1
+            ? 'Ожидает синхронизации (1 запись)'
+            : `Ожидают синхронизации (${count} записей)`;
+        wrapper.setAttribute('data-tip', tooltip);
+    }
+</script>
+{% endif %}

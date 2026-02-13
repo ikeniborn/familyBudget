@@ -1,0 +1,30 @@
+{#
+  PARTIAL: Import Wizard
+  Purpose: CSV/Google Sheets import accordion
+  Hidden on mobile (sm:block)
+  Container for ImportManager.ts dynamic rendering
+  Used in: detail_view.html
+#}
+
+<!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
+<div class="bg-base-100 shadow-sm sm:shadow-md hidden sm:block rounded-lg">
+    <div class="px-2 sm:px-4 py-2">
+        <!-- Toggle button - всегда виден -->
+        <button id="import-toggle" onclick="toggleImportWizard()"
+                class="w-full text-left text-base sm:text-lg font-medium cursor-pointer flex items-center hover:text-primary transition-colors">
+            <span id="import-toggle-icon">▶</span>
+            <span class="ml-2">📥 Импорт</span>
+            <span id="import-toggle-hint" class="text-xs text-base-content/50 font-normal ml-2">(нажмите чтобы раскрыть)</span>
+        </button>
+
+        <!-- Wizard container - показывается при клике -->
+        <div id="import-wizard-container" class="hidden mt-2 sm:mt-4">
+            <p class="text-xs sm:text-sm text-base-content/70 mb-2 sm:mb-4">
+                Загрузите CSV или укажите ссылку на Google Sheets.
+            </p>
+            <div id="import-wizard">
+                <!-- Import wizard will be rendered here by ImportManager -->
+            </div>
+        </div>
+    </div>
+</div>

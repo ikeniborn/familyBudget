@@ -22,8 +22,6 @@ Endpoints:
 import logging
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +41,8 @@ from backend.app.schemas.shopping_list import (
 )
 from backend.app.services import shopping_list_service
 from backend.app.services.scd2_service import has_changes
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/shopping-lists",
@@ -115,10 +115,17 @@ async def create_shopping_list(
     - NOT for filtering (all users see all lists)
     """
     # Create shopping list (any authenticated user can create)
+    # Generate server-side temp_id if not provided by client (offline sync fallback)
+    temp_id = shopping_list_data.temp_id
+    if temp_id is None:
+        import secrets
+        temp_id = secrets.randbelow(9007199254740991)  # Crypto-secure random (MAX_SAFE_INTEGER - int53)
+
     shopping_list = ShoppingList(
         creator_id=current_user.id,  # Tracks owner for delete permission
         name=shopping_list_data.name,
         description=shopping_list_data.description,
+        temp_id=temp_id,  # Use client's temp_id or server-generated
     )
 
     session.add(shopping_list)

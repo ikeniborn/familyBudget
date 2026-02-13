@@ -1,0 +1,158 @@
+{#
+    Delete Button Macros
+
+    Стандартизированные кнопки удаления для desktop таблиц и mobile модалей.
+    Обеспечивает визуальную консистентность во всем приложении.
+
+    Использование:
+        {% from "components/macros/delete_buttons.html" import delete_button_desktop, delete_button_mobile, delete_icon_svg %}
+
+    Примеры:
+        Desktop table: {{ delete_button_desktop(fact.id, 'deleteFact', entity_type='fact') }}
+        Mobile modal: {{ delete_button_mobile('deleteFromEditModal()') }}
+
+    Версия: 1.0.0
+    Дата создания: 2026-01-21
+#}
+
+{# ============================================================================ #}
+{# Desktop Table Delete Button (btn-xs, h-4 w-4 icon)                          #}
+{# ============================================================================ #}
+
+{#
+    delete_button_desktop - Кнопка удаления для desktop таблиц
+
+    Args:
+        entity_id (int|str): ID сущности для удаления (required)
+        delete_function (str): Имя JavaScript функции удаления (required)
+        entity_type (str): Тип сущности для data-* attribute (default: 'entity')
+                          Примеры: 'fact', 'article', 'center', 'store'
+        title (str): Текст tooltip при hover (default: 'Удалить')
+        extra_classes (str): Дополнительные CSS классы (default: '')
+
+    Returns:
+        HTML: <button> element с иконкой корзины
+
+    Визуальные характеристики:
+        - Размер кнопки: btn-xs (компактный для таблиц)
+        - Размер иконки: h-4 w-4
+        - Цвет: btn-error (красный DaisyUI)
+        - Видимость: hidden md:inline-flex (только desktop >= 768px)
+        - Форма: btn-square (квадрат)
+
+    Accessibility:
+        - title="{{ title }}" - tooltip
+        - aria-label="{{ title }} {{ entity_type }} ID {{ entity_id }}" - screen readers
+        - data-{{ entity_type }}-id="{{ entity_id }}" - testing/debugging
+
+    Пример:
+        {{ delete_button_desktop(42, 'deleteFact', entity_type='fact') }}
+        Результат: <button class="btn btn-xs btn-error btn-square hidden md:inline-flex"
+                           data-fact-id="42"
+                           onclick="event.stopPropagation(); deleteFact(42)"
+                           title="Удалить"
+                           aria-label="Удалить fact ID 42">...</button>
+#}
+{% macro delete_button_desktop(entity_id, delete_function, entity_type='entity', title='Удалить', extra_classes='') %}
+<button class="btn btn-xs btn-error btn-square hidden md:inline-flex {{ extra_classes }}"
+        data-{{ entity_type }}-id="{{ entity_id }}"
+        onclick="event.stopPropagation(); {{ delete_function }}({{ entity_id }})"
+        title="{{ title }}"
+        aria-label="{{ title }} {{ entity_type }} ID {{ entity_id }}">
+    {{ delete_icon_svg('h-4 w-4') }}
+</button>
+{% endmacro %}
+
+{# ============================================================================ #}
+{# Mobile Modal Delete Button (btn-sm sm:btn-md, h-5 w-5 icon)                  #}
+{# ============================================================================ #}
+
+{#
+    delete_button_mobile - Кнопка удаления для mobile модалей
+
+    Args:
+        onclick_handler (str): JavaScript выражение/вызов функции (required)
+                              Примеры: 'deleteFromEditModal()', 'handleDelete(123)'
+        title (str): Текст tooltip при hover (default: 'Удалить')
+        extra_classes (str): Дополнительные CSS классы (default: '')
+
+    Returns:
+        HTML: <button type="button"> element с иконкой корзины
+
+    Визуальные характеристики:
+        - Размер кнопки: btn-sm sm:btn-md (адаптивный - больше на планшетах)
+        - Размер иконки: h-5 w-5 (больше для touch accessibility)
+        - Цвет: btn-error (красный DaisyUI)
+        - Видимость: md:hidden (только mobile < 768px)
+        - Форма: btn-square (квадрат)
+
+    Touch Accessibility:
+        - Минимальный размер кнопки: 44x44px (iOS/Android guidelines)
+        - btn-sm (32px) + padding → ~40px на телефонах
+        - sm:btn-md (48px) + padding → ~56px на планшетах
+
+    Accessibility:
+        - title="{{ title }}" - tooltip
+        - aria-label="{{ title }}" - screen readers
+        - type="button" - предотвращает submit в формах
+
+    Пример:
+        {{ delete_button_mobile('deleteFromEditModal()') }}
+        Результат: <button type="button"
+                           class="btn btn-sm sm:btn-md btn-error btn-square md:hidden"
+                           onclick="deleteFromEditModal()"
+                           title="Удалить"
+                           aria-label="Удалить">...</button>
+#}
+{% macro delete_button_mobile(onclick_handler, title='Удалить', extra_classes='') %}
+<button type="button"
+        class="btn btn-sm sm:btn-md btn-error btn-square md:hidden block {{ extra_classes }}"
+        onclick="{{ onclick_handler }}"
+        title="{{ title }}"
+        aria-label="{{ title }}"
+        style="display: block !important;">
+    {{ delete_icon_svg('h-5 w-5') }}
+</button>
+{% endmacro %}
+
+{# ============================================================================ #}
+{# Delete Icon SVG (Переиспользуемая иконка корзины)                           #}
+{# ============================================================================ #}
+
+{#
+    delete_icon_svg - Переиспользуемая SVG иконка корзины (trash bin)
+
+    Args:
+        size_class (str): Tailwind CSS класс размера (default: 'h-4 w-4')
+                         Стандартные: 'h-4 w-4' (desktop), 'h-5 w-5' (mobile)
+        stroke_color (str): SVG stroke цвет (default: 'currentColor')
+                           Использует currentColor для наследования от родителя
+
+    Returns:
+        HTML: <svg> element с путями иконки корзины
+
+    Дизайн иконки:
+        - Heroicons outline "trash" icon
+        - viewBox: 0 0 24 24
+        - stroke-width: 2
+        - stroke-linecap: round
+        - stroke-linejoin: round
+
+    Использование currentColor:
+        - Иконка автоматически наследует цвет текста родителя
+        - На btn-error кнопках: белый цвет (DaisyUI default)
+        - Позволяет менять цвет через CSS без изменения SVG
+
+    Пример:
+        {{ delete_icon_svg('h-4 w-4') }}
+        Результат: <svg class="h-4 w-4" stroke="currentColor">...</svg>
+
+        {{ delete_icon_svg('h-6 w-6', 'red') }}
+        Результат: <svg class="h-6 w-6" stroke="red">...</svg>
+#}
+{% macro delete_icon_svg(size_class='h-4 w-4', stroke_color='currentColor') %}
+<svg xmlns="http://www.w3.org/2000/svg" class="{{ size_class }}" fill="none" viewBox="0 0 24 24" stroke="{{ stroke_color }}">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+</svg>
+{% endmacro %}

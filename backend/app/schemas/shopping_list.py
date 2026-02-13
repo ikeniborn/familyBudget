@@ -4,10 +4,8 @@ Pydantic schemas for ShoppingList endpoints.
 This module defines request/response schemas for ShoppingList CRUD operations.
 Shopping lists are the header in Header+Lines pattern (items are in ShoppingListItem).
 """
-
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,11 +17,13 @@ class ShoppingListCreate(BaseModel):
     Validation Rules:
         - name: Required, max 255 characters
         - description: Optional
+        - temp_id: Optional, client-generated numeric temp_id
 
     Notes:
         - creator_id is set automatically from current_user
         - All users can create shopping lists
         - Lists are SHARED (visible to all users)
+        - temp_id: Client can provide numeric temp_id for offline sync
     """
 
     name: str = Field(
@@ -34,7 +34,7 @@ class ShoppingListCreate(BaseModel):
         examples=["Weekly Groceries", "Party Supplies", "Monthly Shopping"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Shopping list for week of 2025-01-10", None]
@@ -44,6 +44,12 @@ class ShoppingListCreate(BaseModel):
         default=True,
         description="Active status (True = visible in UI, False = archived/completed)",
         examples=[True]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     @field_validator("name")
@@ -86,7 +92,7 @@ class ShoppingListUpdate(BaseModel):
         - Cannot change creator_id (lists belong to creator)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -94,13 +100,13 @@ class ShoppingListUpdate(BaseModel):
         examples=["Updated Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived/completed)",
         examples=[True, False]
@@ -108,7 +114,7 @@ class ShoppingListUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate shopping list name if provided."""
         if v is None:
             return None
@@ -136,11 +142,18 @@ class ShoppingListResponse(BaseModel):
     Notes:
         - SHARED model: Visible to all users
         - Only creator can DELETE (checked at API level)
+        - temp_id: Client-side temporary ID for offline sync
     """
 
     id: int = Field(
         description="Shopping list ID (surrogate key)",
         examples=[1]
+    )
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
     )
 
     creator_id: int = Field(
@@ -153,7 +166,7 @@ class ShoppingListResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10", None]
     )
@@ -208,7 +221,7 @@ class ShoppingListCardResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )
@@ -259,6 +272,12 @@ class ShoppingListWithItemsResponse(BaseModel):
         examples=[1]
     )
 
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
+    )
+
     creator_id: int = Field(
         description="Creator user ID",
         examples=[123]
@@ -269,7 +288,7 @@ class ShoppingListWithItemsResponse(BaseModel):
         examples=["Weekly Groceries"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
     )
@@ -290,7 +309,7 @@ class ShoppingListWithItemsResponse(BaseModel):
     )
 
     # Items (forward reference, resolved at import)
-    items: List["ShoppingListItemResponse"] = Field(
+    items: list["ShoppingListItemResponse"] = Field(
         default=[],
         description="List of shopping list items"
     )
@@ -330,5 +349,6 @@ class ShoppingListListResponse(BaseModel):
 
 
 # Forward reference import (circular dependency resolution)
-from backend.app.schemas.shopping_list_item import ShoppingListItemResponse
+from backend.app.schemas.shopping_list_item import ShoppingListItemResponse  # noqa: E402
+
 ShoppingListWithItemsResponse.model_rebuild()

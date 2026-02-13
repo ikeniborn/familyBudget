@@ -382,6 +382,11 @@ html.offline-mode .save-btn:hover {
         display: none !important;
         visibility: hidden !important;
     }
+
+    /* Mobile: FAB wrapper должен быть НИЖЕ navbar */
+    .fab-wrapper {
+        z-index: var(--z-fab-mobile) !important;  /* 40 - below navbar (50) */
+    }
 }
 
 /* Desktop: Floating Action Button (≥ 1024px) */
@@ -408,10 +413,47 @@ html.offline-mode .save-btn:hover {
     }
 
     .desktop-fab-wrapper {
-        display: block !important;
-        z-index: 1000;  /* Above backdrop (999) */
+        display: flex !important;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.75rem;
+        z-index: var(--z-fab-desktop);  /* 1000 - above backdrop (999) */
         position: relative;
     }
+
+    /* FAB menu items ordering - items appear ABOVE button */
+    /* With column-reverse: lower order = bottom, higher order = top */
+    .desktop-fab-wrapper .fab-menu-item {
+        order: 999;  /* Higher order = visually above (top) with column-reverse */
+    }
+
+    .desktop-fab-wrapper .fab-button {
+        order: -1;  /* Lower order = visually below (bottom) with column-reverse */
+    }
+
+    /* Fallback для браузеров без gap support (Safari < 14.1, IE11) */
+    @supports not (gap: 0.75rem) {
+        .desktop-fab-wrapper > *:not(:last-child) {
+            margin-bottom: 0.75rem;
+        }
+    }
+
+    /* Hide all FAB components when modal is open (v11.x+ fix) */
+    body:has(.modal.modal-open) .desktop-fab-wrapper,
+    body:has(.modal.modal-open) .fab-wrapper,
+    body:has(.modal.modal-open) #lists-fab-menu {
+        display: none !important;
+        visibility: hidden;
+    }
+}
+
+/* Fallback for browsers without :has() support (Phase 2: Z-Index fix) */
+body.modal-open .desktop-fab-wrapper,
+body.modal-open .fab-wrapper,
+body.modal-open #lists-fab-menu,
+body.modal-open .fab-common-wrapper {
+    display: none !important;
+    visibility: hidden;
 }
 
 /* Navigation container */
@@ -549,9 +591,9 @@ html.offline-mode .save-btn:hover {
     border-radius: 50%;
     border: none;
 
-    /* Color */
-    background-color: oklch(var(--p));
-    color: oklch(var(--pc));
+    /* Color - force override conflicting rules */
+    background-color: oklch(var(--p)) !important;
+    color: oklch(var(--pc)) !important;
 
     /* Material Design Elevation 6 (rest state) */
     box-shadow:
@@ -583,8 +625,8 @@ html.offline-mode .save-btn:hover {
     /* Subtle scale */
     transform: scale(1.05) translateZ(0);
 
-    /* Darken slightly */
-    background-color: oklch(var(--p) / 0.9);
+    /* Darken slightly - maintain !important for consistency */
+    background-color: oklch(var(--p) / 0.9) !important;
 }
 
 .fab-button:active {
@@ -605,20 +647,9 @@ html.offline-mode .save-btn:hover {
     stroke-width: 2.5;
 }
 
-/* Large desktop: increased FAB size */
-@media (min-width: 1280px) {
-    .fab-button {
-        width: 64px;
-        height: 64px;
-        min-width: 64px;
-        min-height: 64px;
-    }
-
-    .fab-button svg {
-        width: 28px;
-        height: 28px;
-    }
-}
+/* REMOVED: Large desktop увеличение до 64px удалено для консистентности с /lists (Phase 1)
+ * FAB остаётся 56px на всех desktop экранах (эталон от /lists)
+ */
 
 /* Desktop FAB dropdown menu */
 .desktop-fab-wrapper .dropdown-content {
@@ -652,14 +683,13 @@ html.offline-mode .save-btn:hover {
     display: none;  /* Force hide - like Main FAB in lists */
     opacity: 0;
     visibility: hidden;  /* iOS Safari protection */
-    transform: scale(0.5) translateY(20px);
+    transform: scale(0.5) translateY(-20px);
     pointer-events: none;
     transition: opacity 0.3s, visibility 0s 0.3s, transform 0.3s;
 }
 
 /* Desktop FAB menu items - visible when open */
 .desktop-fab-wrapper.open .fab-menu-item {
-    display: flex;  /* Show as flex (for layout) */
     opacity: 1;
     visibility: visible;  /* Explicit visible */
     transform: scale(1) translateY(0);
@@ -669,6 +699,10 @@ html.offline-mode .save-btn:hover {
 
 /* Individual menu item transition */
 .fab-menu-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -685,11 +719,6 @@ html.offline-mode .save-btn:hover {
 
 .desktop-fab-wrapper.open .fab-button svg {
     transform: rotate(45deg);
-}
-
-/* Desktop FAB backdrop transition */
-#desktop-fab-backdrop {
-    transition: opacity 0.3s ease-out;
 }
 
 /* Accessibility: reduced motion */
@@ -715,10 +744,6 @@ html.offline-mode .save-btn:hover {
         transition-duration: 0.01ms !important;
     }
 
-    #desktop-fab-backdrop {
-        transition-duration: 0.01ms !important;
-    }
-
     .icon-btn {
         transition: none;
     }
@@ -728,63 +753,166 @@ html.offline-mode .save-btn:hover {
    Mobile FAB "+" Button (shown < 1024px)
    ======================================== */
 
-.mobile-fab-wrapper {
-    position: fixed;
-    right: 1rem;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem); /* Above mobile nav (~4.5rem) */
-    z-index: 998;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.75rem;
-}
+/* ============================================== */
+/* Shopping Lists - FAB Buttons (All Devices)   */
+/* ============================================== */
 
-/* Hide on desktop (use Desktop FAB instead) */
-@media (min-width: 1024px) {
-    .mobile-fab-wrapper {
-        display: none !important;
+/* NOTE: FAB buttons are now visible on ALL devices (desktop AND mobile)
+ * Previous behavior: hidden on mobile via @media (max-width: 1023px)
+ * NEW behavior: Visible on all devices
+ * Reason: User confirmed FAB should be accessible on mobile/PWA
+ * Mobile menu (btm-nav) provides ADDITIONAL option, but FAB remains primary
+ */
+
+/* ============================================== */
+/* PGlite Indicator Pulse Animation              */
+/* ============================================== */
+
+/**
+ * Pulse animation for PGlite syncing state
+ * GPU-accelerated with transform + opacity
+ */
+@keyframes dexie-pulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
     }
 }
 
-/* Main FAB button */
-.mobile-fab-button {
-    width: 56px;
-    height: 56px;
-    min-width: 56px;
-    min-height: 56px;
+.dexie-pulse {
+    animation: dexie-pulse 1.5s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences (accessibility) */
+@media (prefers-reduced-motion: reduce) {
+    .dexie-pulse {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ============================================== */
+/* Tabbed Modals Styling                         */
+/* ============================================== */
+
+/**
+ * Tab styling for modal_fact and modal_plan
+ * DaisyUI tabs-boxed with enhanced visuals
+ */
+.modal .tabs-boxed {
+    background-color: hsl(var(--b2));
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+}
+
+.modal .tabs-boxed .tab {
+    flex: 1;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    min-height: 2.5rem; /* 40px - accessible touch target */
+}
+
+.modal .tabs-boxed .tab:checked {
+    background-color: hsl(var(--p));
+    color: hsl(var(--pc));
+}
+
+/**
+ * Tab content fade-in animation
+ * GPU-accelerated with transform + opacity
+ */
+.tab-content {
+    animation: tabFadeIn 0.2s ease-in;
+}
+
+.tab-content:not(.hidden) {
+    display: block;
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+@keyframes tabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .tab-content {
+        animation: none;
+    }
+}
+
+/* ============================================== */
+/* Simplified FAB (No Speed Dial)                */
+/* ============================================== */
+
+/**
+ * Single universal FAB button
+ * Replaces speed dial menu (v9.0+)
+ */
+.fab-wrapper {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)); /* 4rem navbar + 1rem spacing + safe area (ЭТАЛОН от /lists) */
+    z-index: var(--z-fab-mobile) !important; /* 40 - below navbar (50), mobile FAB должен быть ниже navbar */
+    opacity: 1 !important; /* Гарантированная видимость */
+    visibility: visible;
+}
+
+@media (min-width: 1024px) {
+    .fab-wrapper {
+        right: 2rem;
+        bottom: 1.5rem; /* 24px от края на desktop (ЭТАЛОН от /lists) */
+    }
+}
+
+.fab-button {
+    width: 48px;  /* Mobile: 48px (ЭТАЛОН от /lists) */
+    height: 48px;
     border-radius: 50%;
-    background-color: oklch(var(--p));
-    color: oklch(var(--pc));
-    border: none;
-    box-shadow:
-        0 3px 5px -1px rgba(0, 0, 0, 0.2),
-        0 6px 10px 0 rgba(0, 0, 0, 0.14),
-        0 1px 18px 0 rgba(0, 0, 0, 0.12);
+    background-color: hsl(var(--p));
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-fab-button:active {
-    transform: scale(0.95);
+.fab-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
 }
 
-.mobile-fab-button svg {
-    width: 24px;
-    height: 24px;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+/* Tablet и выше: увеличиваем размер до 56px */
+@media (min-width: 640px) {
+    .fab-button {
+        width: 56px;
+        height: 56px;
+    }
 }
 
-/* Rotate icon when open */
-.mobile-fab-wrapper.open .mobile-fab-button svg {
-    transform: rotate(45deg);
-}
+/* ============= Speed Dial Menu (для FAB wrapper) ============= */
 
-/* Speed dial menu */
-.mobile-fab-menu {
+/* Контейнер меню */
+.fab-wrapper .mobile-fab-menu {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 0.75rem;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
@@ -795,58 +923,390 @@ html.offline-mode .save-btn:hover {
     pointer-events: none;
 }
 
-.mobile-fab-wrapper.open .mobile-fab-menu {
+/* Открытое состояние меню */
+.fab-wrapper.open .mobile-fab-menu {
     opacity: 1;
     visibility: visible;
     transform: translateY(0) scale(1);
     pointer-events: auto;
 }
 
-/* Menu items */
-.mobile-fab-item {
+/* Элемент меню */
+.fab-wrapper .mobile-fab-item {
     display: flex;
+    flex-direction: row;
     align-items: center;
     gap: 0.75rem;
-    justify-content: flex-end;
+    animation: slideInFab 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 0;
 }
 
-.mobile-fab-label {
-    background: oklch(var(--n));
-    color: oklch(var(--nc));
-    padding: 0.375rem 0.75rem;
+/* Задержка анимации для каскадного эффекта */
+.fab-wrapper.open .mobile-fab-item:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.fab-wrapper.open .mobile-fab-item:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+@keyframes slideInFab {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Лейбл (текстовая подсказка) */
+.fab-wrapper .mobile-fab-label {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 0.5rem 0.75rem;
     border-radius: 0.5rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
+    font-size: 0.875rem;
     white-space: nowrap;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.mobile-fab-item .btn-circle {
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
+/* Кнопки в Speed Dial меню */
+.fab-wrapper .mobile-fab-item .btn-circle {
+    width: 48px;
+    height: 48px;
 }
 
-/* Staggered animation for menu items */
-.mobile-fab-wrapper.open .mobile-fab-item:nth-child(1) { transition-delay: 0.05s; }
-.mobile-fab-wrapper.open .mobile-fab-item:nth-child(2) { transition-delay: 0.1s; }
-.mobile-fab-wrapper.open .mobile-fab-item:nth-child(3) { transition-delay: 0.15s; }
-.mobile-fab-wrapper.open .mobile-fab-item:nth-child(4) { transition-delay: 0.2s; }
+/* Вращение иконки + при открытии меню */
+.fab-wrapper.open .fab-icon-plus {
+    transform: rotate(45deg);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-/* ============================================== */
-/* Shopping Lists - Desktop-only FAB Buttons    */
-/* ============================================== */
+.fab-wrapper:not(.open) .fab-icon-plus {
+    transform: rotate(0deg);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-/* Force hide desktop-only FAB buttons on mobile (< 1024px) */
-/* This prevents any JavaScript detection bugs from showing desktop buttons on mobile */
-@media (max-width: 1023px) {
-    /* FAB: Add item button (detail view - desktop only) */
-    #add-item-fab,
-    /* FAB: Create list button (landing view - desktop only) */
-    #create-list-fab,
-    /* FAB: Mass operations speed dial (detail view - desktop only) */
-    #lists-fab-menu {
-        display: none !important;
-        visibility: hidden !important;
+/* ==================================
+   FAB Common Styles - Shared Desktop FAB Components
+   Применяется к /, /facts, /plan (НЕ /lists - там отдельная система)
+   ================================== */
+
+/* Base FAB Common Wrapper */
+.fab-common-wrapper {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+    gap: 0.75rem;
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: var(--z-fab-desktop); /* 1002 */
+}
+
+/* Main FAB Button - Base Size (Desktop ≥1024px: 56px) */
+.fab-common-main-btn {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+        0 3px 5px -1px rgba(0, 0, 0, 0.2),
+        0 6px 10px 0 rgba(0, 0, 0, 0.14),
+        0 1px 18px 0 rgba(0, 0, 0, 0.12);
+}
+
+/* Main FAB Icon */
+.fab-common-main-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Speed Dial Action Buttons */
+.fab-common-action-btn {
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Smaller action buttons (btn-sm) - 48px */
+.fab-common-action-btn.btn-sm {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+}
+
+/* Speed Dial Action Icons */
+.fab-common-icon {
+    width: 20px;  /* Slightly smaller for visual hierarchy */
+    height: 20px;
+}
+
+/* Speed Dial Menu Items */
+.fab-common-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Speed Dial Badge Labels (desktop only) */
+.fab-common-badge {
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Closed State - Menu Items Hidden */
+.fab-common-wrapper.closed .fab-common-menu-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(-20px);
+    pointer-events: none;
+}
+
+/* Open State - Menu Items Visible */
+.fab-common-wrapper.open .fab-common-menu-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Staggered Animation Cascade */
+.fab-common-menu-item:nth-child(2) { transition-delay: 0.05s; }
+.fab-common-menu-item:nth-child(3) { transition-delay: 0.1s; }
+
+/* Main Button Rotation on Open */
+.fab-common-wrapper.open .fab-common-main-btn {
+    transform: rotate(90deg);
+}
+
+/* Desktop FAB Backdrop */
+.fab-common-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    z-index: var(--z-fab-backdrop); /* 1000 - below modal backdrop 999 */
+    transition: opacity 0.3s ease-out;
+}
+
+/* Backdrop Visible When FAB Open */
+.fab-common-wrapper.open ~ .fab-common-backdrop {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    display: block !important;
+}
+
+/* Accessibility - Touch Optimization */
+.fab-common-main-btn,
+.fab-common-action-btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Accessibility - Visible Focus States */
+.fab-common-main-btn:focus,
+.fab-common-action-btn:focus {
+    outline: 3px solid var(--fallback-p, oklch(var(--p)));
+    outline-offset: 2px;
+}
+
+/* Mobile (<640px): 48px FAB, action buttons (btn-sm) 40px */
+@media (max-width: 640px) {
+    .fab-common-main-btn,
+    .fab-common-action-btn {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
     }
+
+    .fab-common-action-btn.btn-sm {
+        width: 40px !important;
+        height: 40px !important;
+        min-width: 40px !important;
+        min-height: 40px !important;
+    }
+
+    .fab-common-main-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .fab-common-icon {
+        width: 24px;  /* Standard icon size for 48px button */
+        height: 24px;
+    }
+
+    /* Mobile: Position above bottom navbar */
+    .fab-common-wrapper {
+        bottom: calc(4rem + 1rem) !important; /* 4rem navbar + 1rem spacing */
+        right: 1rem !important;
+    }
+}
+
+/* XL Desktop (≥1280px): 64px FAB, action buttons (btn-sm) 56px */
+@media (min-width: 1280px) {
+    .fab-common-main-btn,
+    .fab-common-action-btn {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        min-height: 64px !important;
+    }
+
+    .fab-common-action-btn.btn-sm {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+    }
+
+    .fab-common-main-icon {
+        width: 28px;
+        height: 28px;
+    }
+
+    .fab-common-icon {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* iOS Safe Area Support */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    @media (max-width: 767px) {
+        .fab-common-wrapper {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+        }
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .fab-common-wrapper,
+    .fab-common-menu-item,
+    .fab-common-main-btn,
+    .fab-common-backdrop {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print: Hide FAB */
+@media print {
+    .fab-common-wrapper,
+    .fab-common-backdrop {
+        display: none !important;
+    }
+}
+
+/* ============= Delete Button Mobile Fix ============= */
+
+/* Гарантированная видимость delete кнопки на мобильных */
+.modal-action button.btn-square.btn-error {
+    display: block !important; /* Показывать по умолчанию */
+}
+
+/* Скрыть на desktop (где есть чекбоксы) */
+@media (min-width: 768px) {
+    .modal-action button.btn-square.btn-error.md\:hidden {
+        display: none !important;
+    }
+}
+
+/* Увеличить размер кнопки на очень узких экранах */
+@media (max-width: 374px) {
+    .modal-action button.btn-square.btn-error {
+        min-width: 2.5rem !important; /* 40px вместо 32px */
+        min-height: 2.5rem !important;
+        padding: 0.5rem !important;
+    }
+
+    .modal-action button.btn-square.btn-error svg {
+        width: 1.25rem !important; /* 20px вместо 16px */
+        height: 1.25rem !important;
+    }
+}
+
+/* ==================================
+   FAB Material Design Sizing Standards
+   Applied to /, /facts, /plan pages
+   ================================== */
+
+/* Mobile: 48px FAB */
+@media (max-width: 640px) {
+    .desktop-fab-wrapper .fab-button,
+    .fab-wrapper .fab-button {
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        min-height: 48px !important;
+    }
+}
+
+/* Desktop: 56px FAB (default already set above) */
+@media (min-width: 1024px) {
+    .desktop-fab-wrapper .fab-button,
+    .fab-wrapper .fab-button {
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+    }
+
+    .desktop-fab-wrapper .fab-button svg,
+    .fab-wrapper .fab-button svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Desktop: фиксированный 56px для всех экранов ≥1024px (ЭТАЛОН от /lists) */
+/* Увеличение до 64px удалено для консистентности с /lists page */
+
+/* FAB Speed Dial animations - enhanced from lists.css */
+.fab-menu-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-fab-wrapper.closed .fab-menu-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(-20px);
+    pointer-events: none;
+}
+
+.desktop-fab-wrapper.open .fab-menu-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Staggered animation - consistent with plan (Phase 3) */
+.fab-menu-item:nth-child(1) { transition-delay: 0.05s; }
+.fab-menu-item:nth-child(2) { transition-delay: 0.1s; }
+
+/* Main FAB rotation on open */
+.desktop-fab-wrapper .fab-button {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-fab-wrapper.open .fab-button {
+    transform: rotate(45deg); /* + becomes × */
 }

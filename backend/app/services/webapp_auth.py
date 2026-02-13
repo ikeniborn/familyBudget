@@ -14,16 +14,13 @@ Security Requirements:
     - Timing-attack resistant comparison (hmac.compare_digest)
     - Strict adherence to Telegram's algorithm
 """
-
 import hashlib
 import hmac
 import time
-from typing import Dict, Optional
 from urllib.parse import parse_qs, unquote
 
-from backend.app.core.json_utils import loads as json_loads
-
 from backend.app.core.config import get_settings
+from backend.app.core.json_utils import loads as json_loads
 
 settings = get_settings()
 
@@ -31,7 +28,7 @@ settings = get_settings()
 AUTH_DATE_EXPIRATION = 3600
 
 
-def validate_webapp_initdata(init_data: str) -> tuple[bool, Optional[Dict]]:
+def validate_webapp_initdata(init_data: str) -> tuple[bool, dict | None]:
     """
     Validate Telegram Web App initData string.
 
@@ -92,7 +89,7 @@ def validate_webapp_initdata(init_data: str) -> tuple[bool, Optional[Dict]]:
         # ⚠️ This is DIFFERENT from Login Widget validation!
         bot_token = settings.TELEGRAM_BOT_TOKEN
         secret_key = hmac.new(
-            key="WebAppData".encode(), msg=bot_token.encode(), digestmod=hashlib.sha256
+            key=b"WebAppData", msg=bot_token.encode(), digestmod=hashlib.sha256
         ).digest()
 
         # Step 5: Compute HMAC-SHA256 hash
@@ -124,7 +121,7 @@ def validate_webapp_initdata(init_data: str) -> tuple[bool, Optional[Dict]]:
         return False, None
 
 
-def extract_user_from_initdata(user_data: Dict) -> Dict:
+def extract_user_from_initdata(user_data: dict) -> dict:
     """
     Extract user information from parsed initData user object.
 

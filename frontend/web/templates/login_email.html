@@ -373,6 +373,11 @@ async function handleBiometricAuth() {
             console.log('[WEBAUTHN_CLIENT] Email saved to localStorage');
 
             console.log('[WEBAUTHN_CLIENT] Redirecting to dashboard...');
+            // CRITICAL: Auto-enable Dexie FIRST (before redirect)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (WebAuthn)');
+            }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
         } else {
@@ -522,6 +527,11 @@ async function handlePasswordLogin(e) {
         if (data.access_token && data.refresh_token) {
             console.log('[AUTH_EMAIL] Admin bypass detected - JWT tokens received');
             console.log('[AUTH_EMAIL] Redirecting to dashboard (2FA skipped)');
+            // CRITICAL: Auto-enable Dexie FIRST (before redirect)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Admin bypass)');
+            }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
             return;
@@ -546,6 +556,11 @@ async function handlePasswordLogin(e) {
             window.location.href = '/2fa-verify';
         } else {
             // Fallback - shouldn't happen for email login
+            // CRITICAL: Auto-enable Dexie FIRST (before redirect)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Fallback)');
+            }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
         }
@@ -650,6 +665,11 @@ async function handleQuickBiometricAuth() {
         if (verifyRes.ok) {
             const data = await verifyRes.json();
             console.log('[WEBAUTHN_CLIENT] ✅ Quick login successful');
+            // CRITICAL: Auto-enable Dexie FIRST (before redirect)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[AUTH] Dexie auto-enabled for new user (Quick login)');
+            }
             sessionStorage.setItem('just_logged_in', 'true');
             window.location.href = '/';
         } else {
@@ -730,5 +750,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('[WEBAUTHN_CLIENT] Page loaded - checking for quick biometric login');
     await checkQuickBiometricAvailable();
 });
+
+// SW Update Notification - show toast after Service Worker update
+(function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const swUpdated = urlParams.get('sw_updated');
+
+    if (swUpdated === 'true') {
+        // Wait for toast-manager to be initialized
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showUpdateToast);
+        } else {
+            showUpdateToast();
+        }
+
+        function showUpdateToast() {
+            if (typeof showToast === 'function') {
+                showToast(
+                    '✅ Обновление завершено! Пожалуйста, войдите снова.',
+                    'success',
+                    8000  // 8 seconds
+                );
+                console.log('[LOGIN] SW update notification shown');
+            } else {
+                console.warn('[LOGIN] showToast function not available');
+            }
+        }
+
+        // Clean URL (remove sw_updated parameter)
+        const cleanUrl = new URL(window.location.href);
+        cleanUrl.searchParams.delete('sw_updated');
+        window.history.replaceState({}, '', cleanUrl.toString());
+    }
+})();
 </script>
 {% endblock %}

@@ -1,0 +1,34 @@
+{#
+  PARTIAL: Detail View
+  Purpose: Shopping list items view with table/hierarchy toggle
+  Includes: Breadcrumb, import wizard, search field, toolbar, table/hierarchy views
+  Used in: lists.html (content block)
+#}
+
+<!-- ============================================== -->
+<!-- DETAIL VIEW: Shopping List Items Table -->
+<!-- ============================================== -->
+<div id="detail-view" class="view-state hidden">
+    <!-- Breadcrumb Navigation -->
+    <div class="text-sm breadcrumbs">
+        <ul>
+            <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
+            <li id="breadcrumb-list-name">Loading...</li>
+        </ul>
+    </div>
+
+    <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
+    {% include "partials/lists/import_wizard.html" %}
+
+    <!-- Search Field Container (togglable) -->
+    {% include "partials/lists/search_field.html" %}
+
+    <!-- Toolbar - compact scrollable on mobile -->
+    {% include "partials/lists/toolbar.html" %}
+
+    <!-- Table View -->
+    {% include "partials/lists/views/table_view.html" %}
+
+    <!-- Hierarchy View -->
+    {% include "partials/lists/views/hierarchy_view.html" %}
+</div>

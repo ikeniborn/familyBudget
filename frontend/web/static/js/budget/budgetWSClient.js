@@ -310,6 +310,20 @@ class BudgetWSClient {
      * @private
      */
     _isOfflineModeActive() {
+        // CRITICAL FIX (v11.3.7): Skip offline mode check during initial login
+        // offlineManager may not be fully initialized yet, causing WebSocket connection failure
+        // This ensures WebSocket connects immediately after authentication
+        try {
+            const justLoggedIn = sessionStorage.getItem('just_logged_in');
+            if (justLoggedIn === 'true') {
+                debugLog('[BudgetWS] Skipping offline mode check - just logged in');
+                return false;  // Force online mode for first login
+            }
+        } catch (e) {
+            debugLog('[BudgetWS] sessionStorage unavailable:', e.message || e);
+            // Continue with normal checks
+        }
+
         // Check offlineManager if available (preferred)
         if (window.offlineManager &&
             window.offlineManager.networkDetector &&
@@ -558,6 +572,21 @@ class BudgetWSClient {
             this._multiTabSupported = false;
         } finally {
             clearTimeout(safetyTimeout);
+
+            // CLEANUP FIX (v11.3.7): Remove just_logged_in flag after WebSocket initialized
+            // Delay removal to avoid race conditions with other components
+            try {
+                const justLoggedIn = sessionStorage.getItem('just_logged_in');
+                if (justLoggedIn === 'true') {
+                    setTimeout(() => {
+                        sessionStorage.removeItem('just_logged_in');
+                        debugLog('[BudgetWS] Cleared just_logged_in flag after init');
+                    }, 5000);
+                }
+            } catch (e) {
+                debugLog('[BudgetWS] sessionStorage unavailable for cleanup:', e.message || e);
+                // Ignore - cleanup is non-critical
+            }
         }
     }
 
@@ -2410,6 +2439,14 @@ if (typeof window !== 'undefined') {
 
     // Create singleton instance
     window.budgetWSClient = new BudgetWSClient();
+
+    // Auto-connect after initialization (v11.4.1)
+    // Delayed to allow page to fully load and offlineManager to initialize
+    setTimeout(() => {
+        if (window.budgetWSClient && window.budgetWSClient.enabled) {
+            window.budgetWSClient.connect();
+        }
+    }, 1000);
 
     // Global online/offline handlers for automatic reconnection
     window.addEventListener('online', () => {

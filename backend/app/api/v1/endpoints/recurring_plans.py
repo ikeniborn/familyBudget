@@ -9,16 +9,15 @@ CRUD operations for recurring (scheduled) payments:
 - List user's recurring plans
 - Get statistics
 """
-
 import hashlib
-from typing import Literal, Optional
-
-from backend.app.core.json_utils import dumps_for_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import backend.app.api.v1.endpoints.budget_ws as ws
 from backend.app.core.auth import get_current_user
+from backend.app.core.json_utils import dumps_for_cache
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session
 from backend.app.models.user import User
@@ -31,7 +30,6 @@ from backend.app.schemas.recurring_plan import (
 )
 from backend.app.services.cache_service import CacheKey, CacheService
 from backend.app.services.recurring_plan_service import RecurringPlanService
-import backend.app.api.v1.endpoints.budget_ws as ws
 
 logger = get_logger(__name__)
 
@@ -65,15 +63,40 @@ def _generate_filter_hash(filters: dict) -> str:
     return hashlib.md5(filter_str.encode()).hexdigest()[:12]
 
 
+class RecurringPlanListParams(BaseModel):
+    """Query parameters for list_recurring_plans endpoint with date validation."""
+
+    from_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description="Filter: next_execution_date >= from_date (YYYY-MM-DD)",
+    )
+    to_date: str | None = Field(
+        default=None,
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+        description="Filter: next_execution_date <= to_date (YYYY-MM-DD)",
+    )
+
+    @field_validator("to_date")
+    @classmethod
+    def validate_date_range(cls, v: str | None, info) -> str | None:
+        """Validate from_date <= to_date when both provided."""
+        if v and info.data.get("from_date"):
+            if info.data["from_date"] > v:
+                raise ValueError("from_date must be <= to_date")
+        return v
+
+
 # NOTE: General route "/" must be defined BEFORE parameterized routes "/{id}"
 # to ensure FastAPI matches them correctly (routes are matched in definition order)
 
 
 @router.get("/", response_model=RecurringPlanListResponse)
 async def list_recurring_plans(
-    is_active: Optional[bool] = Query(default=None, description="Filter by active status"),
+    params: RecurringPlanListParams = Depends(),
+    is_active: bool | None = Query(default=None, description="Filter by active status"),
     skip: int = Query(default=0, ge=0, description="Pagination offset"),
-    limit: int = Query(default=50, ge=1, le=100, description="Pagination limit"),
+    limit: int = Query(default=50, ge=1, le=1000, description="Pagination limit"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
     service: RecurringPlanService = Depends(get_recurring_plan_service),
@@ -85,8 +108,12 @@ async def list_recurring_plans(
     **Optimization (v6.6.0):** Uses Redis caching with 2-minute TTL.
     Cache invalidated after mutations. Different filter combinations cached separately.
 
+    **Date filtering (v11.4.0):** Support from_date/to_date for sync period optimization.
+
     Args:
         is_active: Optional filter by active status
+        from_date: Include plans with next_execution_date >= from_date (YYYY-MM-DD)
+        to_date: Include plans with next_execution_date <= to_date (YYYY-MM-DD)
         skip: Pagination offset
         limit: Pagination limit (max 100)
         current_user: Authenticated user
@@ -102,8 +129,12 @@ async def list_recurring_plans(
         "skip": skip,
         "limit": limit,
         "is_active": is_active,
+        "from_date": params.from_date,
+        "to_date": params.to_date,
     }
-    filter_hash = _generate_filter_hash(filters) if is_active is not None else None
+    filter_hash = _generate_filter_hash(filters) if any(
+        [is_active is not None, params.from_date, params.to_date]
+    ) else None
 
     # Try cache first
     cache_key = CacheKey.recurring_plan_list(current_user.id, filter_hash)
@@ -116,13 +147,15 @@ async def list_recurring_plans(
         )
         return RecurringPlanListResponse(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] List cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] List cache MISS, fetching from DB")
 
     # Fetch from DB
     items, total = await service.list_recurring_plans(
         session=session,
         user_id=current_user.id,
         is_active=is_active,
+        from_date=params.from_date,
+        to_date=params.to_date,
         skip=skip,
         limit=limit,
     )
@@ -171,7 +204,7 @@ async def get_recurring_plan_stats(
         logger.info(f"[RECURRING_PLAN_CACHE] Stats cache HIT: user_id={current_user.id}")
         return RecurringPlanStats(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
 
     # Fetch from DB (optimized version from Phase 2.2)
     stats = await service.get_stats(
@@ -181,7 +214,7 @@ async def get_recurring_plan_stats(
 
     # Cache with TTL (5 min per requirements)
     await cache_service.set(cache_key, stats, ttl=300)
-    logger.info(f"[RECURRING_PLAN_CACHE] Stats cached: ttl=300s")
+    logger.info("[RECURRING_PLAN_CACHE] Stats cached: ttl=300s")
 
     return RecurringPlanStats(**stats)
 
@@ -283,7 +316,7 @@ async def get_recurring_plan(
         logger.info(f"[RECURRING_PLAN_CACHE] Detail cache HIT: plan_id={plan_id}")
         return RecurringPlanResponse(**cached)
 
-    logger.info(f"[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
+    logger.info("[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
 
     # Fetch from DB (optimized version from Phase 2.1)
     plan_details = await service.get_plan_with_details(
@@ -300,7 +333,7 @@ async def get_recurring_plan(
 
     # Cache with TTL (30 min)
     await cache_service.set(cache_key, plan_details, ttl=1800)
-    logger.info(f"[RECURRING_PLAN_CACHE] Detail cached: ttl=1800s")
+    logger.info("[RECURRING_PLAN_CACHE] Detail cached: ttl=1800s")
 
     return RecurringPlanResponse(**plan_details)
 
@@ -556,11 +589,18 @@ async def batch_delete_recurring_plans(
             error_msg = str(e)
             logger.warning(f"[BULK_DELETE] Failed to delete plan_id={plan_id}: {error_msg}")
             failed.append({"plan_id": plan_id, "error": error_msg})
-        except Exception as e:
+        except Exception:
             # Unexpected errors
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(f"[BULK_DELETE] Unexpected error for plan_id={plan_id}: {e}", exc_info=True)
-            failed.append({"plan_id": plan_id, "error": error_msg})
+            # Log full error для debugging (только в логах, не для клиента)
+            logger.error(
+                f"[BULK_DELETE] Unexpected error for plan_id={plan_id}",
+                exc_info=True  # OK для внутренних логов
+            )
+            # Generic message для клиента (БЕЗ технических деталей)
+            failed.append({
+                "plan_id": plan_id,
+                "error": "An unexpected error occurred. Please try again later."
+            })
 
     logger.info(
         f"[BULK_DELETE] Batch delete completed: deleted={deleted_count}, failed={len(failed)}"

@@ -1,0 +1,840 @@
+# Support Tables
+# Authentication, notifications, import staging
+
+tables:
+  # ===========================================================================
+  # AUTHENTICATION
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # REFRESH TOKEN
+  # ---------------------------------------------------------------------------
+  t_refresh_token:
+    model: RefreshToken
+    file: "backend/app/models/refresh_token.py"
+    description: "JWT refresh tokens for session management"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+      - name: token
+        type: VARCHAR(512) UNIQUE NOT NULL
+        description: "Hashed refresh token"
+      - name: device_info
+        type: VARCHAR(255)
+        description: "User-Agent or device identifier"
+      - name: ip_address
+        type: INET
+      - name: expires_at
+        type: TIMESTAMP NOT NULL
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: revoked_at
+        type: TIMESTAMP
+        description: "NULL = active, set = revoked"
+      - name: revoked_reason
+        type: VARCHAR(50)
+        description: "logout | expired | security | admin"
+
+    indexes:
+      - name: idx_rt_user_id
+        columns: [user_id]
+      - name: idx_rt_token
+        columns: [token]
+        unique: true
+      - name: idx_rt_expires_at
+        columns: [expires_at]
+        description: "For cleanup job"
+
+    cleanup:
+      description: "Expired tokens cleanup job"
+      interval: "daily"
+      sql: |
+        DELETE FROM t_refresh_token
+        WHERE expires_at < NOW() - INTERVAL '7 days'
+           OR revoked_at IS NOT NULL
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/auth.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # TWO FACTOR SESSION
+  # ---------------------------------------------------------------------------
+  t_2fa_session:
+    model: TwoFactorSession
+    file: "backend/app/models/two_factor_session.py"
+    description: "Temporary 2FA verification sessions"
+
+    columns:
+      - name: id
+        type: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+      - name: totp_secret
+        type: VARCHAR(32) NOT NULL
+        description: "Encrypted TOTP secret"
+      - name: verified
+        type: BOOLEAN DEFAULT FALSE
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: expires_at
+        type: TIMESTAMP NOT NULL
+        description: "Session expires in 10 minutes"
+
+    indexes:
+      - name: idx_tfs_user_id
+        columns: [user_id]
+      - name: idx_tfs_expires_at
+        columns: [expires_at]
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/4"
+
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN AUDIT LOG (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  t_f_webauthn_audit_log:
+    model: WebAuthnAuditLog
+    file: "backend/app/models/webauthn_audit_log.py"
+    pattern: "Immutable audit trail"
+    description: "Security audit log for all WebAuthn events"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: event_type
+        type: VARCHAR(50) NOT NULL
+        description: "registration_success, registration_failure, authentication_success, authentication_failure, credential_revoked, credential_compromised"
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: SET NULL
+        description: "Preserve audit even if user deleted"
+      - name: credential_id
+        type: TEXT
+        description: "Reference to credential (not FK - credential may be deleted)"
+      - name: ip_address
+        type: INET
+      - name: user_agent
+        type: TEXT
+      - name: error_message
+        type: TEXT
+        description: "Failure details for debugging"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_webauthn_audit_user_id
+        columns: [user_id]
+        type: btree
+      - name: idx_webauthn_audit_event_type
+        columns: [event_type]
+        type: btree
+      - name: idx_webauthn_audit_created_at
+        columns: [created_at]
+        type: btree
+
+    fk_to:
+      - t_d_user (optional, SET NULL on delete)
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/7"
+
+    notes: |
+      Immutable log (never updated, never deleted except by retention policy).
+      Preserves audit trail even if user/credential deleted.
+      Used for security monitoring and compliance.
+
+  # ===========================================================================
+  # NOTIFICATIONS
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # NOTIFICATION
+  # ---------------------------------------------------------------------------
+  t_notification:
+    model: Notification
+    file: "backend/app/models/notification.py"
+    description: "User notifications and broadcasts"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+        description: "NULL = broadcast to all users"
+      - name: type
+        type: VARCHAR(50) NOT NULL
+        description: "info | warning | error | success | reminder"
+      - name: title
+        type: VARCHAR(255) NOT NULL
+      - name: message
+        type: TEXT NOT NULL
+      - name: link
+        type: VARCHAR(512)
+        description: "Optional action URL"
+      - name: is_read
+        type: BOOLEAN DEFAULT FALSE
+      - name: read_at
+        type: TIMESTAMP
+      - name: is_broadcast
+        type: BOOLEAN DEFAULT FALSE
+        description: "TRUE = sent to all users"
+      - name: expires_at
+        type: TIMESTAMP
+        description: "Auto-dismiss after this time"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: created_by_user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "Admin who created broadcast"
+
+    indexes:
+      - name: idx_notif_user_id
+        columns: [user_id]
+      - name: idx_notif_is_read
+        columns: [is_read]
+        where: "is_read = FALSE"
+      - name: idx_notif_created_at
+        columns: [created_at]
+      - name: idx_notif_is_broadcast
+        columns: [is_broadcast]
+        where: "is_broadcast = TRUE"
+
+    services:
+      - $ref: "../functionality/notifications.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/auth.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # SCHEDULED REMINDER
+  # ---------------------------------------------------------------------------
+  t_scheduled_reminder:
+    model: ScheduledReminder
+    file: "backend/app/models/scheduled_reminder.py"
+    description: "Scheduled reminders for budget plans"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: fact_id
+        type: INTEGER NOT NULL UNIQUE
+        description: "Reference to budget plan (no FK due to partitioned table)"
+        note: "Referential integrity enforced at application level"
+      - name: reminder_datetime
+        type: TIMESTAMP NOT NULL
+        description: "When to send reminder (naive datetime in SYSTEM_TIMEZONE)"
+      - name: status
+        type: VARCHAR(20) NOT NULL DEFAULT 'pending'
+        description: "Status: pending, sent, failed, cancelled"
+      - name: sent_at
+        type: TIMESTAMP
+        description: "When reminder was actually sent"
+      - name: telegram_sent
+        type: BOOLEAN DEFAULT FALSE
+        description: "Whether Telegram notification was sent"
+      - name: web_push_sent
+        type: BOOLEAN DEFAULT FALSE
+        description: "Whether Web Push notification was sent"
+      - name: error_message
+        type: VARCHAR(1000)
+        description: "Last error message for debugging"
+      - name: retry_count
+        type: INTEGER DEFAULT 0
+        description: "Number of failed send attempts (max 3)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_sr_fact_id
+        columns: [fact_id]
+        unique: true
+        description: "One reminder per plan"
+      - name: idx_sr_reminder_datetime
+        columns: [reminder_datetime]
+        description: "Query pending reminders by due date"
+
+    constraints:
+      - "UNIQUE (fact_id) - One reminder per plan"
+      - "No FK on fact_id due to partitioned t_f_budget_fact"
+
+    services:
+      - $ref: "../functionality/notifications.yaml#/module/services/1"
+
+    notes: |
+      Stores reminder configuration for budget plans (record_type='plan').
+      Each plan can have at most one scheduled reminder (UNIQUE constraint).
+
+      Status values:
+        - pending: Reminder scheduled, not yet sent
+        - sent: Reminder successfully sent via at least one channel
+        - failed: All send attempts failed after max retries
+        - cancelled: Reminder cancelled by user
+
+      Retry logic:
+        - Max 3 retry attempts before marking as failed
+        - Error messages stored for debugging
+
+  # ---------------------------------------------------------------------------
+  # PUSH SUBSCRIPTION
+  # ---------------------------------------------------------------------------
+  t_push_subscription:
+    model: PushSubscription
+    file: "backend/app/models/push_subscription.py"
+    description: "Web Push subscriptions for browser notifications"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+      - name: endpoint
+        type: VARCHAR(2000) NOT NULL
+        description: "Push service endpoint URL (unique per subscription)"
+      - name: p256dh_key
+        type: VARCHAR(500) NOT NULL
+        description: "ECDH public key for encryption (base64)"
+      - name: auth_key
+        type: VARCHAR(100) NOT NULL
+        description: "Authentication secret for encryption (base64)"
+      - name: user_agent
+        type: VARCHAR(500)
+        description: "Browser user agent for debugging"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: last_used_at
+        type: TIMESTAMP
+        description: "When subscription was last successfully used"
+
+    indexes:
+      - name: idx_ps_user_id
+        columns: [user_id]
+      - name: idx_ps_endpoint
+        columns: [endpoint]
+        description: "Query by endpoint for cleanup"
+
+    services:
+      - $ref: "../functionality/notifications.yaml#/module/services/2"
+
+    cleanup:
+      description: "Remove expired subscriptions"
+      trigger: "Push endpoint returns 410 Gone"
+      cascade: "User deletion cascades to subscriptions"
+
+    notes: |
+      Stores browser push subscriptions for Web Push API notifications.
+      Users can have multiple subscriptions (different browsers/devices).
+
+      Subscriptions are automatically deleted when:
+        - User is deleted (CASCADE)
+        - Push endpoint returns 410 Gone (expired)
+
+      Encryption:
+        - Uses ECDH (Elliptic Curve Diffie-Hellman) for message encryption
+        - p256dh_key: Public key for ECDH key exchange
+        - auth_key: Authentication secret
+
+  # ===========================================================================
+  # IMPORT
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # IMPORT FILE UPLOAD
+  # ---------------------------------------------------------------------------
+  t_import_file_upload:
+    model: ImportFileUpload
+    file: "backend/app/models/import_file_upload.py"
+    description: "Uploaded CSV files metadata"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+      - name: original_filename
+        type: VARCHAR(255) NOT NULL
+      - name: stored_filename
+        type: VARCHAR(255) NOT NULL
+        description: "UUID-based filename on disk"
+      - name: file_size
+        type: INTEGER NOT NULL
+        description: "Size in bytes"
+      - name: bank_provider_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_bank_provider"
+      - name: detected_encoding
+        type: VARCHAR(20)
+      - name: detected_delimiter
+        type: CHAR(1)
+      - name: row_count
+        type: INTEGER
+      - name: column_names
+        type: JSONB
+        description: "Array of detected column names"
+      - name: status
+        type: VARCHAR(20) DEFAULT 'uploaded'
+        check: "status IN ('uploaded', 'analyzed', 'previewed', 'imported', 'failed')"
+      - name: error_message
+        type: TEXT
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: processed_at
+        type: TIMESTAMP
+
+    indexes:
+      - name: idx_ifu_user_id
+        columns: [user_id]
+      - name: idx_ifu_status
+        columns: [status]
+
+    services:
+      - $ref: "../functionality/csv-import.yaml#/module/services/4"
+
+    endpoints:
+      - $ref: "../endpoints/import.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # IMPORT STAGING
+  # ---------------------------------------------------------------------------
+  t_import_staging:
+    model: ImportStaging
+    file: "backend/app/models/import_staging.py"
+    description: "Staged import rows before execution"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: upload_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_import_file_upload"
+        on_delete: CASCADE
+      - name: row_number
+        type: INTEGER NOT NULL
+      - name: raw_data
+        type: JSONB NOT NULL
+        description: "Original CSV row as JSON"
+      - name: parsed_date
+        type: DATE
+      - name: parsed_amount
+        type: DECIMAL(15,2)
+      - name: parsed_description
+        type: TEXT
+      - name: mapped_article_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_article"
+      - name: validation_errors
+        type: JSONB
+        description: "Array of validation error messages"
+      - name: is_valid
+        type: BOOLEAN DEFAULT FALSE
+      - name: is_duplicate
+        type: BOOLEAN DEFAULT FALSE
+      - name: created_fact_id
+        type: INTEGER
+        description: "BudgetFact ID after import"
+
+    indexes:
+      - name: idx_is_upload_id
+        columns: [upload_id]
+      - name: idx_is_is_valid
+        columns: [is_valid]
+
+    services:
+      - $ref: "../functionality/csv-import.yaml#/module/services/5"
+
+    endpoints:
+      - $ref: "../endpoints/import.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # IMPORT COLUMN MAPPING
+  # ---------------------------------------------------------------------------
+  t_import_column_mapping:
+    model: ImportColumnMapping
+    file: "backend/app/models/import_column_mapping.py"
+    description: "Column mappings for CSV import (shared per bank)"
+
+    note: |
+      Mappings are SHARED per bank (one mapping per bank_provider_id).
+      All users share the same mapping for a given bank.
+      user_id tracks who last updated the mapping (informational only).
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: bank_provider_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_bank_provider"
+        on_delete: CASCADE
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        on_delete: CASCADE
+        description: "Who last updated this mapping (informational only)"
+      - name: mapping
+        type: JSONB NOT NULL
+        description: "Column mapping (CSV column → budget field)"
+      - name: transformations
+        type: JSONB
+        description: "Optional transformations (date format, decimal separator)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    constraints:
+      - name: uq_bank_mapping
+        type: UNIQUE
+        columns: [bank_provider_id]
+        description: "One mapping per bank (shared across all users)"
+
+    indexes:
+      - name: idx_icm_bank_provider_id
+        columns: [bank_provider_id]
+
+    services:
+      - $ref: "../functionality/csv-import.yaml#/module/services/6"
+
+  # ===========================================================================
+  # AGGREGATION
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # MONTHLY BALANCE AGGREGATES
+  # ---------------------------------------------------------------------------
+  t_agg_financial_center_balance_monthly:
+    model: FinancialCenterBalanceMonthly
+    file: "backend/app/models/financial_center_balance_monthly.py"
+    description: "Pre-calculated monthly closing balances for optimization"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        on_delete: CASCADE
+      - name: year
+        type: INTEGER NOT NULL
+        description: "Year (YYYY, e.g., 2025)"
+      - name: month
+        type: INTEGER NOT NULL
+        description: "Month (1-12)"
+      - name: closing_balance
+        type: NUMERIC(15,2) NOT NULL DEFAULT 0.00
+        description: "Cumulative balance at end of month (all transactions from beginning)"
+      - name: transaction_count
+        type: INTEGER NOT NULL DEFAULT 0
+        description: "Number of transactions in this month (for verification)"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: ix_fcb_monthly_unique
+        columns: [financial_center_id, year, month]
+        unique: true
+        description: "Business key constraint"
+      - name: ix_fcb_monthly_period
+        columns: [year, month]
+        description: "Query by period"
+      - name: idx_fcb_financial_center_id
+        columns: [financial_center_id]
+
+    services:
+      - $ref: "../functionality/financial-centers.yaml#/module/services/1"
+
+    optimization:
+      purpose: "Avoid scanning all transactions for balance queries"
+      pattern: "Opening Balance for Month N = Closing Balance for Month N-1"
+      update_strategy:
+        - "Manual: Call refresh_monthly_balances() after end of month"
+        - "Auto: Scheduled job on first day of new month"
+        - "On-demand: Lazy calculation if aggregate missing"
+
+    notes: |
+      Stores pre-calculated closing balances for each financial center
+      at the end of each month to optimize balance queries.
+
+      Logic:
+        Opening Balance for Month N = Closing Balance for Month N-1
+        Current Balance = Opening Balance + Month Movements
+
+      closing_balance is cumulative (includes ALL transactions from beginning).
+      For current month, use aggregate + movements since start of month.
+      If aggregate missing, fall back to full calculation.
+
+  # ===========================================================================
+  # LINKING TABLES
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ARTICLE-FINANCIAL CENTER LINKING
+  # ---------------------------------------------------------------------------
+  t_article_financial_center:
+    model: ArticleFinancialCenter
+    file: "backend/app/models/article_financial_center.py"
+    pattern: "Many-to-many linking (whitelist)"
+    description: "Article availability per financial center (whitelist pattern)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: article_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_article"
+        description: "FK to article (must be LEAF article)"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        description: "FK to financial center"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_afc_article_id
+        columns: [article_id]
+      - name: idx_afc_financial_center_id
+        columns: [financial_center_id]
+
+    business_rules:
+      whitelist_pattern:
+        description: |
+          - No links = article available for ALL financial centers
+          - Has links = article available ONLY for linked financial centers
+        use_case: "Filter transaction form articles by selected account"
+
+  # ---------------------------------------------------------------------------
+  # COST CENTER-FINANCIAL CENTER LINKING
+  # ---------------------------------------------------------------------------
+  t_cost_center_financial_center:
+    model: CostCenterFinancialCenter
+    file: "backend/app/models/cost_center_financial_center.py"
+    pattern: "Many-to-many linking (whitelist)"
+    description: "Cost center availability per financial center (whitelist pattern)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: cost_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_cost_center"
+        description: "FK to cost center"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_financial_center"
+        description: "FK to financial center"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_ccfc_cost_center_id
+        columns: [cost_center_id]
+      - name: idx_ccfc_financial_center_id
+        columns: [financial_center_id]
+
+    business_rules:
+      whitelist_pattern:
+        description: |
+          - No links = cost center available for ALL financial centers
+          - Has links = cost center available ONLY for linked financial centers
+        use_case: "Filter transaction form cost centers by selected account"
+
+  # ===========================================================================
+  # AGGREGATION STATISTICS
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ARTICLE USAGE STATISTICS
+  # ---------------------------------------------------------------------------
+  t_article_usage_stats:
+    model: ArticleUsageStats
+    file: "backend/app/models/article.py"
+    pattern: "Aggregated statistics (recalculated daily)"
+    description: "Pre-calculated category popularity for frontend sorting"
+
+    columns:
+      - name: article_id
+        type: INTEGER PRIMARY KEY
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_article"
+        description: "FK to article (only used categories)"
+      - name: usage_count
+        type: INTEGER NOT NULL DEFAULT 0
+        description: "Number of transactions (all time)"
+      - name: last_updated
+        type: TIMESTAMP NOT NULL
+        description: "When statistics were last recalculated"
+
+    indexes:
+      - name: idx_aus_usage_count
+        columns: [usage_count]
+        order: DESC
+        description: "Fast sorting by popularity"
+
+    update_mechanism:
+      schedule: "Daily at 00:00 (APScheduler cron)"
+      function: "recalculate_article_usage_stats()"
+      strategy: "TRUNCATE + recalculate from t_f_budget_fact"
+      note: "No historical data - only current statistics"
+
+    performance:
+      size: "Small table (~100 rows, only used categories)"
+      query: "JOIN with t_d_article for sorted dropdown lists"
+
+  # ===========================================================================
+  # GDPR COMPLIANCE
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # USER CONSENT AUDIT LOG
+  # ---------------------------------------------------------------------------
+  t_user_consent:
+    model: UserConsent
+    file: "backend/app/models/user_consent.py"
+    pattern: "Append-only audit log (GDPR)"
+    description: "User consent records for cookies, analytics, push notifications"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_user"
+        description: "User ID (NULL for anonymous/pre-login consent)"
+      - name: session_id
+        type: VARCHAR(255)
+        description: "Session ID for anonymous consent tracking"
+      - name: consent_type
+        type: VARCHAR(50) NOT NULL
+        description: "essential | analytics | push_notifications | personalization"
+      - name: consent_given
+        type: BOOLEAN NOT NULL
+        description: "True=granted, False=withdrawn"
+      - name: privacy_policy_version
+        type: VARCHAR(20) NOT NULL DEFAULT '1.0'
+        description: "Version of privacy policy at time of consent"
+      - name: ip_address
+        type: VARCHAR(45)
+        description: "User IP (legal proof, supports IPv6)"
+      - name: user_agent
+        type: VARCHAR(500)
+        description: "Browser user agent (legal proof)"
+      - name: created_at
+        type: TIMESTAMP NOT NULL DEFAULT NOW()
+
+    indexes:
+      - name: idx_uc_user_id
+        columns: [user_id]
+      - name: idx_uc_session_id
+        columns: [session_id]
+      - name: idx_uc_consent_type
+        columns: [consent_type]
+      - name: idx_uc_created_at
+        columns: [created_at]
+
+    consent_types:
+      essential:
+        description: "Required cookies (session, auth)"
+        required: true
+      analytics:
+        description: "Usage analytics tracking"
+        required: false
+      push_notifications:
+        description: "Web push notifications"
+        required: false
+      personalization:
+        description: "Personalized content"
+        required: false
+
+    gdpr_notes:
+      pattern: "APPEND-ONLY - never update or delete records"
+      withdrawal: "New record with consent_given=False"
+      current_state: "Latest record per user_id/consent_type"
+      legal_proof: "ip_address + user_agent required by GDPR"
+
+  # ===========================================================================
+  # SYSTEM
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # ALEMBIC VERSION
+  # ---------------------------------------------------------------------------
+  alembic_version:
+    description: "Database migration version tracking"
+    managed_by: "Alembic"
+
+    columns:
+      - name: version_num
+        type: VARCHAR(32) PRIMARY KEY
+        description: "Current migration revision"
+
+    note: |
+      DO NOT modify manually.
+      Use 'alembic upgrade head' to apply migrations.
+      Use 'alembic current' to check version.
+
+# Cleanup Jobs
+cleanup_jobs:
+  expired_tokens:
+    table: t_refresh_token
+    condition: "expires_at < NOW() - INTERVAL '7 days'"
+    schedule: "daily"
+
+  expired_2fa_sessions:
+    table: t_2fa_session
+    condition: "expires_at < NOW()"
+    schedule: "hourly"
+
+  old_notifications:
+    table: t_notification
+    condition: "created_at < NOW() - INTERVAL '90 days' AND is_read = TRUE"
+    schedule: "weekly"
+
+  abandoned_uploads:
+    table: t_import_file_upload
+    condition: "status = 'uploaded' AND created_at < NOW() - INTERVAL '24 hours'"
+    schedule: "daily"
+
+  expired_webauthn_challenges:
+    table: t_f_webauthn_challenge
+    condition: "expires_at < NOW()"
+    schedule: "hourly"
+    description: "Cleanup expired WebAuthn challenges (10-min TTL)"

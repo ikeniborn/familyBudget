@@ -4,15 +4,24 @@
 # Автоматическое обновление версий статических файлов при деплое
 #
 
-# Генерация новой версии на основе timestamp
-generate_cache_version() {
-    echo "v$(date +"%Y%m%d_%H%M")"
-}
+# Чтение версии из VERSION файла
+generate_cache_version_from_file() {
+    local version_file="${1:-VERSION}"
 
-# Генерация версии на основе git commit hash (альтернатива)
-generate_cache_version_git() {
-    local git_hash=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-    echo "${git_hash}"
+    if [[ ! -f "$version_file" ]]; then
+        echo "ERROR: VERSION file not found: $version_file" >&2
+        return 1
+    fi
+
+    local version=$(cat "$version_file" | tr -d '[:space:]')
+
+    # Валидация semantic versioning
+    if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "ERROR: Invalid VERSION format: $version (expected: X.Y.Z)" >&2
+        return 1
+    fi
+
+    echo "$version"
 }
 
 # Обновление версий во всех template файлах
@@ -48,6 +57,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/notifications.html"
         "${repo_dir}/frontend/web/templates/lists.html"
         "${repo_dir}/frontend/web/templates/admin_dashboard.html"
+        "${repo_dir}/frontend/web/templates/admin_monitoring.html"
         "${repo_dir}/frontend/web/templates/admin_articles.html"
         "${repo_dir}/frontend/web/templates/admin_cost_centers.html"
         "${repo_dir}/frontend/web/templates/admin_financial_centers.html"
@@ -56,6 +66,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/admin_product_groups.html"
         "${repo_dir}/frontend/web/templates/2fa_setup.html"
         "${repo_dir}/frontend/web/templates/2fa_setup_login.html"
+        "${repo_dir}/frontend/web/templates/settings.html"
     )
 
     local updated_count=0
@@ -81,9 +92,12 @@ update_cache_versions() {
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
         # - vendor/, offline/, workers/core/ и другие subdirectories (любая вложенность)
+        # - Semantic versioning (X.Y.Z) и legacy timestamp format (v{YYYYMMDD_HHMM})
+        # IMPORTANT: Order matters! Semantic version MUST be before v?[0-9a-f_]+ to avoid partial matches
+        # FIXED: Support digits in directory and file names (e.g., 2fa_setup, workerWrapper)
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|v?[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|v?[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/web\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/shared\\/static\\/js\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/web\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*|\\/shared\\/static\\/css\\/(?:[a-zA-Z0-9_\\-]+\\/)*)([a-zA-Z0-9_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+\\.[0-9]+\\.[0-9]+|v?[0-9a-f_]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
@@ -187,14 +201,26 @@ run_cache_busting() {
             check_cache_versions "$repo_dir"
             ;;
         manual)
-            read -p "Enter new cache version (or press Enter for auto): " manual_version
+            read -p "Enter new cache version (X.Y.Z format): " manual_version
             if [[ -z "$manual_version" ]]; then
-                manual_version=$(generate_cache_version)
+                echo "❌ ERROR: Manual version required" >&2
+                return 1
+            fi
+            # Валидация semantic versioning
+            if [[ ! "$manual_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "❌ ERROR: Invalid version format: $manual_version (expected: X.Y.Z)" >&2
+                return 1
             fi
             update_cache_versions "$manual_version" "$repo_dir"
             ;;
         auto|*)
-            local new_version=$(generate_cache_version)
+            # Чтение версии из VERSION файла (обязательно)
+            local new_version=$(generate_cache_version_from_file "${repo_dir}/VERSION")
+            if [[ -z "$new_version" ]]; then
+                echo "❌ ERROR: VERSION file not found or invalid" >&2
+                return 1
+            fi
+            echo "ℹ Using version from VERSION file: $new_version" >&2
             update_cache_versions "$new_version" "$repo_dir"
             ;;
     esac

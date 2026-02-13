@@ -1,0 +1,33 @@
+{#
+  COMPONENT: Delete List Confirmation Modal
+  Purpose: Confirmation dialog for deleting entire shopping list
+  Used in: lists.html
+#}
+
+{% macro delete_list_modal() %}
+<!-- Delete List Confirmation Modal - compact on mobile -->
+<dialog id="delete-list-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box p-4 sm:p-6">
+        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">⚠️ Удалить список?</h3>
+        <div class="alert alert-warning py-2 px-3 sm:py-3 sm:px-4 mb-3 sm:mb-4 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Необратимо!</span>
+        </div>
+        <p class="text-sm sm:text-base mb-2 sm:mb-4">
+            Удалить <strong id="delete-list-name">...</strong>?
+        </p>
+        <p class="text-xs sm:text-sm text-base-content/70 mb-2 sm:mb-4">
+            Все товары будут удалены.
+        </p>
+        <div class="modal-action mt-3 sm:mt-4 gap-2">
+            <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeDeleteListModal()">Отмена</button>
+            <button type="button" class="btn btn-error btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="confirmDeleteList()">Удалить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endmacro %}

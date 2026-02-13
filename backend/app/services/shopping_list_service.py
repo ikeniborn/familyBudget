@@ -16,8 +16,6 @@ Key Functions:
     - check_delete_permission(): Verify user can delete list (creator_id check)
 """
 
-from typing import List, Optional, Tuple
-
 from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,7 +29,7 @@ async def get_shopping_lists_with_stats(
     limit: int = 100,
     offset: int = 0,
     active_only: bool = True,
-) -> Tuple[List[dict], int]:
+) -> tuple[list[dict], int]:
     """
     Get all shopping lists with item count and completion statistics.
 
@@ -132,7 +130,7 @@ async def get_shopping_lists_with_stats(
 async def get_shopping_list_with_items(
     session: AsyncSession,
     shopping_list_id: int,
-) -> Optional[Tuple[ShoppingList, List[ShoppingListItem]]]:
+) -> tuple[ShoppingList, list[ShoppingListItem]] | None:
     """
     Get shopping list with all associated items (detail view).
 
@@ -181,7 +179,7 @@ async def check_delete_permission(
     session: AsyncSession,
     shopping_list_id: int,
     user_id: int,
-) -> Tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Check if user has permission to delete shopping list.
 
@@ -227,7 +225,7 @@ async def check_delete_permission(
 async def get_shopping_list_item_count(
     session: AsyncSession,
     shopping_list_id: int,
-) -> Tuple[int, int]:
+) -> tuple[int, int]:
     """
     Get item counts for a shopping list.
 

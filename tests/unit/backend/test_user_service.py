@@ -9,7 +9,7 @@ Tests:
 """
 
 import pytest
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from sqlmodel import select
 
 from backend.app.models.user import User
@@ -119,7 +119,7 @@ async def test_update_user_profile_creates_history(db_session):
     # Check old version closed
     old = history[1]
     assert old.is_current is False
-    assert old.valid_to < datetime(9999, 1, 1)  # Not far future
+    assert old.valid_to < datetime(9999, 1, 1, tzinfo=timezone.utc)  # Not far future (timezone-aware)
     assert old.username == "john_doe"
     assert old.is_admin is False
 
@@ -262,24 +262,26 @@ async def test_get_user_version_at_date(db_session):
     history = await get_user_history(session=db_session, user_id=user.id)
     v2_date = history[0].valid_from.date()  # Current version
 
-    # Test 1: Query at v1 date
-    version_at_v1 = await get_user_version_at_date(
+    # Test 1: Query at day before v1 (user didn't exist yet)
+    from datetime import timedelta
+    day_before_v1 = v1_date - timedelta(days=1)
+    version_before_creation = await get_user_version_at_date(
         session=db_session,
         user_id=user.id,
-        target_date=v1_date,
+        target_date=day_before_v1,
     )
-    assert version_at_v1 is not None
-    assert version_at_v1.username == "john_v1"
+    assert version_before_creation is None  # User didn't exist yet
 
-    # Test 2: Query at v2 date (current)
-    version_at_v2 = await get_user_version_at_date(
+    # Test 2: Query at v1/v2 date (both versions created same day)
+    # Should return latest version (v2) since both exist on same date
+    version_at_creation_date = await get_user_version_at_date(
         session=db_session,
         user_id=user.id,
-        target_date=v2_date,
+        target_date=v1_date,  # Same as v2_date
     )
-    assert version_at_v2 is not None
-    assert version_at_v2.username == "john_v2"
-    assert version_at_v2.is_current is True
+    assert version_at_creation_date is not None
+    assert version_at_creation_date.username == "john_v2"  # Latest version wins
+    assert version_at_creation_date.is_current is True
 
     # Test 3: Query at far future date (should return current version)
     future_date = date(2099, 12, 31)

@@ -5,6 +5,9 @@
  * Extracted from budgetWSClient.js:1786-1875 (EVENT HANDLERS)
  */
 
+// Global debugLog function (declared in index.html)
+declare const debugLog: (...args: any[]) => void;
+
 import { notifyHandlers } from './eventRegistration';
 import type {
   FactCreatedEvent,
@@ -19,7 +22,11 @@ import type {
   ItemUpdatedEvent,
   ItemDeletedEvent,
   ItemCompletedEvent,
+  SyncInitialResponse,
+  SyncIncrementalResponse,
+  SyncClientChangesResponse,
 } from '../types/events';
+import { handleSyncInitial, handleSyncIncremental } from './syncHandler';
 
 /**
  * Handle fact_created event
@@ -133,6 +140,26 @@ export function handleEvent(eventType: string, data: unknown): void {
 }
 
 /**
+ * Handle sync_client_changes_response event (task-008)
+ */
+export async function handleSyncClientChangesResponse(
+  data: SyncClientChangesResponse['data']
+): Promise<void> {
+  const { getUploadHandler } = await import('./uploadHandler');
+  const uploadHandler = getUploadHandler();
+
+  if (!uploadHandler) {
+    debugLog('[UPLOAD] UploadHandler not initialized');
+    return;
+  }
+
+  await uploadHandler.handleUploadResponse({
+    event: 'sync_client_changes_response',
+    data
+  });
+}
+
+/**
  * Dispatch event to appropriate handler
  */
 export function dispatchEvent(eventType: string, eventData: unknown): void {
@@ -172,6 +199,23 @@ export function dispatchEvent(eventType: string, eventData: unknown): void {
       break;
     case 'item_completed':
       handleItemCompleted(eventData as ItemCompletedEvent);
+      break;
+    case 'sync_initial':
+      handleSyncInitial((eventData as SyncInitialResponse).data).catch(err => {
+        debugLog('[SYNC] Failed to handle sync_initial', err);
+      });
+      break;
+    case 'sync_incremental':
+      handleSyncIncremental((eventData as SyncIncrementalResponse).data).catch(err => {
+        debugLog('[SYNC] Failed to handle sync_incremental', err);
+      });
+      break;
+    case 'sync_client_changes_response':
+      handleSyncClientChangesResponse(
+        (eventData as SyncClientChangesResponse).data
+      ).catch(err => {
+        debugLog('[UPLOAD] Failed to handle sync_client_changes_response', err);
+      });
       break;
     default:
       handleEvent(eventType, eventData);

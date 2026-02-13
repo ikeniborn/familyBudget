@@ -1,325 +1,66 @@
-{% macro plan_modal(modal_id='modal_add_plan') %}
+{% macro modal_plan(modal_id='modal_plan') %}
 <dialog id="{{ modal_id }}" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 max-h-[90vh] overflow-y-auto my-auto">
-        <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📝 Добавить план</h2>
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base sm:text-lg font-semibold">📝 Добавить план</h2>
+            <span class="badge badge-sm badge-secondary">План</span>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div role="tablist" class="tabs tabs-boxed mb-3" id="{{ modal_id }}-tabs">
+            <input type="radio" name="{{ modal_id }}_tabs" role="tab"
+                   class="tab" aria-label="Расход/Доход"
+                   data-tab="transaction" checked />
+            <input type="radio" name="{{ modal_id }}_tabs" role="tab"
+                   class="tab" aria-label="Перевод"
+                   data-tab="transfer" />
+        </div>
 
         <form id="form_{{ modal_id }}" class="space-y-2">
-            <!-- Период (месяц) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text font-semibold">Период планирования *</span>
-                </label>
-                <div class="grid grid-cols-3 gap-2">
-                    <button type="button" class="btn btn-xs btn-outline period-btn btn-active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
-                    <button type="button" class="btn btn-xs btn-outline period-btn" data-offset="1" id="plan_period_btn_2">Ноя 2025</button>
-                    <button type="button" class="btn btn-xs btn-outline period-btn" data-offset="2" id="plan_period_btn_3">Дек 2025</button>
+            <!-- Hidden fields -->
+            <input type="hidden" name="context" value="plan" />
+            <input type="hidden" name="active_tab" id="{{ modal_id }}-active-tab" value="transaction" />
+
+            <!-- Skeleton Loader -->
+            <div id="{{ modal_id }}-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-10 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-20 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-32 w-full"></div>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div id="{{ modal_id }}-form-fields">
+                <!-- Transaction Tab -->
+                <div id="{{ modal_id }}-tab-transaction" class="tab-content" data-tab="transaction">
+                    {% include "components/tabs/plan_transaction_tab.html" %}
                 </div>
-                <input type="hidden" name="plan_month" required />
-            </div>
 
-            <!-- Счет - moved above operation type for account filtering -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Счет *</span>
-                </label>
-                <select name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                </select>
-            </div>
-
-            <!-- Тип операции -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text font-semibold">Тип операции *</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-sm btn-outline btn-error plan-type-btn btn-active" data-type="expense">
-                        <input type="radio" name="plan_type" value="expense" class="hidden" checked />
-                        Расход
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-success plan-type-btn" data-type="income">
-                        <input type="radio" name="plan_type" value="income" class="hidden" />
-                        Доход
-                    </label>
+                <!-- Transfer Tab -->
+                <div id="{{ modal_id }}-tab-transfer" class="tab-content hidden" data-tab="transfer">
+                    {% include "components/tabs/plan_transfer_tab.html" %}
                 </div>
             </div>
 
-            <!-- Категория -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Категория *</span>
-                </label>
-                <select name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                </select>
-            </div>
-
-            <!-- Место затрат -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Место затрат</span>
-                </label>
-                <select name="cost_center_id" class="select select-bordered">
-                    <option value="">-- Не выбрано --</option>
-                </select>
-            </div>
-
-            <!-- Plan Hints (after account and cost location selection) -->
-            <div id="plan-hints-container" class="grid grid-cols-2 gap-1">
-                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-plan" disabled>
-                    План пред. мес: --
-                </button>
-                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-fact" disabled>
-                    Факт пред. мес: --
-                </button>
-            </div>
-
-            <!-- Сумма (after hints) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <input type="number" name="amount" step="1" min="1" required
-                       class="input input-bordered" placeholder="0" />
-            </div>
-
-            <!-- Описание -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Описание</span>
-                </label>
-                <textarea name="description" class="textarea textarea-bordered"
-                          placeholder="Комментарий" rows="1"></textarea>
-            </div>
-
-            <!-- Режим плана -->
-            <div class="divider text-xs opacity-70 my-2">Режим плана</div>
-
-            <!-- Радио-кнопки выбора режима: обычный / регулярный / напоминание -->
-            <div class="form-control">
-                <div class="flex flex-col gap-1">
-                    <!-- Обычный план (по умолчанию) -->
-                    <label class="label cursor-pointer justify-start gap-2 py-1">
-                        <input type="radio" name="plan_mode" value="regular"
-                               class="radio radio-sm radio-secondary" checked
-                               onchange="togglePlanMode('{{ modal_id }}')" />
-                        <span class="label-text">Обычный план</span>
-                    </label>
-
-                    <!-- Регулярный платеж -->
-                    <label class="label cursor-pointer justify-start gap-2 py-1">
-                        <input type="radio" name="plan_mode" value="recurring"
-                               class="radio radio-sm radio-secondary"
-                               onchange="togglePlanMode('{{ modal_id }}')" />
-                        <span class="label-text font-semibold">Регулярный платеж</span>
-                    </label>
-
-                    <!-- Напоминание (скрыто для recurring mode) -->
-                    <label id="reminder-mode-label-{{ modal_id }}" class="label cursor-pointer justify-start gap-2 py-1">
-                        <input type="radio" name="plan_mode" value="reminder"
-                               class="radio radio-sm radio-secondary"
-                               onchange="togglePlanMode('{{ modal_id }}')" />
-                        <span class="label-text">Напоминание</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Настройки регулярного платежа (скрыты по умолчанию) -->
-            <div id="recurring-settings-{{ modal_id }}" class="hidden space-y-3 p-3 bg-base-200 rounded-lg">
-                <!-- Частота -->
-                <div class="form-control">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Частота</span>
-                    </label>
-                    <select name="frequency_type" class="select select-bordered h-12"
-                            onchange="updateFrequencyFields('{{ modal_id }}')">
-                        <option value="monthly">Ежемесячно</option>
-                        <option value="quarterly">Ежеквартально</option>
-                        <option value="yearly">Ежегодно</option>
-                    </select>
-                </div>
-
-                <!-- Число месяца (для monthly/quarterly) -->
-                <div id="monthday-picker-{{ modal_id }}" class="form-control">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Число месяца</span>
-                    </label>
-                    <select name="frequency_value_monthday" class="select select-bordered h-12">
-                        {% for d in range(1, 29) %}
-                        <option value="{{ d }}">{{ d }}</option>
-                        {% endfor %}
-                    </select>
-                    <p class="text-xs text-base-content/50 mt-1">Числа 29-31 не поддерживаются для стабильности</p>
-                </div>
-
-                <!-- Месяц и день (для yearly) -->
-                <div id="yearly-picker-{{ modal_id }}" class="form-control hidden">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Дата (месяц и день)</span>
-                    </label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <select name="frequency_value_month" class="select select-bordered h-12"
-                                onchange="updateYearlyFrequencyValue('{{ modal_id }}')">
-                            <option value="">Месяц</option>
-                            <option value="1">Январь</option>
-                            <option value="2">Февраль</option>
-                            <option value="3">Март</option>
-                            <option value="4">Апрель</option>
-                            <option value="5">Май</option>
-                            <option value="6">Июнь</option>
-                            <option value="7">Июль</option>
-                            <option value="8">Август</option>
-                            <option value="9">Сентябрь</option>
-                            <option value="10">Октябрь</option>
-                            <option value="11">Ноябрь</option>
-                            <option value="12">Декабрь</option>
-                        </select>
-                        <select name="frequency_value_day" class="select select-bordered h-12"
-                                onchange="updateYearlyFrequencyValue('{{ modal_id }}')">
-                            <option value="">День</option>
-                            {% for d in range(1, 32) %}
-                            <option value="{{ d }}">{{ d }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <input type="hidden" name="frequency_value_yearly" />
-                    <p class="text-xs text-base-content/50 mt-1">29 февраля не поддерживается</p>
-                </div>
-
-                <!-- Продолжительность -->
-                <div class="form-control">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Продолжительность *</span>
-                    </label>
-                    <select name="duration_type" class="select select-bordered h-12" required
-                            onchange="updateDurationFields('{{ modal_id }}')">
-                        <option value="" disabled hidden>-- Выберите --</option>
-                        <option value="count" selected>Количество повторений</option>
-                        <option value="end_date">До даты</option>
-                    </select>
-                </div>
-
-                <!-- Поле количества повторений -->
-                <div id="occurrences-field-{{ modal_id }}" class="form-control hidden">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Количество повторений</span>
-                    </label>
-                    <input type="number" name="occurrences_count" min="1" max="365"
-                           class="input input-bordered input-sm w-32" placeholder="12" />
-                </div>
-
-                <!-- Поле даты окончания -->
-                <div id="end-date-field-{{ modal_id }}" class="form-control hidden">
-                    <label class="label py-0">
-                        <span class="label-text text-sm">Дата окончания</span>
-                    </label>
-                    <input type="text" name="recurring_end_date"
-                           id="recurring_end_date_{{ modal_id }}"
-                           class="input input-bordered h-12 w-full pr-10"
-                           placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
-                </div>
-
-                <!-- Preview информации о расписании -->
-                <div id="recurring-preview-{{ modal_id }}" class="alert alert-info py-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span class="text-xs" id="recurring-preview-text-{{ modal_id }}">
-                        Ежемесячно 1-го числа, бессрочно
-                    </span>
-                </div>
-
-                <!-- Напоминание для регулярного платежа (только время) -->
-                <div class="divider text-xs opacity-50 my-1"></div>
-                <div class="form-control">
-                    <label class="label py-0 cursor-pointer justify-start gap-2">
-                        <input type="checkbox" name="recurring_enable_reminder"
-                               class="checkbox checkbox-xs checkbox-primary" />
-                        <span class="label-text text-sm">Напоминать о каждом платеже</span>
-                    </label>
-                </div>
-                <div id="recurring-reminder-settings-{{ modal_id }}" class="hidden">
-                    <div class="form-control">
-                        <label class="label py-0">
-                            <span class="label-text text-sm">Время напоминания</span>
-                        </label>
-                        <div class="flex items-center gap-1 justify-start">
-                            <select name="recurring_reminder_hour" class="select select-bordered h-12 w-20">
-                                <option value="">--</option>
-                                {% for h in range(24) %}
-                                <option value="{{ '%02d'|format(h) }}"{% if h == 9 %} selected{% endif %}>{{ '%02d'|format(h) }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="text-lg font-bold">:</span>
-                            <select name="recurring_reminder_minute" class="select select-bordered h-12 w-20">
-                                <option value="">--</option>
-                                {% for m in range(0, 60, 5) %}
-                                <option value="{{ '%02d'|format(m) }}"{% if m == 0 %} selected{% endif %}>{{ '%02d'|format(m) }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <p class="text-xs text-base-content/50 mt-1">Напоминание придёт в день платежа</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Напоминание для разового платежа (дата + время) -->
-            <div id="onetime-reminder-section-{{ modal_id }}" class="hidden">
-                <div id="reminder-settings-{{ modal_id }}" class="space-y-2 p-3 bg-base-200 rounded-lg">
-                    <div class="form-control">
-                        <label class="label py-1">
-                            <span class="label-text">Дата и время напоминания</span>
-                        </label>
-                        <!-- Responsive datetime picker: stacked on mobile, inline on desktop -->
-                        <div class="flex flex-col sm:flex-row gap-2">
-                            <!-- Date input with CalendarWidget -->
-                            <input
-                                type="text"
-                                name="reminder_date"
-                                id="reminder_date_{{ modal_id }}"
-                                class="input input-bordered flex-1 h-12"
-                                placeholder="ДД.ММ.ГГГГ"
-                                autocomplete="off"
-                            />
-                            <!-- Time dropdowns - on separate row for mobile -->
-                            <div class="flex items-center gap-1 justify-start">
-                                <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered w-20 h-12">
-                                    <option value="">--</option>
-                                    {% for h in range(24) %}
-                                    <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
-                                    {% endfor %}
-                                </select>
-                                <span class="text-lg font-bold">:</span>
-                                <select name="reminder_minute" id="reminder_minute_{{ modal_id }}" class="select select-bordered w-20 h-12">
-                                    <option value="">--</option>
-                                    {% for m in range(0, 60, 5) %}
-                                    <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <!-- Hidden field for combined datetime (populated by JS) -->
-                        <input type="hidden" name="reminder_datetime" id="reminder_datetime_{{ modal_id }}" />
-                    </div>
-                    <p class="text-xs text-base-content/70">
-                        Уведомление придет в Telegram и как push в браузер
-                    </p>
-                </div>
-            </div>
-
+            <!-- Actions -->
             <div class="modal-action mt-3">
-                <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">
+                <button type="button" onclick="document.getElementById('{{ modal_id }}').close()" class="btn btn-sm btn-ghost">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Отмена
                 </button>
-                <!-- Unified save button (online: green, offline: orange) -->
-                <button type="button" class="btn btn-sm save-btn"
+                <button type="button" class="btn btn-sm btn-primary"
                         data-form-id="form_{{ modal_id }}"
                         data-modal-id="{{ modal_id }}"
-                        onclick="savePlan(this)"
-                        title="Сохранить">
+                        onclick="window.savePlanModal?.(this)">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
@@ -328,6 +69,6 @@
             </div>
         </form>
     </div>
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="document.getElementById('{{ modal_id }}').close()"></div>
 </dialog>
 {% endmacro %}

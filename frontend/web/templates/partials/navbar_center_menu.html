@@ -1,0 +1,56 @@
+{#
+    Navbar Center Menu Partial
+    Desktop navigation menu with dropdowns "Прочее" and "Администратор".
+
+    Features:
+        - Main navigation links (Home, Analytics, Facts, Plan, Lists)
+        - "Прочее" dropdown with Notifications, Import, and Dictionaries
+        - "Администратор" dropdown for admin users
+        - Active link highlighting based on request.url.path
+        - Offline mode support via data-offline-hidden attribute
+
+    Requirements:
+        - user: User object (required)
+        - request: Request object for active link detection (required)
+#}
+<div id="navbar-center-menu" class="navbar-center hidden lg:flex">
+    <ul class="menu menu-horizontal px-1" role="menubar">
+        {% if user %}
+        <li><a href="/" data-nav-item class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
+        <li data-offline-hidden="true"><a href="/analytics" data-nav-item class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
+        <li data-offline-hidden="true"><a href="/facts" data-nav-item class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
+        <li data-offline-hidden="true"><a href="/plan" data-nav-item class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
+        <li><a href="/lists" data-nav-item class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
+
+        <!-- Dropdown "Прочее" - доступно всем пользователям -->
+        <li id="analytics-group" data-offline-hidden="true">
+            <details>
+                <summary>📂 Прочее</summary>
+                <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
+                    <li><a href="/notifications" data-nav-item class="{% if '/notifications' in request.url.path %}active{% endif %}">🔔 Уведомления</a></li>
+                    <li><a href="/import" data-nav-item class="{% if '/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
+                    <li class="menu-title"><span>Справочники</span></li>
+                    <li><a href="/admin/articles" data-nav-item class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
+                    <li><a href="/admin/cost-centers" data-nav-item class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 Места затрат</a></li>
+                    <li><a href="/admin/financial-centers" data-nav-item class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 Счета</a></li>
+                    <li><a href="/admin/stores" data-nav-item class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
+                    <li><a href="/admin/product-groups" data-nav-item class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
+                </ul>
+            </details>
+        </li>
+        {% endif %}
+
+        {% if user and user.is_admin %}
+        <li data-offline-hidden="true">
+            <details>
+                <summary>⚙️ Администратор</summary>
+                <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
+                    <li><a href="/admin/users" data-nav-item class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
+                    <li><a href="/admin/monitoring" data-nav-item class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
+                    <li><a href="/admin/logs" data-nav-item class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 Системные логи</a></li>
+                </ul>
+            </details>
+        </li>
+        {% endif %}
+    </ul>
+</div>

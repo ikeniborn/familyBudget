@@ -12,7 +12,7 @@ Tests complete end-to-end admin functionality:
 These tests verify the entire admin stack works correctly.
 """
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -23,7 +23,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
-
 
 # ============================================================================
 # Users Management Tests
@@ -57,7 +56,7 @@ async def test_get_all_users_as_admin(admin_client: AsyncClient, test_user: User
     assert test_user_data["telegram_id"] == test_user.telegram_id
     assert test_user_data["username"] == test_user.username
     assert test_user_data["is_admin"] == test_user.is_admin
-    assert test_user_data["is_current"] == True
+    assert test_user_data["is_current"]
 
 
 @pytest.mark.asyncio
@@ -171,8 +170,8 @@ async def test_update_user_grant_admin(admin_client: AsyncClient, session: Async
     assert response.status_code == 200
 
     updated_user = response.json()
-    assert updated_user["is_admin"] == True
-    assert updated_user["is_current"] == True
+    assert updated_user["is_admin"]
+    assert updated_user["is_current"]
     assert updated_user["telegram_id"] == test_user.telegram_id
 
     # Verify SCD Type 2: two versions exist
@@ -184,14 +183,14 @@ async def test_update_user_grant_admin(admin_client: AsyncClient, session: Async
 
     # Old version: is_admin=False, is_current=False
     old_version = [u for u in user_versions if not u.is_current][0]
-    assert old_version.is_admin == False
-    assert old_version.is_current == False
+    assert not old_version.is_admin
+    assert not old_version.is_current
     assert old_version.valid_to is not None
 
     # New version: is_admin=True, is_current=True
     new_version = [u for u in user_versions if u.is_current][0]
-    assert new_version.is_admin == True
-    assert new_version.is_current == True
+    assert new_version.is_admin
+    assert new_version.is_current
     assert new_version.valid_to is None
 
 
@@ -377,7 +376,7 @@ async def test_create_article_as_admin(admin_client: AsyncClient, session: Async
     article_data = response.json()
     assert article_data["name"] == "Healthcare"
     assert article_data["type"] == "expense"
-    assert article_data["is_current"] == True
+    assert article_data["is_current"]
 
     # Verify in database
     query = select(Article).where(Article.id == article_data["id"])
@@ -452,7 +451,7 @@ async def test_update_article_as_admin(admin_client: AsyncClient, session: Async
 
     updated_article = response.json()
     assert updated_article["name"] == "Food & Beverages"
-    assert updated_article["is_current"] == True
+    assert updated_article["is_current"]
 
     # Verify SCD Type 2: two versions exist
     query = select(Article).where(Article.code == test_article_root.code)
@@ -464,12 +463,12 @@ async def test_update_article_as_admin(admin_client: AsyncClient, session: Async
     # Old version: closed
     old_version = [a for a in article_versions if not a.is_current][0]
     assert old_version.name == test_article_root.name
-    assert old_version.is_current == False
+    assert not old_version.is_current
 
     # New version: updated name
     new_version = [a for a in article_versions if a.is_current][0]
     assert new_version.name == "Food & Beverages"
-    assert new_version.is_current == True
+    assert new_version.is_current
 
 
 @pytest.mark.asyncio
@@ -492,7 +491,7 @@ async def test_delete_article_as_admin(admin_client: AsyncClient, session: Async
     result = await session.execute(query)
     article = result.scalar_one()
 
-    assert article.is_current == False
+    assert not article.is_current
     assert article.valid_to is not None
 
 

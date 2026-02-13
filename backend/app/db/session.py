@@ -4,12 +4,11 @@ Database session management with async SQLModel.
 Provides async database engine and session management for FastAPI endpoints.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
@@ -96,7 +95,7 @@ async def init_db() -> None:
 
     Note: In production, use Alembic migrations instead.
     """
-    async with engine.begin() as conn:
+    async with engine.begin():
         # SQLModel.metadata.create_all would go here
         # But we're using migrations from EPIC-001
         pass

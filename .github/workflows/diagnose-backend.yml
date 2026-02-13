@@ -1,0 +1,34 @@
+name: Diagnose Backend Container
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    name: Diagnose backend on test server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH Diagnosis
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          port: ${{ secrets.TEST_SERVER_SSH_PORT }}
+          script: |
+            echo "=== Backend Container Status ==="
+            sudo docker ps -a | grep familybudget-backend
+
+            echo -e "\n=== Backend Container Logs (last 150 lines) ==="
+            sudo docker logs familybudget-backend --tail 150 2>&1
+
+            echo -e "\n=== Backend Container Inspect (restart info) ==="
+            sudo docker inspect familybudget-backend --format='{{json .State}}' | jq '.'
+
+            echo -e "\n=== Running Containers ==="
+            cd ~/familyBudget
+            sudo docker-compose ps
+
+            echo -e "\n=== Docker Compose Config Check ==="
+            sudo docker-compose config | grep -A 10 "backend:"

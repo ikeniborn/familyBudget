@@ -4,23 +4,58 @@
  * Build script для последовательной сборки всех entry points через Vite
  *
  * Vite не поддерживает multiple IIFE bundles в одном конфиге,
- * поэтому запускаем build 5 раз с разными входными файлами.
+ * поэтому запускаем build 41 раз с разными входными файлами.
+ *
+ * Оптимизации (v11.1.0):
+ * - Incremental builds: Пропуск неизменённых bundles (hash-based detection)
+ *
+ * Cache invalidation: 2026-02-01T20:15:00+03:00
+ * - Кеш хранится в .build-cache/ (gitignore)
  */
 
 const { spawn } = require('child_process');
 const { resolve } = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const production = process.env.NODE_ENV === 'production';
 const cacheVersion = process.env.CACHE_VERSION || `v${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '_')}`;
+const CACHE_DIR = '.build-cache';
+const FORCE_REBUILD = process.env.FORCE_REBUILD === 'true';
 
 // All entry points built through Vite (v7.1.0: unified build system)
 const builds = [
   // === Network Detection Module (ZERO dependencies - must be first!) ===
+  // Output to frontend/web/static/js/ because nginx serves /static/ from there
   {
     name: 'network',
     input: 'frontend/shared/network/index.ts',
-    output: 'frontend/shared/static/js/network.min.js',
+    output: 'frontend/web/static/js/network.min.js',
     globalName: 'NetworkModule'
+  },
+
+  // === Dexie IndexedDB Wrapper (loaded after network, before other modules) ===
+  {
+    name: 'dexie',
+    input: 'frontend/shared/db/dexie/index.ts',
+    output: 'frontend/shared/db/dexie.min.js',
+    globalName: 'Dexie'
+  },
+
+  // === Performance Monitoring (loaded after Dexie) ===
+  {
+    name: 'performanceMonitor',
+    input: 'frontend/web/static/js/monitoring/PerformanceMonitor.ts',
+    output: 'frontend/web/static/js/monitoring/PerformanceMonitor.min.js',
+    globalName: 'PerformanceMonitor'
+  },
+
+  // === Data Layer (Dexie-first with API fallback) ===
+  {
+    name: 'dataLayer',
+    input: 'frontend/web/static/js/data/DataLayer.ts',
+    output: 'frontend/web/static/js/data/DataLayer.min.js',
+    globalName: 'DataLayer'
   },
 
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
@@ -76,34 +111,10 @@ const builds = [
   // === Legacy Web modules (offline, utils, budget, workers) ===
   // Offline
   {
-    name: 'idb',
-    input: 'frontend/web/static/js/offline/idb.js',
-    output: 'frontend/web/static/js/offline/idb.min.js',
-    globalName: 'IDB'
-  },
-  {
     name: 'networkDetector',
     input: 'frontend/web/static/js/offline/networkDetector.js',
     output: 'frontend/web/static/js/offline/networkDetector.min.js',
     globalName: 'NetworkDetector'
-  },
-  {
-    name: 'offlineManager',
-    input: 'frontend/web/static/js/offline/offlineManager/index.ts',  // TypeScript entry point (v7.0.0 migration)
-    output: 'frontend/web/static/js/offline/offlineManager.min.js',
-    globalName: 'OfflineManager'
-  },
-  {
-    name: 'conflictResolver',
-    input: 'frontend/web/static/js/offline/conflictResolver.js',
-    output: 'frontend/web/static/js/offline/conflictResolver.min.js',
-    globalName: 'ConflictResolver'
-  },
-  {
-    name: 'offlineShoppingManager',
-    input: 'frontend/web/static/js/offline/offlineShoppingManager.js',
-    output: 'frontend/web/static/js/offline/offlineShoppingManager.min.js',
-    globalName: 'OfflineShoppingManager'
   },
   {
     name: 'pushManager',
@@ -117,6 +128,12 @@ const builds = [
     input: 'frontend/web/static/js/utils/logger.js',
     output: 'frontend/web/static/js/utils/logger.min.js',
     globalName: 'Logger'
+  },
+  {
+    name: 'logging',
+    input: 'frontend/web/static/js/config/logging.js',
+    output: 'frontend/web/static/js/config/logging.min.js',
+    globalName: 'LoggingConfig'
   },
   {
     name: 'modalKeyboardAdapter',
@@ -215,7 +232,7 @@ const builds = [
   },
   {
     name: 'components',
-    input: 'frontend/web/static/js/modules/uiComponents/index.ts',
+    input: 'frontend/web/static/js/modules/uiComponents/index.iife.ts',
     output: 'frontend/web/static/js/dist/components.bundle.js',
     globalName: 'UIComponents'
   },
@@ -231,12 +248,30 @@ const builds = [
     output: 'frontend/web/static/js/transfers.min.js',
     globalName: 'Transfers'
   },
+  {
+    name: 'plan',
+    input: 'frontend/web/static/js/plan/index.ts',
+    output: 'frontend/web/static/js/dist/plan.bundle.js',
+    globalName: 'PlanApp'
+  },
+  {
+    name: 'facts',
+    input: 'frontend/web/static/js/facts/index.ts',
+    output: 'frontend/web/static/js/facts.min.js',
+    globalName: 'FactsManager'
+  },
+  {
+    name: 'dashboard',
+    input: 'frontend/web/static/js/dashboard/index.ts',
+    output: 'frontend/web/static/js/dashboard.min.js',
+    globalName: 'Dashboard'
+  },
 
   // === Service Worker ===
   {
     name: 'sw',
     input: 'sw.js',
-    output: 'sw.min.js',
+    output: 'frontend/web/static/sw.min.js',
     globalName: 'ServiceWorker',
     isServiceWorker: true
   }
@@ -246,7 +281,74 @@ console.log('\n━━━━━━━━━━━━━━━━━━━━━�
 console.log(`🚀 Building ${builds.length} bundles with Vite`);
 console.log(`📦 Mode: ${production ? 'PRODUCTION' : 'development'}`);
 console.log(`🔖 Cache Version: ${cacheVersion}`);
+console.log(`♻️  Incremental builds: ${!FORCE_REBUILD ? 'ENABLED' : 'DISABLED (FORCE_REBUILD)'}`);
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+/**
+ * Вычислить MD5 хеш исходного файла
+ * @param {string} filepath - Путь к исходному файлу
+ * @returns {string} MD5 хеш содержимого файла
+ */
+function getFileHash(filepath) {
+  try {
+    const content = fs.readFileSync(filepath, 'utf8');
+    return crypto.createHash('md5').update(content).digest('hex');
+  } catch (error) {
+    console.warn(`⚠️  Cannot hash ${filepath}: ${error.message}`);
+    return null;
+  }
+}
+
+/**
+ * Проверить, нужно ли пересобирать bundle
+ * @param {Object} build - Build configuration
+ * @returns {boolean} true если нужно пересобирать
+ */
+function shouldRebuild(build) {
+  // Форсированная пересборка
+  if (FORCE_REBUILD) return true;
+
+  const hashFile = `${CACHE_DIR}/${build.name}.hash`;
+  const currentHash = getFileHash(build.input);
+
+  // Не удалось вычислить хеш → пересобрать
+  if (!currentHash) return true;
+
+  // Первая сборка → пересобрать
+  if (!fs.existsSync(hashFile)) {
+    console.log(`🆕 First build: ${build.name}`);
+    return true;
+  }
+
+  // Проверить существование output файла
+  if (!fs.existsSync(build.output)) {
+    console.log(`🔨 Output missing: ${build.name} (rebuilding)`);
+    return true;
+  }
+
+  // Сравнить хеш
+  const previousHash = fs.readFileSync(hashFile, 'utf8');
+  if (currentHash !== previousHash) {
+    console.log(`🔄 Changed: ${build.name}`);
+    return true;
+  }
+
+  // Файл не изменился → пропустить
+  console.log(`✓ Skip unchanged: ${build.name}`);
+  return false;
+}
+
+/**
+ * Сохранить хеш после успешной сборки
+ * @param {Object} build - Build configuration
+ */
+function saveHash(build) {
+  const hash = getFileHash(build.input);
+  if (!hash) return;
+
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  fs.writeFileSync(`${CACHE_DIR}/${build.name}.hash`, hash);
+}
 
 // Функция для запуска одного build
 function runBuild(build) {
@@ -264,7 +366,7 @@ function runBuild(build) {
       CACHE_VERSION: cacheVersion
     };
 
-    const vite = spawn('npx', ['vite', 'build', '--config', 'vite.config.single.ts'], {
+    const vite = spawn('npx', ['vite', 'build', '--config', 'config/vite.config.single.ts'], {
       env,
       stdio: 'inherit',
       shell: true
@@ -273,6 +375,7 @@ function runBuild(build) {
     vite.on('close', (code) => {
       if (code === 0) {
         console.log(`✅ ${build.name} built successfully\n`);
+        saveHash(build); // Сохранить хеш после успешной сборки
         resolve();
       } else {
         reject(new Error(`Build failed for ${build.name} with code ${code}`));
@@ -285,18 +388,27 @@ function runBuild(build) {
   });
 }
 
-// Последовательная сборка всех bundles
+// Последовательная сборка всех bundles с incremental optimization
 async function buildAll() {
   const startTime = Date.now();
 
   try {
-    for (const build of builds) {
+    // Фильтровать bundles для пересборки
+    const toBuild = builds.filter(shouldRebuild);
+    const skipped = builds.length - toBuild.length;
+
+    console.log(`📊 Building ${toBuild.length} of ${builds.length} bundles (${skipped} unchanged)\n`);
+
+    // Собрать только изменённые bundles
+    for (const build of toBuild) {
       await runBuild(build);
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log(`✅ All bundles built successfully in ${duration}s`);
+    console.log(`✅ Build completed in ${duration}s`);
+    console.log(`   Built: ${toBuild.length} bundles`);
+    console.log(`   Skipped: ${skipped} bundles (unchanged)`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     process.exit(0);
   } catch (error) {

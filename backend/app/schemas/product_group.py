@@ -4,10 +4,8 @@ Pydantic schemas for ProductGroup endpoints.
 This module defines request/response schemas for ProductGroup CRUD operations.
 Product groups represent hierarchical product categories (e.g., "Food" → "Dairy" → "Milk").
 """
-
 import re
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -35,13 +33,13 @@ class ProductGroupCreate(BaseModel):
         examples=["Food", "Dairy", "Vegetables"]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["All food items", None]
@@ -97,7 +95,7 @@ class ProductGroupUpdate(BaseModel):
         - Only administrators can update product groups (checked at API level)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -105,19 +103,19 @@ class ProductGroupUpdate(BaseModel):
         examples=["Updated Food"]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -125,7 +123,7 @@ class ProductGroupUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate product group name if provided."""
         if v is None:
             return None
@@ -166,7 +164,7 @@ class ProductGroupResponse(BaseModel):
         examples=[123]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         description="Parent product group ID (NULL for root groups)",
         examples=[1, None]
@@ -177,13 +175,13 @@ class ProductGroupResponse(BaseModel):
         examples=["Food"]
     )
 
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         description="Business code for external integrations",
         examples=["PGRP-1", "PGRP-2", None]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["All food items", None]
     )
@@ -235,7 +233,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=[1]
     )
 
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         description="Parent product group ID",
         examples=[None]
     )
@@ -245,7 +243,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=["Food"]
     )
 
-    code: Optional[str] = Field(
+    code: str | None = Field(
         description="Business code",
         examples=["PGRP-1"]
     )
@@ -266,7 +264,7 @@ class ProductGroupTreeResponse(BaseModel):
         examples=[True]
     )
 
-    children: Optional[List["ProductGroupTreeResponse"]] = Field(
+    children: list["ProductGroupTreeResponse"] | None = Field(
         default=None,
         description="Child product groups (recursive)",
         examples=[None]
@@ -317,7 +315,7 @@ class ProductGroupMove(BaseModel):
         - Creates ProductGroupHistory snapshot with change_type='HIERARCHY_CHANGE'
     """
 
-    new_parent_id: Optional[int] = Field(
+    new_parent_id: int | None = Field(
         ...,
         description="New parent product group ID (NULL to move to root)",
         examples=[5, None]

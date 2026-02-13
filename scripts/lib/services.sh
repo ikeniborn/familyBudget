@@ -67,55 +67,12 @@ start_services() {
     # This prevents old .pyc files from being used when .py files were updated
     clear_python_cache
 
-    # Determine build strategy based on DOCKER_REBUILD_NEEDED
-    # DOCKER_REBUILD_NEEDED is set by version.sh:process_version_bump()
-    #
-    # CRITICAL FIX (2025-12-08): When trigger files change (requirements.txt, Dockerfile),
-    # we MUST use --no-cache to force fresh pip install. Docker's layer cache can
-    # incorrectly reuse old layers even when file content changed.
-    #
-    # Without --no-cache: Docker may use cached pip install layer → missing new dependencies
-    # With --no-cache: Forces fresh pip install → all dependencies correctly installed
-    #
-    # FIX (2025-12-12): ALWAYS use --build to detect source code changes (backend/app/, bot/)
-    # Docker layer cache makes this fast when nothing changed, but ensures code updates
-    # are picked up even when Dockerfile/requirements.txt didn't change
-    local needs_fresh_build=false
-    local build_flag="--build"
+    # Registry-first mode: Images already pulled from ghcr.io
+    # No local build needed, just start containers
+    local build_flag=""  # NEVER use --build in registry-first mode
 
-    if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
-        needs_fresh_build=true
-        info "Docker images will be rebuilt with --no-cache (trigger files changed)"
-        info "This ensures new dependencies are correctly installed"
-    else
-        info "Docker images will be rebuilt with layer cache (source code may have changed)"
-        info "Layer cache makes rebuild fast when unchanged"
-    fi
-
-    # If fresh build needed (trigger files changed), build with --no-cache first
-    # This ensures new dependencies (requirements.txt) are correctly installed
-    if [[ "$needs_fresh_build" == "true" ]]; then
-        info "Building Docker images with --no-cache (dependency files changed)..."
-        echo ""
-
-        # Determine which services to build based on profile
-        local services_to_build="backend"
-        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services_to_build="backend bot"
-        fi
-
-        for service in $services_to_build; do
-            info "Building $service with --no-cache..."
-            if compose_cmd build --no-cache "$service" >> "$LOG_FILE" 2>&1; then
-                success "$service built successfully (fresh install of dependencies)"
-            else
-                error "Failed to build $service with --no-cache"
-                error "Check $LOG_FILE for details"
-                return 1
-            fi
-        done
-        echo ""
-    fi
+    info "Using pre-pulled images from GitHub Container Registry"
+    info "Images are ready to start (no build required)"
 
     # Check if PostgreSQL should be kept running (selective restart)
     if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
@@ -185,17 +142,9 @@ start_services() {
         else
             success "Services started successfully"
 
-            # Save Docker build checksums ONLY after successful start with rebuild
-            # This ensures next deploy will correctly detect if trigger files changed
-            # Save when either: --build flag used OR --no-cache build was performed
-            if [[ "$build_flag" == "--build" ]] || [[ "$needs_fresh_build" == "true" ]]; then
-                info "Saving Docker build checksums for future rebuild detection..."
-                if save_docker_build_checksums "$SCRIPT_DIR"; then
-                    success "Docker build checksums saved"
-                else
-                    warning "Failed to save Docker build checksums"
-                fi
-            fi
+            # REMOVED (v9.0): Docker build checksums not needed in registry-first mode
+            # Versions are determined by IMAGE_VERSIONS.json (generated in CI/CD)
+            # No local builds = no checksums to track
         fi
     else
         error "Failed to start services. Check $LOG_FILE for details."
@@ -491,8 +440,8 @@ start_postgres_only() {
     info "Starting postgres container..."
     local start_result=0
 
-    # Always use --build to ensure latest image + determined recreate strategy
-    compose_cmd up --build -d $recreate_flag postgres >> "$LOG_FILE" 2>&1
+    # Registry-first mode: Use pre-pulled images (no --build)
+    compose_cmd up -d $recreate_flag postgres >> "$LOG_FILE" 2>&1
     start_result=$?
 
     if [[ $start_result -eq 0 ]]; then
@@ -542,8 +491,8 @@ start_redis_only() {
     info "Starting redis container..."
     local start_result=0
 
-    # Always use --build to ensure latest image + determined recreate strategy
-    compose_cmd up --build -d $recreate_flag redis >> "$LOG_FILE" 2>&1
+    # Registry-first mode: Use pre-pulled images (no --build)
+    compose_cmd up -d $recreate_flag redis >> "$LOG_FILE" 2>&1
     start_result=$?
 
     if [[ $start_result -eq 0 ]]; then
@@ -573,8 +522,8 @@ start_backend_only() {
     info "Starting backend container for migrations..."
     local start_result=0
 
-    # Always use --build to ensure latest image
-    compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
+    # Registry-first mode: Use pre-pulled images (no --build)
+    compose_cmd up -d backend >> "$LOG_FILE" 2>&1
     start_result=$?
 
     if [[ $start_result -eq 0 ]]; then
@@ -649,41 +598,10 @@ start_application_services() {
         set +a
     fi
 
+    info "Registry-first mode: Using pre-pulled images from ghcr.io"
     info "Starting backend/bot/nginx containers..."
     local start_result=0
-
-    # Determine build strategy based on DOCKER_REBUILD_NEEDED
-    local needs_fresh_build=false
-    local build_flag="--build"
-
-    if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
-        needs_fresh_build=true
-        info "Docker images will be rebuilt with --no-cache (trigger files changed)"
-    else
-        info "Docker images will be rebuilt with layer cache (source code may have changed)"
-    fi
-
-    # If fresh build needed, build with --no-cache first
-    if [[ "$needs_fresh_build" == "true" ]]; then
-        info "Building Docker images with --no-cache..."
-        echo ""
-
-        local services_to_build="backend"
-        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services_to_build="backend bot"
-        fi
-
-        for service in $services_to_build; do
-            info "Building $service with --no-cache..."
-            if compose_cmd build --no-cache "$service" >> "$LOG_FILE" 2>&1; then
-                success "$service built successfully"
-            else
-                error "Failed to build $service with --no-cache"
-                return 1
-            fi
-        done
-        echo ""
-    fi
+    local build_flag=""  # Registry-first mode: never use --build
 
     # Clean up any stuck or orphan containers before starting
     # This prevents "container name already in use" errors
@@ -784,6 +702,18 @@ start_application_services() {
             if save_html_templates_checksum "$SCRIPT_DIR"; then
                 success "HTML templates checksum saved"
             fi
+
+            # Clear nginx proxy cache after backend recreation (v11.4.46+)
+            # Backend serves static files, nginx needs to clear proxy_temp
+            # This ensures fresh static assets reach clients after backend update
+            if docker compose ps nginx -q 2>/dev/null | grep -q .; then
+                info "Clearing nginx cache (backend recreated)..."
+                if docker compose exec -T nginx sh -c "rm -rf /var/cache/nginx/*" >> "$LOG_FILE" 2>&1; then
+                    success "Nginx cache cleared"
+                else
+                    warning "Failed to clear nginx cache (non-critical)"
+                fi
+            fi
         fi
     else
         info "No services need recreation (code unchanged)"
@@ -822,13 +752,9 @@ start_application_services() {
     if [[ $start_result -eq 0 ]]; then
         success "Application services started successfully"
 
-        # Save Docker build checksums after successful start
-        if [[ "$build_flag" == "--build" ]] || [[ "$needs_fresh_build" == "true" ]]; then
-            info "Saving Docker build checksums..."
-            if save_docker_build_checksums "$SCRIPT_DIR"; then
-                success "Docker build checksums saved"
-            fi
-        fi
+        # REMOVED (v9.0): Docker build checksums not needed in registry-first mode
+        # Versions are determined by IMAGE_VERSIONS.json (generated in CI/CD)
+        # No local builds = no checksums to track
         return 0
     else
         error "Failed to start application services. Check $LOG_FILE for details."

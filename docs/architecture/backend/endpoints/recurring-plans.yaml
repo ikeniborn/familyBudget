@@ -1,0 +1,359 @@
+# Recurring Plans Endpoints
+# Auto-generated recurring payment templates
+
+prefix: "/api/v1/recurring-plans"
+
+routes:
+  # ---------------------------------------------------------------------------
+  # CREATE RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  - method: POST
+    path: "/"
+    summary: "Create recurring plan"
+    description: |
+      Creates a new recurring payment template and immediately generates
+      BudgetFact records for the next 90 days (DEFAULT_GENERATION_HORIZON_DAYS).
+    auth: user
+    tags: [recurring-plans]
+
+    request_body:
+      content_type: application/json
+      schema:
+        type: object
+        required: [article_id, financial_center_id, frequency_type, start_date, amount]
+        properties:
+          article_id:
+            type: integer
+            description: "Budget category ID"
+          financial_center_id:
+            type: integer
+            description: "Bank account/wallet ID"
+          cost_center_id:
+            type: integer
+            nullable: true
+            description: "Cost center ID (optional)"
+          frequency_type:
+            type: string
+            enum: [daily, weekly, monthly, quarterly]
+            description: "Recurrence frequency"
+          frequency_value:
+            type: integer
+            nullable: true
+            description: |
+              - For weekly: day of week (0=Monday, 6=Sunday)
+              - For monthly/quarterly: day of month (1-28)
+              - For daily: ignored
+          start_date:
+            type: string
+            format: date
+            description: "When to start generating facts (YYYY-MM-DD)"
+          end_date:
+            type: string
+            format: date
+            nullable: true
+            description: "Optional end date"
+          occurrences_count:
+            type: integer
+            nullable: true
+            description: "Optional max number of occurrences"
+          amount:
+            type: number
+            format: decimal
+            minimum: 0.01
+            description: "Transaction amount (positive)"
+          description:
+            type: string
+            nullable: true
+            description: "Optional description"
+          record_type:
+            type: string
+            enum: [plan, fact]
+            default: plan
+            description: "Type of generated facts"
+
+    responses:
+      201:
+        description: "Created"
+        schema:
+          $ref: "#/schemas/RecurringPlanResponse"
+      400:
+        description: "Invalid frequency_value for frequency_type"
+      404:
+        description: "Article/FinancialCenter/CostCenter not found"
+      422:
+        description: "Validation error"
+
+    implementation:
+      file: "backend/app/api/v1/endpoints/recurring_plans.py"
+      function: "create_recurring_plan"
+      service: "RecurringPlanService.create_recurring_plan()"
+
+  # ---------------------------------------------------------------------------
+  # LIST RECURRING PLANS
+  # ---------------------------------------------------------------------------
+  - method: GET
+    path: "/"
+    summary: "List recurring plans"
+    description: "Get paginated list of recurring plans"
+    auth: user
+    tags: [recurring-plans]
+
+    query_params:
+      - name: is_active
+        type: boolean
+        description: "Filter by active status"
+      - name: record_type
+        type: string
+        enum: [plan, fact]
+        description: "Filter by record type"
+      - name: from_date
+        type: string
+        format: date
+        description: |
+          Start date for filtering (YYYY-MM-DD).
+
+          ADDED in v11.4.8 (commit a31a2153): Date range validation.
+          Validates from_date < to_date using string comparison (works for ISO dates).
+      - name: to_date
+        type: string
+        format: date
+        description: |
+          End date for filtering (YYYY-MM-DD).
+
+          ADDED in v11.4.8 (commit a31a2153): Date range validation.
+          Validates to_date > from_date using string comparison.
+      - name: skip
+        type: integer
+        default: 0
+        description: "Offset for pagination"
+      - name: limit
+        type: integer
+        default: 50
+        minimum: 1
+        maximum: 100
+        description: |
+          Maximum records to return (ge=1, le=100).
+
+          IMPORTANT: Backend constraint is le=100 (recurring_plans.py:99).
+          Frontend MUST NOT exceed this limit (v11.4.9 fix: changed from 1000 to 100).
+
+          Other endpoints support le=1000, but recurring-plans has STRICTER limit.
+
+    responses:
+      200:
+        description: "Success"
+        schema:
+          $ref: "#/schemas/RecurringPlanListResponse"
+
+    implementation:
+      file: "backend/app/api/v1/endpoints/recurring_plans.py"
+      function: "list_recurring_plans"
+      service: "RecurringPlanService.list_recurring_plans()"
+
+  # ---------------------------------------------------------------------------
+  # GET RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  - method: GET
+    path: "/{recurring_plan_id}"
+    summary: "Get recurring plan details"
+    description: "Get a specific recurring plan by ID with enriched data"
+    auth: user
+    tags: [recurring-plans]
+
+    path_params:
+      - name: recurring_plan_id
+        type: integer
+        required: true
+        description: "Recurring plan ID"
+
+    responses:
+      200:
+        description: "Success"
+        schema:
+          $ref: "#/schemas/RecurringPlanResponse"
+      404:
+        description: "Recurring plan not found"
+
+    implementation:
+      file: "backend/app/api/v1/endpoints/recurring_plans.py"
+      function: "get_recurring_plan"
+
+  # ---------------------------------------------------------------------------
+  # UPDATE RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  - method: PUT
+    path: "/{recurring_plan_id}"
+    summary: "Update recurring plan"
+    description: |
+      Updates future-affecting fields of a recurring plan.
+      Cannot change frequency_type or start_date (would require regeneration).
+    auth: user
+    tags: [recurring-plans]
+
+    path_params:
+      - name: recurring_plan_id
+        type: integer
+        required: true
+
+    request_body:
+      content_type: application/json
+      schema:
+        type: object
+        properties:
+          amount:
+            type: number
+            format: decimal
+          description:
+            type: string
+          end_date:
+            type: string
+            format: date
+            nullable: true
+          occurrences_count:
+            type: integer
+            nullable: true
+          is_active:
+            type: boolean
+
+    responses:
+      200:
+        description: "Success"
+        schema:
+          $ref: "#/schemas/RecurringPlanResponse"
+      404:
+        description: "Recurring plan not found"
+      422:
+        description: "Validation error"
+
+    implementation:
+      file: "backend/app/api/v1/endpoints/recurring_plans.py"
+      function: "update_recurring_plan"
+      service: "RecurringPlanService.update_recurring_plan()"
+
+  # ---------------------------------------------------------------------------
+  # DELETE RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  - method: DELETE
+    path: "/{recurring_plan_id}"
+    summary: "Deactivate recurring plan"
+    description: |
+      Soft-deletes a recurring plan (sets is_active=False).
+      Already generated BudgetFact records are preserved.
+    auth: user
+    tags: [recurring-plans]
+
+    path_params:
+      - name: recurring_plan_id
+        type: integer
+        required: true
+
+    responses:
+      204:
+        description: "Deactivated successfully"
+      404:
+        description: "Recurring plan not found"
+
+    implementation:
+      file: "backend/app/api/v1/endpoints/recurring_plans.py"
+      function: "delete_recurring_plan"
+      service: "RecurringPlanService.deactivate_recurring_plan()"
+
+# Schemas
+schemas:
+  RecurringPlanResponse:
+    type: object
+    properties:
+      id:
+        type: integer
+      user_id:
+        type: integer
+      article_id:
+        type: integer
+      article_name:
+        type: string
+        description: "Enriched - category name"
+      article_type:
+        type: string
+        enum: [income, expense]
+        description: "Enriched - category type"
+      financial_center_id:
+        type: integer
+      financial_center_name:
+        type: string
+        description: "Enriched - account name"
+      cost_center_id:
+        type: integer
+        nullable: true
+      cost_center_name:
+        type: string
+        nullable: true
+        description: "Enriched - cost center name"
+      frequency_type:
+        type: string
+        enum: [daily, weekly, monthly, quarterly]
+      frequency_value:
+        type: integer
+        nullable: true
+      start_date:
+        type: string
+        format: date
+      end_date:
+        type: string
+        format: date
+        nullable: true
+      occurrences_count:
+        type: integer
+        nullable: true
+      occurrences_generated:
+        type: integer
+      amount:
+        type: number
+        format: decimal
+      description:
+        type: string
+        nullable: true
+      record_type:
+        type: string
+        enum: [plan, fact]
+      is_active:
+        type: boolean
+      next_generation_date:
+        type: string
+        format: date
+        nullable: true
+      last_generated_date:
+        type: string
+        format: date
+        nullable: true
+      created_at:
+        type: string
+        format: datetime
+      updated_at:
+        type: string
+        format: datetime
+        nullable: true
+
+  RecurringPlanListResponse:
+    type: object
+    properties:
+      items:
+        type: array
+        items:
+          $ref: "#/schemas/RecurringPlanResponse"
+      total:
+        type: integer
+      skip:
+        type: integer
+      limit:
+        type: integer
+
+# Background Jobs
+background_jobs:
+  generate_recurring_facts:
+    schedule: "Daily at 02:00 UTC"
+    function: "generate_recurring_facts_job"
+    file: "backend/app/scheduler.py"
+    lock_id: 1007
+    description: |
+      Iterates all active recurring plans where next_generation_date <= today
+      and generates BudgetFact records up to DEFAULT_GENERATION_HORIZON_DAYS ahead.

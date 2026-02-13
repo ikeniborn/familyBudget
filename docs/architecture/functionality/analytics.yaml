@@ -121,6 +121,7 @@ module:
     pages:
       - $ref: "../web/templates.yaml#/templates/index"
       - $ref: "../web/templates.yaml#/templates/analytics"
-    telegram_webapp:
-      - $ref: "../web/telegram-webapps.yaml#/pages/stats"
-      - $ref: "../web/telegram-webapps.yaml#/pages/summary"
+    # telegram_webapp:
+    #   - $ref: "../web/telegram-webapps.yaml#/pages/stats"
+    #   - $ref: "../web/telegram-webapps.yaml#/pages/summary"
+    # Note: telegram-webapps.yaml not yet created

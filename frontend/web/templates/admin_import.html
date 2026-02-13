@@ -486,7 +486,7 @@ body.resizing-columns * {
                         Обновить маппинг
                     </button>
                     <button type="button" class="btn btn-secondary gap-2" id="use-existing-mapping-btn" onclick="useExistingMapping()" style="display: none;">
-                        Перейти к обогащению с текущим маппингом
+                        Перейти к обогащению
                     </button>
                 </div>
             </div>
@@ -1914,7 +1914,14 @@ async function loadCsvPreview() {
                 data.delimiter;
 
             renderCsvPreview();
-            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`;
+            // Безопасное создание элементов через DOM API
+            statusEl.innerHTML = ''; // очистить
+            const successSpan = document.createElement('span');
+            successSpan.className = 'text-success';
+            successSpan.textContent = '✓';
+            statusEl.appendChild(successSpan);
+            const textNode = document.createTextNode(` ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`);
+            statusEl.appendChild(textNode);
         } else {
             // Use /preview endpoint for specific delimiter
             response = await fetch(
@@ -1933,12 +1940,24 @@ async function loadCsvPreview() {
             csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
 
             renderCsvPreview();
-            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
+            // Безопасное создание элементов через DOM API
+            statusEl.innerHTML = ''; // очистить
+            const successSpan = document.createElement('span');
+            successSpan.className = 'text-success';
+            successSpan.textContent = '✓';
+            statusEl.appendChild(successSpan);
+            const textNode = document.createTextNode(` ${data.headers.length} колонок, ${data.total_rows} строк`);
+            statusEl.appendChild(textNode);
         }
 
     } catch (error) {
         console.error('Preview error:', error);
-        statusEl.innerHTML = `<span class="text-error">✗ Ошибка: ${error.message}</span>`;
+        // Безопасное создание элементов через DOM API
+        statusEl.innerHTML = ''; // очистить
+        const errorSpan = document.createElement('span');
+        errorSpan.className = 'text-error';
+        errorSpan.textContent = `✗ Ошибка: ${error.message}`;
+        statusEl.appendChild(errorSpan);
     }
 }
 
@@ -2471,16 +2490,7 @@ function createStagingRow(record, index) {
     // Actions
     const actionsCell = document.createElement('td');
     actionsCell.dataset.col = 'actions';
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'btn btn-xs btn-error btn-square hidden md:inline-flex';
-    deleteBtn.title = 'Удалить';
-    deleteBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-    `;
-    deleteBtn.onclick = (e) => { e.stopPropagation(); deleteStagingRecord(record.id); };
-    actionsCell.appendChild(deleteBtn);
+    actionsCell.innerHTML = renderDeleteButtonDesktop(record.id, 'deleteStagingRecord', 'staging-record');
 
     row.appendChild(checkboxCell);
     row.appendChild(statusCell);

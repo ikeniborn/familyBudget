@@ -1,0 +1,45 @@
+{
+  "backend": {
+    "version": "11.5.3",
+    "hash": "6ae21a4d",
+    "lastModified": "2026-02-13T12:37:16Z",
+    "paths": [
+      "backend/",
+      "frontend/",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "bot": {
+    "version": "11.4.50",
+    "hash": "b099866a",
+    "lastModified": "2026-02-12T16:38:23Z",
+    "paths": [
+      "bot/"
+    ]
+  },
+  "nginx": {
+    "version": "11.1.30",
+    "hash": "413175d8",
+    "lastModified": "2026-02-02T13:22:48Z",
+    "paths": [
+      "nginx/"
+    ]
+  },
+  "redis": {
+    "version": "9.0.3",
+    "hash": "4eb5ebb0",
+    "lastModified": "2026-01-21T09:58:25Z",
+    "paths": [
+      "redis/"
+    ]
+  },
+  "postgresql": {
+    "version": "9.0.3",
+    "hash": "4eb5ebb0",
+    "lastModified": "2026-01-21T09:58:25Z",
+    "paths": [
+      "postgres/"
+    ]
+  }
+}

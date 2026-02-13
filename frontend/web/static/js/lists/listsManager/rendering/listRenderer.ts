@@ -40,13 +40,6 @@ function escapeHtml(unsafe: string | null | undefined): string {
 }
 
 /**
- * Check if current device is desktop (width >= 768px)
- */
-function isDesktop(): boolean {
-  return window.innerWidth >= 768;
-}
-
-/**
  * Update mobile "Add" button UI (icon, tooltip, aria-label)
  * Extracted to avoid code duplication
  */
@@ -60,86 +53,53 @@ async function updateMobileUI(): Promise<void> {
 // ============================================================================
 
 /**
- * Show FAB menu (detail view only - mass operations, desktop only)
+ * Show FAB menu (detail view only - mass operations, ALL devices)
+ * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
 function showFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] showFAB() called');
 
   const fabMenu = document.getElementById('lists-fab-menu');
   if (fabMenu) fabMenu.classList.remove('hidden');
 }
 
 /**
- * Hide FAB menu (when switching to landing view, desktop only)
+ * Hide FAB menu (when switching to landing view, ALL devices)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 function hideFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] hideFAB() called');
 
   const fabMenu = document.getElementById('lists-fab-menu');
   if (fabMenu) fabMenu.classList.add('hidden');
 }
 
 /**
- * Show add item FAB (detail view only - desktop only)
- */
-function showAddItemFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showAddItemFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
-
-  const addItemFab = document.getElementById('add-item-fab');
-  if (addItemFab) addItemFab.classList.remove('hidden');
-}
-
-/**
- * Hide add item FAB (when switching to landing view, desktop only)
- */
-function hideAddItemFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideAddItemFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
-
-  const addItemFab = document.getElementById('add-item-fab');
-  if (addItemFab) addItemFab.classList.add('hidden');
-}
-
-/**
- * Show create list FAB (landing view only - desktop only)
+ * Show create list FAB (landing view only, ALL devices)
+ * NOTE: Now visible on mobile AND desktop (removed isDesktop() check)
  */
 function showCreateListFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] showCreateListFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] showCreateListFAB() called');
 
   const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.remove('hidden');
 }
 
 /**
- * Hide create list FAB (when switching to detail view, desktop only)
+ * Hide create list FAB (when switching to detail view, ALL devices)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 function hideCreateListFAB(): void {
-  const isDesktopResult = isDesktop();
-  debugLog('[FAB] hideCreateListFAB() called', { isDesktop: isDesktopResult });
-
-  if (!isDesktopResult) return;
+  debugLog('[FAB] hideCreateListFAB() called');
 
   const createListFab = document.getElementById('create-list-fab');
   if (createListFab) createListFab.classList.add('hidden');
 }
 
 /**
- * Update FAB visibility based on current view
+ * Update FAB visibility based on current view (ALL devices)
  * Shows FAB when in detail view (regardless of item count)
+ * NOTE: Now works on mobile AND desktop (removed isDesktop() check)
  */
 export function updateFABVisibility(): void {
   const fabMenu = document.getElementById('lists-fab-menu');
@@ -147,19 +107,17 @@ export function updateFABVisibility(): void {
 
   const state = getState();
   const inDetailView = state.currentListId !== null;
-  const isDesktopResult = isDesktop();
 
   debugLog('[FAB] updateFABVisibility', {
     inDetailView,
-    isDesktop: isDesktopResult,
     currentListId: state.currentListId,
   });
 
-  if (inDetailView && isDesktopResult) {
-    // Detail view: show FAB
+  if (inDetailView) {
+    // Detail view: show FAB (mobile AND desktop)
     if (fabMenu) fabMenu.classList.remove('hidden');
   } else {
-    // Landing view or mobile: hide FAB
+    // Landing view: hide FAB
     if (fabMenu) fabMenu.classList.add('hidden');
     if (fabBackdrop) fabBackdrop.classList.add('hidden');
   }
@@ -370,19 +328,18 @@ export function renderShoppingListCards(): void {
   if (!grid) return;
 
   grid.innerHTML = state.shoppingLists.map(list => {
-    const totalItems = list.total_items || 0;
-    const completedItems = list.completed_items || 0;
-    const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
-    // Escape name for use in onclick attribute
-    const escapedName = escapeHtml(list.name).replace(/'/g, "\\'");
+    // Statistics from API (ShoppingListWithStats guarantees these fields exist)
+    const totalItems = list.total_items ?? 0;
+    const completedItems = list.completed_items ?? 0;
+    const progressPercent = list.completion_percentage ?? 0;
 
     return `
-      <div class="shopping-list-card" onclick="window.listsManager.showDetailView(${list.id})">
+      <div class="shopping-list-card" data-list-id="${list.id}">
         <div class="flex justify-between items-start mb-2">
           <div class="card-title flex-1">${escapeHtml(list.name)}</div>
-          <button class="btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
-                  onclick="event.stopPropagation(); openDeleteListModal(${list.id}, '${escapedName}');"
+          <button class="btn-delete-list btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
+                  data-list-id="${list.id}"
+                  data-list-name="${escapeHtml(list.name)}"
                   title="Удалить список"
                   aria-label="Удалить список ${escapeHtml(list.name)}"
                   style="transform: scale(1.25);">
@@ -403,6 +360,33 @@ export function renderShoppingListCards(): void {
       </div>
     `;
   }).join('');
+
+  // Добавить event listeners после рендеринга (безопасно, нет inline handlers)
+  grid.querySelectorAll('.shopping-list-card').forEach(card => {
+    card.addEventListener('click', (e: Event) => {
+      // Игнорировать клики по кнопке удаления
+      const target = e.target as HTMLElement | null;
+      if (target && !target.closest('.btn-delete-list')) {
+        const htmlCard = card as HTMLElement;
+        const listId = htmlCard.dataset.listId;
+        if (listId && window.listsManager) {
+          window.listsManager.showDetailView(parseInt(listId, 10));
+        }
+      }
+    });
+  });
+
+  grid.querySelectorAll('.btn-delete-list').forEach(btn => {
+    btn.addEventListener('click', (e: Event) => {
+      e.stopPropagation();
+      const htmlBtn = btn as HTMLElement;
+      const listId = htmlBtn.dataset.listId;
+      const listName = htmlBtn.dataset.listName; // уже экранировано через escapeHtml
+      if (listId && listName) {
+        openDeleteListModal(parseInt(listId, 10), listName);
+      }
+    });
+  });
 }
 
 /**
@@ -422,9 +406,8 @@ export async function renderLandingView(): Promise<void> {
   closeImportWizard();
 
   // Desktop FAB visibility: Landing View
-  // Hide detail view FABs (mass operations + add item)
+  // Hide detail view FAB (mass operations Speed Dial)
   hideFAB();
-  hideAddItemFAB();
   // Show create list FAB
   showCreateListFAB();
 
@@ -547,9 +530,8 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Desktop FAB visibility: Detail View
   // Hide create list FAB (only visible in landing view)
   hideCreateListFAB();
-  // Show detail view FABs (mass operations + add item)
+  // Show detail view Speed Dial (mass operations including add item)
   showFAB();
-  showAddItemFAB();
 
   // Load items for this list
   await loadShoppingListItems(listId);

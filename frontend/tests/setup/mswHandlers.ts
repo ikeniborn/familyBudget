@@ -85,6 +85,79 @@ const mockArticles = [
   }
 ];
 
+const mockShoppingLists = [
+  {
+    id: 1,
+    name: 'Продукты на неделю',
+    is_active: true,
+    created_at: '2026-01-20T10:00:00Z',
+    updated_at: '2026-01-20T10:00:00Z',
+    sync_status: 'synced'
+  },
+  {
+    id: 2,
+    name: 'Хозтовары',
+    is_active: true,
+    created_at: '2026-01-21T12:00:00Z',
+    updated_at: '2026-01-21T12:00:00Z',
+    sync_status: 'synced'
+  }
+];
+
+const mockFacts = [
+  {
+    id: 1,
+    user_id: 1,
+    financial_center_id: 1,
+    article_id: 1,
+    cost_center_id: 1,
+    amount: 1500.50,
+    record_type: 'fact',
+    transaction_date: '2026-01-20',
+    description: 'Покупка продуктов',
+    created_at: '2026-01-20T10:00:00Z'
+  },
+  {
+    id: 2,
+    user_id: 1,
+    financial_center_id: 1,
+    article_id: 3,
+    cost_center_id: 1,
+    amount: 50000.00,
+    record_type: 'fact',
+    transaction_date: '2026-01-15',
+    description: 'Зарплата',
+    created_at: '2026-01-15T09:00:00Z'
+  }
+];
+
+const mockRecurringPlans = [
+  {
+    id: 1,
+    user_id: 1,
+    article_id: 1,
+    cost_center_id: 1,
+    amount: 5000.00,
+    frequency: 'monthly',
+    day_of_month: 1,
+    is_active: true,
+    description: 'Ежемесячные продукты',
+    created_at: '2026-01-01T10:00:00Z'
+  },
+  {
+    id: 2,
+    user_id: 1,
+    article_id: 2,
+    cost_center_id: 1,
+    amount: 2000.00,
+    frequency: 'monthly',
+    day_of_month: 10,
+    is_active: true,
+    description: 'Проездной',
+    created_at: '2026-01-01T10:00:00Z'
+  }
+];
+
 // Handlers
 export const handlers = [
   // Financial Centers
@@ -108,6 +181,76 @@ export const handlers = [
     });
   }),
 
+  // Shopping Lists
+  http.get('/api/v1/shopping-lists', ({ request }) => {
+    const url = new URL(request.url);
+    const isActive = url.searchParams.get('is_active');
+
+    let filteredLists = mockShoppingLists;
+    if (isActive !== null) {
+      const isActiveBool = isActive === 'true';
+      filteredLists = mockShoppingLists.filter(list => list.is_active === isActiveBool);
+    }
+
+    return HttpResponse.json({
+      data: filteredLists
+    });
+  }),
+
+  // Facts
+  http.get('/api/v1/facts', ({ request }) => {
+    const url = new URL(request.url);
+    const recordType = url.searchParams.get('record_type');
+    const userId = url.searchParams.get('user_id');
+
+    let filteredFacts = mockFacts;
+    if (recordType) {
+      filteredFacts = filteredFacts.filter(fact => fact.record_type === recordType);
+    }
+    if (userId) {
+      filteredFacts = filteredFacts.filter(fact => fact.user_id === parseInt(userId));
+    }
+
+    return HttpResponse.json({
+      data: filteredFacts
+    });
+  }),
+
+  // Facts Count
+  http.get('/api/v1/facts/count', ({ request }) => {
+    const url = new URL(request.url);
+    const recordType = url.searchParams.get('record_type');
+    const userId = url.searchParams.get('user_id');
+
+    let filteredFacts = mockFacts;
+    if (recordType) {
+      filteredFacts = filteredFacts.filter(fact => fact.record_type === recordType);
+    }
+    if (userId) {
+      filteredFacts = filteredFacts.filter(fact => fact.user_id === parseInt(userId));
+    }
+
+    return HttpResponse.json({
+      count: filteredFacts.length
+    });
+  }),
+
+  // Recurring Plans
+  http.get('/api/v1/recurring-plans', ({ request }) => {
+    const url = new URL(request.url);
+    const isActive = url.searchParams.get('is_active');
+
+    let filteredPlans = mockRecurringPlans;
+    if (isActive !== null) {
+      const isActiveBool = isActive === 'true';
+      filteredPlans = mockRecurringPlans.filter(plan => plan.is_active === isActiveBool);
+    }
+
+    return HttpResponse.json({
+      data: filteredPlans
+    });
+  }),
+
   // Error simulation handlers (for testing error cases)
   http.get('/api/v1/financial-centers/error', () => {
     return HttpResponse.json(
@@ -125,4 +268,11 @@ export const handlers = [
 ];
 
 // Export mock data for tests
-export { mockFinancialCenters, mockCostCenters, mockArticles };
+export {
+  mockFinancialCenters,
+  mockCostCenters,
+  mockArticles,
+  mockShoppingLists,
+  mockFacts,
+  mockRecurringPlans
+};

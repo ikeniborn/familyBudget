@@ -17,6 +17,9 @@
 
 set -e
 
+# Deployment directory (use relative path if in repo, absolute otherwise)
+DEPLOY_DIR="${DEPLOY_DIR:-/opt/budget}"
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -115,7 +118,7 @@ if [[ -n "$SUDO_USER" ]]; then
 fi
 
 echo "Running npm cache clean..."
-cd /opt/budget/.npm-isolated 2>/dev/null && npm cache clean --force || true
+cd $DEPLOY_DIR/.npm-isolated 2>/dev/null && npm cache clean --force || true
 
 echo -e "${GREEN}✓${NC} npm cache cleared"
 echo ""
@@ -123,10 +126,10 @@ echo ""
 # Step 4: Force package reinstall
 echo -e "${BLUE}[4/6]${NC} Forcing package reinstall..."
 echo "Removing node_modules..."
-rm -rf /opt/budget/.npm-isolated/node_modules
+rm -rf $DEPLOY_DIR/.npm-isolated/node_modules
 
 echo "Removing package-lock.json..."
-rm -f /opt/budget/.npm-isolated/package-lock.json
+rm -f $DEPLOY_DIR/.npm-isolated/package-lock.json
 
 echo -e "${GREEN}✓${NC} Old packages removed"
 echo ""
@@ -156,9 +159,9 @@ echo ""
 echo -e "${BLUE}[6/6]${NC} Validating result..."
 
 # Check tailwindcss version
-if [[ -f "/opt/budget/.npm-isolated/node_modules/tailwindcss/package.json" ]]; then
-    ACTUAL_VERSION=$(jq -r '.version' /opt/budget/.npm-isolated/node_modules/tailwindcss/package.json)
-    EXPECTED_VERSION=$(jq -r '.devDependencies.tailwindcss' /opt/budget/package.json | tr -d '^~')
+if [[ -f "$DEPLOY_DIR/.npm-isolated/node_modules/tailwindcss/package.json" ]]; then
+    ACTUAL_VERSION=$(jq -r '.version' $DEPLOY_DIR/.npm-isolated/node_modules/tailwindcss/package.json)
+    EXPECTED_VERSION=$(jq -r '.devDependencies.tailwindcss' $DEPLOY_DIR/package.json | tr -d '^~')
 
     echo "  tailwindcss version: $ACTUAL_VERSION"
 
@@ -171,13 +174,13 @@ if [[ -f "/opt/budget/.npm-isolated/node_modules/tailwindcss/package.json" ]]; t
         echo ""
         echo "MANUAL DEBUG REQUIRED:"
         echo "  1. Check package-lock.json:"
-        echo "     jq '.packages[\"node_modules/tailwindcss\"]' /opt/budget/.npm-isolated/package-lock.json"
+        echo "     jq '.packages[\"node_modules/tailwindcss\"]' $DEPLOY_DIR/.npm-isolated/package-lock.json"
         echo ""
         echo "  2. Check what npm registry returns:"
         echo "     npm view tailwindcss@3.4.15 version"
         echo ""
         echo "  3. Try manual npm ci:"
-        echo "     cd /opt/budget/.npm-isolated"
+        echo "     cd $DEPLOY_DIR/.npm-isolated"
         echo "     npm ci --prefer-offline --no-audit"
         exit 1
     fi
@@ -187,8 +190,8 @@ else
 fi
 
 # Check CSS build
-if [[ -f "/opt/budget/frontend/web/static/css/vendor/tailwind-daisyui.min.css" ]]; then
-    CSS_SIZE=$(du -h /opt/budget/frontend/web/static/css/vendor/tailwind-daisyui.min.css | cut -f1)
+if [[ -f "$DEPLOY_DIR/frontend/web/static/css/tailwind-daisyui.min.css" ]]; then
+    CSS_SIZE=$(du -h "$DEPLOY_DIR/frontend/web/static/css/tailwind-daisyui.min.css" | cut -f1)
     echo "  CSS file size: $CSS_SIZE"
     echo -e "  ${GREEN}✓${NC} CSS file exists"
 else
@@ -196,9 +199,9 @@ else
 fi
 
 # Test tailwindcss executable
-cd /opt/budget
-export PATH="/opt/budget/.npm-isolated/node_modules/.bin:$PATH"
-export NODE_PATH="/opt/budget/.npm-isolated/node_modules"
+cd $DEPLOY_DIR
+export PATH="$DEPLOY_DIR/.npm-isolated/node_modules/.bin:$PATH"
+export NODE_PATH="$DEPLOY_DIR/.npm-isolated/node_modules"
 
 if timeout 5s tailwindcss --help &> /dev/null; then
     echo -e "  ${GREEN}✓${NC} tailwindcss executable works"

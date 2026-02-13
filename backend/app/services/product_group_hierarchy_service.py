@@ -20,8 +20,6 @@ Performance:
     No recursive queries needed.
 """
 
-from typing import Optional
-
 from sqlalchemy import delete, insert, literal
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -33,7 +31,7 @@ from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
 async def get_subtree(
     session: AsyncSession,
     product_group_id: int,
-    max_depth: Optional[int] = None,
+    max_depth: int | None = None,
     include_self: bool = True,
 ) -> list[ProductGroup]:
     """
@@ -230,7 +228,7 @@ async def get_depth(
 async def create_hierarchy_paths(
     session: AsyncSession,
     product_group_id: int,
-    parent_id: Optional[int] = None,
+    parent_id: int | None = None,
 ) -> None:
     """
     Create closure table entries for new product group.
@@ -317,7 +315,7 @@ async def delete_hierarchy_paths(
 async def move_subtree(
     session: AsyncSession,
     product_group_id: int,
-    new_parent_id: Optional[int],
+    new_parent_id: int | None,
 ) -> None:
     """
     Move product group (and its subtree) to new parent.

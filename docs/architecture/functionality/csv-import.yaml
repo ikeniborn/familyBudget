@@ -147,8 +147,8 @@ module:
     - $ref: "../database/support.yaml#/tables/t_import_staging"
     - $ref: "../database/support.yaml#/tables/t_import_file_upload"
     - $ref: "../database/support.yaml#/tables/t_import_column_mapping"
-    - $ref: "../database/support.yaml#/tables/t_d_import_template"
-    - $ref: "../database/support.yaml#/tables/t_d_bank_provider"
+    - $ref: "../database/dimensions.yaml#/tables/t_d_import_template"
+    - $ref: "../database/dimensions.yaml#/tables/t_d_bank_provider"
 
   # ---------------------------------------------------------------------------
   # ENDPOINTS

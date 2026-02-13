@@ -1,0 +1,79 @@
+{#
+  COMPONENT: FAB Buttons (Floating Action Buttons)
+  Purpose: Fixed-position action buttons for lists page
+  Available on: ALL devices (desktop, mobile, PWA)
+  Context-aware visibility controlled by JavaScript
+  Used in: lists.html
+  NOTE: Previously desktop-only, now enabled for mobile per user requirement
+#}
+
+{% macro lists_fab_buttons() %}
+<!-- ============================================== -->
+<!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
+<!-- ============================================== -->
+
+<!-- FAB для создания списка (Landing View - ALL devices) -->
+<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
+<!-- NOTE: Now visible on mobile AND desktop -->
+<button id="create-list-fab"
+        onclick="window.openCreateListModal()"
+        class="lists-fab-menu hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
+        style="pointer-events: auto;"
+        aria-label="Создать список"
+        title="Создать список">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+</button>
+
+<!-- FAB Speed Dial для массовых операций (Detail View - ALL devices) -->
+<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
+<!-- NOTE: Now visible on mobile AND desktop -->
+<div id="lists-fab-menu" class="fab-menu lists-fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3">
+    <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
+    <button onclick="window.toggleListsFAB()" class="fab-main lists-fab-main btn btn-primary btn-circle btn-lg shadow-xl" aria-label="Массовые операции">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <circle cx="12" cy="19" r="2"/>
+        </svg>
+    </button>
+
+    <!-- Speed Dial items -->
+    <!-- NEW: Добавить товар (первый в Speed Dial) -->
+    <div id="fab-item-add-product" class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Добавить товар</span>
+        <button onclick="window.openAddItemModal()" class="btn btn-primary btn-circle shadow-lg" aria-label="Добавить товар">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+        </button>
+    </div>
+
+    <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Удалить выполненные</span>
+        <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
+            🗑️
+        </button>
+    </div>
+
+    <div id="fab-item-mark-all-completed" class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Отметить все</span>
+        <button onclick="window.markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
+            ✅
+        </button>
+    </div>
+
+    <div id="fab-item-unmark-all-completed" class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Снять все отметки</span>
+        <button onclick="window.unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
+            ❌
+        </button>
+    </div>
+</div>
+
+<!-- FAB Backdrop (ALL devices) -->
+<!-- IMPORTANT: Visibility controlled by toggleListsFAB(), not Tailwind -->
+<!-- NOTE: Now works on mobile AND desktop -->
+<div id="lists-fab-backdrop" class="lists-fab-backdrop fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden" onclick="window.toggleListsFAB()"></div>
+{% endmacro %}

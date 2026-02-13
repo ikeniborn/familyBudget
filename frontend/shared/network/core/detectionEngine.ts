@@ -14,7 +14,7 @@
  */
 
 import { getState, updateState } from './NetworkState';
-import type { NetworkStatus } from '../types';
+import type { NetworkStatus, StatusChangeOptions } from '../types';
 import { getAdaptiveTimeout, getConnectionInfo } from '../utils/connectionInfo';
 import { _networkLog } from '../utils/logger';
 
@@ -32,7 +32,7 @@ import { _networkLog } from '../utils/logger';
  * @param options - Optional parameters for event detail
  * @returns New status (for chaining)
  */
-export const setStatus = (newStatus: NetworkStatus, options: any = {}): NetworkStatus => {
+export const setStatus = (newStatus: NetworkStatus, options: StatusChangeOptions = {}): NetworkStatus => {
   const { status: oldStatus, onStatusChange } = getState();
 
   if (oldStatus !== newStatus) {

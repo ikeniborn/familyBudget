@@ -6,7 +6,7 @@
 # - Let's Encrypt certificate setup (via host certbot)
 # - SSL certificate verification
 #
-# Dependencies: config.sh, utils.sh, nginx.sh
+# Dependencies: config.sh, utils.sh
 #
 # Usage:
 #   source scripts/lib/ssl.sh
@@ -14,7 +14,7 @@
 #   verify_ssl
 #
 # Part of Phase 3 refactoring (SSL functions extracted from deploy.sh)
-# Nginx configuration is now managed by nginx.sh module
+# Nginx configuration is now embedded in Docker image (v9.0 registry-first)
 #
 
 # =============================================================================
@@ -97,32 +97,24 @@ setup_ssl_certificates() {
                 current_domain=$(grep "server_name" "$nginx_conf" | grep -v "^#" | head -1 | awk '{print $2}' | tr -d ';')
 
                 if [[ "$current_domain" == "$domain" ]]; then
-                    success "HTTPS configuration already active for $domain - no changes needed"
-                    info "Configuration file: $nginx_conf"
+                    success "SSL certificate valid for $domain - no changes needed"
 
-                    # Still reload nginx to ensure certificates are picked up (in case of renewal)
+                    # Restart nginx to ensure certificate renewal is picked up
+                    # (Registry-first v9.0: entrypoint auto-selects HTTPS template if cert exists)
                     if compose_cmd ps -q nginx >/dev/null 2>&1; then
-                        info "Reloading nginx to pick up any certificate updates..."
-                        reload_nginx
+                        info "Restarting nginx to pick up any certificate updates..."
+                        compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
+                        sleep 3
                     fi
 
                     return 0
                 else
-                    info "Domain changed ($current_domain → $domain), regenerating configuration"
+                    info "Domain changed ($current_domain → $domain), obtaining new certificate"
                 fi
             fi
 
-            # Generate HTTPS nginx configuration (using nginx.sh module)
-            if generate_nginx_https_config "$domain"; then
-                success "Nginx HTTPS configuration generated"
-
-                # Reload nginx to pick up configuration and certificates
-                reload_nginx
-            else
-                warning "Failed to generate HTTPS configuration"
-            fi
-
-            return 0
+            # Certificate domain mismatch - will obtain new certificate below
+            warning "Certificate validation failed, will obtain new certificate"
         else
             warning "Certificate validation failed, will obtain new certificate"
         fi
@@ -138,25 +130,20 @@ setup_ssl_certificates() {
     if sudo "$ssl_manager" obtain "$domain" "$email" "$server_ip" >> "$LOG_FILE" 2>&1; then
         success "SSL certificate obtained successfully!"
 
-        # Generate HTTPS nginx configuration (using nginx.sh module)
-        if ! generate_nginx_https_config "$domain"; then
-            warning "Failed to generate HTTPS configuration"
-            warning "Nginx will continue with current configuration"
-        else
-            success "Nginx HTTPS configuration generated"
-        fi
-
-        # Start nginx if not running (may have been stopped by ssl_certificate_manager)
+        # Restart nginx to pick up new certificate
+        # Registry-first v9.0: entrypoint automatically detects SSL cert and uses HTTPS template
         if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
             info "Starting nginx..."
             compose_cmd start nginx >> "$LOG_FILE" 2>&1 || true
-            sleep 3
+            sleep 5
+        else
+            info "Restarting nginx to pick up new SSL certificate..."
+            compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
+            sleep 5
         fi
 
-        # Reload nginx with new configuration and certificates
-        reload_nginx
-
         success "SSL certificate setup completed!"
+        info "Nginx will automatically use HTTPS configuration (docker-entrypoint.sh)"
     else
         error "Failed to obtain SSL certificate. Check $LOG_FILE for details."
     fi

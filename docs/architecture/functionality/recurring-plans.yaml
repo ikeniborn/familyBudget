@@ -1,6 +1,23 @@
 # Recurring Plans Functionality
 # Auto-generated recurring payment templates
 
+meta:
+  version: "1.0.0"
+  description: "Recurring payment templates with automatic fact generation"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "6.2.0"
+  breaking_changes:
+    - version: "6.2.0"
+      description: "Introduced MMDD encoding for yearly frequency"
+      migration: "See recurring-plans.md"
+  architecture: "Hybrid (template + pre-generated facts)"
+  related_docs:
+    - "../recurring-plans.md"
+    - "../database/dimensions.yaml#/tables/t_d_recurring_plan"
+    - "../endpoints/recurring-plans.yaml"
+
 module:
   name: "Recurring Plans"
   description: |

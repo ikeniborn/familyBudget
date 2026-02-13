@@ -8,11 +8,15 @@
  * Extracted from: frontend/web/static/js/lists/listsManager.ts lines 2996-3653
  */
 
-import { getState, updateState } from '../core/ListsState';
-import { loadShoppingLists } from '../core/stateManager';
+import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
+import { generateNumericTempId } from '@db/dexie';
+
+declare const window: Window & {
+  dexieManager?: any;
+};
 
 // ============================================================================
 // Type Definitions
@@ -27,6 +31,20 @@ interface ChoicesInstance {
   passedElement: { element: HTMLSelectElement };
   destroy(): void;
   setChoiceByValue(value: string): void;
+}
+
+/** API response interface for shopping list creation */
+interface CreateListAPIResponse {
+  id: number;
+  temp_id?: number;
+  name: string;
+  description?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  total_items?: number;
+  completed_items?: number;
+  completion_percentage?: number;
 }
 
 declare global {
@@ -65,9 +83,14 @@ export async function handleCreateList(event: Event): Promise<void> {
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
 
+  // Generate numeric temp_id on client (crypto-secure random int53)
+  // CRITICAL FIX (v11.6.0): Client-side generation eliminates fallback bug
+  const temp_id = generateNumericTempId();
+
   const data = {
     name: formData.get('name'),
-    description: formData.get('description') || null
+    description: formData.get('description') || null,
+    temp_id: temp_id  // Send numeric temp_id to backend
   };
 
   try {
@@ -84,15 +107,80 @@ export async function handleCreateList(event: Event): Promise<void> {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const result = await response.json();
+    const result: CreateListAPIResponse = await response.json();
     showToast('Список создан', 'success');
 
     // Close modal
     closeCreateListModal();
 
-    // Reload and open new list
-    await loadShoppingLists();
-    await renderDetailView(result.id);
+    // OPTIMISTIC UPDATE: Add new list to state directly (API response is source of truth)
+    // This eliminates race condition with Dexie sync latency
+    const newList: ShoppingList = {
+      id: result.id,
+      temp_id: result.temp_id || temp_id, // Use client-generated temp_id as fallback (should never happen)
+      name: result.name,
+      description: result.description || undefined,
+      is_active: result.is_active ?? true,
+      created_at: result.created_at || new Date().toISOString(),
+      updated_at: result.updated_at || new Date().toISOString(),
+      total_items: result.total_items ?? 0,
+      completed_items: result.completed_items ?? 0,
+      completion_percentage: result.completion_percentage ?? 0
+    };
+
+    // Update state optimistically with duplicate check
+    const currentState = getState();
+    const existingIndex = currentState.shoppingLists.findIndex(l => l.id === newList.id);
+
+    if (existingIndex >= 0) {
+      // Replace existing list (handle edge case of duplicate)
+      const updated = [...currentState.shoppingLists];
+      updated[existingIndex] = newList;
+      updateState({ shoppingLists: updated });
+      debugLog('[ListsManager] Replaced existing list in state', { listId: newList.id });
+    } else {
+      // Add new list
+      updateState({
+        shoppingLists: [...currentState.shoppingLists, newList]
+      });
+      debugLog('[ListsManager] Added new list to state', { listId: newList.id });
+    }
+
+    // Trigger background sync to Dexie (non-blocking)
+    queueMicrotask(async () => {
+      try {
+        if (window.dexieManager) {
+          const dexie = window.dexieManager;
+
+          // Convert to LocalShoppingList type for Dexie
+          const localList = {
+            id: newList.id,
+            temp_id: newList.temp_id,
+            name: newList.name,
+            description: newList.description || null,
+            is_active: newList.is_active,
+            creator_id: (window as any).userData?.id || null,
+            created_at: new Date(newList.created_at),
+            updated_at: new Date(newList.updated_at),
+            sync_status: 'synced' as const,
+            sync_hash: null,
+            content_hash: null,
+            synced_at: new Date(),
+            deleted_at: null
+          };
+
+          // Use Dexie database.shoppingLists.put() directly
+          await dexie.getDB().shoppingLists.put(localList);
+          debugLog('[ListsManager] List synced to Dexie', { listId: newList.id });
+        }
+      } catch (error) {
+        console.warn('[ListsManager] Dexie sync failed (non-critical):', error);
+        // Don't throw - API write succeeded, Dexie is cache only
+      }
+    });
+
+    // Open the newly created list immediately
+    await renderDetailView(newList.id);
   } catch (error) {
     console.error('[ListsManager] Error creating list:', error);
     showToast('Ошибка создания списка', 'error');

@@ -1,16 +1,17 @@
 name: Security Scan
 
 on:
-  push:
-    branches:
-      - main
-      - test
-      - 'feature/**'
-      - 'fix/**'
   pull_request:
     branches:
-      - main
       - test
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'bot/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements.txt'
+      - '.github/workflows/security-scan.yml'
   schedule:
     # Run daily at 3 AM UTC
     - cron: '0 3 * * *'
@@ -22,7 +23,7 @@ permissions:
 jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
@@ -30,14 +31,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js 18
-        uses: actions/setup-node@v4
+        uses: ./.github/actions/setup-node
         with:
-          node-version: '18'
+          enable-cache: 'false'
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        uses: ./.github/actions/setup-python
 
       - name: Run npm audit
         continue-on-error: true
@@ -46,12 +45,25 @@ jobs:
           npm audit || true
 
           # Extract vulnerability counts
-          HIGH_VULNS=$(jq '.metadata.vulnerabilities.high // 0' npm-audit.json)
           CRITICAL_VULNS=$(jq '.metadata.vulnerabilities.critical // 0' npm-audit.json)
+          HIGH_VULNS=$(jq '.metadata.vulnerabilities.high // 0' npm-audit.json)
+          MODERATE_VULNS=$(jq '.metadata.vulnerabilities.moderate // 0' npm-audit.json)
+          LOW_VULNS=$(jq '.metadata.vulnerabilities.low // 0' npm-audit.json)
+          TOTAL_VULNS=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json)
+          TOTAL_DEPS=$(jq '.metadata.dependencies.total // 0' npm-audit.json)
 
-          echo "## NPM Audit Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Critical: $CRITICAL_VULNS" >> $GITHUB_STEP_SUMMARY
-          echo "- High: $HIGH_VULNS" >> $GITHUB_STEP_SUMMARY
+          # Create summary table
+          echo "## 🔍 NPM Audit Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL_VULNS | $([ "$CRITICAL_VULNS" -eq 0 ] && echo "✅ Pass" || echo "❌ Fail") |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH_VULNS | $([ "$HIGH_VULNS" -eq 0 ] && echo "✅ Pass" || echo "⚠️ Warning") |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Moderate | $MODERATE_VULNS | $([ "$MODERATE_VULNS" -eq 0 ] && echo "✅ Pass" || echo "ℹ️ Info") |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low | $LOW_VULNS | ℹ️ Info |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total:** $TOTAL_VULNS vulnerabilities / $TOTAL_DEPS dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "$CRITICAL_VULNS" -gt 0 ]; then
             echo "::error::Critical vulnerabilities found in npm dependencies"
@@ -70,11 +82,25 @@ jobs:
           cd ..
           if [ -f pip-safety.json ]; then
             VULNS=$(jq '. | length' pip-safety.json 2>/dev/null || echo "0")
-            echo "## Pip Safety Results" >> $GITHUB_STEP_SUMMARY
-            echo "- Vulnerabilities: $VULNS" >> $GITHUB_STEP_SUMMARY
+
+            # Create summary table
+            echo "## 🐍 Pip Safety Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total Vulnerabilities | $VULNS | $([ "$VULNS" -eq 0 ] && echo "✅ Pass" || echo "⚠️ Warning") |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
 
             if [ "$VULNS" -gt 0 ]; then
               echo "::warning::Vulnerabilities found in Python dependencies"
+
+              # Show first 5 vulnerable packages
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>📦 Vulnerable Packages (first 5)</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.[:5] | .[] | "- **\(.package)** \(.installed_version) → \(.vulnerability_id // "Unknown CVE")"' pip-safety.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Details unavailable" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
@@ -90,7 +116,7 @@ jobs:
 
   sast-scan:
     name: SAST - Static Code Analysis
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:
@@ -98,9 +124,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        uses: ./.github/actions/setup-python
 
       - name: Install Bandit
         run: pip install bandit[toml]
@@ -118,11 +142,32 @@ jobs:
 
           if [ -f bandit-report.json ]; then
             ISSUES=$(jq '.results | length' bandit-report.json)
-            echo "## Bandit SAST Results" >> $GITHUB_STEP_SUMMARY
-            echo "- High/Medium confidence issues: $ISSUES" >> $GITHUB_STEP_SUMMARY
+            HIGH_SEVERITY=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json 2>/dev/null || echo "0")
+            MEDIUM_SEVERITY=$(jq '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit-report.json 2>/dev/null || echo "0")
+            LOW_SEVERITY=$(jq '[.results[] | select(.issue_severity == "LOW")] | length' bandit-report.json 2>/dev/null || echo "0")
+
+            # Create summary table
+            echo "## 🛡️ Bandit SAST Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 High | $HIGH_SEVERITY | $([ "$HIGH_SEVERITY" -eq 0 ] && echo "✅ Pass" || echo "⚠️ Warning") |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM_SEVERITY | $([ "$MEDIUM_SEVERITY" -eq 0 ] && echo "✅ Pass" || echo "ℹ️ Info") |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW_SEVERITY | ℹ️ Info |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Total Issues:** $ISSUES" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
 
             if [ "$ISSUES" -gt 0 ]; then
               echo "::warning::Security issues found by Bandit"
+
+              # Show first 5 issues
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>🚨 Security Issues (first 5)</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              jq -r '.results[:5] | .[] | "- **\(.issue_text)** [\(.issue_severity)] in `\(.filename):\(.line_number)`"' bandit-report.json 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Details unavailable" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
             fi
           fi
 
@@ -136,7 +181,7 @@ jobs:
 
   secrets-scan:
     name: Secrets Detection
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     timeout-minutes: 10
 
     steps:

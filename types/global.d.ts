@@ -75,6 +75,16 @@ interface Window {
   DEBUG_MODE?: boolean;
   LOGGING_CONFIG?: LoggingConfig;
   FEATURE_FLAGS?: FeatureFlags;
+
+  // User Identity
+  // Primary source (set in base.html)
+  userData?: {
+    id: number;
+    username: string;
+    isAdmin: boolean;
+  };
+
+  // Legacy (deprecated, for backward compatibility only)
   currentUser?: User;
 
   // Core Classes (types inferred from implementations)
@@ -115,7 +125,12 @@ interface Window {
 
   // BudgetShared bundle
   BudgetShared?: {
-    DateFormatter: any;
+    DateFormatter: {
+      formatForDisplay(isoDate: string): string;
+      formatForAPI(displayDate: string): string | null;
+      today(): string;
+      isValidDisplayFormat(displayDate: string): boolean;
+    };
     CalendarWidget: any;
     ChoicesCategoryTree: any;
   };
@@ -134,6 +149,16 @@ interface Window {
 
   // Utility functions
   showToast?: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+
+  // PGlite Indicator Manager
+  pgliteIndicator?: {
+    update: (state: 'active' | 'syncing' | 'error') => void;
+    show: () => void;
+    hide: () => void;
+    onSyncStart: () => void;
+    onSyncComplete: () => void;
+    onSyncError: (error: Error) => void;
+  };
 }
 
 /**

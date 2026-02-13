@@ -10,7 +10,6 @@ from backend.app.api.v1.admin import router as admin_router
 from backend.app.api.v1.admin_analytics import router as admin_analytics_router
 from backend.app.api.v1.admin_export import router as admin_export_router
 from backend.app.api.v1.admin_staging import router as admin_staging_router
-from backend.app.api.v1.endpoints.admin_logs import router as admin_logs_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
@@ -19,6 +18,7 @@ from backend.app.api.v1.endpoints import (
     cache_metrics_router,
     consent_router,
     cost_centers_router,
+    facts_partials_router,
     facts_router,
     financial_centers_router,
     google_sheets_import_router,
@@ -34,10 +34,12 @@ from backend.app.api.v1.endpoints import (
     shopping_lists_router,
     staging_router,
     stores_router,
+    sync_router,
     transfers_router,
     users_router,
     webauthn_router,
 )
+from backend.app.api.v1.endpoints.admin_logs import router as admin_logs_router
 from backend.app.api.v1.export import router as export_router
 from backend.app.api.v1.webapp import router as webapp_router
 
@@ -60,6 +62,11 @@ api_router.include_router(financial_centers_router)
 
 # Cost Centers endpoints (TASK-007) ✅
 api_router.include_router(cost_centers_router)
+
+# Facts HTMX Partials endpoints (Phase 2: Server-side rendering) ✅
+# ВАЖНО: Partials должны быть ПЕРЕД основным facts router,
+# иначе /{fact_id} перехватывает /table, /stats, /pagination
+api_router.include_router(facts_partials_router)
 
 # Facts endpoints (TASK-016) ✅
 api_router.include_router(facts_router)
@@ -132,6 +139,9 @@ api_router.include_router(google_sheets_import_router)
 
 # Import Templates endpoints (Shopping Lists Feature) ✅
 api_router.include_router(import_templates_router)
+
+# Sync endpoints (PGlite Offline-First - task-012) ✅
+api_router.include_router(sync_router)
 
 # Budget WebSocket endpoints (Real-time Updates with Long Polling fallback) ✅
 # Primary: WebSocket (bidirectional, no buffering)

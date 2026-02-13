@@ -36,8 +36,7 @@ describe('ListsState', () => {
 
       // Instances
       expect(state.hierarchyView).toBeNull();
-      expect(state.db).toBeNull();
-      expect(state.offlineShopping).toBeNull();
+      expect(state.dexieManager).toBeNull();
 
       // Debounced functions
       expect(state.debouncedSearch).toBeNull();
@@ -180,8 +179,7 @@ describe('ListsState', () => {
       // Set some non-default values
       updateState({
         hierarchyView: { someProperty: 'value' } as any,
-        db: { someDb: 'instance' } as any,
-        offlineShopping: { someOffline: 'manager' } as any,
+        dexieManager: { someDb: 'instance' } as any,
         debouncedSearch: (() => {}) as any,
         choicesInstances: { someKey: 'someValue' }
       });
@@ -190,8 +188,7 @@ describe('ListsState', () => {
 
       const state = getState();
       expect(state.hierarchyView).toBeNull();
-      expect(state.db).toBeNull();
-      expect(state.offlineShopping).toBeNull();
+      expect(state.dexieManager).toBeNull();
       expect(state.debouncedSearch).toBeNull();
       expect(state.choicesInstances).toEqual({});
     });

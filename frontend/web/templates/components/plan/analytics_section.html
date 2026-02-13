@@ -1,0 +1,118 @@
+{#
+  Plan Analytics Section Component
+  Collapsible analytics with filters, summary cards, and ECharts visualizations
+
+  @version 1.1.0 (Phase 4: HTML Component Extraction - Corrected Structure)
+  @description Analytics dashboard with month navigation, filters, summary cards, and charts
+#}
+
+{% macro analytics_section() %}
+    <!-- Plan Analytics Section -->
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="analytics-toggle" class="peer" />
+        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer py-4">
+            <h2 class="text-lg sm:text-xl font-bold mb-0">
+                📊 Аналитика планирования
+            </h2>
+        </label>
+        <div class="collapse-content">
+
+            <!-- Analytics Filters - Row 1 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <!-- Planning Month Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📅 Месяц планирования</span>
+                    </label>
+                    <div class="join h-12" id="analytics-month-buttons">
+                        <!-- Buttons populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CFO Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">🏦 Счет</span>
+                    </label>
+                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsCFOChange()">
+                        <option value="">Все счета</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Article Type Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">💰 Тип категории</span>
+                    </label>
+                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsArticleTypeChange()">
+                        <option value="">Все типы</option>
+                        <option value="expense">Расходы</option>
+                        <option value="income">Доходы</option>
+                        <option value="debit">Списание</option>
+                        <option value="credit">Пополнение</option>
+                    </select>
+                </div>
+
+                <!-- Article Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📁 Категория</span>
+                    </label>
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="window.PlanApp.onAnalyticsArticleChange()" title="Фильтр категорий для графика">
+                        <option value="">Все категории</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Расходы</div>
+                    <div class="stat-value text-error text-lg" id="analytics-expense">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Доходы</div>
+                    <div class="stat-value text-success text-lg" id="analytics-income">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Списание</div>
+                    <div class="stat-value text-warning text-lg" id="analytics-debit">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Пополнение</div>
+                    <div class="stat-value text-info text-lg" id="analytics-credit">0</div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-charts-grid">
+                <!-- Comparison Chart: Types on X-axis, months as columns -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📊 По типам операций</h3>
+                    <div id="chart-plan-comparison" style="height: 300px;"></div>
+                </div>
+
+                <!-- Categories Bar Chart -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📁 По категориям</h3>
+                    <div id="chart-plan-categories" style="height: 300px;"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="analytics-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">📅</div>
+                <p>Нет данных для отображения. Добавьте плановые записи.</p>
+            </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="window.PlanApp.collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
+        </div>
+    </div>
+{% endmacro %}

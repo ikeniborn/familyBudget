@@ -13,9 +13,7 @@ Key features:
 - Global financial centers shared across users and user-specific financial centers
 - Full change history in FinancialCenterHistory table
 """
-
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -98,7 +96,7 @@ class FinancialCenter(SQLModel, table=True):
     __tablename__ = "t_d_financial_center"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -118,11 +116,11 @@ class FinancialCenter(SQLModel, table=True):
         max_length=255,
         description="Financial center display name"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes about the financial center"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         nullable=True,

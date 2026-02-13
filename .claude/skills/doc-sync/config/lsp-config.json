@@ -1,0 +1,118 @@
+{
+  "description": "LSP integration configuration for doc-sync",
+  "version": "1.1.0",
+  "lsp_servers": {
+    "python": {
+      "name": "pyright",
+      "command": "pyright-langserver",
+      "args": ["--stdio"],
+      "initialization_timeout": 5000,
+      "capabilities": [
+        "documentSymbol",
+        "hover",
+        "definition",
+        "references"
+      ],
+      "file_extensions": [".py"],
+      "supported_operations": [
+        "extract_fastapi_endpoints",
+        "extract_sqlalchemy_models",
+        "extract_pydantic_schemas"
+      ]
+    },
+    "typescript": {
+      "name": "vtsls",
+      "command": "vtsls",
+      "args": ["--stdio"],
+      "initialization_timeout": 5000,
+      "capabilities": [
+        "documentSymbol",
+        "hover",
+        "definition",
+        "references"
+      ],
+      "file_extensions": [".ts", ".tsx", ".js", ".jsx"],
+      "supported_operations": [
+        "extract_typescript_exports",
+        "extract_interfaces",
+        "extract_types"
+      ]
+    }
+  },
+  "extraction_methods": {
+    "fastapi_endpoint": {
+      "lsp_operations": [
+        {
+          "operation": "documentSymbol",
+          "purpose": "Find all function definitions"
+        },
+        {
+          "operation": "hover",
+          "purpose": "Get decorators, type hints, docstrings"
+        }
+      ],
+      "fallback": "ast_parsing",
+      "expected_accuracy": "95-99%"
+    },
+    "sqlalchemy_model": {
+      "lsp_operations": [
+        {
+          "operation": "documentSymbol",
+          "purpose": "Find class definitions"
+        },
+        {
+          "operation": "hover",
+          "purpose": "Get Column types, constraints"
+        }
+      ],
+      "fallback": "ast_parsing",
+      "expected_accuracy": "95-99%"
+    },
+    "typescript_export": {
+      "lsp_operations": [
+        {
+          "operation": "documentSymbol",
+          "purpose": "Find exported symbols"
+        },
+        {
+          "operation": "hover",
+          "purpose": "Get function signatures, JSDoc"
+        }
+      ],
+      "fallback": "regex_parsing",
+      "expected_accuracy": "95-99%"
+    }
+  },
+  "performance": {
+    "lsp_server_cache": true,
+    "cache_duration_seconds": 3600,
+    "max_concurrent_lsp_requests": 5,
+    "lsp_timeout_seconds": 10,
+    "fallback_on_timeout": true
+  },
+  "error_handling": {
+    "lsp_not_installed": {
+      "action": "fallback_to_ast",
+      "message": "LSP server not found, using AST parsing (85-90% accuracy)"
+    },
+    "lsp_initialization_failed": {
+      "action": "fallback_to_ast",
+      "message": "LSP failed to initialize, using AST parsing"
+    },
+    "lsp_timeout": {
+      "action": "fallback_to_ast",
+      "message": "LSP timeout after 10s, using AST parsing"
+    },
+    "syntax_error_in_file": {
+      "action": "skip_file",
+      "message": "Syntax error detected, skipping file"
+    }
+  },
+  "feature_flags": {
+    "enable_lsp": true,
+    "enable_ast_fallback": true,
+    "enable_lsp_caching": true,
+    "enable_cross_file_resolution": false,
+    "enable_lsp_diagnostics": false
+  }
+}

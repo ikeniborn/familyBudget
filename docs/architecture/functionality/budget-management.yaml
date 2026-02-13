@@ -1,6 +1,20 @@
 # Budget Management Module
 # Articles, Facts, Hierarchy
 
+meta:
+  version: "1.0.0"
+  description: "Budget categories, transactions, and hierarchy management"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "1.0.0"
+  related_docs:
+    - "../database/dimensions.yaml#/tables/t_d_article"
+    - "../database/facts.yaml#/tables/t_f_budget_fact"
+    - "../database/hierarchy.yaml"
+    - "../endpoints/articles.yaml"
+    - "../endpoints/facts.yaml"
+
 module:
   name: budget_management
   description: "Управление категориями бюджета (articles), транзакциями (facts), иерархией"

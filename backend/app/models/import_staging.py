@@ -7,11 +7,9 @@ Holds imported transactions before user enrichment (category, FC, CC assignment)
 Pattern: Staging table (temporary, deleted after import execution)
 Table: t_import_staging
 """
-
 from datetime import date, datetime
-from typing import Optional
 
-from sqlalchemy import JSON, Text, Column, BigInteger, ForeignKey
+from sqlalchemy import JSON, BigInteger, Column, ForeignKey, Text
 from sqlmodel import Field, SQLModel
 
 
@@ -50,7 +48,7 @@ class ImportStaging(SQLModel, table=True):
     __tablename__ = "t_import_staging"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key (BIGSERIAL in PostgreSQL)"
@@ -65,14 +63,14 @@ class ImportStaging(SQLModel, table=True):
     )
 
     # File upload reference
-    file_upload_id: Optional[int] = Field(
+    file_upload_id: int | None = Field(
         default=None,
         sa_column=Column(BigInteger, ForeignKey("t_import_file_upload.id"), nullable=True),
         description="Reference to file upload metadata"
     )
 
     # Bank provider reference (for filtering staging by bank)
-    bank_provider_id: Optional[int] = Field(
+    bank_provider_id: int | None = Field(
         default=None,
         foreign_key="t_d_bank_provider.id",
         index=True,
@@ -91,13 +89,13 @@ class ImportStaging(SQLModel, table=True):
         description="Raw amount string from CSV with sign and separator (e.g., '-900,00')"
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         sa_column=Column(Text),
         description="Transaction description from CSV (mapped column)"
     )
 
-    csv_metadata: Optional[dict] = Field(
+    csv_metadata: dict | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="Bank-specific metadata for UI filters. Structure: {category: str}. "
@@ -105,31 +103,31 @@ class ImportStaging(SQLModel, table=True):
     )
 
     # User-assigned enrichment fields (mutable via UI)
-    budget_description: Optional[str] = Field(
+    budget_description: str | None = Field(
         default=None,
         sa_type=Text,
         description="Custom budget description (overrides tinkoff_description in final import)"
     )
 
-    user_comment: Optional[str] = Field(
+    user_comment: str | None = Field(
         default=None,
         sa_type=Text,
         description="User comment added during enrichment (concatenated with description on import)"
     )
 
-    article_id: Optional[int] = Field(
+    article_id: int | None = Field(
         default=None,
         foreign_key="t_d_article.id",
         description="Budget category assigned by user (required before import)"
     )
 
-    financial_center_id: Optional[int] = Field(
+    financial_center_id: int | None = Field(
         default=None,
         foreign_key="t_d_financial_center.id",
         description="Financial center assigned by user (required before import)"
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         foreign_key="t_d_cost_center.id",
         description="Cost center assigned by user (optional)"

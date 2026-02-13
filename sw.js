@@ -6,30 +6,37 @@
  * - API endpoints: Network First
  * - HTML страницы: Network First
  *
- * Версионирование (v6.8.0+):
+ * Версионирование (v10.0+):
  * - CACHE_VERSION: Автоматически обновляется при каждом деплое
- * - Использует ЕДИНУЮ версию со всеми JS/CSS файлами (v{YYYYMMDD_HHMM})
- * - PLACEHOLDER заменяется в minify.sh через generate_cache_version()
+ * - Формат: Semantic versioning X.Y.Z (e.g., 10.0.38) - matches VERSION file
+ * - PLACEHOLDER заменяется в CI/CD через scripts/ci/cache_busting_ci.sh
  * - Изменение версии → браузер автоматически обнаруживает обновление SW
- * - Deployment: npm run minify:js → версия инжектится автоматически
+ * - Deployment: GitHub Actions → версия инжектится из VERSION file
+ * - Legacy format v{YYYYMMDD_HHMM} также поддерживается для обратной совместимости
  */
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// Cache version - автоматически заменяется при минификации
-// Формат: v{YYYYMMDD_HHMM} (совпадает с версиями всех JS/CSS файлов проекта)
-// IMPORTANT: minify.sh replaces PLACEHOLDER with actual version BEFORE terser minification
+// Cache version - автоматически заменяется в CI/CD через cache busting
+// Формат: X.Y.Z semantic versioning (совпадает с VERSION file)
+// IMPORTANT: scripts/ci/cache_busting_ci.sh replaces PLACEHOLDER during build
+// Legacy format v{YYYYMMDD_HHMM} также поддерживается
 const CACHE_VERSION = 'PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Validation: warn if PLACEHOLDER wasn't replaced (build script error)
-// Use runtime string construction to prevent terser constant folding
-const PLACEHOLDER_CHECK = 'PLACE' + 'HOLDER'; // Split to prevent replacement
-if (CACHE_VERSION.includes(PLACEHOLDER_CHECK)) {
-  console.error('[SW] CRITICAL: PLACEHOLDER not replaced - build script failed!');
+// Supported formats:
+// - Semantic versioning: X.Y.Z (e.g., 10.0.38)
+// - Legacy timestamp: v{YYYYMMDD_HHMM} (e.g., v20260121_0438)
+// PLACEHOLDER (11 chars) is invalid
+const isSemanticVersion = /^\d+\.\d+\.\d+$/.test(CACHE_VERSION);
+const isLegacyVersion = /^v\d{8}_\d{4}$/.test(CACHE_VERSION);
+
+if (!isSemanticVersion && !isLegacyVersion) {
+  console.error('[SW] CRITICAL: Cache version not properly set - build script failed!');
   console.error('[SW] Service Worker will NOT work correctly');
-  console.error('[SW] Please check minify.sh execution');
+  console.error('[SW] Expected format: X.Y.Z or v{YYYYMMDD_HHMM}, got:', CACHE_VERSION);
 }
 
 // Критическая статика БЕЗ версий (для precaching в install event)
@@ -66,9 +73,7 @@ const OFFLINE_PAGE_ASSETS = [
   // === Страница /lists ===
   // CSS
   '/static/css/lists.min.css',
-  // JS - offline support
-  '/static/js/offline/offlineShoppingManager.min.js',
-  // JS - lists functionality (единый бандл с v7.0.1+)
+  // JS - lists functionality (единый бандл с v7.0.1+, includes offline support)
   '/static/js/lists.min.js',
   // JS - WebSocket client
   '/static/js/budget/budgetWSClient.min.js',
@@ -81,54 +86,66 @@ self.addEventListener('install', (event) => {
   console.log('[SW] 📦 Installing Service Worker version:', CACHE_VERSION);
 
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        if (DEBUG) console.log('[SW] Caching static files');
-        // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
-        return Promise.allSettled(
-          STATIC_CACHE.map(url =>
-            cache.add(url).catch(err => {
-              // Подавляем ошибки кэширования - файл закэшируется позже при запросе
-              if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
+    (async () => {
+      // Check if we're in post-update mode (skip caching)
+      // Use Cache API flag instead of MessageChannel (more reliable after unregister)
+      try {
+        const updateModeCache = await caches.match('__sw_update_mode__');
+        if (updateModeCache) {
+          console.log('[SW] ⏭️ Skipping cache creation (post-update mode)');
+
+          // Clean up flag cache
+          await caches.delete('__sw_update_mode__');
+
+          // Skip waiting and activate immediately
+          await self.skipWaiting();
+          return; // Exit early, no caching
+        }
+      } catch (e) {
+        console.warn('[SW] Error checking update mode flag:', e.message);
+        // Continue with normal caching on error
+      }
+
+      // Normal caching flow...
+      const cache = await caches.open(CACHE_NAME);
+
+      if (DEBUG) console.log('[SW] Caching static files');
+      // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
+      await Promise.allSettled(
+        STATIC_CACHE.map(url =>
+          cache.add(url).catch(err => {
+            // Подавляем ошибки кэширования - файл закэшируется позже при запросе
+            if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
+            return null;
+          })
+        )
+      );
+
+      // Кэшируем ресурсы для offline страниц (CSS/JS)
+      // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
+      if (DEBUG) console.log('[SW] Caching offline page assets');
+      await Promise.allSettled(
+        OFFLINE_PAGE_ASSETS.map(url =>
+          fetch(url, { credentials: 'omit' })
+            .then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+              if (DEBUG) console.warn('[SW] Asset not found:', url);
               return null;
             })
-          )
-        );
-      })
-      .then(() => {
-        // Кэшируем ресурсы для offline страниц (CSS/JS)
-        // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
-        if (DEBUG) console.log('[SW] Caching offline page assets');
-        return caches.open(CACHE_NAME).then((cache) => {
-          return Promise.allSettled(
-            OFFLINE_PAGE_ASSETS.map(url =>
-              fetch(url, { credentials: 'omit' })
-                .then(response => {
-                  if (response.ok) {
-                    return cache.put(url, response);
-                  }
-                  if (DEBUG) console.warn('[SW] Asset not found:', url);
-                  return null;
-                })
-                .catch(err => {
-                  // Подавляем ошибки - файл может закэшироваться позже
-                  if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
-                  return null;
-                })
-            )
-          );
-        });
-      })
-      .then(() => {
-        console.log('[SW] ⚡ Calling skipWaiting() for immediate activation');
-        return self.skipWaiting();
-      })
-      .then(() => {
-        console.log('[SW] ✓ skipWaiting() completed');
-      })
-      .catch((err) => {
-        console.error('[SW] ERROR during install:', err);
-      })
+            .catch(err => {
+              // Подавляем ошибки - файл может закэшироваться позже
+              if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
+              return null;
+            })
+        )
+      );
+
+      console.log('[SW] ⚡ Calling skipWaiting() for immediate activation');
+      await self.skipWaiting();
+      console.log('[SW] ✓ skipWaiting() completed');
+    })()
   );
 });
 
@@ -182,6 +199,137 @@ self.addEventListener('activate', (event) => {
     })()
   );
 });
+
+// === Periodic Sync for Data Pruning (task-010) ===
+//
+// IMPORTANT: Periodic Background Sync API is NOT supported in iOS Safari 16+
+// - Only works in Chrome/Edge desktop and Android
+// - iOS fallback: Client code should use Page Visibility API or manual timer
+// - Registration in client: if ('periodicSync' in registration) { ... }
+// - iOS behavior: Event listener registered but never fires
+//
+// See: https://caniuse.com/periodic-background-sync
+// Chrome support: 80+, Safari: No support
+
+const PRUNING_TAG = 'weekly-pruning';
+const PRUNING_MAX_RETRIES = 3;
+const PRUNING_RETRY_DELAY = 5000; // 5 seconds
+
+// Periodic sync event handler (Chrome/Edge only - iOS Safari will never trigger)
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === PRUNING_TAG) {
+    event.waitUntil(performPruning());
+  }
+});
+
+/**
+ * Perform automatic data pruning with retry logic
+ * Only executes if enableAutoPruning flag is enabled
+ */
+async function performPruning() {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= PRUNING_MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[PRUNING_SW] Attempt ${attempt}/${PRUNING_MAX_RETRIES}`);
+
+      // Check if auto-pruning enabled (read from localStorage via clients API)
+      const clients = await self.clients.matchAll({ type: 'window' });
+      if (clients.length === 0) {
+        console.log('[PRUNING_SW] No active clients, skipping');
+        return;
+      }
+
+      // Get flag from first client's localStorage via message
+      const client = clients[0];
+      const response = await sendMessageToClient(client, {
+        type: 'GET_PRUNING_FLAG'
+      });
+
+      if (!response || !response.enableAutoPruning) {
+        console.log('[PRUNING_SW] Auto-pruning disabled, skipping');
+        return;
+      }
+
+      // Send message to client to execute pruning
+      const pruneResponse = await sendMessageToClient(client, {
+        type: 'EXECUTE_PRUNING'
+      });
+
+      if (pruneResponse && pruneResponse.success) {
+        const result = pruneResponse.result;
+
+        console.log('[PRUNING_SW] Completed successfully', result);
+
+        // Show notification if significant cleanup
+        if (result.deletedCount > 0) {
+          await self.registration.showNotification('Data Cleanup', {
+            body: `Removed ${result.deletedCount} old transactions (${(result.dbSizeBefore - result.dbSizeAfter).toFixed(0)} KB saved)`,
+            icon: '/static/icons/icon-192.png',
+            badge: '/static/icons/icon-192.png'
+          });
+        }
+
+        // Success - exit retry loop
+        return;
+      } else {
+        throw new Error(pruneResponse?.error || 'Unknown error');
+      }
+    } catch (error) {
+      lastError = error;
+      console.error(`[PRUNING_SW] Attempt ${attempt} failed:`, error);
+
+      // If not last attempt, wait before retrying (exponential backoff)
+      if (attempt < PRUNING_MAX_RETRIES) {
+        const delay = PRUNING_RETRY_DELAY * Math.pow(2, attempt - 1); // 5s, 10s, 20s
+        console.log(`[PRUNING_SW] Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // All retries exhausted - show error notification
+  console.error('[PRUNING_SW] All retries exhausted', lastError);
+  await self.registration.showNotification('Data Cleanup Error', {
+    body: 'Failed to clean up old data after 3 attempts. Please try manual cleanup in Settings.',
+    icon: '/static/icons/icon-192.png',
+    badge: '/static/icons/icon-192.png',
+    tag: 'pruning-error'
+  });
+}
+
+/**
+ * Send message to client and wait for response with timeout
+ * @param {Client} client - Service Worker client
+ * @param {object} message - Message to send
+ * @param {number} timeout - Timeout in milliseconds (default: 10s)
+ * @returns {Promise} Response from client
+ */
+async function sendMessageToClient(client, message, timeout = 10000) {
+  return new Promise((resolve, reject) => {
+    const messageChannel = new MessageChannel();
+
+    // Setup timeout
+    const timeoutId = setTimeout(() => {
+      messageChannel.port1.close();
+      reject(new Error(`Message timeout after ${timeout}ms for type: ${message.type}`));
+    }, timeout);
+
+    messageChannel.port1.onmessage = (event) => {
+      clearTimeout(timeoutId);
+      messageChannel.port1.close();
+      resolve(event.data);
+    };
+
+    try {
+      client.postMessage(message, [messageChannel.port2]);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      messageChannel.port1.close();
+      reject(error);
+    }
+  });
+}
 
 // Fetch event - стратегия кеширования
 self.addEventListener('fetch', (event) => {
@@ -394,413 +542,13 @@ self.addEventListener('message', (event) => {
 // =============================================================================
 
 /**
- * IndexedDB Helper Functions
- * Используются для работы с offline data из Service Worker
+ * Offline Support
  *
- * ВАЖНО: DB_VERSION должна совпадать с версией в idb.js!
- * Service Worker НЕ создаёт схему (нет onupgradeneeded),
- * он только читает/пишет в существующие stores.
- * Схема управляется в frontend/web/static/js/offline/idb.js
+ * Offline data management migrated to Dexie.js (v11.3+)
+ * Legacy IndexedDB and Background Sync removed
+ * Sync handled via DataLayer + fullFactSync()
  */
-const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 5;  // ✅ Синхронизировано с idb.js (v5 - Added offline_recurring_plans)
 
-async function openIndexedDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function getSyncQueue(status = 'pending') {
-  const db = await openIndexedDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['sync_queue'], 'readonly');
-    const store = transaction.objectStore('sync_queue');
-    const index = store.index('status');
-    const request = index.getAll(status);
-
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function updateSyncQueueItem(id, updates) {
-  const db = await openIndexedDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['sync_queue'], 'readwrite');
-    const store = transaction.objectStore('sync_queue');
-    const getRequest = store.get(id);
-
-    getRequest.onsuccess = () => {
-      const item = getRequest.result;
-      if (!item) {
-        reject(new Error(`Sync queue item ${id} not found`));
-        return;
-      }
-
-      const updated = { ...item, ...updates };
-      const putRequest = store.put(updated);
-
-      putRequest.onsuccess = () => resolve();
-      putRequest.onerror = () => reject(putRequest.error);
-    };
-
-    getRequest.onerror = () => reject(getRequest.error);
-  });
-}
-
-/**
- * Clear completed items from sync_queue
- * Called after successful synchronization
- */
-async function clearCompletedSyncQueue() {
-  const db = await openIndexedDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(['sync_queue'], 'readwrite');
-    const store = transaction.objectStore('sync_queue');
-    const index = store.index('status');
-    const request = index.getAll('completed');
-
-    request.onsuccess = () => {
-      const completed = request.result || [];
-      completed.forEach(item => store.delete(item.id));
-      transaction.oncomplete = () => {
-        if (DEBUG && completed.length > 0) {
-          console.log(`[SW] Cleared ${completed.length} completed items from sync_queue`);
-        }
-        resolve(completed.length);
-      };
-      transaction.onerror = () => reject(transaction.error);
-    };
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/**
- * Delete record from offline store after successful sync
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
- * @param {string|number} tempId - Temporary ID of the offline record
- */
-async function deleteFromOfflineStore(entity, tempId) {
-  const db = await openIndexedDB();
-  const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' :
-                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([storeName], 'readwrite');
-    const store = transaction.objectStore(storeName);
-    const request = store.delete(tempId);
-
-    request.onsuccess = () => {
-      if (DEBUG) console.log(`[SW] Deleted ${entity} ${tempId} from ${storeName}`);
-      resolve();
-    };
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/**
- * Get record from offline store (for retrieving contentHash and syncHash)
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
- * @param {string|number} tempId - Temporary ID of the offline record
- * @returns {Promise<Object|null>} Offline record or null if not found
- */
-async function getOfflineRecord(entity, tempId) {
-  const db = await openIndexedDB();
-  const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' :
-                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
-
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction([storeName], 'readonly');
-    const store = transaction.objectStore(storeName);
-    const request = store.get(tempId);
-
-    request.onsuccess = () => {
-      if (DEBUG && request.result) {
-        console.log(`[SW] Found offline record for ${entity} ${tempId}:`, request.result);
-      }
-      resolve(request.result || null);
-    };
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/**
- * Background Sync Event Handler
- * Синхронизирует offline данные при восстановлении сети
- * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
- */
-self.addEventListener('sync', (event) => {
-  if (DEBUG) console.log('[SW] Background Sync triggered:', event.tag);
-
-  if (event.tag === 'sync-budget-data') {
-    event.waitUntil(syncBudgetData());
-  }
-});
-
-async function syncBudgetData() {
-  const results = { synced: 0, failed: 0 };
-
-  try {
-    const queue = await getSyncQueue('pending');
-    if (queue.length === 0) return results;
-
-    for (const item of queue) {
-      try {
-        const syncResult = await syncItem(item);
-        // Only count as synced if item was actually processed (not skipped)
-        if (syncResult !== null) {
-          results.synced++;
-        }
-      } catch (error) {
-        // Silently handle "item not found" errors (race condition with main thread)
-        if (error.message && error.message.includes('not found')) {
-          continue;
-        }
-
-        const retryCount = (item.retryCount || 0) + 1;
-        try {
-          if (retryCount >= 5) {
-            await updateSyncQueueItem(item.id, { status: 'failed', error: error.message, retryCount });
-            results.failed++;
-          } else {
-            await updateSyncQueueItem(item.id, { status: 'pending', error: error.message, retryCount });
-          }
-        } catch (e) {
-          // Item already removed by main thread - ignore
-        }
-      }
-    }
-
-    // Notify all clients about sync completion
-    let hasActiveClients = false;
-    try {
-      const clients = await self.clients.matchAll({ type: 'window' });
-      hasActiveClients = clients.length > 0;
-      clients.forEach(client => {
-        client.postMessage({
-          action: 'syncComplete',
-          synced: results.synced,
-          failed: results.failed
-        });
-      });
-    } catch (e) {
-      // Ignore postMessage errors
-    }
-
-    // Show push notification ONLY if no active clients (user not using app)
-    // If user is active, they already receive toast from handleSyncComplete()
-    // This prevents duplicate notifications (push + toast)
-    if (results.synced > 0 && !hasActiveClients) {
-      try {
-        await self.registration.showNotification('Синхронизация завершена', {
-          body: `Синхронизировано записей: ${results.synced}`,
-          icon: '/static/icons/icon-192.png',
-          badge: '/static/icons/icon-192.png',
-          tag: 'sync-completed',
-          data: { type: 'sync_completed', count: results.synced }
-        });
-      } catch (e) {
-        // Notification permission denied - ignore
-      }
-    }
-
-    // Clear completed items from sync_queue
-    try {
-      await clearCompletedSyncQueue();
-    } catch (e) {
-      // Ignore cleanup errors
-      if (DEBUG) console.error('[SW] Failed to clear completed sync queue:', e);
-    }
-
-    return results;
-  } catch (error) {
-    // Only log real errors, not race condition errors
-    if (!error.message || !error.message.includes('not found')) {
-      console.error('[SW] Background sync failed:', error);
-    }
-    return results; // Return results instead of throwing
-  }
-}
-
-async function syncItem(item) {
-  // Update status (ignore errors - item may have been removed by main thread)
-  try {
-    await updateSyncQueueItem(item.id, { status: 'syncing' });
-  } catch (e) {
-    // Item already processed by main thread, skip
-    return null;
-  }
-
-  let response;
-
-  switch (item.operation) {
-    case 'create':
-      response = await syncCreate(item);
-      break;
-    case 'update':
-      response = await syncUpdate(item);
-      break;
-    case 'delete':
-      response = await syncDelete(item);
-      break;
-    default:
-      throw new Error(`Unknown operation: ${item.operation}`);
-  }
-
-  // Mark as completed (ignore errors - item may have been removed)
-  try {
-    await updateSyncQueueItem(item.id, { status: 'completed' });
-  } catch (e) {
-    // Already processed
-  }
-
-  // Delete record from offline store after successful sync
-  if (item.operation === 'create' && item.tempId) {
-    try {
-      await deleteFromOfflineStore(item.entity, item.tempId);
-    } catch (e) {
-      // Ignore - may already be deleted by main thread
-      if (DEBUG) console.log('[SW] Failed to delete from offline store (may already be deleted):', e.message);
-    }
-  }
-
-  return response;
-}
-
-function cleanEntityData(entity, data) {
-  const cleaned = { ...data };
-  delete cleaned.article_name;
-  delete cleaned.financial_center_name;
-  delete cleaned.cost_center_name;
-  delete cleaned.plan_date;
-  delete cleaned.fact_type;
-  delete cleaned.notification_enabled;
-  delete cleaned.reminder_datetime;
-
-  if (entity === 'transfer') {
-    delete cleaned.from_financial_center_name;
-    delete cleaned.to_financial_center_name;
-    delete cleaned.from_article_name;
-    delete cleaned.to_article_name;
-  }
-
-  if (entity === 'recurring') {
-    delete cleaned.frequency_label;
-    delete cleaned.duration_label;
-  }
-
-  return cleaned;
-}
-
-async function handleSyncError(response) {
-  let errorDetail = `HTTP ${response.status}`;
-  try {
-    const error = await response.json();
-    errorDetail = error.detail || errorDetail;
-  } catch (e) {
-    errorDetail = response.statusText || errorDetail;
-  }
-  throw new Error(errorDetail);
-}
-
-async function syncCreate(item) {
-  // Route to appropriate API endpoint based on entity type
-  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
-                   item.entity === 'transfer' ? '/api/v1/transfers' :
-                   item.entity === 'recurring' ? '/api/v1/recurring-plans' :
-                   '/api/v1/facts';
-
-  const cleanData = cleanEntityData(item.entity, item.data);
-
-  // Mark as offline sync (for facts, plans, transfers - NOT recurring plans)
-  // RecurringPlan model doesn't have is_offline_sync field
-  if (item.entity !== 'recurring') {
-    cleanData.is_offline_sync = true;
-  }
-
-  // Add content_hash and sync_hash for backend deduplication (prevents duplicate records)
-  // These hashes were generated when the offline record was created and stored in IndexedDB
-  // Note: Only for facts and plans, not for recurring plans or transfers
-  if ((item.entity === 'fact' || item.entity === 'plan') && item.tempId) {
-    try {
-      const offlineRecord = await getOfflineRecord(item.entity, item.tempId);
-      if (offlineRecord) {
-        if (offlineRecord.contentHash) {
-          cleanData.content_hash = offlineRecord.contentHash;
-        }
-        if (offlineRecord.syncHash) {
-          cleanData.sync_hash = offlineRecord.syncHash;
-        }
-        if (DEBUG) console.log(`[SW] Added deduplication hashes for ${item.tempId}:`, {
-          content_hash: cleanData.content_hash,
-          sync_hash: cleanData.sync_hash
-        });
-      }
-    } catch (e) {
-      // Ignore - record may already be deleted by main thread
-      if (DEBUG) console.log(`[SW] Could not get offline record for ${item.tempId}:`, e.message);
-    }
-  }
-
-  if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cleanData),
-    credentials: 'include'
-  });
-
-  if (!response.ok) await handleSyncError(response);
-
-  return await response.json();
-}
-
-async function syncUpdate(item) {
-  const id = item.data.id;
-  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
-  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
-                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
-                   `/api/v1/facts/${id}`;
-
-  const cleanData = cleanEntityData(item.entity, item.data);
-
-  if (DEBUG) console.log(`[SW] Updating ${item.entity} at ${endpoint}:`, cleanData);
-
-  const response = await fetch(endpoint, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cleanData),
-    credentials: 'include'
-  });
-
-  if (!response.ok) await handleSyncError(response);
-
-  return await response.json();
-}
-
-async function syncDelete(item) {
-  const id = item.data.id;
-  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
-  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
-                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
-                   `/api/v1/facts/${id}`;
-
-  const response = await fetch(endpoint, {
-    method: 'DELETE',
-    credentials: 'include'
-  });
-
-  if (!response.ok) await handleSyncError(response);
-
-  // DELETE returns 204 No Content, so no JSON body
-  return { success: true };
-}
 
 /**
  * Push Notification Event Handler

@@ -15,13 +15,12 @@ Security Requirements:
     - Strict adherence to Telegram's algorithm
     - No custom modifications to validation logic
 """
-
 import hashlib
 import hmac
-import httpx
 import logging
 import time
-from typing import Dict, Optional
+
+import httpx
 
 from backend.app.core.config import get_settings
 
@@ -33,7 +32,7 @@ logger = logging.getLogger(__name__)
 AUTH_DATE_EXPIRATION = 300
 
 
-async def get_bot_username() -> Optional[str]:
+async def get_bot_username() -> str | None:
     """
     Get bot username from Telegram API using bot token.
 
@@ -171,7 +170,7 @@ async def validate_telegram_user(telegram_id: int) -> bool:
         return False
 
 
-async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]:
+async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
     """
     Fetch user information from Telegram using Bot API.
 
@@ -299,7 +298,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]
         return None
 
 
-def validate_telegram_auth(data: Dict[str, any]) -> bool:
+def validate_telegram_auth(data: dict[str, any]) -> bool:
     """
     Validate Telegram OAuth authentication data.
 

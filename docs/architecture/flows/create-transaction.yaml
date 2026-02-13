@@ -206,7 +206,7 @@ steps:
   5_ws_broadcast:
     name: "Real-time Notification"
     component:
-      $ref: "../functionality/realtime.yaml#/module/services/0"
+      $ref: "../functionality/realtime.yaml#/connection_manager"
     event:
       name: "fact_created"
       data:

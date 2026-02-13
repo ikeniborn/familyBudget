@@ -33,7 +33,7 @@ Error Response (429 Too Many Requests):
 """
 
 import logging
-from typing import Optional
+import os
 
 from fastapi import Request
 from slowapi import Limiter
@@ -96,9 +96,15 @@ def rate_limit_key_func(request: Request) -> str:
 # Uses in-memory storage by default (suitable for single-instance deployment)
 # For multi-instance deployment, configure Redis storage:
 #   limiter = Limiter(key_func=rate_limit_key_func, storage_uri="redis://localhost:6379")
+#
+# ⚠️ TESTING: Rate limiting disabled in test environment to prevent 429 errors
+# during rapid sequential test execution (e.g. test_admin_auth_bypass.py has 9 tests)
+TESTING_MODE = os.getenv("ENVIRONMENT") == "test"
+
 limiter = Limiter(
     key_func=rate_limit_key_func,
-    default_limits=["200/minute"],  # Default limit for non-decorated endpoints
+    default_limits=[] if TESTING_MODE else ["200/minute"],  # Disable rate limits in tests
+    enabled=not TESTING_MODE,  # Completely disable limiter in test environment
 )
 
 

@@ -9,9 +9,7 @@ Key features:
 - Shared across all users (admin-managed)
 - Full change history in StoreHistory table
 """
-
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -79,7 +77,7 @@ class Store(SQLModel, table=True):
     __tablename__ = "t_d_store"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -100,15 +98,15 @@ class Store(SQLModel, table=True):
         index=True,
         description="Store display name (unique)"
     )
-    address: Optional[str] = Field(
+    address: str | None = Field(
         default=None,
         description="Physical address of the store"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes about the store"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         nullable=True,

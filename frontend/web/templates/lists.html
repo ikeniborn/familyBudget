@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
+{# Import macros #}
+{% from "components/lists/modal_create_list.html" import create_list_modal %}
+{% from "components/lists/modal_item.html" import item_modal %}
+{% from "components/lists/modal_delete_confirm.html" import delete_confirm_modal %}
+{% from "components/lists/modal_delete_list.html" import delete_list_modal %}
+{% from "components/lists/modal_fab_confirm.html" import fab_confirm_modal %}
+
 {% block extra_head %}
 <!-- Choices.js for product group hierarchical selector -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
@@ -8,572 +15,49 @@
 <!-- Lists CSS -->
 <link rel="stylesheet" href="/static/css/lists.min.css?v=PLACEHOLDER">
 
-<!-- CRITICAL FIX: Override base.html inline mobile modal overflow -->
-<!-- Inline styles have highest CSS cascade priority -->
-<style>
-@media (max-width: 640px) {
-    /* Override base.html overflow-y: auto for Store dropdown z-index fix */
-    #item-modal.store-dropdown-open .modal-box {
-        overflow-y: visible !important;
-        overflow-x: visible !important;
-    }
-
-    #item-modal.store-dropdown-open .form-control {
-        overflow: visible !important;
-    }
-}
-</style>
+{# Inline Styles: iOS Safari store dropdown z-index fix #}
+{% include "components/lists/inline_styles.html" %}
 {% endblock %}
 
 {% block mobile_menu %}
-<!-- Mobile Menu for Lists Page (visible only on mobile) -->
-<div class="btm-nav md:hidden z-50" id="lists-mobile-menu">
-    <!-- Home Button -->
-    <button
-        type="button"
-        hx-get="/"
-        hx-target="body"
-        hx-swap="outerHTML"
-        hx-push-url="true"
-        onclick="navigateHomeOfflineFriendly()"
-        class="text-primary"
-        aria-label="Главная">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        <span class="btm-nav-label text-xs">Главная</span>
-    </button>
-
-    <!-- Add Button (Context-aware: Landing → Create List, Detail → Add Item) -->
-    <button
-        type="button"
-        id="mobile-add-button"
-        onclick="handleMobileAddButton()"
-        class="btn btn-ghost btn-sm flex flex-col items-center gap-0 text-primary mobile-add-button"
-        title="Добавить"
-        aria-label="Добавить">
-        <span id="mobile-add-icon" class="text-xl" style="transition: all 0.3s ease;">➕</span>
-        <span class="text-xs">Добавить</span>
-    </button>
-</div>
-
-<style>
-    /* Lists page mobile menu styling */
-    @media (max-width: 768px) {
-        #lists-mobile-menu {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4rem;
-            background: oklch(var(--b1));
-            border-top: 1px solid oklch(var(--b3));
-        }
-
-        /* Add padding to page content to prevent overlap */
-        #lists-content {
-            padding-bottom: 5rem;
-        }
-
-        /* Lower z-index when modal is open */
-        .modal-open #lists-mobile-menu {
-            z-index: 40;
-        }
-    }
-
-    /* Mobile "Add" button icon animation */
-    .mobile-add-button #mobile-add-icon {
-        transition: transform 0.3s ease, opacity 0.2s ease;
-        display: inline-block;
-    }
-
-    /* Subtle scale effect on hover (desktop only) */
-    @media (hover: hover) {
-        .mobile-add-button:hover #mobile-add-icon {
-            transform: scale(1.1);
-        }
-    }
-
-    /* Keyboard navigation focus state */
-    .mobile-add-button:focus-visible {
-        outline: 2px solid currentColor;
-        outline-offset: 2px;
-    }
-
-    .mobile-add-button:focus-visible #mobile-add-icon {
-        transform: scale(1.1);
-    }
-</style>
+{# Mobile Menu (context-aware add button) #}
+{% include "components/lists/mobile_menu.html" %}
 {% endblock %}
 
 {% block content %}
 <div id="lists-content" class="space-y-1 -mt-6">
-    <!-- ============================================== -->
-    <!-- LANDING VIEW: Grid of Shopping List Cards -->
-    <!-- ============================================== -->
-    <div id="landing-view" class="view-state">
-        <!-- Page Header - compact on mobile -->
-        <div class="mb-2">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
-                <div class="flex-1 min-w-0">
-                    <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
-                    <p class="text-sm sm:text-base text-base-content/70">Управляйте списками покупок</p>
-                </div>
-            </div>
-        </div>
+    {# Landing View: Grid of shopping list cards #}
+    {% include "partials/lists/landing_view.html" %}
 
-        <!-- Shopping Lists Grid -->
-        <div id="lists-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Cards will be rendered here dynamically -->
-        </div>
-
-        <!-- Empty State -->
-        <div id="empty-state" class="hidden text-center py-12">
-            <div class="text-6xl mb-4">🛒</div>
-            <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Нет списков покупок</h3>
-            <p class="text-base-content/70 mb-4">Создайте первый список, чтобы начать</p>
-            <button class="btn btn-primary" onclick="openCreateListModal()">
-                ➕ Создать список
-            </button>
-        </div>
-    </div>
-
-    <!-- ============================================== -->
-    <!-- DETAIL VIEW: Shopping List Items Table -->
-    <!-- ============================================== -->
-    <div id="detail-view" class="view-state hidden">
-        <!-- Breadcrumb Navigation -->
-        <div class="text-sm breadcrumbs">
-            <ul>
-                <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
-                <li id="breadcrumb-list-name">Loading...</li>
-            </ul>
-        </div>
-
-        <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
-        <div class="bg-base-100 shadow-sm sm:shadow-md hidden sm:block rounded-lg">
-            <div class="px-2 sm:px-4 py-2">
-                <!-- Toggle button - всегда виден -->
-                <button id="import-toggle" onclick="toggleImportWizard()"
-                        class="w-full text-left text-base sm:text-lg font-medium cursor-pointer flex items-center hover:text-primary transition-colors">
-                    <span id="import-toggle-icon">▶</span>
-                    <span class="ml-2">📥 Импорт</span>
-                    <span id="import-toggle-hint" class="text-xs text-base-content/50 font-normal ml-2">(нажмите чтобы раскрыть)</span>
-                </button>
-
-                <!-- Wizard container - показывается при клике -->
-                <div id="import-wizard-container" class="hidden mt-2 sm:mt-4">
-                    <p class="text-xs sm:text-sm text-base-content/70 mb-2 sm:mb-4">
-                        Загрузите CSV или укажите ссылку на Google Sheets.
-                    </p>
-                    <div id="import-wizard">
-                        <!-- Import wizard will be rendered here by ImportManager -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Search Field Container (togglable) -->
-        <div id="search-field-container" class="mb-3 sm:mb-4 hidden">
-            <div class="relative">
-                <input type="text"
-                       id="items-search"
-                       class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
-                       placeholder="Поиск по товарам..."
-                       oninput="handleItemsSearch(this.value)">
-                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">🔍</span>
-                <button id="clear-search-btn"
-                        class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle hidden"
-                        onclick="clearItemsSearch()"
-                        title="Очистить поиск">✕</button>
-            </div>
-        </div>
-
-        <!-- Toolbar - compact scrollable on mobile -->
-        <div class="toolbar">
-            <!-- Shared Controls (visible in both views) -->
-            <!-- Note: Mark All, Unmark All, Delete Completed moved to FAB menu -->
-            <div class="flex gap-1 sm:gap-2" id="shared-controls">
-                <button id="toggle-hide-completed-btn" class="btn btn-sm btn-outline sm:min-w-44" onclick="toggleHideCompleted()" title="Скрыть выполненные">
-                    <span>👁️</span><span class="hidden sm:inline ml-1">Скрыть выполненные</span>
-                </button>
-            </div>
-
-            <!-- Search Toggle Button -->
-            <div class="flex gap-1 sm:gap-2">
-                <button id="toggle-search-btn" class="btn btn-sm btn-outline" onclick="toggleSearchField()" title="Поиск">
-                    <span>🔍</span><span class="hidden sm:inline ml-1">Поиск</span>
-                </button>
-            </div>
-
-            <!-- Spacer -->
-            <div class="flex-1 min-w-4"></div>
-
-            <!-- Hierarchy-specific Controls (Hierarchy View Only) - moved to right side -->
-            <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
-                <button id="hierarchy-toggle-btn" class="btn btn-sm" onclick="toggleAllNodes()" title="Развернуть/свернуть все узлы" data-action="expand">
-                    <span id="hierarchy-toggle-icon">⬇️</span><span id="hierarchy-toggle-text" class="hidden sm:inline ml-1">Развернуть</span>
-                </button>
-            </div>
-
-            <!-- View Toggle (Desktop Only) -->
-            <div class="join flex-shrink-0 hidden sm:flex">
-                <button class="btn btn-sm join-item" id="table-view-btn" onclick="switchView('table')" title="Вид таблицы">
-                    <span>📋</span><span class="hidden sm:inline ml-1">Таблица</span>
-                </button>
-                <button class="btn btn-sm join-item btn-outline" id="hierarchy-view-btn" onclick="switchView('hierarchy')" title="Иерархический вид">
-                    <span>🌳</span><span class="hidden sm:inline ml-1">Иерархия</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Table View -->
-        <!-- CRITICAL: Hidden on mobile by default (max-[639px]:hidden) to prevent flicker -->
-        <!-- JavaScript will show correct view after initialization -->
-        <div id="table-view" class="view-mode max-[639px]:hidden">
-            <!-- Table View (responsive with horizontal scroll on mobile) -->
-            <div class="overflow-x-auto shadow-lg rounded-lg" id="desktop-table-container">
-                <table class="table table-zebra w-full">
-                    <thead>
-                        <tr>
-                            <th>🏪 Магазин</th>
-                            <th>📦 Группа</th>
-                            <th>🛒 Товар</th>
-                            <th class="text-right">📊 Кол-во</th>
-                            <th>📏 Ед.</th>
-                            <th>💬 Комментарий</th>
-                            <th class="text-center">⚙️</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-table-body">
-                        <!-- Items will be rendered here dynamically -->
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Empty State for Table -->
-            <div id="table-empty-state" class="hidden text-center py-12 bg-base-100 shadow-lg rounded-lg">
-                <div class="text-6xl mb-4">📝</div>
-                <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Список пуст</h3>
-                <p class="text-base-content/70 mb-4">Добавьте первый товар или импортируйте из CSV</p>
-                <button class="btn btn-primary" onclick="openAddItemModal()">
-                    ➕ Добавить товар
-                </button>
-            </div>
-        </div>
-
-        <!-- Hierarchy View -->
-        <!-- CRITICAL: Visible on mobile by default (min-[640px]:hidden) to prevent flicker -->
-        <!-- Hidden on desktop until user switches view (JavaScript controls) -->
-        <div id="hierarchy-view" class="view-mode min-[640px]:hidden">
-            <div class="bg-base-100 shadow-lg rounded-lg p-4">
-                <div id="hierarchy-tree">
-                    <!-- Hierarchy tree will be rendered here dynamically by hierarchyView.js -->
-                </div>
-            </div>
-        </div>
-    </div>
+    {# Detail View: Shopping list items with table/hierarchy views #}
+    {% include "partials/lists/detail_view.html" %}
 </div>
 
-<!-- ============================================== -->
-<!-- MODALS -->
-<!-- ============================================== -->
+{# ============================================== #}
+{# MODALS #}
+{# ============================================== #}
 
-<!-- Create Shopping List Modal - compact on mobile -->
-<dialog id="create-list-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">📝 Создать список</h3>
-        <form id="create-list-form" onsubmit="handleCreateList(event)">
-            <div class="form-control mb-3 sm:mb-4">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-sm">Название <span class="text-error">*</span></span>
-                </label>
-                <input type="text" name="name" class="input input-bordered input-sm sm:input-md" placeholder="Продукты на неделю" required>
-            </div>
+{# Create Shopping List Modal #}
+{{ create_list_modal() }}
 
-            <div class="form-control mb-3 sm:mb-4">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-sm">Описание</span>
-                </label>
-                <textarea name="description" class="textarea textarea-bordered textarea-sm sm:textarea-md" rows="2" placeholder="Опционально"></textarea>
-            </div>
+{# Add/Edit Item Modal (with autocomplete & iOS Safari fix) #}
+{{ item_modal() }}
 
-            <div class="modal-action mt-3 sm:mt-4 gap-2">
-                <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeCreateListModal()">Отмена</button>
-                <button type="submit" class="btn btn-primary btn-sm sm:btn-md flex-1 sm:flex-initial">Создать</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+{# Delete Items Confirmation Modal #}
+{{ delete_confirm_modal() }}
 
-<!-- Add/Edit Item Modal - compact on mobile -->
-<dialog id="item-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box max-w-2xl p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="item-modal-title">📝 Добавить товар</h3>
-        <form id="item-form" onsubmit="handleSaveItem(event)">
-            <input type="hidden" name="item_id" id="item-id">
+{# Delete List Confirmation Modal #}
+{{ delete_list_modal() }}
 
-            <!-- Product Name - first field for quick entry (with autocomplete) -->
-            <div class="form-control mb-2 sm:mb-4 relative">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-xs sm:text-sm">🛒 Товар <span class="text-error">*</span></span>
-                </label>
-                 <input type="text" name="product_name" id="item-product-name"
-                       class="input input-bordered input-sm sm:input-md"
-                       placeholder="Молоко 3.2%" required
-                       autocomplete="new-password">
-                <!-- Autocomplete dropdown moved to body (Portal pattern for iOS Safari fix) -->
-            </div>
-
-            <!-- Store -->
-            <div class="form-control mb-2 sm:mb-4">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-xs sm:text-sm">🏪 Магазин <span class="text-error">*</span></span>
-                </label>
-                <select name="store_id" id="item-store" class="select select-bordered select-sm sm:select-md" required>
-                    <option value="">Магазин</option>
-                    <!-- Options populated dynamically via Choices.js -->
-                </select>
-            </div>
-
-            <!-- Product Group -->
-            <div class="form-control mb-2 sm:mb-4">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-xs sm:text-sm">📦 Группа <span class="text-error">*</span></span>
-                </label>
-                <select name="product_group_id" id="item-product-group" class="select select-bordered select-sm sm:select-md" required>
-                    <option value="">Группа</option>
-                    <!-- Options populated dynamically with hierarchy -->
-                </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-4">
-                <!-- Quantity -->
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text font-medium text-xs sm:text-sm">📊 Кол-во</span>
-                    </label>
-                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="1" min="0" placeholder="1">
-                </div>
-
-                <!-- Unit -->
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text font-medium text-xs sm:text-sm">📏 Ед.</span>
-                    </label>
-                    <select name="unit" id="item-unit" class="select select-bordered select-sm sm:select-md">
-                        <option value="">—</option>
-                        <option value="шт">шт</option>
-                        <option value="кг">кг</option>
-                        <option value="г">г</option>
-                        <option value="л">л</option>
-                        <option value="мл">мл</option>
-                        <option value="уп">уп</option>
-                        <option value="пач">пач</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Comment -->
-            <div class="form-control mb-2 sm:mb-4">
-                <label class="label py-1">
-                    <span class="label-text font-medium text-xs sm:text-sm">💬 Комментарий</span>
-                </label>
-                <textarea name="comment" id="item-comment" class="textarea textarea-bordered textarea-sm sm:textarea-md" rows="1" placeholder="Опционально"></textarea>
-            </div>
-
-            <!-- Duplicate warning container (hidden by default) -->
-            <div id="duplicate-warning-container" class="hidden mb-2 sm:mb-4">
-                <div class="alert alert-warning py-2 px-3 text-xs sm:text-sm">
-                    <div class="flex items-center gap-2">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        <div class="flex-1">
-                            <div class="font-semibold">Уже добавлено:</div>
-                            <div id="duplicate-details" class="mt-1"></div>
-                            <!-- Future quantity display (shown when user enters quantity) -->
-                            <div id="future-quantity" class="mt-1 font-bold text-success hidden">
-                                → Будет: <span id="future-quantity-value"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="modal-action mt-3 sm:mt-4 gap-2">
-                <!-- NEW: Delete button (left position, only in edit mode) -->
-                <button type="button"
-                        class="btn btn-error btn-sm sm:btn-md hidden"
-                        id="item-modal-delete-btn"
-                        onclick="handleDeleteFromModal()"
-                        title="Удалить товар"
-                        aria-label="Удалить товар">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
-                    <span class="hidden sm:inline ml-1">Удалить</span>
-                </button>
-
-                <!-- Spacer -->
-                <div class="flex-1"></div>
-
-                <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeItemModal()">Отмена</button>
-                <button type="submit" class="btn btn-primary btn-sm sm:btn-md">Сохранить</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-
-    <!-- ============================================== -->
-    <!-- AUTOCOMPLETE DROPDOWN (Inside Dialog Top Layer) -->
-    <!-- ============================================== -->
-    <!-- Dropdown inside <dialog> to be in same top layer as modal -->
-    <!-- Positioned via JavaScript using getBoundingClientRect() -->
-    <div id="product-suggestions-dropdown"
-         class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
-         style="pointer-events: auto; z-index: 9999;">
-        <!-- Suggestions will be rendered here by listsManager.js -->
-    </div>
-</dialog>
-
-<!-- Delete Confirmation Modal - compact on mobile -->
-<dialog id="delete-confirm-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">⚠️ Удалить товары?</h3>
-        <p class="text-sm sm:text-base mb-3 sm:mb-4" id="delete-confirm-message">Удалить выбранные товары?</p>
-        <div class="modal-action mt-3 sm:mt-4 gap-2">
-            <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeDeleteConfirmModal()">Отмена</button>
-            <button type="button" class="btn btn-error btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="confirmDelete()">Удалить</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
-
-<!-- Delete List Confirmation Modal - compact on mobile -->
-<dialog id="delete-list-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">⚠️ Удалить список?</h3>
-        <div class="alert alert-warning py-2 px-3 sm:py-3 sm:px-4 mb-3 sm:mb-4 text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span>Необратимо!</span>
-        </div>
-        <p class="text-sm sm:text-base mb-2 sm:mb-4">
-            Удалить <strong id="delete-list-name">...</strong>?
-        </p>
-        <p class="text-xs sm:text-sm text-base-content/70 mb-2 sm:mb-4">
-            Все товары будут удалены.
-        </p>
-        <div class="modal-action mt-3 sm:mt-4 gap-2">
-            <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="closeDeleteListModal()">Отмена</button>
-            <button type="button" class="btn btn-error btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="confirmDeleteList()">Удалить</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
-
-<!-- Confirm Modal для FAB действий -->
-<dialog id="confirm-modal" class="modal modal-bottom sm:modal-middle">
-    <div class="modal-box max-w-lg p-4 sm:p-6">
-        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2" id="confirm-title">Подтверждение</h3>
-        <p class="whitespace-pre-line text-sm sm:text-base mb-4 sm:mb-6" id="confirm-message"></p>
-        <div class="modal-action mt-3 sm:mt-4 gap-2">
-            <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="confirmModalResolve(false)">Отмена</button>
-            <button type="button" class="btn btn-primary btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="confirmModalResolve(true)">Подтвердить</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button onclick="confirmModalResolve(false)">close</button>
-    </form>
-</dialog>
+{# FAB Actions Confirmation Modal #}
+{{ fab_confirm_modal() }}
 
 {% endblock %}
 
 {% block fab_buttons %}
-<!-- ============================================== -->
-<!-- FAB BUTTONS (outside main container for proper fixed positioning) -->
-<!-- ============================================== -->
-
-<!-- FAB для добавления товара (Detail View только на десктопе) -->
-<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
-<button id="add-item-fab"
-        onclick="window.openAddItemModal()"
-        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-28 right-6"
-        style="z-index: 1001; pointer-events: auto;"
-        aria-label="Добавить товар"
-        title="Добавить товар">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-    </svg>
-</button>
-
-<!-- FAB для создания списка (Landing View только на десктопе) -->
-<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
-<button id="create-list-fab"
-        onclick="window.openCreateListModal()"
-        class="hidden flex items-center justify-center btn btn-primary btn-circle btn-lg shadow-xl fixed bottom-6 right-6"
-        style="z-index: 1001; pointer-events: auto;"
-        aria-label="Создать список"
-        title="Создать список">
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-    </svg>
-</button>
-
-<!-- FAB Speed Dial для массовых операций (Detail View, Desktop Only) -->
-<!-- IMPORTANT: Visibility controlled by JavaScript, not Tailwind lg: classes -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 hidden flex flex-col-reverse items-end gap-3" style="z-index: 1000;">
-    <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
-    <button onclick="window.toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl" style="z-index: 1002;" aria-label="Массовые операции">
-        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="12" cy="19" r="2"/>
-        </svg>
-    </button>
-
-    <!-- Speed Dial items -->
-    <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Удалить выполненные</span>
-        <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
-            🗑️
-        </button>
-    </div>
-
-    <div id="fab-item-mark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Отметить все</span>
-        <button onclick="window.markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
-            ✅
-        </button>
-    </div>
-
-    <div id="fab-item-unmark-all-completed" class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap hidden sm:inline">Снять все отметки</span>
-        <button onclick="window.unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
-            ❌
-        </button>
-    </div>
-</div>
-
-<!-- FAB Backdrop (Desktop Only) -->
-<!-- IMPORTANT: Visibility controlled by toggleListsFAB(), not Tailwind -->
-<!-- CSS @media (pointer: coarse) hides on touch devices -->
-<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 opacity-0 pointer-events-none hidden" style="z-index: 999;" onclick="window.toggleListsFAB()"></div>
+{# FAB Buttons (desktop only, context-aware) #}
+{% from "components/lists/fab_buttons.html" import lists_fab_buttons %}
+{{ lists_fab_buttons() }}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -582,9 +66,6 @@
 
 <!-- Confirm Dialog -->
 <script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
-
-<!-- Offline Support for Shopping Lists -->
-<script src="/static/js/offline/offlineShoppingManager.min.js?v=PLACEHOLDER"></script>
 
 <!-- Lists Bundle (v7.0 ES modules migration) -->
 <!-- Includes: listsManager, csvImporter, googleSheetsImporter, importManager, hierarchyView, transfer, htmxWidgets, admin-facts-common -->
@@ -617,56 +98,6 @@
 <!-- Hierarchical Product Group Selector -->
 <script src="/shared/static/js/choicesProductGroupTree.min.js?v=PLACEHOLDER"></script>
 
-<script>
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-
-        // Wait for bundle to load and export functions
-        let attempts = 0;
-        while (typeof window.loadShoppingLists !== 'function' && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-
-        if (typeof window.loadShoppingLists !== 'function') {
-            throw new Error('Lists bundle failed to load after 5 seconds');
-        }
-
-        performance.mark('lists-init-start'); // Performance tracking
-
-        // Initialize Lists Manager (modular structure v7.0+)
-        await window.initializeListsManager();
-
-        // Initialize HierarchyView integration (v7.0.1)
-        window.initializeHierarchyView();
-
-        // Initialize ImportManager integration (v7.0.1)
-        window.initializeImportManager();
-
-        // Load shopping lists data from API
-        await window.loadShoppingLists();
-
-        // Render landing view with lists
-        window.showLandingView();
-
-        performance.mark('lists-init-end');
-        performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
-
-        debugLog('[Lists] Page initialized');
-    } catch (error) {
-        // УЛУЧШЕНО: Детальное логирование ошибки
-        console.error('[LISTS_INIT] === CRITICAL ERROR ===');
-        console.error('[LISTS_INIT] Error:', error);
-        console.error('[LISTS_INIT] Error name:', error.name);
-        console.error('[LISTS_INIT] Error message:', error.message);
-        console.error('[LISTS_INIT] Error stack:', error.stack);
-
-        showToast('Ошибка инициализации страницы: ' + error.message, 'error');
-    }
-});
-
-// Note: navigateHomeOfflineFriendly() is now exported from lists-bundle.ts
-// (defined in listsManager/ui/globalHelpers.ts)
-</script>
+{# Initialization Script: Load lists, initialize managers, render views #}
+{% include "partials/lists/initialization_script.html" %}
 {% endblock %}

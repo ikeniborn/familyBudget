@@ -16,18 +16,15 @@ Usage:
         session, connected_user_ids, "Title", "Body", data
     )
 """
-
 import logging
 from datetime import datetime
-from typing import Optional, Set
 
-from backend.app.core.json_utils import dumps as json_dumps
-
-from pywebpush import webpush, WebPushException
+from pywebpush import WebPushException, webpush
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.app.core.config import get_settings
+from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.models.push_subscription import PushSubscription
 
 logger = logging.getLogger(__name__)
@@ -55,8 +52,8 @@ class PushService:
         subscription: PushSubscription,
         title: str,
         body: str,
-        data: Optional[dict] = None,
-        session: Optional[AsyncSession] = None
+        data: dict | None = None,
+        session: AsyncSession | None = None
     ) -> bool:
         """
         Send push notification to a single subscription.
@@ -140,7 +137,7 @@ class PushService:
         user_id: int,
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to all subscriptions of a specific user.
@@ -179,10 +176,10 @@ class PushService:
     @staticmethod
     async def broadcast_except_connected(
         session: AsyncSession,
-        connected_user_ids: Set[int],
+        connected_user_ids: set[int],
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to all users WITHOUT active SSE connections.
@@ -246,7 +243,7 @@ class PushService:
         session: AsyncSession,
         title: str,
         body: str,
-        data: Optional[dict] = None
+        data: dict | None = None
     ) -> int:
         """
         Send push notification to ALL users (regardless of SSE status).

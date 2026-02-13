@@ -5,12 +5,13 @@ This module configures Alembic for managing database migrations in Production Mo
 Production ready since v5.0.0.
 """
 
+import os
 import sys
-from pathlib import Path
 from logging.config import fileConfig
+from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool, text
 from alembic import context
+from sqlalchemy import engine_from_config, pool, text
 
 # Add /app to sys.path to enable backend module imports
 app_root = Path(__file__).resolve().parents[3]  # /app
@@ -18,18 +19,9 @@ if str(app_root) not in sys.path:
     sys.path.insert(0, str(app_root))
 
 # Import all SQLModel models to ensure metadata is populated
-from backend.app.models.user import User
-from backend.app.models.user_history import UserHistory
-from backend.app.models.article import Article
-from backend.app.models.financial_center import FinancialCenter
-from backend.app.models.cost_center import CostCenter
-from backend.app.models.fact import BudgetFact
-from backend.app.models.hierarchy import ArticleHierarchy
-from backend.app.models.two_factor_session import TwoFactorSession
 
 # Import metadata from SQLModel
-from sqlmodel import SQLModel
-import os
+from sqlmodel import SQLModel  # noqa: E402
 
 # Alembic Config object
 config = context.config

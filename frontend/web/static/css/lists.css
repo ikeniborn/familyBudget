@@ -646,14 +646,6 @@
 /* Applies to ALL touch devices (smartphones, tablets, hybrid laptops) */
 /* regardless of screen size - prevents FAB buttons from showing on iPad, */
 /* Android tablets in landscape mode, and other large touch screens */
-@media (pointer: coarse) {
-    #lists-fab-menu,
-    #add-item-fab,
-    #create-list-fab,
-    #lists-fab-backdrop {
-        display: none !important;
-    }
-}
 
 @media (max-width: 1023px) {
     .hierarchy-store {
@@ -739,7 +731,12 @@
     }
 
     .hierarchy-item:hover .hierarchy-item-actions {
-        display: flex;  /* Show on hover - quantity shifts left */
+        display: flex;         /* Show on hover - quantity shifts left */
+        align-items: center;   /* Vertical centering */
+        justify-content: flex-end;  /* Align to right */
+        gap: 0.375rem;         /* Spacing between buttons */
+        flex-shrink: 0;        /* Don't shrink buttons */
+        margin-left: 1rem;     /* Space from quantity */
     }
 }
 
@@ -769,7 +766,7 @@
 /* Autocomplete dropdown styling */
 #product-suggestions-dropdown {
     /* Ensure dropdown appears above other modal content */
-    z-index: 9999;
+    z-index: var(--z-autocomplete);  /* 9999 - above all content */
 }
 
 /* Autocomplete suggestion items - touch optimization */
@@ -1428,10 +1425,17 @@ img[loading="lazy"] {
    Lists Page FAB Sizing - Desktop Adaptive
    ================================== */
 
+/* Tablet FAB positioning - lift above bottom navigation (700px-1024px) */
+@media (min-width: 700px) and (max-width: 1023px) {
+    #create-list-fab,
+    .fab-main {
+        bottom: 5rem !important; /* Lift above bottom bar (was 1.5rem) */
+    }
+}
+
 /* Desktop FAB buttons - custom sizing (replaces DaisyUI btn-lg) */
 @media (min-width: 1024px) {
     /* Main FAB buttons */
-    #add-item-fab,
     #create-list-fab,
     .fab-main {
         width: 56px !important;
@@ -1443,7 +1447,6 @@ img[loading="lazy"] {
     }
 
     /* Icons inside main FAB */
-    #add-item-fab svg,
     #create-list-fab svg,
     .fab-main svg {
         width: 24px;
@@ -1469,7 +1472,6 @@ img[loading="lazy"] {
 /* Large desktop: increased FAB (≥1280px) */
 @media (min-width: 1280px) {
     /* Main FAB buttons */
-    #add-item-fab,
     #create-list-fab,
     .fab-main {
         width: 64px !important;
@@ -1479,7 +1481,6 @@ img[loading="lazy"] {
     }
 
     /* Icons scale proportionally */
-    #add-item-fab svg,
     #create-list-fab svg,
     .fab-main svg {
         width: 28px;
@@ -1564,7 +1565,7 @@ img[loading="lazy"] {
 /* Mobile: slightly smaller FAB */
 @media (max-width: 640px) {
     .fab-menu {
-        bottom: 1rem;
+        bottom: 2rem; /* +1rem increase from 1rem */
         right: 1rem;
     }
 
@@ -1580,6 +1581,8 @@ img[loading="lazy"] {
         bottom: 1rem !important;
         right: 1rem !important;
     }
+
+    /* NOTE: bottom position adjusted below at @media (max-width: 767px) to avoid mobile menu overlap */
 
     /* FAB для массовых операций (Detail View) */
     .fab-main {
@@ -1613,22 +1616,42 @@ img[loading="lazy"] {
     }
 }
 
+/* Mobile menu adjustment: Position FAB above mobile menu (< 768px) */
+/* Mobile menu (btm-nav md:hidden) visible when width < 768px, height = 4rem (64px) */
+@media (max-width: 767px) {
+    /* FAB Speed Dial (Detail View) - position above mobile menu */
+    .fab-menu,
+    #lists-fab-menu {
+        bottom: calc(4rem + 1rem) !important; /* 4rem mobile menu + 1rem spacing */
+    }
+
+    /* FAB Create List (Landing View) - position above mobile menu */
+    #create-list-fab {
+        bottom: calc(4rem + 1rem) !important; /* 4rem mobile menu + 1rem spacing */
+    }
+}
+
 /* iOS safe area support for FAB */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .fab-menu {
-        bottom: calc(1.5rem + env(safe-area-inset-bottom));
+        bottom: calc(2.5rem + env(safe-area-inset-bottom)); /* +1rem increase from 1.5rem */
     }
 
     @media (max-width: 640px) {
         .fab-menu {
-            bottom: calc(1rem + env(safe-area-inset-bottom));
+            bottom: calc(2rem + env(safe-area-inset-bottom)); /* +1rem increase from 1rem */
         }
     }
 
-    /* Position above common FAB toolbar on mobile/tablet */
-    @media (max-width: 1023px) {
-        .fab-menu {
-            bottom: calc(64px + 1.5rem + env(safe-area-inset-bottom)); /* 1.5rem = 24px spacing (8px more than before) */
+    /* Position above mobile menu on devices with safe area (iOS notch support) */
+    @media (max-width: 767px) {
+        .fab-menu,
+        #lists-fab-menu {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important; /* 4rem mobile menu + 1rem spacing + safe area */
+        }
+
+        #create-list-fab {
+            bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
         }
     }
 }
@@ -1683,4 +1706,20 @@ img[loading="lazy"] {
 /* Ensure form-control doesn't clip dropdown when open */
 #item-modal.store-dropdown-open .form-control {
     overflow: visible !important;
+}
+
+/* ==================================
+   Lists Page FAB Z-Index Classes
+   ================================== */
+
+.lists-fab-main {
+    z-index: var(--z-fab-lists);  /* 1003 - main button */
+}
+
+.lists-fab-menu {
+    z-index: var(--z-fab-lists-menu);  /* 1001 - menu items */
+}
+
+.lists-fab-backdrop {
+    z-index: var(--z-fab-backdrop);  /* 1000 - correct backdrop z-index (below menu items 1001) */
 }

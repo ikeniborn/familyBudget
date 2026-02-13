@@ -19,15 +19,11 @@ Endpoints:
 
 import logging
 from datetime import datetime
-from typing import Optional
-
-logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-
-from sqlalchemy import func
 
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
@@ -53,6 +49,8 @@ from backend.app.schemas.shopping_list_item import (
 )
 from backend.app.services import shopping_list_item_service
 from backend.app.services.scd2_service import has_changes
+
+logger = logging.getLogger(__name__)
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _ws_module = None
@@ -82,7 +80,14 @@ router = APIRouter(
 async def list_shopping_list_items(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    shopping_list_id: int = Query(..., description="Shopping list ID to filter"),
+    shopping_list_id: int | None = Query(
+        None,
+        description="Shopping list server ID (legacy, INTEGER)"
+    ),
+    shopping_list_temp_id: int | None = Query(
+        None,
+        description="Shopping list temp ID (preferred, BIGINT)"
+    ),
     is_completed: bool | None = Query(
         None, description="Filter by completion status (True/False/None)"
     ),
@@ -94,10 +99,16 @@ async def list_shopping_list_items(
     """
     List shopping list items with optional filters.
 
+    **NEW v11.7.0:** Accepts `shopping_list_temp_id` (BIGINT) for offline-first support.
+
+    **Backward Compatible:** Still accepts `shopping_list_id` (INTEGER) for old clients.
+
+    **Priority:** If both provided, `shopping_list_temp_id` takes precedence.
+
     Shared references architecture: All users see all items.
 
     **Filters:**
-    - shopping_list_id: Required (which list to display)
+    - shopping_list_id OR shopping_list_temp_id: Required (which list to display)
     - is_completed: Optional (True for completed, False for incomplete, None for all)
     - store_id: Optional (filter by store)
     - product_group_id: Optional (filter by product group)
@@ -108,9 +119,54 @@ async def list_shopping_list_items(
     - Filter by store (shopping trip planning)
     - Filter by product group (category grouping)
     """
+    # Validate: at least one ID must be provided
+    if not shopping_list_id and not shopping_list_temp_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either shopping_list_id or shopping_list_temp_id must be provided",
+        )
+
+    # CRITICAL CHANGE: Support temp_id via JOIN to ShoppingList
+    # Resolve shopping_list_id from temp_id if needed
+    resolved_list_id: int | None = None
+
+    if shopping_list_temp_id:
+        # NEW: Filter by temp_id (BIGINT) via JOIN to ShoppingList
+        from backend.app.models.shopping_list import ShoppingList
+
+        # Find shopping list by temp_id
+        list_query = select(ShoppingList.id).where(
+            ShoppingList.temp_id == shopping_list_temp_id
+        )
+        list_result = await session.execute(list_query)
+        resolved_list_id = list_result.scalar_one_or_none()
+
+        if not resolved_list_id:
+            # Shopping list not found by temp_id
+            logger.warning(
+                f"[LIST_ITEMS] Shopping list not found by temp_id={shopping_list_temp_id}"
+            )
+            return ShoppingListItemListResponse(
+                items=[],
+                total=0,
+                limit=limit,
+                offset=offset,
+            )
+
+        logger.debug(
+            f"[LIST_ITEMS] Using temp_id parameter: temp_id={shopping_list_temp_id}, "
+            f"resolved_list_id={resolved_list_id}"
+        )
+    else:
+        # OLD: Use server_id directly (backward compatibility)
+        resolved_list_id = shopping_list_id
+        logger.debug(
+            f"[LIST_ITEMS] Using server_id parameter (legacy): shopping_list_id={shopping_list_id}"
+        )
+
     # Build query (exclude soft-deleted items)
     query = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
+        ShoppingListItem.shopping_list_id == resolved_list_id,
         ShoppingListItem.deleted_at.is_(None),
     )
 
@@ -134,9 +190,10 @@ async def list_shopping_list_items(
 
     # Count total (without pagination, exclude soft-deleted)
     count_query = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
+        ShoppingListItem.shopping_list_id == resolved_list_id,
         ShoppingListItem.deleted_at.is_(None),
     )
+
     if is_completed is not None:
         count_query = count_query.where(ShoppingListItem.is_completed == is_completed)
     if store_id is not None:
@@ -149,8 +206,20 @@ async def list_shopping_list_items(
     count_result = await session.execute(count_query)
     total = len(count_result.all())
 
+    # Generate temp_id for items if not exists (for offline compatibility)
+    import time
+    response_items = []
+    for item in items:
+        item_dict = ShoppingListItemResponse.model_validate(item).model_dump()
+
+        # Generate temp_id if missing (format: item_{id}_{timestamp})
+        if not item_dict.get('temp_id'):
+            item_dict['temp_id'] = f"item_{item.id}_{int(time.time() * 1000)}"
+
+        response_items.append(ShoppingListItemResponse(**item_dict))
+
     return ShoppingListItemListResponse(
-        items=[ShoppingListItemResponse.model_validate(item) for item in items],
+        items=response_items,
         total=total,
         limit=limit,
         offset=offset,
@@ -193,9 +262,16 @@ async def create_shopping_list_item(
     )
 
     # Create shopping list item
+    # Generate server-side temp_id if not provided by client (offline sync fallback)
+    temp_id = item_data.temp_id
+    if temp_id is None:
+        import secrets
+        temp_id = secrets.randbelow(9007199254740991)  # Crypto-secure random (MAX_SAFE_INTEGER - int53)
+
     item = ShoppingListItem(
         creator_id=current_user.id,  # Audit trail
         shopping_list_id=item_data.shopping_list_id,
+        temp_id=temp_id,  # Use client's temp_id or server-generated
         store_id=item_data.store_id,
         product_group_id=item_data.product_group_id,
         product_name=item_data.product_name,
@@ -252,7 +328,7 @@ async def suggest_products(
         max_length=100,
         description="Search query (min 2 characters)"
     ),
-    shopping_list_id: Optional[int] = Query(
+    shopping_list_id: int | None = Query(
         default=None,
         description="Filter by shopping list ID (enables restore of deleted items)"
     ),
@@ -426,7 +502,7 @@ async def suggest_products(
         )
 
     # Deduplicate: prefer deleted items (have specific ID for restore)
-    seen: set[tuple[str, Optional[int], Optional[int]]] = set()
+    seen: set[tuple[str, int | None, int | None]] = set()
     unique_suggestions: list[ProductSuggestion] = []
 
     for s in suggestions:
@@ -452,7 +528,7 @@ async def suggest_products(
 
 @router.get(
     "/check-duplicate",
-    response_model=Optional[ShoppingListItemResponse],
+    response_model=ShoppingListItemResponse | None,
     summary="Check for duplicate item in list",
     description="Search for existing non-completed item matching product_name and store_id",
 )
@@ -464,7 +540,7 @@ async def check_duplicate_item(
     store_id: int = Query(..., description="Store ID"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> Optional[ShoppingListItemResponse]:
+) -> ShoppingListItemResponse | None:
     """
     Check if similar item exists in shopping list (NOT completed).
 
@@ -495,7 +571,7 @@ async def check_duplicate_item(
             ShoppingListItem.store_id == store_id,
             func.lower(ShoppingListItem.product_name)
             == func.lower(product_name),
-            ShoppingListItem.is_completed == False,
+            not ShoppingListItem.is_completed,
             ShoppingListItem.deleted_at.is_(None),
         )
         .limit(1)

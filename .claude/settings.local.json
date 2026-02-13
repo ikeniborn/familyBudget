@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(node:*)",
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(git add:*)",
+      "Bash(ssh:*)",
+      "Bash(gh run list:*)",
+      "Bash(git commit:*)",
+      "Bash(gh run view:*)",
+      "Bash(bash:*)"
+    ]
+  }
+}

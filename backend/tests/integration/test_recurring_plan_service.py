@@ -20,7 +20,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
-from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
@@ -144,7 +143,7 @@ async def test_generate_minimum_3_facts_with_early_end_date(
 
     assert len(facts) == 2, f"Expected exactly 2 facts, got {len(facts)}"
     # Plan should be deactivated after end_date
-    assert plan.is_active == False
+    assert not plan.is_active
 
 
 @pytest.mark.asyncio

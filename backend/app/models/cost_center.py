@@ -13,9 +13,7 @@ Key features:
 - Global cost centers shared across users and user-specific cost centers
 - Full change history in CostCenterHistory table
 """
-
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -98,7 +96,7 @@ class CostCenter(SQLModel, table=True):
     __tablename__ = "t_d_cost_center"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -118,11 +116,11 @@ class CostCenter(SQLModel, table=True):
         max_length=255,
         description="Cost center display name"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes about the cost center"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         nullable=True,

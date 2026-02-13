@@ -4,7 +4,7 @@ Unit tests for BudgetFact model.
 Tests fact table functionality, foreign key relationships, and data integrity.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
-
 
 # ============================================================================
 # BudgetFact Creation Tests
@@ -257,7 +256,6 @@ async def test_fact_updated_at_changes(session: AsyncSession, test_user: User, t
     await session.commit()
     await session.refresh(fact)
 
-    original_updated_at = fact.updated_at
 
     # Update fact
     fact.amount = Decimal("75.00")

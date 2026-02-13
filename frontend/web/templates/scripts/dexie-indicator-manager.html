@@ -1,0 +1,258 @@
+{#
+    Dexie Indicator Manager Module
+    Visual status indicator for Dexie database in navbar.
+
+    Functions:
+        - updateDexieIndicator(state): Update UI state
+        - showDexieIndicator(): Show indicator
+        - hideDexieIndicator(): Hide indicator
+        - initDexieIndicator(): Initialize on page load
+        - onDexieSyncStart/Complete/Error(): Sync hooks
+
+    States:
+        - 'active': Green (Dexie enabled, idle)
+        - 'syncing': Blue pulse (sync in progress)
+        - 'error': Red (sync error, auto-recover after 5s)
+#}
+{% if user %}
+<script>
+    // ============================================================================
+    // Dexie Indicator State Management
+    // ============================================================================
+
+    /**
+     * Update Dexie indicator visual state (Database Icon + Status Dot)
+     * @param {string} state - 'not_started' | 'initializing' | 'validating' | 'ready' | 'active' | 'error' | 'syncing'
+     */
+    function updateDexieIndicator(state) {
+        const iconActive = document.getElementById('dexie-icon-active');
+        const iconSyncing = document.getElementById('dexie-icon-syncing');
+        const iconError = document.getElementById('dexie-icon-error');
+        const iconInitializing = document.getElementById('dexie-icon-initializing');
+        const iconReady = document.getElementById('dexie-icon-ready');
+
+        if (!iconActive || !iconSyncing || !iconError || !iconInitializing || !iconReady) {
+            console.warn('[DEXIE_INDICATOR] Icons not found');
+            return;
+        }
+
+        // Hide all states (now they are divs containing icon + dot)
+        iconActive.classList.add('hidden');
+        iconSyncing.classList.add('hidden');
+        iconError.classList.add('hidden');
+        iconInitializing.classList.add('hidden');
+        iconReady.classList.add('hidden');
+
+        // Show target state
+        switch (state) {
+            case 'not_started':
+                // Dexie не инициализируется - скрыть индикатор
+                hideDexieIndicator();
+                break;
+            case 'initializing':
+            case 'validating':
+                // Желтый database icon + пульсирующая точка
+                showDexieIndicator();
+                iconInitializing.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: initializing (yellow DB + pulse dot)');
+                break;
+            case 'ready':
+                // Зеленый database icon (готов, но не активен) - кликабельный
+                showDexieIndicator();
+                iconReady.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: ready (green DB, click to activate)');
+                break;
+            case 'active':
+                // Зеленый database icon + пульсирующая зеленая точка (idle)
+                showDexieIndicator();
+                iconActive.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: active (green DB + pulse dot)');
+                break;
+            case 'syncing':
+                // Синий database icon (вращение) + пульсирующая синяя точка
+                showDexieIndicator();
+                iconSyncing.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: syncing (blue DB rotate + pulse dot)');
+                break;
+            case 'error':
+                // Красный database icon + красная точка (без анимации)
+                showDexieIndicator();
+                iconError.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: error (red DB + dot)');
+                break;
+            default:
+                iconActive.classList.remove('hidden');
+                console.debug('[DEXIE_INDICATOR] State: active (default)');
+                break;
+        }
+    }
+
+    /**
+     * Show Dexie indicator wrapper (when Dexie enabled)
+     */
+    function showDexieIndicator() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.remove('hidden');
+            console.debug('[DEXIE_INDICATOR] Indicator shown');
+        }
+    }
+
+    /**
+     * Hide Dexie indicator wrapper (when Dexie disabled)
+     */
+    function hideDexieIndicator() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (wrapper) {
+            wrapper.classList.add('hidden');
+            console.debug('[DEXIE_INDICATOR] Indicator hidden');
+        }
+    }
+
+    /**
+     * Initialize indicator based on localStorage.dexieActive
+     */
+    async function initDexieIndicator() {
+        try {
+            const isDexieEnabled = localStorage.getItem('dexieActive') === 'true';
+
+            if (isDexieEnabled) {
+                showDexieIndicator();
+                // Default to active state (Dexie operations module will update state as needed)
+                updateDexieIndicator('active');
+            } else {
+                hideDexieIndicator();
+            }
+        } catch (error) {
+            console.error('[DEXIE_INDICATOR] Init error:', error);
+            hideDexieIndicator();
+        }
+    }
+
+    // ============================================================================
+    // Sync Event Handlers
+    // ============================================================================
+
+    /**
+     * Handle sync start event
+     */
+    function onDexieSyncStart() {
+        console.debug('[DEXIE_INDICATOR] Sync started');
+        updateDexieIndicator('syncing');
+    }
+
+    /**
+     * Handle sync complete event
+     */
+    function onDexieSyncComplete() {
+        console.debug('[DEXIE_INDICATOR] Sync completed');
+        updateDexieIndicator('active');
+    }
+
+    /**
+     * Handle sync error event
+     */
+    function onDexieSyncError() {
+        console.error('[DEXIE_INDICATOR] Sync error');
+        updateDexieIndicator('error');
+
+        // Auto-recover to active after 5s
+        setTimeout(() => {
+            console.debug('[DEXIE_INDICATOR] Auto-recovering to active state');
+            updateDexieIndicator('active');
+        }, 5000);
+    }
+
+    // ============================================================================
+    // Event Listeners
+    // ============================================================================
+
+    /**
+     * Initialize indicator on DOMContentLoaded
+     */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDexieIndicator);
+    } else {
+        // DOM already loaded
+        initDexieIndicator();
+    }
+
+    /**
+     * Listen for custom Dexie sync events
+     */
+    document.addEventListener('dexie:sync:start', onDexieSyncStart);
+    document.addEventListener('dexie:sync:complete', onDexieSyncComplete);
+    document.addEventListener('dexie:sync:error', onDexieSyncError);
+
+    /**
+     * Listen for Dexie enable/disable toggle
+     */
+    document.addEventListener('dexie:toggled', (event) => {
+        const enabled = event.detail?.enabled;
+        if (enabled) {
+            showDexieIndicator();
+            updateDexieIndicator('active');
+        } else {
+            hideDexieIndicator();
+        }
+    });
+
+    // ============================================================================
+    // Triple-click Diagnostic Modal (task: dexie-status-modal)
+    // ============================================================================
+
+    /**
+     * Setup triple-click handler to open Dexie diagnostic modal
+     * Matches WebSocket Status Indicator pattern (budgetWSClient.js:2438-2453)
+     */
+    (function setupTripleClickDiagnostics() {
+        // Constants for triple-click detection
+        const CLICK_RESET_TIMEOUT_MS = 600;  // Time window for triple-click detection
+        const TRIPLE_CLICK_COUNT = 3;
+
+        const icon = document.getElementById('dexie-icon-active');
+        if (!icon) {
+            console.warn('[DEXIE_INDICATOR] dexie-icon-active not found for triple-click');
+            return;
+        }
+
+        let clickCount = 0;
+        let clickTimer = null;
+
+        icon.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            clickCount++;
+            console.debug('[DEXIE_INDICATOR] Click', clickCount);
+
+            if (clickCount === 1) {
+                // Start timer (reset after CLICK_RESET_TIMEOUT_MS)
+                clickTimer = setTimeout(function() {
+                    clickCount = 0;
+                }, CLICK_RESET_TIMEOUT_MS);
+            } else if (clickCount === TRIPLE_CLICK_COUNT) {
+                // Triple-click detected!
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                }
+                clickCount = 0;
+
+                console.debug('[DEXIE_INDICATOR] Triple-click detected, opening diagnostics...');
+
+                // Open diagnostic modal (from window exports)
+                if (typeof window.openDexieDiagnostic === 'function') {
+                    window.openDexieDiagnostic();
+                } else {
+                    console.error('[DEXIE_INDICATOR] openDexieDiagnostic not available on window');
+                    alert('Diagnostic modal not available. Check console for errors.');
+                }
+            }
+        });
+
+        console.debug('[DEXIE_INDICATOR] Triple-click diagnostics handler registered');
+    })();
+
+    console.debug('[DEXIE_INDICATOR] Module loaded');
+</script>
+{% endif %}

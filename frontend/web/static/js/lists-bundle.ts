@@ -12,6 +12,15 @@ import './lists/csvImporter.ts';
 import './lists/googleSheetsImporter';
 import './lists/importManager';
 
+// Dexie progress notification (v11.0+)
+import { showDexieProgress, hideDexieProgress } from './notifications/dexieProgressToast';
+
+// Dexie operations (v11.4.12+)
+import { addItemToList } from '../../../shared/db/dexie/index';
+
+// Dexie diagnostic modal (v11.4.0+)
+import { openDexieDiagnostic } from './modules/uiComponents/modals/DexieDiagnosticModal';
+
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
   // Initialization
@@ -220,7 +229,17 @@ const windowExports = {
         window.importManager.init();
       }
     }
-  }
+  },
+
+  // Dexie operations (v11.4.12+)
+  addItemToList,
+
+  // PGlite progress notifications (v10.1.38+)
+  showDexieProgress,
+  hideDexieProgress,
+
+  // Dexie diagnostic modal (v11.4.0+)
+  openDexieDiagnostic
 };
 
 // Экспорт в window (Object.assign - надёжнее работает после минификации)
@@ -229,6 +248,10 @@ try {
     // Object.assign работает корректно после Vite минификации
     // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
     Object.assign(window, windowExports);
+
+    // Backward compatibility aliases: PGlite → Dexie terminology
+    (window as any).showPGliteProgress = showDexieProgress;
+    (window as any).hidePGliteProgress = hideDexieProgress;
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)

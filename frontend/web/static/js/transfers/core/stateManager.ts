@@ -12,6 +12,9 @@ import { loadTransferData } from './dataLoader';
 declare const BudgetShared: any;
 declare const debugLog: (...args: any[]) => void;
 
+// Lazy initialization flag
+let isInitialized = false;
+
 /**
  * Initialize transfer modal widgets
  * Called on DOMContentLoaded
@@ -19,6 +22,10 @@ declare const debugLog: (...args: any[]) => void;
  * Migrated from: transfer.js initTransferModal() (lines 459-526)
  */
 export async function initTransferModal(): Promise<void> {
+  if (isInitialized) {
+    debugLog('[Transfer] Already initialized, skipping');
+    return;
+  }
   // 1. Create CalendarWidget
   const dateWidget = new BudgetShared.CalendarWidget('#transfer_date', {
     dateFormat: 'Y-m-d',
@@ -39,8 +46,8 @@ export async function initTransferModal(): Promise<void> {
   // 2. Create ChoicesCategoryTree (FROM - debit)
   const fromCategoryTree = new BudgetShared.ChoicesCategoryTree(
     '#from_article',
-    'debit',
     {
+      type: 'debit',
       mode: 'create', // CRITICAL: prevents phantom auto-select
       onCategoryChange: () => {
         const state = getState();
@@ -60,8 +67,8 @@ export async function initTransferModal(): Promise<void> {
   // 3. Create ChoicesCategoryTree (TO - credit)
   const toCategoryTree = new BudgetShared.ChoicesCategoryTree(
     '#to_article',
-    'credit',
     {
+      type: 'credit',
       mode: 'create',
       onCategoryChange: () => {
         const state = getState();
@@ -92,6 +99,7 @@ export async function initTransferModal(): Promise<void> {
   setupQuickDateButtons();
   setupPeriodButtons();
 
+  isInitialized = true;
   debugLog('[Transfer] Modal initialized');
 }
 

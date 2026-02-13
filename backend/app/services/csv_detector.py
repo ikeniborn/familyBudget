@@ -14,8 +14,7 @@ import re
 from collections import Counter
 from datetime import datetime
 from io import StringIO
-from typing import Any, Optional
-
+from typing import Any
 
 # Common delimiters to test
 COMMON_DELIMITERS = [",", ";", "\t", "|"]
@@ -55,8 +54,8 @@ class CSVDetectionResult:
         self.delimiter: str = ","
         self.encoding: str = "utf-8"
         self.has_header: bool = True
-        self.date_format: Optional[str] = None
-        self.number_format: Optional[str] = None
+        self.date_format: str | None = None
+        self.number_format: str | None = None
         self.decimal_separator: str = "."
         self.thousands_separator: str = ","
         self.detected_columns: list[str] = []
@@ -225,7 +224,7 @@ def is_numeric(value: str) -> bool:
     return cleaned.isdigit() or (cleaned[0] == "-" and cleaned[1:].isdigit())
 
 
-def detect_date_format(values: list[str]) -> Optional[str]:
+def detect_date_format(values: list[str]) -> str | None:
     """
     Detect date format from sample values.
 
@@ -261,7 +260,7 @@ def detect_date_format(values: list[str]) -> Optional[str]:
     return None
 
 
-def detect_number_format(values: list[str]) -> tuple[Optional[str], str, str]:
+def detect_number_format(values: list[str]) -> tuple[str | None, str, str]:
     """
     Detect number format from sample values.
 
@@ -372,7 +371,7 @@ def detect_csv_format(
                 result.thousands_separator,
             ) = detect_number_format(all_values)
 
-    except Exception as e:
+    except Exception:
         # Fallback: return result with defaults
         result.confidence = 0.0
 

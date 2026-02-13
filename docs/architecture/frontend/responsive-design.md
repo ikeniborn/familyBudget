@@ -49,13 +49,15 @@ Family Budget uses Tailwind CSS breakpoint system:
    - Separate floating button with speed dial menu
    - Page-context visibility (hidden on /analytics)
    - No backdrop (opens without overlay)
-   - Z-index: 998
+   - Z-index: `var(--z-fab-mobile)` = **40** (below mobile navbar at 50)
 
 **Desktop (≥ 1024px):**
 - Single Floating Action Button (FAB) at bottom-right
 - Speed Dial menu with 4 action items
 - Backdrop overlay when open
 - Z-index: 1000 (backdrop: 999)
+- **Menu expansion direction:** Upward (items appear ABOVE button)
+- **Main button position:** Fixed (doesn't move when menu opens)
 
 ### Page Context Visibility Matrix
 
@@ -65,10 +67,12 @@ Family Budget uses Tailwind CSS breakpoint system:
 | `/facts` | Показан | 2 (факт) | Показан | 2 (факт) |
 | `/plan` | Показан | 2 (план) | Показан | 2 (план) |
 | `/analytics` | Скрыт | - | Скрыт | - |
-| `/lists` | Показан* | Direct action** | Скрыт | - |
+| `/lists` | Показан* | Direct action** | Показан* | Direct action** |
 
 \* На /lists кнопка "+" работает без меню (direct action)
 \** В списке списков → создать список; внутри списка → добавить товар
+
+**UPDATE v11.4.9:** /lists FAB теперь видим на ВСЕХ устройствах (mobile AND desktop)
 
 ### Dynamic Breakpoint Switching (v7.x+)
 
@@ -94,6 +98,37 @@ Family Budget uses Tailwind CSS breakpoint system:
 }
 ```
 
+### FAB Menu Expansion Direction (v11.3.0)
+
+**Desktop FAB (≥1024px):**
+- Speed Dial menu раскрывается **вверх** (items appear ABOVE button)
+- Главная кнопка остается fixed на месте (не сдвигается при раскрытии)
+- CSS Implementation:
+  ```css
+  .desktop-fab-wrapper {
+      flex-direction: column;  /* Not column-reverse */
+  }
+
+  /* Items positioned above button */
+  .desktop-fab-wrapper .fab-menu-item {
+      order: -1;
+  }
+
+  .desktop-fab-wrapper .fab-button {
+      order: 999;
+  }
+
+  /* Collapse animation slides down */
+  .desktop-fab-wrapper.closed .fab-menu-item {
+      transform: scale(0.5) translateY(20px);  /* +20px = slide down */
+  }
+  ```
+
+**Mobile FAB (<1024px):**
+- Speed Dial menu раскрывается **вверх** (items appear ABOVE button)
+- Используется отдельная структура `.mobile-fab-menu`
+- Positioning: `bottom: calc(100% + 0.5rem)`
+
 ### Critical CSS Requirements
 
 **Must use `!important` for display properties:**
@@ -110,6 +145,25 @@ Family Budget uses Tailwind CSS breakpoint system:
 - Required for iPhone with notch (X/11/12/13/14/15/16)
 - Prevents navigation bar overlap with Home indicator
 - Calculated as: `calc(0.5rem + env(safe-area-inset-bottom))`
+
+### FAB Positioning and Spacing (v11.4.9+)
+
+**Mobile FAB (custom.css):**
+- Base position: `bottom: calc(7rem + env(safe-area-inset-bottom))`
+- Desktop (≥1024px): `bottom: 2rem` (no navbar, reduced spacing)
+- Rationale: 7rem = 112px clearance from bottom navbar (64px height) + 48px spacing
+- iOS safe-area adds ~34px on devices with notch/Dynamic Island
+
+**Lists FAB (lists.css):**
+- Desktop (≥1024px): `bottom: calc(2.5rem + env(safe-area-inset-bottom))`
+- Mobile 641-1023px: `bottom: calc(64px + 2.5rem + env(safe-area-inset-bottom))`
+- Mobile ≤640px: `bottom: calc(2rem + env(safe-area-inset-bottom))`
+- Fallback (old browsers): `bottom: 2rem` (without safe-area support)
+
+**Spacing Guidelines:**
+- +1rem increase from previous version for improved accessibility
+- All FAB elements use `env(safe-area-inset-bottom)` for iOS compatibility
+- Responsive spacing ensures no overlap with mobile navbar (64px)
 
 ### Responsive Breakpoints
 
@@ -140,13 +194,46 @@ const FAB_PAGE_CONTEXT = {
 
 ### Z-Index Hierarchy
 
-| Z-Index | Element | Purpose |
-|---------|---------|---------|
-| 50 | `.fab-container` | Base navigation |
-| 60 | `.dropdown-content` | Dropdown menus |
-| 999 | `#desktop-fab-backdrop` | Overlay when FAB open |
-| 1000 | `.desktop-fab-wrapper` | FAB menu items |
-| 1001+ | Lists page FABs | Context-specific |
+**Note:** All z-index values use CSS custom properties from `z-index-variables.css` for centralized management.
+
+| Z-Index | CSS Variable | Element | Purpose | Context |
+|---------|--------------|---------|---------|---------|
+| 9999 | `--z-autocomplete` | Autocomplete dropdown | Form inputs (Choices.js, Calendar) | Above all content |
+| 2000 | `--z-calendar-modal` | Calendar widget (modal) | Date pickers in modals | Higher than dialogs |
+| 1050 | `--z-dialog` | Dialog modals | DaisyUI .dialog, .modal | Confirmation prompts |
+| 1001-1003 | `--z-fab-lists` | Lists page FABs | Context-specific actions | /lists page only |
+| 1000 | `--z-fab-desktop` | `.fab-wrapper` | Desktop FAB menu items | ≥1024px only |
+| 999 | `--z-modal-backdrop` | `#desktop-fab-backdrop` | Modal backdrops | Overlay dimming |
+| 60 | `--z-dropdown` | `.dropdown-content` | Dropdown menus | Navigation |
+| 50 | `--z-navbar` | `.fab-container` | Mobile navbar | Base navigation |
+| 40 | `--z-fab-mobile` | `.fab-wrapper` | Mobile FAB | Below navbar |
+
+**DEPRECATED in v11.0:** `.mobile-fab-wrapper` (z-index: 998) - removed, use `.fab-wrapper` (40)
+
+**Complete Reference:** See [z-index-layering.md](z-index-layering.md) for:
+- Full 13-layer hierarchy
+- CSS variables usage examples
+- Component details
+- Troubleshooting guide
+
+### CSS Variables System
+
+**Since v11.0**, all z-index values use CSS custom properties for centralized management.
+
+**Benefits:**
+- Single source of truth in `z-index-variables.css`
+- Self-documenting variable names (`--z-fab-mobile`, `--z-modal-backdrop`)
+- Easy to update (change once, apply everywhere)
+- Prevents accidental conflicts
+
+**Example Usage:**
+```css
+.desktop-fab-wrapper {
+  z-index: var(--z-fab-desktop); /* 1000 */
+}
+```
+
+**Complete documentation:** [z-index-layering.md](z-index-layering.md#css-variables-reference)
 
 ### Implementation Files
 
@@ -859,3 +946,111 @@ console.log({
 - [DaisyUI Responsive Utilities](https://daisyui.com/docs/utilities/)
 - Project file: `frontend/web/templates/index.html`
 - Build system: `/docs/architecture/build-system.md`
+
+---
+
+## Shopping Lists FAB Visibility (v11.4.9+)
+
+**Date:** 2026-02-08 (enabled mobile FAB)
+**Issue:** FAB buttons hidden on mobile via CSS @media (max-width: 1023px) + JS isDesktop() checks
+**Solution:** Removed mobile-hiding logic, FAB now visible on ALL devices
+
+### Behavior Changes
+
+**BEFORE v11.4.9 (Desktop Only):**
+- ❌ Mobile: FAB hidden via CSS media query
+- ❌ Mobile: JavaScript `isDesktop()` checks prevented FAB from showing
+- ✅ Desktop (≥1024px): FAB visible
+
+**AFTER v11.4.9 (ALL Devices):**
+- ✅ Mobile (<768px): FAB visible, positioned above mobile menu (btm-nav)
+- ✅ Desktop (≥1024px): FAB visible, same position as before
+- ✅ Mobile menu (btm-nav) provides ADDITIONAL option, FAB remains PRIMARY
+
+### Mobile FAB Positioning
+
+**Challenge:** Mobile menu (btm-nav) height = 4rem (64px) at bottom of screen
+
+**Solution:** Adjust FAB bottom position on mobile (<768px):
+
+```css
+/* Mobile menu adjustment (< 768px) */
+@media (max-width: 767px) {
+  /* FAB Speed Dial (Detail View) */
+  #lists-fab-menu {
+    bottom: calc(4rem + 1rem) !important; /* 4rem menu + 1rem spacing */
+  }
+
+  /* FAB Create List (Landing View) */
+  #create-list-fab {
+    bottom: calc(4rem + 1rem) !important;
+  }
+
+  /* FAB Add Item (Detail View) - above Speed Dial */
+  #add-item-fab {
+    bottom: calc(4rem + 1rem + 3.5rem) !important; /* +3.5rem above Speed Dial */
+  }
+}
+```
+
+**iOS Safe Area Support:**
+```css
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  @media (max-width: 767px) {
+    #create-list-fab {
+      bottom: calc(4rem + 1rem + env(safe-area-inset-bottom)) !important;
+    }
+  }
+}
+```
+
+### FAB Visibility Breakpoints
+
+| Breakpoint | Mobile Menu (btm-nav) | FAB Buttons | FAB Bottom Position |
+|------------|----------------------|-------------|---------------------|
+| < 768px | Visible (md:hidden) | Visible | calc(4rem + 1rem) |
+| 768px - 1023px | Hidden (md:hidden becomes visible) | Visible | 1.5rem (default) |
+| ≥ 1024px | Hidden | Visible | 1.5rem (default) |
+
+**Note:** Mobile menu uses Tailwind `md:hidden` (< 768px), NOT lg breakpoint (1024px)
+
+### JavaScript Changes
+
+**Removed isDesktop() checks from 6 functions:**
+
+1. `showFAB()` - removed `if (!isDesktopResult) return;`
+2. `hideFAB()` - removed `if (!isDesktopResult) return;`
+3. `showAddItemFAB()` - removed `if (!isDesktopResult) return;`
+4. `hideAddItemFAB()` - removed `if (!isDesktopResult) return;`
+5. `showCreateListFAB()` - removed `if (!isDesktopResult) return;`
+6. `hideCreateListFAB()` - removed `if (!isDesktopResult) return;`
+7. `updateFABVisibility()` - removed `&& isDesktopResult` condition
+
+**Deleted unused function:**
+- `isDesktop()` - no longer needed
+
+### User Experience
+
+**Mobile (<768px):**
+- Primary: FAB buttons (bottom-right, above mobile menu)
+- Secondary: Mobile menu "Добавить" button (bottom nav bar)
+- Both options available - user choice
+
+**Desktop (≥768px):**
+- FAB buttons (bottom-right)
+- No mobile menu
+
+### Breaking Changes
+
+**v11.4.9:**
+- ⚠️ FAB buttons now visible on mobile (previously desktop-only)
+- ✅ Backward compatible (no API changes)
+- ✅ UX improvement (consistent across devices)
+
+### Related Files
+
+- **CSS:** `frontend/web/static/css/lists.css:1557-1650` (mobile positioning)
+- **CSS:** `frontend/web/static/css/custom.css:755-762` (removed mobile-hiding rule)
+- **JS:** `frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts:65-166` (removed isDesktop checks)
+- **Template:** `frontend/web/templates/components/lists/fab_buttons.html` (updated comments)
+- **Mobile Menu:** `frontend/web/templates/components/lists/mobile_menu.html` (unchanged, still available)

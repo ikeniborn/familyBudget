@@ -15,7 +15,6 @@ Rationale:
 
 from alembic import op
 
-
 # Revision identifiers
 revision = "k6f7g8h9i0j1"
 down_revision = "j5e6f7g8h9i0"

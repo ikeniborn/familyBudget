@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
+!**NEVER** edit CLAUDE.md. Only user can add or delete tgis file.
+
 ## Project Overview
 
 Family Budget is a family budget management system with Telegram bot and web interface. Built on FastAPI (backend), PostgreSQL (database), Docker deployment.
@@ -15,200 +17,271 @@ Family Budget is a family budget management system with Telegram bot and web int
 - 📈 Real-time updates via WebSocket + Redis Pub/Sub
 - 🔄 Change history (SCD Type 1 + History tables)
 
-**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose
+**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
+
+## Core Rules
+
+**1. Multi-Perspective Analysis**
+
+При решении любой задачи рассматривай проблему с точки зрения:
+- **Системный архитектор**: Инфраструктурные решения, масштабируемость, отказоустойчивость
+- **Frontend разработчик**: UX/UI эффективность, производительность клиента, доступность
+- **Backend разработчик**: Оптимальная обработка данных, нагрузка на ресурсы, эффективность API
+- **Security специалист**: Потенциальные уязвимости, защита данных, соответствие best practices
+- **Технический писатель**: Актуальность и корректность документации, синхронизация с кодом
+
+**2. Validation Loop**
+
+После разработки решения:
+- Проводить повторную проверку архитектурных решений
+- Верифицировать соответствие требованиям из всех перспектив
+- Задавать уточнющие вопросы на этапе анализа и планирования
 
 ## Quick Start
 
-### Local Development (Code Validation Only)
-**CRITICAL:** НЕ запускайте сервисы локально (`uvicorn`, `docker compose up`). Только validation.
+### Local Development & Testing
 
-Use **testing** skill for code quality checks.
-**See:** `docs/architecture/build-system.md` for build commands
+**Automated Testing (Recommended):** Use `@skill:test-code` in PHASE 4 of Execution Flow for automatic test selection and execution based on git diff.
 
-### Deployment
-**Testing:** Use **deploy-test** skill for automated deployment to budget-test
-**Production:** Use **deploy-prod** skill for automated deployment to budget-prod
+**Manual Testing (for local debugging only):**
+- Virtual environment required: `backend/.venv/`
+- Install dependencies: `backend/.venv/bin/pip install -r requirements-dev.txt -r requirements.txt`
 
-**See:** `.claude/skills/deploy-test/SKILL.md`, `/docs/architecture/guides/deployment-troubleshooting.md`
+### Local Testing Setup
 
-## Terminology (UI ↔ Code)
+**Automated Testing (Recommended):**
+- `@skill:test-code` automatically selects and runs appropriate tests based on git diff
+- Executes pytest (backend), TypeScript checks (frontend), Playwright (e2e)
+- Handles test environment setup and teardown
 
-| UI (Russian) | Code | DB Table | Description |
-|--------------|------|----------|-------------|
-| **Счет** | `FinancialCenter` | `t_d_financial_center` | Bank accounts, wallets |
-| **Место затрат** | `CostCenter` | `t_d_cost_center` | Projects, departments |
-| **Статья** | `Article` | `t_d_article` | Budget categories (hierarchical) |
-| **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Income/expenses/transfers |
+**Manual Testing (for debugging):**
+```bash
+# Run all tests
+./tests/run-tests.sh all
 
-## Architecture
+# Run specific test suite
+./tests/run-tests.sh backend   # Backend pytest tests
+./tests/run-tests.sh frontend  # TypeScript type checking
+./tests/run-tests.sh e2e       # Playwright E2E tests
+```
 
-**Backend:** `backend/app/main.py` (entry), `api/v1/` (REST), `services/` (business logic)
-**Database:** SCD Type 1 + History tables, Closure Table, PostgreSQL 16 + Alembic
-**Frontend:** PWA (HTMX + Tailwind + DaisyUI), Service Worker, WebSocket real-time
+**Initial Setup (one-time):**
+```bash
+# Create virtual environment and install dependencies
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt -r requirements.txt
 
-**See architecture documentation:**
-- `/docs/architecture/README.md` - Dependency graph + recent changes
-- `/docs/architecture/authentication.md` - Auth system (JWT, OAuth, WebAuthn)
-- `/docs/architecture/pwa.md` - PWA features, offline support, caching
-- `/docs/architecture/websocket.md` - Real-time updates, Redis Pub/Sub
-- `/docs/architecture/build-system.md` - Build pipeline, TypeScript hybrid
-- `/docs/architecture/es-modules-migration.md` - ES Modules migration (v7.0.0)
+# Start test database
+docker-compose -f docker-compose-test.yml up -d
 
-### Module System (v7.0.0+)
-**Build:** Vite + TypeScript → ES Modules → IIFE bundles
-**Structure:** `core/` (state), `operations/`, `features/`, `ui/`, `integration/`
+# Apply migrations
+DATABASE_URL="postgresql://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
+  backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
+```
 
-**Commands:** `npm run build` (production), `npm run dev` (HMR), `npm run type-check`
-**See:** `/docs/architecture/build-system.md` for complete guide
+**Test Dependencies:** pytest 8.3.4, pytest-asyncio 0.24.0, pytest-cov 6.0.0, pytest-xdist 3.6.1, httpx 0.28.1, black 24.10.0, ruff 0.8.4
 
-### Database Patterns
-**SCD Type 1 + History:** Main tables (current state), History tables (all changes, SCD Type 2)
-**Closure Table:** `ArticleHierarchy` for fast hierarchy queries
-**Shared Budget:** All users see all data, `user_id` indicates creator
+**Test Organization:** `tests/api/` (API tests), `tests/services/` (business logic), `tests/integration/` (DB-dependent)
 
-Use **db-management** skill for database operations.
-**See:** `/docs/architecture/database/` for schema documentation
+**Important:**
+- ❌ DO NOT run services locally (uvicorn, docker compose up)
+- ✅ Tests use test PostgreSQL database (docker-compose-test.yml)
+- ✅ Frontend/Docker builds happen in CI/CD (GitHub Actions)
 
-## Critical Development Patterns
+### E2E Testing (Playwright)
 
-### 1. AsyncSession - ALWAYS await
-Missing `await` on AsyncSession methods causes silent failures. Always await `session.execute()`, `session.commit()`, `session.delete()`.
+**Automated Testing (Recommended):**
+- `@skill:test-code` automatically runs E2E tests when frontend changes are detected
+- Uses Playwright with 6 browser configurations (chromium, firefox, webkit, mobile)
 
-### 2. History Tables - Copy ALL Fields
-History records MUST copy ALL fields including nullable ones. Missing `record_type` → IntegrityError.
-Use **db-management** skill for correct patterns.
+**Manual Testing (for debugging):**
 
-### 3. Testing - Verify DB After Operations
-HTTP 200 ≠ Successful operation. Use **monitoring** skill for verification.
+**Prerequisites:**
+```bash
+npx playwright install
+cat > .env.test << 'EOF'
+TEST_USER_EMAIL=e2e-test@example.com
+TEST_USER_PASSWORD=E2eTestPassword123!
+BASE_URL=https://fbd.ikeniborn.ru
+EOF
+```
 
-### 4. WebSocket Multi-Worker
-Redis Pub/Sub for cross-worker synchronization (`.env`: `REDIS_ENABLED=true`).
-**See:** `/docs/architecture/websocket.md`
+**Run Tests:**
+```bash
+npm run test:e2e              # All tests (6 browsers)
+npm run test:e2e:chromium     # Specific browser
+npm run test:e2e:ui           # Interactive UI mode (best for development)
+npm run test:e2e:headed       # Headed mode (see browser)
+```
 
-### 5. iOS Safari Quirks
-Use `visibility: hidden` + `pointer-events: none` for guaranteed non-interactivity.
-**See:** `/docs/architecture/frontend/responsive-design.md`
+**E2E Test Suites (10 files):**
+- Basic: loading, form submission, mobile navigation, modal responsive
+- Features: offline functionality, recurring plans, shopping lists, transfers, CSV import
+- Visual: regression testing (4 components)
 
-### 6. Service Worker Updates
-Manual update with version display modal. Build required before deployment.
-**See:** `/docs/architecture/pwa.md` → Service Worker Updates
+**Configuration:**
+- Config: `config/playwright.config.ts`
+- Tests: `tests/e2e/webapp/`
+- Reports: `playwright-report/`
+- Runtime: ~5-6 minutes (10 tests × 6 browsers)
 
-### 7. Transfer Deduplication
-`sync_hash` + `content_hash` prevent duplicate transfers.
-**See:** `/docs/architecture/transfers-system.md`
+### Environments
 
-### 8. Deduplication Pattern
-Singleton promise locks for race condition prevention (13x performance improvement).
-**See:** `index.html:4435-4479` for implementation
+| Environment | URL | Purpose |
+|-------------|-----|---------|
+| **Production** | https://fb.ikeniborn.ru/ | Live users |
+| **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
-### 9. FAB Navigation Positioning
-Use `!important` for display properties, `visibility: hidden` for iOS Safari protection.
-**See:** `/docs/architecture/frontend/responsive-design.md` → FAB Navigation
-
-## Important Features
-
-**Admin Auth Bypass (v6.3.0+):** Emergency email/password login without 2FA. See `/docs/architecture/admin-setup.md`
-**WebAuthn (v6.5.0+):** Passwordless biometric login. See `/docs/architecture/authentication.md`
-**Recurring Plans (v6.2.0+):** MMDD encoding for yearly frequency. See `/docs/architecture/recurring-plans.md`
-**Notifications (v6.4.0+):** Independent Web Push + Telegram control. See `/docs/architecture/notifications.md`
-**Shopping Lists (v7.x+):** Integer quantities, NUMERIC(10,3) storage. See `listsManager.ts:3207`
-**Bulk Delete (v6.6.0+):** WebSocket summary events. See `/docs/architecture/bulk-delete-optimization.md`
-
-## Development Workflow
-
-### Code Quality
-Use **testing** skill for automated quality checks (linting, formatting, type checking, tests).
-
-### Build Requirements
-**Development:** Minification NOT required. **Production:** `npm run build` before commit/deploy.
-**See:** `docs/architecture/build-system.md`
-
-### Deployment
-Use **deploy-test** or **deploy-prod** skills for automated deployment.
-**See:** `.claude/skills/deploy-*/SKILL.md`, `/docs/architecture/guides/deployment-troubleshooting.md`
-
-## API Endpoints
-
-**Auth:** `POST /auth/telegram`, `/auth/login`, `/auth/webauthn/authenticate/verify`, `/auth/refresh`
-**REST v1:** `/api/v1/articles`, `/api/v1/facts`, `/api/v1/transfers`, `/api/v1/recurring-plans`
-**WebSocket:** `ws://localhost:8000/ws/budget`
-
-Use **api-development** skill for creating new endpoints.
-**See:** `/docs/architecture/endpoints/` for complete API docs
-
-## Logging Conventions
-
-**Active prefixes:** `[AUTH_EMAIL]`, `[AUTH_WEBAUTHN]`, `[RECURRING_PLAN]`, `[BULK_DELETE]`, `[WS_BULK]`, `[DEDUP]`, `[RTT_FILTER]`
-
-**See:** `frontend/web/static/js/config/logging.js` for configuration
-
-## Troubleshooting
-
-**Installation issues:** Network checks, timeout increases
-**Docker GPG errors:** Remove corrupted keys
-**Deployment failures:** Check logs, disk space
-**WebSocket disconnects:** Check Redis, backend logs
-
-Use **monitoring** skill for diagnostics.
-**See:** `/docs/architecture/guides/` for comprehensive troubleshooting
-
-## Claude Code Skills
-
-Project includes specialized skills in `.claude/skills/` for automated workflows:
-
-**Backend Development:**
-- **api-development** - REST API endpoint creation with SCD Type 2 + Shared Budget
-- **db-management** - Database migrations, SCD Type 2, Closure Table patterns
-- **authentication-security** - JWT auth, Telegram OAuth, security middleware
-- **bot-development** - Telegram bot commands and handlers
-
-**Frontend Development:**
-- **frontend-development** - HTMX + Tailwind + DaisyUI + WebSocket components
-- **websocket-realtime** - WebSocket real-time updates, SSE, event buffering
-
-**Operations:**
-- **deploy-test** - Automated deployment to budget-test server
-- **deploy-prod** - Automated deployment to budget-prod server
-- **monitoring** - System monitoring and diagnostics
-- **testing** - Test automation and quality assurance
-
-**Patterns:**
-- **advanced-patterns** - SCD Type 2, Closure Table, Shared Family Budget
-
-**See:** `.claude/skills/*/SKILL.md` for detailed skill documentation
+For analysis logs connect to test server via "ssh budget-test".
+Work directory "/opt/budget"
+Git directory "~/familyBudget"
 
 ## Documentation Index
 
-### Architecture
-- [README.md](docs/architecture/README.md) - Dependency graph + recent changes
-- [authentication.md](docs/architecture/authentication.md) - JWT, OAuth, WebAuthn
-- [pwa.md](docs/architecture/pwa.md) - PWA, offline, Service Worker
-- [websocket.md](docs/architecture/websocket.md) - Real-time updates
-- [build-system.md](docs/architecture/build-system.md) - Build pipeline
-- [recurring-plans.md](docs/architecture/recurring-plans.md) - Recurring payments
-- [notifications.md](docs/architecture/notifications.md) - Push + Telegram
-- [transfers-system.md](docs/architecture/transfers-system.md) - Transfer deduplication
-- [bulk-delete-optimization.md](docs/architecture/bulk-delete-optimization.md) - Bulk operations
-- [installation-resilience.md](docs/architecture/installation-resilience.md) - Installation framework
-- [backup-system.md](docs/architecture/backup-system.md) - Backup + restore
-- [caching-strategy.md](docs/architecture/caching-strategy.md) - HTTP caching
+**Primary source of truth.** Always check docs before implementation.
 
-### Guides
-- [deployment-troubleshooting.md](docs/architecture/guides/deployment-troubleshooting.md) - Deployment
-- [disaster-recovery.md](docs/architecture/guides/disaster-recovery.md) - Disaster recovery
-- [backup-operations.md](docs/architecture/guides/backup-operations.md) - Backup procedures
+### Architecture (Core Concepts)
 
-### Product
-- [docs/prd/](docs/prd/) - Product requirements
-- [docs/guides/](docs/guides/) - User guides
-- [START.md](START.md) - Administrator installation guide
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [README.md](docs/architecture/README.md) | Dependency graph, recent changes | Start of any task |
+| [authentication.md](docs/architecture/core/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
+| [pwa.md](docs/architecture/core/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
+| **[dexie-integration.md](docs/architecture/core/dexie-integration.md)** | **Dexie.js offline mode (v11.0+)** | **Offline CRUD, cents conversion** |
+| [websocket.md](docs/architecture/core/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
+| [build-system.md](docs/architecture/core/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
+| [es-modules-migration.md](docs/architecture/migrations/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
 
-### API
-- `/docs` (Swagger) - Interactive API documentation
-- [docs/architecture/endpoints/](docs/architecture/endpoints/) - Endpoint documentation
+### Database & Backend
 
-## Emergency Contacts
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [database/](docs/architecture/backend/database/) | Schema, SCD Type 2, Closure Table | DB schema changes |
+| [endpoints/](docs/architecture/backend/endpoints/) | API documentation | API development |
+| [transfers-system.md](docs/architecture/features/transfers-system.md) | Transfer deduplication | Transfer operations |
+| [recurring-plans.md](docs/architecture/features/recurring-plans.md) | Recurring payments (MMDD encoding) | Recurring plans |
 
-**Repository Issues:** https://github.com/anthropics/familybudget/issues
-**Production Monitoring:** Check `/opt/budget/logs/`
-**Database Backup:** `/opt/budget/backups/` (7-day retention)
+### Frontend
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [frontend/responsive-design.md](docs/architecture/frontend/responsive-design.md) | Responsive, iOS Safari quirks | UI bugs, mobile issues |
+| [frontend/z-index-layering.md](docs/architecture/frontend/z-index-layering.md) | Z-Index hierarchy (13 layers) | Overlay conflicts |
+| [frontend/modal-architecture.md](docs/architecture/frontend/modal-architecture.md) | Tab-based modals (v10.x+) | Modal implementation |
+
+### Deployment & Operations
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
+| [docker.md](docs/architecture/core/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
+| [deployment-troubleshooting.md](docs/architecture/operations/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
+| [disaster-recovery.md](docs/architecture/operations/disaster-recovery.md) | Disaster recovery | Critical failures |
+| [backup-operations.md](docs/architecture/operations/backup-operations.md) | Backup procedures | Backup/restore tasks |
+
+### Features & Optimization
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [notifications.md](docs/architecture/features/notifications.md) | Web Push + Telegram | Notifications |
+| [bulk-delete-optimization.md](docs/architecture/features/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
+| [caching-strategy.md](docs/architecture/optimization/caching-strategy.md) | HTTP caching | Performance |
+| [backup-system.md](docs/architecture/features/backup-system.md) | Backup + restore | Backup system |
+| [installation-resilience.md](docs/architecture/optimization/installation-resilience.md) | Installation framework | Installation issues |
+
+### Product & User Guides
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| [docs/prd/](docs/prd/) | Product requirements | Feature planning |
+
+### Plans
+
+Результаты работы агента по планированию сохраняй всегда в docs/plans/
+
+---
+
+## Execution Flow
+
+```
+PHASE 0 → Context & Complexity Assessment
+   @skill:context-awareness → {project_context}
+   @skill:doc-explorer → {documentation_context}
+      → Interactive documentation exploration with guided tours
+      → Helps understand project architecture before implementation
+   @skill:lsp-integration → {lsp_status} [optional]
+   @skill:context7-integration → {library_docs} [optional]
+   @skill:adaptive-workflow → {complexity, workflow_mode, skip[], required[]}
+
+PHASE 1 → Analysis & Planning
+   @skill:thinking-framework → COT reasoning
+   @skill:structured-planning → {task_plan}
+   @skill:plan-validation → {plan_validation_result}
+      → Validates plan BEFORE execution (4-level validation)
+      → BLOCKS approval if blocking_issues detected
+
+   TaskCreate [for non-trivial tasks]
+
+PHASE 1.5 → Pre-Approval Actions [MANDATORY]
+   ⚠️ Execute BEFORE approval
+
+   IF plan_validation_result.passed == false:
+      BLOCK execution, show blocking_issues, require fixes
+
+   @skill:git-workflow [mode: create-branch]
+   → Input: {branch_name, base_branch}
+   → Output: {git_branch_result.switched === true}
+
+PHASE 2 → Approval [conditional: skip if minimal]
+   @skill:approval-gates → {user_approval}
+      → Reads plan_validation_result (blocks if failed)
+
+PHASE 3 → Execution
+   Domain skills execution
+   @skill:code-review
+   @skill:error-handling [on recoverable errors]
+   @skill:rollback-recovery [on critical failures]
+
+   TaskUpdate: pending → in_progress → completed
+
+PHASE 4 → Post-Execution Validation
+   @skill:validation-framework → {validation_results}
+      → Validates execution results (acceptance criteria, tests, completion)
+      → Triggers error-handling if validation fails
+
+   @skill:test-code → {test_results} [adaptive, based on git diff]
+      → Automatic test selection: syntax, quality, runtime, dependencies, e2e
+      → Runs pytest (backend), TypeScript checks (frontend), Playwright (e2e)
+      → Triggers error-handling if tests fail
+
+PHASE 5A → Git Commit & Push
+   @skill:git-workflow [mode: commit-and-push] → {commit_result}
+
+PHASE 5B → Documentation Sync [conditional: if code or docs changed]
+   @skill:doc-sync → {sync_result}
+      → Detects outdated documentation by comparing code changes
+      → Generates documentation updates (LSP integration for API changes)
+      → BLOCKS commit if critical documentation drift detected
+
+   @skill:architecture-documentation → {arch_docs} [optional]
+      → Generates YAML/TOON architectural documentation
+      → Creates component dependency diagrams
+
+PHASE 5C → PR Automation [optional]
+   @skill:pr-automation → {pr_result}
+
+PHASE 5D → Task Summary
+   @skill:git-workflow → @template:task-summary
+```
+## Key Principles
+
+**SGR (Structured Generation & Reasoning):**
+- Thinking → Structured Output → Execute → Validate → Commit
+
+**Progress Tracking:**
+- task_plan (static blueprint) - created in PHASE 1
+- TaskCreate (dynamic tracking) - updated in PHASE 3
+
+**Data Flow:**
+- PHASE N output → PHASE N+1 input

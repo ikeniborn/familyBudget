@@ -4,9 +4,7 @@ Scheduled Reminder model for plan notifications.
 Stores reminder configuration for budget plans (record_type='plan').
 Each plan can have at most one scheduled reminder (enforced by UNIQUE constraint).
 """
-
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -45,7 +43,7 @@ class ScheduledReminder(SQLModel, table=True):
 
     __tablename__ = "t_scheduled_reminder"
 
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Auto-incrementing primary key"
@@ -73,7 +71,7 @@ class ScheduledReminder(SQLModel, table=True):
         description="Status: pending, sent, failed, cancelled"
     )
 
-    sent_at: Optional[datetime] = Field(
+    sent_at: datetime | None = Field(
         default=None,
         description="When reminder was actually sent"
     )
@@ -88,7 +86,7 @@ class ScheduledReminder(SQLModel, table=True):
         description="Whether Web Push notification was sent to at least one subscription"
     )
 
-    error_message: Optional[str] = Field(
+    error_message: str | None = Field(
         default=None,
         max_length=1000,
         description="Last error message for debugging failed reminders"

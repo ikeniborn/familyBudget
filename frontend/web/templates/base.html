@@ -95,15 +95,43 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
+    <!-- iOS Splash Screens (comprehensive device coverage for iOS 16+) -->
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-750x1334.png"
+          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-828x1792.png"
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1080x2340.png"
+          media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1125x2436.png"
+          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1170x2532.png"
+          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1179x2556.png"
+          media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2208.png"
+          media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2688.png"
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1284x2778.png"
+          media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1290x2796.png"
+          media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+
     <!-- Tailwind CSS + DaisyUI -->
-    <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/static/css/tailwind-daisyui.min.css?v=PLACEHOLDER">
 
     <!-- DaisyUI Overrides - centralized fixes for DaisyUI conflicts -->
     <!-- Must load AFTER DaisyUI but BEFORE custom.css -->
     <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=PLACEHOLDER">
 
+    <!-- Z-Index Variables - centralized z-index management (v11.0+) -->
+    <link rel="stylesheet" href="/static/css/z-index-variables.css?v=PLACEHOLDER">
+
     <!-- Custom Styles (FAB Toolbar, Safe-Area, etc.) -->
     <link rel="stylesheet" href="/static/css/custom.min.css?v=PLACEHOLDER">
+
+    <!-- Loading Dots Animation (Navigation Progress) -->
+    <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=PLACEHOLDER">
 
     <!-- Inline Custom Styles -->
     <style>
@@ -118,158 +146,6 @@
             position: absolute;
         }
 
-        /* Фиксация модальных окон для мобильных устройств */
-        /* Проблема: на iOS Safari адресная строка скрывается при скролле,
-           что изменяет значение vh и приводит к "прыжкам" модального окна */
-
-        /* CSS переменная для реальной высоты viewport (обновляется через JS) */
-        :root {
-            --real-vh: 1vh;
-        }
-
-        /* Переопределение DaisyUI modal для предотвращения растягивания */
-        @media (max-width: 640px) {
-            /* Модальное окно - фиксированная позиция */
-            .modal {
-                position: fixed !important;
-                inset: 0;
-            }
-
-            /* Modal box - используем dvh (dynamic viewport height) с fallback */
-            .modal-box {
-                /* Современные браузеры: используем dvh (учитывает динамическую высоту) */
-                max-height: 90dvh !important;
-
-                /* Fallback для старых браузеров: используем CSS переменную из JS */
-                max-height: calc(var(--real-vh, 1vh) * 90) !important;
-
-                /* Центрирование */
-                margin-top: auto !important;
-                margin-bottom: auto !important;
-
-                /* Прокрутка внутри */
-                overflow-y: auto !important;
-
-                /* Предотвращение скролла body */
-                overscroll-behavior: contain;
-            }
-
-            /* Предотвращение скролла body когда модальное окно открыто */
-            .modal:modal {
-                overflow: hidden;
-            }
-
-            body:has(.modal[open]) {
-                overflow: hidden;
-                position: fixed;
-                width: 100%;
-            }
-        }
-
-        /* Desktop - более высокие модальные окна */
-        @media (min-width: 640px) {
-            .modal-box {
-                max-height: 95dvh !important;
-                max-height: calc(var(--real-vh, 1vh) * 95) !important;
-            }
-        }
-
-        /* Mobile menu - fix для iOS Safari и мелких экранов */
-        @media (max-width: 1023px) {
-            #mobile-menu-content {
-                /* Fixed position для гарантированного отображения на экране */
-                position: fixed !important;
-                top: calc(4rem + var(--safe-area-inset-top)) !important; /* Под navbar + safe-area */
-                right: calc(0.5rem + var(--safe-area-inset-right)) !important;
-                left: auto !important;
-                /* Фиксированная ширина */
-                width: 14rem !important; /* 224px */
-                min-width: 14rem !important;
-                /* Высота по содержимому, но не больше экрана - учитываем safe-area */
-                max-height: calc(100dvh - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
-                max-height: calc(var(--real-vh, 1vh) * 100 - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
-                /* Вертикальный скролл, без горизонтального */
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                /* Above FAB toolbar */
-                z-index: 60 !important;
-            }
-
-            /* Предотвращаем перенос текста в элементах меню */
-            #mobile-menu-content li a,
-            #mobile-menu-content li button {
-                white-space: nowrap !important;
-                overflow: hidden !important;
-                text-overflow: ellipsis !important;
-            }
-        }
-
-        /* Очень маленькие экраны по высоте - компактный режим */
-        @media (max-height: 500px) {
-            #mobile-menu-content {
-                top: 3.5rem !important;
-                max-height: calc(100dvh - 4rem) !important;
-                max-height: calc(var(--real-vh, 1vh) * 100 - 4rem) !important;
-                padding: 0.25rem !important;
-            }
-            #mobile-menu-content li a,
-            #mobile-menu-content li button {
-                padding: 0.375rem 0.5rem !important;
-                font-size: 0.8125rem !important;
-            }
-            #mobile-menu-content .menu-title {
-                padding: 0.25rem 0.5rem !important;
-                font-size: 0.6875rem !important;
-            }
-            #mobile-menu-content .divider {
-                margin: 0.125rem 0 !important;
-            }
-            /* Скрыть аватар на очень маленьких экранах */
-            #mobile-menu-content .avatar {
-                display: none !important;
-            }
-        }
-
-        /* Compact navbar on mobile for better space usage */
-        @media (max-width: 1023px) {
-            .navbar {
-                min-height: 3.5rem !important; /* Reduced from 4rem default */
-            }
-
-            .navbar > * {
-                padding-top: 0.5rem !important;
-                padding-bottom: 0.5rem !important;
-            }
-        }
-    </style>
-
-    <!-- Modal Z-Index Configuration (Cookie Consent + WebAuthn) -->
-    <style>
-        /* Ensure cookie consent banner appears above ALL UI elements */
-        #cookie-consent-banner {
-            z-index: 999 !important;  /* Above mobile menu (60), modals, FAB (50) */
-        }
-
-        /* Ensure modal content clickable */
-        #cookie-consent-banner > .bg-base-100 {
-            position: relative;
-            z-index: 1000 !important;  /* Content above backdrop */
-        }
-
-        /* WebAuthn onboarding modal - same priority as cookie consent */
-        #webauthn-onboarding-modal {
-            z-index: 999 !important;  /* Same priority as cookie consent */
-        }
-
-        /* General modal safety net (optional but recommended) */
-        dialog.modal {
-            z-index: 900 !important;  /* Above menu (60) but below priority modals (999) */
-        }
-
-        dialog.modal::backdrop {
-            z-index: 899 !important;  /* Backdrop below modal */
-        }
-    </style>
 
     <style>
         /* Navbar Sync Badge Styling */
@@ -319,8 +195,9 @@
             background: oklch(var(--b1) / 0.6);
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
-            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            /* v4.1: Increased transition for smoother appearance */
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            -webkit-transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
             z-index: 38;
             pointer-events: none;
 
@@ -338,131 +215,6 @@
             touch-action: none;   /* Block touch scroll in PWA */
         }
 
-        /* ========================================
-           Loading Dots - Elastic Morphing Animation (v5.1)
-           Желеобразная деформация точек с плавным перетеканием
-
-           CSS Custom Properties для гибкой настройки:
-           --dot-morph-duration: длительность цикла анимации
-           --dot-morph-delay: задержка между точками
-           --dot-morph-size: базовый размер точки
-           --dot-morph-gap: расстояние между точками
-           ======================================== */
-        .navigation-fade-overlay .morphing-dots {
-            /* CSS Variables соответствуют Variant 2A: Elastic Morphing из демо */
-            --dot-morph-duration: 1.5s;
-            --dot-morph-delay: 0.3s;
-            --dot-morph-size: 14px;
-            --dot-morph-gap: 6px;
-
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            gap: var(--dot-morph-gap);
-            z-index: 1;
-            /* Достаточно места для деформации точек (1.3x scale + padding) */
-            min-width: 120px;
-            min-height: 80px;
-            align-items: center;
-            justify-content: center;
-            overflow: visible;
-            /* GPU acceleration для плавной анимации */
-            transform-style: preserve-3d;
-        }
-
-        .navigation-fade-overlay .morphing-dot {
-            /* Размер из CSS Variable */
-            width: var(--dot-morph-size);
-            height: var(--dot-morph-size);
-            /* Fallback для Safari < 15.4 */
-            background: #6366f1;
-            background: oklch(var(--p));
-            /* Начальный border-radius (будет меняться при морфинге) */
-            border-radius: 50%;
-            /* Elastic Morphing анимация с CSS Variable duration */
-            animation: dot-morph var(--dot-morph-duration) ease-in-out infinite;
-            /* Усиленная тень для видимости на светлом фоне */
-            box-shadow:
-                0 2px 6px oklch(0 0 0 / 0.25),
-                0 4px 12px oklch(var(--p) / 0.4),
-                0 0 0 2px oklch(var(--p) / 0.15);
-            /* GPU acceleration */
-            transform: translateZ(0);
-            backface-visibility: hidden;
-        }
-
-        /* Задержки для волнового эффекта (используют CSS Variable) */
-        .navigation-fade-overlay .morphing-dot:nth-child(1) {
-            animation-delay: 0s;
-        }
-        .navigation-fade-overlay .morphing-dot:nth-child(2) {
-            animation-delay: var(--dot-morph-delay);
-        }
-        .navigation-fade-overlay .morphing-dot:nth-child(3) {
-            animation-delay: calc(var(--dot-morph-delay) * 2);
-        }
-
-        /* Elastic Morphing Keyframes - Variant 2A из demo-all-variants.html
-           Желеобразная деформация с 4 ключевыми кадрами */
-        @keyframes dot-morph {
-            0%, 100% {
-                /* Исходное состояние - идеальный круг */
-                transform: scaleX(1) scaleY(1) translateZ(0);
-                border-radius: 50%;
-            }
-            25% {
-                /* Сжатие по вертикали, растяжение по горизонтали */
-                transform: scaleX(1.3) scaleY(0.7) translateZ(0);
-                border-radius: 40%;
-            }
-            50% {
-                /* Растяжение по вертикали, сжатие по горизонтали */
-                transform: scaleX(0.7) scaleY(1.3) translateZ(0);
-                border-radius: 40%;
-            }
-            75% {
-                /* Небольшой отскок перед возвратом */
-                transform: scaleX(1.1) scaleY(0.9) translateZ(0);
-                border-radius: 45%;
-            }
-        }
-
-        /* Адаптация для маленьких экранов (< 360px) */
-        @media (max-width: 359px) {
-            .navigation-fade-overlay .morphing-dots {
-                --dot-morph-size: 14px;
-                --dot-morph-gap: 6px;
-                min-width: 100px;
-            }
-        }
-
-        /* Адаптация для больших экранов (desktop) */
-        @media (min-width: 768px) {
-            .navigation-fade-overlay .morphing-dots {
-                --dot-morph-size: 18px;
-                --dot-morph-gap: 10px;
-                min-width: 140px;
-            }
-            .navigation-fade-overlay .morphing-dot {
-                /* Увеличенная тень на desktop для лучшей видимости */
-                box-shadow:
-                    0 3px 8px oklch(0 0 0 / 0.3),
-                    0 6px 16px oklch(var(--p) / 0.45),
-                    0 0 0 3px oklch(var(--p) / 0.2);
-            }
-        }
-
-        /* Reduced Motion for morphing dots overlay */
-        @media (prefers-reduced-motion: reduce) {
-            .navigation-fade-overlay .morphing-dot {
-                animation: none;
-                opacity: 1;
-                transform: none;
-                border-radius: 50%;
-            }
-        }
 
         /* ========================================
            View Transitions API (Safari 18+, iOS 18+)
@@ -621,10 +373,46 @@
             }
         }
 
-        /* Reduced motion support for update indicator */
+        /* ========================================
+           Dexie Indicator Animations
+           ======================================== */
+
+        /* Pulse animation for status dot */
+        @keyframes dexie-dot-pulse {
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.5;
+                transform: scale(0.95);
+            }
+        }
+
+        .dexie-pulse {
+            animation: dexie-dot-pulse 2s ease-in-out infinite;
+        }
+
+        /* Rotate animation for syncing state */
+        @keyframes dexie-icon-rotate {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .dexie-rotate {
+            animation: dexie-icon-rotate 3s linear infinite;
+        }
+
+        /* Reduced motion support for update indicator and Dexie */
         @media (prefers-reduced-motion: reduce) {
             .update-icon-enter,
-            #update-available-btn span {
+            #update-available-btn span,
+            .dexie-pulse,
+            .dexie-rotate {
                 animation: none;
             }
         }
@@ -667,6 +455,9 @@
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
 
+    <!-- Dexie Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
+    <script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
+
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
 
@@ -677,6 +468,9 @@
     <!-- Modal Keyboard Adapter (v6.6.0) - Automatic modal positioning for mobile/PWA -->
     <script src="/static/js/utils/modalKeyboardAdapter.min.js?v=PLACEHOLDER"></script>
 
+    <!-- Delete Button Utils (for JS-generated delete buttons) -->
+    <script src="/static/js/utils/deleteButtonUtils.js?v=PLACEHOLDER"></script>
+
     <!-- HTMX -->
     <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER"></script>
 
@@ -684,11 +478,8 @@
     <script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
 
     <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
-    <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
     <!-- Network Detection Module v3.0.0 (modular TypeScript, ZERO dependencies) -->
     <script src="/static/js/network.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
 
     {% if user %}
     <!-- Auth-required scripts (только для авторизованных) -->
@@ -707,124 +498,7 @@
             <img src="/static/icons/icon-192.png" alt="" class="splash-icon" width="96" height="96">
         </div>
     </div>
-    <script>
-    // PWA Splash Screen Controller - inline for immediate execution
-    // Shows splash on EVERY cold start (app closed and reopened), not on F5 or in-app navigation
-    (function() {
-        var splashEl = document.getElementById('pwa-splash');
-        if (!splashEl) return;
-
-        // Only show splash in PWA mode (standalone)
-        var isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                    window.navigator.standalone === true;
-
-        if (!isPWA) {
-            splashEl.remove();
-            return;
-        }
-
-        // Detect page reload (F5) using Performance API
-        var navEntry = window.performance && window.performance.getEntriesByType &&
-                       window.performance.getEntriesByType('navigation')[0];
-        var isReload = navEntry && navEntry.type === 'reload';
-
-        // Session-based detection: cold start = no sessionStorage flag yet
-        var SPLASH_SESSION_KEY = 'pwa_splash_shown';
-        var isColdStart = false;
-
-        // Try sessionStorage (may fail in private browsing mode)
-        try {
-            isColdStart = !sessionStorage.getItem(SPLASH_SESSION_KEY);
-        } catch (e) {
-            console.warn('[PWA_SPLASH] sessionStorage unavailable (private mode?), fallback to always show:', e);
-            isColdStart = true; // Fallback: show splash if storage unavailable
-        }
-
-        // Console logging for debugging
-        console.log('[PWA_SPLASH] Display check:', {
-            isPWA: isPWA,
-            isColdStart: isColdStart,
-            isReload: isReload,
-            navType: navEntry ? navEntry.type : 'unknown',
-            timestamp: Date.now()
-        });
-
-        // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
-        if (!isColdStart || isReload) {
-            try {
-                console.log('[PWA_SPLASH] Skipping splash:', {
-                    reason: !isColdStart ? 'session active' : 'page reload',
-                    sessionFlag: sessionStorage.getItem(SPLASH_SESSION_KEY),
-                    timestamp: Date.now()
-                });
-            } catch (e) {
-                console.log('[PWA_SPLASH] Skipping splash (storage unavailable)');
-            }
-            splashEl.remove();
-            return;
-        }
-
-        // Mark session as splash-shown (persists until tab close)
-        var startTimestamp = Date.now();
-        try {
-            sessionStorage.setItem(SPLASH_SESSION_KEY, startTimestamp.toString());
-        } catch (e) {
-            console.warn('[PWA_SPLASH] Failed to set sessionStorage:', e);
-        }
-
-        console.log('[PWA_SPLASH] Cold start detected, showing splash', {
-            startTimestamp: startTimestamp,
-            duration: '2s'
-        });
-
-        // Show splash for 2 seconds on cold start
-        var MIN_DISPLAY_TIME = 2000;
-        var pageLoaded = false;
-        var timerDone = false;
-
-        function tryHideSplash() {
-            if (timerDone && pageLoaded) {
-                var hideTimestamp = Date.now();
-                var actualDuration = hideTimestamp - startTimestamp;
-
-                console.log('[PWA_SPLASH] Hiding splash', {
-                    timerDone: timerDone,
-                    pageLoaded: pageLoaded,
-                    plannedDuration: '2s',
-                    actualDuration: actualDuration + 'ms',
-                    hideTimestamp: hideTimestamp
-                });
-
-                splashEl.classList.add('hidden');
-                setTimeout(function() {
-                    splashEl.remove();
-                    console.log('[PWA_SPLASH] Splash removed from DOM', {
-                        totalTime: (Date.now() - startTimestamp) + 'ms'
-                    });
-                }, 300);
-            }
-        }
-
-        setTimeout(function() {
-            timerDone = true;
-            tryHideSplash();
-        }, MIN_DISPLAY_TIME);
-
-        console.log('[PWA_SPLASH] DOMContentLoaded fired');
-
-        if (document.readyState === 'complete') {
-            pageLoaded = true;
-            console.log('[PWA_SPLASH] Page already loaded (readyState: complete)');
-            tryHideSplash();
-        } else {
-            window.addEventListener('load', function() {
-                pageLoaded = true;
-                console.log('[PWA_SPLASH] Page loaded, checking if ready to hide');
-                tryHideSplash();
-            });
-        }
-    })();
-    </script>
+    {% include 'scripts/pwa-splash-screen.html' %}
 
     <!-- Skip to main content for accessibility -->
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 btn btn-primary btn-sm">Skip to main content</a>
@@ -842,47 +516,7 @@
             </a>
         </div>
 
-        <div id="navbar-center-menu" class="navbar-center hidden lg:flex">
-            <ul class="menu menu-horizontal px-1" role="menubar">
-                {% if user %}
-                <li><a href="/" data-nav-item class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
-                <li data-offline-hidden="true"><a href="/analytics" data-nav-item class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
-                <li data-offline-hidden="true"><a href="/facts" data-nav-item class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
-                <li data-offline-hidden="true"><a href="/plan" data-nav-item class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
-                <li><a href="/lists" data-nav-item class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
-
-                <!-- Dropdown "Прочее" - доступно всем пользователям -->
-                <li id="analytics-group" data-offline-hidden="true">
-                    <details>
-                        <summary>📂 Прочее</summary>
-                        <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
-                            <li><a href="/notifications" data-nav-item class="{% if '/notifications' in request.url.path %}active{% endif %}">🔔 Уведомления</a></li>
-                            <li><a href="/import" data-nav-item class="{% if '/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
-                            <li class="menu-title"><span>Справочники</span></li>
-                            <li><a href="/admin/articles" data-nav-item class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
-                            <li><a href="/admin/cost-centers" data-nav-item class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 Места затрат</a></li>
-                            <li><a href="/admin/financial-centers" data-nav-item class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 Счета</a></li>
-                            <li><a href="/admin/stores" data-nav-item class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
-                            <li><a href="/admin/product-groups" data-nav-item class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
-                        </ul>
-                    </details>
-                </li>
-                {% endif %}
-
-                {% if user and user.is_admin %}
-                <li data-offline-hidden="true">
-                    <details>
-                        <summary>⚙️ Администратор</summary>
-                        <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
-                            <li><a href="/admin/users" data-nav-item class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
-                            <li><a href="/admin/monitoring" data-nav-item class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
-                            <li><a href="/admin/logs" data-nav-item class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 Системные логи</a></li>
-                        </ul>
-                    </details>
-                </li>
-                {% endif %}
-            </ul>
-        </div>
+        {% include 'partials/navbar_center_menu.html' %}
 
         <div class="navbar-end gap-1 sm:gap-2">
             {% if user %}
@@ -924,6 +558,68 @@
                         0
                     </span>
                 </button>
+            </div>
+
+            <!-- Dexie Status Indicator (Database Icon + Status Dot) -->
+            <div id="dexie-indicator-wrapper"
+                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
+                 data-tip="Локальная БД (Dexie)">
+                <div class="relative flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200 transition-colors">
+                    <!-- Active State: Green Database Icon -->
+                    <div id="dexie-icon-active" class="flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-success"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-success rounded-full dexie-pulse"></div>
+                    </div>
+
+                    <!-- Syncing State: Blue Database Icon + Pulse -->
+                    <div id="dexie-icon-syncing" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-info dexie-rotate"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-info rounded-full dexie-pulse"></div>
+                    </div>
+
+                    <!-- Error State: Red Database Icon -->
+                    <div id="dexie-icon-error" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-error"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-error rounded-full"></div>
+                    </div>
+
+                    <!-- Initializing State: Yellow Database Icon + Pulse -->
+                    <div id="dexie-icon-initializing" class="hidden flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-warning"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-warning rounded-full dexie-pulse"></div>
+                    </div>
+
+                    <!-- Ready State: Green Database Icon (clickable) -->
+                    <div id="dexie-icon-ready" class="hidden flex items-center gap-1.5 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg"
+                             class="h-5 w-5 sm:h-6 sm:w-6 text-success"
+                             fill="currentColor"
+                             viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 4.24 2 7v10c0 2.76 4.48 5 10 5s10-2.24 10-5V7c0-2.76-4.48-5-10-5zm0 2c4.41 0 8 1.79 8 3s-3.59 3-8 3-8-1.79-8-3 3.59-3 8-3zm0 16c-4.41 0-8-1.79-8-3v-2.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V17c0 1.21-3.59 3-8 3zm0-5c-4.41 0-8-1.79-8-3V9.46c1.84 1.38 4.77 2.16 8 2.16s6.16-.78 8-2.16V12c0 1.21-3.59 3-8 3z"/>
+                        </svg>
+                        <div class="w-2 h-2 bg-success rounded-full"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- Push Bell Button (visual indicator with navigation to settings) -->
@@ -988,46 +684,8 @@
             </div>
 
             <!-- Service Worker Update Confirmation Modal -->
-            <dialog id="sw-update-modal" class="modal">
-                <div class="modal-box max-w-md">
-                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔄 Доступно обновление</h2>
-                    <p class="mb-2">Доступна новая версия приложения.</p>
-                    <div id="sw-version-info" class="mb-3 p-3 bg-base-200 rounded-lg">
-                        <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
-                            <span class="opacity-70 whitespace-nowrap">Версия:</span>
-                            <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono break-all">(неизвестно)</span>
-                            <span class="opacity-70">→</span>
-                            <span id="sw-new-version" class="badge badge-warning badge-sm font-mono break-all">(неизвестно)</span>
-                        </div>
-                    </div>
-                    <div class="mb-6 text-sm">
-                        <p class="mb-2 opacity-70">
-                            Для применения обновления необходимо перезагрузить страницу.
-                        </p>
-                        <p class="mb-2">
-                            <strong class="text-warning">Будут удалены: offline данные, настройки и кеш. Потребуется повторная авторизация.</strong>
-                        </p>
-                        <p class="text-xs opacity-60">
-                            <em>Рекомендуется синхронизировать данные перед обновлением.</em>
-                        </p>
-                    </div>
-                    <div class="modal-action">
-                        <button type="button"
-                                id="sw-update-later-btn"
-                                class="btn btn-ghost">
-                            Позже
-                        </button>
-                        <button type="button"
-                                id="sw-update-now-btn"
-                                class="btn btn-primary">
-                            Обновить сейчас
-                        </button>
-                    </div>
-                </div>
-                <form method="dialog" class="modal-backdrop">
-                    <button id="sw-update-backdrop-btn">close</button>
-                </form>
-            </dialog>
+            {% from "components/sw_update_modal.html" import sw_update_modal %}
+            {{ sw_update_modal() }}
 
             <!-- Theme Toggle -->
             <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
@@ -1040,83 +698,11 @@
 
             {% if user %}
                 <!-- User Dropdown Menu (hidden on mobile, visible on desktop) -->
-                <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex" data-offline-hidden="true">
-                    <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
-                        <!-- Avatar -->
-                        {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
-                        {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
-                            <div class="avatar">
-                                <div class="w-8 h-8 rounded-full">
-                                    <img src="{{ user.photo_url }}"
-                                         alt="{{ user.first_name or user.username }}"
-                                         loading="lazy"
-                                         onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
-                                </div>
-                            </div>
-                            <!-- Fallback placeholder (hidden by default) -->
-                            <div class="avatar placeholder" style="display:none;">
-                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
-                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
-                                </div>
-                            </div>
-                        {% else %}
-                            <!-- Placeholder with first letter -->
-                            <div class="avatar placeholder">
-                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
-                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
-                                </div>
-                            </div>
-                        {% endif %}
-                        <!-- Username (hidden on mobile) -->
-                        <span class="hidden sm:inline text-sm font-medium">{{ user.first_name or user.username }}</span>
-                        {% if user.is_admin %}
-                            <span class="hidden sm:inline badge badge-warning badge-xs">Admin</span>
-                        {% endif %}
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </label>
-                    <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-64 sm:w-72">
-                        <li class="menu-title">
-                            <div class="flex items-center justify-between w-full">
-                                <span>{{ user.first_name or user.username }}</span>
-                                {% if user.is_admin %}
-                                    <span class="badge badge-warning badge-xs">Admin</span>
-                                {% endif %}
-                            </div>
-                        </li>
-                        <li>
-                            <div class="flex flex-col gap-1 py-2 cursor-default hover:bg-transparent">
-                                <span class="text-xs opacity-60">{% if user.telegram_id %}Telegram ID{% elif user.email %}Email{% else %}ID{% endif %}</span>
-                                <span class="font-mono text-xs break-all">{{ user.telegram_id or user.email or user.id }}</span>
-                            </div>
-                        </li>
-                        <div class="divider my-1"></div>
-                        <li>
-                            <a href="/security" data-nav-item class="gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                                <span class="text-sm">Безопасность</span>
-                                {% if user.two_factor_enabled %}
-                                    <span class="badge badge-success badge-xs">2FA</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                        <div class="divider my-1"></div>
-                        <li>
-                            <button onclick="handleLogout()" class="text-error gap-2" aria-label="Выйти из системы">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                </svg>
-                                <span class="text-sm">Выйти</span>
-                            </button>
-                        </li>
-                    </ul>
-                </div>
+                {% from "components/user_dropdown_menu.html" import user_dropdown_menu %}
+                {{ user_dropdown_menu(variant='desktop', user=user, request=request) }}
             {% else %}
                 <!-- Auth buttons for guests -->
-                <div class="flex gap-1 sm:gap-2">
+                <div class="flex gap-1 sm:gap-2 mr-2 sm:mr-3">
                     <a href="/register" data-nav-item class="btn btn-outline btn-sm px-2 sm:px-3" title="Регистрация">
                         <!-- Icon only on mobile -->
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1138,86 +724,7 @@
 
             <!-- Mobile Menu (with JS toggle for iOS PWA compatibility) -->
             {% if user %}
-            <div id="mobile-menu-dropdown" class="dropdown dropdown-end lg:hidden">
-                <button id="mobile-menu-btn" type="button" class="btn btn-ghost btn-circle" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobile-menu-content">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
-                <ul id="mobile-menu-content" class="menu menu-sm z-[60] p-2 shadow-xl bg-base-100 rounded-box overscroll-contain" style="position: fixed; top: 4rem; right: 0.5rem; width: 14rem; max-height: calc(100dvh - 5rem); overflow-y: auto; overflow-x: hidden; display: none;">
-                    {% if user %}
-                        <!-- User info with avatar -->
-                        <li class="menu-title">
-                            <div class="flex items-center gap-2 px-2 py-2">
-                                {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
-                                {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
-                                    <div class="avatar">
-                                        <div class="w-10 h-10 rounded-full">
-                                            <img src="{{ user.photo_url }}"
-                                                 alt="{{ user.first_name or user.username }}"
-                                                 loading="lazy"
-                                                 onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
-                                        </div>
-                                    </div>
-                                    <!-- Fallback placeholder -->
-                                    <div class="avatar placeholder" style="display:none;">
-                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
-                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
-                                        </div>
-                                    </div>
-                                {% else %}
-                                    <div class="avatar placeholder">
-                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
-                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                                <div class="flex flex-col">
-                                    <span class="font-medium">{{ user.first_name or user.username }}</span>
-                                    {% if user.is_admin %}
-                                        <span class="badge badge-warning badge-xs">Admin</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </li>
-                        <div class="divider my-1"></div>
-                    {% endif %}
-                    {% if user %}
-                    <li><a href="/" data-nav-item>🏠 Главная</a></li>
-                    <li data-offline-hidden="true"><a href="/analytics" data-nav-item>📊 Аналитика</a></li>
-                    <li data-offline-hidden="true"><a href="/facts" data-nav-item>💸 Факт</a></li>
-                    <li data-offline-hidden="true"><a href="/plan" data-nav-item>📋 План</a></li>
-                    <li><a href="/lists" data-nav-item>🛒 Списки</a></li>
-                    <li data-offline-hidden="true"><a href="/security" data-nav-item>🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
-
-                    <!-- Секция "Прочее" -->
-                    <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
-                    <li data-offline-hidden="true"><a href="/notifications" data-nav-item>🔔 Уведомления</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/import" data-nav-item>📥 Импорт</a></li>
-                    <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles" data-nav-item>📁 Категории</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers" data-nav-item>💼 Места затрат</a></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers" data-nav-item>🏢 Счета</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/stores" data-nav-item>🏪 Магазины</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/product-groups" data-nav-item>📦 Группы товаров</a></li>
-                    {% endif %}
-
-                    {% if user and user.is_admin %}
-                        <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
-                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users" data-nav-item>👥 Пользователи</a></li>
-                        <li data-offline-hidden="true"><a href="/admin/monitoring" data-nav-item>🔍 Мониторинг</a></li>
-                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs" data-nav-item>📋 Системные логи</a></li>
-                    {% endif %}
-                    {% if user %}
-                        <div class="divider my-1"></div>
-                        <li>
-                            <button onclick="handleLogout()" class="text-error">
-                                🚪 Выйти
-                            </button>
-                        </li>
-                    {% endif %}
-                </ul>
-            </div>
+            {{ user_dropdown_menu(variant='mobile', user=user, request=request) }}
             {% endif %}
         </div>
     </header>
@@ -1246,90 +753,14 @@
 
     <!-- Cookie Consent Banner (GDPR Compliance) -->
     {% if user %}
-    <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[999] hidden">
-        <div class="bg-base-100 w-full sm:max-w-lg sm:rounded-lg shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-start gap-3 mb-4">
-                <span class="text-3xl">🍪</span>
-                <div class="flex-1">
-                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Настройки конфиденциальности</h2>
-                    <p class="text-sm opacity-70 mt-1">
-                        Мы используем cookie и аналогичные технологии для улучшения работы приложения.
-                    </p>
-                </div>
-            </div>
-
-            <div class="space-y-3 mb-4">
-                <!-- Essential Cookies (always enabled) -->
-                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">Необходимые cookie</div>
-                        <div class="text-xs opacity-60">Требуются для работы приложения</div>
-                    </div>
-                    <input type="checkbox" class="toggle toggle-primary toggle-sm" checked disabled id="consent-essential" data-consent-type="essential">
-                </div>
-
-                <!-- Analytics -->
-                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">Аналитика</div>
-                        <div class="text-xs opacity-60">Помогает улучшить приложение</div>
-                    </div>
-                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-analytics" data-consent-type="analytics">
-                </div>
-
-                <!-- Push Notifications -->
-                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">Push-уведомления</div>
-                        <div class="text-xs opacity-60">Уведомления о синхронизации и обновлениях</div>
-                    </div>
-                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-push" data-consent-type="push_notifications">
-                </div>
-
-                <!-- Personalization -->
-                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">Персонализация</div>
-                        <div class="text-xs opacity-60">Сохранение настроек и предпочтений</div>
-                    </div>
-                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-personalization" data-consent-type="personalization">
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-2">
-                <button id="consent-accept-all" class="btn btn-primary flex-1">Принять все</button>
-                <button id="consent-save-choices" class="btn btn-outline flex-1">Сохранить выбор</button>
-            </div>
-
-            <div class="text-xs opacity-50 mt-3 text-center">
-                <a href="/privacy-policy" class="link" target="_blank">Политика конфиденциальности</a> • v1.0
-            </div>
-        </div>
-    </div>
+    {% from "components/cookie_consent_banner.html" import cookie_consent_banner %}
+    {{ cookie_consent_banner() }}
     {% endif %}
 
-    <!-- Push Notification Permission Banner (for iOS/Android) -->
-    <!-- Positioned below navbar with 10px margin, horizontally centered -->
-    <!-- Z-index: 50 (same as navbar, stacks correctly via DOM order) -->
-    <!-- Safe-area: Accounts for iOS Dynamic Island/notch and side padding -->
+    <!-- Push Notification Permission Banner -->
     {% if user %}
-    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-50 hidden"
-         style="top: calc(64px + 10px + env(safe-area-inset-top, 0px));
-                margin-left: max(16px, env(safe-area-inset-left, 0px));
-                margin-right: max(16px, env(safe-area-inset-right, 0px));">
-        <div class="flex items-start gap-3">
-            <span class="text-2xl">🔔</span>
-            <div class="flex-1">
-                <p class="font-medium text-sm">Включить уведомления?</p>
-                <p class="text-xs opacity-70 mt-1">Получайте уведомления о синхронизации данных</p>
-            </div>
-            <button id="push-permission-close" class="btn btn-ghost btn-xs btn-circle" aria-label="Закрыть">✕</button>
-        </div>
-        <div class="flex gap-2 mt-3">
-            <button id="push-permission-enable" class="btn btn-primary btn-sm flex-1">Включить</button>
-            <button id="push-permission-later" class="btn btn-ghost btn-sm">Позже</button>
-        </div>
-    </div>
+    {% from "components/push_permission_banner.html" import push_permission_banner %}
+    {{ push_permission_banner() }}
     {% endif %}
 
     <!-- Toast Container (for dynamic notifications) -->
@@ -1363,6 +794,19 @@
             username: "{{ user.username or user.first_name or 'User' }}",
             isAdmin: {{ 'true' if user.is_admin else 'false' }}
         };
+
+        // Validation: Ensure User ID initialized
+        if (!window.userData || !window.userData.id) {
+            console.error('[CRITICAL] User ID not initialized in window.userData');
+
+            // Show visual notification to user
+            if (typeof showToast !== 'undefined') {
+                showToast('Ошибка инициализации. Обновите страницу.', 'error');
+            } else {
+                // Fallback: show native alert if showToast not loaded
+                alert('Ошибка инициализации. Пожалуйста, обновите страницу.');
+            }
+        }
     </script>
 
     <!-- Logs Collector for Admin Logs Page -->
@@ -1404,167 +848,32 @@
             }
         });
 
-        // Toast notification system (responsive, always on top including modals)
-        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
-        // (HTML5 <dialog> creates a "top layer" that ignores z-index)
-        function showToast(message, type = 'info', duration = 2000) {
-            console.log('[showToast] Called:', {message, type, stack: new Error().stack});
-            let container;
+        // Dexie Background Initialization (offline-first mode)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Dexie enabled and not already initialized
+            const dexieActive = localStorage.getItem('dexieActive') === 'true';
 
-            // Check if there's an open dialog (modal)
-            const openDialog = document.querySelector('dialog[open]');
-            if (openDialog) {
-                // Create or find toast-container inside the modal-box
-                container = openDialog.querySelector('.dialog-toast-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
-                    const modalBox = openDialog.querySelector('.modal-box');
-                    if (modalBox) {
-                        modalBox.insertBefore(container, modalBox.firstChild);
-                    } else {
-                        openDialog.prepend(container);
-                    }
-                }
+            if (dexieActive && typeof window.Dexie !== 'undefined') {
+                console.info('[APP] Starting Dexie background initialization...');
+
+                // Start background init (non-blocking, won't block UI)
+                window.Dexie.initializeDatabaseInBackground().catch(error => {
+                    console.warn('[APP] Background Dexie init failed (non-critical):', error);
+                    // User continues working via API - no action needed
+                });
+            } else if (dexieActive) {
+                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
             } else {
-                container = document.getElementById('toast-container');
+                console.info('[APP] Dexie disabled, skipping background init');
             }
+        });
 
-            if (!container) return;
+    </script>
 
-            // Create toast element
-            const toast = document.createElement('div');
-            const alertClass = type === 'success' ? 'alert-success' :
-                              type === 'error' ? 'alert-error' :
-                              type === 'warning' ? 'alert-warning' : 'alert-info';
+    <!-- CRITICAL: Toast Manager MUST be loaded FIRST (used by Service Worker and Offline Manager) -->
+    {% include 'scripts/toast-manager.html' %}
 
-            // Responsive toast with shadow for visibility
-            toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
-            toast.style.cssText = `
-                max-width: min(90vw, 400px);
-                width: auto;
-                min-width: 200px;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-                hyphens: auto;
-            `;
-            toast.innerHTML = `
-                <span class="break-words whitespace-normal leading-tight text-sm sm:text-base">${message}</span>
-            `;
-
-            // Add to container
-            container.appendChild(toast);
-
-            // Auto-dismiss
-            setTimeout(() => {
-                toast.style.transition = 'opacity 0.3s, transform 0.3s';
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-10px)';
-                setTimeout(() => {
-                    if (toast.parentNode === container) {
-                        container.removeChild(toast);
-                    }
-                }, 300);
-            }, duration);
-        }
-
-        // Toast with action button (for offline mode prompts)
-        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
-        function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
-            let container;
-
-            // Check if there's an open dialog (modal)
-            const openDialog = document.querySelector('dialog[open]');
-            if (openDialog) {
-                // Create or find toast-container inside the modal-box
-                container = openDialog.querySelector('.dialog-toast-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
-                    const modalBox = openDialog.querySelector('.modal-box');
-                    if (modalBox) {
-                        modalBox.insertBefore(container, modalBox.firstChild);
-                    } else {
-                        openDialog.prepend(container);
-                    }
-                }
-            } else {
-                container = document.getElementById('toast-container');
-            }
-
-            if (!container) return;
-
-            // Create toast element
-            const toast = document.createElement('div');
-            const alertClass = type === 'success' ? 'alert-success' :
-                              type === 'error' ? 'alert-error' :
-                              type === 'warning' ? 'alert-warning' : 'alert-info';
-
-            toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
-            toast.style.cssText = `
-                max-width: min(90vw, 400px);
-                width: auto;
-                min-width: 200px;
-                word-wrap: break-word;
-                overflow-wrap: break-word;
-                hyphens: auto;
-            `;
-
-            // Alert icon based on type
-            let iconHTML = '';
-            switch (type) {
-                case 'success':
-                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                    break;
-                case 'error':
-                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
-                    break;
-                case 'warning':
-                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>';
-                    break;
-                case 'info':
-                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
-                    break;
-            }
-
-            toast.innerHTML = `
-                <div class="flex items-center gap-2 flex-1">
-                    ${iconHTML}
-                    <span class="break-words whitespace-normal leading-tight text-sm sm:text-base">${message}</span>
-                </div>
-                ${action ? `
-                    <button class="btn btn-sm btn-ghost" data-toast-action>
-                        ${action.label}
-                    </button>
-                ` : ''}
-            `;
-
-            // Add to container
-            container.appendChild(toast);
-
-            // Обработчик action button
-            if (action && action.onClick) {
-                const actionBtn = toast.querySelector('[data-toast-action]');
-                if (actionBtn) {
-                    actionBtn.addEventListener('click', () => {
-                        action.onClick();
-                        toast.remove(); // Закрыть toast после клика
-                    });
-                }
-            }
-
-            // Auto-dismiss
-            setTimeout(() => {
-                toast.style.transition = 'opacity 0.3s, transform 0.3s';
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-10px)';
-                setTimeout(() => {
-                    if (toast.parentNode === container) {
-                        container.removeChild(toast);
-                    }
-                }, 300);
-            }, duration);
-        }
+    <script>
 
         // Submit button loading state management (prevents double submit)
         // Supports both .save-btn (onclick buttons) and type="submit" buttons
@@ -1781,695 +1090,17 @@
     </script>
 
     <!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
-    <script>
-        // Service Worker регистрация для Progressive Web App
-        // Стратегия: Aggressive Auto-Update с автоматической перезагрузкой при обновлении
-        if ('serviceWorker' in navigator) {
-            let refreshing = false;
-            const SW_VERSION_KEY = 'pwa_sw_version';
-            const SW_UPDATE_AVAILABLE_KEY = 'pwa_update_available';
-            const SW_NEW_VERSION_KEY = 'pwa_new_version';
-            const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
+    {% include 'scripts/service-worker-registration.html' %}
+
+    <!-- Dexie Offline Manager (only for authenticated users) -->
+    {% if user %}
+    {% include 'scripts/dexie-indicator-manager.html' %}
+    {% include 'scripts/push-bell-manager.html' %}
+    {% include 'scripts/navbar-sync-badge.html' %}
+    {% endif %}
 
-            // Track if icon already shown this session
-            let updateIconShown = false;
-
-            /**
-             * Show the update available indicator with animation
-             * Only shows if not already shown this session
-             * Displays "new" text indicator without star icon
-             */
-            function showUpdateIcon() {
-                if (updateIconShown) {
-                    return;
-                }
-
-                const wrapper = document.getElementById('update-available-wrapper');
-
-                if (!wrapper) {
-                    console.error('[SW_UPDATE] ERROR: Update indicator wrapper not found in DOM');
-                    return;
-                }
-
-                // Remove hidden class and add fade-in animation
-                wrapper.classList.remove('hidden');
-                wrapper.classList.add('update-icon-enter');
-
-                // Mark as shown to prevent duplicates
-                updateIconShown = true;
-
-            }
-
-            /**
-             * Handle user clicking the update indicator
-             * Shows confirmation modal instead of immediate reload
-             */
-            function handleUpdateClick() {
-
-                const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-
-                // Show confirmation modal
-                const modal = document.getElementById('sw-update-modal');
-                if (!modal) {
-                    console.error('[SW_UPDATE] ERROR: Update modal not found in DOM');
-                    handleUpdateNow(); // Fallback
-                    return;
-                }
-
-                // Populate version information before showing modal
-                const currentVersion = localStorage.getItem(SW_VERSION_KEY);
-                populateVersionInfo(currentVersion, newVersion);
-
-                modal.showModal();
-            }
-
-            /**
-             * Handle "Reload now" action
-             * Logs out, unregisters Service Worker, clears all caches, storage, then reloads
-             */
-            async function handleUpdateNow() {
-                const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-
-                console.log('[SW_UPDATE] ========================================');
-                console.log('[SW_UPDATE] Starting cleanup process, target:', newVersion);
-
-                showToast('Обновление приложения...', 'info', 15000);
-
-                try {
-                    // Step 1/6: API Logout (best effort)
-                    console.log('[SW_UPDATE] Step 1/6: Logout API...');
-                    try {
-                        await Promise.race([
-                            fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' }),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
-                        ]);
-                        console.log('[SW_UPDATE] ✅ Step 1/6: Logged out');
-                    } catch (e) {
-                        console.warn('[SW_UPDATE] ⚠️ Step 1/6: Logout failed:', e.message);
-                    }
-
-                    // Step 2/6: Unregister Service Worker
-                    console.log('[SW_UPDATE] Step 2/6: Unregister SW...');
-                    const registration = await navigator.serviceWorker.getRegistration();
-                    if (registration) {
-                        await registration.unregister();
-                        console.log('[SW_UPDATE] ✅ Step 2/6: SW unregistered');
-                    } else {
-                        console.log('[SW_UPDATE] ✅ Step 2/6: No SW to unregister');
-                    }
-
-                    // Step 3/6: Clear caches
-                    console.log('[SW_UPDATE] Step 3/6: Clear caches...');
-                    const cacheNames = await caches.keys();
-                    await Promise.all(cacheNames.map(name => caches.delete(name)));
-                    console.log('[SW_UPDATE] ✅ Step 3/6: Cleared', cacheNames.length, 'caches');
-
-                    // Step 4/6: Delete IndexedDB
-                    console.log('[SW_UPDATE] Step 4/6: Delete IndexedDB...');
-                    await new Promise((resolve) => {
-                        const req = indexedDB.deleteDatabase('FamilyBudgetDB');
-                        req.onsuccess = () => { console.log('[SW_UPDATE] ✅ Step 4/6: IndexedDB deleted'); resolve(); };
-                        req.onerror = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB error'); resolve(); };
-                        req.onblocked = () => { console.warn('[SW_UPDATE] ⚠️ Step 4/6: IndexedDB blocked'); resolve(); };
-                        setTimeout(resolve, 5000);
-                    });
-
-                    // Step 5/6: Clear localStorage + set skip flag
-                    console.log('[SW_UPDATE] Step 5/6: Clear localStorage...');
-                    const lsKeys = Object.keys(localStorage).length;
-                    localStorage.clear();
-                    if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
-                    // NEW: Skip SW registration on next load to keep cache empty
-                    localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
-                    console.log('[SW_UPDATE] ✅ Step 5/6: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
-
-                    // Step 6/6: Clear sessionStorage
-                    console.log('[SW_UPDATE] Step 6/6: Clear sessionStorage...');
-                    const ssKeys = Object.keys(sessionStorage).length;
-                    sessionStorage.clear();
-                    console.log('[SW_UPDATE] ✅ Step 6/6: Cleared', ssKeys, 'sessionStorage keys');
-
-                    // Close modal
-                    const modal = document.getElementById('sw-update-modal');
-                    if (modal) modal.close();
-                    console.log('[SW_UPDATE] Modal closed');
-
-                    // Success feedback
-                    console.log('[SW_UPDATE] ========================================');
-                    console.log('[SW_UPDATE] ✅ All cleanup complete, reloading...');
-                    showToast('Обновление завершено!', 'success', 2000);
-
-                    // Reload with cache bust (fallback for deprecated reload(true))
-                    setTimeout(() => {
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('_update', Date.now());
-                        console.log('[SW_UPDATE] Navigating to:', url.toString());
-                        window.location.href = url.toString();
-                    }, 300);
-
-                } catch (error) {
-                    console.error('[SW_UPDATE] ❌ ERROR:', error);
-                    console.error('[SW_UPDATE] Error details:', {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    });
-                    showToast('Ошибка обновления, перезагрузка...', 'error');
-
-                    // Force reload on error
-                    setTimeout(() => {
-                        window.location.href = window.location.href;
-                    }, 500);
-                }
-            }
-
-            /**
-             * Handle "Later" action
-             * Closes modal and keeps update indicator visible
-             */
-            function handleUpdateLater() {
-
-                const modal = document.getElementById('sw-update-modal');
-                if (modal) {
-                    modal.close();
-                }
-
-            }
-
-            /**
-             * Populate version information in the update modal
-             * Displays current and new Service Worker versions with fallback handling
-             * @param {string|null} currentVersion - Current installed version from localStorage
-             * @param {string|null} newVersion - New available version from localStorage
-             */
-            function populateVersionInfo(currentVersion, newVersion) {
-
-                const currentElem = document.getElementById('sw-current-version');
-                const newElem = document.getElementById('sw-new-version');
-
-                // Defensive check: Ensure DOM elements exist
-                if (!currentElem || !newElem) {
-                    console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
-                    console.warn('[SW_UPDATE] Modal will show without version information');
-                    return;
-                }
-
-                // Display current version with fallback
-                const currentText = currentVersion || '(неизвестно)';
-                currentElem.textContent = currentText;
-
-                // Display new version with fallback
-                const newText = newVersion || '(неизвестно)';
-                newElem.textContent = newText;
-
-                // Log version transition for debugging
-                if (currentVersion && newVersion) {
-                } else if (!currentVersion && newVersion) {
-                    console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
-                } else if (currentVersion && !newVersion) {
-                    console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
-                } else {
-                    console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
-                }
-            }
-
-            /**
-             * Check if an update was detected previously (e.g., in another tab)
-             * Called on DOMContentLoaded
-             */
-            function checkForPendingUpdate() {
-                const updateAvailable = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY);
-
-                if (updateAvailable === 'true') {
-                    showUpdateIcon();
-                }
-            }
-
-            // Expose functions to global scope for onclick handlers
-            window.handleUpdateClick = handleUpdateClick;
-            window.handleUpdateNow = handleUpdateNow;
-            window.handleUpdateLater = handleUpdateLater;
-
-            // Initialize modal button listeners on DOMContentLoaded
-            document.addEventListener('DOMContentLoaded', () => {
-
-                const updateNowBtn = document.getElementById('sw-update-now-btn');
-                const updateLaterBtn = document.getElementById('sw-update-later-btn');
-                const backdropBtn = document.getElementById('sw-update-backdrop-btn');
-
-                if (updateNowBtn) {
-                    updateNowBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleUpdateNow();
-                    });
-                } else {
-                    console.error('[SW_UPDATE] ❌ "Обновить сейчас" button not found in DOM!');
-                }
-
-                if (updateLaterBtn) {
-                    updateLaterBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleUpdateLater();
-                    });
-                } else {
-                    console.error('[SW_UPDATE] ❌ "Позже" button not found in DOM!');
-                }
-
-                if (backdropBtn) {
-                    backdropBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleUpdateLater();
-                    });
-                }
-            });
-
-            /**
-             * Получить CACHE_VERSION из Service Worker через MessageChannel
-             * @param {ServiceWorker} controller - Service Worker controller
-             * @returns {Promise<string|null>} CACHE_VERSION или null
-             */
-            async function getSWVersion(controller) {
-                if (!controller) return null;
-
-                return new Promise((resolve) => {
-                    const messageChannel = new MessageChannel();
-                    const timeout = setTimeout(() => {
-                        console.warn('[PWA] Timeout getting SW version');
-                        resolve(null);
-                    }, 5000); // 5 second timeout
-
-                    messageChannel.port1.onmessage = (event) => {
-                        clearTimeout(timeout);
-                        if (event.data.type === 'VERSION_RESPONSE') {
-                            resolve(event.data.version);
-                        } else {
-                            resolve(null);
-                        }
-                    };
-
-                    controller.postMessage(
-                        { action: 'getVersion' },
-                        [messageChannel.port2]
-                    );
-                });
-            }
-
-            // CRITICAL: Listen for controllerchange event (new SW activated)
-            // Показываем иконку обновления вместо автоматической перезагрузки
-            navigator.serviceWorker.addEventListener('controllerchange', async () => {
-
-                const controller = navigator.serviceWorker.controller;
-                if (!controller) {
-                    console.warn('[SW_UPDATE] No controller available after controllerchange');
-                    return;
-                }
-
-                const savedVersion = localStorage.getItem(SW_VERSION_KEY);
-
-                // First install detection: If no saved version, this is first time
-                if (!savedVersion) {
-
-                    try {
-                        const newVersion = await getSWVersion(controller);
-                        localStorage.setItem(SW_VERSION_KEY, newVersion);
-                    } catch (error) {
-                        console.error('[SW_UPDATE] ERROR getting initial version:', error);
-                    }
-
-                    return; // Early exit - don't show icon on first install
-                }
-
-                // Get new version from activated Service Worker
-                let newVersion;
-                try {
-                    newVersion = await getSWVersion(controller);
-                } catch (error) {
-                    console.error('[SW_UPDATE] ERROR getting new version:', error);
-                    return;
-                }
-
-                // Compare versions
-                if (newVersion === savedVersion) {
-                    return;
-                }
-
-                // UPDATE DETECTED!
-
-                // Store update state for persistence
-                localStorage.setItem(SW_UPDATE_AVAILABLE_KEY, 'true');
-                localStorage.setItem(SW_NEW_VERSION_KEY, newVersion);
-
-                // Show the update icon instead of auto-reloading
-                showUpdateIcon();
-            });
-
-            window.addEventListener('load', () => {
-                // Check if SW registration should be skipped (after update)
-                const skipRegistration = localStorage.getItem(SW_SKIP_REGISTRATION_KEY);
-                if (skipRegistration === 'true') {
-                    console.log('[SW] ⏭️ Skipping SW registration (post-update mode)');
-                    localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
-
-                    // Clear any remaining caches (safety measure)
-                    caches.keys().then(names => {
-                        if (names.length > 0) {
-                            console.log('[SW] 🗑️ Clearing remaining caches:', names);
-                            Promise.all(names.map(name => caches.delete(name)))
-                                .then(() => console.log('[SW] ✅ All remaining caches cleared'))
-                                .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
-                        } else {
-                            console.log('[SW] ✅ Cache Storage is empty');
-                        }
-                    }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
-
-                    return; // Skip SW registration this time
-                }
-
-                navigator.serviceWorker.register('/sw.min.js')
-                    .then(async (registration) => {
-                        // Сохраняем текущую версию SW при загрузке
-                        if (navigator.serviceWorker.controller) {
-                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
-                            if (currentVersion) {
-                                localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                            } else {
-                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
-                            }
-                        }
-
-                        // Проверка обновлений при каждой загрузке страницы
-                        registration.update();
-
-                        // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
-                        setInterval(() => {
-                            registration.update(); // Silent check
-                        }, 60 * 60 * 1000); // 1 hour = 3600000ms
-
-                        // Обработка обновлений SW
-                        registration.addEventListener('updatefound', () => {
-                            const newWorker = registration.installing;
-                            if (!newWorker) return;
-
-                            newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed') {
-                                    if (navigator.serviceWorker.controller) {
-                                        // Update available - will auto-activate via skipWaiting()
-                                        // skipWaiting() уже вызван в SW install event
-                                        // controllerchange event триггерит reload
-                                    } else {
-                                        // First install - just log, no toast (silent UX)
-                                        // Note: Version will be saved on controllerchange or next page load
-                                        // (cannot get CACHE_VERSION from installing worker via postMessage)
-                                    }
-                                }
-                            });
-                        });
-                    })
-                    .catch((err) => {
-                        console.error('[PWA] Service Worker registration failed:', err);
-                    });
-            });
-
-            // Check for pending updates on page load
-            document.addEventListener('DOMContentLoaded', () => {
-                checkForPendingUpdate();
-            });
-        }
-    </script>
-
-    <!-- Offline Manager Initialization -->
     {% if user %}
     <script>
-        // Initialize offline manager
-        window.offlineManager = new OfflineManager();
-        // budgetPushManager singleton уже создан в pushManager.js
-
-        // ============================================================================
-        // Push Bell Button State Management
-        // ============================================================================
-
-        // Navigate to notification settings
-        function navigateToNotificationSettings() {
-            window.location.href = '/notifications';
-        }
-
-        // Update push bell button state
-        async function updatePushBellState() {
-            try {
-                // Note: Icon state is managed by pushManager.js based on subscription status
-                // This function is reserved for future preference-based UI updates if needed
-                console.debug('[PUSH_BELL] Bell state managed by pushManager');
-            } catch (error) {
-                console.error('[PUSH_BELL] Error:', error);
-            }
-        }
-
-        // ============================================================================
-        // Navbar Sync Badge Management
-        // ============================================================================
-
-        /**
-         * Update navbar sync badge count
-         * Called from loadPendingRecords() and periodic updates
-         * @param {number} count - Number of pending items
-         */
-        function updateNavbarSyncBadge(count) {
-            const wrapper = document.getElementById('navbar-sync-badge-wrapper');
-            const countEl = document.getElementById('navbar-sync-count');
-
-            if (!wrapper || !countEl) {
-                console.warn('[SYNC] Navbar sync badge elements not found');
-                return;
-            }
-
-            if (count > 0) {
-                wrapper.classList.remove('hidden');
-                countEl.textContent = count;
-                wrapper.setAttribute('data-tip', `${count} ${count === 1 ? 'запись ожидает' : 'записей ожидают'} синхронизации`);
-            } else {
-                wrapper.classList.add('hidden');
-                countEl.textContent = '0';
-            }
-        }
-
-        /**
-         * Periodic sync badge update (every 5 seconds)
-         * Keeps navbar badge in sync with pending records
-         */
-        async function periodicSyncBadgeUpdate() {
-            if (!window.offlineManager) return;
-
-            try {
-                const { items } = await window.offlineManager.getAllUnsyncedItems();
-                updateNavbarSyncBadge(items.length);
-            } catch (error) {
-                // Ignore transient errors during navigation
-                if (error.name !== 'InvalidStateError' && window.DEBUG_MODE) {
-                    console.warn('[SYNC] Periodic update error:', error);
-                }
-            }
-        }
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Helper to log to budgetWSClient history (visible in diagnostic tap)
-            const initLog = (msg) => {
-                if (window.budgetWSClient && window.budgetWSClient._logHistory) {
-                    window.budgetWSClient._logHistory('init:' + msg);
-                }
-                debugLog('[Init]', msg);
-            };
-
-            try {
-                initLog('dom_ready');
-
-                initLog('offline_mgr_start');
-                await window.offlineManager.init();
-                initLog('offline_mgr_done');
-
-                initLog('push_mgr_start');
-                await window.budgetPushManager.init();
-                initLog('push_mgr_done');
-
-                // Update push bell button state (after slight delay to ensure DOM is ready)
-                setTimeout(updatePushBellState, 1000);
-
-                // Initialize Budget WebSocket for real-time updates
-                initLog('ws_check');
-                if (window.budgetWSClient) {
-                    initLog('ws_connect_call');
-                    window.budgetWSClient.connect();
-                    initLog('ws_connect_done');
-                } else {
-                    initLog('ws_undefined!');
-                    console.error('[Init] budgetWSClient is undefined!');
-                }
-
-                // Initialize IncrementalUpdates cache for WebSocket-driven UI updates
-                if (window.IncrementalUpdates) {
-                    window.IncrementalUpdates.initCache().then(success => {
-                        if (success) {
-                            debugLog('[Offline] IncrementalUpdates cache initialized');
-                        } else {
-                            debugLog('[Offline] IncrementalUpdates cache init failed, will fallback to HTMX');
-                        }
-                    });
-                }
-
-                // Update UI
-                updateOfflineUI();
-
-                // Start periodic navbar sync badge updates
-                setTimeout(periodicSyncBadgeUpdate, 1000);  // Initial update after 1s
-                setInterval(periodicSyncBadgeUpdate, 5000); // Update every 5s
-
-                // Precache offline pages для работы в offline режиме
-                // Страницы из OFFLINE_PAGES в sw.js, кроме / (уже в STATIC_CACHE)
-                if (window.offlineManager.isOnline) {
-                    const OFFLINE_PAGES = ['/lists'];  // Защищённые страницы, не в STATIC_CACHE
-                    OFFLINE_PAGES.forEach(page => {
-                        fetch(page, { credentials: 'include' })
-                            .then(() => debugLog('[Precache] Cached:', page))
-                            .catch(e => console.warn('[Precache] Failed:', page, e.message));
-                    });
-                }
-            } catch (error) {
-                // Log to budgetWSClient history so it's visible in diagnostic tap
-                if (window.budgetWSClient && window.budgetWSClient._logHistory) {
-                    window.budgetWSClient._logHistory('init:ERROR:' + error.message);
-                }
-                console.error('[Offline] Initialization error:', error);
-            }
-        });
-
-        // Network status handlers (UI only, toast handled by OfflineManager)
-        window.addEventListener('online', () => {
-            debugLog('[Offline] Browser online event');
-            // Update all UI elements (badge, menus, dropdowns)
-            updateOfflineUI();
-            // Note: Toast is handled by OfflineManager.handleOnline() with debounce
-        });
-
-        window.addEventListener('offline', () => {
-            debugLog('[Offline] Browser offline event');
-            // Update all UI elements (badge, menus, dropdowns)
-            updateOfflineUI();
-            // Note: Toast is handled by OfflineManager.handleOffline() with debounce
-        });
-
-        // Handle bfcache (Back-Forward Cache) - when page is restored from cache
-        // DOMContentLoaded does NOT fire when page is restored from bfcache
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                debugLog('[Offline] Page restored from bfcache, updating UI');
-                // Re-dispatch restored state if offline mode was active
-                if (window.offlineManager && window.offlineManager.networkDetector) {
-                    // Reset dispatch flag to allow re-dispatching
-                    window.offlineManager.networkDetector._stateDispatched = false;
-                    window.offlineManager.networkDetector.dispatchRestoredState();
-                }
-                updateOfflineUI();
-            }
-        });
-
-        // Handle visibility change - when tab becomes visible again
-        // Useful for cases where state might have changed while tab was hidden
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                debugLog('[Offline] Page became visible, updating UI');
-                updateOfflineUI();
-            }
-        });
-
-        // Listen for SmartNetworkDetector status changes (backend availability)
-        // This catches cases where navigator.onLine is true but backend is unreachable
-        window.addEventListener('offline-status-change', async (event) => {
-            const { online, status } = event.detail || {};
-            debugLog('[Offline] SmartNetworkDetector status change:', status, 'online:', online);
-            // Update UI based on actual backend availability
-            updateOfflineUI();
-            // Update navbar sync badge
-            await periodicSyncBadgeUpdate();
-        });
-
-        // Also listen for network-status-change (from SmartNetworkDetector directly)
-        window.addEventListener('network-status-change', async (event) => {
-            const { status, previousStatus, auto } = event.detail || {};
-            debugLog('[Offline] Network status change:', previousStatus, '→', status, 'auto:', auto);
-
-            // Update offline indicator
-            const offlineIcon = document.getElementById('offline-icon');
-            if (offlineIcon) {
-                if (status === 'offline') {
-                    offlineIcon.classList.remove('hidden');
-                    offlineIcon.title = auto ? 'Сервер недоступен (автоматически)' : 'Нет подключения к интернету';
-                } else {
-                    // Online - hide offline icon
-                    offlineIcon.classList.add('hidden');
-                }
-            }
-
-            // Update UI based on actual backend availability
-            updateOfflineUI();
-            // Update navbar sync badge
-            await periodicSyncBadgeUpdate();
-        });
-
-        // Update offline UI
-        // Considers both navigator.onLine AND SmartNetworkDetector status
-        // Backend may be unreachable even if navigator.onLine is true
-        function updateOfflineUI() {
-            let isOnline = navigator.onLine;
-
-            if (window.offlineManager && window.offlineManager.networkDetector) {
-                const networkStatus = window.offlineManager.networkDetector.getStatus();
-                if (networkStatus === 'offline') {
-                    isOnline = false;
-                    debugLog('[Offline] Backend unreachable, switching to offline mode');
-                }
-            }
-
-            // Sync offline-mode class on <html> (for CSS-based hiding)
-            if (isOnline) {
-                document.documentElement.classList.remove('offline-mode');
-            } else {
-                document.documentElement.classList.add('offline-mode');
-            }
-
-            // Update offline badge (cloud with X) - show when offline
-            const offlineBadge = document.getElementById('offline-icon');
-            if (offlineBadge) {
-                if (!isOnline) {
-                    offlineBadge.classList.remove('hidden');
-                } else {
-                    offlineBadge.classList.add('hidden');
-                }
-            }
-
-            // Search ENTIRE document for offline-hidden elements
-            // This handles all pages and containers (mobile menu, navbar, content areas)
-            const allOfflineHiddenItems = document.querySelectorAll('[data-offline-hidden="true"]');
-            allOfflineHiddenItems.forEach(item => {
-                item.style.display = isOnline ? '' : 'none';
-            });
-        }
-
-        // Listen for sync events from Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data && event.data.type === 'sync-completed') {
-                    debugLog('[Offline] Sync completed:', event.data);
-                    showToast(`Синхронизировано записей: ${event.data.count}`, 'success');
-                } else if (event.data && event.data.type === 'sync-failed') {
-                    debugLog('[Offline] Sync failed:', event.data);
-                    showToast(`Ошибка синхронизации: ${event.data.count} записей`, 'error');
-                }
-            });
-        }
-
         // Cookie Consent Manager (GDPR Compliance)
         (function initCookieConsent() {
             const banner = document.getElementById('cookie-consent-banner');
@@ -2867,18 +1498,5 @@
 
     <!-- WebAuthn Onboarding -->
     <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER"></script>
-    <script>
-        // Detect login via query parameter (from Telegram OAuth callback)
-        (function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('just_logged_in') === 'true') {
-                sessionStorage.setItem('just_logged_in', 'true');
-                // Clean URL (remove query parameter)
-                const url = new URL(window.location.href);
-                url.searchParams.delete('just_logged_in');
-                window.history.replaceState({}, document.title, url.pathname + url.hash);
-            }
-        })();
-    </script>
 </body>
 </html>

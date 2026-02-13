@@ -1,0 +1,13 @@
+FROM redis:7-alpine
+
+# Создаем директорию для AOF persistence
+RUN mkdir -p /data && chown -R redis:redis /data
+
+EXPOSE 6379
+
+# Healthcheck
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=10 \
+    CMD redis-cli ping || exit 1
+
+# Команда запуска (параметры передаются через docker-compose command)
+CMD ["redis-server"]

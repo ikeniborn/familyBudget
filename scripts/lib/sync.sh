@@ -224,8 +224,7 @@ check_code_changes() {
     local repo_dir=$1
 
     # Use rsync --dry-run to detect changes
-    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (live in /opt/budget only, not copied)
-    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
+    # node_modules/ excluded (dependencies in Docker images)
     local changes=$(rsync -avnc \
         --exclude='.env' \
         --exclude='node_modules/' \
@@ -236,7 +235,6 @@ check_code_changes() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
@@ -260,29 +258,14 @@ sync_mirror() {
     info "To:   $DEPLOY_DIR"
     echo ""
 
-    # PRE-SYNC CHECK: Verify npm environment before mirror sync (critical with --delete)
-    if [[ -d "$DEPLOY_DIR/.npm-isolated/node_modules" ]]; then
-        local pkg_count
-        pkg_count=$(find "$DEPLOY_DIR/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        info "Pre-sync: npm environment detected ($pkg_count packages)"
-        info "Will be PROTECTED by --filter='protect .npm-isolated/'"
-    else
-        warning "Pre-sync: npm environment NOT found at $DEPLOY_DIR/.npm-isolated/"
-        warning "If this is first deployment, run install.sh after sync"
-    fi
-    echo ""
-
     # Show preview of changes
-    # IMPORTANT: .npm-isolated/ and .migration_checksums PROTECTED from deletion (production-only)
-    # Uses --filter='protect' to prevent rsync --delete from removing them
-    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
+    # Production-only files protected from deletion: .migration_checksums, .docker_build_checksums
+    # node_modules/ excluded (dependencies in Docker images)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
-        --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -291,7 +274,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         --exclude='docs/' \
@@ -310,21 +292,13 @@ sync_mirror() {
     info "Proceeding with mirror sync (auto-confirmed)..."
 
     # Perform sync
-    # CRITICAL FIX (2025-11-08): Protect .npm-isolated/ from deletion
-    # CRITICAL FIX (2025-11-12): Protect .migration_checksums from deletion
-    # CRITICAL FIX (2025-11-21): Exclude node_modules/ from sync (only .npm-isolated/node_modules exists in production)
-    # Problem: rsync --delete removes files from destination not in source
-    # Solution: --filter='protect' prevents deletion even with --delete flag
     # Protected files live ONLY in production (/opt/budget), NOT in repository:
-    #   - .npm-isolated/ (233 npm packages for build)
     #   - .migration_checksums (MD5 checksums for migration change detection)
     #   - .docker_build_checksums (MD5 checksums for Docker rebuild detection)
     if rsync -avc --delete \
-        --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
         --filter='protect .docker_build_checksums' \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -333,7 +307,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         --exclude='docs/' \
@@ -348,16 +321,6 @@ sync_mirror() {
         --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
         success "Code synced successfully (mirror mode)"
-
-        # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted
-        if [[ ! -d "$DEPLOY_DIR/.npm-isolated/node_modules" ]]; then
-            error "CRITICAL: npm environment DELETED during mirror sync!"
-            error "This indicates --filter='protect' is NOT working correctly"
-            error "Please report this as a bug with rsync version: $(rsync --version | head -1)"
-            return 1
-        else
-            success "Post-sync: npm environment preserved successfully"
-        fi
 
         # Ensure required directories exist
         info "Creating required directories..."
@@ -395,7 +358,6 @@ sync_update() {
     local changed_files_raw
     changed_files_raw=$(rsync -avnc --itemize-changes \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -404,7 +366,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         --exclude='docs/' \
@@ -430,12 +391,10 @@ sync_update() {
     info "Proceeding with update sync (auto-confirmed)..."
 
     # 1. Perform rsync (update/add files)
-    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only directories/files)
-    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
+    # node_modules/ excluded (dependencies in Docker images)
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -444,7 +403,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         --exclude='docs/' \
@@ -482,7 +440,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./.npm-isolated/*" \
         ! -name ".migration_checksums" \
         ! -name ".docker_build_checksums" \
         ! -name ".cache-version" \
@@ -499,8 +456,6 @@ sync_update() {
         2>/dev/null | sed 's|^./||' | sort) > "$temp_repo_list"
 
     # Generate list of files in deploy directory
-    # IMPORTANT: Exclude .npm-isolated/* and .migration_checksums from cleanup (production-only)
-    # CRITICAL: Exclude node_modules/* from cleanup (should not exist, but safeguard)
     # CRITICAL: Exclude uploads/* - user uploaded files (temp storage for import)
     # CRITICAL: Exclude .cache-version - created during deploy, not in git
     # NOTE: nginx/conf.d/*.conf ARE deleted here - they will be regenerated by regenerate_nginx_config()
@@ -517,7 +472,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./.npm-isolated/*" \
         ! -name ".migration_checksums" \
         ! -name ".docker_build_checksums" \
         ! -name ".cache-version" \
@@ -581,7 +535,6 @@ sync_clean() {
     echo ""
     warning "Protected (NOT deleted):"
     warning "  - .env file"
-    warning "  - .npm-isolated/ (production npm environment)"
     warning "  - .migration_checksums (migration change detection)"
     warning "  - .docker_build_checksums (Docker rebuild detection)"
     warning "  - logs/ directory (contents cleared)"
@@ -664,13 +617,10 @@ sync_clean() {
     find "$DEPLOY_DIR" -maxdepth 1 -type f ! -name '.env' ! -name 'deploy.log' -delete 2>/dev/null || true
 
     # Step 5: Copy everything from repository (except .env and directories we already handled)
-    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
-    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
-    # CRITICAL: VERSION excluded (preserve version bumped by --version option)
+    # node_modules/ excluded (dependencies in Docker images)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
-        --exclude='VERSION' \
         --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -678,7 +628,6 @@ sync_clean() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
         --exclude='.docker_build_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
@@ -728,19 +677,9 @@ analyze_sync_changes() {
         info "This is normal if code is up-to-date or sync was skipped"
 
         # CRITICAL: Check HTML templates checksum for Jinja2 cache invalidation
-        # Even when rsync detects no changes (files already synced), the backend
-        # container may have stale Jinja2 cached templates from a previous deploy.
-        # This happens when:
-        #   1. First deploy syncs files and starts backend (Jinja2 caches templates)
-        #   2. Code change is committed (e.g., CSS removed from base.html)
-        #   3. Second deploy - rsync sees files already identical → SYNC_CHANGED_FILES empty
-        #   4. Without checksum check, backend keeps running with OLD cached templates
-        #
-        # Fix: Compare templates checksum with last backend recreation
-        if needs_backend_restart_for_templates "$SCRIPT_DIR"; then
-            export NEEDS_BACKEND_RECREATE=true
-            info "✓ Backend will be recreated (HTML templates changed since last restart)"
-        fi
+        # Registry-first v9.0: Templates embedded in Docker image
+        # Backend automatically recreated when image version changes
+        # Template checksum verification not needed (handled by image tags)
 
         return 0
     fi
@@ -1166,7 +1105,7 @@ sync_code_to_deploy() {
             echo "Select sync mode:"
             echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
             echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, backups/, logs/"
+            echo "      Protected: .env, .migration_checksums, .docker_build_checksums, backups/, logs/"
             echo ""
             echo "  [2] Update only (rsync)"
             echo "      Updates existing + adds new files"
@@ -1175,7 +1114,7 @@ sync_code_to_deploy() {
             echo "  [3] Clean + copy (DANGEROUS!)"
             echo "      Deletes EVERYTHING (code, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, logs/ directory (contents cleared)"
+            echo "      Protected: .env, .migration_checksums, .docker_build_checksums, logs/ directory (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"
@@ -1211,31 +1150,13 @@ sync_code_to_deploy() {
         fi
     fi
 
-    # ARCHITECTURE NOTE (2025-11-08):
+    # ARCHITECTURE NOTE (Registry-First v9.0):
     # Production-only files live in /opt/budget (NOT synchronized from repository):
-    #   1. .npm-isolated/ - npm packages (233 packages, ~100-200MB)
-    #   2. .migration_checksums - MD5 checksums for migration change detection
-    #   3. .docker_build_checksums - MD5 checksums for Docker rebuild detection
+    #   1. .migration_checksums - MD5 checksums for migration change detection
+    #   2. .docker_build_checksums - MD5 checksums for Docker rebuild detection
     #
-    # These are excluded in all rsync commands above. This provides:
-    #   - Faster deploys (~100-200MB not copied)
-    #   - No permission issues during sync
-    #   - Clear separation: source code in repo, build tools + state in production
-    #   - Persistent migration change detection across deployments
-    #
-    # To set up npm environment: run install.sh (creates /opt/budget/.npm-isolated)
-
-    # Verify npm environment exists in production directory
-    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-        local package_count
-        package_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        info "Production npm environment verified: /opt/budget/.npm-isolated/ ($package_count packages)"
-        info "Ready for build (NOT copied via rsync - production-only directory)"
-    else
-        warning "Production npm environment not found: /opt/budget/.npm-isolated/"
-        warning "Run install.sh to set up npm dependencies in production directory"
-        warning "Build process may fail without npm environment"
-    fi
+    # Frontend and dependencies are embedded in Docker images (built in CI/CD).
+    # No npm/Node.js required on production server.
 
     # Execute sync based on selected mode
     case "$SYNC_MODE" in
@@ -1258,18 +1179,35 @@ sync_code_to_deploy() {
             ;;
     esac
 
-    # Initialize VERSION from repository only if not exists in DEPLOY_DIR
-    # This ensures version bumps (--version patch) persist across deployments
-    # VERSION is excluded from rsync to prevent overwriting bumped versions
-    if [[ ! -f "$DEPLOY_DIR/VERSION" ]]; then
+    # VERSION synchronization logic (v9.0+ Registry-First)
+    #
+    # Registry-First Mode (v9.0+):
+    #   - GitHub Actions builds images with VERSION tag from git
+    #   - Server must sync VERSION from git to pull correct images
+    #   - VERSION bump (--version TYPE) happens BEFORE rsync in version.sh
+    #
+    # Logic:
+    #   1. If --version TYPE or --set-version specified → skip sync (already bumped in version.sh)
+    #   2. Otherwise → ALWAYS sync from git repo (match CI/CD VERSION)
+    if [[ -n "${VERSION_BUMP_TYPE:-}" || -n "${VERSION_SET:-}" ]]; then
+        # Version will be bumped by version.sh - preserve current VERSION
+        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION" 2>/dev/null || echo 'not set')"
+        info "Reason: --version or --set-version specified"
+    else
+        # No version bump requested - sync from git repo (registry-first mode)
         if [[ -f "$repo_dir/VERSION" ]]; then
-            cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
-            info "VERSION initialized from repository: $(cat "$DEPLOY_DIR/VERSION")"
+            local repo_version=$(cat "$repo_dir/VERSION")
+            local current_version=$(cat "$DEPLOY_DIR/VERSION" 2>/dev/null || echo "not set")
+
+            if [[ "$repo_version" != "$current_version" ]]; then
+                cp "$repo_dir/VERSION" "$DEPLOY_DIR/VERSION"
+                info "VERSION synchronized from git: $current_version → $repo_version"
+            else
+                info "VERSION already in sync: $repo_version"
+            fi
         else
             warning "VERSION file not found in repository"
         fi
-    else
-        info "VERSION preserved: $(cat "$DEPLOY_DIR/VERSION")"
     fi
 
     # Log synchronization

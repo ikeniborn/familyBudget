@@ -19,7 +19,7 @@ Usage:
 
 import logging
 import sys
-from typing import Any, Optional
+from typing import Any
 
 from pythonjsonlogger import jsonlogger
 

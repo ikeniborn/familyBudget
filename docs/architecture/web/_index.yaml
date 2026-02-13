@@ -71,14 +71,15 @@ directory_structure:
         icons: "PWA icons"
 
     webapp:
-      - "index.html"
-      - "add.html"
-      - "addplan.html"
-      - "edit.html"
-      - "list.html"
-      - "today.html"
-      - "summary.html"
-      - "stats.html"
+      files:
+        - "index.html"
+        - "add.html"
+        - "addplan.html"
+        - "edit.html"
+        - "list.html"
+        - "today.html"
+        - "summary.html"
+        - "stats.html"
       static:
         js: "api.js, auth.js, storage.js, theme.js, ui.js, validators.js"
         css: "telegram-theme.min.css, app.min.css, forms.min.css"

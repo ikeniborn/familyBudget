@@ -1,0 +1,204 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches:
+      - test  # Selective E2E for dev → test
+      - main  # Full E2E for test → main
+    paths:
+      - 'backend/app/api/**'
+      - 'frontend/web/templates/**'
+      - 'frontend/web/static/js/**'
+      - 'tests/e2e/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/e2e-tests.yml'
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser to test (chromium/firefox/webkit/all)'
+        required: false
+        default: 'chromium'
+
+permissions:
+  contents: read
+
+jobs:
+  detect-scope:
+    name: Detect E2E Scope
+    runs-on: ubuntu-latest
+    outputs:
+      run-e2e: ${{ steps.detect.outputs.run-e2e }}
+      test-scope: ${{ steps.detect.outputs.test-scope }}
+      is-full-e2e: ${{ steps.detect.outputs.is-full-e2e }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files and test scope
+        id: detect
+        run: |
+          # Determine if this is test→main (full E2E) or dev→test (selective E2E)
+          if [[ "${{ github.base_ref }}" == "main" ]]; then
+            echo "is-full-e2e=true" >> $GITHUB_OUTPUT
+            echo "run-e2e=true" >> $GITHUB_OUTPUT
+            echo "test-scope=full" >> $GITHUB_OUTPUT
+            echo "🔍 test→main PR detected - running FULL E2E suite (all browsers)"
+            exit 0
+          fi
+
+          # For dev→test PRs: detect scope based on changed files
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
+
+          RUN_E2E=false
+          TEST_SCOPE=""
+
+          # Auth API changes → auth E2E tests
+          if grep -qE "backend/app/api/(auth|users)" changed_files.txt; then
+            RUN_E2E=true
+            TEST_SCOPE="${TEST_SCOPE},auth"
+            echo "🔐 Auth API changed - will run auth E2E tests"
+          fi
+
+          # Transaction/Budget API changes → transaction E2E tests
+          if grep -qE "backend/app/api/(facts|articles|budget)" changed_files.txt; then
+            RUN_E2E=true
+            TEST_SCOPE="${TEST_SCOPE},transactions"
+            echo "💰 Transaction/Budget API changed - will run transaction E2E tests"
+          fi
+
+          # Frontend templates changes → view E2E tests
+          if grep -qE "frontend/web/templates/(facts|budget)" changed_files.txt; then
+            RUN_E2E=true
+            TEST_SCOPE="${TEST_SCOPE},budget-view"
+            echo "📊 Budget templates changed - will run budget view E2E tests"
+          fi
+
+          # Frontend JS changes → interactive E2E tests
+          if grep -qE "frontend/web/static/js/(budget|forms)" changed_files.txt; then
+            RUN_E2E=true
+            TEST_SCOPE="${TEST_SCOPE},interactions"
+            echo "🖱️ Interactive JS changed - will run interaction E2E tests"
+          fi
+
+          # Remove leading comma
+          TEST_SCOPE="${TEST_SCOPE#,}"
+
+          echo "run-e2e=$RUN_E2E" >> $GITHUB_OUTPUT
+          echo "test-scope=$TEST_SCOPE" >> $GITHUB_OUTPUT
+          echo "is-full-e2e=false" >> $GITHUB_OUTPUT
+
+          if [ "$RUN_E2E" = "false" ]; then
+            echo "✅ No critical files changed - skipping E2E tests"
+          else
+            echo "🎯 Selective E2E scope: $TEST_SCOPE (chromium only)"
+          fi
+
+  e2e-tests:
+    name: E2E Tests (${{ matrix.browser }})
+    needs: detect-scope
+    # Skip if no E2E needed
+    if: needs.detect-scope.outputs.run-e2e == 'true'
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Full E2E (test→main): all browsers
+        # Selective E2E (dev→test): chromium only
+        browser: ${{ needs.detect-scope.outputs.is-full-e2e == 'true' && fromJSON('["chromium", "firefox", "webkit"]') || fromJSON('["chromium"]') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: ./.github/actions/setup-node
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          # Install chromium for setup project (always needed for auth)
+          npx playwright install --with-deps chromium
+          # Install test browser if different from chromium
+          if [ "${{ matrix.browser }}" != "chromium" ]; then
+            npx playwright install --with-deps ${{ matrix.browser }}
+          fi
+
+      - name: Verify Playwright installation
+        run: npx playwright --version
+
+      - name: Run E2E tests (against test server)
+        env:
+          CI: true
+          BASE_URL: https://fbd.ikeniborn.ru
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+          TEST_SCOPE: ${{ needs.detect-scope.outputs.test-scope }}
+        run: |
+          echo "Running E2E tests against https://fbd.ikeniborn.ru"
+
+          # Full E2E: run all tests
+          if [ "${{ needs.detect-scope.outputs.is-full-e2e }}" = "true" ]; then
+            echo "🔍 Running FULL E2E suite (all tests)"
+            npx playwright test --project="${{ matrix.browser }}" --reporter=html,list
+            exit 0
+          fi
+
+          # Selective E2E: run only relevant tests based on scope
+          echo "🎯 Running SELECTIVE E2E tests - scope: $TEST_SCOPE"
+
+          # Map scope to test files/patterns
+          TEST_FILES=""
+
+          if [[ "$TEST_SCOPE" =~ "auth" ]]; then
+            echo "  - Auth tests"
+            TEST_FILES="$TEST_FILES tests/e2e/auth.spec.ts"
+          fi
+
+          if [[ "$TEST_SCOPE" =~ "transactions" ]]; then
+            echo "  - Transaction tests"
+            TEST_FILES="$TEST_FILES tests/e2e/transactions.spec.ts"
+            TEST_FILES="$TEST_FILES tests/e2e/budget.spec.ts"
+          fi
+
+          if [[ "$TEST_SCOPE" =~ "budget-view" ]]; then
+            echo "  - Budget view tests"
+            TEST_FILES="$TEST_FILES tests/e2e/budget-view.spec.ts"
+          fi
+
+          if [[ "$TEST_SCOPE" =~ "interactions" ]]; then
+            echo "  - Interactive tests"
+            TEST_FILES="$TEST_FILES tests/e2e/interactions.spec.ts"
+          fi
+
+          # Run selected tests
+          if [ -z "$TEST_FILES" ]; then
+            echo "⚠️ No test files mapped to scope: $TEST_SCOPE"
+            echo "Running all tests as fallback"
+            npx playwright test --project="${{ matrix.browser }}" --reporter=html,list
+          else
+            echo "Running: $TEST_FILES"
+            npx playwright test $TEST_FILES --project="${{ matrix.browser }}" --reporter=html,list
+          fi
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7

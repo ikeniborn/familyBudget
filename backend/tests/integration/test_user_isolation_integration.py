@@ -13,18 +13,13 @@ Tests complete user isolation workflows:
 These tests verify multi-tenancy and data isolation work correctly end-to-end.
 """
 
-from datetime import date
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.article import Article
-from backend.app.models.fact import BudgetFact
 from backend.app.services.jwt import create_access_token
-
 
 # ============================================================================
 # Article Isolation Tests
@@ -836,7 +831,7 @@ async def test_concurrent_users_working_simultaneously(
     )
     article_a_id = article_a.json()["id"]
 
-    fact_a = await client.post(
+    await client.post(
         "/api/v1/facts",
         json={"article_id": article_a_id, "fact_date": "2025-10-13", "amount": "1000.00"},
     )
@@ -851,7 +846,7 @@ async def test_concurrent_users_working_simultaneously(
     )
     article_b_id = article_b.json()["id"]
 
-    fact_b = await client.post(
+    await client.post(
         "/api/v1/facts",
         json={"article_id": article_b_id, "fact_date": "2025-10-13", "amount": "2000.00"},
     )

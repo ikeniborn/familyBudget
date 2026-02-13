@@ -1,0 +1,110 @@
+<!-- Fact Transfer Tab Content -->
+<!-- Дата -->
+<div class="form-control mb-3">
+    <label class="label py-1">
+        <span class="label-text">Дата перевода *</span>
+    </label>
+    <div class="flex gap-1 mb-1">
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactTransferDate(0)">Сегодня</button>
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactTransferDate(-1)">Вчера</button>
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactTransferDate(-2)">Позавчера</button>
+    </div>
+    <div class="relative">
+        <input type="text" name="transfer_date" required
+               id="fact_transfer_date_input"
+               class="input input-bordered w-full pr-10"
+               placeholder="ДД.ММ.ГГГГ"
+               maxlength="10"
+               autocomplete="off" />
+        <!-- CalendarWidget creates button automatically in triggerContainer -->
+        <div id="fact_transfer_date_calendar_btn" class="absolute right-2 top-1/2 -translate-y-1/2"></div>
+    </div>
+</div>
+
+<!-- FROM Section -->
+<div class="border border-error/20 rounded-lg p-3 bg-error/5">
+    <h4 class="font-semibold text-error text-sm mb-2">Откуда (списание)</h4>
+
+    <!-- From Account -->
+    <div class="form-control mb-2">
+        <label class="label py-0.5">
+            <span class="label-text text-xs">Счет *</span>
+        </label>
+        <select name="from_financial_center_id" required class="select select-bordered select-sm max-h-12">
+            <option value="">-- Выберите счет --</option>
+        </select>
+    </div>
+
+    <!-- From Article (Expense) -->
+    <div class="form-control mb-2">
+        <label class="label py-0.5">
+            <span class="label-text text-xs">Категория *</span>
+        </label>
+        <select name="from_article_id" required class="select select-bordered select-sm">
+            <option value="">-- Выберите категорию --</option>
+        </select>
+    </div>
+
+    <!-- From Hints -->
+    <div class="grid grid-cols-2 gap-1">
+        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="from-hint-period-plan" disabled>
+            План мес: --
+        </button>
+        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="from-hint-period-fact" disabled>
+            Факт мес: --
+        </button>
+    </div>
+</div>
+
+<!-- TO Section -->
+<div class="border border-success/20 rounded-lg p-3 bg-success/5 mt-2">
+    <h4 class="font-semibold text-success text-sm mb-2">Куда (пополнение)</h4>
+
+    <!-- To Account -->
+    <div class="form-control mb-2">
+        <label class="label py-0.5">
+            <span class="label-text text-xs">Счет *</span>
+        </label>
+        <select name="to_financial_center_id" required class="select select-bordered select-sm max-h-12">
+            <option value="">-- Выберите счет --</option>
+        </select>
+    </div>
+
+    <!-- To Article (Income) -->
+    <div class="form-control mb-2">
+        <label class="label py-0.5">
+            <span class="label-text text-xs">Категория *</span>
+        </label>
+        <select name="to_article_id" required class="select select-bordered select-sm">
+            <option value="">-- Выберите категорию --</option>
+        </select>
+    </div>
+
+    <!-- To Hints -->
+    <div class="grid grid-cols-2 gap-1">
+        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="to-hint-period-plan" disabled>
+            План мес: --
+        </button>
+        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="to-hint-period-fact" disabled>
+            Факт мес: --
+        </button>
+    </div>
+</div>
+
+<!-- Сумма -->
+<div class="form-control mt-2">
+    <label class="label py-1">
+        <span class="label-text">Сумма *</span>
+    </label>
+    <input type="number" name="transfer_amount" step="1" min="1" required
+           class="input input-bordered" placeholder="0" />
+</div>
+
+<!-- Описание -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Описание</span>
+    </label>
+    <textarea name="transfer_description" class="textarea textarea-bordered"
+              placeholder="Комментарий" rows="1"></textarea>
+</div>

@@ -12,11 +12,10 @@ Features:
     - Aggregation endpoint for summaries
 """
 
-import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
@@ -26,8 +25,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
     CurrentUser,
-    apply_user_filter,
-    ensure_user_owns_resource,
     get_session,
     get_user_id_for_create,
 )
@@ -46,10 +43,9 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
-from backend.app.schemas.recurring_plan import RecurringPlanResponse
-from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
-from backend.app.services.write_behind_service import write_behind_service
+from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
+from backend.app.services.write_behind_service import write_behind_service
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -113,7 +109,7 @@ async def create_fact(
     if fact_data.is_offline_sync and fact_data.sync_hash:
         duplicate_stmt = select(BudgetFact).where(
             BudgetFact.sync_hash == fact_data.sync_hash,
-            BudgetFact.is_offline_sync == True,
+            BudgetFact.is_offline_sync,
             BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
         ).order_by(BudgetFact.created_at.desc())
 
@@ -320,7 +316,7 @@ async def create_fact(
             # request_id is None means Write-Behind is enabled but queue failed
             # Fall through to sync write below
             logger.warning(
-                f"[WRITE-BEHIND] Queue returned None, falling back to sync write"
+                "[WRITE-BEHIND] Queue returned None, falling back to sync write"
             )
 
         except Exception as e:
@@ -420,18 +416,18 @@ async def list_facts(
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
-    article_id: Annotated[Optional[int], Query()] = None,
-    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
-    search: Annotated[Optional[str], Query(max_length=200)] = None,
-    amount_min: Annotated[Optional[Decimal], Query(ge=0)] = None,
-    amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
-    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    article_id: Annotated[int | None, Query()] = None,
+    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
+    search: Annotated[str | None, Query(max_length=200)] = None,
+    amount_min: Annotated[Decimal | None, Query(ge=0)] = None,
+    amount_max: Annotated[Decimal | None, Query(ge=0)] = None,
+    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
+    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
+    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -534,8 +530,9 @@ async def list_facts(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -635,6 +632,108 @@ async def new_fact_info() -> dict:
         },
         "documentation": "/docs#/Facts/create_fact_facts_post"
     }
+
+
+@router.get("/recent", response_model=list[FactResponse])
+async def get_recent_facts(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+) -> list[FactResponse]:
+    """
+    Get recent budget facts (JSON endpoint for TypeScript client).
+
+    Returns latest facts ordered by creation time DESC.
+
+    **User Isolation:**
+    - Regular users see only their own records
+    - Admins see all records
+
+    **Parameters:**
+    - limit: Maximum number of results (1-50, default: 10)
+
+    **Returns:**
+    - JSON array of FactResponse objects
+
+    Caching: TTL 10s, invalidated on any fact CRUD.
+    """
+    # Check cache first
+    cache_key = f"recent_facts:{current_user.id}:{limit}"
+    cached = await cache_service.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        # Base query with JOINs for enriched response (same as list_facts)
+        statement = (
+            select(BudgetFact, Article, FinancialCenter, CostCenter, User)
+            .join(Article, BudgetFact.article_id == Article.id)
+            .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+            .outerjoin(User, BudgetFact.user_id == User.id)
+        )
+
+        # OPTIMIZATION: Filter by fact_date to enable partition pruning
+        cutoff_date = date.today() - timedelta(days=90)
+        statement = statement.where(BudgetFact.fact_date >= cutoff_date)
+
+        # Order by most recent (by creation time)
+        statement = statement.order_by(BudgetFact.created_at.desc())
+        statement = statement.limit(limit)
+
+        # Execute query
+        result = await session.execute(statement)
+        rows = result.all()
+
+        # Enrich facts with article and center data
+        enriched_facts = []
+        for fact, article, financial_center, cost_center, user in rows:
+            # Get user name with fallback chain
+            user_name = None
+            if user:
+                user_name = (
+                    user.first_name or
+                    user.username or
+                    user.last_name or
+                    (f"User {user.telegram_id}" if user.telegram_id else None) or
+                    f"Пользователь #{user.id}"
+                )
+
+            fact_dict = {
+                "id": fact.id,
+                "user_id": fact.user_id,
+                "user_name": user_name,
+                "article_id": fact.article_id,
+                "article_type": article.type,
+                "article_name": article.name,
+                "fact_date": fact.fact_date,
+                "amount": fact.amount,
+                "description": fact.description,
+                "financial_center_id": fact.financial_center_id,
+                "financial_center_name": financial_center.name if financial_center else None,
+                "cost_center_id": fact.cost_center_id,
+                "cost_center_name": cost_center.name if cost_center else None,
+                "record_type": fact.record_type,
+                "is_offline_sync": fact.is_offline_sync,
+                "recurring_plan_id": fact.recurring_plan_id,
+                "recurring_plan": None,  # Not loaded for performance (list endpoint)
+                "has_reminder": False,  # Not loaded for performance (list endpoint)
+                "created_at": fact.created_at,
+                "updated_at": fact.updated_at,
+            }
+            enriched_facts.append(fact_dict)
+
+        # Cache result (TTL 10s)
+        await cache_service.set(cache_key, enriched_facts, CacheTTL.SHORT())
+
+        return enriched_facts
+
+    except Exception as e:
+        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load recent facts"
+        )
 
 
 @router.get("/recent-html", response_class=HTMLResponse)
@@ -920,8 +1019,8 @@ async def get_recent_facts_html(
 async def get_facts_summary(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
 ) -> FactSummary:
     """
     Get aggregated summary of facts (income/expense totals).
@@ -998,15 +1097,15 @@ async def get_facts_summary(
 async def get_facts_count(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
-    article_id: Annotated[Optional[int], Query()] = None,
-    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
-    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
-    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    date_from: Annotated[date | None, Query()] = None,
+    date_to: Annotated[date | None, Query()] = None,
+    article_id: Annotated[int | None, Query()] = None,
+    record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
+    financial_center_id: Annotated[int | None, Query(gt=0)] = None,
+    cost_center_id: Annotated[int | None, Query(gt=0)] = None,
+    has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> dict:
     """
     Get total facts count with filters (Shared Family Budget).
@@ -1070,8 +1169,9 @@ async def get_facts_count(
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
-        from backend.app.models.scheduled_reminder import ScheduledReminder
         from sqlalchemy import exists
+
+        from backend.app.models.scheduled_reminder import ScheduledReminder
 
         reminder_exists = exists().where(
             ScheduledReminder.fact_id == BudgetFact.id
@@ -1416,6 +1516,7 @@ async def delete_fact(
     - 404 Not Found: Fact not found
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     # Load fact
@@ -1519,6 +1620,7 @@ async def batch_delete_facts(
     - 400 Bad Request: Empty list or too many facts
     """
     from datetime import datetime
+
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
     if not fact_ids:

@@ -14,15 +14,13 @@ Security Features:
       - HTMX (HX-Request: true) → 401 + HX-Redirect header
       - API (Accept: application/json) → JSON 401 response
 """
-
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request, Response, status
 from fastapi.responses import RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.app.core.json_utils import ORJSONResponse
-
 from backend.app.services.jwt import decode_access_token_full
 
 # Login page URL for redirects
@@ -262,7 +260,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             request: HTTP request
 
         Returns:
-            str | None: JWT token if found, None otherwise
+            Optional[str]: JWT token if found, None otherwise
         """
         # Try to extract from Cookie first (primary method)
         token = request.cookies.get("access_token")

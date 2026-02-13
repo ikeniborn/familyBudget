@@ -6,10 +6,6 @@ Tests the complete import workflow: upload → enrich → execute → cleanup.
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel import select
-
-from backend.app.models.import_staging import ImportStaging
-from backend.app.models.fact import BudgetFact
 
 
 @pytest.mark.integration

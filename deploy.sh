@@ -5,7 +5,7 @@
 # This script deploys the Family Budget application using Docker Compose:
 # - Validates prerequisites (Docker, .env file)
 # - Syncs code from repository to deployment directory
-# - Builds Docker images
+# - Pulls pre-built Docker images from GitHub Container Registry (ghcr.io)
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
@@ -28,8 +28,8 @@
 #   ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
 #   ./deploy.sh --clean            # Clean deployment (removes data!)
 #
-# Note: Docker images are automatically rebuilt when code changes (using --build flag).
-#       Docker uses layer cache, so rebuilds are fast when nothing changed.
+# Note: Docker images are pre-built in GitHub Actions CI/CD (registry-first v9.0+).
+#       Server only pulls ready images from ghcr.io - no local building occurs.
 #
 # Author: Family Budget Team
 # Version: 1.1.0
@@ -82,7 +82,6 @@ fi
 source "$SCRIPT_DIR/scripts/lib/config.sh"      # Must be first (no dependencies)
 source "$SCRIPT_DIR/scripts/lib/utils.sh"       # Depends on config.sh
 source "$SCRIPT_DIR/scripts/lib/timeout.sh"     # Depends on config.sh, utils.sh (v6.5.5+ resilience)
-source "$SCRIPT_DIR/scripts/lib/nginx.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/validation.sh"  # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 
@@ -97,11 +96,10 @@ source "$SCRIPT_DIR/scripts/lib/backup_integration.sh"  # Depends on config.sh, 
 
 # Phase 3 modules (NEW)
 source "$SCRIPT_DIR/scripts/lib/sync.sh"        # Depends on config.sh, utils.sh
-source "$SCRIPT_DIR/scripts/lib/cache_busting.sh"  # Depends on config.sh, utils.sh (NEW)
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
-source "$SCRIPT_DIR/scripts/lib/version.sh"     # Depends on config.sh, utils.sh (version management)
+source "$SCRIPT_DIR/scripts/lib/registry.sh"    # Depends on config.sh, utils.sh (container registry integration)
 
 # =============================================================================
 # CONFIGURATION (Legacy - variables moved to config.sh)
@@ -137,6 +135,10 @@ SKIP_DOCKERD_RESTART=false   # Skip automatic Docker daemon restart optimization
 
 # Frontend build options
 FORCE_FRONTEND_BUILD=false   # Force frontend rebuild regardless of checksums
+
+# Container registry options
+USE_REGISTRY=false           # Pull images from container registry instead of building locally
+USER_IMAGE_TAG=""            # User-specified image tag (overrides auto-detection)
 
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
@@ -224,54 +226,25 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # Functions: get_service_status, print_status
 
 # =============================================================================
-# NGINX CONFIGURATION REGENERATION
+# NGINX CONFIGURATION (REGISTRY-FIRST v9.0+)
 # =============================================================================
-
-# Regenerate nginx configuration from template with current DOMAIN
-# Select and generate appropriate nginx configuration based on SSL state
-# Uses new modular approach (nginx.sh) instead of sed-based marker manipulation
-regenerate_nginx_config() {
-    step "Configuring Nginx"
-
-    # Load .env to get current DOMAIN and DEPLOYMENT_PROFILE
-    set -a
-    if ! source "$DEPLOY_DIR/.env" 2>/dev/null; then
-        error "Failed to load .env file from $DEPLOY_DIR/.env"
-        error "Nginx configuration cannot proceed without .env"
-        return 1
-    fi
-    set +a
-
-    local deployment_profile="${DEPLOYMENT_PROFILE:-basic}"
-    local domain="${DOMAIN:-localhost}"
-
-    info "Deployment profile: $deployment_profile"
-    info "Domain: $domain"
-
-    # Skip if basic profile (nginx not used)
-    if [[ "$deployment_profile" != "full" ]]; then
-        info "Deployment profile is '$deployment_profile' - nginx not used, skipping"
-        return 0
-    fi
-
-    info "Configuring nginx for domain: $domain"
-
-    # Use new modular approach from nginx.sh
-    # This function intelligently selects HTTP or HTTPS config based on SSL state
-    if ! select_nginx_config "$domain"; then
-        error "Failed to configure nginx"
-        return 1
-    fi
-
-    # Reload nginx if container is running (applies new config without restart)
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
-        info "Reloading nginx to apply new configuration"
-        reload_nginx || warning "Failed to reload nginx (will be applied on next restart)"
-    fi
-
-    success "Nginx configured successfully"
-    return 0
-}
+# REMOVED: regenerate_nginx_config() function
+#
+# In registry-first mode, nginx configuration is embedded in Docker image:
+#   - Templates: nginx/conf.d/*.template (in git, built into image)
+#   - Runtime: docker-entrypoint.sh processes templates with DOMAIN env var
+#   - No bind mount: configuration lives inside container, not on host
+#
+# SSL certificate changes are picked up automatically:
+#   - /etc/letsencrypt bind mounted read-only
+#   - Entrypoint checks SSL cert existence and selects HTTP/HTTPS template
+#   - Container restart applies new configuration
+#
+# To change nginx config:
+#   1. Edit templates in nginx/conf.d/*.template
+#   2. Commit to git
+#   3. GitHub Actions rebuilds nginx image
+#   4. Server pulls new image and restarts container
 
 # =============================================================================
 # PWA ICONS REGENERATION
@@ -409,6 +382,14 @@ parse_args() {
                 FORCE_FRONTEND_BUILD=true
                 shift
                 ;;
+            --use-registry)
+                USE_REGISTRY=true
+                shift
+                ;;
+            --image-tag)
+                USER_IMAGE_TAG="$2"
+                shift 2
+                ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
                 ;;
@@ -475,7 +456,7 @@ collect_deployment_parameters() {
         echo ""
         echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
         echo "      Removes files from /opt/budget not in repository"
-        echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, logs/"
+        echo "      Protected: .env, .migration_checksums, .docker_build_checksums, backups/, logs/"
         echo ""
         echo "  [2] Update only (rsync)"
         echo "      Updates existing + adds new files"
@@ -484,7 +465,7 @@ collect_deployment_parameters() {
         echo "  [3] Clean + copy (DANGEROUS!)"
         echo "      Deletes EVERYTHING (code, logs/*, backups, Docker volumes)"
         echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-        echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
+        echo "      Protected: .env, .migration_checksums, .docker_build_checksums (directories cleared)"
         echo ""
         echo "  [4] Skip synchronization"
         echo "      Deploy without updating code"
@@ -649,119 +630,6 @@ validate_firewall_rules() {
 }
 
 # =============================================================================
-# NPM ENVIRONMENT AUTO-REPAIR FUNCTION
-# =============================================================================
-# Validates npm environment and auto-repairs if issues detected
-# Returns: 0 on success, 1 on failure
-repair_npm_environment() {
-    local npm_isolated_dir="/opt/budget/.npm-isolated"
-    local node_modules_dir="$npm_isolated_dir/node_modules"
-    local package_lock="/opt/budget/package-lock.json"
-
-    step "npm Environment Validation"
-
-    # Check 1: .npm-isolated directory exists
-    if [[ ! -d "$npm_isolated_dir" ]]; then
-        print_message error "npm isolated directory not found: $npm_isolated_dir"
-        print_message error "This indicates install.sh was not run or npm environment was deleted"
-        print_message error ""
-        print_message error "Auto-repair: Creating isolated npm environment..."
-        echo ""
-
-        # Auto-repair: Create directory and install packages
-        mkdir -p "$npm_isolated_dir"
-        cd "$npm_isolated_dir" || return 1
-
-        # Copy package files
-        cp /opt/budget/package.json . 2>/dev/null || {
-            print_message error "package.json not found in /opt/budget"
-            return 1
-        }
-        cp -f /opt/budget/package-lock.json . 2>/dev/null || true
-
-        print_message info "Installing npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
-        if [[ -f "package-lock.json" ]]; then
-            npm_with_retry ci --prefer-offline --no-audit || {
-                print_message error "npm ci failed - trying npm install..."
-                npm_with_retry install --prefer-offline --no-audit || return 1
-            }
-        else
-            npm_with_retry install --prefer-offline --no-audit || return 1
-        fi
-
-        cd /opt/budget || return 1
-        print_message success "npm environment created successfully"
-        echo ""
-    fi
-
-    # Check 2: Run comprehensive validation
-    print_message info "Running comprehensive npm environment validation..."
-    if bash scripts/lib/check_npm_env.sh "$PWD"; then
-        print_message success "npm environment validation passed"
-        echo ""
-        return 0
-    fi
-
-    # Validation failed - attempt auto-repair
-    print_message warning "npm environment validation failed - attempting auto-repair..."
-    echo ""
-
-    # Auto-repair: Reinstall packages
-    print_message info "Reinstalling npm packages in $npm_isolated_dir..."
-    cd "$npm_isolated_dir" || return 1
-
-    # Copy latest package files
-    cp /opt/budget/package.json . 2>/dev/null || {
-        print_message error "package.json not found"
-        return 1
-    }
-    cp -f /opt/budget/package-lock.json . 2>/dev/null || true
-
-    # Remove corrupted node_modules
-    if [[ -d "node_modules" ]]; then
-        print_message info "Removing corrupted node_modules..."
-        rm -rf node_modules
-    fi
-
-    # Reinstall
-    print_message info "Installing fresh npm packages (timeout: ${TIMEOUT_NPM_INSTALL}s, retry: ${MAX_RETRY_ATTEMPTS}x)..."
-    if [[ -f "package-lock.json" ]]; then
-        npm_with_retry ci --prefer-offline --no-audit || {
-            print_message error "npm ci failed - trying npm install..."
-            npm_with_retry install --prefer-offline --no-audit || {
-                print_message error "npm install failed - cannot auto-repair"
-                cd /opt/budget || return 1
-                return 1
-            }
-        }
-    else
-        npm_with_retry install --prefer-offline --no-audit || {
-            print_message error "npm install failed - cannot auto-repair"
-            cd /opt/budget || return 1
-            return 1
-        }
-    fi
-
-    cd /opt/budget || return 1
-
-    # Verify repair
-    print_message info "Verifying npm environment after repair..."
-    if bash scripts/lib/check_npm_env.sh "$PWD"; then
-        print_message success "Auto-repair successful - npm environment validated"
-        echo ""
-        return 0
-    else
-        print_message error "Auto-repair failed - npm environment still invalid"
-        print_message error ""
-        print_message error "Manual intervention required:"
-        print_message error "  1. cd ~/familyBudget && sudo ./install.sh"
-        print_message error "  2. Or manually fix npm packages in $npm_isolated_dir"
-        print_message error ""
-        return 1
-    fi
-}
-
-# =============================================================================
 # CHECK GIT REPOSITORY SYNC STATUS
 # =============================================================================
 # Validates that the repository is synchronized with remote origin
@@ -891,108 +759,25 @@ check_git_sync() {
 }
 
 # =============================================================================
-# VALIDATE BUILD ARTIFACTS
+# BUILD ARTIFACTS VALIDATION (REMOVED IN v9.0)
 # =============================================================================
-# Comprehensive validation of all build artifacts before saving checksums
-# This prevents deploying stale or incomplete assets (Issue #1 fix)
-validate_build_artifacts() {
-    local validation_failed=false
+# validate_build_artifacts() removed - artifacts embedded in Docker images
+# Validation happens in GitHub Actions CI/CD (quality-checks job)
+# See: .github/workflows/build-and-push.yml
 
-    info "Checking critical build artifacts..."
-    echo ""
 
-    # Critical files that MUST exist
-    local -a critical_files=(
-        "$DEPLOY_DIR/sw.min.js"
-        "$DEPLOY_DIR/sw.min.js.gz"
-        "$DEPLOY_DIR/frontend/web/static/css/vendor/tailwind-daisyui.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/custom.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/choices-tailwind.min.css"
-        "$DEPLOY_DIR/frontend/web/static/css/daisyui-overrides.min.css"
-    )
-
-    # Bundles (ES modules v7.0+, Vite-generated)
-    local -a bundle_files=(
-        "$DEPLOY_DIR/frontend/web/static/js/lists.min.js"
-        "$DEPLOY_DIR/frontend/shared/static/js/budgetShared.min.js"
-    )
-
-    # Legacy files (Terser/PostCSS-generated, not in Vite)
-    # Note: hierarchyView.js was migrated to TypeScript (HierarchyView.ts) and included in lists.min.js bundle
-    local -a legacy_files=(
-        "$DEPLOY_DIR/frontend/web/static/css/lists.min.css"
-    )
-
-    # Check critical files (must exist and non-empty)
-    for file in "${critical_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing: $(basename "$file")"
-            validation_failed=true
-        elif [[ ! -s "$file" ]]; then
-            error "❌ Empty file: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            success "✓ $(basename "$file") (${size}B)"
-        fi
-    done
-
-    # Check bundles (must exist and > 1KB)
-    for file in "${bundle_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing bundle: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            if [[ $size -lt 1024 ]]; then
-                error "❌ Bundle too small: $(basename "$file") (${size}B, expected >1KB)"
-                validation_failed=true
-            else
-                success "✓ $(basename "$file") (${size}B)"
-            fi
-        fi
-    done
-
-    # Check legacy files (must exist and non-empty)
-    for file in "${legacy_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            error "❌ Missing legacy file: $(basename "$file")"
-            validation_failed=true
-        elif [[ ! -s "$file" ]]; then
-            error "❌ Empty legacy file: $(basename "$file")"
-            validation_failed=true
-        else
-            local size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null)
-            success "✓ $(basename "$file") (${size}B)"
-        fi
-    done
-
-    # Verify PLACEHOLDER replaced in Service Worker
-    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
-            error "❌ CACHE_VERSION_PLACEHOLDER still present in sw.min.js"
-            error "   Cache busting failed - PWA will not work correctly"
-            validation_failed=true
-        else
-            # Extract version
-            local sw_version=$(grep -oE '"v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/"//g' | head -1)
-            if [[ -n "$sw_version" ]]; then
-                success "✓ Service Worker version: $sw_version"
-            else
-                warning "⚠️  Could not extract version from sw.min.js (may be OK if format changed)"
-            fi
-        fi
-    fi
-
-    echo ""
-    if [[ "$validation_failed" == "true" ]]; then
-        error "Validation failed - see errors above"
-        return 1
-    fi
-
-    success "All build artifacts validated successfully"
-    return 0
-}
+# REMOVED: cleanup_old_images() function (replaced by cleanup_old_image_versions)
+# Old function had race condition risks:
+# - Only checked docker ps (running containers)
+# - Did NOT check IMAGE_VERSIONS.json (deployment source of truth)
+# - Did NOT check stopped containers (could be restarted)
+# - Could delete active image during deployment (if stopped temporarily)
+#
+# New approach: Use cleanup_old_image_versions() from scripts/lib/docker.sh
+# - Checks docker inspect (actual container image references)
+# - Keeps last N versions (predictable)
+# - Not affected by image age (better for frequent releases)
+# - More reliable protection against active image deletion
 
 main() {
     # Parse arguments
@@ -1066,18 +851,14 @@ main() {
     # This allows deployment to run unattended after parameter selection
     collect_deployment_parameters
 
-    # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
-    # This prevents issues if rsync accidentally deletes .npm-isolated/
-    print_message info "Pre-flight check: Verifying production npm environment..."
-    if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-        local pkg_count
-        pkg_count=$(find "/opt/budget/.npm-isolated/node_modules" -maxdepth 1 -type d ! -name ".*" | wc -l)
-        print_message success "Production npm environment verified: $pkg_count packages"
-    else
-        print_message warning "Production npm environment NOT found: /opt/budget/.npm-isolated/"
-        print_message warning "Run install.sh to create npm environment before first deploy"
-        print_message warning "Build process will be skipped if npm environment is missing"
+    # PRE-FLIGHT CHECK: Verify Docker prerequisites
+    print_message info "Pre-flight check: Verifying Docker environment..."
+    if ! docker ps > /dev/null 2>&1; then
+        error "Docker daemon not running"
+        error "Start Docker: sudo systemctl start docker"
+        exit 1
     fi
+    success "Docker daemon running"
     echo ""
 
     # CHECK: Ensure repository is synchronized with remote
@@ -1098,19 +879,7 @@ main() {
     local verification_checks=0
     local verification_failures=0
 
-    # Check 1: Elastic Morphing CSS (added in v7.x)
-    if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
-        ((verification_checks++)) || true  # Prevent exit on 0++ with set -e
-        if grep -q "dot-morph" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
-            print_message info "Verified: base.html contains Elastic Morphing CSS"
-        else
-            print_message warning "VERIFICATION FAILED: base.html missing Elastic Morphing CSS (dot-morph)"
-            verification_passed=false
-            ((verification_failures++)) || true
-        fi
-    fi
-
-    # Check 2: Service Worker registration (critical for PWA)
+    # Check 1: Service Worker registration (critical for PWA)
     if [[ -f "$DEPLOY_DIR/frontend/web/templates/base.html" ]]; then
         ((verification_checks++)) || true
         if grep -q "serviceWorker" "$DEPLOY_DIR/frontend/web/templates/base.html" 2>/dev/null; then
@@ -1122,7 +891,7 @@ main() {
         fi
     fi
 
-    # Check 3: sw.min.js exists (built Service Worker)
+    # Check 2: sw.min.js exists (built Service Worker)
     if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
         ((verification_checks++)) || true
         if grep -q "CACHE_VERSION" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
@@ -1175,26 +944,42 @@ main() {
     fi
     echo ""
 
-    # CRITICAL: Sync package.json to .npm-isolated if changed
-    # - After sync_code_to_deploy: package.json is up-to-date in /opt/budget
-    # - Before npm build: .npm-isolated/package.json must match root package.json
-    # - Install new dependencies if package.json changed
-    if [[ -f "$DEPLOY_DIR/.npm-isolated/package.json" && -f "$DEPLOY_DIR/package.json" ]]; then
-        if ! diff -q "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json" >/dev/null 2>&1; then
-            print_message info "package.json changed - syncing to .npm-isolated"
-            cp "$DEPLOY_DIR/package.json" "$DEPLOY_DIR/.npm-isolated/package.json"
+    # AUTO-SYNC: VERSION → .env (if mismatch detected)
+    # Ensures .env VERSION always matches VERSION file (single source of truth)
+    # This prevents Docker containers from loading stale VERSION via environment variables
+    if [[ -f "$DEPLOY_DIR/VERSION" && -f "$DEPLOY_DIR/.env" ]]; then
+        VERSION_FROM_FILE=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
+        VERSION_FROM_ENV=$(grep -oP '^VERSION=\K.*' "$DEPLOY_DIR/.env" 2>/dev/null || echo "")
 
-            # Install new dependencies in isolated environment
-            print_message info "Installing new npm dependencies..."
-            cd "$DEPLOY_DIR/.npm-isolated" || error "Failed to enter .npm-isolated directory"
-            if npm install --no-save 2>&1; then
-                print_message success "npm dependencies updated successfully"
+        if [[ "$VERSION_FROM_FILE" != "$VERSION_FROM_ENV" ]]; then
+            print_message warning "VERSION mismatch detected: VERSION ($VERSION_FROM_FILE) ≠ .env ($VERSION_FROM_ENV)"
+            print_message info "Auto-syncing .env to match VERSION file (single source of truth)..."
+
+            # Update .env to match VERSION file
+            if grep -q '^VERSION=' "$DEPLOY_DIR/.env"; then
+                # VERSION exists in .env - update it
+                sed -i "s|^VERSION=.*|VERSION=$VERSION_FROM_FILE|" "$DEPLOY_DIR/.env"
             else
-                print_message warning "npm install failed - build may fail"
+                # VERSION doesn't exist in .env - append it
+                echo "VERSION=$VERSION_FROM_FILE" >> "$DEPLOY_DIR/.env"
             fi
-            cd "$DEPLOY_DIR" || error "Failed to return to deploy directory"
+
+            if [[ $? -eq 0 ]]; then
+                # Verify sync was successful
+                local synced_version=$(grep -oP '^VERSION=\K.*' "$DEPLOY_DIR/.env")
+                if [[ "$synced_version" == "$VERSION_FROM_FILE" ]]; then
+                    print_message success ".env synchronized: VERSION=$VERSION_FROM_ENV → VERSION=$VERSION_FROM_FILE"
+                    print_message info "Note: Backend container restart required for changes to take effect"
+                else
+                    print_message error "Verification failed: expected $VERSION_FROM_FILE, got $synced_version"
+                    exit 1
+                fi
+            else
+                print_message error "Failed to update .env"
+                exit 1
+            fi
         else
-            print_message info "package.json unchanged - skipping .npm-isolated sync"
+            print_message info "VERSION and .env are synchronized: $VERSION_FROM_FILE"
         fi
     fi
     echo ""
@@ -1214,511 +999,125 @@ main() {
     echo ""
 
     # VERSION MANAGEMENT (AFTER SYNC!)
-    # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
-    # 1. Reads current version from DEPLOY_DIR (copied from repo)
-    # 2. Updates VERSION, package.json, .env ONLY in /opt/budget
-    # 3. Repository files are NEVER modified - keeps git clean
-
-    # Log version management parameters for debugging
-    # Uses debug() - only visible with DEBUG=true or --verbose flag
-    debug "Version management parameters:"
-    debug "  VERSION_BUMP_TYPE: ${VERSION_BUMP_TYPE:-<not set>}"
-    debug "  VERSION_SET: ${VERSION_SET:-<not set>}"
-
-    process_version_bump
+    # Registry-first v9.0: Version management in CI/CD
+    # Server uses IMAGE_VERSIONS.json to determine which image versions to pull
+    # VERSION file is authoritative source (synced from git)
+    # No server-side version bumping - all changes committed to git first
     echo ""
 
-    # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
-    # sync_update() may delete nginx/conf.d/*.conf as "orphaned" (not in repo)
-    # This ensures nginx config is always present, even if deploy is interrupted later
-    if ! regenerate_nginx_config; then
-        error "Failed to regenerate nginx configuration"
-        error "Nginx will not start without valid configuration"
-        exit 1
-    fi
-    echo ""
+    # NOTE: Nginx configuration regeneration removed in v9.0 (registry-first)
+    # Configuration is embedded in Docker image and processed by entrypoint.sh
+    # See nginx/docker-entrypoint.sh for template processing logic
 
     # Regenerate PWA icons if trigger file exists (AFTER sync)
     # This ensures new icons are available before Service Worker cache is updated
     regenerate_pwa_icons_if_needed
 
-    # NOTE: Cache busting moved AFTER npm run build (see lines ~1110)
-    # This ensures we update sw.min.js (not sw.js) and HTML templates
-    # after all minification is complete
+    # =============================================================================
+    # REGISTRY-FIRST ARCHITECTURE (v9.0.0+)
+    # =============================================================================
+    # All building (minification, cache busting, packaging) happens in GitHub Actions CI/CD.
+    # On server: only pull ready Docker images from ghcr.io and run them.
+    #
+    # Benefits:
+    # - Faster deployments (2-3 min vs 5-7 min)
+    # - No npm/Node.js dependencies on server
+    # - Consistent builds across environments
+    # - Frontend embedded in backend Docker image (no bind mounts)
+    #
+    # See: .github/workflows/build-and-push.yml for CI/CD pipeline
+    # =============================================================================
 
-    # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
-    print_message info "Post-sync check: Verifying npm environment preservation..."
-    if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-        print_message error "CRITICAL: Production npm environment was DELETED during sync!"
-        print_message error "This should NEVER happen with --filter='protect .npm-isolated/'"
-        print_message error ""
-        print_message error "Possible causes:"
-        print_message error "  1. rsync filter not working correctly"
-        print_message error "  2. Manual deletion of /opt/budget/.npm-isolated"
-        print_message error "  3. Filesystem corruption"
-        print_message error ""
-        print_message error "To fix: Run install.sh to recreate npm environment"
-        print_message error "  cd ~/familyBudget && sudo ./install.sh"
-        print_message error ""
-        print_message warning "Deployment will continue but build will be SKIPPED"
-    else
-        print_message success "npm environment preserved successfully"
-    fi
-    echo ""
-
-    # Minify static assets (JS and CSS) for production
-    echo ""
-    print_message info "Minifying static assets..."
+    step "Pulling Docker Images from GitHub Container Registry"
     echo ""
     cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
-    # Fix permissions before build (prevent EACCES errors)
-    # IMPORTANT: Build process needs write access to frontend/ directory
-    print_message info "Ensuring correct permissions for build..."
-    # Use SUDO_USER if available (when running with sudo), otherwise current user
-    local build_user="${SUDO_USER:-$(whoami)}"
-    sudo chown -R "${build_user}:${build_user}" /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
-
-    # Clean up ALL npm-related processes before build (prevent zombie process buildup)
-    # ARCHITECTURE IMPROVEMENT (2025-11-08):
-    # - Kill ALL npm processes (not just specific patterns)
-    # - Prevents zombie process accumulation from interrupted builds
-    # - No timeout needed if we aggressively cleanup before starting
-    echo ""
-    print_message info "Cleaning up npm processes before build..."
-
-    # Kill npm-related processes from /opt/budget only (more targeted, avoids killing unrelated processes)
-    # SECURITY: Use specific path patterns to avoid affecting other npm processes
-    sudo pkill -9 -f "/opt/budget.*npm" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "/opt/budget.*terser" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "/opt/budget.*postcss" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "/opt/budget.*tailwindcss" 2>&1 | grep -v "Killed" || true
-    sleep 2  # Give processes time to fully terminate
-
-    # Verify cleanup (only check /opt/budget processes)
-    local remaining=$(ps aux | grep -E "/opt/budget.*(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
-    if [[ $remaining -eq 0 ]]; then
-        print_message success "Build processes cleaned up (0 remaining)"
-        echo ""
+    # Determine image tag from VERSION file
+    if [[ -f "$DEPLOY_DIR/VERSION" ]]; then
+        VERSION=$(cat "$DEPLOY_DIR/VERSION" | tr -d '[:space:]')
+        info "Deploying version: $VERSION"
     else
-        print_message warning "Some processes still running ($remaining), attempting targeted cleanup..."
-        # Only kill node processes from /opt/budget
-        sudo pkill -9 -f "/opt/budget.*node" 2>&1 | grep -v "Killed" || true
-        sleep 1
-        print_message success "Targeted cleanup completed"
-        echo ""
-    fi
-
-    # Check that npm dependencies are installed in production isolated environment
-    # ARCHITECTURE CHANGE (2025-11-08):
-    # - npm env now in /opt/budget/.npm-isolated (NOT copied via rsync)
-    # - Must be created by install.sh (runs once, persists across deploys)
-    # - Faster deploys (~100-200MB not transferred)
-    local npm_isolated_dir="/opt/budget/.npm-isolated"
-    local node_modules_dir="$npm_isolated_dir/node_modules"
-    local build_allowed=true
-
-    # Generate cache version ONCE for entire deployment (v6.8.0+)
-    # CRITICAL: Export BEFORE build_allowed check so it's available for:
-    # 1. npm run build → Vite plugin (vite-plugin-sw-version.ts)
-    # 2. update-cache-busting.sh validation
-    export CACHE_VERSION="v$(date -u +"%Y%m%d_%H%M")"
-    print_message info "Generated CACHE_VERSION: $CACHE_VERSION (will be used for all files)"
-
-    # Write to file for Vite plugin and validation scripts
-    # vite-plugin-sw-version.ts reads CACHE_VERSION from env or .cache-version file
-    # IMPORTANT: Fix ownership when running with sudo to prevent permission issues
-    if echo "$CACHE_VERSION" > "$DEPLOY_DIR/.cache-version"; then
-        # Fix ownership if running as root (sudo deploy.sh)
-        if [[ $EUID -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
-            chown "$SUDO_USER:$SUDO_USER" "$DEPLOY_DIR/.cache-version" || {
-                print_message warning "Could not fix .cache-version ownership (non-critical)"
-            }
-        fi
-
-        # Verify file was written correctly
-        if [[ -f "$DEPLOY_DIR/.cache-version" ]]; then
-            local written_version=$(cat "$DEPLOY_DIR/.cache-version")
-            if [[ "$written_version" == "$CACHE_VERSION" ]]; then
-                print_message info "Written CACHE_VERSION to .cache-version: $CACHE_VERSION"
-                print_message info "File ownership: $(stat -c '%U:%G' "$DEPLOY_DIR/.cache-version" 2>/dev/null || stat -f '%Su:%Sg' "$DEPLOY_DIR/.cache-version")"
-            else
-                print_message error "CRITICAL: .cache-version content mismatch!"
-                print_message error "  Expected: $CACHE_VERSION"
-                print_message error "  Actual:   $written_version"
-                exit 1
-            fi
-        else
-            print_message error "CRITICAL: Failed to create .cache-version file"
-            exit 1
-        fi
-    else
-        print_message error "CRITICAL: Cannot write to .cache-version file"
-        print_message error "Check permissions: ls -la $DEPLOY_DIR/.cache-version"
+        error "VERSION file not found in $DEPLOY_DIR"
         exit 1
     fi
     echo ""
 
-    if [[ ! -d "$npm_isolated_dir" ]]; then
-        print_message error "Production npm environment not found: $npm_isolated_dir"
-        print_message error "This directory must exist in production (not copied from repository)"
-        print_message error ""
-        print_message error "To fix: Run install.sh to create production npm environment"
-        print_message error "  cd ~/familyBudget && sudo ./install.sh"
-        print_message error ""
-        print_message warning "Skipping minification - deployment will continue with unminified assets"
-        build_allowed=false
-    elif [[ ! -d "$node_modules_dir" ]]; then
-        print_message error "node_modules not found in production npm environment: $node_modules_dir"
-        print_message error "Please run install.sh to install npm dependencies"
-        print_message warning "Skipping minification - deployment will continue with unminified assets"
-        build_allowed=false
-    elif [[ ! -f "$node_modules_dir/.package-lock.json" ]]; then
-        print_message warning "package-lock.json not found in $node_modules_dir - dependencies may be corrupted"
-        print_message warning "Consider re-running install.sh to reinstall npm packages"
-        print_message warning "Attempting to run build anyway..."
-    fi
-
-    # Validate npm package versions (especially Tailwind CSS to prevent 4.x mismatch)
-    if [[ "$build_allowed" == true ]] && command -v jq &> /dev/null; then
-        print_message info "Validating npm package versions..."
-
-        if [[ -f "package.json" && -f "$node_modules_dir/tailwindcss/package.json" ]]; then
-            local expected_tailwind
-            local installed_tailwind
-
-            expected_tailwind=$(jq -r '.devDependencies.tailwindcss // empty' "package.json" 2>/dev/null)
-            installed_tailwind=$(jq -r '.version // empty' "$node_modules_dir/tailwindcss/package.json" 2>/dev/null)
-
-            if [[ -n "$expected_tailwind" && -n "$installed_tailwind" ]]; then
-                if [[ "$expected_tailwind" != "$installed_tailwind" ]]; then
-                    print_message error "Tailwind CSS version mismatch detected!"
-                    print_message error "  Expected (package.json): $expected_tailwind"
-                    print_message error "  Installed (node_modules): $installed_tailwind"
-                    print_message error ""
-                    print_message error "This mismatch can cause build failures (especially 4.x vs 3.x)"
-                    print_message error "Please reinstall npm dependencies with correct versions:"
-                    print_message error "  cd ~/familyBudget"
-                    print_message error "  sudo ./install.sh"
-                    print_message error ""
-                    print_message warning "Skipping build to prevent errors"
-                    build_allowed=false
-                else
-                    print_message success "Tailwind CSS version validated: $installed_tailwind"
-                    echo ""
-                fi
-            fi
-        fi
-    fi
-
-    # Check if frontend rebuild needed (v7.0+ TypeScript architecture)
-    # CRITICAL: Check BEFORE build to avoid unnecessary npm builds
-    # Checks: .ts/.tsx files in frontend/, package.json, vite.config.ts, build-all.js
-    if [[ "$build_allowed" == true ]]; then
-        if [[ "$FORCE_FRONTEND_BUILD" == true ]]; then
-            print_message info "Force frontend rebuild requested (--force-build flag)"
-            print_message info "Skipping checksum validation"
-        elif ! needs_frontend_rebuild "$SCRIPT_DIR"; then
-            print_message info "No frontend source files changed since last build"
-            print_message info "Skipping npm build (assets are up-to-date)"
-            build_allowed=false
-        else
-            print_message info "Frontend source files changed - npm build required"
-        fi
-        echo ""
-    fi
-
-    # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
-    if [[ "$build_allowed" == true ]]; then
-        # Validate npm environment comprehensively (with auto-repair)
-        if ! repair_npm_environment; then
-            echo ""
-            print_message error "npm environment validation/repair failed"
-            print_message error "Cannot proceed with deployment - critical packages missing or corrupted"
-            print_message error ""
-            print_message error "Manual fix required:"
-            print_message error "  cd ~/familyBudget && sudo ./install.sh"
-            print_message error ""
+    # NEW: Display and confirm IMAGE_VERSIONS.json (v9.0+)
+    info "Reading deployment versions from IMAGE_VERSIONS.json..."
+    if [[ -f "$DEPLOY_DIR/IMAGE_VERSIONS.json" ]]; then
+        # Display versions
+        if ! display_deployment_versions; then
+            error "Failed to read IMAGE_VERSIONS.json"
             exit 1
         fi
 
-        # ARCHITECTURE FIX (2025-11-21, updated 2026-01-07):
-        # - Use NODE_PATH for CommonJS require() module resolution
-        # - Use temporary symlink for ES modules (vite.config.single.ts) import resolution
-        # - Problem: Symlinked node_modules breaks nested require() in bundled modules
-        #   (browserslist → node-releases/data/processed/envs.json fails)
-        # - Solution 1: Set NODE_PATH to tell Node.js where to find CommonJS modules
-        # - Solution 2: Create temporary symlink for Vite ES imports (removed after build)
-
-        # CRITICAL: Remove /opt/budget/node_modules before build (if exists)
-        # - Only .npm-isolated/node_modules should exist (accessed via NODE_PATH or symlink)
-        # - If /opt/budget/node_modules exists BEFORE build, npm may use wrong version
-        # - Temporary symlink will be created DURING build for Vite (line ~1240)
-        if [[ -e "$PWD/node_modules" ]]; then
-            print_message info "Removing $PWD/node_modules (will recreate temporarily for Vite)"
-            rm -rf "$PWD/node_modules"
-            print_message success "Removed - using .npm-isolated/node_modules exclusively"
-        fi
-
-        # Add isolated node_modules/.bin to PATH for npx executables
-        export PATH="$node_modules_dir/.bin:$PATH"
-
-        # Set NODE_PATH for correct nested module resolution
-        export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
-
-        print_message info "npm build environment configured (PATH + NODE_PATH)"
-
-        # CRITICAL FIX (2026-01-07): ES modules (vite.config.single.ts) don't use NODE_PATH
-        # - Vite config uses ES import which ignores NODE_PATH
-        # - Create temporary symlink for ES module resolution
-        # - Will be removed after build (line ~1285)
-        if [[ ! -e "$PWD/node_modules" ]]; then
-            ln -sf "$node_modules_dir" "$PWD/node_modules"
-            print_message info "Created temporary node_modules symlink for Vite ES imports"
-        fi
-
-        # CRITICAL FIX (2026-01-12): Clear Vite cache before build
-        # - Vite caches compiled modules in node_modules/.vite/
-        # - Stale cache can cause old code to be bundled even with updated source files
-        # - Clear cache when TypeScript sources changed to ensure fresh build
-        # - Cache is in .npm-isolated/node_modules/.vite/ (isolated environment)
-        local vite_cache_dir="${node_modules_dir}/.vite"
-        if [[ -d "$vite_cache_dir" ]]; then
-            print_message info "Clearing Vite cache (stale modules prevention)..."
-            rm -rf "$vite_cache_dir"
-            print_message success "Vite cache cleared from $vite_cache_dir"
-        else
-            print_message info "Vite cache not found (first build or already clean)"
-        fi
-
-        echo ""
-        # CRITICAL: Pass CACHE_VERSION and NODE_ENV to Vite build
-        # build-all.js reads these variables for production minification
-        # Use env to ensure variable propagation across npm script chain
-        print_message info "Passing CACHE_VERSION=$CACHE_VERSION and NODE_ENV=production to Vite build"
-        if env NODE_ENV=production CACHE_VERSION="$CACHE_VERSION" npm run build:prod 2>&1; then
-            echo ""
-            print_message success "Static assets built and minified successfully"
-            echo ""
-
-            # Copy Service Worker files from .vite-build/ to final location (v7.0.1+ fix)
-            # Vite creates sw.js and sw.js.gz in .vite-build/, but we need them as sw.min.js in root
-            # Service Worker served by FastAPI backend from /opt/budget/sw.min.js (v6.8.0+)
-            if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
-                print_message info "Copying Service Worker files from .vite-build/ to deployment root..."
-                cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
-                cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
-                print_message success "✓ Service Worker files copied: sw.min.js + sw.min.js.gz"
-            else
-                print_message warning "Service Worker files not found in .vite-build/ - build may have failed"
-            fi
-            echo ""
-
-            # CRITICAL: Verify Service Worker was built correctly (v6.8.0+, updated 2026-01-07)
-            if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-                # Check if CACHE_VERSION itself contains PLACEHOLDER (NOT validation check variable)
-                if grep -q 'CACHE_VERSION.*=.*"PLACEHOLDER"' "$DEPLOY_DIR/sw.min.js" || \
-                   grep -q "CACHE_VERSION.*=.*'PLACEHOLDER'" "$DEPLOY_DIR/sw.min.js"; then
-                    print_message error "CRITICAL: CACHE_VERSION not replaced in sw.min.js!"
-                    print_message error "Service Worker version was not updated during Vite build"
-                    print_message error ""
-                    print_message error "This will cause PWA cache issues for users"
-                    print_message error ""
-                    print_message error "Debug info:"
-                    print_message error "  CACHE_VERSION set to: ${CACHE_VERSION:-<not set>}"
-                    print_message error "  Expected version in sw.min.js: $CACHE_VERSION"
-                    grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1 || true
-                    print_message error ""
-                    print_message error "DEPLOYMENT BLOCKED - please check vite-plugin-sw-version.ts"
-                    exit 1
-                else
-                    SW_VERSION=$(grep -o 'CACHE_VERSION.*=.*"[^"]*"' "$DEPLOY_DIR/sw.min.js" | head -1)
-                    print_message success "✓ Service Worker version verified: $SW_VERSION"
-                fi
-            else
-                print_message warning "sw.min.js not found - Service Worker may not be available"
-            fi
-
-            # REMOVED: save_frontend_build_checksums (Issue #1 fix)
-            # Checksums now saved AFTER comprehensive validation (see line ~1548)
-            # This prevents deploying incomplete builds
-
-            # Minify legacy files (lists.css) - NOT included in Vite build
-            # Note: hierarchyView.js was migrated to TypeScript and included in lists.min.js bundle
-            print_message info "Minifying legacy files (lists.css)..."
-            echo ""
-
-            # Minify lists.css
-            if [[ -f "$DEPLOY_DIR/frontend/web/static/css/lists.css" ]]; then
-                if npx postcss "$DEPLOY_DIR/frontend/web/static/css/lists.css" \
-                    -o "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" \
-                    --no-map --use cssnano 2>&1; then
-                    print_message success "✓ lists.css minified successfully"
-
-                    # Gzip precompression
-                    if gzip -9 -k -f "$DEPLOY_DIR/frontend/web/static/css/lists.min.css" 2>&1; then
-                        print_message success "✓ lists.min.css.gz created"
-                    else
-                        print_message warning "Failed to create lists.min.css.gz (non-critical)"
-                    fi
-                else
-                    error "Failed to minify lists.css"
-                    error "This file is critical - cannot continue"
-                    exit 1
-                fi
-            else
-                print_message warning "lists.css not found - skipping minification"
-            fi
-
-            echo ""
-            print_message success "Legacy files minification completed"
-            echo ""
-
-            # NOTE: Individual JS files (debugLog, budgetShared, etc.) are now built
-            # through Vite in build-all.js (v7.1.0+). No separate minification needed.
-
-            echo ""
-        else
-            echo ""
-            print_message warning "Build failed - check npm logs above"
-            print_message warning "Continuing with existing/unminified assets"
-            echo ""
-        fi
-
-        # Remove temporary symlink (created for Rollup ES imports)
-        if [[ -L "$PWD/node_modules" ]]; then
-            rm -f "$PWD/node_modules"
-            print_message info "Removed temporary node_modules symlink"
-        fi
-
-        # Restore PATH and NODE_PATH (remove isolated paths)
-        export PATH="${PATH#$node_modules_dir/.bin:}"
-        export NODE_PATH="${NODE_PATH#$node_modules_dir:}"
-        export NODE_PATH="${NODE_PATH#$node_modules_dir}"
-    else
-        echo ""
-        print_message warning "Minification skipped (build validation failed)"
-        echo ""
-    fi
-
-    cd - > /dev/null || error_return "Failed to return to previous directory"
-    echo ""
-
-    # SAFEGUARD: Ensure Service Worker minified files are properly created
-    # Docker creates empty DIRECTORIES for non-existent mount paths in docker-compose.yml
-    # This breaks nginx serving of sw.js. We must ensure sw.min.js and sw.min.js.gz are FILES.
-    local sw_min="$DEPLOY_DIR/sw.min.js"
-    local sw_min_gz="$DEPLOY_DIR/sw.min.js.gz"
-
-    # Check 1: Fix if files are directories (Docker artifact)
-    if [[ -d "$sw_min" ]] || [[ -d "$sw_min_gz" ]]; then
-        warning "Service Worker minified files are directories (Docker artifact) - fixing..."
-        rm -rf "$sw_min" "$sw_min_gz"
-    fi
-
-    # Check 2: Validate Service Worker files exist (created by Vite during npm run build)
-    # Service Worker is built through: npm run build → build-all.js → vite.config.single.ts
-    # Vite handles: minification, gzip compression, CACHE_VERSION injection
-    if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
-        # Try to copy from .vite-build/ as fallback (v7.0.1+ fix)
-        if [[ -f "$DEPLOY_DIR/.vite-build/sw.js" ]] && [[ -f "$DEPLOY_DIR/.vite-build/sw.js.gz" ]]; then
-            warning "Service Worker files missing in deployment root - copying from .vite-build/..."
-            cp "$DEPLOY_DIR/.vite-build/sw.js" "$DEPLOY_DIR/sw.min.js"
-            cp "$DEPLOY_DIR/.vite-build/sw.js.gz" "$DEPLOY_DIR/sw.min.js.gz"
-            success "✓ Service Worker files copied from .vite-build/ (fallback)"
-        else
-            warning "Service Worker files missing after build"
-            warning "IMPORTANT: sw.min.js must be created by 'npm run build' (Vite handles all processing)"
-            warning "If build was skipped, Service Worker will not be updated"
-            warning "Manual regeneration is no longer supported (minify.sh removed in v7.0.0)"
-        fi
-    fi
-
-    # Re-validate after potential fallback copy
-    if [[ -f "$sw_min" ]] && [[ -f "$sw_min_gz" ]]; then
-        local sw_min_size=$(stat -c%s "$sw_min" 2>/dev/null || stat -f%z "$sw_min" 2>/dev/null)
-        local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
-        success "Service Worker validated: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
-
-        # NOTE: Cache busting now runs outside this block (after line 1407)
-        # to ensure PLACEHOLDER replacement even when build is skipped
-
-        # Service Worker served by backend (v6.8.0+)
-        # No nginx update needed - backend reads sw.min.js directly from /app/
-        # Backend automatically serves fresh file after deployment
-        info "Service Worker will be served by FastAPI backend (auto-updates)"
-    fi
-    echo ""
-
-    # Update cache busting versions AFTER minification (v7.1.1+)
-    # CRITICAL: Must run ALWAYS, not just when Service Worker exists
-    # PLACEHOLDER tokens in HTML templates must be replaced on every deployment
-    step "Updating Cache Busting Versions (Post-Build)"
-    cd "$DEPLOY_DIR" || error_return "Failed to cd to $DEPLOY_DIR"
-
-    if [[ -f "scripts/update-cache-busting.sh" ]]; then
-        info "Running update-cache-busting.sh to replace PLACEHOLDER tokens..."
-        if ! bash scripts/update-cache-busting.sh; then
-            error "CRITICAL: Failed to update cache busting versions!"
-            error "Deployment ABORTED - cannot deploy with PLACEHOLDER tokens"
+        # Ask confirmation
+        if ! confirm_deployment_versions; then
+            error "Deployment cancelled by user"
             exit 1
         fi
-        echo ""
+
+        # NEW: Generate .env file from IMAGE_VERSIONS.json
+        if ! generate_env_from_image_versions; then
+            error "Failed to generate .env from IMAGE_VERSIONS.json"
+            exit 1
+        fi
+
+        # Skip confirmation in pull_from_registry (already confirmed above)
+        export SKIP_VERSION_CONFIRM=true
     else
-        error "CRITICAL: scripts/update-cache-busting.sh not found!"
-        error "Deployment ABORTED - cannot deploy without cache busting update"
+        error "IMAGE_VERSIONS.json not found in $DEPLOY_DIR"
+        error "This file should be auto-generated by GitHub Actions"
+        error ""
+        error "Troubleshooting:"
+        error "  1. Verify GitHub Actions workflow completed"
+        error "  2. Check git pull succeeded"
+        error "  3. Verify IMAGE_VERSIONS.json exists in repository"
         exit 1
     fi
     echo ""
 
     # =============================================================================
-    # COMPREHENSIVE BUILD ARTIFACT VALIDATION (Issue #1 fix)
+    # REGISTRY-FIRST OPTIMIZATION: Cleanup old images BEFORE pull
     # =============================================================================
-    # Validate ALL build artifacts before saving checksums. This prevents deploying
-    # incomplete builds that would cause next deployment to skip rebuild.
-    # Timing is critical: AFTER build + minification + cache busting, BEFORE checksum save.
-    # CRITICAL: Only validate if build was actually performed (build_allowed=true)
-
-    # Only validate and save checksums if frontend build was actually performed
-    if [[ "$build_allowed" == "true" ]]; then
-        step "Validating Build Artifacts"
-
-        # Run comprehensive validation
-        if ! validate_build_artifacts; then
-            error ""
-            error "═══════════════════════════════════════════════════════════"
-            error "      BUILD ARTIFACT VALIDATION FAILED                    "
-            error "═══════════════════════════════════════════════════════════"
-            error ""
-            error "Some critical files are missing or invalid after build."
-            error "Checksums will NOT be saved - next deploy will rebuild."
-            error ""
-            error "Common causes:"
-            error "  1. npm build failed partially (check logs above)"
-            error "  2. Vite bundle creation failed"
-            error "  3. File permissions preventing writes"
-            error "  4. Disk space exhausted during build"
-            error ""
-            error "DEPLOYMENT ABORTED"
-            error "═══════════════════════════════════════════════════════════"
-            exit 1
-        fi
-
-        # Save checksums ONLY after comprehensive validation
-        save_frontend_build_checksums "$SCRIPT_DIR"
-        success "Build artifacts validated and checksums saved"
-        echo ""
+    # Free disk space before downloading new images (up to 2GB)
+    # This prevents "no space left on device" errors during pull
+    # Note: cleanup_old_image_versions() is safer than cleanup_old_images():
+    # - Checks docker inspect (protects running containers)
+    # - Keeps last N versions (predictable for frequent releases)
+    step "Cleaning Up Old Docker Images (Pre-Pull Optimization)"
+    if cleanup_old_image_versions 3; then
+        success "Old Docker image versions cleaned up successfully"
+        info "Disk space freed for new image pull"
     else
-        info "Frontend build was skipped (no source files changed)"
-        info "Checksums NOT updated - using existing build artifacts"
-        echo ""
+        warning "Image cleanup had some issues - continuing anyway"
     fi
+    echo ""
 
-    # REMOVED: Duplicate PLACEHOLDER check block (Issue #1 fix)
-    # The comprehensive validate_build_artifacts() function (added above) already
-    # validates Service Worker PLACEHOLDER replacement. This section was redundant
-    # and happened AFTER checksums were saved (wrong timing).
-    # See validate_build_artifacts() at line ~887 for the new validation logic.
+    # Pull images from ghcr.io (backend, bot, nginx, redis, postgresql)
+    # Versions exported to .env: BACKEND_VERSION, BOT_VERSION, etc.
+    info "Pulling Docker images from registry..."
+    if ! pull_from_registry; then
+        error "Failed to pull Docker images from registry"
+        error ""
+        error "Please check:"
+        error "  1. GitHub Actions build completed successfully"
+        error "  2. Images exist in ghcr.io/ikeniborn/familybudget-*:${VERSION}"
+        error "  3. Network connectivity to ghcr.io"
+        error "  4. Docker daemon is running"
+        error ""
+        error "To debug: docker pull ghcr.io/ikeniborn/familybudget-backend:${VERSION}"
+        exit 1
+    fi
+    echo ""
+    success "All Docker images pulled successfully"
+    echo ""
+
+
+    # REMOVED: Build artifacts validation (v9.0 registry-first)
+    # validate_build_artifacts() function was removed - artifacts are validated in CI/CD
+    # (GitHub Actions quality-checks job) and embedded in Docker images.
+    # No validation needed on server during deployment.
 
     # LATE checks (after code sync): docker-compose.yml, directories
     check_prerequisites_late
@@ -1849,9 +1248,9 @@ main() {
     cleanup_docker_images true  # true = auto-cleanup (no confirmation needed)
     echo ""
 
-    # Cleanup old image versions (keep only last 3) to prevent 100+ images accumulation
-    cleanup_old_image_versions 3
-    echo ""
+    # NOTE: cleanup_old_image_versions() moved to PHASE 2 (before pull_from_registry)
+    # This frees disk space BEFORE pulling new images (registry-first optimization)
+    # See: Image Management section above
 
     # Check Docker daemon health and restart if CPU is too high (>50%)
     # High dockerd CPU often indicates accumulated state from many images
@@ -1866,8 +1265,8 @@ main() {
 
     # stop_services removed - redundant after cleanup_old_deployment
 
-    # NOTE: regenerate_nginx_config() moved earlier - runs immediately after sync_code_to_deploy()
-    # This ensures nginx config exists even if deploy is interrupted during cleanup phase
+    # NOTE: Nginx configuration removed in v9.0 (registry-first)
+    # Configuration embedded in Docker image, processed by entrypoint.sh
 
     # NOTE: PostgreSQL permissions validation removed after migration to Docker managed volume
     # Docker managed volumes handle permissions automatically
@@ -1998,6 +1397,10 @@ main() {
         wait_for_services
         echo ""
 
+        # NOTE: Old Docker image cleanup moved to PHASE 2 (before pull_from_registry)
+        # This optimization frees disk space BEFORE pulling new images
+        # No need to cleanup again here - already done during image management phase
+
         # Configure Docker firewall (DOCKER-USER chain)
         # CRITICAL: Block exposed ports 5432 (PostgreSQL) and 8000 (Backend)
         # Docker bypasses UFW by adding iptables rules before UFW chain
@@ -2123,9 +1526,10 @@ main() {
         # Check for orphaned deployment processes after successful deployment
         # This ensures no deployment-related processes (alembic, npm, pip, rsync) remain running
         # Uvicorn workers and other service processes are excluded from this check
-        check_orphaned_deployment_processes || {
-            warning "Orphaned processes detected but deployment completed successfully"
-            warning "These processes will be automatically cleaned up on next deployment"
+        # Symmetrical policy with deployment start (line 871): auto-terminate orphaned processes
+        check_orphaned_deployment_processes --terminate || {
+            warning "Failed to terminate orphaned processes"
+            warning "Manual cleanup may be required"
         }
         echo ""
 

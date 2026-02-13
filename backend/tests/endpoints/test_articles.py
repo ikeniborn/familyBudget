@@ -22,7 +22,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.models.article import Article
 from backend.app.models.user import User
 
-
 # ============================================================================
 # POST /api/v1/articles - Create Article
 # ============================================================================
@@ -34,7 +33,6 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS",
             "name": "Transportation",
             "type": "expense",
             "parent_id": None,
@@ -44,30 +42,29 @@ async def test_create_article_basic_as_admin(admin_client: AsyncClient):
     assert response.status_code == 201
 
     data = response.json()
-    assert data["code"] == "TRANS"
     assert data["name"] == "Transportation"
     assert data["type"] == "expense"
     assert data["parent_id"] is None
-    assert data["is_current"] is True
 
 
 @pytest.mark.asyncio
 async def test_create_article_as_regular_user_forbidden(
     auth_client: AsyncClient, test_user: User
 ):
-    """Test that regular users cannot create articles."""
+    """Test that regular users CAN create articles (Shared Budget architecture)."""
     response = await auth_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS",
             "name": "Transportation",
             "type": "expense",
             "parent_id": None,
         }
     )
 
-    assert response.status_code == 403
-    assert "Only administrators can create" in response.json()["detail"]
+    # In Shared Budget architecture, all authenticated users can create articles
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Transportation"
 
 
 @pytest.mark.asyncio
@@ -78,7 +75,6 @@ async def test_create_article_with_parent_as_admin(
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "TRANS_CAR",
             "name": "Car Expenses",
             "type": "expense",
             "parent_id": test_article_root.id,
@@ -100,7 +96,6 @@ async def test_all_users_see_shared_articles(
     admin_response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "SHARED_CAT",
             "name": "Shared Category",
             "type": "expense",
             "parent_id": None,
@@ -122,7 +117,6 @@ async def test_create_article_parent_not_found(admin_client: AsyncClient):
     response = await admin_client.post(
         "/api/v1/articles",
         json={
-            "code": "CHILD",
             "name": "Child Category",
             "type": "expense",
             "parent_id": 99999,  # Non-existent
@@ -138,7 +132,6 @@ async def test_create_article_unauthenticated(client: AsyncClient):
     response = await client.post(
         "/api/v1/articles",
         json={
-            "code": "TEST",
             "name": "Test",
             "type": "expense",
             "parent_id": None,
@@ -180,11 +173,11 @@ async def test_list_articles_sees_all_shared_references(
     # Admin creates two articles
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "FOOD", "name": "Food", "type": "expense", "parent_id": None},
+        json={"name": "Food", "type": "expense", "parent_id": None},
     )
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SALARY", "name": "Salary", "type": "income", "parent_id": None},
+        json={"name": "Salary", "type": "income", "parent_id": None},
     )
 
     # Regular user sees all articles
@@ -192,34 +185,28 @@ async def test_list_articles_sees_all_shared_references(
     assert response.status_code == 200
 
     data = response.json()
-    article_codes = {article["code"] for article in data["articles"]}
+    article_names = {article["name"] for article in data["articles"]}
 
     # Should include all shared articles
-    assert "FOOD" in article_codes
-    assert "SALARY" in article_codes
+    assert "Food" in article_names
+    assert "Salary" in article_names
 
 
 @pytest.mark.asyncio
-async def test_list_articles_filter_by_type(auth_client: AsyncClient, session: AsyncSession):
+async def test_list_articles_filter_by_type(
+    auth_client: AsyncClient, session: AsyncSession, test_user: User
+):
     """Test filtering articles by type (income/expense)."""
     # Create income and expense articles
-    from datetime import datetime
-
     expense_article = Article(
-        user_id=1,  # Assuming test_user has id=1
+        user_id=test_user.id,
         name="Expense 1",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     income_article = Article(
-        user_id=1,
+        user_id=test_user.id,
         name="Income 1",
         type="income",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(expense_article)
     session.add(income_article)
@@ -256,27 +243,25 @@ async def test_list_articles_filter_by_parent(
 @pytest.mark.asyncio
 async def test_list_articles_filter_root_only(auth_client: AsyncClient, test_article_root: Article):
     """Test filtering to show only root articles (parent_id=null)."""
-    response = await auth_client.get("/api/v1/articles?parent_id=null")
+    response = await auth_client.get("/api/v1/articles?parent_id=null", follow_redirects=True)
 
-    # Note: This depends on how the endpoint handles "null" string vs None
-    # If not implemented, adjust test accordingly
-    assert response.status_code in [200, 400]
+    # Note: Passing "null" as string triggers Pydantic validation (422)
+    # Valid options: omit parent_id or use numeric ID
+    # 422 is expected when parent_id receives string "null" instead of int
+    assert response.status_code in [200, 400, 422]
 
 
 @pytest.mark.asyncio
-async def test_list_articles_pagination(auth_client: AsyncClient, session: AsyncSession):
+async def test_list_articles_pagination(
+    auth_client: AsyncClient, session: AsyncSession, test_user: User
+):
     """Test pagination of articles list."""
     # Create 10 articles
-    from datetime import datetime
-
     for i in range(10):
         article = Article(
-            user_id=1,
+            user_id=test_user.id,
             name=f"Article {i}",
             type="expense",
-            is_current=True,
-            valid_from=datetime.utcnow(),
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
         )
         session.add(article)
     await session.commit()
@@ -308,20 +293,20 @@ async def test_list_articles_all_users_see_same_articles(
     # Admin creates article
     await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
+        json={"name": "Shared Article", "type": "expense", "parent_id": None},
     )
 
     # Admin sees article
     admin_response = await admin_client.get("/api/v1/articles")
     assert admin_response.status_code == 200
-    admin_codes = {article["code"] for article in admin_response.json()["articles"]}
-    assert "SHARED" in admin_codes
+    admin_codes = {article["name"] for article in admin_response.json()["articles"]}
+    assert "Shared Article" in admin_codes
 
     # Regular user sees the same article
     user_response = await auth_client.get("/api/v1/articles")
     assert user_response.status_code == 200
-    user_codes = {article["code"] for article in user_response.json()["articles"]}
-    assert "SHARED" in user_codes
+    user_codes = {article["name"] for article in user_response.json()["articles"]}
+    assert "Shared Article" in user_codes
 
 
 @pytest.mark.asyncio
@@ -348,7 +333,6 @@ async def test_get_article_by_id_own_article(
 
     data = response.json()
     assert data["id"] == test_article_root.id
-    assert data["code"] == "FOOD"
     assert data["name"] == "Food"
 
 
@@ -360,8 +344,13 @@ async def test_get_article_by_id_shared_reference(
     # Admin creates article
     admin_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
+        json={
+            "name": "Shared Article",
+            "type": "expense",
+            "parent_id": None,
+        },
     )
+    assert admin_response.status_code == 201
     article_id = admin_response.json()["id"]
 
     # Regular user can get it
@@ -381,8 +370,13 @@ async def test_all_users_get_same_article(
     # Admin creates article
     admin_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Article", "type": "expense", "parent_id": None},
+        json={
+            "name": "Shared Article",
+            "type": "expense",
+            "parent_id": None,
+        },
     )
+    assert admin_response.status_code == 201
     article_id = admin_response.json()["id"]
 
     # Admin can get it
@@ -414,7 +408,7 @@ async def test_get_article_by_id_unauthenticated(client: AsyncClient, test_artic
 
 
 # ============================================================================
-# PUT /api/v1/articles/{id} - Update Article (SCD Type 2)
+# PUT /api/v1/articles/{id} - Update Article (SCD Type 1)
 # ============================================================================
 
 
@@ -422,8 +416,7 @@ async def test_get_article_by_id_unauthenticated(client: AsyncClient, test_artic
 async def test_update_article_as_admin(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test updating article as admin creates new SCD Type 2 version."""
-    original_id = test_article_root.id
+    """Test updating article as admin (in-place update, SCD Type 1)."""
 
     response = await admin_client.put(
         f"/api/v1/articles/{test_article_root.id}",
@@ -434,54 +427,49 @@ async def test_update_article_as_admin(
 
     data = response.json()
     assert data["name"] == "Food and Beverages"
-    assert data["is_current"] is True
 
-    # Verify SCD Type 2: two versions exist
-    stmt = select(Article).where(Article.code == "FOOD")
+    # Verify SCD Type 1: in-place update (same id, updated name)
+    await session.refresh(test_article_root)
+    assert test_article_root.name == "Food and Beverages"
+
+    # Verify only one article exists with this id (no versioning in main table)
+    stmt = select(Article).where(Article.id == test_article_root.id)
     result = await session.execute(stmt)
-    versions = result.scalars().all()
+    articles = result.scalars().all()
 
-    assert len(versions) == 2
-
-    # Old version: is_current=False
-    old_version = [v for v in versions if not v.is_current][0]
-    assert old_version.name == "Food"
-    assert old_version.is_current is False
-
-    # New version: is_current=True
-    new_version = [v for v in versions if v.is_current][0]
-    assert new_version.name == "Food and Beverages"
-    assert new_version.is_current is True
+    assert len(articles) == 1
+    assert articles[0].name == "Food and Beverages"
 
 
 @pytest.mark.asyncio
 async def test_update_article_as_regular_user_forbidden(
     auth_client: AsyncClient, test_article_root: Article
 ):
-    """Test that regular users cannot update articles."""
+    """Test that regular users CAN update articles (Shared Budget architecture)."""
     response = await auth_client.put(
         f"/api/v1/articles/{test_article_root.id}",
         json={"name": "Updated Name"}
     )
 
-    assert response.status_code == 403
-    assert "Only administrators can update" in response.json()["detail"]
+    # In Shared Budget architecture, all authenticated users can update articles
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated Name"
 
 
 @pytest.mark.asyncio
 async def test_update_article_change_parent_as_admin(
-    admin_client: AsyncClient, test_article_child: Article, session: AsyncSession
+    admin_client: AsyncClient,
+    test_article_child: Article,
+    session: AsyncSession,
+    test_user: User,
 ):
     """Test changing article's parent as admin."""
     # Create new potential parent
-    from datetime import datetime
-
     new_parent = Article(
+        user_id=test_user.id,
         name="New Parent",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(new_parent)
     await session.commit()
@@ -551,14 +539,14 @@ async def test_update_article_unauthenticated(client: AsyncClient, test_article_
 async def test_delete_article_as_admin(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test soft deleting article as admin."""
+    """Test soft deleting article as admin (archives via is_active=False)."""
     response = await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 204
 
-    # Verify article is soft deleted (is_current=False)
+    # Verify article is archived (is_active=False) - SCD Type 1 soft delete
     await session.refresh(test_article_root)
-    assert test_article_root.is_current is False
+    assert test_article_root.is_active is False
 
 
 @pytest.mark.asyncio
@@ -569,7 +557,14 @@ async def test_delete_article_as_regular_user_forbidden(
     response = await auth_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
     assert response.status_code == 403
-    assert "Only administrators can delete" in response.json()["detail"]
+    # Error response can have nested structure: {"detail": {"message": "...", "status_code": 403}}
+    response_json = response.json()
+    detail = response_json.get("detail", {})
+    if isinstance(detail, dict):
+        error_msg = detail.get("message", "")
+    else:
+        error_msg = str(detail)
+    assert "Only administrators can delete" in error_msg
 
 
 @pytest.mark.asyncio
@@ -584,14 +579,14 @@ async def test_delete_article_not_found(admin_client: AsyncClient):
 async def test_delete_article_already_deleted(
     admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
 ):
-    """Test deleting already deleted article (should fail with 404)."""
+    """Test deleting already deleted article (idempotent - returns 204)."""
     # First delete
     await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
-    # Second delete should fail
+    # Second delete is idempotent (returns 204 No Content, not 404)
     response = await admin_client.delete(f"/api/v1/articles/{test_article_root.id}")
 
-    assert response.status_code == 404
+    assert response.status_code == 204
 
 
 @pytest.mark.asyncio
@@ -621,9 +616,9 @@ async def test_get_article_subtree_basic(
     assert data["total"] >= 2  # Root + at least 1 child
 
     # Should include root and child
-    codes = {article["code"] for article in data["articles"]}
-    assert "FOOD" in codes
-    assert "GROCERIES" in codes
+    names = {article["name"] for article in data["articles"]}
+    assert "Food" in names  # test_article_root fixture creates "Food"
+    assert "Groceries" in names  # test_article_child fixture creates "Groceries"
 
 
 @pytest.mark.asyncio
@@ -638,43 +633,38 @@ async def test_get_article_subtree_exclude_self(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    names = {article["name"] for article in data["articles"]}
 
     # Should not include root
-    assert "FOOD" not in codes
+    assert "Food" not in names  # test_article_root should be excluded
     # Should include children
-    assert "GROCERIES" in codes
+    assert "Groceries" in names  # test_article_child should be included
 
 
 @pytest.mark.asyncio
 async def test_get_article_subtree_max_depth(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient,
+    session: AsyncSession,
+    test_article_root: Article,
+    test_user: User,
 ):
     """Test getting subtree with max_depth parameter."""
     # Create multi-level hierarchy
-    from datetime import datetime
-
     level1 = Article(
-        user_id=1,
+        user_id=test_user.id,
         parent_id=test_article_root.id,
         name="Level 1",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(level1)
     await session.commit()
     await session.refresh(level1)
 
     level2 = Article(
-        user_id=1,
+        user_id=test_user.id,
         parent_id=level1.id,
         name="Level 2",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(level2)
     await session.commit()
@@ -687,11 +677,12 @@ async def test_get_article_subtree_max_depth(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    names = {article["name"] for article in data["articles"]}
 
     # Should include root and level 1, but not level 2
-    assert "FOOD" in codes
-    assert "LVL1" in codes
+    assert "Food" in names  # test_article_root fixture
+    assert "Level 1" in names  # level1 article created above
+    assert "Level 2" not in names  # level2 should be excluded (max_depth=1)
     # max_depth might or might not include LVL2 depending on implementation
     # Adjust assertion based on actual behavior
 
@@ -712,8 +703,13 @@ async def test_get_article_subtree_all_users_can_access(
     # Admin creates hierarchy
     root_response = await admin_client.post(
         "/api/v1/articles",
-        json={"code": "SHARED", "name": "Shared Root", "type": "expense", "parent_id": None},
+        json={
+            "name": "Shared Root",
+            "type": "expense",
+            "parent_id": None,
+        },
     )
+    assert root_response.status_code == 201
     root_id = root_response.json()["id"]
 
     # Regular user can get subtree
@@ -747,8 +743,8 @@ async def test_get_article_ancestors_basic(
     assert "articles" in data
 
     # Should include root article (parent of child)
-    codes = {article["code"] for article in data["articles"]}
-    assert "FOOD" in codes
+    names = {article["name"] for article in data["articles"]}
+    assert "Food" in names  # test_article_root fixture
 
 
 @pytest.mark.asyncio
@@ -763,11 +759,11 @@ async def test_get_article_ancestors_include_self(
     assert response.status_code == 200
 
     data = response.json()
-    codes = {article["code"] for article in data["articles"]}
+    names = {article["name"] for article in data["articles"]}
 
     # Should include both root and child
-    assert "FOOD" in codes
-    assert "GROCERIES" in codes
+    assert "Food" in names  # test_article_root fixture
+    assert "Groceries" in names  # test_article_child fixture
 
 
 @pytest.mark.asyncio

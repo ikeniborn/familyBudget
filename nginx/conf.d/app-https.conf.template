@@ -2,12 +2,7 @@
 # This configuration is used AFTER SSL certificate is obtained.
 # Includes: HTTPS server, HTTP→HTTPS redirect, all application routes
 # Variable: {{DOMAIN}}
-
-# Upstream backend
-upstream backend {
-    server backend:8000;
-    keepalive 32;
-}
+# Note: Upstream backend defined in upstream.conf.template
 
 # HTTPS Server - Port 443
 server {
@@ -101,46 +96,14 @@ server {
         proxy_set_header Host $host;
     }
 
-    # PWA Manifest (served directly by nginx)
-    location = /manifest.json {
-        alias /usr/share/nginx/html/manifest.json;
-        add_header Content-Type "application/manifest+json" always;
-        add_header Cache-Control "public, max-age=3600, must-revalidate" always;  # 1 hour
-        add_header Access-Control-Allow-Origin "*" always;
-    }
-
     # Service Worker - served by FastAPI backend (v6.8.0+)
     # Reason: Avoids Docker bind mount inode issues, auto-updates after deployment
     # Backend endpoint: GET /sw.min.js (backend/app/main.py:356)
     # Nginx proxies to backend (no static file serving)
 
-    # Static files - versioned JS/CSS (with ?v=timestamp) - aggressive caching
-    # Example: lists.min.js?v=20251218_1845
-    location ~ ^/static/.*\.(js|css)$ {
-        alias /usr/share/nginx/html$uri;
-
-        # Versioned files (with ?v=) - cache forever
-        if ($args ~ "^v=") {
-            expires 1y;
-            add_header Cache-Control "public, immutable" always;
-        }
-
-        # Non-versioned files - short cache
-        if ($args !~ "^v=") {
-            expires 1h;
-            add_header Cache-Control "public, must-revalidate" always;
-        }
-
-        access_log off;
-    }
-
-    # Static images, fonts, etc. - long-term caching
-    location /static/ {
-        alias /usr/share/nginx/html/static/;
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-        access_log off;
-    }
+    # Static files - NOW SERVED BY BACKEND (FastAPI StaticFiles)
+    # Backend mounts /static/ path with caching headers
+    # All static assets (JS, CSS, images, fonts, manifest.json) served by backend
 
     # Telegram Web Apps - served by backend StaticFiles mount
     location /webapp/ {
@@ -186,6 +149,7 @@ server {
     }
 
     # Root - web interface
+    # Note: /sw.min.js and /manifest.json are handled by backend with proper Cache-Control headers
     location / {
         proxy_pass http://backend;
         proxy_set_header Host $host;

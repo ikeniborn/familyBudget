@@ -464,3 +464,221 @@ body.modal-open {
         font-weight: 500;
     }
 }
+
+/* ============================================== */
+/* 10. Modal & iOS Safari Layout Fixes           */
+/* ============================================== */
+
+/**
+ * iOS Safari viewport height fixes and modal positioning.
+ * These styles ensure modals work correctly on iOS Safari
+ * with dynamic viewport units and safe-area-inset support.
+ */
+
+/* Фиксация модальных окон для мобильных устройств */
+/* Проблема: на iOS Safari адресная строка скрывается при скролле,
+   что изменяет значение vh и приводит к "прыжкам" модального окна */
+
+/* CSS переменная для реальной высоты viewport (обновляется через JS) */
+:root {
+    --real-vh: 1vh;
+}
+
+/* Переопределение DaisyUI modal для предотвращения растягивания */
+@media (max-width: 640px) {
+    /* Модальное окно - фиксированная позиция */
+    .modal {
+        position: fixed !important;
+        inset: 0;
+    }
+
+    /* Modal box - используем dvh (dynamic viewport height) с fallback */
+    .modal-box {
+        /* Современные браузеры: используем dvh (учитывает динамическую высоту) */
+        max-height: 90dvh !important;
+
+        /* Fallback для старых браузеров: используем CSS переменную из JS */
+        max-height: calc(var(--real-vh, 1vh) * 90) !important;
+
+        /* Центрирование */
+        margin-top: auto !important;
+        margin-bottom: auto !important;
+
+        /* Прокрутка внутри */
+        overflow-y: auto !important;
+
+        /* Предотвращение скролла body */
+        overscroll-behavior: contain;
+    }
+
+    /* Предотвращение скролла body когда модальное окно открыто */
+    .modal:modal {
+        overflow: hidden;
+    }
+
+    body:has(.modal[open]) {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+    }
+}
+
+/* Desktop - более высокие модальные окна */
+@media (min-width: 640px) {
+    .modal-box {
+        max-height: 95dvh !important;
+        max-height: calc(var(--real-vh, 1vh) * 95) !important;
+    }
+}
+
+/* Mobile menu - fix для iOS Safari и мелких экранов */
+@media (max-width: 1023px) {
+    #mobile-menu-content {
+        /* Fixed position для гарантированного отображения на экране */
+        position: fixed !important;
+        top: calc(4rem + var(--safe-area-inset-top)) !important; /* Под navbar + safe-area */
+        right: calc(0.5rem + var(--safe-area-inset-right)) !important;
+        left: auto !important;
+        /* Фиксированная ширина */
+        width: 14rem !important; /* 224px */
+        min-width: 14rem !important;
+        /* Высота по содержимому, но не больше экрана - учитываем safe-area */
+        max-height: calc(100dvh - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
+        max-height: calc(var(--real-vh, 1vh) * 100 - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
+        /* Вертикальный скролл, без горизонтального */
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        /* Above FAB toolbar */
+        z-index: var(--z-dropdown) !important;  /* 60 - above navbar (50) */
+    }
+
+    /* Предотвращаем перенос текста в элементах меню */
+    #mobile-menu-content li a,
+    #mobile-menu-content li button {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+}
+
+/* Очень маленькие экраны по высоте - компактный режим */
+@media (max-height: 500px) {
+    #mobile-menu-content {
+        top: 3.5rem !important;
+        max-height: calc(100dvh - 4rem) !important;
+        max-height: calc(var(--real-vh, 1vh) * 100 - 4rem) !important;
+        padding: 0.25rem !important;
+    }
+    #mobile-menu-content li a,
+    #mobile-menu-content li button {
+        padding: 0.375rem 0.5rem !important;
+        font-size: 0.8125rem !important;
+    }
+    #mobile-menu-content .menu-title {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.6875rem !important;
+    }
+    #mobile-menu-content .divider {
+        margin: 0.125rem 0 !important;
+    }
+    /* Скрыть аватар на очень маленьких экранах */
+    #mobile-menu-content .avatar {
+        display: none !important;
+    }
+}
+
+/* Compact navbar on mobile for better space usage */
+@media (max-width: 1023px) {
+    .navbar {
+        min-height: 3.5rem !important; /* Reduced from 4rem default */
+    }
+
+    .navbar > * {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+}
+
+/* Modal Z-Index Configuration (Cookie Consent + WebAuthn) */
+/* Ensure cookie consent banner appears above ALL UI elements */
+#cookie-consent-banner {
+    z-index: var(--z-modal-backdrop) !important;  /* 999 - above mobile menu (60), modals, FAB (50) */
+}
+
+/* Ensure modal content clickable */
+#cookie-consent-banner > .bg-base-100 {
+    position: relative;
+    z-index: 1000 !important;  /* Content above backdrop */
+}
+
+/* WebAuthn onboarding modal - same priority as cookie consent */
+#webauthn-onboarding-modal {
+    z-index: var(--z-modal-backdrop) !important;  /* 999 - same priority as cookie consent */
+}
+
+/* General modal safety net (optional but recommended) */
+dialog.modal {
+    z-index: var(--z-modal) !important;  /* 900 - above menu (60) but below priority modals (999) */
+}
+
+dialog.modal::backdrop {
+    z-index: calc(var(--z-modal) - 1) !important;  /* 899 - backdrop below modal */
+}
+
+/* ============================================== */
+/* 11. Modal Tabs Visual Enhancement            */
+/* ============================================== */
+
+/**
+ * Улучшенная визуализация табов в модалах для четкой индикации
+ * активного таба (Transaction vs Transfer).
+ *
+ * Problem: DaisyUI .tabs .tabs-boxed имеет слабый визуальный контраст
+ * между активным и неактивным табом.
+ *
+ * Solution: Добавить border, font-weight и opacity для четкого различия.
+ */
+
+/* Modal tabs container */
+.modal .tabs.tabs-boxed {
+    background-color: oklch(var(--b2));
+    border: 1px solid oklch(var(--bc) / 0.2);
+    padding: 0.25rem;
+}
+
+/* Inactive tab styling */
+.modal .tabs.tabs-boxed .tab {
+    opacity: 0.6;
+    font-weight: 400;
+    transition: all 0.2s ease;
+}
+
+/* Active tab styling */
+.modal .tabs.tabs-boxed .tab:checked {
+    opacity: 1;
+    font-weight: 600;
+    border: 2px solid oklch(var(--p));
+    background-color: oklch(var(--b1));
+    box-shadow: 0 2px 4px oklch(var(--bc) / 0.1);
+}
+
+/* Hover effect for inactive tabs */
+.modal .tabs.tabs-boxed .tab:not(:checked):hover {
+    opacity: 0.8;
+    background-color: oklch(var(--b3));
+}
+
+/* ============================================== */
+/* 12. Transfer Tab Account Selects Height Fix  */
+/* ============================================== */
+
+/**
+ * Fix for Issue #3: Transfer tab account selects have incorrect height.
+ * DaisyUI .select-sm reduces height, but we need 3rem (48px) for consistency.
+ */
+
+#modal_fact-tab-transfer select[name="from_financial_center_id"],
+#modal_fact-tab-transfer select[name="to_financial_center_id"] {
+    height: 3rem !important;
+    min-height: 3rem;
+}

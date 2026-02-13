@@ -18,7 +18,6 @@ Schemas:
 """
 
 from backend.app.schemas.admin import SystemStatsResponse, UserStatsResponse
-from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
 from backend.app.schemas.article import (
     ArticleCreate,
     ArticleHierarchyInfo,
@@ -26,6 +25,7 @@ from backend.app.schemas.article import (
     ArticleResponse,
     ArticleUpdate,
 )
+from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
 from backend.app.schemas.cost_center import (
     CostCenterCreate,
     CostCenterListResponse,

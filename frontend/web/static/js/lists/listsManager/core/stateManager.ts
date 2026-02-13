@@ -6,9 +6,23 @@
  *
  * Phase 3.1: ES Modules Migration
  * Extracted from: frontend/web/static/js/lists/listsManager.ts lines 126-708
+ *
+ * Phase 3.2 (task-015): DataLayer Integration
+ * Replaced direct API fetch with dataLayer (PGlite-first + API fallback)
  */
 
 import { getState, updateState } from './ListsState';
+import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsState';
+import { dataLayer } from '../../../data/DataLayer';
+import { getDexieManager } from '@db/dexie';
+import type {
+  LocalShoppingList,
+  ShoppingListWithStats,
+  LocalShoppingListItem,
+  LocalStore,
+  LocalProductGroup
+} from '@db/dexie';
+import { isValidListId } from '../../utils/listIdUtils';
 
 // ============================================================================
 // Type Definitions
@@ -26,33 +40,127 @@ declare global {
 }
 
 // ============================================================================
+// Type Converters (PGlite Local* types → State types)
+// ============================================================================
+
+/**
+ * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
+ *
+ * Handles both PGlite records (without stats) and API responses (with stats).
+ */
+function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
+  // DEFENSIVE: Type coercion for temp_id (handle legacy string values from pre-v11.6.0 data)
+  let normalizedTempId: number | undefined;
+  if (typeof local.temp_id === 'number') {
+    normalizedTempId = local.temp_id;
+  } else if (typeof local.temp_id === 'string') {
+    const parsed = parseInt(local.temp_id, 10);
+    normalizedTempId = isNaN(parsed) ? undefined : parsed;
+  } else {
+    normalizedTempId = undefined;
+  }
+
+  return {
+    id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
+    temp_id: normalizedTempId,     // Preserve PGlite temp_id for write operations (task-015 Phase 4, fixed type coercion)
+    name: local.name,
+    is_active: local.is_active,
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
+    description: local.description || undefined,
+    // Statistics from API response (optional in LocalShoppingList, required in ShoppingListWithStats)
+    total_items: local.total_items,
+    completed_items: local.completed_items,
+    completion_percentage: local.completion_percentage
+  };
+}
+
+/**
+ * Convert LocalShoppingListItem to ShoppingItem
+ */
+function convertShoppingListItem(local: LocalShoppingListItem, listId: number): ShoppingItem {
+  return {
+    id: local.id || 0,
+    list_id: listId,
+    temp_id: local.temp_id,         // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    product_name: local.product_name,
+    quantity: local.quantity,
+    unit: local.unit,
+    is_completed: local.is_completed,
+    // DEFENSIVE: Handle both Date and string for nullable completed_at
+    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at PGlite query layer
+    completed_at: local.completed_at
+      ? (typeof local.completed_at === 'string' ? local.completed_at : local.completed_at.toISOString())
+      : undefined,
+    store_id: local.store_id,
+    product_group_id: local.product_group_id,
+    notes: local.comment, // PGlite uses 'comment', UI uses 'notes'
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
+  };
+}
+
+/**
+ * Convert LocalStore to Store
+ */
+function convertStore(local: LocalStore): Store {
+  return {
+    id: local.id,
+    name: local.name,
+    is_active: local.is_active,
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalStore.created_at type to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    // updated_at is optional in State type
+  };
+}
+
+/**
+ * Convert LocalProductGroup to ProductGroup
+ */
+function convertProductGroup(local: LocalProductGroup): ProductGroup {
+  return {
+    id: local.id,
+    name: local.name,
+    parent_id: local.parent_id,
+    is_active: local.is_active,
+    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at PGlite query layer
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
+    // updated_at is optional in State type
+  };
+}
+
+// ============================================================================
 // Initialization
 // ============================================================================
 
 /**
  * Initialize lists manager
  *
- * Sets up IndexedDB for offline support and OfflineShoppingManager
+ * Sets up Dexie for offline support
  */
 export async function initializeListsManager(): Promise<void> {
   debugLog('[ListsManager] Initializing...');
 
   try {
-    // Initialize IndexedDB for offline support
-    if (typeof IndexedDBManager !== 'undefined') {
-      const db = new IndexedDBManager();
-      await db.init();
-      updateState({ db });
-      debugLog('[ListsManager] IndexedDB initialized for offline support');
-    } else {
-      console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
+    // Initialize Dexie for offline support
+    const dexieManager = getDexieManager();
+    if (!dexieManager.isReady()) {
+      await dexieManager.init();
     }
 
-    // Initialize OfflineShoppingManager for offline CRUD operations
-    if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
-      const offlineShopping = new OfflineShoppingManager(window.offlineManager);
-      updateState({ offlineShopping });
-      debugLog('[ListsManager] OfflineShoppingManager initialized');
+    if (dexieManager.isReady()) {
+      updateState({ dexieManager });
+      debugLog('[ListsManager] Dexie initialized for offline support');
+    } else {
+      console.warn('[ListsManager] Dexie initialization failed, offline mode disabled');
     }
 
     // Listen for network status changes (sync when back online)
@@ -70,8 +178,8 @@ export async function initializeListsManager(): Promise<void> {
 
     debugLog('[ListsManager] Initialization complete');
   } catch (error) {
-    console.error('[ListsManager] Initialization error:', error);
-    throw error;
+    console.warn('[ListsManager] Dexie initialization error, continuing without offline support:', error);
+    // Continue without offline support (API-only mode)
   }
 }
 
@@ -101,145 +209,114 @@ export function isOnline(): boolean {
 // ============================================================================
 
 /**
- * Load all shopping lists (online or from cache)
+ * Load all shopping lists (PGlite-first with API fallback)
  *
- * Fetches from API when online, caches for offline use.
- * Falls back to cache when offline or on error.
+ * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadShoppingLists(): Promise<void> {
-  const CACHE_KEY = 'shopping_lists';
-  const CACHE_TTL = 86400; // 24 hours
-
-  const state = getState();
-
   try {
-    if (isOnline()) {
-      // Online: fetch from API and cache
-      const response = await fetch('/api/v1/shopping-lists', {
-        credentials: 'same-origin'
-      });
+    // DataLayer automatically handles PGlite-first + API fallback
+    const localLists = await dataLayer.getShoppingLists({ is_active: true });
+    const shoppingLists = localLists.map(convertShoppingList);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const shoppingLists = data.shopping_lists || [];
-
-      updateState({ shoppingLists });
-
-      // Cache for offline use
-      if (state.db && shoppingLists.length > 0) {
-        await state.db.setCache(CACHE_KEY, shoppingLists, CACHE_TTL);
-        debugLog('[ListsManager] Cached shopping lists for offline use');
-      }
-
-      debugLog('[ListsManager] Loaded shopping lists from API:', shoppingLists.length);
-    } else {
-      // Offline: load from cache
-      if (state.db) {
-        const cached = await state.db.getCache(CACHE_KEY);
-        const shoppingLists = cached || [];
-        updateState({ shoppingLists });
-        debugLog('[ListsManager] Loaded shopping lists from cache:', shoppingLists.length);
-
-        if (shoppingLists.length === 0) {
-          showToast('Списки недоступны в offline режиме. Посетите страницу online.', 'warning');
-        }
-      } else {
-        updateState({ shoppingLists: [] });
-        console.warn('[ListsManager] Offline and no cache available');
-      }
-    }
+    updateState({ shoppingLists });
+    debugLog('[ListsManager] Loaded shopping lists:', shoppingLists.length);
   } catch (error) {
     console.error('[ListsManager] Error loading shopping lists:', error);
-
-    // Fallback to cache on error
-    if (state.db) {
-      try {
-        const cached = await state.db.getCache(CACHE_KEY);
-        const shoppingLists = cached || [];
-        updateState({ shoppingLists });
-        debugLog('[ListsManager] Loaded shopping lists from cache (fallback):', shoppingLists.length);
-      } catch (cacheError) {
-        console.error('[ListsManager] Error loading shopping lists from cache:', cacheError);
-        showToast('Ошибка загрузки списков', 'error');
-        updateState({ shoppingLists: [] });
-      }
-    } else {
-      showToast('Ошибка загрузки списков', 'error');
-      updateState({ shoppingLists: [] });
-    }
+    showToast('Ошибка загрузки списков', 'error');
+    updateState({ shoppingLists: [] });
   }
 }
 
 /**
- * Load items for specific shopping list (online or from cache)
+ * Helper: Get numeric temp_id from server ID
  *
- * @param listId - Shopping list ID
+ * @param serverId - Server-assigned list ID
+ * @returns Numeric temp_id for Dexie query
  */
-export async function loadShoppingListItems(listId: number): Promise<void> {
-  const CACHE_KEY = `shopping_list_items_${listId}`;
-  const CACHE_TTL = 86400; // 24 hours
+async function getListTempId(serverId: number): Promise<number> {
+  // CRITICAL: Validate serverId before proceeding
+  if (!isValidListId(serverId)) {
+    throw new Error(
+      `[ListsManager] Invalid server ID: ${serverId} (must be positive integer)`
+    );
+  }
 
   const state = getState();
+  const list = state.shoppingLists.find(l => l.id === serverId);
 
-  try {
-    if (isOnline()) {
-      // Online: fetch from API and cache
-      const response = await fetch(`/api/v1/shopping-list-items?shopping_list_id=${listId}`, {
-        credentials: 'same-origin'
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const currentItems = data.items || [];
-      updateState({ currentItems });
-
-      // Cache for offline use
-      if (state.db) {
-        await state.db.setCache(CACHE_KEY, currentItems, CACHE_TTL);
-        debugLog('[ListsManager] Cached shopping list items for offline use');
-      }
-
-      debugLog('[ListsManager] Loaded items from API:', currentItems.length);
-    } else {
-      // Offline: load from cache
-      if (state.db) {
-        const cached = await state.db.getCache(CACHE_KEY);
-        const currentItems = cached || [];
-        updateState({ currentItems });
-        debugLog('[ListsManager] Loaded items from cache:', currentItems.length);
-      } else {
-        updateState({ currentItems: [] });
-        console.warn('[ListsManager] Offline and no cache available');
+  if (list?.temp_id) {
+    // DEFENSIVE: Handle both number and string temp_id (legacy data compatibility)
+    if (typeof list.temp_id === 'number') {
+      return list.temp_id;
+    } else if (typeof list.temp_id === 'string') {
+      const parsed = parseInt(list.temp_id, 10);
+      if (!isNaN(parsed)) {
+        return parsed;
       }
     }
+    // If temp_id is invalid, fall through to Dexie query below
+  }
+
+  // Fallback: query Dexie directly using public API
+  try {
+    const dexieManager = await getDexieManager();
+    const allLists = await dexieManager.queryShoppingLists();
+    const dexieList = allLists.find(l => l.id === serverId);
+
+    // CRITICAL FIX (v11.6.1): Return serverId for legacy lists without temp_id
+    // Backend supports backward compatible shopping_list_id parameter
+    // See listIdUtils.ts for heuristic details (LIST_ID_HEURISTIC_THRESHOLD)
+    const resolvedId = dexieList?.temp_id || serverId;
+
+    // Validate resolved ID before returning
+    if (!isValidListId(resolvedId)) {
+      console.error(
+        `[ListsManager] Resolved invalid ID: ${resolvedId} from serverId: ${serverId}`
+      );
+      // Last resort: return serverId (backend will handle via shopping_list_id)
+      return serverId;
+    }
+
+    return resolvedId;
+  } catch (error) {
+    console.warn('[ListsManager] Failed to get temp_id from Dexie:', error);
+    // Return serverId as fallback (backward compatible with shopping_list_id)
+    return serverId;
+  }
+}
+
+/**
+ * Load items for specific shopping list (PGlite-first with API fallback)
+ *
+ * @param listId - Shopping list ID or temp_id (number for both Dexie and API)
+ *
+ * Uses DataLayer for unified data access (task-015 phase 3)
+ * FIXED (v11.6.0): Use numeric temp_id instead of string conversion (bug fix)
+ */
+export async function loadShoppingListItems(listId: number | string): Promise<void> {
+  try {
+    // Accept both numeric ID (server) and temp_id (client)
+    // CRITICAL FIX: Use numeric temp_id instead of string conversion
+    const listTempId = typeof listId === 'string'
+      ? parseInt(listId, 10) || await getListTempId(parseInt(listId, 10))
+      : await getListTempId(listId);
+
+    const localItems = await dataLayer.getShoppingListItems(listTempId);
+
+    // Convert to UI types (use numeric listId for compatibility)
+    const numericListId = typeof listId === 'number' ? listId : parseInt(listId, 10) || 0;
+    const currentItems = localItems.map(item => convertShoppingListItem(item, numericListId));
+
+    updateState({ currentItems });
+    debugLog('[ListsManager] Loaded items:', currentItems.length, 'for temp_id:', listTempId);
 
     // Load stores and product groups for dropdowns
     await loadStoresAndGroups();
   } catch (error) {
     console.error('[ListsManager] Error loading items:', error);
-
-    // Fallback to cache on error
-    if (state.db) {
-      try {
-        const cached = await state.db.getCache(CACHE_KEY);
-        const currentItems = cached || [];
-        updateState({ currentItems });
-        debugLog('[ListsManager] Loaded items from cache (fallback):', currentItems.length);
-      } catch (cacheError) {
-        console.error('[ListsManager] Error loading items from cache:', cacheError);
-        showToast('Ошибка загрузки элементов', 'error');
-        updateState({ currentItems: [] });
-      }
-    } else {
-      showToast('Ошибка загрузки элементов', 'error');
-      updateState({ currentItems: [] });
-    }
+    showToast('Ошибка загрузки элементов', 'error');
+    updateState({ currentItems: [] });
   }
 }
 
@@ -247,68 +324,34 @@ export async function loadShoppingListItems(listId: number): Promise<void> {
  * Load stores and product groups for dropdowns
  */
 /**
- * Load stores from API or cache
+ * Load stores (PGlite-first with API fallback)
  * Used by CSVImporter after creating new stores
  */
 export async function loadStores(): Promise<void> {
-  const CACHE_KEY_STORES = 'stores';
-  const CACHE_TTL = 86400; // 24 hours
-  const state = getState();
-
   try {
-    if (isOnline()) {
-      const storesResponse = await fetch('/api/v1/stores', { credentials: 'same-origin' });
-      if (storesResponse.ok) {
-        const storesData = await storesResponse.json();
-        const stores = storesData.stores || [];
-        updateState({ stores });
-
-        if (state.db) {
-          await state.db.setCache(CACHE_KEY_STORES, stores, CACHE_TTL);
-        }
-      }
-    } else {
-      // Load from cache
-      if (state.db) {
-        const cachedStores = await state.db.getCache(CACHE_KEY_STORES);
-        updateState({ stores: cachedStores || [] });
-      }
-    }
+    const localStores = await dataLayer.getStores();
+    const stores = localStores.map(convertStore);
+    updateState({ stores });
+    debugLog('[ListsManager] Loaded stores:', stores.length);
   } catch (error) {
     console.error('[ListsManager] Error loading stores:', error);
+    updateState({ stores: [] });
   }
 }
 
 /**
- * Load product groups from API or cache
+ * Load product groups (PGlite-first with API fallback)
  * Used by CSVImporter after creating new product groups
  */
 export async function loadProductGroups(): Promise<void> {
-  const CACHE_KEY_GROUPS = 'product_groups';
-  const CACHE_TTL = 86400; // 24 hours
-  const state = getState();
-
   try {
-    if (isOnline()) {
-      const groupsResponse = await fetch('/api/v1/product-groups', { credentials: 'same-origin' });
-      if (groupsResponse.ok) {
-        const groupsData = await groupsResponse.json();
-        const productGroups = groupsData.product_groups || [];
-        updateState({ productGroups });
-
-        if (state.db) {
-          await state.db.setCache(CACHE_KEY_GROUPS, productGroups, CACHE_TTL);
-        }
-      }
-    } else {
-      // Load from cache
-      if (state.db) {
-        const cachedGroups = await state.db.getCache(CACHE_KEY_GROUPS);
-        updateState({ productGroups: cachedGroups || [] });
-      }
-    }
+    const localGroups = await dataLayer.getProductGroups();
+    const productGroups = localGroups.map(convertProductGroup);
+    updateState({ productGroups });
+    debugLog('[ListsManager] Loaded product groups:', productGroups.length);
   } catch (error) {
     console.error('[ListsManager] Error loading product groups:', error);
+    updateState({ productGroups: [] });
   }
 }
 

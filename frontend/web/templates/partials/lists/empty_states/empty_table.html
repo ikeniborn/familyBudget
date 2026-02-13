@@ -1,0 +1,17 @@
+{#
+  PARTIAL: Empty State for Table View
+  Purpose: Displayed when shopping list has no items (table view)
+  Uses: Shared empty_state macro
+  Used in: table_view.html
+#}
+
+{% from "components/shared/empty_state.html" import empty_state %}
+
+{{ empty_state(
+    container_id='table-empty-state',
+    icon='📝',
+    title='Список пуст',
+    description='Добавьте первый товар или импортируйте из CSV',
+    button_text='➕ Добавить товар',
+    button_onclick='openAddItemModal()'
+) }}

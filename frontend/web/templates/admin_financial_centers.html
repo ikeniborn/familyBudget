@@ -2,6 +2,7 @@
 {% from "components/modal_confirm.html" import confirm_modal %}
 {% from "components/mobile_alert.html" import mobile_restriction_alert %}
 {% from "components/status_filter.html" import status_filter %}
+{% from "components/macros/delete_buttons.html" import delete_button_mobile %}
 
 {% block content %}
 <!-- Mobile restriction alert (from macro) -->
@@ -90,11 +91,7 @@
             <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
             <div class="modal-action mt-3 flex flex-row gap-2">
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteCenterFromEditModal()" title="Удалить">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
+                {{ delete_button_mobile('deleteCenterFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
                 <div class="flex-1 md:hidden"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
@@ -157,7 +154,13 @@ async function loadCenters() {
         renderCentersTable(centersData);
     } catch (error) {
         console.error('Error loading accounts:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки счетов: ${error.message}</span></div>`;
+        container.innerHTML = ''; // очистить
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-error';
+        const span = document.createElement('span');
+        span.textContent = `❌ Ошибка загрузки счетов: ${error.message}`;
+        alertDiv.appendChild(span);
+        container.appendChild(alertDiv);
     }
 }
 
@@ -206,20 +209,12 @@ function renderCentersTable(centers) {
             if (isArchived) {
                 actionButtons += `
                     <button class="btn btn-xs btn-success gap-1" onclick="restoreCenter(${center.id})" title="Восстановить">♻️</button>
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteCenter(${center.id})" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    ${renderDeleteButtonDesktop(center.id, 'deleteCenter', 'center')}
                 `;
             } else {
                 actionButtons += `
                     <button class="btn btn-xs btn-warning gap-1" onclick="archiveCenter(${center.id})" title="Архивировать">📦</button>
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteCenter(${center.id})" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    ${renderDeleteButtonDesktop(center.id, 'deleteCenter', 'center')}
                 `;
             }
         }

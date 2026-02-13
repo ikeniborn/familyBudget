@@ -10,8 +10,8 @@ Scenario:
 4. Admin manages user permissions
 """
 
+
 import pytest
-from datetime import date
 from httpx import AsyncClient
 
 from backend.app.models.user import User
@@ -73,7 +73,7 @@ class TestAdminUserManagement:
 
         assert details["id"] == test_user.id
         assert details["username"] == "testuser"
-        assert details["is_admin"] == False
+        assert not details["is_admin"]
         print(f"✅ Retrieved user details for {details['username']}")
 
         # ===== STEP 4: View All Users Statistics =====
@@ -180,7 +180,7 @@ class TestAdminGlobalArticles:
         assert update_response.status_code == 200
         updated = update_response.json()
         assert "Updated" in updated["name"]
-        print(f"✅ Updated global article")
+        print("✅ Updated global article")
 
         # ===== STEP 5: Delete a Global Article =====
         print("\n📂 Step 5: Deleting a global article...")
@@ -188,14 +188,14 @@ class TestAdminGlobalArticles:
         last_id = created_ids[-1]
         delete_response = await admin_client.delete(f"/api/v1/admin/articles/{last_id}")
         assert delete_response.status_code == 200  # Returns 200 with message, not 204
-        print(f"✅ Deleted global article")
+        print("✅ Deleted global article")
 
         # Verify deletion
         verify_response = await admin_client.get("/api/v1/admin/articles")
         assert verify_response.status_code == 200
         remaining = verify_response.json()
         assert len(remaining) == len(articles) - 1
-        print(f"✅ Deletion verified")
+        print("✅ Deletion verified")
 
         print("\n" + "="*60)
         print("🎉 ADMIN GLOBAL ARTICLES TEST PASSED!")
@@ -229,7 +229,7 @@ class TestAdminSystemMonitoring:
         total_users = len(user_stats)
         total_facts = sum(s["total_facts"] for s in user_stats)
 
-        print(f"✅ System stats:")
+        print("✅ System stats:")
         print(f"   - Total users: {total_users}")
         print(f"   - Total transactions: {total_facts}")
 

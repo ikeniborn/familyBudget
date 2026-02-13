@@ -8,7 +8,7 @@ Tests FastAPI dependencies for user authentication and admin authorization:
 These dependencies are used throughout the API for authentication and authorization.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
@@ -16,7 +16,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.auth import get_current_admin, get_current_user
 from backend.app.models.user import User
-
 
 # ============================================================================
 # get_current_user() Tests
@@ -316,7 +315,6 @@ async def test_get_current_admin_none_user():
 
 def test_get_current_user_type_annotations():
     """Test that get_current_user has correct type annotations."""
-    import inspect
     from typing import get_type_hints
 
     hints = get_type_hints(get_current_user)
@@ -327,7 +325,6 @@ def test_get_current_user_type_annotations():
 
 def test_get_current_admin_type_annotations():
     """Test that get_current_admin has correct type annotations."""
-    import inspect
     from typing import get_type_hints
 
     hints = get_type_hints(get_current_admin)

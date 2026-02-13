@@ -4,12 +4,12 @@ Recurring Plan Service for scheduled payment management.
 Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
-
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import List, Optional, Tuple
 
-from sqlalchemy import and_, case, func as sa_func
+from fastapi import HTTPException
+from sqlalchemy import and_, case, or_
+from sqlalchemy import func as sa_func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -33,6 +33,33 @@ DEFAULT_GENERATION_HORIZON_DAYS = 90
 
 # Maximum iterations to prevent infinite loops
 MAX_ITERATIONS = 1000
+
+
+def _parse_date_safe(date_str: str, field_name: str) -> date:
+    """
+    Safely parse date string to date object with validation.
+
+    Args:
+        date_str: Date string in YYYY-MM-DD format
+        field_name: Field name for error message (e.g., "from_date", "to_date")
+
+    Returns:
+        date: Parsed date object
+
+    Raises:
+        HTTPException: 422 if date format is invalid
+    """
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError as e:
+        logger.warning(
+            f"[RECURRING_PLAN] Invalid {field_name} format: {date_str}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid {field_name} format. Use YYYY-MM-DD (e.g., 2025-11-09)",
+        ) from e
 
 
 class RecurringPlanService:
@@ -279,8 +306,8 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         plan_id: int,
-        user_id: Optional[int] = None,
-    ) -> Optional[RecurringPlan]:
+        user_id: int | None = None,
+    ) -> RecurringPlan | None:
         """
         Get recurring plan by ID.
 
@@ -302,7 +329,7 @@ class RecurringPlanService:
         session: AsyncSession,
         plan_id: int,
         user_id: int,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         Get recurring plan with enriched details (optimized with JOIN).
 
@@ -378,10 +405,12 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         user_id: int,
-        is_active: Optional[bool] = None,
+        is_active: bool | None = None,
+        from_date: str | None = None,
+        to_date: str | None = None,
         skip: int = 0,
         limit: int = 50,
-    ) -> Tuple[List[dict], int]:
+    ) -> tuple[list[dict], int]:
         """
         List recurring plans for a user.
 
@@ -389,6 +418,8 @@ class RecurringPlanService:
             session: Database session
             user_id: User ID
             is_active: Optional filter by active status
+            from_date: Filter by next_generation_date >= from_date (YYYY-MM-DD)
+            to_date: Filter by next_generation_date <= to_date (YYYY-MM-DD)
             skip: Pagination offset
             limit: Pagination limit
 
@@ -401,6 +432,24 @@ class RecurringPlanService:
         if is_active is not None:
             base_query = base_query.where(RecurringPlan.is_active == is_active)
 
+        # Date filtering (v11.4.12+) - include NULL for completed/inactive plans
+        if from_date:
+            from_date_obj = _parse_date_safe(from_date, "from_date")
+            base_query = base_query.where(
+                or_(
+                    RecurringPlan.next_generation_date >= from_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
+        if to_date:
+            to_date_obj = _parse_date_safe(to_date, "to_date")
+            base_query = base_query.where(
+                or_(
+                    RecurringPlan.next_generation_date <= to_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
+
         # Get total count
         count_query = (
             select(sa_func.count())
@@ -409,6 +458,22 @@ class RecurringPlanService:
         )
         if is_active is not None:
             count_query = count_query.where(RecurringPlan.is_active == is_active)
+        if from_date:
+            from_date_obj = _parse_date_safe(from_date, "from_date")
+            count_query = count_query.where(
+                or_(
+                    RecurringPlan.next_generation_date >= from_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
+        if to_date:
+            to_date_obj = _parse_date_safe(to_date, "to_date")
+            count_query = count_query.where(
+                or_(
+                    RecurringPlan.next_generation_date <= to_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
 
         count_result = await session.execute(count_query)
         total = count_result.scalar() or 0
@@ -423,6 +488,22 @@ class RecurringPlanService:
 
         if is_active is not None:
             query = query.where(RecurringPlan.is_active == is_active)
+        if from_date:
+            from_date_obj = _parse_date_safe(from_date, "from_date")
+            query = query.where(
+                or_(
+                    RecurringPlan.next_generation_date >= from_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
+        if to_date:
+            to_date_obj = _parse_date_safe(to_date, "to_date")
+            query = query.where(
+                or_(
+                    RecurringPlan.next_generation_date <= to_date_obj,
+                    RecurringPlan.next_generation_date.is_(None)
+                )
+            )
 
         query = (
             query
@@ -501,7 +582,7 @@ class RecurringPlanService:
         statement = (
             select(RecurringPlan)
             .where(
-                RecurringPlan.is_active == True,
+                RecurringPlan.is_active,
                 RecurringPlan.next_generation_date <= today + timedelta(days=horizon_days),
             )
         )
@@ -703,7 +784,7 @@ class RecurringPlanService:
         self,
         session: AsyncSession,
         recurring_plan: RecurringPlan,
-        fact_ids: List[int],
+        fact_ids: list[int],
     ) -> int:
         """
         Create scheduled reminders for generated facts (if enable_reminder=true).
@@ -867,10 +948,10 @@ class RecurringPlanService:
     def _calculate_next_occurrence(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
         start_date: date,
         from_date: date,
-    ) -> Optional[date]:
+    ) -> date | None:
         """
         Calculate the next occurrence date after from_date.
 
@@ -980,7 +1061,7 @@ class RecurringPlanService:
     def _get_frequency_display(
         self,
         frequency_type: str,
-        frequency_value: Optional[int],
+        frequency_value: int | None,
     ) -> str:
         """Get human-readable frequency description."""
         if frequency_type == "monthly":
@@ -1103,14 +1184,14 @@ class RecurringPlanService:
 
         # ✅ OPTIMIZATION: Single aggregation query with conditional filters (4→1 queries)
         stmt = select(
-            sa_func.count().filter(RecurringPlan.is_active == True).label("active_count"),
-            sa_func.count().filter(RecurringPlan.is_active == False).label("paused_count"),
+            sa_func.count().filter(RecurringPlan.is_active).label("active_count"),
+            sa_func.count().filter(not RecurringPlan.is_active).label("paused_count"),
             sa_func.sum(
                 case(
                     (
                         and_(
                             RecurringPlan.frequency_type == "monthly",
-                            RecurringPlan.is_active == True
+                            RecurringPlan.is_active
                         ),
                         RecurringPlan.amount
                     ),
@@ -1119,7 +1200,7 @@ class RecurringPlanService:
             ).label("monthly_sum"),
             sa_func.count().filter(
                 and_(
-                    RecurringPlan.is_active == True,
+                    RecurringPlan.is_active,
                     RecurringPlan.next_generation_date <= today
                 )
             ).label("pending_count"),

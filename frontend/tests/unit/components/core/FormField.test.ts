@@ -212,12 +212,12 @@ describe('FormField', () => {
       container.appendChild(element);
 
       // Initially shows help text
-      let helpText = element.querySelector('.text-base-content\\/70');
+      const helpText = element.querySelector('.text-base-content\\/70');
       expect(helpText?.textContent).toBe('Enter your email address');
 
       // After error, shows error element
       field.showError('Invalid email');
-      let errorText = element.querySelector('.text-error');
+      const errorText = element.querySelector('.text-error');
       expect(errorText?.textContent).toBe('Invalid email');
     });
   });

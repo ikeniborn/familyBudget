@@ -4,10 +4,8 @@ Notification model for budget alert tracking.
 This module defines the Notification model that stores history of budget
 notifications sent to users (or broadcast to all users).
 """
-
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -56,14 +54,14 @@ class Notification(SQLModel, table=True):
     __tablename__ = "t_notification"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
     )
 
     # Foreign keys
-    user_id: Optional[int] = Field(
+    user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         nullable=True,
@@ -72,6 +70,7 @@ class Notification(SQLModel, table=True):
     )
 
     article_id: int = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         foreign_key="t_d_article.id",
         nullable=False,
         index=True,
@@ -80,6 +79,7 @@ class Notification(SQLModel, table=True):
 
     # Notification details
     notification_type: str = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_length=50,
         index=True,
@@ -93,6 +93,7 @@ class Notification(SQLModel, table=True):
     )
 
     plan_amount: Decimal = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_digits=15,
         decimal_places=2,
@@ -100,6 +101,7 @@ class Notification(SQLModel, table=True):
     )
 
     actual_amount: Decimal = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         max_digits=15,
         decimal_places=2,
@@ -108,11 +110,13 @@ class Notification(SQLModel, table=True):
 
     # Period definition
     period_start: date = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         description="Start of monitored period (e.g., month start)"
     )
 
     period_end: date = Field(
+        ...,  # Required field (Pydantic v2 explicit syntax)
         nullable=False,
         description="End of monitored period (e.g., month end)"
     )

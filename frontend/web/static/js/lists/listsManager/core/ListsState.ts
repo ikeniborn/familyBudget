@@ -16,6 +16,7 @@ export {}; // Force module scope
 
 export interface ShoppingList {
   id: number;
+  temp_id?: number;              // Numeric temp_id for offline operations (int53)
   name: string;
   is_active: boolean;
   created_at: string;
@@ -23,11 +24,13 @@ export interface ShoppingList {
   description?: string;          // Optional description
   total_items?: number;          // Total item count (from API)
   completed_items?: number;      // Completed item count (from API)
+  completion_percentage?: number; // Completion percentage (from API, 0-100)
 }
 
 export interface ShoppingItem {
   id: number;
   list_id: number;
+  temp_id?: number;               // Numeric temp_id for offline operations (int53)
   product_name: string;
   quantity: number | null;
   unit: string | null;
@@ -83,11 +86,8 @@ export interface ListsState {
   // Hierarchy view instance (HierarchyView class)
   hierarchyView: any | null;
 
-  // IndexedDB instance (offline support)
-  db: any | null;
-
-  // Offline shopping manager (Phase 3.1)
-  offlineShopping: any | null;
+  // Dexie manager (offline support via Dexie.js)
+  dexieManager: any | null;
 
   // Debounced functions
   debouncedSearch: (() => void) | null;
@@ -116,8 +116,7 @@ let state: ListsState = {
   currentDuplicateItem: null,
   choicesInstances: {},
   hierarchyView: null,
-  db: null,
-  offlineShopping: null,
+  dexieManager: null,
   debouncedSearch: null,
   quantityChangeHandler: null,
   handleUnitChange: null,
@@ -168,8 +167,7 @@ export const resetState = (): void => {
     currentDuplicateItem: null,
     choicesInstances: {},
     hierarchyView: null,
-    db: null,
-    offlineShopping: null,
+    dexieManager: null,
     debouncedSearch: null,
     quantityChangeHandler: null,
     handleUnitChange: null,

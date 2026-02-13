@@ -14,17 +14,81 @@ declare function showToast(message: string, type?: 'success' | 'error' | 'warnin
 declare function setSubmitLoading(loading: boolean): void;
 
 /**
- * Open transfer modal with data reload
+ * Open transfer modal with skeleton loader.
+ * Shows skeleton during data loading for better perceived performance.
  * Migrated from: transfer.js openTransferModal() (lines 922-975)
  */
+/**
+ * Open transfer modal with skeleton loader.
+ *
+ * Shows skeleton during data loading for better perceived performance.
+ * Uses DaisyUI modal-open class (not HTML Dialog API).
+ * Caches FROM/TO category trees and financial centers.
+ *
+ * @returns Promise that resolves when modal is ready
+ */
 export async function openTransferModal(): Promise<void> {
-  // 1. Reload data (race condition protection)
-  await loadTransferData();
+  const modal = document.getElementById('transfer_modal');
+  const skeleton = document.getElementById('transfer_modal-loading-skeleton');
+  const formFields = document.getElementById('transfer_modal-form-fields');
 
+  if (!modal) {
+    console.error('[Transfer] transfer_modal not found');
+    return;
+  }
+
+  // Open modal immediately for perceived performance
+  modal.classList.add('modal-open');
+
+  // Setup backdrop click handler (iOS Safari fix)
+  setupBackdropClickHandler(modal);
+
+  // Check if data is already cached
   const state = getState();
+  const hasCachedData =
+    state.fromCategoryTree !== null &&
+    state.toCategoryTree !== null &&
+    state.financialCenters.length > 0;
 
-  // 2. CRITICAL: Reset FC filter state (prevents phantom auto-select)
-  // Migrated from: lines 937-942
+  if (hasCachedData) {
+    // Data cached - show form immediately without skeleton
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
+
+    // Update widgets with current state
+    await updateTransferWidgets(state);
+  } else {
+    // No cache - show skeleton during loading
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+
+    try {
+      // Load data
+      await loadTransferData();
+
+      // Hide skeleton, show form
+      if (skeleton) skeleton.classList.add('hidden');
+      if (formFields) formFields.classList.remove('hidden');
+
+      // Update widgets after loading
+      const updatedState = getState();
+      await updateTransferWidgets(updatedState);
+    } catch (error) {
+      console.error('[Transfer] Failed to load data:', error);
+      modal.classList.remove('modal-open');
+      if (typeof showToast === 'function') {
+        showToast('Ошибка загрузки данных', 'error');
+      }
+    }
+  }
+}
+
+/**
+ * Update transfer modal widgets with current state
+ * Extracted from openTransferModal for reuse
+ */
+async function updateTransferWidgets(state: ReturnType<typeof getState>): Promise<void> {
+  // 1. CRITICAL: Reset FC filter state (prevents phantom auto-select)
   if (state.fromCategoryTree) {
     state.fromCategoryTree.options.financialCenterId = null;
   }
@@ -32,7 +96,7 @@ export async function openTransferModal(): Promise<void> {
     state.toCategoryTree.options.financialCenterId = null;
   }
 
-  // 3. Apply current FC filtering
+  // 2. Apply current FC filtering
   const fromFCSelect = document.querySelector<HTMLSelectElement>('#from_financial_center');
   const toFCSelect = document.querySelector<HTMLSelectElement>('#to_financial_center');
 
@@ -42,17 +106,10 @@ export async function openTransferModal(): Promise<void> {
   await state.fromCategoryTree?.updateFinancialCenter(fromFCId);
   await state.toCategoryTree?.updateFinancialCenter(toFCId);
 
-  // 4. Set today's date for fact transfers
+  // 3. Set today's date for fact transfers
   if (state.recordType === 'fact' && state.dateWidget) {
     state.dateWidget.setDate(BudgetShared.DateFormatter.today());
   }
-
-  // 5. Open modal
-  const modal = document.getElementById('transfer_modal');
-  modal?.classList.add('modal-open');
-
-  // 6. Setup backdrop click handler (iOS Safari fix)
-  setupBackdropClickHandler(modal);
 }
 
 /**

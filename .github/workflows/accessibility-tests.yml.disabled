@@ -1,0 +1,149 @@
+name: Accessibility Tests
+
+on:
+  pull_request:
+    branches:
+      - test
+    paths:
+      - 'frontend/**/*.html'
+      - 'frontend/**/*.ts'
+      - 'tests/a11y/**'
+      - '.github/workflows/accessibility-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  axe-core-tests:
+    name: Axe-core A11y Tests
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: familybudget_test
+          POSTGRES_USER: familybudget
+          POSTGRES_PASSWORD: test_password_12345678901234567890
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18
+        uses: ./.github/actions/setup-node
+
+      - name: Wait for PostgreSQL
+        run: |
+          timeout 30 bash -c 'until pg_isready -h localhost -U familybudget; do sleep 1; done'
+
+      - name: Setup backend
+        uses: ./.github/actions/setup-backend
+        with:
+          python-version: '3.12'
+          database-url: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
+
+      - name: Install Node.js dependencies
+        run: |
+          npm ci
+          npm install -D @axe-core/playwright
+
+      - name: Build frontend
+        run: |
+          npm run build:css
+          npm run bundle
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Start backend server
+        env:
+          POSTGRES_HOST: localhost
+          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
+          JWT_SECRET: test_jwt_secret
+          SECRET_KEY: test_secret_key
+          TELEGRAM_BOT_TOKEN: test_bot_token_for_ci_only
+          ADMIN_TELEGRAM_ID: 123456789
+          API_INTERNAL_KEY: test_internal_key_for_ci_only
+          CORS_ORIGINS: http://localhost:8000
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          cd backend
+          uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 10
+
+          # Wait for backend
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Backend ready"
+              break
+            fi
+            echo "Waiting for backend... ($i/30)"
+            sleep 1
+          done
+
+      - name: Run accessibility tests
+        env:
+          BASE_URL: http://localhost:8000
+        continue-on-error: true
+        run: |
+          if [ -d "tests/a11y" ] && [ "$(ls -A tests/a11y)" ]; then
+            npx playwright test tests/a11y/ --reporter=html,json --output=a11y-results.json
+          else
+            echo "::warning::No accessibility tests found in tests/a11y/"
+            echo "## ⚠️ No A11y Tests Found" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please create accessibility tests in \`tests/a11y/\` directory." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Example test file:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`typescript" >> $GITHUB_STEP_SUMMARY
+            echo "import { test, expect } from '@playwright/test';" >> $GITHUB_STEP_SUMMARY
+            echo "import AxeBuilder from '@axe-core/playwright';" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "test('dashboard should not have a11y violations', async ({ page }) => {" >> $GITHUB_STEP_SUMMARY
+            echo "  await page.goto('/');" >> $GITHUB_STEP_SUMMARY
+            echo "  const results = await new AxeBuilder({ page })" >> $GITHUB_STEP_SUMMARY
+            echo "    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])" >> $GITHUB_STEP_SUMMARY
+            echo "    .analyze();" >> $GITHUB_STEP_SUMMARY
+            echo "  expect(results.violations).toEqual([]);" >> $GITHUB_STEP_SUMMARY
+            echo "});" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+      - name: Check for critical violations
+        if: hashFiles('a11y-results.json') != ''
+        run: |
+          CRITICAL=$(jq '[.[] | select(.violations[].impact == "critical")] | length' a11y-results.json 2>/dev/null || echo "0")
+          SERIOUS=$(jq '[.[] | select(.violations[].impact == "serious")] | length' a11y-results.json 2>/dev/null || echo "0")
+
+          echo "## Accessibility Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Critical: $CRITICAL" >> $GITHUB_STEP_SUMMARY
+          echo "- Serious: $SERIOUS" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Critical accessibility violations found"
+            exit 1
+          fi
+
+          if [ "$SERIOUS" -gt 5 ]; then
+            echo "::warning::More than 5 serious accessibility violations found"
+          fi
+
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-report
+          path: |
+            playwright-report/
+            a11y-results.json
+          retention-days: 30

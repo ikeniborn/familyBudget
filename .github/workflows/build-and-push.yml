@@ -1,0 +1,806 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [test]
+    tags: ['v*.*.*']
+    paths:
+      - 'VERSION'
+      - 'backend/**'
+      - 'bot/**'
+      - 'nginx/**'
+      - 'redis/**'
+      - 'postgres/**'
+      - 'frontend/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/build-and-push.yml'
+  workflow_dispatch:
+    inputs:
+      custom_tag:
+        description: 'Custom image tag (optional)'
+        required: false
+        type: string
+      skip_version_check:
+        description: 'Skip VERSION change check'
+        required: false
+        type: boolean
+        default: false
+      runner_type:
+        description: 'Runner type (use self-hosted if GitHub Actions down)'
+        required: false
+        type: choice
+        options:
+          - ubuntu-latest
+          - self-hosted
+        default: ubuntu-latest
+
+# Allow only one workflow run at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Job 1: Check VERSION file changes
+  # ============================================================================
+  check-version:
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: github.event_name != 'workflow_dispatch' || inputs.skip_version_check == false
+    outputs:
+      version_changed: ${{ steps.check.outputs.changed }}
+      current_version: ${{ steps.read.outputs.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Read current VERSION
+        id: read
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Check VERSION changes
+        id: check
+        run: |
+          # Для push событий проверяем изменился ли VERSION в последнем коммите
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            if git diff HEAD~1 HEAD -- VERSION | grep -q "^[+-][0-9]"; then
+              echo "changed=true" >> $GITHUB_OUTPUT
+              echo "✓ VERSION changed in this push"
+            else
+              echo "changed=false" >> $GITHUB_OUTPUT
+              echo "⚠ VERSION not changed, build may create duplicate tags"
+            fi
+
+          # Для tags и manual
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "✓ Skipping VERSION check for tag/manual trigger"
+          fi
+
+  # ============================================================================
+  # Job 2: Build services (frontend: cache busting, minification, validation)
+  # ============================================================================
+  service-build:
+    needs: [check-version]
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch')
+    outputs:
+      cache_version: ${{ steps.cache_bust.outputs.cache_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            .vite
+            .build-cache
+          key: ${{ runner.os }}-build-${{ hashFiles('package-lock.json', 'config/vite.config*.ts', 'build-all.js') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache busting
+        id: cache_bust
+        run: |
+          # Чтение версии из VERSION файла
+          if [[ ! -f VERSION ]]; then
+            echo "❌ VERSION file not found"
+            exit 1
+          fi
+
+          CACHE_VERSION=$(cat VERSION | tr -d '[:space:]')
+
+          # Валидация semantic versioning (X.Y.Z)
+          if [[ ! "$CACHE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid VERSION format: $CACHE_VERSION"
+            echo "   Expected: X.Y.Z (e.g., 10.0.23)"
+            exit 1
+          fi
+
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "cache_version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Cache version from VERSION file: $CACHE_VERSION"
+
+          # Запуск cache busting скрипта
+          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+
+          # Проверка изменений
+          if git diff --quiet frontend/; then
+            echo "No changes after cache busting"
+          else
+            echo "Cache versions updated in templates"
+            git diff frontend/ | head -50
+          fi
+
+      - name: Build frontend
+        env:
+          NODE_ENV: production
+        run: npm run build:prod  # Skip type-check (38 Dexie errors)
+
+      - name: Validate cache busting and PGlite
+        run: bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION" --strict-sw
+
+      # NOTE: Template files (frontend/web/templates/, frontend/webapp/) are NOT committed back to git
+      # They should always have PLACEHOLDER in git, replaced during Docker build only
+      # Build artifacts (dist/, *.min.css) are also excluded per registry-first architecture
+      # All built files exist only in Docker images, not in git
+
+  # ============================================================================
+  # Job 3: Build and push Docker images to GitHub Container Registry
+  # ============================================================================
+  image-build-push:
+    needs: [check-version, service-build]
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      needs.service-build.result == 'success'
+    permissions:
+      contents: write  # Changed from read to write for git push
+      packages: write
+    outputs:
+      backend_built: ${{ steps.changes.outputs.backend }}
+      bot_built: ${{ steps.changes.outputs.bot }}
+      nginx_built: ${{ steps.changes.outputs.nginx }}
+      redis_built: ${{ steps.changes.outputs.redis }}
+      postgresql_built: ${{ steps.changes.outputs.postgresql }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Re-pull in case of concurrent commits (race conditions)
+      - name: Pull latest changes
+        run: |
+          # Retry pull with exponential backoff (max 3 attempts)
+          for i in 1 2 3; do
+            if git pull origin ${{ github.ref_name }}; then
+              echo "✅ Git pull successful"
+              break
+            else
+              echo "⚠️ Git pull attempt $i failed, retrying in $((i * 2))s..."
+              sleep $((i * 2))
+            fi
+          done
+
+      - name: Read VERSION
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Project version: $VERSION"
+
+      - name: Set cache and image versions
+        run: |
+          # Frontend/SW use VERSION for cache invalidation (from service-build job output)
+          CACHE_VERSION="${{ needs.service-build.outputs.cache_version }}"
+          if [[ -z "$CACHE_VERSION" ]]; then
+            echo "❌ Cache version missing from service-build job output"
+            exit 1
+          fi
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "Using cache version: $CACHE_VERSION"
+
+          # Docker images use git hash for traceability
+          IMAGE_VERSION=$(git rev-parse --short HEAD)
+          echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
+          echo "Using image version: $IMAGE_VERSION"
+
+      - name: Check image changes
+        id: changes
+        run: |
+          # Backend changes
+          if bash scripts/ci/check_image_changes.sh backend | grep -q "build"; then
+            echo "backend=true" >> $GITHUB_OUTPUT
+          else
+            echo "backend=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Bot changes
+          if bash scripts/ci/check_image_changes.sh bot | grep -q "build"; then
+            echo "bot=true" >> $GITHUB_OUTPUT
+          else
+            echo "bot=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Nginx changes
+          if bash scripts/ci/check_image_changes.sh nginx | grep -q "build"; then
+            echo "nginx=true" >> $GITHUB_OUTPUT
+          else
+            echo "nginx=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Redis changes
+          if bash scripts/ci/check_image_changes.sh redis | grep -q "build"; then
+            echo "redis=true" >> $GITHUB_OUTPUT
+          else
+            echo "redis=false" >> $GITHUB_OUTPUT
+          fi
+
+          # PostgreSQL changes
+          if bash scripts/ci/check_image_changes.sh postgresql | grep -q "build"; then
+            echo "postgresql=true" >> $GITHUB_OUTPUT
+          else
+            echo "postgresql=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Docker meta (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-backend
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Backend
+            org.opencontainers.image.description=Family Budget application backend (FastAPI)
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (bot)
+        id: meta-bot
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-bot
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Bot
+            org.opencontainers.image.description=Family Budget Telegram bot
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (nginx)
+        id: meta-nginx
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-nginx
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Nginx
+            org.opencontainers.image.description=Family Budget Nginx reverse proxy
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (redis)
+        id: meta-redis
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-redis
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget Redis
+            org.opencontainers.image.description=Family Budget Redis cache
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Docker meta (postgresql)
+        id: meta-postgresql
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/familybudget-postgresql
+          tags: |
+            type=raw,value=${{ steps.version.outputs.VERSION }}
+          labels: |
+            org.opencontainers.image.title=Family Budget PostgreSQL
+            org.opencontainers.image.description=Family Budget PostgreSQL database
+            org.opencontainers.image.vendor=Family Budget Team
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Cache busting already done in service-build job (line 113-145)
+      # Templates are validated there, no need to repeat
+      - name: Set build date
+        id: build-date
+        run: echo "date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
+
+      # NOTE: Distroless migration (v11.3) - Expected image sizes after optimization:
+      # - Backend: ~400 MB (was 500 MB, 20% reduction)
+      # - Bot: ~320 MB (was 400 MB, 20% reduction)
+      # TODO: Add image size validation step after first successful build
+
+      - name: Build and push backend
+        if: steps.changes.outputs.backend == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+            PYTHON_VERSION=3.11
+            CACHE_VERSION=${{ env.CACHE_VERSION }}
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.build-date.outputs.date }}
+
+      - name: Build and push bot
+        if: steps.changes.outputs.bot == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: bot/Dockerfile
+          push: true
+          tags: ${{ steps.meta-bot.outputs.tags }}
+          labels: ${{ steps.meta-bot.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+            PYTHON_VERSION=3.11
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ steps.build-date.outputs.date }}
+
+      - name: Build and push nginx
+        if: steps.changes.outputs.nginx == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: ${{ steps.meta-nginx.outputs.tags }}
+          labels: ${{ steps.meta-nginx.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      - name: Build and push redis
+        if: steps.changes.outputs.redis == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./redis
+          file: ./redis/Dockerfile
+          push: true
+          tags: ${{ steps.meta-redis.outputs.tags }}
+          labels: ${{ steps.meta-redis.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      - name: Build and push postgresql
+        if: steps.changes.outputs.postgresql == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ./postgres
+          file: ./postgres/Dockerfile
+          push: true
+          tags: ${{ steps.meta-postgresql.outputs.tags }}
+          labels: ${{ steps.meta-postgresql.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      # ========================================================================
+      # Cleanup old untagged cache images (older than 7 days)
+      # ========================================================================
+      - name: Cleanup old untagged images
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🧹 Cleaning up old untagged Docker cache images (older than 7 days)..."
+
+          # Calculate cutoff date (7 days ago in ISO 8601 format)
+          CUTOFF_DATE=$(date -u -d '7 days ago' +'%Y-%m-%dT%H:%M:%SZ')
+          echo "Cutoff date: $CUTOFF_DATE"
+
+          # List of all package names
+          PACKAGES=(
+            "familybudget-backend"
+            "familybudget-bot"
+            "familybudget-nginx"
+            "familybudget-redis"
+            "familybudget-postgresql"
+          )
+
+          TOTAL_DELETED=0
+
+          for PACKAGE in "${PACKAGES[@]}"; do
+            echo ""
+            echo "📦 Processing package: $PACKAGE"
+
+            # Get all untagged versions older than cutoff date
+            OLD_VERSIONS=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions?per_page=100" \
+              --jq ".[] | select(.metadata.container.tags | length == 0) | select(.created_at < \"$CUTOFF_DATE\") | .id" 2>/dev/null || echo "")
+
+            if [[ -z "$OLD_VERSIONS" ]]; then
+              echo "   No old untagged images found"
+              continue
+            fi
+
+            COUNT=$(echo "$OLD_VERSIONS" | wc -l)
+            echo "   Found $COUNT old untagged images to delete"
+
+            # Delete each old version
+            while IFS= read -r VERSION_ID; do
+              if gh api \
+                --method DELETE \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
+                2>/dev/null; then
+                TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                echo "   ✓ Deleted image ID: $VERSION_ID"
+              else
+                echo "   ✗ Failed to delete image ID: $VERSION_ID"
+              fi
+            done <<< "$OLD_VERSIONS"
+          done
+
+          echo ""
+          echo "✅ Cleanup completed: $TOTAL_DELETED old untagged images deleted"
+
+      # ========================================================================
+      # Update IMAGE_VERSIONS.json with newly built image tags
+      # ========================================================================
+      - name: Install jq for IMAGE_VERSIONS.json update
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Update backend version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.backend == 'true'
+        run: bash scripts/ci/update_image_version.sh backend "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update bot version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.bot == 'true'
+        run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update nginx version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.nginx == 'true'
+        run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update redis version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.redis == 'true'
+        run: bash scripts/ci/update_image_version.sh redis "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update postgresql version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.postgresql == 'true'
+        run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
+
+      # ========================================================================
+      # Commit IMAGE_VERSIONS.json
+      # ========================================================================
+      - name: Commit IMAGE_VERSIONS.json
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if IMAGE_VERSIONS.json changed
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
+            echo "IMAGE_VERSIONS.json has been updated:"
+            git diff IMAGE_VERSIONS.json
+            git add IMAGE_VERSIONS.json
+            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+
+            # Pull and rebase to handle concurrent pushes
+            git pull --rebase origin test
+            git push
+            echo "✅ IMAGE_VERSIONS.json committed and pushed"
+          else
+            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
+          fi
+
+  # ============================================================================
+  # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
+  # ============================================================================
+  security-scan:
+    needs: [check-version, image-build-push]
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: |
+      always() &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      needs.image-build-push.result == 'success'
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read VERSION
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Determine image tag
+        id: tag
+        run: |
+          # Always use VERSION file (matches tags from build-push job)
+          TAG="${{ steps.version.outputs.VERSION }}"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "Using image tag: $TAG"
+
+      - name: Run Trivy scanner (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }}
+          format: 'sarif'
+          output: 'trivy-backend.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          vuln-type: 'os,library'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
+
+      - name: Generate vulnerability summary (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        run: |
+          echo "## 🔒 Security Scan: Backend" >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            --ignorefile /root/.trivyignore \
+            ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
+            >> $GITHUB_STEP_SUMMARY || true
+        continue-on-error: true
+
+      - name: Check HIGH/CRITICAL vulnerabilities (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        run: |
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image (with .trivyignore exceptions)..."
+
+          # Run Trivy with JSON output to count vulnerabilities (excluding .trivyignore)
+          VULN_COUNT=$(docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --quiet \
+            --ignorefile /root/.trivyignore \
+            ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }} \
+            | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities (after .trivyignore exclusions)"
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error::❌ Backend image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities (not in .trivyignore) - blocking deployment"
+            exit 1
+          else
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in backend image (after .trivyignore)"
+          fi
+
+      - name: Upload Trivy results (backend)
+        if: needs.image-build-push.outputs.backend_built == 'true'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-backend.sarif'
+          category: 'backend-image'
+        continue-on-error: true
+
+      - name: Run Trivy scanner (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }}
+          format: 'sarif'
+          output: 'trivy-bot.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          vuln-type: 'os,library'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
+
+      - name: Generate vulnerability summary (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        run: |
+          echo "## 🔒 Security Scan: Bot" >> $GITHUB_STEP_SUMMARY
+          docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
+            --severity CRITICAL,HIGH \
+            --format table \
+            --ignorefile /root/.trivyignore \
+            ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
+            >> $GITHUB_STEP_SUMMARY || true
+        continue-on-error: true
+
+      - name: Check HIGH/CRITICAL vulnerabilities (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        run: |
+          echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in bot image (with .trivyignore exceptions)..."
+
+          # Run Trivy with JSON output to count vulnerabilities (excluding .trivyignore)
+          VULN_COUNT=$(docker run --rm \
+            -v ${{ github.workspace }}/.trivyignore:/root/.trivyignore:ro \
+            aquasec/trivy:latest image \
+            --severity HIGH,CRITICAL \
+            --format json \
+            --quiet \
+            --ignorefile /root/.trivyignore \
+            ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.tag.outputs.TAG }} \
+            | jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH" or .Severity == "CRITICAL")] | length')
+
+          echo "Found $VULN_COUNT HIGH/CRITICAL vulnerabilities (after .trivyignore exclusions)"
+
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error::❌ Bot image contains $VULN_COUNT HIGH/CRITICAL vulnerabilities (not in .trivyignore) - blocking deployment"
+            exit 1
+          else
+            echo "✅ No HIGH/CRITICAL vulnerabilities found in bot image (after .trivyignore)"
+          fi
+
+      - name: Upload Trivy results (bot)
+        if: needs.image-build-push.outputs.bot_built == 'true'
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-bot.sarif'
+          category: 'bot-image'
+        continue-on-error: true
+
+  # ============================================================================
+  # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
+  # ============================================================================
+  summary:
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test]
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Read VERSION
+        id: version
+        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
+
+      - name: Create summary
+        run: |
+          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch/Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Job 6: Deploy to test server (only for test branch)
+  # ============================================================================
+  deploy-test:
+    name: deploy-test
+    needs: [check-version, image-build-push, security-scan]
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    if: |
+      always() &&
+      github.ref_name == 'test' &&
+      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      needs.image-build-push.result == 'success' &&
+      needs.security-scan.result == 'success'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.TEST_SERVER_HOST }}
+          username: ${{ secrets.TEST_SERVER_USER }}
+          key: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          port: ${{ secrets.TEST_SERVER_SSH_PORT }}
+          script: |
+            echo "🚀 Starting deployment to budget-test..."
+
+            # Navigate to project repository
+            cd ~/familyBudget
+
+            # Pull latest code from test branch
+            echo "📥 Pulling latest code..."
+            git fetch origin
+            git checkout test
+            git pull origin test
+
+            # Run deploy script in registry mode
+            echo "🐳 Pulling Docker images and restarting containers..."
+            sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+
+            # Wait for services to start
+            echo "⏳ Waiting for services to initialize (30s)..."
+            sleep 30
+
+            # Verify deployment
+            echo "✅ Checking container health..."
+            sudo docker-compose ps
+
+            # Check backend health endpoint
+            echo "🏥 Checking backend health..."
+            curl -f http://localhost:8000/health || exit 1
+
+            # Check nginx response
+            echo "🌐 Checking nginx..."
+            curl -f http://localhost:80 || exit 1
+
+            echo "✅ Deployment completed successfully!"
+
+      - name: Deployment Success
+        if: success()
+        run: |
+          echo "✅ Successfully deployed to test server (budget-test)" >> $GITHUB_STEP_SUMMARY
+          echo "🌐 URL: https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "📦 Version: $(cat VERSION)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY

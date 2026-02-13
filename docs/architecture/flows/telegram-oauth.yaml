@@ -287,7 +287,7 @@ refresh_flow:
       ◆ Refresh token valid?
      / \
     /   \
-   Yes   No───► 401 Session expired
+    Yes   No───► 401 Session expired
     │           (redirect to login)
     │
     ▼

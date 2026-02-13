@@ -156,12 +156,12 @@ async def get_current_user_optional(
         session: Async database session
 
     Returns:
-        User | None: Current user if authenticated, None otherwise
+        Optional[User]: Current user if authenticated, None otherwise
 
     Example:
         ```python
         @app.get("/")
-        async def home(user: User | None = Depends(get_current_user_optional)):
+        async def home(user: Optional[User] = Depends(get_current_user_optional)):
             if user:
                 return {"message": f"Welcome back, {user.username}"}
             return {"message": "Welcome, please log in"}

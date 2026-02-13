@@ -24,6 +24,8 @@
     - format_date_full: formats date as DD.MM.YYYY
     - format_date_short: formats date as DD.MM
 #}
+{% from "components/macros/delete_buttons.html" import delete_button_desktop %}
+{% from "components/macros/action_buttons.html" import edit_button_desktop %}
 {% if not facts %}
 <div class="alert alert-info">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
@@ -37,7 +39,6 @@
     <table class="table table-zebra table-sm">
         <thead>
             <tr>
-                <th class="w-8"></th>
                 <th>Тип</th>
                 <th>Дата</th>
                 <th>Счёт</th>
@@ -45,7 +46,7 @@
                 <th>Сумма</th>
                 <th>Описание</th>
                 <th class="text-center" title="Создано offline">☁️</th>
-                <th class="w-8"></th>
+                <th class="text-center">⚙️ Действия</th>
             </tr>
         </thead>
         <tbody>
@@ -57,12 +58,6 @@
             {% set description = fact.description if fact.description else '—' %}
             {% set description_truncated = (description[:30] + '...') if description|length > 30 else description %}
             <tr>
-                <td class="text-center">
-                    <!-- Edit button -->
-                    <button class="btn btn-xs btn-primary gap-1"
-                            onclick="openEditFromDashboard({{ fact.id }})"
-                            title="Редактировать">✏️</button>
-                </td>
                 <td>
                     {% if fact.record_type == 'plan' %}
                     <span class="badge badge-info badge-sm">План</span>
@@ -79,14 +74,12 @@
                     {% if fact.is_offline_sync %}☁️{% endif %}
                 </td>
                 <td class="text-center">
-                    <!-- Delete button (hidden on mobile) -->
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex"
-                            onclick="event.stopPropagation(); deleteRecordFromDashboard({{ fact.id }})"
-                            title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    <div class="flex gap-1 justify-center">
+                        <!-- Edit button -->
+                        {{ edit_button_desktop(fact.id, 'openEditFromDashboard', entity_type='fact') }}
+                        <!-- Delete button -->
+                        {{ delete_button_desktop(fact.id, 'deleteRecordFromDashboard', entity_type='fact') }}
+                    </div>
                 </td>
             </tr>
             {% endif %}

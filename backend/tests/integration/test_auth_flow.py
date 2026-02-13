@@ -13,7 +13,6 @@ These tests verify the entire auth stack works together correctly.
 import hashlib
 import hmac
 import time
-from typing import Dict
 
 import pytest
 from httpx import AsyncClient
@@ -36,7 +35,7 @@ def generate_telegram_auth_data(
     first_name: str = "Integration",
     last_name: str = "Test",
     username: str = "integtest",
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Generate valid Telegram OAuth data for integration testing."""
     auth_date = int(time.time())
 
@@ -97,7 +96,7 @@ async def test_complete_auth_flow_new_user(client: AsyncClient, session: AsyncSe
     assert auth_json["message"] == "Authentication successful"
 
     # Step 2: Verify user created in database
-    stmt = select(User).where(User.telegram_id == 111222333, User.is_current == True)
+    stmt = select(User).where(User.telegram_id == 111222333, User.is_current)
     result = await session.execute(stmt)
     user = result.scalar_one()
 
@@ -189,7 +188,6 @@ async def test_auth_flow_with_user_data_update(client: AsyncClient, session: Asy
     4. Verify both versions exist in database
     5. Verify JWT works with new version
     """
-    from datetime import datetime
 
     # Step 1: First login
     auth_data_v1 = generate_telegram_auth_data(

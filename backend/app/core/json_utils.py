@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import json as _json_stdlib  # Always available for fallback
 import logging
+from collections.abc import Callable
 from datetime import date, datetime, time
 from decimal import Decimal
-from typing import Any, Callable
+from typing import Any
 from uuid import UUID
 
 from starlette.responses import Response

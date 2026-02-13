@@ -11,8 +11,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from backend.app.utils.timezone import now_local
 from backend.app.schemas.recurring_plan import RecurringPlanResponse
+from backend.app.utils.timezone import now_local
 
 
 class FactCreate(BaseModel):
@@ -24,11 +24,19 @@ class FactCreate(BaseModel):
         - fact_date: Required, cannot be in future
         - amount: Required, must be > 0
         - description: Optional, max 1000 characters
+        - temp_id: Optional, client-generated numeric temp_id
 
     Notes:
         - user_id is set automatically from current_user
         - financial_center_id and cost_center_id are optional (for future use)
+        - temp_id: Client can provide numeric temp_id for offline sync
     """
+
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
+    )
 
     article_id: int = Field(
         ...,
@@ -52,7 +60,7 @@ class FactCreate(BaseModel):
         examples=["50.75", "1200.00", "15.99"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=1000,
         description="Optional transaction description/notes",
@@ -66,7 +74,7 @@ class FactCreate(BaseModel):
         examples=[1, 2]
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         gt=0,
         description="Cost center ID (optional, for advanced budgeting)",
@@ -86,14 +94,14 @@ class FactCreate(BaseModel):
         examples=[False, True]
     )
 
-    content_hash: Optional[str] = Field(
+    content_hash: str | None = Field(
         default=None,
         max_length=32,
         description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection",
         examples=[None, "a1b2c3d4e5f6789012345678901234"]
     )
 
-    sync_hash: Optional[str] = Field(
+    sync_hash: str | None = Field(
         default=None,
         max_length=32,
         description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date). Prevents duplicate records during repeated sync attempts.",
@@ -171,7 +179,7 @@ class FactCreate(BaseModel):
 
     @field_validator("description")
     @classmethod
-    def description_trimmed(cls, v: Optional[str]) -> Optional[str]:
+    def description_trimmed(cls, v: str | None) -> str | None:
         """
         Trim and validate description.
 
@@ -203,20 +211,20 @@ class FactUpdate(BaseModel):
         - At least one field must be provided
     """
 
-    article_id: Optional[int] = Field(
+    article_id: int | None = Field(
         default=None,
         gt=0,
         description="Budget category/article ID",
         examples=[5]
     )
 
-    fact_date: Optional[date] = Field(
+    fact_date: date | None = Field(
         default=None,
         description="Transaction date",
         examples=["2025-10-13"]
     )
 
-    amount: Optional[Decimal] = Field(
+    amount: Decimal | None = Field(
         default=None,
         gt=0,
         max_digits=15,
@@ -225,35 +233,35 @@ class FactUpdate(BaseModel):
         examples=["75.00"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         max_length=1000,
         description="Transaction description/notes",
         examples=["Updated description"]
     )
 
-    financial_center_id: Optional[int] = Field(
+    financial_center_id: int | None = Field(
         default=None,
         gt=0,
         description="Financial center ID",
         examples=[1]
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         gt=0,
         description="Cost center ID",
         examples=[1]
     )
 
-    record_type: Optional[str] = Field(
+    record_type: str | None = Field(
         default=None,
         max_length=10,
         description="Record type: 'fact' or 'plan'",
         examples=["fact", "plan"]
     )
 
-    is_offline_sync: Optional[bool] = Field(
+    is_offline_sync: bool | None = Field(
         default=None,
         description="Offline sync flag (usually not updated)",
         examples=[None, True, False]
@@ -261,7 +269,7 @@ class FactUpdate(BaseModel):
 
     @field_validator("record_type")
     @classmethod
-    def record_type_validation(cls, v: Optional[str]) -> Optional[str]:
+    def record_type_validation(cls, v: str | None) -> str | None:
         """Validate record_type if provided."""
         if v is not None and v not in ("fact", "plan"):
             raise ValueError("record_type must be either 'fact' or 'plan'")
@@ -269,7 +277,7 @@ class FactUpdate(BaseModel):
 
     @field_validator("fact_date")
     @classmethod
-    def date_validation(cls, v: Optional[date]) -> Optional[date]:
+    def date_validation(cls, v: date | None) -> date | None:
         """Validate transaction date if provided.
 
         Note: Plans (record_type='plan') can have future dates up to 5 years ahead.
@@ -299,7 +307,7 @@ class FactUpdate(BaseModel):
 
     @field_validator("amount")
     @classmethod
-    def amount_validation(cls, v: Optional[Decimal]) -> Optional[Decimal]:
+    def amount_validation(cls, v: Decimal | None) -> Decimal | None:
         """Validate transaction amount if provided."""
         if v is None:
             return None
@@ -322,7 +330,7 @@ class FactUpdate(BaseModel):
 
     @field_validator("description")
     @classmethod
-    def description_trimmed(cls, v: Optional[str]) -> Optional[str]:
+    def description_trimmed(cls, v: str | None) -> str | None:
         """Trim and validate description if provided."""
         if not v:
             return None
@@ -352,12 +360,18 @@ class FactResponse(BaseModel):
         examples=[1, 123]
     )
 
+    temp_id: int | None = Field(
+        default=None,
+        description="Client-side temporary ID for offline sync (int53 from JavaScript)",
+        examples=[123456789012345, None]
+    )
+
     user_id: int = Field(
         description="Owner user ID",
         examples=[123]
     )
 
-    user_name: Optional[str] = Field(
+    user_name: str | None = Field(
         default=None,
         description="User display name (fallback chain: first_name → username → last_name → telegram_id → id)",
         examples=["Иван", "User 740775802", "Пользователь #1", None]
@@ -388,30 +402,30 @@ class FactResponse(BaseModel):
         examples=["50.75"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Transaction description/notes",
         examples=["Weekly groceries", None]
     )
 
-    financial_center_id: Optional[int] = Field(
+    financial_center_id: int | None = Field(
         default=None,
         description="Financial center ID (optional)",
         examples=[None, 1]
     )
 
-    financial_center_name: Optional[str] = Field(
+    financial_center_name: str | None = Field(
         default=None,
         description="Financial center name for display",
         examples=[None, "Личные средства", "Кредитная карта"]
     )
 
-    cost_center_id: Optional[int] = Field(
+    cost_center_id: int | None = Field(
         default=None,
         description="Cost center ID (optional)",
         examples=[None, 1]
     )
 
-    cost_center_name: Optional[str] = Field(
+    cost_center_name: str | None = Field(
         default=None,
         description="Cost center name for display",
         examples=[None, "Продукты", "Транспорт"]
@@ -428,7 +442,7 @@ class FactResponse(BaseModel):
         examples=[False, True]
     )
 
-    recurring_plan_id: Optional[int] = Field(
+    recurring_plan_id: int | None = Field(
         default=None,
         description="ID of recurring plan that generated this fact (None for manual entries)",
         examples=[None, 1, 5]
@@ -550,13 +564,13 @@ class FactSummary(BaseModel):
         examples=[42]
     )
 
-    date_from: Optional[date] = Field(
+    date_from: date | None = Field(
         default=None,
         description="Start date of period (if filtered)",
         examples=["2025-10-01", None]
     )
 
-    date_to: Optional[date] = Field(
+    date_to: date | None = Field(
         default=None,
         description="End date of period (if filtered)",
         examples=["2025-10-31", None]

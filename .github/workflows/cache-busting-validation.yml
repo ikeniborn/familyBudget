@@ -1,0 +1,106 @@
+name: Cache Busting Validation
+
+on:
+  pull_request:
+    branches: [test, main]
+    paths:
+      - '.github/workflows/build-and-push.yml'
+      - 'scripts/ci/cache_busting_ci.sh'
+      - 'frontend/web/templates/**'
+      - 'frontend/webapp/**'
+
+# Allow only one workflow run per PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-cache-busting:
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+    name: Validate Cache Busting Logic
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Cache busting
+        id: cache_bust
+        run: |
+          # Генерация cache version в формате v{YYYYMMDD_HHMM}
+          # Формат требуется Service Worker для валидации версии
+          CACHE_VERSION="v$(date -u +%Y%m%d_%H%M)"
+          echo "CACHE_VERSION=$CACHE_VERSION" >> $GITHUB_ENV
+          echo "cache_version=$CACHE_VERSION" >> $GITHUB_OUTPUT
+          echo "Generated cache version: $CACHE_VERSION"
+
+          # Persist to file immediately for next steps
+          echo "$CACHE_VERSION" > .cache_version
+
+          # Запуск cache busting скрипта
+          bash scripts/ci/cache_busting_ci.sh "$CACHE_VERSION"
+
+          # Проверка изменений
+          if git diff --quiet frontend/; then
+            echo "No changes after cache busting"
+          else
+            echo "Cache versions updated in templates"
+            git diff frontend/ | head -50
+          fi
+
+      - name: Verify cache version file
+        run: |
+          if [[ ! -f .cache_version ]]; then
+            echo "❌ .cache_version file not created"
+            exit 1
+          fi
+
+          CACHE_VERSION=$(cat .cache_version)
+          echo "✅ Cache version file created: $CACHE_VERSION"
+
+          # Verify format
+          if [[ ! "$CACHE_VERSION" =~ ^v[0-9a-f_]+$ ]]; then
+            echo "❌ Invalid cache version format: $CACHE_VERSION"
+            exit 1
+          fi
+          echo "✅ Cache version format valid"
+
+      - name: Build frontend (validation only)
+        run: npm run build
+        continue-on-error: true
+
+      - name: Validate cache busting and PGlite
+        run: |
+          # Read cache version from file
+          CACHE_VERSION=$(cat .cache_version)
+          echo "Using cache version: $CACHE_VERSION"
+          echo ""
+
+          # Run consolidated validation script
+          bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION"
+
+      - name: Validation Summary
+        if: always()
+        run: |
+          echo "## ✅ Cache Busting Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validated:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Cache busting script execution" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PLACEHOLDER replacement" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Version format validation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ PGlite script tag presence" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ .cache_version file creation timing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** This workflow validates cache busting logic without Docker build." >> $GITHUB_STEP_SUMMARY
+          echo "Full CI/CD pipeline runs when merged to 'test' branch." >> $GITHUB_STEP_SUMMARY

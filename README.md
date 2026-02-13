@@ -95,7 +95,7 @@
 git clone https://github.com/ikeniborn/familyBudget.git ~/familyBudget
 cd ~/familyBudget
 
-# 2️⃣ Установить зависимости (Docker, Node.js, PostgreSQL)
+# 2️⃣ Установить зависимости (Docker, Docker Compose)
 sudo bash install.sh
 
 # 3️⃣ Настроить окружение (интерактивно)
@@ -107,8 +107,26 @@ sudo bash deploy.sh
 
 **Требования:**
 - Сервер Ubuntu 20.04+ / Debian 11+
-- 1 CPU, 2 GB RAM, 20 GB диск
+- 1 CPU, 2 GB RAM, 20 GB диск (минимум)
 - Домен с SSL (для Telegram OAuth и HTTPS)
+- ✅ **Node.js НЕ требуется** на сервере (v9.0: registry-first архитектура)
+
+**Registry-First Deployment (v9.0+):**
+- Все сборки (frontend, Docker) происходят в GitHub Actions CI/CD
+- На сервере только pull готовых образов из ghcr.io
+- Деплой ВСЕГДА занимает 2-3 минуты (только pull)
+
+**VERSION Bump Workflow:**
+```bash
+# Локально bumps VERSION перед push
+echo "6.6.1" > VERSION
+git add VERSION
+git commit -m "chore: bump to 6.6.1"
+git push origin test
+
+# GitHub Actions собирает образы (5-8 мин)
+# Затем деплой на сервер (2-3 мин)
+```
 
 📖 Подробнее: [START.md](START.md)
 
@@ -130,6 +148,9 @@ sudo bash deploy.sh
 | Документ | Описание |
 |----------|----------|
 | [START.md](START.md) | Установка и настройка сервера |
+| [CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md) | Registry-First архитектура (v9.0) |
+| [docs/architecture/ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline (GitHub Actions) |
+| [docs/architecture/docker.md](docs/architecture/docker.md) | Docker Multi-Stage Builds |
 | `/docs` (Swagger) | Интерактивная документация REST API |
 
 ---
@@ -149,3 +170,5 @@ MIT License — делайте что хотите! 🎉
 ---
 
 Made with ❤️ for families who want to save money 💰
+# Test: VERSION unchanged workflow stop
+

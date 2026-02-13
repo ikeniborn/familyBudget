@@ -17,12 +17,10 @@ Each link records:
 
 Created: 2025-11-09
 """
-
 from datetime import datetime
-from typing import Optional, List
 
-from sqlmodel import SQLModel, Field, JSON, Column
 from sqlalchemy import TIMESTAMP
+from sqlmodel import JSON, Column, Field, SQLModel
 
 
 class ArticleVersionLink(SQLModel, table=True):
@@ -40,7 +38,7 @@ class ArticleVersionLink(SQLModel, table=True):
 
     __tablename__ = "t_d_article_version_link"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
     # Version relationship
     old_article_id: int = Field(
@@ -60,14 +58,14 @@ class ArticleVersionLink(SQLModel, table=True):
         default_factory=datetime.utcnow,
         description="When the new version was created",
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         description="User who triggered the change (NULL for system/trigger changes)",
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: list[str] | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed, e.g. ['name', 'type']",
@@ -86,7 +84,7 @@ class FinancialCenterVersionLink(SQLModel, table=True):
 
     __tablename__ = "t_d_financial_center_version_link"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
     # Version relationship
     old_fc_id: int = Field(
@@ -106,14 +104,14 @@ class FinancialCenterVersionLink(SQLModel, table=True):
         default_factory=datetime.utcnow,
         description="When the new version was created",
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         description="User who triggered the change",
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: list[str] | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed",
@@ -132,7 +130,7 @@ class CostCenterVersionLink(SQLModel, table=True):
 
     __tablename__ = "t_d_cost_center_version_link"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
 
     # Version relationship
     old_cc_id: int = Field(
@@ -152,14 +150,14 @@ class CostCenterVersionLink(SQLModel, table=True):
         default_factory=datetime.utcnow,
         description="When the new version was created",
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         foreign_key="t_d_user.id",
         description="User who triggered the change",
     )
 
     # Change tracking
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: list[str] | None = Field(
         default=None,
         sa_column=Column(JSON),
         description="JSON array of field names that changed",

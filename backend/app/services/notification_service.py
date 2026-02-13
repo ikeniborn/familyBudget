@@ -5,22 +5,20 @@ Handles automated notifications:
 - Weekly budget reports (FR-005)
 - Budget threshold checks (FR-006)
 """
+from datetime import date, timedelta
+from decimal import Decimal
 
 import httpx
-from datetime import date, datetime, timedelta
-from decimal import Decimal
-from typing import Optional
-
-from sqlmodel import select, func
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
-from backend.app.models.notification import Notification
-from backend.app.models.user import User
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
+from backend.app.models.notification import Notification
+from backend.app.models.user import User
 from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
@@ -78,7 +76,7 @@ class NotificationService:
         actual_amount: Decimal,
         period_start: date,
         period_end: date,
-        user_id: Optional[int] = None,
+        user_id: int | None = None,
     ) -> Notification:
         """
         Create notification record in database.
@@ -154,7 +152,7 @@ class NotificationService:
             list[User]: Active users
         """
         statement = select(User).where(
-            User.is_active == True,
+            User.is_active,
         )
         result = await session.execute(statement)
         return list(result.scalars().all())
@@ -308,7 +306,7 @@ class NotificationService:
 
                 # Get all active expense articles
                 articles_stmt = select(Article).where(
-                    Article.is_active == True,
+                    Article.is_active,
                     Article.type == "expense",
                 )
                 articles_result = await session.execute(articles_stmt)

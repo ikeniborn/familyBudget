@@ -23,13 +23,18 @@ This package contains all API endpoint routers organized by domain:
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.auth import router as auth_router
+from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
+from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
 from backend.app.api.v1.endpoints.consent import router as consent_router
 from backend.app.api.v1.endpoints.cost_centers import router as cost_centers_router
 from backend.app.api.v1.endpoints.facts import router as facts_router
+from backend.app.api.v1.endpoints.facts_partials import router as facts_partials_router
 from backend.app.api.v1.endpoints.financial_centers import (
     router as financial_centers_router,
 )
+from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
 from backend.app.api.v1.endpoints.import_endpoints import router as import_router
+from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
@@ -39,21 +44,18 @@ from backend.app.api.v1.endpoints.product_groups import (
 from backend.app.api.v1.endpoints.push import router as push_router
 from backend.app.api.v1.endpoints.recurring_plans import router as recurring_plans_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router
+from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_csv_import_router
 from backend.app.api.v1.endpoints.shopping_list_items import (
     router as shopping_list_items_router,
 )
 from backend.app.api.v1.endpoints.shopping_lists import (
     router as shopping_lists_router,
 )
+from backend.app.api.v1.endpoints.staging import router as staging_router
 from backend.app.api.v1.endpoints.stores import router as stores_router
+from backend.app.api.v1.endpoints.sync import router as sync_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
-from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_csv_import_router
-from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
-from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
-from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
-from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
-from backend.app.api.v1.endpoints.staging import router as staging_router
 from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
 
 __all__ = [
@@ -64,6 +66,7 @@ __all__ = [
     "consent_router",
     "cost_centers_router",
     "facts_router",
+    "facts_partials_router",
     "financial_centers_router",
     "google_sheets_import_router",
     "import_router",
@@ -78,6 +81,7 @@ __all__ = [
     "shopping_lists_router",
     "staging_router",
     "stores_router",
+    "sync_router",
     "transfers_router",
     "users_router",
     "webauthn_router",

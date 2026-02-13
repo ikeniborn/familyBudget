@@ -1,0 +1,20 @@
+{
+  "test_input": {
+    "git_diff_context": {
+      "backend_changed": "{{backend_changed: boolean}}",
+      "frontend_changed": "{{frontend_changed: boolean}}",
+      "e2e_changed": "{{e2e_changed: boolean}}",
+      "dependencies_changed": "{{dependencies_changed: boolean}}",
+      "ci_changed": "{{ci_changed: boolean}}",
+      "changed_files": "{{changed_files: array of strings}}"
+    },
+    "test_categories": "{{test_categories: array of enum syntax|quality|runtime|dependencies|e2e}}",
+    "autofix_enabled": "{{autofix_enabled: boolean, default true}}",
+    "e2e_strategy": "{{e2e_strategy: enum full|smoke|skip, default full}}",
+    "coverage_threshold": {
+      "backend_lines": "{{backend_lines: number, min 30.0}}",
+      "frontend_lines": "{{frontend_lines: number, min 4.0}}",
+      "frontend_functions": "{{frontend_functions: number, min 32.0}}"
+    }
+  }
+}

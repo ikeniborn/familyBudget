@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "components/modal_confirm.html" import confirm_modal %}
 {% from "components/status_filter.html" import status_filter_buttons %}
+{% from "components/macros/delete_buttons.html" import delete_button_mobile %}
 
 {% block content %}
 <div class="space-y-6">
@@ -112,11 +113,7 @@
             <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
             <div class="modal-action mt-3 flex flex-row gap-2">
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteProductGroupFromEditModal()" title="Удалить">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                </button>
+                {{ delete_button_mobile('deleteProductGroupFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
                 <div class="flex-1 md:hidden"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
@@ -282,20 +279,12 @@ function renderTreeNodes(nodes, level) {
             if (node.is_active) {
                 actions += `
                     <button class="btn btn-xs btn-warning gap-1" onclick="archiveProductGroup(${node.id})" title="Архивировать">📦</button>
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    ${renderDeleteButtonDesktop(node.id, 'deleteProductGroup', 'productgroup')}
                 `;
             } else {
                 actions += `
                     <button class="btn btn-xs btn-success gap-1" onclick="restoreProductGroup(${node.id})" title="Восстановить">♻️</button>
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
+                    ${renderDeleteButtonDesktop(node.id, 'deleteProductGroup', 'productgroup')}
                 `;
             }
         }

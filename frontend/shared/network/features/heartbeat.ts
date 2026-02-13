@@ -14,9 +14,6 @@
 import { getState, updateState } from '../core/NetworkState';
 import { _networkLog } from '../utils/logger';
 
-// Forward references (will be resolved when detectionEngine is created)
-import type { NetworkStatus } from '../types';
-
 /**
  * Get progressive backoff delay for next heartbeat check
  * From networkDetector.ts:349-356

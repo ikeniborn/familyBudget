@@ -1,0 +1,97 @@
+<!-- Fact Transaction Tab Content -->
+<!-- Дата -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Дата *</span>
+    </label>
+    <div class="flex gap-1 mb-1">
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactDate(0)">Сегодня</button>
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactDate(-1)">Вчера</button>
+        <button type="button" class="btn btn-xs btn-outline flex-1" onclick="setFactDate(-2)">Позавчера</button>
+    </div>
+    <div class="relative">
+        <input type="text" name="fact_date" required
+               id="fact_date_input"
+               class="input input-bordered w-full pr-10 transaction-date-input"
+               placeholder="ДД.ММ.ГГГГ"
+               maxlength="10"
+               autocomplete="off" />
+        <!-- CalendarWidget creates button automatically in triggerContainer -->
+        <div id="fact_date_calendar_btn" class="absolute right-2 top-1/2 -translate-y-1/2"></div>
+    </div>
+</div>
+
+<!-- Счет -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Счет *</span>
+    </label>
+    <select name="financial_center_id" required class="select select-bordered">
+        <option value="">-- Выберите счет --</option>
+    </select>
+</div>
+
+<!-- Тип операции -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text font-semibold">Тип операции *</span>
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+        <label class="btn btn-sm btn-error btn-active transaction-type-btn" data-type="expense">
+            <input type="radio" name="record_type" value="expense" class="hidden" checked />
+            Расход
+        </label>
+        <label class="btn btn-sm btn-outline btn-success opacity-50 transaction-type-btn" data-type="income">
+            <input type="radio" name="record_type" value="income" class="hidden" />
+            Доход
+        </label>
+    </div>
+</div>
+
+<!-- Категория (фильтруется по выбранному счету) -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Категория *</span>
+    </label>
+    <select name="article_id" required class="select select-bordered">
+        <option value="" disabled hidden>-- Выберите категорию --</option>
+    </select>
+</div>
+
+<!-- Место затрат -->
+<div class="form-control mb-3">
+    <label class="label py-1">
+        <span class="label-text">Место затрат</span>
+    </label>
+    <select name="cost_center_id" class="select select-bordered">
+        <option value="">-- Не выбрано --</option>
+    </select>
+</div>
+
+<!-- Fact Hints (план/факт за месяц) -->
+<div id="fact-hints-container" class="grid grid-cols-2 gap-1">
+    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-period-plan" disabled>
+        План мес: --
+    </button>
+    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-period-fact" disabled>
+        Факт мес: --
+    </button>
+</div>
+
+<!-- Сумма -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Сумма *</span>
+    </label>
+    <input type="number" name="amount" step="1" min="1" required
+           class="input input-bordered" placeholder="0" />
+</div>
+
+<!-- Описание -->
+<div class="form-control">
+    <label class="label py-1">
+        <span class="label-text">Описание</span>
+    </label>
+    <textarea name="description" class="textarea textarea-bordered"
+              placeholder="Комментарий" rows="1"></textarea>
+</div>

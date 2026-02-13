@@ -6,16 +6,32 @@
  *
  * Phase 3.1 part 2: ES Modules Migration
  * Extracted from: frontend/web/static/js/lists/listsManager.ts lines 1860-1940, 3210-3400
+ *
+ * Phase 4.2 (task-015): PGlite Pending Queue Integration
+ * Replaced OfflineShoppingManager with PGlite-first write operations
  */
 
-import { getState, updateState } from './ListsState';
-import { isOnline } from './stateManager';
+import { getState } from './ListsState';
+import { loadShoppingListItems } from './stateManager';
+import { renderCurrentView } from '../rendering/tableBuilder';
+import { updateFABButtons } from '../features/searchFilter';
+import { updateFABVisibility } from '../rendering/listRenderer';
+import {
+  getDexieManager,
+  isDexieActive,
+  addItemToList,
+  updateShoppingListItem,
+  toggleItemCompleted as toggleItemCompletedDexie,
+  deleteShoppingListItem
+} from '@db/dexie';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
 
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+declare const showConfirmDialog: (message: string, title?: string) => Promise<boolean>;
 declare const debugLog: (...args: any[]) => void;
 
 export interface ItemData {
@@ -41,32 +57,107 @@ const SELECTORS = {
 } as const;
 
 // ============================================================================
+// UI Helper Functions
+// ============================================================================
+
+/**
+ * Refresh UI after state changes
+ * Centralizes UI update logic to avoid code duplication
+ */
+function refreshUI(): void {
+  renderCurrentView();
+  updateFABButtons();
+  updateFABVisibility();
+}
+
+// ============================================================================
 // Create Operations
 // ============================================================================
 
 /**
  * Create new shopping list item
+ * PGlite-first with API fallback (task-015 Phase 4.2)
  *
  * @param data - Item data
- * @returns Created item (with tempId for offline, or real id for online)
+ * @returns Created item (with tempId for PGlite, or real id for API)
  */
 export async function createItem(data: ItemData): Promise<any> {
   const state = getState();
-
-  // Add current list ID
-  const itemData = {
-    ...data,
-    shopping_list_id: state.currentListId
-  };
+  const pglite = await getDexieManager();
 
   try {
     let result;
 
-    if (state.offlineShopping) {
-      // Use offline manager (handles both online and offline)
-      result = await state.offlineShopping.createItem(itemData);
+    // PGlite-first strategy
+    if (isDexieActive() && pglite.isReady()) {
+      // Find current list temp_id
+      const currentList = state.shoppingLists.find(l => l.id === state.currentListId);
+      if (!currentList?.temp_id) {
+        throw new Error('Current shopping list not found or missing temp_id');
+      }
+
+      // DEFENSIVE: Ensure shopping_list_temp_id is numeric (handle legacy string values)
+      let shoppingListTempId: number;
+      if (typeof currentList.temp_id === 'number') {
+        shoppingListTempId = currentList.temp_id;
+      } else if (typeof currentList.temp_id === 'string') {
+        const parsed = parseInt(currentList.temp_id, 10);
+        if (isNaN(parsed)) {
+          throw new Error('Invalid temp_id format in current list');
+        }
+        shoppingListTempId = parsed;
+      } else {
+        throw new Error('Current shopping list has invalid temp_id type');
+      }
+
+      // Get user ID using standardized helper
+      let userId: number;
+      try {
+        userId = await getCurrentUserId();
+      } catch (error) {
+        console.error('[LIST_OPS] User ID unavailable:', error);
+        throw new Error('User ID not available. Please refresh the page and log in again.');
+      }
+
+      // Create in PGlite (auto-adds to pending queue)
+      const temp_id = await addItemToList({
+        shopping_list_temp_id: shoppingListTempId,
+        creator_id: userId,
+        product_name: data.product_name || '',
+        quantity: data.quantity ?? null,
+        unit: data.unit ?? null,
+        comment: data.comment ?? null,
+        position: null,                        // Auto-assigned by PGlite
+        store_id: data.store_id ?? 0,          // 0 = no store
+        product_group_id: data.product_group_id ?? 0,  // 0 = no group
+        // Completion status
+        is_completed: false,
+        completed_at: null,
+        // Sync tracking
+        sync_hash: null,
+        content_hash: null,
+        synced_at: null,
+        version: 1,
+        // Soft delete
+        deleted_at: null,
+        last_modified_by: userId
+      });
+
+      result = { tempId: temp_id, id: null };
+      debugLog('[LIST_OPS] Item created in PGlite', { temp_id });
+
+      // Reload items from PGlite
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
+
     } else {
-      // Fallback: direct API call (no offline support)
+      // Fallback: direct API call
+      const itemData = {
+        ...data,
+        shopping_list_id: state.currentListId
+      };
+
       const response = await fetch('/api/v1/shopping-list-items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,38 +170,20 @@ export async function createItem(data: ItemData): Promise<any> {
       }
 
       result = await response.json();
+      debugLog('[LIST_OPS] Item created via API', { id: result.id });
+
+      // Reload items from API
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
     }
 
-    debugLog('[ListsManager] Item created', { tempId: result.tempId, id: result.id });
     showToast('Товар добавлен', 'success');
-
-    // For offline creates: add tempId item immediately to state
-    if (result.tempId && !result.id) {
-      const newItem: any = {
-        id: result.tempId,
-        list_id: state.currentListId,
-        name: itemData.product_name || '',
-        quantity: itemData.quantity || 0,
-        unit: itemData.unit || '',
-        is_completed: false,
-        store_id: itemData.store_id || null,
-        product_group_id: itemData.product_group_id || null,
-        notes: itemData.comment || null,
-        _offline: true,
-        store_name: state.stores?.find(s => s.id === itemData.store_id)?.name,
-        product_group_name: state.productGroups?.find(g => g.id === itemData.product_group_id)?.name
-      };
-
-      const currentItems = [...state.currentItems, newItem];
-      updateState({ currentItems });
-    }
-
-    // Update cache
-    await updateItemsCache();
+    refreshUI();
 
     return result;
   } catch (error) {
-    console.error('[ListsManager] Error creating item:', error);
+    console.error('[LIST_OPS] Error creating item:', error);
     showToast('Ошибка создания товара', 'error');
     throw error;
   }
@@ -122,27 +195,45 @@ export async function createItem(data: ItemData): Promise<any> {
 
 /**
  * Update shopping list item
+ * PGlite-first with API fallback (task-015 Phase 4.2)
  *
- * @param itemId - Item ID (can be tempId for offline items)
+ * @param itemId - Item ID (server ID or 0 for temp items)
  * @param data - Updated data (partial)
  * @returns Updated item
  */
 export async function updateItem(itemId: number, data: Partial<ItemData>): Promise<any> {
   const state = getState();
+  const pglite = await getDexieManager();
 
-  // Optimistic UI update
+  // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
-  if (item) {
-    Object.assign(item, data);
-    updateState({ currentItems: [...state.currentItems] });
+  if (!item) {
+    throw new Error('Item not found in state');
   }
 
   try {
     let result;
 
-    if (state.offlineShopping) {
-      // Use offline manager
-      result = await state.offlineShopping.updateItem(itemId, data);
+    // PGlite-first strategy
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
+      // Update in PGlite (auto-adds to pending queue)
+      const updates: any = {};
+      if (data.product_name !== undefined) updates.product_name = data.product_name;
+      if (data.quantity !== undefined) updates.quantity = data.quantity;
+      if (data.unit !== undefined) updates.unit = data.unit;
+      if (data.comment !== undefined) updates.comment = data.comment;
+      if (data.store_id !== undefined) updates.store_id = data.store_id;
+      if (data.product_group_id !== undefined) updates.product_group_id = data.product_group_id;
+
+      await updateShoppingListItem(item.temp_id, updates);
+      result = { tempId: item.temp_id, id: itemId };
+      debugLog('[LIST_OPS] Item updated in PGlite', { temp_id: item.temp_id });
+
+      // Reload items from PGlite
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
+
     } else {
       // Fallback: direct API call
       const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
@@ -157,53 +248,59 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
       }
 
       result = await response.json();
-    }
+      debugLog('[LIST_OPS] Item updated via API', { id: itemId });
 
-    debugLog('[ListsManager] Item updated', { itemId });
-    showToast('Товар обновлен', 'success');
-
-    // Update cache
-    await updateItemsCache();
-
-    return result;
-  } catch (error) {
-    console.error('[ListsManager] Error updating item:', error);
-
-    // Revert optimistic update on error (only if truly online)
-    if (isOnline() && !(error as Error).message?.includes('offline')) {
-      if (item) {
-        // Reload from server
-        showToast('Ошибка обновления товара', 'error');
+      // Reload items from API
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
       }
     }
 
+    showToast('Товар обновлен', 'success');
+    refreshUI();
+
+    return result;
+  } catch (error) {
+    console.error('[LIST_OPS] Error updating item:', error);
+    showToast('Ошибка обновления товара', 'error');
     throw error;
   }
 }
 
 /**
  * Toggle item completed status
+ * PGlite-first with API fallback (task-015 Phase 4.2)
  *
- * @param itemId - Item ID
+ * @param itemId - Item ID (server ID or 0 for temp items)
  * @param isCompleted - New completed status
  */
 export async function toggleItemCompleted(itemId: number, isCompleted: boolean): Promise<void> {
   const state = getState();
+  const pglite = await getDexieManager();
 
-  // Optimistic UI update
+  // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
-  if (item) {
-    item.is_completed = isCompleted;
-    updateState({ currentItems: [...state.currentItems] });
+  if (!item) {
+    throw new Error('Item not found in state');
   }
 
-  // Optimistic DOM update (instant visual feedback without full re-render)
+  // Optimistic DOM update (instant visual feedback)
   updateItemCompletedDom(itemId, isCompleted);
 
   try {
-    if (state.offlineShopping) {
-      await state.offlineShopping.updateItem(itemId, { is_completed: isCompleted });
+    // PGlite-first strategy
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
+      // Toggle in PGlite (auto-adds to pending queue)
+      await toggleItemCompletedDexie(item.temp_id, isCompleted);
+      debugLog('[LIST_OPS] Item completion toggled in PGlite', { temp_id: item.temp_id, isCompleted });
+
+      // Reload items from PGlite
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
+
     } else {
+      // Fallback: direct API call
       const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -214,24 +311,23 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    }
 
-    // Update cache
-    await updateItemsCache();
+      debugLog('[LIST_OPS] Item completion toggled via API', { id: itemId, isCompleted });
 
-  } catch (error) {
-    console.error('[ListsManager] Error toggling item completed:', error);
-
-    // Revert only if truly online and error occurred
-    if (isOnline() && !(error as Error).message?.includes('offline')) {
-      if (item) {
-        item.is_completed = !isCompleted;
-        updateState({ currentItems: [...state.currentItems] });
-        // Revert DOM as well
-        updateItemCompletedDom(itemId, !isCompleted);
-        showToast('Ошибка обновления статуса', 'error');
+      // Reload items from API
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
       }
     }
+
+    refreshUI();
+
+  } catch (error) {
+    console.error('[LIST_OPS] Error toggling item completed:', error);
+
+    // Revert DOM update on error
+    updateItemCompletedDom(itemId, !isCompleted);
+    showToast('Ошибка обновления статуса', 'error');
   }
 }
 
@@ -274,34 +370,45 @@ function updateItemCompletedDom(itemId: number, isCompleted: boolean): void {
 
 /**
  * Delete shopping list item
+ * PGlite-first with API fallback (task-015 Phase 4.2)
  *
- * @param itemId - Item ID
+ * @param itemId - Item ID (server ID or 0 for temp items)
  * @param skipConfirm - Skip confirmation dialog (default: false)
  */
 export async function deleteItem(itemId: number, skipConfirm: boolean = false): Promise<void> {
-  if (!skipConfirm && !confirm('Удалить этот товар?')) {
-    return;
+  if (!skipConfirm) {
+    const confirmed = await showConfirmDialog(
+      'Удалить этот товар?',
+      '🗑️ Удаление товара'
+    );
+    if (!confirmed) {
+      return;
+    }
   }
 
   const state = getState();
+  const pglite = await getDexieManager();
 
-  // Optimistic UI update - save deleted item for potential revert
-  const itemIndex = state.currentItems.findIndex(item => item.id === itemId);
-  if (itemIndex === -1) return;
-
-  const deletedItem = state.currentItems[itemIndex];
-  const currentItems = [...state.currentItems];
-  currentItems.splice(itemIndex, 1);
-
-  const selectedItemIds = new Set(state.selectedItemIds);
-  selectedItemIds.delete(itemId);
-
-  updateState({ currentItems, selectedItemIds });
+  // Find item and get temp_id
+  const item = state.currentItems.find(i => i.id === itemId);
+  if (!item) {
+    throw new Error('Item not found in state');
+  }
 
   try {
-    if (state.offlineShopping) {
-      await state.offlineShopping.deleteItem(itemId);
+    // PGlite-first strategy
+    if (isDexieActive() && pglite.isReady() && item.temp_id) {
+      // Delete in PGlite (soft delete, adds to pending queue)
+      await deleteShoppingListItem(item.temp_id);
+      debugLog('[LIST_OPS] Item deleted in PGlite', { temp_id: item.temp_id });
+
+      // Reload items from PGlite
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
+
     } else {
+      // Fallback: direct API call
       const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
         method: 'DELETE',
         credentials: 'same-origin'
@@ -310,73 +417,107 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      debugLog('[LIST_OPS] Item deleted via API', { id: itemId });
+
+      // Reload items from API
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
     }
 
-    // Update cache
-    await updateItemsCache();
     showToast('Товар удален', 'success');
+    refreshUI();
 
   } catch (error) {
-    console.error('[ListsManager] Error deleting item:', error);
-
-    // Revert deletion only if truly online and error occurred
-    if (isOnline() && !(error as Error).message?.includes('offline')) {
-      currentItems.splice(itemIndex, 0, deletedItem);
-      updateState({ currentItems });
-      showToast('Ошибка удаления товара', 'error');
-    }
+    console.error('[LIST_OPS] Error deleting item:', error);
+    showToast('Ошибка удаления товара', 'error');
   }
 }
 
 /**
  * Delete multiple items
+ * PGlite-first with API fallback (task-015 Phase 4.2)
  *
  * @param itemIds - Array of item IDs to delete
  */
 export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
   if (itemIds.length === 0) return;
 
-  if (!confirm(`Удалить выбранные товары (${itemIds.length})?`)) {
+  const confirmed = await showConfirmDialog(
+    `Удалить выбранные товары (${itemIds.length})?\nЭто действие необратимо.`,
+    '🗑️ Удаление товаров'
+  );
+  if (!confirmed) {
     return;
   }
 
   const state = getState();
-  const currentItems = [...state.currentItems];
-  const selectedItemIds = new Set(state.selectedItemIds);
-
-  // Optimistic UI update - remove all items
-  const remainingItems = currentItems.filter(item => !itemIds.includes(item.id));
-
-  itemIds.forEach(id => selectedItemIds.delete(id));
-  updateState({ currentItems: remainingItems, selectedItemIds });
+  const pglite = await getDexieManager();
 
   try {
-    // Delete each item
-    const promises = itemIds.map(id => {
-      if (state.offlineShopping) {
-        return state.offlineShopping.deleteItem(id);
-      } else {
-        return fetch(`/api/v1/shopping-list-items/${id}`, {
+    // PGlite-first strategy
+    if (isDexieActive() && pglite.isReady()) {
+      // Find items and get temp_ids
+      const itemsToDelete = state.currentItems.filter(item => itemIds.includes(item.id));
+      const tempIds = itemsToDelete.map(item => item.temp_id).filter(Boolean) as number[];
+
+      if (tempIds.length !== itemIds.length) {
+        // FALLBACK: If temp_id missing, use API-only deletion (skip Dexie)
+        console.warn('[LIST_OPS] Some items missing temp_id, using API-only deletion');
+
+        // API-only bulk delete
+        await Promise.all(
+          itemIds.map(id =>
+            fetch(`/api/v1/shopping-list-items/${id}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin'
+            })
+          )
+        );
+
+        // Reload from server to sync state
+        if (state.currentListId) {
+          await loadShoppingListItems(state.currentListId);
+        }
+        renderCurrentView();
+        return;
+      }
+
+      // Delete each item in PGlite (parallel)
+      await Promise.all(tempIds.map(temp_id => deleteShoppingListItem(temp_id)));
+      debugLog('[LIST_OPS] Bulk deleted items in PGlite', { count: tempIds.length });
+
+      // Reload items from PGlite
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
+      }
+
+    } else {
+      // Fallback: direct API calls (parallel)
+      const promises = itemIds.map(id =>
+        fetch(`/api/v1/shopping-list-items/${id}`, {
           method: 'DELETE',
           credentials: 'same-origin'
-        });
+        })
+      );
+
+      await Promise.all(promises);
+      debugLog('[LIST_OPS] Bulk deleted items via API', { count: itemIds.length });
+
+      // Reload items from API
+      if (state.currentListId) {
+        await loadShoppingListItems(state.currentListId);
       }
-    });
+    }
 
-    await Promise.all(promises);
-
-    // Update cache
-    await updateItemsCache();
     showToast(`Удалено товаров: ${itemIds.length}`, 'success');
+    refreshUI();
 
   } catch (error) {
-    console.error('[ListsManager] Error deleting multiple items:', error);
-
-    // Revert on error
-    if (isOnline()) {
-      updateState({ currentItems: currentItems });
-      showToast('Ошибка удаления товаров', 'error');
-    }
+    console.error('[LIST_OPS] Error deleting multiple items:', error);
+    showToast('Ошибка удаления товаров', 'error');
   }
 }
 
@@ -385,20 +526,10 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
 // ============================================================================
 
 /**
- * Update items cache in IndexedDB
+ * Update items cache (deprecated - removed in Dexie migration)
+ * Dexie handles caching automatically via shoppingListItems table
  */
 export async function updateItemsCache(): Promise<void> {
-  const state = getState();
-
-  if (state.db && state.currentListId) {
-    const CACHE_KEY = `shopping_list_items_${state.currentListId}`;
-    const CACHE_TTL = 86400; // 24 hours
-
-    try {
-      await state.db.setCache(CACHE_KEY, state.currentItems, CACHE_TTL);
-      debugLog('[ListsManager] Items cache updated');
-    } catch (error) {
-      console.error('[ListsManager] Error updating items cache:', error);
-    }
-  }
+  // No-op: Dexie migration - caching handled by DataLayer
+  debugLog('[ListsManager] Cache update skipped (Dexie handles caching)');
 }

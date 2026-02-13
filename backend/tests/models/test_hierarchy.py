@@ -12,7 +12,6 @@ from backend.app.models.article import Article
 from backend.app.models.hierarchy import ArticleHierarchy
 from backend.app.models.user import User
 
-
 # ============================================================================
 # ArticleHierarchy Creation Tests
 # ============================================================================

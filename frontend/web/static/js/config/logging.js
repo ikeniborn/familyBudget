@@ -73,15 +73,18 @@
             LISTS: true,               // Shopping lists general operations
             MODAL_KB: isDevelopment,   // Modal keyboard adaptation
             PUSH_BANNER: true,         // Push permission banner (info logs removed from code)
-            ADMIN_LOGS: true           // Admin logs page (info logs removed from code)
+            ADMIN_LOGS: true,          // Admin logs page (info logs removed from code)
+            CONFLICT: true,            // Conflict resolution (task-009: LWW strategy)
+            DEXIE: isDevelopment       // Dexie database operations (dev only)
         },
 
         // Environment info (for debugging)
         environment: {
             hostname: hostname,
             isProduction: isProduction,
-            isDevelopment: isDevelopment,
-            userAgent: navigator.userAgent
+            isDevelopment: isDevelopment
+            // НЕ включаем userAgent в глобальный конфиг (fingerprinting risk)
+            // userAgent может быть получен отдельно при необходимости
         }
     };
 

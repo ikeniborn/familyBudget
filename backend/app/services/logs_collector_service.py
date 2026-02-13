@@ -18,14 +18,13 @@ Date: 2025-12-27
 
 import re
 from collections import deque
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Any
-
-from backend.app.core.json_utils import loads as json_loads
+from datetime import datetime
+from typing import Any
 
 import docker
 from docker.errors import DockerException, NotFound
 
+from backend.app.core.json_utils import loads as json_loads
 from backend.app.core.logging import get_logger
 from backend.app.utils.timezone import get_system_timezone
 
@@ -77,7 +76,7 @@ class LogsCollectorService:
         service: str,
         since: str = "1h",
         tail: int = 500
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Collect logs from Docker container using Docker SDK.
 
@@ -166,7 +165,7 @@ class LogsCollectorService:
 
     def collect_browser_logs(
         self,
-        logs: List[Dict[str, Any]],
+        logs: list[dict[str, Any]],
         user_id: int
     ) -> int:
         """
@@ -195,11 +194,11 @@ class LogsCollectorService:
 
     def filter_logs(
         self,
-        logs: List[Dict[str, Any]],
-        level: Optional[str] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None
-    ) -> List[Dict[str, Any]]:
+        logs: list[dict[str, Any]],
+        level: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None
+    ) -> list[dict[str, Any]]:
         """
         Filter logs in-memory.
 
@@ -236,7 +235,7 @@ class LogsCollectorService:
 
         return filtered
 
-    def sanitize_log_entry(self, log: Dict[str, Any]) -> Dict[str, Any]:
+    def sanitize_log_entry(self, log: dict[str, Any]) -> dict[str, Any]:
         """
         Remove sensitive data from log entry.
 
@@ -258,12 +257,12 @@ class LogsCollectorService:
 
     async def get_all_logs(
         self,
-        service: Optional[str] = None,
-        level: Optional[str] = None,
-        since: Optional[datetime] = None,
-        until: Optional[datetime] = None,
+        service: str | None = None,
+        level: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
         limit: int = 50
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Retrieve filtered logs from all services.
 

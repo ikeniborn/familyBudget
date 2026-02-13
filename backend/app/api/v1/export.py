@@ -3,15 +3,13 @@ Export API endpoints.
 
 Provides data export functionality in CSV format.
 """
-
 from datetime import date, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import CurrentUser, get_current_user, get_session
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.utils.export import (
@@ -31,8 +29,8 @@ router = APIRouter(prefix="/export", tags=["Export"])
 async def export_facts_csv(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    start_date: Optional[date] = Query(None, description="Start date for filtering"),
-    end_date: Optional[date] = Query(None, description="End date for filtering"),
+    start_date: date | None = Query(None, description="Start date for filtering"),
+    end_date: date | None = Query(None, description="End date for filtering"),
 ):
     """
     Export user's facts (transactions) to CSV format.

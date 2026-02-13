@@ -1737,15 +1737,6 @@ main() {
         warning "timeout.sh not found - using hardcoded timeouts"
     fi
 
-    # Source network health check library
-    if [[ -f "$SCRIPT_DIR/scripts/lib/network_health.sh" ]]; then
-        # shellcheck source=scripts/lib/network_health.sh
-        source "$SCRIPT_DIR/scripts/lib/network_health.sh"
-        info "Loaded network health check library"
-    else
-        warning "network_health.sh not found - skipping network pre-flight checks"
-    fi
-
     # Confirmation
     echo ""
     warning "This script will install:"

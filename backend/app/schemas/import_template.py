@@ -7,7 +7,7 @@ Import templates store user-specific CSV import configurations.
 
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -34,13 +34,13 @@ class ImportTemplateCreate(BaseModel):
         examples=["Walmart CSV Format", "Costco Format", "Standard CSV"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Standard format from Walmart shopping list export", None]
     )
 
-    config: Dict[str, Any] = Field(
+    config: dict[str, Any] = Field(
         ...,
         description="JSONB configuration (delimiter, column mappings, formats)",
         examples=[{
@@ -96,7 +96,7 @@ class ImportTemplateCreate(BaseModel):
 
     @field_validator("config")
     @classmethod
-    def config_not_empty(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def config_not_empty(cls, v: dict[str, Any]) -> dict[str, Any]:
         """
         Validate config.
 
@@ -127,7 +127,7 @@ class ImportTemplateUpdate(BaseModel):
         - Cannot change user_id (templates belong to user)
     """
 
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None,
         max_length=255,
         min_length=1,
@@ -135,13 +135,13 @@ class ImportTemplateUpdate(BaseModel):
         examples=["Updated Walmart CSV Format"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
     )
 
-    config: Optional[Dict[str, Any]] = Field(
+    config: dict[str, Any] | None = Field(
         default=None,
         description="JSONB configuration",
         examples=[{
@@ -150,7 +150,7 @@ class ImportTemplateUpdate(BaseModel):
         }]
     )
 
-    is_active: Optional[bool] = Field(
+    is_active: bool | None = Field(
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
@@ -158,7 +158,7 @@ class ImportTemplateUpdate(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def name_not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def name_not_empty(cls, v: str | None) -> str | None:
         """Validate template name if provided."""
         if v is None:
             return None
@@ -178,7 +178,7 @@ class ImportTemplateUpdate(BaseModel):
 
     @field_validator("config")
     @classmethod
-    def config_not_empty(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def config_not_empty(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         """Validate config if provided."""
         if v is None:
             return None
@@ -215,12 +215,12 @@ class ImportTemplateResponse(BaseModel):
         examples=["Walmart CSV Format"]
     )
 
-    description: Optional[str] = Field(
+    description: str | None = Field(
         description="Optional description",
         examples=["Standard format from Walmart", None]
     )
 
-    config: Dict[str, Any] = Field(
+    config: dict[str, Any] = Field(
         description="JSONB configuration",
         examples=[{
             "delimiter": ",",

@@ -1,0 +1,81 @@
+{#
+    Cookie Consent Banner Macro
+    GDPR-compliant cookie consent banner.
+
+    Features:
+        - 4 consent types: essential (always enabled), analytics, push_notifications, personalization
+        - Accept all or save custom choices
+        - Link to privacy policy
+
+    Usage:
+        {% from "components/cookie_consent_banner.html" import cookie_consent_banner %}
+        {{ cookie_consent_banner() }}
+
+    Requires:
+        - Inline script initialization (initCookieConsent IIFE) in base.html
+        - {% if user %} context check (only shown to authenticated users)
+#}
+
+{% macro cookie_consent_banner() %}
+    <!-- Cookie Consent Banner (GDPR Compliance) -->
+    <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[999] hidden">
+        <div class="bg-base-100 w-full sm:max-w-lg sm:rounded-lg shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start gap-3 mb-4">
+                <span class="text-3xl">🍪</span>
+                <div class="flex-1">
+                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Настройки конфиденциальности</h2>
+                    <p class="text-sm opacity-70 mt-1">
+                        Мы используем cookie и аналогичные технологии для улучшения работы приложения.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3 mb-4">
+                <!-- Essential Cookies (always enabled) -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Необходимые cookie</div>
+                        <div class="text-xs opacity-60">Требуются для работы приложения</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" checked disabled id="consent-essential" data-consent-type="essential">
+                </div>
+
+                <!-- Analytics -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Аналитика</div>
+                        <div class="text-xs opacity-60">Помогает улучшить приложение</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-analytics" data-consent-type="analytics">
+                </div>
+
+                <!-- Push Notifications -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Push-уведомления</div>
+                        <div class="text-xs opacity-60">Уведомления о синхронизации и обновлениях</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-push" data-consent-type="push_notifications">
+                </div>
+
+                <!-- Personalization -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Персонализация</div>
+                        <div class="text-xs opacity-60">Сохранение настроек и предпочтений</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-personalization" data-consent-type="personalization">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button id="consent-accept-all" class="btn btn-primary flex-1">Принять все</button>
+                <button id="consent-save-choices" class="btn btn-outline flex-1">Сохранить выбор</button>
+            </div>
+
+            <div class="text-xs opacity-50 mt-3 text-center">
+                <a href="/privacy-policy" class="link" target="_blank">Политика конфиденциальности</a> • v1.0
+            </div>
+        </div>
+    </div>
+{% endmacro %}

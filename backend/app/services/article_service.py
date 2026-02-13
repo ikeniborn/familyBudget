@@ -17,15 +17,14 @@ Key Functions:
     - create_initial_history(): Create initial history record for new article
 """
 
-from datetime import datetime, date, timezone
-from typing import Any, Dict, List, Optional
+from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
 from backend.app.models.article_history import ArticleHistory
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -35,8 +34,8 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 async def update_article_profile(
     session: AsyncSession,
     article: Article,
-    updates: Dict[str, Any],
-    changed_by_user_id: Optional[int] = None,
+    updates: dict[str, Any],
+    changed_by_user_id: int | None = None,
     change_type: str = "UPDATE",
     auto_commit: bool = True,
 ) -> Article:
@@ -142,7 +141,7 @@ async def update_article_profile(
 async def get_article_history(
     session: AsyncSession,
     article_id: int,
-) -> List[ArticleHistory]:
+) -> list[ArticleHistory]:
     """
     Get full change history for an article from ArticleHistory table.
 
@@ -182,7 +181,7 @@ async def get_article_version_at_date(
     session: AsyncSession,
     article_id: int,
     target_date: date,
-) -> Optional[ArticleHistory]:
+) -> ArticleHistory | None:
     """
     Get Article version that was active at a specific date (time-travel query).
 

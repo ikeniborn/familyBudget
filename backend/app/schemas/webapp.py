@@ -8,8 +8,6 @@ References:
     - https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
 """
 
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -62,13 +60,13 @@ class WebAppUser(BaseModel):
 
     id: int = Field(description="User's database ID", examples=[1])
     telegram_id: int = Field(description="User's Telegram ID", examples=[123456789])
-    username: Optional[str] = Field(
+    username: str | None = Field(
         default=None, description="Telegram username", examples=["johndoe", None]
     )
-    first_name: Optional[str] = Field(
+    first_name: str | None = Field(
         default=None, description="User's first name", examples=["John"]
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         default=None, description="User's last name", examples=["Doe", None]
     )
     is_admin: bool = Field(default=False, description="Admin status flag", examples=[False])

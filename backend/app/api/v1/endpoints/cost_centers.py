@@ -11,12 +11,8 @@ Endpoints:
     PUT    /api/v1/cost-centers/{id} - Update cost center (creates new SCD2 version)
     DELETE /api/v1/cost-centers/{id} - Soft delete cost center
 """
-
 import logging
-from datetime import datetime, timezone
-from typing import Optional
-
-logger = logging.getLogger(__name__)
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
@@ -33,13 +29,15 @@ from backend.app.schemas.cost_center import (
     CostCenterUpdate,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services.scd2_service import has_changes
+from backend.app.services.cache_service import cache_service
 from backend.app.services.cost_center_service import (
+    FAR_FUTURE_DATETIME,
     create_initial_history,
     update_cost_center_profile,
-    FAR_FUTURE_DATETIME,
 )
-from backend.app.services.cache_service import cache_service
+from backend.app.services.scd2_service import has_changes
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/cost-centers",
@@ -81,7 +79,7 @@ async def list_cost_centers(
 
     # Filter archived if not explicitly requested
     if not include_inactive:
-        conditions.append(CostCenter.is_active == True)
+        conditions.append(CostCenter.is_active)
 
     # Filter by financial_center_id (whitelist pattern)
     if financial_center_id is not None:
@@ -559,8 +557,8 @@ async def delete_cost_center(
         HTTPException: 403 if not admin
         HTTPException: 404 if cost center not found
     """
-    from backend.app.models.fact import BudgetFact
     from backend.app.models.cost_center_history import CostCenterHistory
+    from backend.app.models.fact import BudgetFact
 
     # Check: Only admins can delete cost centers
     if not current_user.is_admin:

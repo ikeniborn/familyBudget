@@ -2,11 +2,15 @@
 # Main index file with links to all sections
 
 meta:
-  version: "1.0.1"
+  version: "2.0.0"
+  current_version: "9.0.2"  # From VERSION file (root) - Registry-First Architecture
   project: "Family Budget"
   description: "Граф зависимостей для работы с кодовой базой"
-  generated: "2026-01-14"
-  total_files: 59
+  generated: "2026-01-21"
+  total_files: 62
+
+  # NOTE: current_version should match VERSION file in project root
+  # Update this value when VERSION file changes
 
   legend:
     references:
@@ -26,6 +30,47 @@ meta:
       closure_table: "Efficient O(1) hierarchical queries"
       star_schema: "Fact table with dimension FKs"
       partitioned: "Table partitioned by date range"
+
+  recent_changes:
+    - version: "9.0.0"
+      date: "2026-01-21"
+      type: "breaking"
+      summary: "Registry-first CI/CD architecture"
+      details:
+        - "All builds (frontend, Docker) moved to GitHub Actions CI/CD"
+        - "Server only pulls ready images from ghcr.io (no local builds)"
+        - "5 custom Docker images with embedded frontend"
+        - "Removed: build mode, npm/Node.js on server, multiple image tags"
+        - "Added: semver-only tags, automatic cleanup (7 days), selective rebuilding"
+      affected_components:
+        - "CI/CD: ci-cd-build-deploy.md"
+        - "Docker: docker.md"
+        - "Deployment: deploy-test, deploy-prod skills"
+      migration: "See CI-CD-REGISTRY-SUMMARY.md for complete migration guide"
+
+    - version: "7.0.0"
+      date: "2025-12"
+      type: "major"
+      summary: "ES Modules migration"
+      details:
+        - "Migrated from global scripts to ES Modules"
+        - "Vite build system with TypeScript"
+        - "Modular architecture: core/, operations/, features/, ui/, integration/"
+      affected_components:
+        - "Build: build-system.md, es-modules-migration.md"
+        - "Frontend: all JS modules"
+
+    - version: "6.6.0"
+      date: "2025-12"
+      type: "feature"
+      summary: "Bulk delete optimization + WebSocket summary events"
+      details:
+        - "Optimized bulk delete operations (10x faster)"
+        - "WebSocket summary events instead of individual events"
+        - "Reduced network traffic for bulk operations"
+      affected_components:
+        - "Architecture: bulk-delete-optimization.md"
+        - "WebSocket: websocket.md"
 
 # =============================================================================
 # SECTIONS

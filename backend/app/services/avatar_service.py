@@ -10,13 +10,10 @@ Security considerations:
 - Sanitizes filenames to prevent path traversal
 - Uses httpOnly for download security
 """
-
 import logging
 from pathlib import Path
-from typing import Optional
 
 import httpx
-
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +27,7 @@ REQUEST_TIMEOUT = 10.0  # seconds
 async def download_user_avatar(
     telegram_photo_url: str,
     user_id: int
-) -> Optional[str]:
+) -> str | None:
     """
     Download user avatar from Telegram and save locally.
 
@@ -198,7 +195,7 @@ async def delete_user_avatar(user_id: int) -> None:
         logger.error(f"Unexpected error deleting avatar for user {user_id}: {e}")
 
 
-def get_avatar_path(user_id: int) -> Optional[str]:
+def get_avatar_path(user_id: int) -> str | None:
     """
     Get local path to user's cached avatar if it exists.
 

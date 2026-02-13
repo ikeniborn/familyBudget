@@ -1,0 +1,35 @@
+{#
+  PARTIAL: Table View
+  Purpose: Desktop table for shopping list items
+  CRITICAL: Hidden on mobile by default (max-[639px]:hidden) to prevent flicker
+  JavaScript controls visibility after initialization
+  Used in: detail_view.html
+#}
+
+<!-- Table View -->
+<!-- CRITICAL: Hidden on mobile by default (max-[639px]:hidden) to prevent flicker -->
+<!-- JavaScript will show correct view after initialization -->
+<div id="table-view" class="view-mode max-[639px]:hidden">
+    <!-- Table View (responsive with horizontal scroll on mobile) -->
+    <div class="overflow-x-auto shadow-lg rounded-lg" id="desktop-table-container">
+        <table class="table table-zebra w-full">
+            <thead>
+                <tr>
+                    <th>🏪 Магазин</th>
+                    <th>📦 Группа</th>
+                    <th>🛒 Товар</th>
+                    <th class="text-right">📊 Кол-во</th>
+                    <th>📏 Ед.</th>
+                    <th>💬 Комментарий</th>
+                    <th class="text-center">⚙️</th>
+                </tr>
+            </thead>
+            <tbody id="items-table-body">
+                <!-- Items will be rendered here dynamically -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Empty State for Table -->
+    {% include "partials/lists/empty_states/empty_table.html" %}
+</div>

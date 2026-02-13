@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Autofix Proposal Schema",
+  "description": "Schema для auto-fix proposals в test-code skill",
+  "type": "object",
+  "properties": {
+    "autofix_proposal": {
+      "type": "object",
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["syntax", "linting", "type-checking", "known-failing-tests", "security"],
+          "description": "Категория auto-fix"
+        },
+        "tool": {
+          "type": "string",
+          "description": "Инструмент для исправления (ruff, mypy, eslint, black, pytest, npm)"
+        },
+        "command": {
+          "type": "string",
+          "description": "Bash command для выполнения auto-fix"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Описание исправления (минимум 10 символов)"
+        },
+        "file": {
+          "type": "string",
+          "description": "Файл для manual fix (опционально)"
+        },
+        "fix": {
+          "type": "string",
+          "description": "Code snippet для manual fix (опционально)"
+        },
+        "user_confirmation_required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Требуется подтверждение пользователя перед применением"
+        }
+      },
+      "required": ["category", "tool", "command", "description", "user_confirmation_required"]
+    }
+  },
+  "required": ["autofix_proposal"]
+}

@@ -16,6 +16,7 @@ import { renderCurrentView } from '../rendering/tableBuilder';
 // ============================================================================
 
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
+declare const showConfirmDialog: (message: string, title?: string) => Promise<boolean>;
 declare const debugLog: (...args: any[]) => void;
 
 // ============================================================================
@@ -80,7 +81,11 @@ export async function deleteSelected(): Promise<void> {
   }
 
   const count = state.selectedItemIds.size;
-  if (!confirm(`Удалить выбранные товары (${count})?`)) {
+  const confirmed = await showConfirmDialog(
+    `Удалить выбранные товары (${count})?\nЭто действие необратимо.`,
+    '🗑️ Удаление товаров'
+  );
+  if (!confirmed) {
     return;
   }
 

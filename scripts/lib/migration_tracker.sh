@@ -132,7 +132,8 @@ reapply_single_migration() {
 
     # Step 1: Downgrade (rollback this migration)
     step "Step 1/2: Downgrading migration $revision..."
-    if ! compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini downgrade -1" 2>&1 | tee -a "$LOG_FILE"; then
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    if ! compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini downgrade -1 2>&1 | tee -a "$LOG_FILE"; then
         error "Failed to downgrade migration $revision"
         error "Manual intervention required"
         return 1
@@ -143,7 +144,8 @@ reapply_single_migration() {
 
     # Step 2: Upgrade (apply updated version)
     step "Step 2/2: Upgrading migration $revision..."
-    if ! compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
+    # Use python -m alembic for distroless compatibility (no bash/sh in distroless)
+    if ! compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini upgrade head 2>&1 | tee -a "$LOG_FILE"; then
         error "Failed to upgrade migration $revision"
         error "Database may be in inconsistent state"
         error "Manual intervention required"

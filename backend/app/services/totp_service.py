@@ -31,16 +31,14 @@ Usage:
     # Generate backup codes
     plain_codes, hashed_json = generate_backup_codes()
 """
-
 import secrets
-from typing import Optional
 
 import pyotp
-
-from backend.app.core.json_utils import dumps as json_dumps, loads as json_loads
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError, InvalidHash
+from argon2.exceptions import InvalidHash, VerifyMismatchError
 
+from backend.app.core.json_utils import dumps as json_dumps
+from backend.app.core.json_utils import loads as json_loads
 
 # TOTP configuration
 TOTP_DIGITS = 6           # Number of digits in TOTP code
@@ -192,7 +190,7 @@ def generate_backup_codes(count: int = BACKUP_CODE_COUNT) -> tuple[list[str], st
 def verify_backup_code(
     code: str,
     hashed_codes_json: str,
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Verify a backup code and remove it if valid.
 
@@ -243,7 +241,7 @@ def verify_backup_code(
     return False, None
 
 
-def get_remaining_backup_codes_count(hashed_codes_json: Optional[str]) -> int:
+def get_remaining_backup_codes_count(hashed_codes_json: str | None) -> int:
     """
     Get count of remaining backup codes.
 

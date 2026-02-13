@@ -44,9 +44,8 @@ API Changes:
 - Frontend sends content_hash and sync_hash during offline sync
 """
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = 'v7h8i9j0k1l2'

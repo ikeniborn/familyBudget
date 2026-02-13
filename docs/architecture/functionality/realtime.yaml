@@ -1,6 +1,26 @@
 # Realtime Module
 # WebSocket events, BudgetWebSocketManager
 
+meta:
+  version: "1.0.0"
+  description: "Real-time updates via WebSocket and Long Polling"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "3.0.0"
+  breaking_changes:
+    - version: "6.6.0"
+      description: "Added bulk delete summary events"
+      migration: "See bulk-delete-optimization.md"
+  technologies:
+    - "WebSocket (FastAPI)"
+    - "Redis Pub/Sub (cross-worker)"
+    - "Long Polling fallback"
+  related_docs:
+    - "../websocket.md"
+    - "../endpoints/websocket.yaml"
+    - "../bulk-delete-optimization.md"
+
 module:
   name: realtime
   description: "Real-time обновления через WebSocket + Long Polling fallback"

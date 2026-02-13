@@ -13,9 +13,7 @@ Key features:
 - Global articles shared across users and user-specific articles
 - Full change history in ArticleHistory table
 """
-
 from datetime import datetime
-from typing import Optional
 
 from sqlmodel import Field, SQLModel
 
@@ -121,7 +119,7 @@ class Article(SQLModel, table=True):
     __tablename__ = "t_d_article"
 
     # Primary key
-    id: Optional[int] = Field(
+    id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key"
@@ -134,7 +132,7 @@ class Article(SQLModel, table=True):
         nullable=False,
         description="Owner user ID (required - all articles are user-specific)"
     )
-    parent_id: Optional[int] = Field(
+    parent_id: int | None = Field(
         default=None,
         foreign_key="t_d_article.id",
         index=True,
@@ -147,7 +145,7 @@ class Article(SQLModel, table=True):
         max_length=255,
         description="Article display name"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Optional description or notes about the article/category"
     )
@@ -157,7 +155,7 @@ class Article(SQLModel, table=True):
         index=True,
         description="Article type: 'income' or 'expense' (enforced by CHECK constraint)"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         nullable=True,

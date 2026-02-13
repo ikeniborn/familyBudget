@@ -7,7 +7,6 @@ Supports SCD Type 1 (in-place updates) and default mappings for known banks.
 
 Pattern: Service layer (business logic)
 """
-
 from datetime import datetime
 
 from sqlmodel import select

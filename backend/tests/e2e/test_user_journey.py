@@ -12,13 +12,17 @@ Scenario:
 5. Manages categories and transactions
 """
 
-import pytest
+import logging
 from datetime import date, timedelta
-from decimal import Decimal
+
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.user import User
+
+# Configure logger for test output
+logger = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
@@ -42,7 +46,7 @@ class TestCompleteUserJourney:
         """
 
         # ===== STEP 1: Create Income Category =====
-        print("\n🏁 STEP 1: Creating income category...")
+        logger.debug("\n🏁 STEP 1: Creating income category...")
         income_category = await auth_client.post(
             "/api/v1/articles",
             json={
@@ -54,10 +58,10 @@ class TestCompleteUserJourney:
         )
         assert income_category.status_code == 201
         salary_id = income_category.json()["id"]
-        print(f"✅ Created income category (ID: {salary_id})")
+        logger.debug(f"✅ Created income category (ID: {salary_id})")
 
         # ===== STEP 2: Create Expense Categories =====
-        print("\n🏁 STEP 2: Creating expense categories...")
+        logger.debug("\n🏁 STEP 2: Creating expense categories...")
 
         # Main category: Living Expenses
         living_expenses = await auth_client.post(
@@ -96,19 +100,19 @@ class TestCompleteUserJourney:
         )
         assert rent.status_code == 201
         rent_id = rent.json()["id"]
-        print(f"✅ Created expense categories (Living, Groceries, Rent)")
+        logger.debug("✅ Created expense categories (Living, Groceries, Rent)")
 
         # ===== STEP 3: Verify Category Hierarchy =====
-        print("\n🏁 STEP 3: Verifying category hierarchy...")
+        logger.debug("\n🏁 STEP 3: Verifying category hierarchy...")
         articles_list = await auth_client.get("/api/v1/articles")
         assert articles_list.status_code == 200
         response_data = articles_list.json()
         articles = response_data["articles"]  # Extract array from wrapper
         assert len(articles) >= 4  # At least our 4 categories
-        print(f"✅ Category hierarchy verified ({len(articles)} categories total)")
+        logger.debug(f"✅ Category hierarchy verified ({len(articles)} categories total)")
 
         # ===== STEP 4: Add Income Transaction =====
-        print("\n🏁 STEP 4: Adding income transaction...")
+        logger.debug("\n🏁 STEP 4: Adding income transaction...")
         income_fact = await auth_client.post(
             "/api/v1/facts",
             json={
@@ -119,10 +123,10 @@ class TestCompleteUserJourney:
             }
         )
         assert income_fact.status_code == 201
-        print(f"✅ Added income transaction: $5000.00")
+        logger.debug("✅ Added income transaction: $5000.00")
 
         # ===== STEP 5: Add Expense Transactions =====
-        print("\n🏁 STEP 5: Adding expense transactions...")
+        logger.debug("\n🏁 STEP 5: Adding expense transactions...")
 
         # Rent payment
         rent_fact = await auth_client.post(
@@ -150,10 +154,10 @@ class TestCompleteUserJourney:
             )
             assert grocery_fact.status_code == 201
 
-        print(f"✅ Added expense transactions (1 rent + 5 groceries)")
+        logger.debug("✅ Added expense transactions (1 rent + 5 groceries)")
 
         # ===== STEP 6: View Quick Stats Dashboard =====
-        print("\n🏁 STEP 6: Checking dashboard statistics...")
+        logger.debug("\n🏁 STEP 6: Checking dashboard statistics...")
         stats = await auth_client.get("/api/v1/analytics/quick-stats")
         assert stats.status_code == 200
         stats_data = stats.json()
@@ -164,10 +168,10 @@ class TestCompleteUserJourney:
         assert stats_data["month"]["income"] > 0
         assert stats_data["month"]["expense"] > 0
         assert stats_data["month"]["balance"] == stats_data["month"]["income"] - stats_data["month"]["expense"]
-        print(f"✅ Dashboard stats: Income={stats_data['month']['income']}, Expense={stats_data['month']['expense']}, Balance={stats_data['month']['balance']}")
+        logger.debug(f"✅ Dashboard stats: Income={stats_data['month']['income']}, Expense={stats_data['month']['expense']}, Balance={stats_data['month']['balance']}")
 
         # ===== STEP 7: View Spending Trends =====
-        print("\n🏁 STEP 7: Viewing spending trends...")
+        logger.debug("\n🏁 STEP 7: Viewing spending trends...")
         trends = await auth_client.get("/api/v1/analytics/trends?days=7")
         assert trends.status_code == 200
         trends_data = trends.json()
@@ -176,10 +180,10 @@ class TestCompleteUserJourney:
         assert "income" in trends_data
         assert "expense" in trends_data
         assert len(trends_data["dates"]) == 8  # 7 days + today
-        print(f"✅ Trends data retrieved ({len(trends_data['dates'])} days)")
+        logger.debug(f"✅ Trends data retrieved ({len(trends_data['dates'])} days)")
 
         # ===== STEP 8: View Category Breakdown =====
-        print("\n🏁 STEP 8: Viewing category breakdown...")
+        logger.debug("\n🏁 STEP 8: Viewing category breakdown...")
         breakdown = await auth_client.get("/api/v1/analytics/category-breakdown?type=expense&period=month")
         assert breakdown.status_code == 200
         breakdown_data = breakdown.json()
@@ -188,10 +192,10 @@ class TestCompleteUserJourney:
         assert "amounts" in breakdown_data
         assert "percentages" in breakdown_data
         assert len(breakdown_data["categories"]) >= 2  # Rent and Groceries
-        print(f"✅ Category breakdown: {len(breakdown_data['categories'])} categories")
+        logger.debug(f"✅ Category breakdown: {len(breakdown_data['categories'])} categories")
 
         # ===== STEP 9: Update a Transaction =====
-        print("\n🏁 STEP 9: Updating a transaction...")
+        logger.debug("\n🏁 STEP 9: Updating a transaction...")
         facts_list = await auth_client.get("/api/v1/facts")
         assert facts_list.status_code == 200
         response_data = facts_list.json()
@@ -210,16 +214,16 @@ class TestCompleteUserJourney:
         assert update_response.status_code == 200
         updated_fact = update_response.json()
         assert float(updated_fact["amount"]) == 99.99
-        print(f"✅ Updated transaction {first_fact_id}")
+        logger.debug(f"✅ Updated transaction {first_fact_id}")
 
         # ===== STEP 10: Delete a Transaction =====
-        print("\n🏁 STEP 10: Deleting a transaction...")
+        logger.debug("\n🏁 STEP 10: Deleting a transaction...")
         delete_response = await auth_client.delete(f"/api/v1/facts/{first_fact_id}")
         assert delete_response.status_code == 204
-        print(f"✅ Deleted transaction {first_fact_id}")
+        logger.debug(f"✅ Deleted transaction {first_fact_id}")
 
         # ===== STEP 11: Verify Final State =====
-        print("\n🏁 STEP 11: Verifying final state...")
+        logger.debug("\n🏁 STEP 11: Verifying final state...")
         final_facts = await auth_client.get("/api/v1/facts")
         assert final_facts.status_code == 200
         final_facts_data = final_facts.json()
@@ -227,11 +231,11 @@ class TestCompleteUserJourney:
 
         final_stats = await auth_client.get("/api/v1/analytics/quick-stats")
         assert final_stats.status_code == 200
-        print(f"✅ Final state verified - Journey complete!")
+        logger.debug("✅ Final state verified - Journey complete!")
 
-        print("\n" + "="*60)
-        print("🎉 COMPLETE USER JOURNEY TEST PASSED!")
-        print("="*60)
+        logger.debug("\n" + "="*60)
+        logger.debug("🎉 COMPLETE USER JOURNEY TEST PASSED!")
+        logger.debug("="*60)
 
 
 @pytest.mark.asyncio
@@ -251,10 +255,10 @@ class TestBudgetPlanningJourney:
         Test budget planning: Set budgets → Track expenses → Compare plan vs actual.
         """
 
-        print("\n🏁 BUDGET PLANNING WORKFLOW TEST")
+        logger.debug("\n🏁 BUDGET PLANNING WORKFLOW TEST")
 
         # ===== STEP 1: Create Categories for Planning =====
-        print("\n📊 Step 1: Creating budget categories...")
+        logger.debug("\n📊 Step 1: Creating budget categories...")
 
         categories = [
             ("FOOD", "Food & Dining"),
@@ -276,10 +280,10 @@ class TestBudgetPlanningJourney:
             assert response.status_code == 201
             category_ids[code] = response.json()["id"]
 
-        print(f"✅ Created {len(categories)} budget categories")
+        logger.debug(f"✅ Created {len(categories)} budget categories")
 
         # ===== STEP 2: Add Planned vs Actual Spending =====
-        print("\n📊 Step 2: Adding transactions...")
+        logger.debug("\n📊 Step 2: Adding transactions...")
 
         # Add various transactions over the past week
         today = date.today()
@@ -309,10 +313,10 @@ class TestBudgetPlanningJourney:
                     }
                 )
 
-        print("✅ Added weekly transactions")
+        logger.debug("✅ Added weekly transactions")
 
         # ===== STEP 3: View Plan vs Fact Data =====
-        print("\n📊 Step 3: Viewing plan vs fact comparison...")
+        logger.debug("\n📊 Step 3: Viewing plan vs fact comparison...")
 
         plan_fact = await auth_client.get("/api/v1/analytics/plan-fact?period=week")
         assert plan_fact.status_code == 200
@@ -323,14 +327,14 @@ class TestBudgetPlanningJourney:
         assert "fact" in plan_data
         assert len(plan_data["labels"]) == 7  # Week
 
-        print(f"✅ Plan vs Fact data retrieved")
-        print(f"   - Periods: {len(plan_data['labels'])}")
-        print(f"   - Total fact: ${sum(plan_data['fact']):.2f}")
-        print(f"   - Total plan: ${sum(plan_data['plan']):.2f}")
+        logger.debug("✅ Plan vs Fact data retrieved")
+        logger.debug(f"   - Periods: {len(plan_data['labels'])}")
+        logger.debug(f"   - Total fact: ${sum(plan_data['fact']):.2f}")
+        logger.debug(f"   - Total plan: ${sum(plan_data['plan']):.2f}")
 
-        print("\n" + "="*60)
-        print("🎉 BUDGET PLANNING WORKFLOW TEST PASSED!")
-        print("="*60)
+        logger.debug("\n" + "="*60)
+        logger.debug("🎉 BUDGET PLANNING WORKFLOW TEST PASSED!")
+        logger.debug("="*60)
 
 
 @pytest.mark.asyncio
@@ -349,10 +353,10 @@ class TestAnalyticsJourney:
         Test analytics exploration: Create data → View all chart types.
         """
 
-        print("\n🏁 ANALYTICS EXPLORATION TEST")
+        logger.debug("\n🏁 ANALYTICS EXPLORATION TEST")
 
         # ===== Setup: Create test data =====
-        print("\n📈 Setting up test data...")
+        logger.debug("\n📈 Setting up test data...")
 
         # Create income category
         income = await auth_client.post(
@@ -399,27 +403,27 @@ class TestAnalyticsJourney:
                 }
             )
 
-        print("✅ Test data created")
+        logger.debug("✅ Test data created")
 
         # ===== Test All Analytics Endpoints =====
-        print("\n📈 Testing all analytics endpoints...")
+        logger.debug("\n📈 Testing all analytics endpoints...")
 
         # 1. Quick Stats
         stats = await auth_client.get("/api/v1/analytics/quick-stats")
         assert stats.status_code == 200
-        print("✅ Quick stats")
+        logger.debug("✅ Quick stats")
 
         # 2. Trends
         trends = await auth_client.get("/api/v1/analytics/trends?days=30")
         assert trends.status_code == 200
         assert len(trends.json()["dates"]) == 31
-        print("✅ Trends (30 days)")
+        logger.debug("✅ Trends (30 days)")
 
         # 3. Category Breakdown
         breakdown = await auth_client.get("/api/v1/analytics/category-breakdown?type=expense&period=month")
         assert breakdown.status_code == 200
         assert len(breakdown.json()["categories"]) == 5
-        print("✅ Category breakdown")
+        logger.debug("✅ Category breakdown")
 
         # 4. Waterfall Chart
         waterfall = await auth_client.get("/api/v1/analytics/waterfall")
@@ -429,7 +433,7 @@ class TestAnalyticsJourney:
         assert "income" in waterfall_data
         assert "expense" in waterfall_data
         assert "balance" in waterfall_data
-        print("✅ Waterfall chart")
+        logger.debug("✅ Waterfall chart")
 
         # 5. Heatmap
         heatmap = await auth_client.get("/api/v1/analytics/heatmap")
@@ -438,17 +442,17 @@ class TestAnalyticsJourney:
         assert "weeks" in heatmap_data
         assert "day_labels" in heatmap_data
         assert len(heatmap_data["day_labels"]) == 7  # Days of week
-        print("✅ Heatmap")
+        logger.debug("✅ Heatmap")
 
         # 6. Plan vs Fact
         plan_fact = await auth_client.get("/api/v1/analytics/plan-fact?period=month")
         assert plan_fact.status_code == 200
-        print("✅ Plan vs fact")
+        logger.debug("✅ Plan vs fact")
 
-        print("\n" + "="*60)
-        print("🎉 ANALYTICS EXPLORATION TEST PASSED!")
-        print("   - All 6 analytics endpoints tested successfully")
-        print("="*60)
+        logger.debug("\n" + "="*60)
+        logger.debug("🎉 ANALYTICS EXPLORATION TEST PASSED!")
+        logger.debug("   - All 6 analytics endpoints tested successfully")
+        logger.debug("="*60)
 
 
 @pytest.mark.asyncio
@@ -477,10 +481,10 @@ class TestUserJourneyWithCenters:
         7. Verify center-based reporting
         """
 
-        print("\n🏁 USER JOURNEY WITH ЦФО/МВЗ TEST (Phase 2)")
+        logger.debug("\n🏁 USER JOURNEY WITH ЦФО/МВЗ TEST (Phase 2)")
 
         # ===== STEP 1: Create Financial Centers =====
-        print("\n💰 Step 1: Creating Financial Centers (ЦФО)...")
+        logger.debug("\n💰 Step 1: Creating Financial Centers (ЦФО)...")
 
         # Create multiple financial centers
         fc_cash = await auth_client.post(
@@ -497,10 +501,10 @@ class TestUserJourneyWithCenters:
         assert fc_bank.status_code == 201
         fc_bank_id = fc_bank.json()["id"]
 
-        print(f"✅ Created 2 Financial Centers (Cash, Bank)")
+        logger.debug("✅ Created 2 Financial Centers (Cash, Bank)")
 
         # ===== STEP 2: Create Cost Centers =====
-        print("\n🏢 Step 2: Creating Cost Centers (МВЗ)...")
+        logger.debug("\n🏢 Step 2: Creating Cost Centers (МВЗ)...")
 
         cc_personal = await auth_client.post(
             "/api/v1/cost-centers",
@@ -516,10 +520,10 @@ class TestUserJourneyWithCenters:
         assert cc_family.status_code == 201
         cc_family_id = cc_family.json()["id"]
 
-        print(f"✅ Created 2 Cost Centers (Personal, Family)")
+        logger.debug("✅ Created 2 Cost Centers (Personal, Family)")
 
         # ===== STEP 3: Create Budget Categories =====
-        print("\n📂 Step 3: Creating budget categories...")
+        logger.debug("\n📂 Step 3: Creating budget categories...")
 
         # Income
         income_response = await auth_client.post(
@@ -541,10 +545,10 @@ class TestUserJourneyWithCenters:
         )
         transport_id = transport_response.json()["id"]
 
-        print(f"✅ Created 3 categories (Salary, Food, Transport)")
+        logger.debug("✅ Created 3 categories (Salary, Food, Transport)")
 
         # ===== STEP 4: Add Transactions with Center Assignments =====
-        print("\n💳 Step 4: Adding transactions with ЦФО/МВЗ assignments...")
+        logger.debug("\n💳 Step 4: Adding transactions with ЦФО/МВЗ assignments...")
 
         today = date.today()
 
@@ -562,7 +566,7 @@ class TestUserJourneyWithCenters:
         )
         assert income_fact.status_code == 201
         income_fact_id = income_fact.json()["id"]
-        print(f"✅ Added income (Bank + Personal)")
+        logger.debug("✅ Added income (Bank + Personal)")
 
         # Food expense from cash, family budget
         food_fact1 = await auth_client.post(
@@ -577,7 +581,7 @@ class TestUserJourneyWithCenters:
             }
         )
         assert food_fact1.status_code == 201
-        print(f"✅ Added food expense (Cash + Family)")
+        logger.debug("✅ Added food expense (Cash + Family)")
 
         # Food expense from bank, personal budget
         food_fact2 = await auth_client.post(
@@ -592,7 +596,7 @@ class TestUserJourneyWithCenters:
             }
         )
         assert food_fact2.status_code == 201
-        print(f"✅ Added food expense (Bank + Personal)")
+        logger.debug("✅ Added food expense (Bank + Personal)")
 
         # Transport expense from bank, family budget
         transport_fact = await auth_client.post(
@@ -607,7 +611,7 @@ class TestUserJourneyWithCenters:
             }
         )
         assert transport_fact.status_code == 201
-        print(f"✅ Added transport expense (Bank + Family)")
+        logger.debug("✅ Added transport expense (Bank + Family)")
 
         # Transaction without centers (backward compatibility)
         food_fact3 = await auth_client.post(
@@ -620,10 +624,10 @@ class TestUserJourneyWithCenters:
             }
         )
         assert food_fact3.status_code == 201
-        print(f"✅ Added transaction without centers (backward compatible)")
+        logger.debug("✅ Added transaction without centers (backward compatible)")
 
         # ===== STEP 5: Update Center Assignments =====
-        print("\n🔄 Step 5: Updating center assignments...")
+        logger.debug("\n🔄 Step 5: Updating center assignments...")
 
         # Change income from Personal to Family budget
         update_response = await auth_client.put(
@@ -640,48 +644,48 @@ class TestUserJourneyWithCenters:
         assert update_response.status_code == 200
         updated_fact = update_response.json()
         assert updated_fact["cost_center_id"] == cc_family_id
-        print(f"✅ Updated income: Personal → Family budget")
+        logger.debug("✅ Updated income: Personal → Family budget")
 
         # ===== STEP 6: View Analytics Filtered by Centers =====
-        print("\n📊 Step 6: Viewing analytics filtered by centers...")
+        logger.debug("\n📊 Step 6: Viewing analytics filtered by centers...")
 
         # Filter by Cash ЦФО (should show 1 transaction: 150)
         breakdown_cash = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={fc_cash_id}"
         )
         assert breakdown_cash.status_code == 200
-        print(f"✅ Category breakdown filtered by Cash ЦФО")
+        logger.debug("✅ Category breakdown filtered by Cash ЦФО")
 
         # Filter by Bank ЦФО (should show 3 transactions: 80 + 50 + 30 = 160, or 80 + 50 = 130 if no-center excluded)
         breakdown_bank = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={fc_bank_id}"
         )
         assert breakdown_bank.status_code == 200
-        print(f"✅ Category breakdown filtered by Bank ЦФО")
+        logger.debug("✅ Category breakdown filtered by Bank ЦФО")
 
         # Filter by Personal МВЗ (should show 1 transaction: 80)
         breakdown_personal = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&cost_center_id={cc_personal_id}"
         )
         assert breakdown_personal.status_code == 200
-        print(f"✅ Category breakdown filtered by Personal МВЗ")
+        logger.debug("✅ Category breakdown filtered by Personal МВЗ")
 
         # Filter by Family МВЗ (should show 2 transactions: 150 + 50 = 200)
         breakdown_family = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&cost_center_id={cc_family_id}"
         )
         assert breakdown_family.status_code == 200
-        print(f"✅ Category breakdown filtered by Family МВЗ")
+        logger.debug("✅ Category breakdown filtered by Family МВЗ")
 
         # Filter by both ЦФО and МВЗ (should show 1 transaction: 150)
         breakdown_both = await auth_client.get(
             f"/api/v1/analytics/category-breakdown?type=expense&period=month&financial_center_id={fc_cash_id}&cost_center_id={cc_family_id}"
         )
         assert breakdown_both.status_code == 200
-        print(f"✅ Category breakdown filtered by both Cash ЦФО + Family МВЗ")
+        logger.debug("✅ Category breakdown filtered by both Cash ЦФО + Family МВЗ")
 
         # ===== STEP 7: Verify Center-Based Reporting =====
-        print("\n📈 Step 7: Verifying center-based reporting...")
+        logger.debug("\n📈 Step 7: Verifying center-based reporting...")
 
         # Get all facts and verify center assignments
         all_facts = await auth_client.get("/api/v1/facts")
@@ -698,41 +702,41 @@ class TestUserJourneyWithCenters:
         family_count = sum(1 for f in facts_data if f.get("cost_center_id") == cc_family_id)
         no_cc_count = sum(1 for f in facts_data if f.get("cost_center_id") is None)
 
-        print(f"✅ Center distribution verified:")
-        print(f"   - ЦФО: Cash={cash_count}, Bank={bank_count}, None={no_fc_count}")
-        print(f"   - МВЗ: Personal={personal_count}, Family={family_count}, None={no_cc_count}")
+        logger.debug("✅ Center distribution verified:")
+        logger.debug(f"   - ЦФО: Cash={cash_count}, Bank={bank_count}, None={no_fc_count}")
+        logger.debug(f"   - МВЗ: Personal={personal_count}, Family={family_count}, None={no_cc_count}")
 
         # Verify backward compatibility (transaction without centers exists)
         assert no_fc_count >= 1
         assert no_cc_count >= 1
-        print(f"✅ Backward compatibility verified (transactions without centers work)")
+        logger.debug("✅ Backward compatibility verified (transactions without centers work)")
 
         # ===== STEP 8: Test Waterfall with Center Filters =====
-        print("\n📊 Step 8: Testing advanced analytics with center filters...")
+        logger.debug("\n📊 Step 8: Testing advanced analytics with center filters...")
 
         # Waterfall filtered by ЦФО
         waterfall_cash = await auth_client.get(
             f"/api/v1/analytics/waterfall?period=month&financial_center_id={fc_cash_id}"
         )
         if waterfall_cash.status_code == 200:
-            print(f"✅ Waterfall chart accepts ЦФО filter")
+            logger.debug("✅ Waterfall chart accepts ЦФО filter")
         else:
-            print(f"⚠️  Waterfall filtering by ЦФО not fully implemented")
+            logger.debug("⚠️  Waterfall filtering by ЦФО not fully implemented")
 
         # Heatmap filtered by МВЗ
         heatmap_family = await auth_client.get(
             f"/api/v1/analytics/heatmap?period=month&cost_center_id={cc_family_id}"
         )
         if heatmap_family.status_code == 200:
-            print(f"✅ Heatmap accepts МВЗ filter")
+            logger.debug("✅ Heatmap accepts МВЗ filter")
         else:
-            print(f"⚠️  Heatmap filtering by МВЗ not fully implemented")
+            logger.debug("⚠️  Heatmap filtering by МВЗ not fully implemented")
 
-        print("\n" + "="*60)
-        print("🎉 USER JOURNEY WITH ЦФО/МВЗ TEST PASSED!")
-        print("   - Phase 2 integration fully verified")
-        print("   - Financial Centers (ЦФО) working correctly")
-        print("   - Cost Centers (МВЗ) working correctly")
-        print("   - Analytics filtering operational")
-        print("   - Backward compatibility maintained")
-        print("="*60)
+        logger.debug("\n" + "="*60)
+        logger.debug("🎉 USER JOURNEY WITH ЦФО/МВЗ TEST PASSED!")
+        logger.debug("   - Phase 2 integration fully verified")
+        logger.debug("   - Financial Centers (ЦФО) working correctly")
+        logger.debug("   - Cost Centers (МВЗ) working correctly")
+        logger.debug("   - Analytics filtering operational")
+        logger.debug("   - Backward compatibility maintained")
+        logger.debug("="*60)

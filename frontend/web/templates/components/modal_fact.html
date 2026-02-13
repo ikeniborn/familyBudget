@@ -1,0 +1,72 @@
+{% macro modal_fact(modal_id='modal_fact') %}
+<dialog id="{{ modal_id }}" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 max-h-[90vh] overflow-y-auto my-auto">
+
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base sm:text-lg font-semibold">➕ Добавить факт</h2>
+            <span class="badge badge-sm badge-primary">Факт</span>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div role="tablist" class="tabs tabs-boxed mb-3" id="{{ modal_id }}-tabs">
+            <input type="radio" name="{{ modal_id }}_tabs" role="tab"
+                   class="tab" aria-label="Расход/Доход"
+                   data-tab="transaction" checked />
+            <input type="radio" name="{{ modal_id }}_tabs" role="tab"
+                   class="tab" aria-label="Перевод"
+                   data-tab="transfer" />
+        </div>
+
+        <form id="form_{{ modal_id }}" class="space-y-2">
+            <!-- Hidden fields -->
+            <input type="hidden" name="context" value="fact" />
+            <input type="hidden" name="active_tab" id="{{ modal_id }}-active-tab" value="transaction" />
+
+            <!-- Skeleton Loader -->
+            <div id="{{ modal_id }}-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-10 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-20 w-full"></div>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div id="{{ modal_id }}-form-fields">
+                <!-- Transaction Tab -->
+                <div id="{{ modal_id }}-tab-transaction" class="tab-content" data-tab="transaction">
+                    {% include "components/tabs/fact_transaction_tab.html" %}
+                </div>
+
+                <!-- Transfer Tab -->
+                <div id="{{ modal_id }}-tab-transfer" class="tab-content hidden" data-tab="transfer">
+                    {% include "components/tabs/fact_transfer_tab.html" %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="modal-action mt-3">
+                <button type="button" onclick="document.getElementById('{{ modal_id }}').close()" class="btn btn-sm btn-ghost">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Отмена
+                </button>
+                <button type="button" class="btn btn-sm btn-primary"
+                        data-form-id="form_{{ modal_id }}"
+                        data-modal-id="{{ modal_id }}"
+                        onclick="saveFactModal(this)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Сохранить
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop"></form>
+</dialog>
+{% endmacro %}

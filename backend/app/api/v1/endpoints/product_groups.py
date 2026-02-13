@@ -23,8 +23,6 @@ import logging
 from datetime import datetime
 from typing import Annotated
 
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +47,8 @@ from backend.app.services.product_group_service import (
 )
 from backend.app.services.scd2_service import has_changes
 from backend.app.services.store_service import FAR_FUTURE_DATETIME
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/product-groups",
@@ -89,7 +89,7 @@ async def list_product_groups(
 
     # Filter archived if not explicitly requested
     if not include_inactive:
-        conditions.append(ProductGroup.is_active == True)
+        conditions.append(ProductGroup.is_active)
 
     # Filter by parent_id
     if parent_id is not None:

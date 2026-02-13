@@ -7,25 +7,230 @@ Use these files to understand component relationships when planning changes or o
 
 | Directory | Description | Files |
 |-----------|-------------|-------|
-| [functionality/](./functionality/) | Business logic modules | 13 |
-| [web/](./web/) | Frontend components | 5 |
-| [endpoints/](./endpoints/) | API endpoints | 13 |
-| [database/](./database/) | Database objects | 9 |
+| **[📊 diagrams/](../diagrams/)** | **Mermaid architecture diagrams (system, auth, DB, flows, security)** | **10** |
+| [core/](./core/) | Core architecture concepts (authentication, PWA, websocket, etc.) | 6 |
+| [features/](./features/) | Feature documentation (transfers, recurring plans, notifications, etc.) | 8 |
+| [frontend/](./frontend/) | Frontend architecture (responsive design, z-index, modals, etc.) | 9 |
+| [backend/](./backend/) | Backend components (database schemas, API endpoints) | 28 YAML |
+| [operations/](./operations/) | DevOps & operational guides (CI/CD, deployment, troubleshooting) | 8 |
+| [optimization/](./optimization/) | Optimization strategies (cache busting, caching, resilience) | 3 |
+| [migrations/](./migrations/) | Historical migrations (ES Modules, Dexie rollback) | 2 |
+| [patterns/](./patterns/) | Development patterns (retry pattern) | 1 |
+| [security/](./security/) | Security best practices (logging) | 1 |
 | [flows/](./flows/) | Data flow diagrams | 6 |
-| [guides/](./guides/) | Development guides | 7 |
+| [functionality/](./functionality/) | Business logic modules | 15 |
+| [web/](./web/) | Frontend components | 5 |
+| [guides/](./guides/) | Development guides (YAML files) | 5 YAML |
 
-**Total: 56 files + 4 architecture docs**
+**Total: ~100 files (49 markdown + 51 YAML)**
+
+### Visual Architecture (Mermaid Diagrams) 🆕
+
+**See [diagrams/README.md](../diagrams/README.md) for comprehensive visual architecture**
+
+| Diagram | Description |
+|---------|-------------|
+| [01. System Overview](../diagrams/01-system-overview.md) | C4 Context Diagram - components and integrations |
+| [02. Authentication Flows](../diagrams/02-authentication-flows.md) | Telegram OAuth, Email+2FA, JWT, WebAuthn |
+| [03. Database Schema](../diagrams/03-database-schema.md) | 39 tables, Star Schema, Closure Table, SCD Type 2 |
+| [04. Data Flows](../diagrams/04-data-flows.md) | Transactions, offline sync, transfers, WebSocket |
+| [05. Frontend Architecture](../diagrams/05-frontend-architecture.md) | Components, modals, Service Worker, Dexie.js |
+| [06. Backend API](../diagrams/06-backend-api.md) | REST endpoints, middleware, security layers |
+| [07. CI/CD Pipeline](../diagrams/07-cicd-pipeline.md) | GitHub Actions → Docker → Deployment |
+| [08. Features Map](../diagrams/08-features-map.md) | Feature dependencies and interactions |
+| [09. Offline Architecture](../diagrams/09-offline-architecture.md) | NetworkDetector, sync queue, conflict resolution |
+| [10. Security Architecture](../diagrams/10-security-architecture.md) | Middleware chain, 2FA, rate limiting |
 
 ### Core Architecture Documents
 
 | Document | Description |
 |----------|-------------|
-| [backup-system.md](./backup-system.md) | Backup system architecture (local + S3) |
-| [bulk-delete-optimization.md](./bulk-delete-optimization.md) | Bulk delete optimization & WebSocket summary events (v6.6.0) |
-| [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
-| [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
+| [core/authentication.md](./core/authentication.md) | JWT auth, Telegram OAuth, WebAuthn biometrics |
+| [core/pwa.md](./core/pwa.md) | PWA, offline support, Service Worker |
+| [core/dexie-integration.md](./core/dexie-integration.md) | Dexie.js offline mode (v11.0+) |
+| [core/websocket.md](./core/websocket.md) | Real-time updates, Redis Pub/Sub |
+| [core/build-system.md](./core/build-system.md) | Build pipeline, TypeScript, Vite |
+| [core/docker.md](./core/docker.md) | Docker multi-stage builds (5 images) |
+
+### Feature Documentation
+
+| Document | Description |
+|----------|-------------|
+| [features/transfers-system.md](./features/transfers-system.md) | Transfer deduplication, double-entry bookkeeping |
+| [features/recurring-plans.md](./features/recurring-plans.md) | Recurring payments (MMDD encoding) |
+| [features/notifications.md](./features/notifications.md) | Web Push + Telegram notifications |
+| [features/backup-system.md](./features/backup-system.md) | Backup + restore system |
+| [features/bulk-delete-optimization.md](./features/bulk-delete-optimization.md) | Bulk operations, WebSocket summary |
+| [features/admin-setup.md](./features/admin-setup.md) | Admin user setup |
+| [features/welcome-notification.md](./features/welcome-notification.md) | Welcome notifications |
+| [features/import-wizard.md](./features/import-wizard.md) | Import wizard |
+
+### Operations & DevOps
+
+| Document | Description |
+|----------|-------------|
+| [operations/ci-cd-build-deploy.md](./operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 |
+| [operations/deployment-troubleshooting.md](./operations/deployment-troubleshooting.md) | Deployment issues |
+| [operations/disaster-recovery.md](./operations/disaster-recovery.md) | Disaster recovery |
+| [operations/backup-operations.md](./operations/backup-operations.md) | Backup procedures |
+| [operations/versioning.md](./operations/versioning.md) | Version management |
 
 ## Recent Changes
+
+### 2026-01-22: API Replacement with PGlite-First Architecture (task-015) ⭐ MAJOR
+
+- **Change:** Complete migration from REST API to PGlite-first architecture
+- **Achievement:**
+  - ✅ **80-96% API call reduction** across all modules
+  - ✅ **50% faster dashboard** (500ms → 250ms)
+  - ✅ **Full offline functionality** with automatic sync
+  - ✅ **Zero breaking changes** - seamless migration
+- **Modules Migrated:**
+  - Shopping Lists: 90%+ API reduction (read + write via pending queue)
+  - Facts: 85%+ API reduction (read + write via pending queue)
+  - Recurring Plans: 80%+ API reduction (read-only cache)
+  - Dashboard: 95%+ API reduction
+  - Reference Data: 100% PGlite (Articles, Financial Centers, Cost Centers)
+- **New Components:**
+  - **DataLayer** - Unified data access with PGlite-first + API fallback
+  - **PerformanceMonitor** - Module breakdown, bandwidth tracking
+  - **PGlite Diagnostic Modal** - API reduction visualization
+- **Schema Updates:**
+  - v4: Recurring Plans schema with sync metadata
+- **Documentation:**
+  -  - Complete architecture guide
+  - [api-replacement-guide.md](../development/api-replacement-guide.md) - Developer guide
+  - [offline-mode.md](../guides/offline-mode.md) - User guide (v2.0)
+  - [task-015-validation.md](../testing/task-015-validation.md) - Testing checklist (66 tests)
+- **Testing:**
+  - Integration test suite with 40+ test cases
+  - Manual validation checklist (66 tests)
+  - Performance validation: ≥80% reduction target
+
+---
+
+### 2026-01-21: Registry-First CI/CD Architecture (v9.0.0) ⭐ BREAKING
+
+- **Change:** Complete CI/CD pipeline redesign - all builds moved to GitHub Actions
+- **Breaking Changes:**
+  - ❌ Removed: Local builds on server (build mode)
+  - ❌ Removed: npm/Node.js requirement on server
+  - ❌ Removed: Multiple image tags (test, sha-*, latest)
+  - ✅ Added: 5 custom Docker images (backend, bot, nginx, redis, postgresql)
+  - ✅ Added: Semver-only tags (e.g., 6.6.0)
+  - ✅ Added: Automatic image cleanup (7 days retention)
+  - ✅ Added: Selective rebuilding via IMAGE_VERSIONS.json
+- **Impact:**
+  - Deployment time: **ALWAYS 2-3 min** (pull only, no builds)
+  - Server requirements: **No npm/Node.js needed**
+  - Registry: All images in ghcr.io
+  - Build: GitHub Actions CI/CD only
+- **Documentation:**
+  - [ci-cd-build-deploy.md](./operations/ci-cd-build-deploy.md) - Complete v9.0 guide
+  - [docker.md](./core/docker.md) - Multi-stage Dockerfiles
+  - [CI-CD-REGISTRY-SUMMARY.md](../../CI-CD-REGISTRY-SUMMARY.md) - Migration guide
+- **Skills:**
+  - Updated: deploy-test, deploy-prod (v9.0.0)
+
+---
+
+### 2026-01-26: deploy.sh Registry-First Refactoring (v9.0)
+
+**Изменения**:
+- ❌ Удалена функция `repair_npm_environment()` - npm не требуется на production
+- ❌ Удалена функция `validate_build_artifacts()` - артефакты в Docker образах
+- ❌ Удалена синхронизация package.json и npm install на сервере
+- ❌ Удалена логика локальной сборки Docker образов (--build flag)
+- ✅ Обновлены комментарии - убраны упоминания о build mode
+- ✅ Документация обновлена для Registry-First архитектуры
+
+**Граф зависимостей (Server Deployment)**:
+
+СТАРЫЙ (v8.x):
+```
+git pull → npm install → npm build → docker build → docker up → migrations
+```
+
+НОВЫЙ (v9.0):
+```
+git pull → docker pull (ghcr.io) → docker up → migrations
+```
+
+**Время деплоя**:
+- v8.x: 5-7 минут (с build)
+- v9.0: 2-3 минуты (только pull)
+
+**Файлы**:
+- `deploy.sh` - удалено ~240 строк legacy кода
+- `scripts/lib/services.sh` - упрощена логика docker compose
+- 4 файла документации обновлены
+
+**См. также**:
+- docs/architecture/ci-cd-build-deploy.md (Server Deployment Process)
+- docs/architecture/guides/deployment-troubleshooting.md (Registry-First Troubleshooting)
+
+---
+
+### 2026-01-19: Base Template Modular Decomposition (v7.x)
+- **Change:** Декомпозиция base.html на модульные компоненты
+- **Problem:**
+  - base.html монолитный файл 2884 строк (135 KB)
+  - Сложность поддержки и навигации по коду
+  - Дублирование User dropdown (desktop/mobile)
+  - 50+ вызовов getElementById без кэширования
+  - Inline CSS/JS усложняют кэширование браузером
+- **Solution:**
+  1. **JavaScript модули** (`templates/scripts/`):
+     - toast-manager.html (176 строк) - showToast(), showToastWithAction()
+     - service-worker-registration.html (436 строк) - PWA Service Worker
+     - offline-manager-init.html (220 строк) - Offline режим
+     - push-bell-manager.html (40 строк) - Push notifications
+     - navbar-sync-badge.html (115 строк) - Sync badge
+     - pwa-splash-screen.html (134 строки) - PWA Splash
+  2. **Компоненты** (`templates/components/`):
+     - user_dropdown_menu.html - Единый macro (desktop/mobile)
+     - cookie_consent_banner.html - GDPR consent
+     - push_permission_banner.html - Push permission
+     - sw_update_modal.html - SW update modal
+  3. **Partials** (`templates/partials/`):
+     - navbar_center_menu.html (56 строк) - Desktop navbar
+  4. **CSS модули** (`static/css/`):
+     - loading-dots.css - Loading animation (минифицируется через build)
+     - daisyui-overrides.css секция 10 - Modal & iOS Safari fixes
+  5. **Build Pipeline:**
+     - Добавлен loading-dots.css в scripts/minify-vendor.js
+     - Автоматическая минификация через npm run build:vendor
+- **Critical Loading Order:**
+  1. toast-manager.html (ПЕРВЫМ!)
+  2. service-worker-registration.html (использует showToast)
+  3. offline-manager-init.html + push-bell-manager.html + navbar-sync-badge.html
+  4. pwa-splash-screen.html
+- **What Stays Inline:**
+  - Dark Mode IIFE (FOUC prevention)
+  - handleLogout() (onclick в HTML navbar)
+  - setButtonLoading() (утилита для handleLogout)
+  - updateRealVH() (iOS Safari viewport fix)
+  - PWA Splash Screen CSS (критичен для Fast First Paint)
+- **Files Modified:**
+  - `frontend/web/templates/base.html` (2884 → 1355 строк, сокращение на 53%)
+  - `scripts/minify-vendor.js` (+loading-dots.css в CSS_FILES)
+  - `frontend/web/static/css/daisyui-overrides.css` (+секция 10)
+- **Files Created:**
+  - 6 JavaScript модулей в `templates/scripts/`
+  - 4 компонента в `templates/components/`
+  - 1 partial в `templates/partials/`
+  - 1 CSS модуль в `static/css/`
+  - 1 документация `docs/architecture/frontend/base-template-structure.md`
+- **Impact:**
+  - ✅ Улучшена читаемость base.html (1355 строк vs 2884, сокращение на 53%)
+  - ✅ Устранено дублирование User dropdown (desktop/mobile)
+  - ✅ Модульные компоненты переиспользуемы в других layouts
+  - ✅ CSS модули кэшируются браузером (loading-dots.min.css)
+  - ✅ Performance не ухудшен (критический CSS/JS остается inline)
+  - ✅ Обратная совместимость: 0 изменений в дочерних шаблонах
+  - ✅ Строгий порядок загрузки модулей предотвращает ReferenceError
+  - ✅ Автоматическая сборка vendor файлов при deploy (npm run build:prod)
+  - ✅ Все templates синхронизируются через rsync (scripts/, components/, partials/)
 
 ### 2026-01-18: Deploy Improvements - HTML Templates Checksum & Sync Verification (v7.x)
 - **Change:** Improved deployment reliability for inline CSS/JS changes in HTML templates
@@ -151,6 +356,33 @@ Use these files to understand component relationships when planning changes or o
   - Removed: `frontend/web/static/js/transfer.js`
 - **Documentation:** [transfers-module.md](./transfers-module.md)
 - **See:** Branch `dev/transfer_ts_migration_20260115091447`
+
+### 2026-02-08: Fix Recurring Plans Date Validation 422 Error (v11.4.8)
+- **Change:** Added comprehensive date validation for recurring plans list endpoint query parameters
+- **Problem:** HTTP 422 validation error when syncing recurring plans with date filters from frontend
+  - Frontend calculates date range (today ± 90 days) and passes to API: `from_date=2025-11-09&to_date=2026-05-08`
+  - Backend `datetime.strptime()` raised `ValueError` for invalid date formats, not handled → HTTP 500
+  - No validation for date logic (`from_date <= to_date`) at API layer
+  - Frontend Dexie sync crashed silently on 422 errors without detailed logging
+- **Solution:**
+  - Created Pydantic model `RecurringPlanListParams` with date format validation (pattern: `^\d{4}-\d{2}-\d{2}$`)
+  - Added `@field_validator` to check `from_date <= to_date` logic
+  - Implemented `_parse_date_safe()` helper function that catches `ValueError` → HTTP 422 with clear message
+  - Replaced all 6 `strptime()` calls in `recurring_plan_service.py` with `_parse_date_safe()`
+  - Enhanced frontend logging for 422 errors in `referenceSync.ts` (logs date params + error response)
+- **Impact:**
+  - ✅ Fixes stable 422 error when syncing recurring plans with past dates
+  - ✅ Clear validation error messages for invalid date formats (e.g., "2025/11/09" → "Use YYYY-MM-DD")
+  - ✅ Prevents `from_date > to_date` logic errors at API layer
+  - ✅ Better debugging: frontend logs date params when 422 occurs
+  - ✅ Graceful degradation: invalid requests return 422 instead of 500
+- **Files Modified:**
+  - `backend/app/api/v1/endpoints/recurring_plans.py` - Added `RecurringPlanListParams` Pydantic model
+  - `backend/app/services/recurring_plan_service.py` - Added `_parse_date_safe()`, replaced 6 strptime calls
+  - `backend/tests/api/test_recurring_plans_date_validation.py` - 7 unit tests for date validation scenarios
+  - `frontend/shared/db/dexie/operations/referenceSync.ts` - Enhanced 422 error logging
+- **Tests:** 7 new unit tests covering invalid format, date logic, past dates, partial filters
+- **See:** Commit `a31a2153` in branch `dev/fix-recurring-plans-422_20260208193000`
 
 ### 2026-01-14: Fix Recurring Plans 422 Error (v7.x.x)
 - **Change:** Added missing reminder fields (`enable_reminder`, `reminder_hour`, `reminder_minute`) to GET `/api/v1/recurring-plans/` response

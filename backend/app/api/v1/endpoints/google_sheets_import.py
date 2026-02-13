@@ -9,7 +9,6 @@ Usage:
     Request:  {"google_sheets_url": "https://docs.google.com/spreadsheets/d/..."}
     Response: {"file_content": "base64_csv", "spreadsheet_id": "...", "sheet_gid": "..."}
 """
-
 import base64
 import logging
 

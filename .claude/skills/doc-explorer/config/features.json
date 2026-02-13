@@ -1,0 +1,267 @@
+{
+  "description": "Available features for deep dive learning",
+  "version": "1.0.0",
+  "features": [
+    {
+      "id": "transfers",
+      "name": "Transfer System",
+      "category": "backend",
+      "difficulty": "medium",
+      "duration_min": 20,
+      "description": "Transfer deduplication with double-entry bookkeeping",
+      "key_concepts": [
+        "Transfer deduplication algorithm",
+        "Double-entry bookkeeping",
+        "Atomic transactions",
+        "Transfer ID matching"
+      ],
+      "docs": [
+        "docs/architecture/features/transfers-system.md",
+        "docs/architecture/endpoints/transfers.yaml",
+        "docs/architecture/flows/transfer-creation.yaml"
+      ],
+      "code_examples": [
+        {
+          "file": "backend/app/services/transfer_service.py",
+          "lines": "45-120",
+          "description": "Transfer creation with deduplication"
+        },
+        {
+          "file": "backend/app/api/v1/endpoints/transfers.py",
+          "lines": "25-60",
+          "description": "POST /transfers endpoint"
+        }
+      ],
+      "quiz_questions": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "recurring-plans",
+      "name": "Recurring Plans",
+      "category": "backend",
+      "difficulty": "medium",
+      "duration_min": 15,
+      "description": "Recurring payments with MMDD encoding",
+      "key_concepts": [
+        "MMDD encoding for dates",
+        "Plan execution scheduling",
+        "Date validation (e.g., 0229 only in leap years)",
+        "Telegram bot integration"
+      ],
+      "docs": [
+        "docs/architecture/features/recurring-plans.md",
+        "docs/architecture/endpoints/recurring-plans.yaml"
+      ],
+      "code_examples": [
+        {
+          "file": "backend/app/models/recurring_plan.py",
+          "lines": "10-50",
+          "description": "RecurringPlan model with MMDD validation"
+        },
+        {
+          "file": "backend/app/services/recurring_plan_service.py",
+          "lines": "80-150",
+          "description": "Date validation logic"
+        }
+      ],
+      "quiz_questions": [
+        4,
+        5
+      ]
+    },
+    {
+      "id": "offline-sync",
+      "name": "Offline Sync",
+      "category": "frontend",
+      "difficulty": "hard",
+      "duration_min": 30,
+      "description": "Offline-first architecture with Dexie.js",
+      "key_concepts": [
+        "Dexie.js IndexedDB wrapper",
+        "Offline sync queue",
+        "Conflict resolution",
+        "Network detection",
+        "PGlite integration (80-96% API reduction)"
+      ],
+      "docs": [
+        "docs/architecture/core/dexie-integration.md",
+        "docs/architecture/flows/offline-sync.yaml",
+        "docs/architecture/frontend/offline-architecture.md"
+      ],
+      "code_examples": [
+        {
+          "file": "frontend/web/static/js/offline/offlineManager.ts",
+          "lines": "1-200",
+          "description": "Offline manager with sync queue"
+        },
+        {
+          "file": "frontend/web/static/js/offline/networkDetector.ts",
+          "lines": "1-100",
+          "description": "Network status detection"
+        }
+      ],
+      "quiz_questions": [
+        6,
+        7,
+        8
+      ]
+    },
+    {
+      "id": "websocket",
+      "name": "WebSocket Real-Time",
+      "category": "full-stack",
+      "difficulty": "medium",
+      "duration_min": 20,
+      "description": "Real-time updates via WebSocket + Redis Pub/Sub",
+      "key_concepts": [
+        "WebSocket connection management",
+        "Redis Pub/Sub for multi-worker",
+        "Event broadcasting",
+        "Client-side event handling"
+      ],
+      "docs": [
+        "docs/architecture/core/websocket.md",
+        "docs/architecture/flows/ws-broadcast.yaml",
+        "docs/architecture/functionality/realtime.yaml"
+      ],
+      "code_examples": [
+        {
+          "file": "backend/app/websocket.py",
+          "lines": "1-150",
+          "description": "BudgetConnectionManager"
+        },
+        {
+          "file": "frontend/web/static/js/budgetWSClient.js",
+          "lines": "1-200",
+          "description": "WebSocket client"
+        }
+      ],
+      "quiz_questions": [
+        9,
+        10
+      ]
+    },
+    {
+      "id": "authentication",
+      "name": "Authentication",
+      "category": "backend",
+      "difficulty": "medium",
+      "duration_min": 25,
+      "description": "JWT + Telegram OAuth + WebAuthn biometrics",
+      "key_concepts": [
+        "JWT token-based auth",
+        "Telegram OAuth flow",
+        "WebAuthn biometric authentication",
+        "Refresh token rotation"
+      ],
+      "docs": [
+        "docs/architecture/core/authentication.md",
+        "docs/diagrams/02-authentication-flows.md",
+        "docs/architecture/functionality/authentication.yaml"
+      ],
+      "code_examples": [
+        {
+          "file": "backend/app/api/v1/endpoints/auth.py",
+          "lines": "1-200",
+          "description": "Auth endpoints (login, refresh, logout)"
+        },
+        {
+          "file": "backend/app/services/auth_service.py",
+          "lines": "1-150",
+          "description": "JWT token generation and validation"
+        }
+      ],
+      "quiz_questions": [
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "id": "database-schema",
+      "name": "Database Schema",
+      "category": "backend",
+      "difficulty": "hard",
+      "duration_min": 30,
+      "description": "Star Schema with 39 tables (SCD Type 2, Closure Table)",
+      "key_concepts": [
+        "Star Schema design",
+        "Fact vs Dimension tables",
+        "SCD Type 2 versioning",
+        "Closure Table for hierarchy"
+      ],
+      "docs": [
+        "docs/diagrams/03-database-schema.md",
+        "docs/architecture/database/dimensions.yaml",
+        "docs/architecture/database/facts.yaml",
+        "docs/architecture/database/hierarchy.yaml"
+      ],
+      "code_examples": [
+        {
+          "file": "backend/app/models/article.py",
+          "lines": "1-80",
+          "description": "Article dimension model (SCD Type 2)"
+        },
+        {
+          "file": "backend/app/models/fact.py",
+          "lines": "1-100",
+          "description": "BudgetFact model"
+        }
+      ],
+      "quiz_questions": [
+        14,
+        15,
+        16
+      ]
+    }
+  ],
+  "categories": {
+    "backend": {
+      "name": "Backend Development",
+      "icon": "🔧",
+      "description": "FastAPI, PostgreSQL, business logic"
+    },
+    "frontend": {
+      "name": "Frontend Development",
+      "icon": "🎨",
+      "description": "HTMX, TypeScript, Dexie.js, PWA"
+    },
+    "full-stack": {
+      "name": "Full-Stack Features",
+      "icon": "🌐",
+      "description": "End-to-end features spanning frontend + backend"
+    }
+  },
+  "difficulty_levels": {
+    "easy": {
+      "name": "Easy",
+      "duration_range": "10-15 min",
+      "prerequisites": "Basic programming knowledge"
+    },
+    "medium": {
+      "name": "Medium",
+      "duration_range": "15-25 min",
+      "prerequisites": "Understand tech stack basics"
+    },
+    "hard": {
+      "name": "Hard",
+      "duration_range": "25-40 min",
+      "prerequisites": "Completed Quick Start + 2-3 medium features"
+    }
+  },
+  "toon": {
+    "features_toon": "features[6]{id,name,category,difficulty,duration_min,description,key_concepts,docs,code_examples,quiz_questions}:\ntransfers\tTransfer System\tbackend\tmedium\t20\tTransfer deduplication with double-entry bookkeeping\tTransfer deduplication algorithm|Double-entry bookkeeping|Atomic transactions|Transfer ID matching\tdocs/architecture/features/transfers-system.md|docs/architecture/endpoints/transfers.yaml|docs/architecture/flows/transfer-creation.yaml\t[object Object]|[object Object]\t1|2|3\nrecurring-plans\tRecurring Plans\tbackend\tmedium\t15\tRecurring payments with MMDD encoding\tMMDD encoding for dates|Plan execution scheduling|Date validation (e.g., 0229 only in leap years)|Telegram bot integration\tdocs/architecture/features/recurring-plans.md|docs/architecture/endpoints/recurring-plans.yaml\t[object Object]|[object Object]\t4|5\noffline-sync\tOffline Sync\tfrontend\thard\t30\tOffline-first architecture with Dexie.js\tDexie.js IndexedDB wrapper|Offline sync queue|Conflict resolution|Network detection|PGlite integration (80-96% API reduction)\tdocs/architecture/core/dexie-integration.md|docs/architecture/flows/offline-sync.yaml|docs/architecture/frontend/offline-architecture.md\t[object Object]|[object Object]\t6|7|8\nwebsocket\tWebSocket Real-Time\tfull-stack\tmedium\t20\tReal-time updates via WebSocket + Redis Pub/Sub\tWebSocket connection management|Redis Pub/Sub for multi-worker|Event broadcasting|Client-side event handling\tdocs/architecture/core/websocket.md|docs/architecture/flows/ws-broadcast.yaml|docs/architecture/functionality/realtime.yaml\t[object Object]|[object Object]\t9|10\nauthentication\tAuthentication\tbackend\tmedium\t25\tJWT + Telegram OAuth + WebAuthn biometrics\tJWT token-based auth|Telegram OAuth flow|WebAuthn biometric authentication|Refresh token rotation\tdocs/architecture/core/authentication.md|docs/diagrams/02-authentication-flows.md|docs/architecture/functionality/authentication.yaml\t[object Object]|[object Object]\t11|12|13\ndatabase-schema\tDatabase Schema\tbackend\thard\t30\tStar Schema with 39 tables (SCD Type 2, Closure Table)\tStar Schema design|Fact vs Dimension tables|SCD Type 2 versioning|Closure Table for hierarchy\tdocs/diagrams/03-database-schema.md|docs/architecture/database/dimensions.yaml|docs/architecture/database/facts.yaml|docs/architecture/database/hierarchy.yaml\t[object Object]|[object Object]\t14|15|16",
+    "token_savings": "62.2%",
+    "json_tokens": 1551,
+    "toon_tokens": 586,
+    "saved_tokens": 965
+  },
+  "metadata": {
+    "version": "1.1.0",
+    "last_updated": "2026-02-10",
+    "description": "Features catalog for doc-explorer with TOON optimization"
+  }
+}

@@ -1,0 +1,70 @@
+/**
+ * Z-Index Variables - Centralized Z-Index Management
+ *
+ * Family Budget App - v11.0+
+ *
+ * Purpose: Single source of truth for all z-index values.
+ * Usage: Use CSS custom properties (var(--z-*)) in component styles.
+ *
+ * Documentation: /docs/architecture/frontend/z-index-layering.md
+ * Last Updated: 2026-01-28
+ */
+
+:root {
+  /* ========================================
+   * Admin Layer (Emergency UI)
+   * ======================================== */
+  --z-admin: 99999;
+
+  /* ========================================
+   * Form Controls (Autocomplete, Calendars)
+   * ======================================== */
+  --z-autocomplete: 9999;   /* Choices.js, Flatpickr dropdowns */
+  --z-calendar-modal: 2000; /* Flatpickr in modal context */
+
+  /* ========================================
+   * Modal System
+   * ======================================== */
+  --z-dialog: 1050;         /* DaisyUI dialog/modal (critical) */
+  --z-modal-backdrop: 999;  /* Backdrop overlay (dimming) */
+  --z-modal: 900;           /* Standard modals */
+
+  /* ========================================
+   * FAB Navigation System
+   * ======================================== */
+  --z-fab-lists: 1003;      /* Lists page FAB main button (⋮) */
+  --z-fab-lists-menu: 1001; /* Lists page FAB menu items */
+  --z-fab-desktop: 1002;    /* Desktop FAB (≥1024px) - FIXED: was 1000, now above backdrop */
+  --z-fab-backdrop: 1000;   /* Desktop FAB backdrop (below modal backdrop 999) */
+  --z-fab-mobile: 40;       /* Mobile FAB (<1024px, below navbar) */
+
+  /* ========================================
+   * Toast Notifications
+   * ======================================== */
+  --z-toast: 1000;          /* User feedback toasts */
+
+  /* ========================================
+   * Navigation & Dropdowns
+   * ======================================== */
+  --z-dropdown: 60;         /* DaisyUI dropdown menus */
+  --z-navbar: 50;           /* Mobile bottom navbar */
+
+  /* ========================================
+   * Base Content Layer
+   * ======================================== */
+  --z-base: 1;              /* Default stacking context */
+}
+
+/**
+ * Migration Notes (v11.0):
+ *
+ * DEPRECATED:
+ * - .mobile-fab-wrapper (z-index: 998) - REMOVED
+ *
+ * REPLACED WITH:
+ * - .fab-wrapper (var(--z-fab-mobile) = 40)
+ *
+ * CENTRALIZED:
+ * - All hardcoded z-index values migrated to CSS variables
+ * - Update in :root, propagates to all components
+ */

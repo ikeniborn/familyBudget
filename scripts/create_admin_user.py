@@ -61,6 +61,18 @@ from backend.app.models.user import User
 from backend.app.services.password_service import hash_password, validate_password_strength, verify_password
 from backend.app.services.user_service import create_initial_history
 
+# Security utilities
+import hashlib
+
+
+def hash_email_for_logging(email: str) -> str:
+    """Hash email для безопасного логирования (первые 8 символов SHA256)."""
+    if not email:
+        return "empty_email"
+    normalized_email = email.lower().strip()
+    hash_obj = hashlib.sha256(normalized_email.encode('utf-8'))
+    return hash_obj.hexdigest()[:8]
+
 
 async def create_admin_user():
     """
@@ -95,7 +107,7 @@ async def create_admin_user():
         logger.error("[ADMIN_USER] Cannot connect to database")
         return 1
 
-    logger.info(f"[ADMIN_USER] Creating admin user: {admin_email}")
+    logger.info(f"[ADMIN_USER] Creating admin user: email_hash={hash_email_for_logging(admin_email)}")
 
     # =========================================================================
     # STEP 2: Validate Password Strength
@@ -103,7 +115,8 @@ async def create_admin_user():
 
     is_strong, error_message = validate_password_strength(admin_password)
     if not is_strong:
-        logger.error(f"[ADMIN_USER] Password validation failed: {error_message}")
+        # НЕ логируем сам error_message (может содержать части пароля)
+        logger.error("[ADMIN_USER] Password validation failed. Please check password requirements.")
         logger.error("[ADMIN_USER] Password requirements (OWASP 2023):")
         logger.error("[ADMIN_USER]   - Minimum 12 characters")
         logger.error("[ADMIN_USER]   - At least one uppercase letter (A-Z)")
@@ -136,13 +149,13 @@ async def create_admin_user():
 
             if existing_user:
                 logger.info(
-                    f"[ADMIN_USER] Admin user already exists: {admin_email}"
+                    f"[ADMIN_USER] Admin user already exists with user_id={existing_user.id}"
                 )
                 logger.info(
-                    f"[ADMIN_USER] User ID: {existing_user.id}, "
-                    f"is_admin: {existing_user.is_admin}, "
-                    f"is_active: {existing_user.is_active}, "
-                    f"two_factor_enabled: {existing_user.two_factor_enabled}"
+                    f"[ADMIN_USER] User flags: "
+                    f"is_admin={existing_user.is_admin}, "
+                    f"is_active={existing_user.is_active}, "
+                    f"two_factor_enabled={existing_user.two_factor_enabled}"
                 )
 
                 # Update admin flags if needed
@@ -166,7 +179,7 @@ async def create_admin_user():
 
                 if existing_user.two_factor_enabled:
                     logger.warning(
-                        f"[ADMIN_USER] User {admin_email} has 2FA enabled - "
+                        f"[ADMIN_USER] User user_id={existing_user.id} has 2FA enabled - "
                         f"disabling for admin bypass"
                     )
                     existing_user.two_factor_enabled = False
@@ -176,7 +189,7 @@ async def create_admin_user():
                 # (User may have changed password via web UI, so we check first)
                 if not verify_password(admin_password, existing_user.password_hash):
                     logger.info(
-                        f"[ADMIN_USER] Updating password for {admin_email} "
+                        f"[ADMIN_USER] Updating password for user_id={existing_user.id} "
                         f"(environment variable changed)"
                     )
                     existing_user.password_hash = hash_password(admin_password)
@@ -221,7 +234,6 @@ async def create_admin_user():
 
             logger.info("[ADMIN_USER] ✓ Admin user created successfully")
             logger.info(f"[ADMIN_USER] User ID: {admin_user.id}")
-            logger.info(f"[ADMIN_USER] Email: {admin_user.email}")
             logger.info(f"[ADMIN_USER] is_admin: {admin_user.is_admin}")
             logger.info(f"[ADMIN_USER] is_active: {admin_user.is_active}")
             logger.info(
@@ -243,7 +255,7 @@ async def create_admin_user():
                 "[ADMIN_USER] Admin can now login via:"
             )
             logger.info(
-                f"[ADMIN_USER]   - Email + Password: {admin_email} (bypasses 2FA)"
+                "[ADMIN_USER]   - Email + Password (provided during setup)"
             )
             if telegram_id:
                 logger.info(

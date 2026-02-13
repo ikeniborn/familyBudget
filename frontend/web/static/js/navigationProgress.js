@@ -1,6 +1,6 @@
 /**
- * Navigation Progress Module v4.0
- * Pre-fetch + Direct Navigation + Element Loading indicators
+ * Navigation Progress Module v4.1
+ * Pre-fetch + Direct Navigation + Element Loading + HTMX Widget Tracking
  *
  * Flow:
  * 1. Intercept link click/touch
@@ -9,21 +9,23 @@
  * 4. Pre-fetch page in background (warms HTTP cache)
  * 5. Wait for minimum display time (1.2 seconds)
  * 6. Navigate directly (instant load from HTTP cache)
+ * 7. NEW: Keep overlay visible until all HTMX hx-trigger="load" widgets complete
+ * 8. Smooth fade out (0.3s) after all widgets loaded
  *
- * Key improvements over v3.2:
- * - Instant visual feedback on clicked nav element
- * - Fade overlay with loading dots for content area
- * - Unified loading state for all nav-item elements
- * - Removed progress bar (replaced by fade overlay + dots)
+ * Key improvements over v4.0:
+ * - HTMX widget tracking - overlay stays until widgets loaded
+ * - Eliminates "flicker" from empty containers
+ * - Smoother 0.3s transition (was 0.15s)
+ * - Fallback timeout (5s) prevents infinite waiting
  *
- * @version 4.0.0
+ * @version 4.1.0
  */
 
 (function() {
     'use strict';
 
     // Defensive debugLog - prevent errors if not defined
-    var log = (typeof debugLog === 'function') ? debugLog : function() {};
+    const log = (typeof debugLog === 'function') ? debugLog : function() {};
 
     const NavigationProgress = {
         // DOM elements
@@ -41,6 +43,13 @@
         isNavigating: false,
         startTime: 0,
 
+        // HTMX Widget Tracking (v4.1)
+        htmxTrackingEnabled: false,
+        pendingHtmxRequests: 0,
+        htmxTrackingTimeout: null,
+        htmxSettleTimeout: 5000,    // Max 5 sec waiting for widgets
+        htmxSettleDelay: 150,       // Grace period after last settle
+
         /**
          * Initialize the navigation interceptor
          */
@@ -52,8 +61,9 @@
                 return;
             }
 
-            // Hide overlay on incoming navigation (page load)
-            this.hideFadeOverlay();
+            // v4.1: Don't hide overlay immediately - enable HTMX tracking instead
+            // Overlay will be hidden after all hx-trigger="load" widgets complete
+            this.enableHtmxTracking();
             this.clearElementLoading();
 
             // Intercept all clicks on document (capture phase)
@@ -66,7 +76,7 @@
                 log('[NavigationProgress] Safari PWA mode detected, touchend handler added');
             }
 
-            log('[NavigationProgress] v4.0 Initialized (Pre-fetch + Element Loading + Fade Overlay)');
+            log('[NavigationProgress] v4.1 Initialized (Pre-fetch + Element Loading + Fade Overlay + HTMX Tracking)');
         },
 
         /**
@@ -74,12 +84,12 @@
          */
         isSafariPWA() {
             // Check for iOS standalone mode
-            var isStandalone = window.navigator.standalone === true;
+            const isStandalone = window.navigator.standalone === true;
             // Check for display-mode: standalone
-            var isDisplayStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isDisplayStandalone = window.matchMedia('(display-mode: standalone)').matches;
             // Check for Safari
-            var isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
             return (isStandalone || isDisplayStandalone) && (isSafari || isIOS);
         },
@@ -91,12 +101,12 @@
             // Only process single touch
             if (event.changedTouches && event.changedTouches.length !== 1) return;
 
-            var touch = event.changedTouches ? event.changedTouches[0] : event;
-            var target = document.elementFromPoint(touch.clientX, touch.clientY);
+            const touch = event.changedTouches ? event.changedTouches[0] : event;
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
 
             if (!target) return;
 
-            var link = target.closest('a');
+            const link = target.closest('a');
             if (!this.shouldIntercept(link)) return;
 
             // Prevent default and handle navigation
@@ -111,7 +121,7 @@
             setTimeout(() => { this._touchHandled = false; }, 300);
 
             this.closeMobileMenu();
-            var href = link.getAttribute('href');
+            const href = link.getAttribute('href');
             this.navigateTo(href);
         },
 
@@ -345,6 +355,115 @@
         },
 
         /**
+         * Enable HTMX tracking for widget loading (v4.1)
+         * Keeps overlay visible until all hx-trigger="load" elements complete
+         */
+        enableHtmxTracking() {
+            // Check if HTMX available
+            if (typeof htmx === 'undefined') {
+                log('[NavigationProgress] HTMX not available, hiding overlay');
+                this.hideFadeOverlay();
+                return;
+            }
+
+            // Check if there are any hx-trigger="load" elements
+            const loadTriggerElements = document.querySelectorAll('[hx-trigger*="load"]');
+            if (loadTriggerElements.length === 0) {
+                log('[NavigationProgress] No HTMX load triggers, hiding overlay');
+                this.hideFadeOverlay();
+                return;
+            }
+
+            this.htmxTrackingEnabled = true;
+            this.pendingHtmxRequests = 0;
+
+            // Setup event listeners
+            document.body.addEventListener('htmx:beforeRequest', this._htmxBeforeRequest = this.handleHtmxBeforeRequest.bind(this));
+            document.body.addEventListener('htmx:afterSettle', this._htmxAfterSettle = this.handleHtmxAfterSettle.bind(this));
+
+            // Timeout fallback - don't wait forever
+            this.htmxTrackingTimeout = setTimeout(() => {
+                log('[NavigationProgress] HTMX tracking timeout, forcing hide');
+                this.completePageTransition();
+            }, this.htmxSettleTimeout);
+
+            log('[NavigationProgress] HTMX tracking enabled, found', loadTriggerElements.length, 'load triggers');
+        },
+
+        /**
+         * Handle htmx:beforeRequest - count pending requests
+         */
+        handleHtmxBeforeRequest(event) {
+            if (!this.htmxTrackingEnabled) return;
+
+            // Only track hx-trigger="load" requests
+            const trigger = event.detail?.elt?.getAttribute('hx-trigger');
+            if (!trigger || !trigger.includes('load')) return;
+
+            this.pendingHtmxRequests++;
+            log('[NavigationProgress] HTMX request started, pending:', this.pendingHtmxRequests);
+        },
+
+        /**
+         * Handle htmx:afterSettle - decrement counter
+         */
+        handleHtmxAfterSettle(event) {
+            if (!this.htmxTrackingEnabled) return;
+
+            // Only decrement for hx-trigger="load" requests
+            const trigger = event.detail?.elt?.getAttribute('hx-trigger');
+            if (!trigger || !trigger.includes('load')) return;
+
+            this.pendingHtmxRequests = Math.max(0, this.pendingHtmxRequests - 1);
+            log('[NavigationProgress] HTMX request settled, pending:', this.pendingHtmxRequests);
+
+            if (this.pendingHtmxRequests === 0) {
+                // Grace period for cascading requests
+                setTimeout(() => {
+                    if (this.pendingHtmxRequests === 0 && this.htmxTrackingEnabled) {
+                        this.completePageTransition();
+                    }
+                }, this.htmxSettleDelay);
+            }
+        },
+
+        /**
+         * Cleanup HTMX tracking state (v4.1)
+         * @private
+         */
+        _cleanupHtmxTracking() {
+            this.htmxTrackingEnabled = false;
+
+            // Clear timeout
+            if (this.htmxTrackingTimeout) {
+                clearTimeout(this.htmxTrackingTimeout);
+                this.htmxTrackingTimeout = null;
+            }
+
+            // Remove event listeners
+            if (this._htmxBeforeRequest) {
+                document.body.removeEventListener('htmx:beforeRequest', this._htmxBeforeRequest);
+                this._htmxBeforeRequest = null;
+            }
+            if (this._htmxAfterSettle) {
+                document.body.removeEventListener('htmx:afterSettle', this._htmxAfterSettle);
+                this._htmxAfterSettle = null;
+            }
+        },
+
+        /**
+         * Complete page transition - hide overlay smoothly (v4.1)
+         */
+        completePageTransition() {
+            if (!this.htmxTrackingEnabled) return;
+
+            this._cleanupHtmxTracking();
+            this.hideFadeOverlay();
+
+            log('[NavigationProgress] Page transition complete, all widgets loaded');
+        },
+
+        /**
          * Cancel current navigation
          */
         cancel() {
@@ -352,6 +471,12 @@
                 this.currentController.abort();
                 this.currentController = null;
             }
+
+            // v4.1: Also cancel HTMX tracking
+            if (this.htmxTrackingEnabled) {
+                this._cleanupHtmxTracking();
+            }
+
             this.hideFadeOverlay();
             this.clearElementLoading();
             this.isNavigating = false;
@@ -382,6 +507,7 @@
         // Reset navigation state
         if (window.NavigationProgress) {
             window.NavigationProgress.isNavigating = false;
+            window.NavigationProgress.htmxTrackingEnabled = false;  // v4.1
             window.NavigationProgress.hideFadeOverlay();
             window.NavigationProgress.clearElementLoading();
         }

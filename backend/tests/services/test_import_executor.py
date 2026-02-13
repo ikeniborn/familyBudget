@@ -4,11 +4,12 @@ Unit tests for ImportExecutor service.
 Tests import execution from staging to BudgetFact.
 """
 
-import pytest
 from decimal import Decimal
-from backend.app.services.import_executor import ImportExecutor
-from backend.app.models.import_staging import ImportStaging
 
+import pytest
+
+from backend.app.models.import_staging import ImportStaging
+from backend.app.services.import_executor import ImportExecutor
 
 # ============================================================================
 # parse_tinkoff_amount() Tests

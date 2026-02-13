@@ -1,0 +1,114 @@
+{#
+  PARTIAL: Initialization Script for Lists Page
+  Purpose: Load lists data, initialize managers, render views
+  Used in: lists.html (extra_scripts block)
+#}
+
+<script>
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Show Dexie initialization progress if enabled
+        let progressCheckInterval = null;
+        const showProgress = window.showDexieProgress || (() => {
+            console.debug('[LISTS_INIT] showDexieProgress not available, progress UI disabled');
+        });
+        const hideProgress = window.hideDexieProgress || (() => {
+            console.debug('[LISTS_INIT] hideDexieProgress not available');
+        });
+
+        if (localStorage.getItem('dexieActive') === 'true' &&
+            typeof showProgress === 'function' &&
+            typeof hideProgress === 'function') {
+            try {
+                // Listen to state changes via polling
+                // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
+                progressCheckInterval = setInterval(async () => {
+                    try {
+                        // Use window.Dexie IIFE global (loaded in base.html:459)
+                        const state = window.Dexie?.getState ? await window.Dexie.getState() : null;
+
+                        if (!state?.db) {
+                            console.warn('[LISTS_INIT] Dexie state not available yet');
+                            return;
+                        }
+
+                        const initStatus = state.db.initializationStatus;
+
+                        if (initStatus === 'initializing' || initStatus === 'validating') {
+                            // Show generic message (actual progress comes from progressCallback)
+                            showProgress({
+                                phase: 'Initializing',
+                                message: 'Загрузка данных...'
+                            });
+                        } else if (initStatus === 'ready') {
+                            hideProgress();
+                            clearInterval(progressCheckInterval);
+                        } else if (initStatus === 'error') {
+                            hideProgress();
+                            clearInterval(progressCheckInterval);
+                        }
+                    } catch (err) {
+                        console.warn('[LISTS_INIT] Progress check failed:', err);
+                    }
+                }, 500);
+
+                // Cleanup after 30 seconds (timeout)
+                setTimeout(() => {
+                    if (progressCheckInterval) {
+                        clearInterval(progressCheckInterval);
+                    }
+                }, 30000);
+            } catch (err) {
+                console.warn('[LISTS_INIT] Progress monitoring failed:', err);
+            }
+        }
+
+        // Scripts load synchronously - no polling needed
+        if (typeof window.loadShoppingLists !== 'function') {
+            console.error('[LISTS_INIT] ❌ Lists bundle failed to load');
+            console.error('[LISTS_INIT] Missing window exports:', {
+                loadShoppingLists: typeof window.loadShoppingLists,
+                initializeListsManager: typeof window.initializeListsManager,
+                showLandingView: typeof window.showLandingView
+            });
+            showToast('Ошибка загрузки модуля списков. Пожалуйста, обновите страницу.', 'error');
+            return;
+        }
+
+        performance.mark('lists-init-start'); // Performance tracking
+
+        // Initialize Lists Manager (modular structure v7.0+)
+        await window.initializeListsManager();
+
+        // Initialize HierarchyView integration (v7.0.1)
+        window.initializeHierarchyView();
+
+        // Initialize ImportManager integration (v7.0.1)
+        window.initializeImportManager();
+
+        // Load shopping lists data from API
+        await window.loadShoppingLists();
+
+        // Render landing view with lists
+        window.showLandingView();
+
+        performance.mark('lists-init-end');
+        performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
+
+        debugLog('[Lists] Page initialized');
+    } catch (error) {
+        // УЛУЧШЕНО: Детальное логирование ошибки
+        console.error('[LISTS_INIT] === CRITICAL ERROR ===');
+        console.error('[LISTS_INIT] Error:', error);
+        console.error('[LISTS_INIT] Error name:', error.name);
+        console.error('[LISTS_INIT] Error message:', error.message);
+        console.error('[LISTS_INIT] Error stack:', error.stack);
+
+        showToast('Ошибка инициализации страницы: ' + error.message, 'error');
+    }
+});
+
+// Note: navigateHomeOfflineFriendly() is now exported from lists-bundle.ts
+// (defined in listsManager/ui/globalHelpers.ts)
+</script>

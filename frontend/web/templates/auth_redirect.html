@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        // Instant redirect with just_logged_in flag
+        // NOTE: Flag initialization now happens in PWA splash screen (pwa-splash-screen.html)
+        // This page exists only for SEO/accessibility fallback
+        const targetUrl = new URL('{{ target_url }}', window.location.origin);
+        targetUrl.searchParams.set('just_logged_in', 'true');
+
+        console.log('[AUTH_REDIRECT] Instant redirect to:', targetUrl.toString());
+        window.location.replace(targetUrl.toString());
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0;url={{ target_url }}?just_logged_in=true">
+    </noscript>
+</head>
+<body>
+    <!-- No visual content - instant redirect -->
+</body>
+</html>

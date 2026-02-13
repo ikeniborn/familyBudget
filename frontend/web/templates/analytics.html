@@ -88,6 +88,26 @@
                             ← Сбросить фильтр
                         </button>
                     </div>
+
+                    <!-- Waterfall Chart Mode Filter -->
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm text-base-content/70">Режим:</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-sm btn-primary" id="waterfall-mode-with-balance"
+                                    onclick="updateWaterfallMode('with_balance')"
+                                    aria-pressed="true"
+                                    aria-label="Показать каскадную диаграмму с учетом остатков">
+                                С учетом остатков
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="waterfall-mode-without-balance"
+                                    onclick="updateWaterfallMode('without_balance')"
+                                    aria-pressed="false"
+                                    aria-label="Показать каскадную диаграмму без остатков">
+                                Без остатков
+                            </button>
+                        </div>
+                    </div>
+
                     <div id="chart-waterfall" class="chart-container" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
                 </div>
             </div>
@@ -208,11 +228,27 @@ let currentChartMode = localStorage.getItem('budgetChartMode') || 'cumulative';
 // Load from localStorage or default to 'cumulative'
 let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'cumulative';
 
+// Waterfall chart mode filter (with_balance vs without_balance)
+// Load from localStorage or default to 'with_balance'
+let currentWaterfallMode = localStorage.getItem('budgetWaterfallMode') || 'with_balance';
+
 // Custom date range state
 let customRangeActive = false;
 let customDateFrom = null;
 let customDateTo = null;
 let rangePicker = null;
+
+/**
+ * Escape HTML special characters to prevent XSS
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 
 // New filters (v5.1.3)
 let currentCFOId = null;  // null = all centers
@@ -246,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sync chart mode UI with saved preference
     syncChartModeUI();
     syncTrendsModeUI();
+    syncWaterfallModeUI();
 
     // Initial load with default period (month)
     const defaultPeriod = 'month';
@@ -1307,6 +1344,43 @@ function syncTrendsModeUI() {
     }
 }
 
+// Update waterfall chart mode (with_balance vs without_balance)
+function updateWaterfallMode(mode) {
+    currentWaterfallMode = mode;
+
+    // Save to localStorage
+    localStorage.setItem('budgetWaterfallMode', mode);
+
+    // Update UI
+    syncWaterfallModeUI();
+
+    // Reload Waterfall chart with new mode
+    if (customRangeActive) {
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadWaterfallDataCustom(isoFrom, isoTo, currentWaterfallArticleId);
+    } else {
+        loadWaterfallData(currentPeriod, currentWaterfallArticleId);
+    }
+}
+
+// Sync waterfall mode UI with current state
+function syncWaterfallModeUI() {
+    // Update button states
+    document.querySelectorAll('#waterfall-mode-with-balance, #waterfall-mode-without-balance').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    const activeBtn = document.getElementById(`waterfall-mode-${currentWaterfallMode.replace('_', '-')}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
+}
+
 // Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
@@ -1391,39 +1465,57 @@ function updateWaterfallChart(data) {
     }
 
     // Build proper waterfall data structure (synchronous - async overhead > performance gain)
-    // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
+    // Mode: with_balance - Начало -> +Income -> -Expense -> Итого (cumulative)
+    // Mode: without_balance - Only periods (no start/end)
     const waterfallData = [];
     const labels = [];
-
-    // Add starting point (from previous period balance)
     const initialBalance = data.initial_balance || 0;
-    labels.push('Начало');
-    waterfallData.push({
-        value: initialBalance,
-        itemStyle: { color: '#90CAF9' }
-    });
 
-    // Add each period's net change
-    data.labels.forEach((label, index) => {
-        const income = data.income[index];
-        const expense = data.expense[index];
-        const net = income - expense;
-
-        labels.push(label);
+    if (currentWaterfallMode === 'with_balance') {
+        // Add starting point (from previous period balance)
+        labels.push('Начало');
         waterfallData.push({
-            value: net,
-            itemStyle: {
-                color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
-            }
+            value: initialBalance,
+            itemStyle: { color: '#90CAF9' }
         });
-    });
 
-    // Add final cumulative balance
-    labels.push('Итого');
-    waterfallData.push({
-        value: data.balance[data.balance.length - 1],
-        itemStyle: { color: '#2196F3' }
-    });
+        // Add each period's net change
+        data.labels.forEach((label, index) => {
+            const income = data.income[index];
+            const expense = data.expense[index];
+            const net = income - expense;
+
+            labels.push(label);
+            waterfallData.push({
+                value: net,
+                itemStyle: {
+                    color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
+                }
+            });
+        });
+
+        // Add final cumulative balance
+        labels.push('Итого');
+        waterfallData.push({
+            value: data.balance[data.balance.length - 1],
+            itemStyle: { color: '#2196F3' }
+        });
+    } else {
+        // Mode: without_balance - add period columns ONLY (no start/end)
+        data.labels.forEach((label, index) => {
+            const income = data.income[index];
+            const expense = data.expense[index];
+            const net = income - expense;
+
+            labels.push(label);
+            waterfallData.push({
+                value: net,
+                itemStyle: {
+                    color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
+                }
+            });
+        });
+    }
 
     // Build subtitle
     const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
@@ -1443,37 +1535,59 @@ function updateWaterfallChart(data) {
             formatter: function(params) {
                 const labelIndex = params[0].dataIndex;
 
-                // Skip first (Start) and last (Total)
-                if (labelIndex === 0) {
-                    return `<strong>Начало</strong><br/>Начальный баланс: ${initialBalance.toFixed(2)} ₽`;
+                if (currentWaterfallMode === 'with_balance') {
+                    // Mode: with_balance - handle Start, periods (offset by 1), and Total
+                    if (labelIndex === 0) {
+                        return `<strong>Начало</strong><br/>Начальный баланс: ${initialBalance.toFixed(2)} ₽`;
+                    }
+
+                    if (labelIndex === labels.length - 1) {
+                        const finalBalance = data.balance[data.balance.length - 1];
+                        return `<strong>Итого</strong><br/>Конечный баланс: ${finalBalance.toFixed(2)} ₽`;
+                    }
+
+                    // Regular period data (offset by 1 for "Начало")
+                    const dataIndex = labelIndex - 1;
+                    const label = data.labels[dataIndex];
+                    const income = data.income[dataIndex];
+                    const expense = data.expense[dataIndex];
+                    const net = income - expense;
+                    const cumulative = data.balance[dataIndex];
+
+                    let tooltip = `<strong>${label}</strong><br/>`;
+                    tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
+                    tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
+                    tooltip += `<hr style="margin: 5px 0"/>`;
+                    tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
+                    tooltip += `Накопительный итог: ${cumulative.toFixed(2)} ₽`;
+
+                    // Show categories for drill-down
+                    if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
+                        tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
+                    }
+
+                    return tooltip;
+                } else {
+                    // Mode: without_balance - direct mapping (no offset), no cumulative
+                    const dataIndex = labelIndex;
+                    const label = data.labels[dataIndex];
+                    const income = data.income[dataIndex];
+                    const expense = data.expense[dataIndex];
+                    const net = income - expense;
+
+                    let tooltip = `<strong>${label}</strong><br/>`;
+                    tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
+                    tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
+                    tooltip += `<hr style="margin: 5px 0"/>`;
+                    tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span>`;
+
+                    // Show categories for drill-down
+                    if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
+                        tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
+                    }
+
+                    return tooltip;
                 }
-
-                if (labelIndex === labels.length - 1) {
-                    const finalBalance = data.balance[data.balance.length - 1];
-                    return `<strong>Итого</strong><br/>Конечный баланс: ${finalBalance.toFixed(2)} ₽`;
-                }
-
-                // Regular period data
-                const dataIndex = labelIndex - 1;
-                const label = data.labels[dataIndex];
-                const income = data.income[dataIndex];
-                const expense = data.expense[dataIndex];
-                const net = income - expense;
-                const cumulative = data.balance[dataIndex];
-
-                let tooltip = `<strong>${label}</strong><br/>`;
-                tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
-                tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
-                tooltip += `<hr style="margin: 5px 0"/>`;
-                tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
-                tooltip += `Накопительный итог: ${cumulative.toFixed(2)} ₽`;
-
-                // Show categories for drill-down
-                if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
-                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
-                }
-
-                return tooltip;
             }
         },
         grid: {
@@ -1524,9 +1638,11 @@ function updateWaterfallChart(data) {
     // Add click event for drill-down
     waterfallChart.off('click');  // Remove previous listeners
     waterfallChart.on('click', function(params) {
-        // Skip Start and Total bars
-        if (params.dataIndex === 0 || params.dataIndex === labels.length - 1) {
-            return;
+        if (currentWaterfallMode === 'with_balance') {
+            // Skip Start and Total bars (only in with_balance mode)
+            if (params.dataIndex === 0 || params.dataIndex === labels.length - 1) {
+                return;
+            }
         }
 
         // Already in drill-down mode - do nothing
@@ -1534,8 +1650,11 @@ function updateWaterfallChart(data) {
             return;
         }
 
-        // Get the actual data index (subtract 1 for Start bar)
-        const dataIndex = params.dataIndex - 1;
+        // Get the actual data index based on mode
+        const dataIndex = currentWaterfallMode === 'with_balance'
+            ? params.dataIndex - 1  // Offset by 1 for "Начало"
+            : params.dataIndex;      // Direct mapping
+
         const categories = waterfallCategoriesData[dataIndex];
 
         if (!categories || categories.length === 0) {
@@ -1561,8 +1680,8 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
             <div class="modal-content max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
                 <div class="modal-header">
-                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Детализация: ${periodLabel}</h2>
-                    <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
+                    <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">Детализация: ${escapeHtml(periodLabel)}</h2>
+                    <span class="modal-close" id="waterfall-modal-close">&times;</span>
                 </div>
                 <div class="modal-body">
                     <p>Выберите категорию для просмотра детализации:</p>
@@ -1586,11 +1705,13 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
 
         modalHtml += `
             <tr>
-                <td><strong>${cat.name}</strong></td>
+                <td><strong>${escapeHtml(cat.name)}</strong></td>
                 <td><span style="color: ${typeColor}">${typeLabel}</span></td>
                 <td>${amountFormatted} ₽</td>
                 <td>
-                    <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
+                    <button class="btn-waterfall-select btn-primary btn-small"
+                            data-category-id="${cat.id}"
+                            data-category-name="${escapeHtml(cat.name)}">
                         Смотреть
                     </button>
                 </td>
@@ -1604,7 +1725,7 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Отмена</button>
+                    <button type="button" class="btn-secondary" id="waterfall-modal-cancel">Отмена</button>
                 </div>
             </div>
         </div>
@@ -1613,8 +1734,35 @@ function showWaterfallDrilldownModal(periodLabel, categories) {
     // Insert modal into DOM
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-    // Close modal on outside click
+    // Get modal element
     const modal = document.getElementById('waterfall-drilldown-modal');
+
+    // Add event listeners (безопасно, нет inline handlers)
+    // Close button
+    const closeBtn = document.getElementById('waterfall-modal-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeWaterfallDrilldownModal);
+    }
+
+    // Cancel button
+    const cancelBtn = document.getElementById('waterfall-modal-cancel');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeWaterfallDrilldownModal);
+    }
+
+    // Category selection buttons
+    const selectBtns = modal.querySelectorAll('.btn-waterfall-select');
+    selectBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const categoryId = btn.dataset.categoryId;
+            const categoryName = btn.dataset.categoryName;
+            if (categoryId && categoryName) {
+                selectWaterfallArticle(parseInt(categoryId, 10), categoryName);
+            }
+        });
+    });
+
+    // Close modal on outside click
     window.onclick = function(event) {
         if (event.target === modal) {
             closeWaterfallDrilldownModal();

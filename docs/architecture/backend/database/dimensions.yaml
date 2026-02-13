@@ -1,0 +1,691 @@
+# Dimension Tables
+# Master data tables (t_d_*)
+
+meta:
+  version: "1.0.0"
+  description: "Dimension tables (master data) - t_d_* pattern"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  pattern: "SCD Type 1 (in-place updates)"
+  related_docs:
+    - "./history.yaml"  # History tables (SCD Type 2)
+    - "./indexes.yaml"
+    - "./constraints.yaml"
+
+tables:
+  # ---------------------------------------------------------------------------
+  # USER
+  # ---------------------------------------------------------------------------
+  t_d_user:
+    model: User
+    file: "backend/app/models/user.py"
+    pattern: "SCD Type 1"
+    description: "System users (Telegram authenticated)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: telegram_id
+        type: BIGINT UNIQUE NOT NULL
+        description: "Telegram user ID"
+      - name: username
+        type: VARCHAR(255)
+        description: "Telegram @username"
+      - name: first_name
+        type: VARCHAR(255) NOT NULL
+      - name: last_name
+        type: VARCHAR(255)
+      - name: email
+        type: VARCHAR(255) UNIQUE
+      - name: is_admin
+        type: BOOLEAN DEFAULT FALSE
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+      - name: last_login_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_user_telegram_id"
+      - $ref: "./indexes.yaml#/indexes/idx_user_email"
+      - $ref: "./indexes.yaml#/indexes/idx_user_is_active"
+
+    history_table:
+      $ref: "./history.yaml#/tables/t_d_user_history"
+
+    fk_from:
+      - t_d_article
+      - t_f_budget_fact
+      - t_refresh_token
+      - t_notification
+      - t_d_shopping_list
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/2"
+      - $ref: "../functionality/admin.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/admin.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # ARTICLE
+  # ---------------------------------------------------------------------------
+  t_d_article:
+    model: Article
+    file: "backend/app/models/article.py"
+    pattern: "SCD Type 1"
+    description: "Budget categories (hierarchical)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: type
+        type: VARCHAR(20) NOT NULL
+        check: "type IN ('income', 'expense', 'transfer')"
+      - name: parent_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_article"
+        on_delete: SET NULL
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: is_system
+        type: BOOLEAN DEFAULT FALSE
+        description: "Protected system category"
+      - name: icon
+        type: VARCHAR(50)
+      - name: color
+        type: VARCHAR(7)
+        description: "Hex color code"
+      - name: sort_order
+        type: INTEGER DEFAULT 0
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_article_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_article_parent_id"
+      - $ref: "./indexes.yaml#/indexes/idx_article_type"
+      - $ref: "./indexes.yaml#/indexes/idx_article_is_active"
+
+    history_table:
+      $ref: "./history.yaml#/tables/t_d_article_history"
+
+    hierarchy_table:
+      $ref: "./hierarchy.yaml#/tables/t_d_article_hierarchy"
+
+    fk_from:
+      - t_f_budget_fact
+
+    services:
+      - $ref: "../functionality/budget-management.yaml#/module/services/0"
+      - $ref: "../functionality/budget-management.yaml#/module/services/1"
+
+    endpoints:
+      - $ref: "../endpoints/articles.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # FINANCIAL CENTER
+  # ---------------------------------------------------------------------------
+  t_d_financial_center:
+    model: FinancialCenter
+    file: "backend/app/models/financial_center.py"
+    pattern: "SCD Type 1"
+    description: "Bank accounts, wallets, cash"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: description
+        type: TEXT
+      - name: initial_balance
+        type: DECIMAL(15,2) DEFAULT 0
+      - name: currency
+        type: VARCHAR(3) DEFAULT 'RUB'
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: icon
+        type: VARCHAR(50)
+      - name: color
+        type: VARCHAR(7)
+      - name: sort_order
+        type: INTEGER DEFAULT 0
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_fc_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_fc_is_active"
+
+    history_table:
+      $ref: "./history.yaml#/tables/t_d_financial_center_history"
+
+    fk_from:
+      - t_f_budget_fact
+
+    services:
+      - $ref: "../functionality/financial-centers.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/financial-centers.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # COST CENTER
+  # ---------------------------------------------------------------------------
+  t_d_cost_center:
+    model: CostCenter
+    file: "backend/app/models/cost_center.py"
+    pattern: "SCD Type 1"
+    description: "Projects, departments, cost allocation"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: description
+        type: TEXT
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: icon
+        type: VARCHAR(50)
+      - name: color
+        type: VARCHAR(7)
+      - name: sort_order
+        type: INTEGER DEFAULT 0
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_cc_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_cc_is_active"
+
+    history_table:
+      $ref: "./history.yaml#/tables/t_d_cost_center_history"
+
+    fk_from:
+      - t_f_budget_fact
+
+    services:
+      - $ref: "../functionality/cost-centers.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/cost-centers.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # SHOPPING LIST
+  # ---------------------------------------------------------------------------
+  t_d_shopping_list:
+    model: ShoppingList
+    file: "backend/app/models/shopping_list.py"
+    pattern: "SCD Type 1"
+    description: "Shopping lists"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: status
+        type: VARCHAR(20) DEFAULT 'active'
+        check: "status IN ('active', 'completed', 'archived')"
+      - name: is_shared
+        type: BOOLEAN DEFAULT TRUE
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+      - name: completed_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_sl_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_sl_status"
+
+    fk_from:
+      - t_d_shopping_list_item
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/shopping.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # SHOPPING LIST ITEM
+  # ---------------------------------------------------------------------------
+  t_d_shopping_list_item:
+    model: ShoppingListItem
+    file: "backend/app/models/shopping_list_item.py"
+    pattern: "SCD Type 1 + Soft Delete"
+    description: "Items in shopping lists (uses soft delete pattern)"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: shopping_list_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_shopping_list"
+        on_delete: CASCADE
+      - name: product_name
+        type: VARCHAR(255) NOT NULL
+      - name: quantity
+        type: DECIMAL(10,2)
+      - name: unit
+        type: VARCHAR(20)
+      - name: price
+        type: DECIMAL(15,2)
+      - name: store_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_store"
+      - name: product_group_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_product_group"
+      - name: is_completed
+        type: BOOLEAN DEFAULT FALSE
+        description: "Item marked as bought/purchased"
+      - name: completed_at
+        type: TIMESTAMP
+      - name: deleted_at
+        type: TIMESTAMP
+        description: "Soft delete timestamp (NULL = active, NOT NULL = deleted)"
+        note: "Items marked deleted instead of physical deletion"
+      - name: sync_hash
+        type: VARCHAR(64)
+        description: "Deduplication hash for offline sync"
+      - name: sort_order
+        type: INTEGER DEFAULT 0
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    soft_delete:
+      enabled: true
+      column: deleted_at
+      purpose: |
+        Soft-deleted items preserved for:
+        - Autocomplete history (product name suggestions)
+        - Conflict resolution in offline sync
+        - Audit trail
+      query_pattern: |
+        All SELECT queries MUST filter deleted_at IS NULL.
+        COUNT queries MUST exclude soft-deleted items.
+        Changed in commit 6aa943bf to fix item count bug.
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_sli_shopping_list_id"
+      - $ref: "./indexes.yaml#/indexes/idx_sli_is_checked"
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/1"
+
+    endpoints:
+      - $ref: "../endpoints/shopping.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # STORE
+  # ---------------------------------------------------------------------------
+  t_d_store:
+    model: Store
+    file: "backend/app/models/store.py"
+    pattern: "SCD Type 1"
+    description: "Stores/shops for shopping lists"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: address
+        type: TEXT
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    fk_from:
+      - t_d_shopping_list_item
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/2"
+
+    endpoints:
+      - $ref: "../endpoints/shopping.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # PRODUCT GROUP
+  # ---------------------------------------------------------------------------
+  t_d_product_group:
+    model: ProductGroup
+    file: "backend/app/models/product_group.py"
+    pattern: "SCD Type 1"
+    description: "Product categories for shopping"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: parent_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_product_group"
+        on_delete: SET NULL
+      - name: icon
+        type: VARCHAR(50)
+      - name: sort_order
+        type: INTEGER DEFAULT 0
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    hierarchy_table:
+      $ref: "./hierarchy.yaml#/tables/t_d_product_group_hierarchy"
+
+    fk_from:
+      - t_d_shopping_list_item
+
+    services:
+      - $ref: "../functionality/shopping-lists.yaml#/module/services/3"
+
+    endpoints:
+      - $ref: "../endpoints/shopping.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # IMPORT TEMPLATE
+  # ---------------------------------------------------------------------------
+  t_d_import_template:
+    model: ImportTemplate
+    file: "backend/app/models/import_template.py"
+    pattern: "SCD Type 1"
+    description: "Saved CSV import configurations"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: bank_provider_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_bank_provider"
+      - name: column_mapping
+        type: JSONB
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    services:
+      - $ref: "../functionality/csv-import.yaml#/module/services/9"
+
+    endpoints:
+      - $ref: "../endpoints/import.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # WEBAUTHN CREDENTIAL (v6.5.0+)
+  # ---------------------------------------------------------------------------
+  t_d_webauthn_credential:
+    model: WebAuthnCredential
+    file: "backend/app/models/webauthn_credential.py"
+    pattern: "SCD Type 1 (with soft revoke)"
+    description: "FIDO2 public key credentials for biometric auth"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: credential_id
+        type: TEXT UNIQUE NOT NULL
+        description: "Base64URL-encoded credential ID"
+      - name: public_key
+        type: BYTEA NOT NULL
+        description: "CBOR-encoded COSE key"
+      - name: sign_count
+        type: INTEGER DEFAULT 0
+        description: "Signature counter for clone detection"
+      - name: device_name
+        type: VARCHAR(255)
+        description: "User-friendly device name"
+      - name: aaguid
+        type: UUID
+        description: "Authenticator AAGUID"
+      - name: backup_eligible
+        type: BOOLEAN DEFAULT FALSE
+        description: "Device supports passkey sync (iCloud, Google)"
+      - name: backup_state
+        type: BOOLEAN DEFAULT FALSE
+        description: "Credential backed up to cloud"
+      - name: transports
+        type: TEXT[]
+        description: "Allowed transports: usb, nfc, ble, internal"
+      - name: is_revoked
+        type: BOOLEAN DEFAULT FALSE
+        description: "Soft delete flag"
+      - name: revoked_at
+        type: TIMESTAMP
+      - name: last_used_at
+        type: TIMESTAMP
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+
+    indexes:
+      - name: idx_webauthn_credential_user_id
+        columns: [user_id]
+        type: btree
+      - name: idx_webauthn_credential_credential_id
+        columns: [credential_id]
+        type: btree
+        unique: true
+      - name: idx_webauthn_credential_is_revoked
+        columns: [is_revoked]
+        type: btree
+
+    fk_to:
+      - t_d_user
+
+    services:
+      - $ref: "../functionality/authentication.yaml#/module/services/7"
+
+    endpoints:
+      - $ref: "../endpoints/webauthn.yaml#/routes"
+
+    notes: |
+      Sign count validation prevents credential cloning.
+      Backup_eligible indicates passkey support (iCloud Keychain, Google Password Manager).
+      Soft revoke preserves audit trail.
+
+  # ---------------------------------------------------------------------------
+  # BANK PROVIDER
+  # ---------------------------------------------------------------------------
+  t_d_bank_provider:
+    model: BankProvider
+    file: "backend/app/models/bank_provider.py"
+    pattern: "Static reference"
+    description: "Supported banks for CSV import"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: name
+        type: VARCHAR(255) NOT NULL
+      - name: code
+        type: VARCHAR(50) UNIQUE NOT NULL
+        description: "tinkoff, sberbank, alfabank, etc."
+      - name: auto_detect_pattern
+        type: VARCHAR(255)
+        description: "Regex to auto-detect bank"
+      - name: default_encoding
+        type: VARCHAR(20) DEFAULT 'utf-8'
+      - name: default_delimiter
+        type: CHAR(1) DEFAULT ','
+      - name: sample_format
+        type: TEXT
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+
+    fk_from:
+      - t_d_import_template
+      - t_import_file_upload
+
+    services:
+      - $ref: "../functionality/csv-import.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/import.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  t_d_recurring_plan:
+    model: RecurringPlan
+    file: "backend/app/models/recurring_plan.py"
+    pattern: "SCD Type 1"
+    description: "Recurring payment templates for auto-generating BudgetFact records"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: article_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_article"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_financial_center"
+      - name: cost_center_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_cost_center"
+      - name: frequency_type
+        type: VARCHAR(20) NOT NULL
+        check: "frequency_type IN ('daily', 'weekly', 'monthly', 'quarterly')"
+      - name: frequency_value
+        type: INTEGER
+        description: "Day of week (0-6) for weekly, day of month (1-28) for monthly/quarterly"
+      - name: start_date
+        type: DATE NOT NULL
+        description: "When to start generating facts"
+      - name: end_date
+        type: DATE
+        description: "Optional end date for recurring"
+      - name: occurrences_count
+        type: INTEGER
+        description: "Optional max number of occurrences"
+      - name: occurrences_generated
+        type: INTEGER DEFAULT 0
+        description: "Counter of already generated facts"
+      - name: amount
+        type: DECIMAL(15,2) NOT NULL
+        check: "amount > 0"
+      - name: description
+        type: TEXT
+      - name: record_type
+        type: VARCHAR(20) NOT NULL DEFAULT 'plan'
+        check: "record_type IN ('plan', 'fact')"
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+        description: "Soft delete flag"
+      - name: next_generation_date
+        type: DATE
+        description: "Next date for fact generation (calculated)"
+      - name: last_generated_date
+        type: DATE
+        description: "Last fact generation date"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_rp_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_rp_is_active_next_date"
+
+    fk_from:
+      - t_f_budget_fact
+
+    services:
+      - $ref: "../functionality/recurring-plans.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/recurring-plans.yaml#/routes"
+
+    generation_logic:
+      description: |
+        RecurringPlan is a template for auto-generating BudgetFact records.
+        - On creation: generates facts for next 90 days (DEFAULT_GENERATION_HORIZON_DAYS)
+        - Scheduler job (daily at 02:00): generates missing facts up to horizon
+        - Facts reference recurring_plan_id for traceability
+      scheduler_job: "generate_recurring_facts_job"
+      scheduler_schedule: "Daily at 02:00 UTC"
+
+# Shared Properties
+shared_columns:
+  audit:
+    - created_at: "Record creation timestamp"
+    - updated_at: "Last modification timestamp"
+
+  soft_delete:
+    - is_active: "Soft delete flag (false = archived)"
+
+  user_owned:
+    - user_id: "Owner user (FK to t_d_user)"

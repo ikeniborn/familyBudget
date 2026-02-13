@@ -25,7 +25,6 @@ from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 
-
 # ============================================================================
 # POST /api/v1/facts - Create Fact
 # ============================================================================

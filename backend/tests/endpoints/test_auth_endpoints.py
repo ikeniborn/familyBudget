@@ -11,7 +11,6 @@ Endpoints tested:
 import hashlib
 import hmac
 import time
-from typing import Dict
 
 import pytest
 from httpx import AsyncClient
@@ -35,7 +34,7 @@ def generate_valid_telegram_auth_data(
     last_name: str = None,
     username: str = None,
     photo_url: str = None,
-) -> Dict[str, any]:
+) -> dict[str, any]:
     """
     Generate valid Telegram OAuth data with correct HMAC-SHA256 hash.
 
@@ -98,7 +97,19 @@ def generate_valid_telegram_auth_data(
 
 @pytest.mark.asyncio
 async def test_telegram_login_new_user(client: AsyncClient, session: AsyncSession):
-    """Test Telegram login creates new user."""
+    """Test Telegram login with pre-registered user (admin-created user)."""
+    # Pre-create user (admin registration required for new users)
+    new_user = User(
+        telegram_id=123456789,
+        username="johndoe",
+        first_name="John",
+        last_name="Doe",
+        is_admin=False,
+    )
+    session.add(new_user)
+    await session.commit()
+    await session.refresh(new_user)
+
     # Generate valid auth data
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
@@ -127,33 +138,24 @@ async def test_telegram_login_new_user(client: AsyncClient, session: AsyncSessio
     assert "access_token" in response.cookies
 
     # Verify user was created in database
-    stmt = select(User).where(
-        User.telegram_id == 123456789,
-        User.is_current == True  # noqa: E712
-    )
+    stmt = select(User).where(User.telegram_id == 123456789)
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
 
     assert user is not None
     assert user.username == "johndoe"
-    assert user.is_current is True
 
 
 @pytest.mark.asyncio
 async def test_telegram_login_existing_user(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with existing user (no new version created if no changes)."""
     # Create existing user
-    from datetime import datetime
-
     existing_user = User(
         telegram_id=123456789,
         username="johndoe",
         first_name="John",
         last_name="Doe",
         is_admin=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(existing_user)
     await session.commit()
@@ -185,19 +187,14 @@ async def test_telegram_login_existing_user(client: AsyncClient, session: AsyncS
 
 @pytest.mark.asyncio
 async def test_telegram_login_user_data_changed(client: AsyncClient, session: AsyncSession):
-    """Test Telegram login updates user data (SCD Type 2 if changed)."""
+    """Test Telegram login updates user data (SCD Type 1 - in-place update)."""
     # Create existing user
-    from datetime import datetime
-
     existing_user = User(
         telegram_id=123456789,
         username="johndoe",
         first_name="John",
         last_name="Doe",
         is_admin=False,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(existing_user)
     await session.commit()
@@ -217,28 +214,35 @@ async def test_telegram_login_user_data_changed(client: AsyncClient, session: As
     data = response.json()
     assert data["user"]["username"] == "johndoe_new"
 
-    # Verify SCD Type 2: new version created
+    # Verify user data updated (SCD Type 1 - in-place update, no versioning)
     stmt = select(User).where(User.telegram_id == 123456789)
     result = await session.execute(stmt)
     users = result.scalars().all()
 
-    # Should have 2 versions now (old + new)
-    assert len(users) == 2
+    # Should have 1 user (in-place update, no versioning)
+    # Note: User model uses SCD Type 1 for Telegram OAuth updates (simpler)
+    assert len(users) == 1
 
-    # Old version: is_current=False, username=johndoe
-    old_version = [u for u in users if not u.is_current][0]
-    assert old_version.username == "johndoe"
-    assert old_version.is_current is False
-
-    # New version: is_current=True, username=johndoe_new
-    new_version = [u for u in users if u.is_current][0]
-    assert new_version.username == "johndoe_new"
-    assert new_version.is_current is True
+    # Updated user has new username
+    updated_user = users[0]
+    assert updated_user.username == "johndoe_new"
 
 
 @pytest.mark.asyncio
 async def test_telegram_login_minimal_fields(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with minimal required fields (no username, last_name)."""
+    # Pre-create user (admin registration required)
+    minimal_user = User(
+        telegram_id=123456789,
+        username=None,
+        first_name="John",
+        last_name=None,
+        is_admin=False,
+    )
+    session.add(minimal_user)
+    await session.commit()
+    await session.refresh(minimal_user)
+
     # Generate auth data with only required fields
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
@@ -279,7 +283,7 @@ async def test_telegram_login_invalid_hash(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_telegram_login_missing_hash(client: AsyncClient):
-    """Test Telegram login without hash field (should fail with 401)."""
+    """Test Telegram login without hash field (should fail with 422 validation)."""
     # Create auth data without hash
     auth_data = {
         "id": 123456789,
@@ -290,7 +294,8 @@ async def test_telegram_login_missing_hash(client: AsyncClient):
 
     response = await client.post("/api/v1/auth/telegram", json=auth_data)
 
-    assert response.status_code == 401
+    # Pydantic validation happens before auth check, so 422 is correct
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -313,8 +318,20 @@ async def test_telegram_login_tampered_data(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_telegram_login_cookie_attributes(client: AsyncClient):
+async def test_telegram_login_cookie_attributes(client: AsyncClient, session: AsyncSession):
     """Test that JWT cookie has correct security attributes."""
+    # Pre-create user (admin registration required)
+    cookie_user = User(
+        telegram_id=123456789,
+        username=None,
+        first_name="John",
+        last_name=None,
+        is_admin=False,
+    )
+    session.add(cookie_user)
+    await session.commit()
+    await session.refresh(cookie_user)
+
     # Generate valid auth data
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
@@ -337,6 +354,17 @@ async def test_telegram_login_cookie_attributes(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: AsyncSession):
     """Test that JWT token can be used for authenticated requests."""
+    # Pre-create user (admin registration required)
+    jwt_user = User(
+        telegram_id=123456789,
+        username="johndoe",
+        first_name="John",
+        is_admin=False,
+    )
+    session.add(jwt_user)
+    await session.commit()
+    await session.refresh(jwt_user)
+
     # Step 1: Login via Telegram OAuth
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
@@ -382,6 +410,16 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
 @pytest.mark.asyncio
 async def test_telegram_login_admin_flag_default_false(client: AsyncClient, session: AsyncSession):
     """Test that new users are not admin by default."""
+    # Pre-create user (admin registration required)
+    admin_flag_user = User(
+        telegram_id=123456789,
+        first_name="John",
+        is_admin=False,
+    )
+    session.add(admin_flag_user)
+    await session.commit()
+    await session.refresh(admin_flag_user)
+
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
         first_name="John",
@@ -395,10 +433,7 @@ async def test_telegram_login_admin_flag_default_false(client: AsyncClient, sess
     assert data["user"]["is_admin"] is False
 
     # Verify in database
-    stmt = select(User).where(
-        User.telegram_id == 123456789,
-        User.is_current == True  # noqa: E712
-    )
+    stmt = select(User).where(User.telegram_id == 123456789)
     result = await session.execute(stmt)
     user = result.scalar_one()
 
@@ -408,6 +443,23 @@ async def test_telegram_login_admin_flag_default_false(client: AsyncClient, sess
 @pytest.mark.asyncio
 async def test_telegram_login_multiple_users(client: AsyncClient, session: AsyncSession):
     """Test creating multiple different users via Telegram login."""
+    # Pre-create users (admin registration required)
+    alice = User(
+        telegram_id=111111111,
+        first_name="Alice",
+        username="alice",
+        is_admin=False,
+    )
+    bob = User(
+        telegram_id=222222222,
+        first_name="Bob",
+        username="bob",
+        is_admin=False,
+    )
+    session.add(alice)
+    session.add(bob)
+    await session.commit()
+
     # User 1
     auth_data_1 = generate_valid_telegram_auth_data(
         telegram_id=111111111,
@@ -427,7 +479,7 @@ async def test_telegram_login_multiple_users(client: AsyncClient, session: Async
     assert response_2.status_code == 200
 
     # Verify both users exist
-    stmt = select(User).where(User.is_current == True)  # noqa: E712
+    stmt = select(User)
     result = await session.execute(stmt)
     users = result.scalars().all()
 
@@ -455,53 +507,6 @@ async def test_telegram_login_returns_user_id(client: AsyncClient):
     assert "id" in data["user"]
     assert isinstance(data["user"]["id"], int)
     assert data["user"]["id"] > 0
-
-
-@pytest.mark.asyncio
-async def test_telegram_login_scd2_audit_fields(client: AsyncClient, session: AsyncSession):
-    """Test that SCD Type 2 audit fields are set correctly on login."""
-    from datetime import datetime
-
-    # Create existing user
-    existing_user = User(
-        telegram_id=123456789,
-        username="johndoe",
-        first_name="John",
-        is_admin=False,
-        is_current=True,
-        valid_from=datetime(2025, 1, 1),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-    )
-    session.add(existing_user)
-    await session.commit()
-
-    # Login with updated data
-    auth_data = generate_valid_telegram_auth_data(
-        telegram_id=123456789,
-        first_name="John",
-        username="johndoe_new",  # Changed
-    )
-
-    response = await client.post("/api/v1/auth/telegram", json=auth_data)
-
-    assert response.status_code == 200
-
-    # Verify SCD Type 2 fields
-    stmt = select(User).where(User.telegram_id == 123456789)
-    result = await session.execute(stmt)
-    users = result.scalars().all()
-
-    old_version = [u for u in users if not u.is_current][0]
-    new_version = [u for u in users if u.is_current][0]
-
-    # Old version: is_current=False, valid_to updated
-    assert old_version.is_current is False
-    assert old_version.valid_to < datetime(9999, 12, 31)
-
-    # New version: is_current=True, valid_from set, valid_to=9999
-    assert new_version.is_current is True
-    assert new_version.valid_from > datetime(2025, 1, 1)
-    assert new_version.valid_to.year == 9999
 
 
 @pytest.mark.asyncio

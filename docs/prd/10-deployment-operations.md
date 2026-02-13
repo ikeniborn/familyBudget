@@ -456,188 +456,190 @@ echo "count_webapp=$count_webapp"
 [[ $count_webapp -gt 0 ]] && categories_found+=("webapp ($count_webapp files)")
 ```
 
-#### 10.3.6 npm Isolated Environment Protection
+#### 10.3.6 Registry-First Architecture (v9.0+)
 
-**Версия:** 5.0.0-beta (обновлено 2025-11-08)
+**Версия:** 9.0.0 (обновлено 2026-01-26)
+
+**Статус:** ⚠️ **Раздел "npm Isolated Environment Protection" OBSOLETE в v9.0**
 
 **Назначение:**
-Защита production npm окружения от случайного удаления при rsync синхронизации с `--delete` флагом.
+В v9.0 deployment полностью перешел на **registry-first mode**: все сборки (frontend, Docker images) выполняются в GitHub Actions CI/CD. Production сервер только **pull готовые образы** из GitHub Container Registry (ghcr.io).
 
-**Архитектура:**
-
-```
-Repository (~/familyBudget)          Production (/opt/budget)
-├── backend/                   rsync  ├── backend/
-├── web/                       ═════▶ ├── web/
-├── scripts/                   sync   ├── scripts/
-├── package.json               ═════▶ ├── package.json
-└── [НЕТ .npm-isolated/]              └── .npm-isolated/  ← PRODUCTION ONLY
-                                          ├── node_modules/ (233 packages)
-                                          ├── .npmrc
-                                          └── package-lock.json
-```
-
-**Проблема:**
-
-`rsync --delete` удаляет файлы из destination, которых нет в source:
-
-```bash
-# ❌ НЕПРАВИЛЬНО - удалит .npm-isolated из /opt/budget:
-rsync -avc --delete \
-    --exclude='.npm-isolated/' \
-    ~/familyBudget/ /opt/budget/
-
-# Причина:
-# 1. .npm-isolated/ НЕТ в ~/familyBudget (в .gitignore)
-# 2. .npm-isolated/ ЕСТЬ в /opt/budget (created by install.sh)
-# 3. rsync видит что файла нет в source → удаляет из destination
-# 4. --exclude НЕ защищает от удаления при --delete!
-```
-
-**Решение:**
-
-Использовать `--filter='protect .npm-isolated/'` для защиты от удаления:
-
-```bash
-# ✅ ПРАВИЛЬНО - защита от удаления:
-rsync -avc --delete \
-    --filter='protect .npm-isolated/' \
-    --exclude='.npm-isolated/' \
-    ~/familyBudget/ /opt/budget/
-
-# Эффект:
-# 1. --filter='protect' → НЕ удаляет .npm-isolated при --delete
-# 2. --exclude → НЕ копирует .npm-isolated из source (если бы был)
-```
-
-**Разница между --exclude и --filter='protect':**
-
-| Флаг | Copy Phase | Delete Phase (--delete) |
-|------|-----------|------------------------|
-| `--exclude='.npm-isolated/'` | ✅ Ignore (не копирует) | ❌ НЕ защищает (удаляет!) |
-| `--filter='protect .npm-isolated/'` | ✅ Ignore (не копирует) | ✅ **Защищает** (НЕ удаляет!) |
-
-**Реализация:**
-
-1. **scripts/lib/sync.sh** (строки 206, 243):
-   ```bash
-   # sync_mirror() function
-   rsync -avc --delete \
-       --filter='protect .npm-isolated/' \
-       --exclude='.npm-isolated/' \
-       "$repo_dir/" "$DEPLOY_DIR/"
-   ```
-
-2. **Pre-flight checks** (deploy.sh:340-352):
-   ```bash
-   # ДО синхронизации - проверка существования
-   if [[ -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-       pkg_count=$(find ... | wc -l)
-       print_message success "npm environment verified: $pkg_count packages"
-   else
-       print_message warning "npm environment NOT found"
-   fi
-   ```
-
-3. **Post-sync verification** (deploy.sh:358-376, sync.sh:279-287):
-   ```bash
-   # ПОСЛЕ синхронизации - проверка что НЕ был удален
-   if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then
-       print_message error "CRITICAL: npm environment was DELETED during sync!"
-       # Детальные инструкции по восстановлению
-       exit 1
-   fi
-   ```
-
-**Workflow:**
+**Архитектура v9.0 (Registry-First):**
 
 ```
-Deployment Process:
-┌─────────────────────────────────────────────────────────────┐
-│ 1. PRE-FLIGHT CHECK                                         │
-│    ✓ Verify /opt/budget/.npm-isolated exists (233 packages)│
+GitHub Actions CI/CD                     Production Server (/opt/budget)
+┌─────────────────────┐
+│ 1. git push         │                  ┌───────────────────────────┐
+│ 2. Build triggered  │                  │ Deployment Process:       │
+│                     │                  │                           │
+│ ┌─────────────────┐ │                  │ 1. git pull (config only)│
+│ │ Frontend Build  │ │                  │    └─ docker-compose.yml │
+│ │ - npm ci        │ │                  │    └─ .env, VERSION      │
+│ │ - npm run build │ │                  │    └─ migrations/        │
+│ │ - Minification  │ │                  │                           │
+│ └─────────────────┘ │                  │ 2. docker compose pull   │
+│                     │                  │    ↓                      │
+│ ┌─────────────────┐ │    ghcr.io      │    Pull ready images:     │
+│ │ Docker Build    │─┼───────────────▶ │    - backend:10.0.51      │
+│ │ - 5 images      │ │    (registry)   │    - nginx:10.0.51        │
+│ │ - Multi-stage   │ │                  │    - bot:10.0.51          │
+│ │ - Push to reg.  │ │                  │    - redis:10.0.51        │
+│ └─────────────────┘ │                  │    - postgresql:10.0.51   │
+│                     │                  │                           │
+│ Time: 5-7 min       │                  │ 3. docker compose up      │
+└─────────────────────┘                  │                           │
+                                         │ Time: 2-3 min             │
+                                         └───────────────────────────┘
+```
+
+**Что УДАЛЕНО в v9.0 (НЕ требуется на сервере):**
+
+❌ **npm/Node.js:**
+- `.npm-isolated/` directory (233 packages, ~200MB)
+- npm install/ci commands
+- node_modules/ on server
+- package.json, package-lock.json processing
+
+❌ **Frontend Build:**
+- npm run build:prod
+- Minification (Terser, PostCSS)
+- Cache busting scripts
+- Frontend validation
+
+❌ **Docker Build:**
+- docker compose build
+- Multi-stage Dockerfile processing
+- Image layer caching on server
+- Build context transfer
+
+❌ **Host-based Nginx Config:**
+- nginx/conf.d/*.conf generation on server
+- select_nginx_config() function
+- generate_nginx_https_config() function
+- Host-based template processing
+
+**Что ДОБАВЛЕНО в v9.0:**
+
+✅ **Registry Integration:**
+- IMAGE_VERSIONS.json (версии всех 5 образов)
+- pull_from_registry() function
+- Image validation
+- Automatic cleanup (7 days retention)
+
+✅ **Embedded Configuration:**
+- Frontend embedded in backend image
+- Nginx config embedded in nginx image
+- Dependencies embedded in all images
+- docker-entrypoint.sh processing (runtime)
+
+**Workflow v9.0:**
+
+```
+Deployment Process (Registry-First):
+┌──────────────────────────────────────────────────────────────┐
+│ 1. VERSION BUMP (developer)                                  │
+│    echo "10.0.51" > VERSION                                  │
+│    git commit -m "chore: bump version to 10.0.51"            │
+│    git push origin main                                       │
 │                                                              │
-│ 2. RSYNC SYNCHRONIZATION                                    │
-│    rsync --delete --filter='protect .npm-isolated/'         │
-│    ↓                                                         │
-│    ~/familyBudget → /opt/budget                             │
-│    .npm-isolated/ PROTECTED (not deleted)                   │
+│ 2. CI/CD BUILD (GitHub Actions, 5-7 min)                    │
+│    ├─ Frontend build (npm run build:prod)                   │
+│    ├─ Docker build (5 images)                               │
+│    ├─ Push to ghcr.io/ikeniborn/familybudget-*:10.0.51      │
+│    └─ Generate IMAGE_VERSIONS.json                          │
 │                                                              │
-│ 3. POST-SYNC VERIFICATION                                   │
-│    ✓ Verify .npm-isolated still exists                     │
-│    ✗ ERROR if deleted → exit with recovery instructions    │
-│                                                              │
-│ 4. BUILD PROCESS                                            │
-│    npm run build (uses protected environment)               │
-└─────────────────────────────────────────────────────────────┘
+│ 3. SERVER DEPLOYMENT (2-3 min)                              │
+│    ├─ git pull (sync IMAGE_VERSIONS.json, config files)     │
+│    ├─ docker compose pull (5 images from ghcr.io)           │
+│    ├─ docker compose up (restart containers)                │
+│    └─ migrations (alembic upgrade head)                     │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**Error Messages:**
+**Что СИНХРОНИЗИРУЕТСЯ на сервер (rsync):**
 
-Если npm environment удален:
+✅ **Configuration Files:**
+- `docker-compose.yml` - service definitions
+- `.env` - environment variables (protected)
+- `VERSION` - version for image pull
+- `IMAGE_VERSIONS.json` - per-service versions
 
-```
-ERROR: CRITICAL: Production npm environment was DELETED during sync!
-ERROR: This should NEVER happen with --filter='protect .npm-isolated/'
-ERROR:
-ERROR: Possible causes:
-ERROR:   1. rsync filter not working correctly
-ERROR:   2. Manual deletion of /opt/budget/.npm-isolated
-ERROR:   3. Filesystem corruption
-ERROR:
-ERROR: To fix: Run install.sh to recreate npm environment
-ERROR:   cd ~/familyBudget && sudo ./install.sh
-```
+✅ **Database Migrations:**
+- `backend/db/migrations/versions/*.py`
+- Миграции НЕ в Docker образах (часто меняются)
 
-**Установка npm окружения:**
+✅ **Deployment Scripts:**
+- `scripts/lib/*.sh` - используются сервером
+- `deploy.sh` - deployment orchestrator
+
+✅ **Nginx Templates (для CI/CD):**
+- `nginx/conf.d/*.template` - для пересборки образа
+- Обрабатываются entrypoint.sh ВНУТРИ контейнера
+
+✅ **Protected State:**
+- `.migration_checksums` - MD5 для change detection
+- `.docker_build_checksums` - MD5 для rebuild detection
+
+**Что EMBEDDED в Docker образы (НЕ синхронизируется):**
+
+🐳 **Backend Image:**
+- Frontend код + assets (embedded)
+- Python dependencies
+- Application code
+
+🐳 **Nginx Image:**
+- Конфигурация (templates)
+- docker-entrypoint.sh (SSL auto-detection)
+
+🐳 **Bot, Redis, PostgreSQL Images:**
+- Respective code and configs
+
+**Преимущества v9.0 Registry-First:**
+
+1. **Faster deploys:** 2-3 min (было 5-7 min)
+2. **Lower server CPU:** pull only (было: npm build + Docker build)
+3. **Lower server RAM:** ~500MB (было ~2GB during build)
+4. **Simpler server:** только Docker (было: Docker + Node.js + npm)
+5. **Consistent builds:** CI/CD гарантирует одинаковые образы
+6. **Faster rollback:** `docker compose pull <old-version>`
+
+**Troubleshooting v9.0:**
+
+| Проблема | Диагностика | Решение |
+|----------|-------------|---------|
+| "npm: command not found" | ✅ Expected в v9.0! | Это нормально, npm не требуется |
+| IMAGE_VERSIONS.json not found | `ls IMAGE_VERSIONS.json` | `git pull` для синхронизации |
+| Image not found in registry | Check GitHub Actions | Wait for build, re-trigger if failed |
+| Nginx config не обновляется | Edit на сервере НЕ работает! | Edit nginx/conf.d/*.template в git, commit, wait for CI/CD rebuild |
+
+**Verification v9.0:**
 
 ```bash
-# First-time setup (или восстановление после удаления)
-cd ~/familyBudget
-sudo ./install.sh
+# Проверка что npm НЕ требуется:
+which npm
+# Expected: (no output)
 
-# install.sh автоматически:
-# 1. Создает /opt/budget/.npm-isolated/
-# 2. Копирует package.json + package-lock.json
-# 3. Запускает npm ci (233 packages)
-# 4. Настраивает .npmrc с absolute paths
-```
+# Проверка Docker образов:
+docker images | grep familybudget
+# Expected: ghcr.io/ikeniborn/familybudget-* с актуальными версиями
 
-**Преимущества архитектуры:**
+# Проверка IMAGE_VERSIONS.json:
+cat /opt/budget/IMAGE_VERSIONS.json | jq .
+# Expected: версии всех 5 сервисов
 
-1. **Faster deploys:** ~100-200MB НЕ копируется при каждом deploy
-2. **No permission issues:** rsync не трогает npm окружение
-3. **Persistence:** npm packages сохраняются между deployments
-4. **Separation:** source code (repo) vs build tools (production)
-
-**Troubleshooting:**
-
-| Симптом | Диагностика | Решение |
-|---------|-------------|---------|
-| Build failed: `terser not found` | `ls /opt/budget/.npm-isolated/node_modules/.bin/terser` | Run `install.sh` |
-| npm environment deleted after sync | Check rsync logs, verify `--filter='protect'` | Update `scripts/lib/sync.sh` |
-| Package count != 233 | `find /opt/budget/.npm-isolated/node_modules -maxdepth 1 -type d \| wc -l` | Delete and re-run `install.sh` |
-
-**Verification:**
-
-```bash
-# Проверка защиты (после deployment):
-ls -la /opt/budget/.npm-isolated/node_modules  # Должно быть 194 директории
-cat /opt/budget/.npm-isolated/.npmrc           # Absolute paths (не ${PROJECT_DIR})
-
-# Проверка работы rsync filter (dry-run):
-rsync -avnc --delete \
-    --filter='protect .npm-isolated/' \
-    --exclude='.npm-isolated/' \
-    ~/familyBudget/ /opt/budget/ | grep npm-isolated
-# Не должно быть строк с "deleting .npm-isolated"
+# Проверка deployment logs:
+grep "Pulling Docker images" /opt/budget/logs/deploy.log
+# Expected: Pull from ghcr.io (НЕ local build)
 ```
 
 **История изменений:**
 
-- **2025-11-08:** Добавлен `--filter='protect .npm-isolated/'` в rsync команды
-- **2025-11-08:** Добавлены pre-flight и post-sync checks в deploy.sh
-- **2025-11-08:** Добавлена секция в ПРД с описанием архитектуры защиты
+- **2026-01-26 (v9.0):** Complete migration to registry-first mode
+  - Removed: npm environment, local builds, host-based nginx config
+  - Added: IMAGE_VERSIONS.json, registry integration, embedded configs
+- **2025-11-08 (v8.x):** npm isolated environment protection (obsolete)
+- **2025-11-08 (v8.x):** rsync --filter='protect' for .npm-isolated/ (obsolete)
 
 ---
 

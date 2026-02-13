@@ -7,13 +7,10 @@ for Store table with temporal validity (valid_from, valid_to).
 All changes to Store table are logged here with metadata about what changed,
 when, and who made the change.
 """
-
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy import ARRAY, DateTime, String
 from sqlmodel import Column, Field, SQLModel
-
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -109,7 +106,7 @@ class StoreHistory(SQLModel, table=True):
     __tablename__ = "t_d_store_history"
 
     # Primary key
-    history_id: Optional[int] = Field(
+    history_id: int | None = Field(
         default=None,
         primary_key=True,
         description="Surrogate primary key for history records"
@@ -135,15 +132,15 @@ class StoreHistory(SQLModel, table=True):
         index=True,
         description="Store name snapshot at time of change"
     )
-    address: Optional[str] = Field(
+    address: str | None = Field(
         default=None,
         description="Address snapshot at time of change"
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="Description snapshot at time of change"
     )
-    code: Optional[str] = Field(
+    code: str | None = Field(
         default=None,
         max_length=50,
         description="Business code snapshot at time of change"
@@ -174,12 +171,12 @@ class StoreHistory(SQLModel, table=True):
         max_length=50,
         description="Type of change: CREATE, UPDATE, ARCHIVE, RESTORE"
     )
-    changed_fields: Optional[List[str]] = Field(
+    changed_fields: list[str] | None = Field(
         default=None,
         sa_column=Column(ARRAY(String), nullable=True),
         description="Array of changed field names (e.g., ['name', 'address']). NULL for CREATE."
     )
-    changed_by_user_id: Optional[int] = Field(
+    changed_by_user_id: int | None = Field(
         default=None,
         description="Who made the change (NULL for automatic changes)"
     )

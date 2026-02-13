@@ -12,8 +12,7 @@ Functions tested:
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-import pytest
-from jose import JWTError, jwt
+from jose import jwt
 
 from backend.app.services.jwt import (
     ALGORITHM,
@@ -22,7 +21,6 @@ from backend.app.services.jwt import (
     create_access_token,
     decode_access_token,
 )
-
 
 # ============================================================================
 # create_access_token() Tests

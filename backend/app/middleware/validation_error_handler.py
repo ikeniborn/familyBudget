@@ -11,6 +11,7 @@ Features:
     - Includes error type and location information
 """
 
+
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError

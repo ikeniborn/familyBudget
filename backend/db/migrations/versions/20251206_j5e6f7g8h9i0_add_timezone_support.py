@@ -17,9 +17,8 @@ Architecture Notes:
 
 import os
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # Revision identifiers
 revision = "j5e6f7g8h9i0"

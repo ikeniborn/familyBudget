@@ -7,17 +7,15 @@ Create Date: 2025-11-24 12:00:00.000000
 Add 'debit' and 'credit' article types for user-defined transfer categories.
 Removes old static transfer categories (TRF-OUT, TRF-IN).
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
-import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = '24d9cbd6ea0c'
-down_revision: Union[str, None] = '00455b460cc8'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '00455b460cc8'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

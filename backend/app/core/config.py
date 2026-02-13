@@ -4,7 +4,6 @@ Application settings configuration.
 This module provides centralized configuration management using Pydantic Settings.
 All configuration values are loaded from environment variables or .env file.
 """
-
 from functools import lru_cache
 from pathlib import Path
 
@@ -33,7 +32,7 @@ def _read_version_from_file() -> str:
     if docker_path.exists():
         try:
             return docker_path.read_text().strip()
-        except (OSError, IOError):
+        except OSError:
             pass  # Fall through to next option
 
     # Local development path (relative to config.py)
@@ -44,7 +43,7 @@ def _read_version_from_file() -> str:
     if local_path.exists():
         try:
             return local_path.read_text().strip()
-        except (OSError, IOError):
+        except OSError:
             pass  # Fall through to default
 
     return "0.0.0"

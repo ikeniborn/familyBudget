@@ -467,6 +467,105 @@ modules:
       - googleSheetsImporter
 
   # ---------------------------------------------------------------------------
+  # FACTS
+  # ---------------------------------------------------------------------------
+  factsManager:
+    path: "frontend/web/static/js/facts/"
+    type: "TypeScript module (ES Modules)"
+    bundle: "facts.min.js"
+    size: "~62KB (minified), ~12KB (gzip)"
+    loc: ~1500
+    description: "Budget facts (transactions) management with TypeScript modular architecture"
+    migration: "v7.0.0 - Migrated from monolithic index.html to modular TypeScript structure"
+    endpoints:
+      - "/api/v1/facts"
+      - "/api/v1/facts/export"
+    features:
+      - "Client-side rendering (post-TypeScript migration)"
+      - "XSS protection with HTML escaping"
+      - "Conditional logging (development only)"
+      - "Type-safe with TypeScript interfaces"
+      - "Date range filtering with CalendarWidget"
+      - "Pagination (50 items per page)"
+      - "Batch delete operations"
+      - "CSV export"
+      - "WebSocket real-time updates"
+      - "Hierarchical article filtering"
+    architecture:
+      core:
+        - "FactsState.ts - State management"
+        - "stateManager.ts - State helpers"
+      operations:
+        - "factsController.ts - CRUD operations"
+        - "filterOperations.ts - Filter logic"
+        - "paginationOperations.ts - Pagination"
+        - "selectionOperations.ts - Batch selection"
+      integration:
+        - "factsAPI.ts - API client"
+        - "dropdownAPI.ts - Dropdown data"
+        - "wsEventHandlers.ts - WebSocket handlers"
+      utilities:
+        - "htmlSanitizer.ts - XSS protection"
+        - "logger.ts - Conditional logging"
+      adapters:
+        - "eventDelegation.ts - Event handlers"
+        - "windowExports.ts - Global exports"
+    security:
+      xss_protection:
+        method: "escapeHtml()"
+        usage: "All user-generated content (article names, comments, error messages)"
+        location: "utilities/htmlSanitizer.ts"
+      error_sanitization:
+        method: "sanitizeErrorMessage()"
+        purpose: "Prevent XSS via error messages"
+        max_length: 200
+    state:
+      filters:
+        - "user_id: number | null"
+        - "article_id: number | null"
+        - "article_type: 'expense' | 'income' | 'debit' | 'credit' | null"
+        - "date_from: string | null"
+        - "date_to: string | null"
+        - "financial_center_id: number | null"
+        - "cost_center_id: number | null"
+        - "search: string | null"
+      pagination:
+        - "currentPage: number (0-based)"
+        - "pageSize: number (default: 50)"
+        - "totalFacts: number"
+      selection:
+        - "selectedFactIds: Set<number>"
+        - "deletingFactIds: Set<number>"
+    key_methods:
+      loadFacts: "Load facts with filters and pagination"
+      renderFactsTable: "Client-side table rendering with XSS protection"
+      renderFactRow: "Render single fact row (escaped HTML)"
+      updateStats: "Update stats section (total facts, page range)"
+      updatePagination: "Update pagination controls"
+      applyFiltersAndReload: "Apply filters and reset to page 1"
+      showEditModal: "Load fact from API and show edit modal"
+      deleteFact: "Delete single fact with confirmation"
+      batchDelete: "Delete selected facts with confirmation"
+      exportFilteredFacts: "Export to CSV with current filters"
+    global_exports:
+      namespace: "window.FactsManager"
+      functions:
+        - loadFacts
+        - showEditModal
+        - deleteFact
+        - toggleSelectAll
+        - batchDelete
+        - exportFilteredFacts
+    depends_on:
+      - budgetShared.DateFormatter
+      - budgetShared.CalendarWidget
+      - budgetWSClient (WebSocket events)
+    templates:
+      - "frontend/web/templates/facts.html"
+    tables:
+      $ref: "../database/facts.yaml#/tables/t_f_budget_fact"
+
+  # ---------------------------------------------------------------------------
   # TRANSFER
   # ---------------------------------------------------------------------------
   transfer:

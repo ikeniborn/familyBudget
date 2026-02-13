@@ -43,9 +43,17 @@ async function initializeApp() {
             updateState: typeof csvImporter.updateState,
             resetState: typeof csvImporter.resetState
         });
-        // TODO Phase 2.3+: Initialize WebSocket connection
-        // const wsClient = new BudgetWSClient(getWebSocketURL());
-        // await wsClient.connect();
+        // Phase 2.3: Initialize WebSocket connection (v11.2.2)
+        if (window.budgetWSClient && typeof window.budgetWSClient.connect === 'function') {
+            debugLog('[APP] Initializing WebSocket connection');
+            await window.budgetWSClient.connect();
+            debugLog('[APP] WebSocket initialized:', {
+                isConnected: window.budgetWSClient.isConnected,
+                multiTabInitialized: window.budgetWSClient._multiTabInitialized
+            });
+        } else {
+            console.warn('[APP] budgetWSClient not available');
+        }
         // TODO Phase 2.4: Initialize offline manager
         // const offlineManager = new OfflineManager();
         // await offlineManager.initialize();

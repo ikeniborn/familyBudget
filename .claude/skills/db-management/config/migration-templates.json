@@ -1,0 +1,114 @@
+{
+  "scd_type2_migration_steps": [
+    {
+      "step": 1,
+      "action": "add_version_columns",
+      "sql_snippet": "ALTER TABLE {table} ADD COLUMN valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ADD COLUMN valid_to TIMESTAMP DEFAULT '9999-12-31 23:59:59', ADD COLUMN is_current BOOLEAN DEFAULT true, ADD COLUMN version_number INTEGER DEFAULT 1",
+      "description": "Add SCD Type 2 temporal columns"
+    },
+    {
+      "step": 2,
+      "action": "add_is_current_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_is_current ON {table}(is_current) WHERE is_current = true",
+      "description": "Add partial index for current versions"
+    },
+    {
+      "step": 3,
+      "action": "add_version_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_version ON {table}(version_number)",
+      "description": "Add index for version lookups"
+    },
+    {
+      "step": 4,
+      "action": "add_valid_period_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_valid_period ON {table}(valid_from, valid_to)",
+      "description": "Add index for temporal queries"
+    },
+    {
+      "step": 5,
+      "action": "create_history_table",
+      "sql_snippet": "CREATE TABLE {table}_history (LIKE {table} INCLUDING ALL)",
+      "description": "Create history table with same structure"
+    },
+    {
+      "step": 6,
+      "action": "add_history_trigger",
+      "sql_snippet": "CREATE TRIGGER {table}_history_trigger AFTER UPDATE ON {table} FOR EACH ROW EXECUTE FUNCTION log_version_change()",
+      "description": "Add trigger to log changes to history table"
+    }
+  ],
+  "closure_table_migration_steps": [
+    {
+      "step": 1,
+      "action": "create_hierarchy_table",
+      "sql_snippet": "CREATE TABLE {table}_hierarchy (ancestor_id INTEGER REFERENCES {table}(id), descendant_id INTEGER REFERENCES {table}(id), depth INTEGER NOT NULL, PRIMARY KEY (ancestor_id, descendant_id))",
+      "description": "Create Closure Table for hierarchical data"
+    },
+    {
+      "step": 2,
+      "action": "add_self_reference",
+      "sql_snippet": "INSERT INTO {table}_hierarchy (ancestor_id, descendant_id, depth) SELECT id, id, 0 FROM {table}",
+      "description": "Add self-referencing rows (depth=0)"
+    },
+    {
+      "step": 3,
+      "action": "add_depth_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_hierarchy_depth ON {table}_hierarchy(depth)",
+      "description": "Add index for depth-based queries"
+    },
+    {
+      "step": 4,
+      "action": "add_descendant_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_hierarchy_descendant ON {table}_hierarchy(descendant_id)",
+      "description": "Add index for descendant lookups"
+    }
+  ],
+  "shared_budget_migration_steps": [
+    {
+      "step": 1,
+      "action": "add_user_id_column",
+      "sql_snippet": "ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id)",
+      "description": "Add user_id column (creator tracking)"
+    },
+    {
+      "step": 2,
+      "action": "set_default_user",
+      "sql_snippet": "UPDATE {table} SET user_id = (SELECT id FROM users LIMIT 1) WHERE user_id IS NULL",
+      "description": "Set default user for existing records"
+    },
+    {
+      "step": 3,
+      "action": "add_not_null_constraint",
+      "sql_snippet": "ALTER TABLE {table} ALTER COLUMN user_id SET NOT NULL",
+      "description": "Make user_id required"
+    },
+    {
+      "step": 4,
+      "action": "add_user_index",
+      "sql_snippet": "CREATE INDEX idx_{table}_user_id ON {table}(user_id)",
+      "description": "Add index for user filtering (optional, not used in queries)"
+    }
+  ],
+  "metadata": {
+    "version": "2.1.0",
+    "last_updated": "2026-01-24",
+    "description": "Migration templates for SCD Type 2, Closure Table, Shared Budget with TOON optimization"
+  },
+  "toon": {
+    "scd_type2_migration_steps_toon": "scd_type2_migration_steps[6]{step,action,sql_snippet,description}:\n  1,add_version_columns,\"ALTER TABLE {table} ADD COLUMN valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ADD COLUMN valid_to TIMESTAMP DEFAULT '9999-12-31 23:59:59', ADD COLUMN is_current BOOLEAN DEFAULT true, ADD COLUMN version_number INTEGER DEFAULT 1\",Add SCD Type 2 temporal columns\n  2,add_is_current_index,CREATE INDEX idx_{table}_is_current ON {table}(is_current) WHERE is_current = true,Add partial index for current versions\n  3,add_version_index,CREATE INDEX idx_{table}_version ON {table}(version_number),Add index for version lookups\n  4,add_valid_period_index,\"CREATE INDEX idx_{table}_valid_period ON {table}(valid_from, valid_to)\",Add index for temporal queries\n  5,create_history_table,CREATE TABLE {table}_history (LIKE {table} INCLUDING ALL),Create history table with same structure\n  6,add_history_trigger,CREATE TRIGGER {table}_history_trigger AFTER UPDATE ON {table} FOR EACH ROW EXECUTE FUNCTION log_version_change(),Add trigger to log changes to history table",
+    "closure_table_migration_steps_toon": "closure_table_migration_steps[4]{step,action,sql_snippet,description}:\n  1,create_hierarchy_table,\"CREATE TABLE {table}_hierarchy (ancestor_id INTEGER REFERENCES {table}(id), descendant_id INTEGER REFERENCES {table}(id), depth INTEGER NOT NULL, PRIMARY KEY (ancestor_id, descendant_id))\",Create Closure Table for hierarchical data\n  2,add_self_reference,\"INSERT INTO {table}_hierarchy (ancestor_id, descendant_id, depth) SELECT id, id, 0 FROM {table}\",Add self-referencing rows (depth=0)\n  3,add_depth_index,CREATE INDEX idx_{table}_hierarchy_depth ON {table}_hierarchy(depth),Add index for depth-based queries\n  4,add_descendant_index,CREATE INDEX idx_{table}_hierarchy_descendant ON {table}_hierarchy(descendant_id),Add index for descendant lookups",
+    "shared_budget_migration_steps_toon": "shared_budget_migration_steps[4]{step,action,sql_snippet,description}:\n  1,add_user_id_column,ALTER TABLE {table} ADD COLUMN user_id INTEGER REFERENCES users(id),Add user_id column (creator tracking)\n  2,set_default_user,UPDATE {table} SET user_id = (SELECT id FROM users LIMIT 1) WHERE user_id IS NULL,Set default user for existing records\n  3,add_not_null_constraint,ALTER TABLE {table} ALTER COLUMN user_id SET NOT NULL,Make user_id required\n  4,add_user_index,CREATE INDEX idx_{table}_user_id ON {table}(user_id),\"Add index for user filtering (optional, not used in queries)\"",
+    "token_savings": {
+      "scd_type2_migration_steps": "32.8%",
+      "closure_table_migration_steps": "30.5%",
+      "shared_budget_migration_steps": "36.1%",
+      "total": "33.0%"
+    },
+    "size_comparison": {
+      "json_tokens": 895,
+      "toon_tokens": 600,
+      "saved_tokens": 295,
+      "saved_percent": "33.0%"
+    }
+  }
+}

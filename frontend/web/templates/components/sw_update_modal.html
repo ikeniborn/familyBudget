@@ -1,0 +1,64 @@
+{#
+    Service Worker Update Modal Macro
+    Shows detailed changelog when SW update available.
+
+    Features:
+        - Version comparison display (current → new)
+        - Update/Later action buttons
+        - Warning about data/cache clearing
+        - Backdrop close handler
+
+    Usage:
+        {% from "components/sw_update_modal.html" import sw_update_modal %}
+        {{ sw_update_modal() }}
+
+    Requires:
+        - Service Worker registration script for version management
+        - JavaScript handlers: handleUpdateNow(), handleUpdateLater()
+        - IDs used: #sw-update-modal, #sw-current-version, #sw-new-version,
+                    #sw-update-now-btn, #sw-update-later-btn, #sw-update-backdrop-btn
+#}
+
+{% macro sw_update_modal() %}
+    <!-- Service Worker Update Confirmation Modal -->
+    <dialog id="sw-update-modal" class="modal">
+        <div class="modal-box max-w-md">
+            <h2 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔄 Доступно обновление</h2>
+            <p class="mb-2">Доступна новая версия приложения.</p>
+            <div id="sw-version-info" class="mb-3 p-3 bg-base-200 rounded-lg">
+                <div class="flex flex-wrap items-center justify-center gap-2 text-sm">
+                    <span class="opacity-70 whitespace-nowrap">Версия:</span>
+                    <span id="sw-current-version" class="badge badge-ghost badge-sm font-mono break-all">(неизвестно)</span>
+                    <span class="opacity-70">→</span>
+                    <span id="sw-new-version" class="badge badge-warning badge-sm font-mono break-all">(неизвестно)</span>
+                </div>
+            </div>
+            <div class="mb-6 text-sm">
+                <p class="mb-2 opacity-70">
+                    Для применения обновления необходимо перезагрузить страницу.
+                </p>
+                <p class="mb-2">
+                    <strong class="text-warning">Будут удалены: offline данные, настройки и кеш.</strong>
+                </p>
+                <p class="text-xs opacity-60">
+                    <em>Рекомендуется синхронизировать данные перед обновлением.</em>
+                </p>
+            </div>
+            <div class="modal-action">
+                <button type="button"
+                        id="sw-update-later-btn"
+                        class="btn btn-ghost">
+                    Позже
+                </button>
+                <button type="button"
+                        id="sw-update-now-btn"
+                        class="btn btn-primary">
+                    Обновить сейчас
+                </button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button id="sw-update-backdrop-btn">close</button>
+        </form>
+    </dialog>
+{% endmacro %}

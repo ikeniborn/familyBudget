@@ -1,0 +1,21 @@
+{#
+  PARTIAL: Hierarchy View
+  Purpose: Mobile-first hierarchical view of shopping list items
+  CRITICAL: Visible on mobile by default (min-[640px]:hidden) to prevent flicker
+  Hidden on desktop until user switches view (JavaScript controls)
+  Used in: detail_view.html
+#}
+
+<!-- Hierarchy View -->
+<!-- CRITICAL: Visible on mobile by default (min-[640px]:hidden) to prevent flicker -->
+<!-- Hidden on desktop until user switches view (JavaScript controls) -->
+<div id="hierarchy-view" class="view-mode min-[640px]:hidden">
+    <div class="bg-base-100 shadow-lg rounded-lg p-4">
+        <div id="hierarchy-tree">
+            <!-- Hierarchy tree will be rendered here dynamically by hierarchyView.js -->
+        </div>
+    </div>
+
+    <!-- Empty State for Hierarchy -->
+    {% include "partials/lists/empty_states/empty_hierarchy.html" %}
+</div>

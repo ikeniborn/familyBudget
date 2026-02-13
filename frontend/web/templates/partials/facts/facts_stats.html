@@ -1,0 +1,28 @@
+{#
+    Facts Statistics HTMX Partial
+
+    Server-side rendered statistics widget showing total facts count and page range.
+
+    Variables expected:
+    - total: int (total facts count)
+    - start: int (start index of current page, 1-based)
+    - end: int (end index of current page, 1-based)
+
+    Usage:
+        GET /api/v1/facts/stats?total=100&page=0&page_size=50
+        hx-get="/api/v1/facts/stats"
+        hx-trigger="load, statsUpdated from:body"
+        hx-swap="innerHTML"
+#}
+<div class="stats shadow bg-base-100">
+    <div class="stat">
+        <div class="stat-title">📊 Всего записей</div>
+        <div class="stat-value text-primary">{{ total }}</div>
+    </div>
+    {% if total > 0 %}
+    <div class="stat">
+        <div class="stat-title">📄 Показано</div>
+        <div class="stat-value text-sm">{{ start }}-{{ end }}</div>
+    </div>
+    {% endif %}
+</div>

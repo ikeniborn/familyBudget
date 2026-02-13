@@ -6,7 +6,6 @@ CRUD endpoints for CSV import templates (column mapping configurations).
 Templates are USER-SPECIFIC (filtered by user_id).
 """
 
-from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import select
@@ -50,7 +49,7 @@ async def get_import_templates(
     query = (
         select(ImportTemplate)
         .where(ImportTemplate.user_id == current_user.id)
-        .where(ImportTemplate.is_active == True)
+        .where(ImportTemplate.is_active)
         .order_by(ImportTemplate.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -63,7 +62,7 @@ async def get_import_templates(
     count_query = (
         select(ImportTemplate)
         .where(ImportTemplate.user_id == current_user.id)
-        .where(ImportTemplate.is_active == True)
+        .where(ImportTemplate.is_active)
     )
     count_result = await session.execute(count_query)
     total = len(count_result.scalars().all())
@@ -101,7 +100,7 @@ async def get_import_template(
         select(ImportTemplate)
         .where(ImportTemplate.id == template_id)
         .where(ImportTemplate.user_id == current_user.id)
-        .where(ImportTemplate.is_active == True)
+        .where(ImportTemplate.is_active)
     )
     template = result.scalar_one_or_none()
 
@@ -177,7 +176,7 @@ async def update_import_template(
         select(ImportTemplate)
         .where(ImportTemplate.id == template_id)
         .where(ImportTemplate.user_id == current_user.id)
-        .where(ImportTemplate.is_active == True)
+        .where(ImportTemplate.is_active)
     )
     template = result.scalar_one_or_none()
 
@@ -222,7 +221,7 @@ async def delete_import_template(
         select(ImportTemplate)
         .where(ImportTemplate.id == template_id)
         .where(ImportTemplate.user_id == current_user.id)
-        .where(ImportTemplate.is_active == True)
+        .where(ImportTemplate.is_active)
     )
     template = result.scalar_one_or_none()
 
