@@ -171,7 +171,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteArticleFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -753,10 +753,36 @@ function closeEditModal() {
 }
 
 // Delete article from edit modal (mobile only)
-function deleteArticleFromEditModal() {
+async function deleteArticleFromEditModal() {
     const articleId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deactivateArticle(articleId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Создать overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление категории...</p>
+        </div>
+    `;
+
+    // Добавить overlay к модальному окну
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Ждем завершения удаления
+        await deactivateArticle(articleId);
+
+        // ✅ Закрываем модальное окно ПОСЛЕ успешного удаления
+        closeEditModal();
+    } catch (error) {
+        // Ошибка уже обработана в deactivateArticle()
+        // Убрать overlay
+        overlay.remove();
+    }
 }
 
 // Update article
