@@ -48,9 +48,20 @@ declare global {
  * Handles both PGlite records (without stats) and API responses (with stats).
  */
 function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
+  // DEFENSIVE: Type coercion for temp_id (handle legacy string values from pre-v11.6.0 data)
+  let normalizedTempId: number | undefined;
+  if (typeof local.temp_id === 'number') {
+    normalizedTempId = local.temp_id;
+  } else if (typeof local.temp_id === 'string') {
+    const parsed = parseInt(local.temp_id, 10);
+    normalizedTempId = isNaN(parsed) ? undefined : parsed;
+  } else {
+    normalizedTempId = undefined;
+  }
+
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
-    temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    temp_id: normalizedTempId,     // Preserve PGlite temp_id for write operations (task-015 Phase 4, fixed type coercion)
     name: local.name,
     is_active: local.is_active,
     // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
@@ -227,7 +238,16 @@ async function getListTempId(serverId: number): Promise<number> {
   const list = state.shoppingLists.find(l => l.id === serverId);
 
   if (list?.temp_id) {
-    return typeof list.temp_id === 'number' ? list.temp_id : 0;
+    // DEFENSIVE: Handle both number and string temp_id (legacy data compatibility)
+    if (typeof list.temp_id === 'number') {
+      return list.temp_id;
+    } else if (typeof list.temp_id === 'string') {
+      const parsed = parseInt(list.temp_id, 10);
+      if (!isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    // If temp_id is invalid, fall through to Dexie query below
   }
 
   // Fallback: query Dexie directly using public API

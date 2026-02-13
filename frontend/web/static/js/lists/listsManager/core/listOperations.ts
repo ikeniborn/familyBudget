@@ -96,6 +96,20 @@ export async function createItem(data: ItemData): Promise<any> {
         throw new Error('Current shopping list not found or missing temp_id');
       }
 
+      // DEFENSIVE: Ensure shopping_list_temp_id is numeric (handle legacy string values)
+      let shoppingListTempId: number;
+      if (typeof currentList.temp_id === 'number') {
+        shoppingListTempId = currentList.temp_id;
+      } else if (typeof currentList.temp_id === 'string') {
+        const parsed = parseInt(currentList.temp_id, 10);
+        if (isNaN(parsed)) {
+          throw new Error('Invalid temp_id format in current list');
+        }
+        shoppingListTempId = parsed;
+      } else {
+        throw new Error('Current shopping list has invalid temp_id type');
+      }
+
       // Get user ID using standardized helper
       let userId: number;
       try {
@@ -107,7 +121,7 @@ export async function createItem(data: ItemData): Promise<any> {
 
       // Create in PGlite (auto-adds to pending queue)
       const temp_id = await addItemToList({
-        shopping_list_temp_id: currentList.temp_id,
+        shopping_list_temp_id: shoppingListTempId,
         creator_id: userId,
         product_name: data.product_name || '',
         quantity: data.quantity ?? null,
