@@ -1,8 +1,8 @@
 # Dexie.js Integration
 
 **Дата создания:** 2026-01-31
-**Последнее обновление:** 2026-02-12 (v11.6.0 - Numeric temp_id Migration)
-**Версия:** v11.6.0+
+**Последнее обновление:** 2026-02-13 (v11.7.0 - API Unification on temp_id)
+**Версия:** v11.7.0+
 **Статус:** Production-ready
 **Migration Status:** Complete (v11.0+ - PGlite fully removed)
 
@@ -474,6 +474,99 @@ async function migrateShoppingListItems(tx: Transaction): Promise<void> {
   await tx.table('shoppingListItems').bulkPut(migratedItems);
 }
 ```
+
+#### API Unification on temp_id (v11.7.0)
+
+**Проблема:**
+- Пользователи получали ошибку 500 при создании списков покупок offline
+- DataLayer передавал `temp_id` (~4.5 квадриллиона) в API endpoint `/api/v1/shopping-list-items?shopping_list_id=4508494054591253`
+- Backend ожидал `shopping_list_id` (PostgreSQL INTEGER, max 2.1 млрд)
+- **Следствие:** INTEGER overflow → 500 Internal Server Error
+
+**Решение v11.7.0:**
+1. **Backend API:** Новый параметр `shopping_list_temp_id` (BIGINT) для фильтрации списков
+2. **Backward compatible:** Старый параметр `shopping_list_id` (INTEGER) все еще работает
+3. **Frontend API:** DataLayer использует `shopping_list_temp_id` вместо `shopping_list_id`
+4. **Priority logic:** Если переданы оба параметра, `shopping_list_temp_id` имеет приоритет
+
+**Изменения API:**
+```typescript
+// OLD (v11.6.0 и ранее)
+GET /api/v1/shopping-list-items?shopping_list_id=35
+
+// NEW (v11.7.0+)
+GET /api/v1/shopping-list-items?shopping_list_temp_id=4508494054591253
+
+// Backend поддерживает оба параметра для backward compatibility
+```
+
+**Backend Implementation:**
+```python
+@router.get("/api/v1/shopping-list-items")
+async def list_shopping_list_items(
+    shopping_list_id: int | None = None,  # Legacy (INTEGER)
+    shopping_list_temp_id: int | None = None,  # NEW (BIGINT)
+):
+    # Validate: at least one ID required
+    if not shopping_list_id and not shopping_list_temp_id:
+        raise HTTPException(400, "Either shopping_list_id or shopping_list_temp_id required")
+
+    # Priority: temp_id first
+    if shopping_list_temp_id:
+        # Find shopping list by temp_id
+        shopping_list = await session.execute(
+            select(ShoppingList).where(ShoppingList.temp_id == shopping_list_temp_id)
+        )
+        shopping_list = shopping_list.scalar_one_or_none()
+
+        if not shopping_list:
+            return {"items": [], "total": 0}
+
+        # Filter items by server_id
+        query = query.where(ShoppingListItem.shopping_list_id == shopping_list.id)
+    else:
+        # Backward compatibility: use server_id
+        query = query.where(ShoppingListItem.shopping_list_id == shopping_list_id)
+```
+
+**Frontend Implementation:**
+```typescript
+// DataLayer.ts - getShoppingListItemsFromAPI()
+private async getShoppingListItemsFromAPI(
+  listTempId: number,
+  filters?: ShoppingListItemFilters
+): Promise<LocalShoppingListItem[]> {
+  const params = new URLSearchParams();
+  params.set('limit', '1000');
+
+  // CRITICAL FIX: Use shopping_list_temp_id (BIGINT)
+  params.set('shopping_list_temp_id', listTempId.toString());
+
+  const response = await fetch(`/api/v1/shopping-list-items?${params.toString()}`, {
+    credentials: 'include'
+  });
+
+  const data: ShoppingListItemListResponse = await response.json();
+  return data.items || [];
+}
+```
+
+**Migration Strategy:**
+- **Phase 1:** Backend deploy (v11.7.0) - поддержка обоих параметров
+- **Phase 2:** Frontend deploy (v11.7.0) - использование `shopping_list_temp_id`
+- **Phase 3:** Deprecation notice (v11.8.0) - warning при использовании `shopping_list_id`
+- **Phase 4:** Breaking change (v12.0.0) - удаление `shopping_list_id` (будущее)
+
+**Testing:**
+- Unit тесты: `backend/tests/api/test_shopping_list_items_temp_id.py`
+- E2E тесты: Создание списка offline → загрузка элементов без ошибок 500
+- Backward compatibility: Проверка работы старого параметра
+
+**Benefits:**
+- ✅ Решена проблема INTEGER overflow
+- ✅ Offline-first workflow работает без ошибок
+- ✅ Backward compatible (старые клиенты работают)
+- ✅ Унификация ID типов (везде используется temp_id)
 
 ---
 
