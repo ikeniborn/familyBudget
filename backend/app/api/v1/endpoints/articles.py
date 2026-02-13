@@ -539,8 +539,9 @@ async def update_article(
 
     # Обработка financial_center_ids (Many-to-Many связь)
     if financial_center_ids is not None:
-        from backend.app.models.article_financial_center import ArticleFinancialCenter
         from sqlalchemy import delete
+
+        from backend.app.models.article_financial_center import ArticleFinancialCenter
 
         logger.info(f"[UPDATE_ARTICLE] Updating financial center links for article_id={article_id}")
 
