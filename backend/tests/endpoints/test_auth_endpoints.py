@@ -13,9 +13,10 @@ import hmac
 import time
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import Any
 
 from backend.app.core.config import get_settings
 from backend.app.models.user import User
@@ -34,7 +35,7 @@ def generate_valid_telegram_auth_data(
     last_name: str = None,
     username: str = None,
     photo_url: str = None,
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """
     Generate valid Telegram OAuth data with correct HMAC-SHA256 hash.
 
@@ -392,7 +393,7 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
 
     app.dependency_overrides[get_session] = override_get_session
 
-    async with AsyncClient(app=app, base_url="http://test") as auth_client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as auth_client:
         auth_client.cookies.set("access_token", access_token)
 
         # Try accessing protected endpoint (e.g., /users/me)
