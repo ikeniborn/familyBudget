@@ -61,6 +61,8 @@ async def test_legacy_list_full_workflow(
         item = ShoppingListItem(
             shopping_list_id=legacy_list.id,
             creator_id=test_user.id,
+            store_id=1,  # Default test store
+            product_group_id=1,  # Default test product group
             **item_data,
         )
         session.add(item)

@@ -46,6 +46,8 @@ async def test_legacy_list_without_temp_id(
         quantity=1,
         unit="pcs",
         creator_id=test_user.id,
+        store_id=1,  # Default test store
+        product_group_id=1,  # Default test product group
     )
     session.add(item)
     await session.commit()
@@ -92,6 +94,8 @@ async def test_new_list_with_temp_id(
         quantity=2,
         unit="kg",
         creator_id=test_user.id,
+        store_id=1,  # Default test store
+        product_group_id=1,  # Default test product group
     )
     session.add(item)
     await session.commit()
