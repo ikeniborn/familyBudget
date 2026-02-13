@@ -46,8 +46,8 @@ export async function initTransferModal(): Promise<void> {
   // 2. Create ChoicesCategoryTree (FROM - debit)
   const fromCategoryTree = new BudgetShared.ChoicesCategoryTree(
     '#from_article',
-    'debit',
     {
+      type: 'debit',
       mode: 'create', // CRITICAL: prevents phantom auto-select
       onCategoryChange: () => {
         const state = getState();
@@ -67,8 +67,8 @@ export async function initTransferModal(): Promise<void> {
   // 3. Create ChoicesCategoryTree (TO - credit)
   const toCategoryTree = new BudgetShared.ChoicesCategoryTree(
     '#to_article',
-    'credit',
     {
+      type: 'credit',
       mode: 'create',
       onCategoryChange: () => {
         const state = getState();
