@@ -99,7 +99,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteStoreFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -332,10 +332,36 @@ function closeEditModal() {
 }
 
 // Delete store from edit modal (mobile only)
-function deleteStoreFromEditModal() {
+async function deleteStoreFromEditModal() {
     const storeId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deleteStore(storeId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Создать overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление магазина...</p>
+        </div>
+    `;
+
+    // Добавить overlay к модальному окну
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Ждем завершения удаления
+        await deleteStore(storeId);
+
+        // ✅ Закрываем модальное окно ПОСЛЕ успешного удаления
+        closeEditModal();
+    } catch (error) {
+        // Ошибка уже обработана в deleteStore()
+        // Убрать overlay
+        overlay.remove();
+    }
 }
 
 // Update store
@@ -432,7 +458,19 @@ async function restoreStore(storeId) {
 
 // Delete store
 async function deleteStore(storeId) {
-    const store = storesData.find(s => s.id === storeId);
+    // ✅ Нормализуем ID к integer для корректного сравнения
+    const storeIdInt = typeof storeId === 'string' ? parseInt(storeId, 10) : storeId;
+
+    // ✅ Поиск с нормализованным ID
+    const store = storesData.find(s => s.id === storeIdInt);
+
+    // ✅ Проверка на undefined ПЕРЕД использованием
+    if (!store) {
+        console.error(`Store with ID ${storeId} not found in storesData`);
+        showToast('❌ Магазин не найден', 'error');
+        return;
+    }
+
     const confirmed = await showConfirmDialog(
         'Удалить магазин?',
         `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${store.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все товары в списках покупок для этого магазина\n\nРекомендуется использовать архивирование вместо удаления.`
@@ -441,7 +479,7 @@ async function deleteStore(storeId) {
     if (!confirmed) return;
 
     try {
-        const response = await fetch(`/api/v1/stores/${storeId}`, {
+        const response = await fetch(`/api/v1/stores/${storeIdInt}`, {
             method: 'DELETE',
             credentials: 'include',
         });
