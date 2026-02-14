@@ -46,11 +46,18 @@ declare global {
  * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
  *
  * Handles both PGlite records (without stats) and API responses (with stats).
+ *
+ * CRITICAL FIX (Task #9): Generate temp_id if missing (backend doesn't return it yet)
+ * This ensures Dexie queries work correctly when matching items by shopping_list_temp_id
  */
 function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
+  // CRITICAL: Generate temp_id if missing (backend API doesn't include it yet)
+  // Format: "list_{id}_{timestamp}" - stable across page reloads for same list
+  const temp_id = local.temp_id || `list_${local.id}_temp`;
+
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
-    temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    temp_id,        // Preserve or generate temp_id for Dexie operations
     name: local.name,
     is_active: local.is_active,
     // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
