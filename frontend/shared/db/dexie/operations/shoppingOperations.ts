@@ -205,3 +205,88 @@ export async function queryProductGroups(
 
   return results.sort((a, b) => a.name.localeCompare(b.name));
 }
+
+// ============================================================================
+// Shopping List (Header) Operations
+// ============================================================================
+
+/**
+ * Update shopping list
+ * @param temp_id - Shopping list temp_id
+ * @param updates - Partial updates
+ */
+export async function updateShoppingList(
+  temp_id: string,
+  updates: Partial<Omit<LocalShoppingList, 'id' | 'temp_id' | 'creator_id' | 'created_at'>>
+): Promise<void> {
+  logger.debug('[shoppingOps] updateShoppingList', { temp_id, updates });
+
+  await db.shoppingLists.where('temp_id').equals(temp_id).modify({
+    ...updates,
+    sync_status: 'pending',  // Mark as needing sync
+    updated_at: new Date()
+  });
+
+  logger.info('[shoppingOps] ✅ Shopping list updated', { temp_id });
+}
+
+/**
+ * Delete shopping list (soft delete)
+ * @param temp_id - Shopping list temp_id
+ */
+export async function deleteShoppingList(temp_id: string): Promise<void> {
+  logger.debug('[shoppingOps] deleteShoppingList', { temp_id });
+
+  await db.shoppingLists.where('temp_id').equals(temp_id).modify({
+    sync_status: 'deleted',
+    synced_at: null,  // Reset synced_at to trigger upload
+    updated_at: new Date()
+  });
+
+  logger.info('[shoppingOps] ✅ Shopping list deleted', { temp_id });
+}
+
+/**
+ * Update shopping list statistics (total_items, completed_items, completion_percentage)
+ * Call this after creating/updating/deleting items in the list
+ *
+ * @param shopping_list_temp_id - Shopping list temp_id
+ */
+export async function updateShoppingListStats(shopping_list_temp_id: string): Promise<void> {
+  logger.debug('[shoppingOps] updateShoppingListStats', { shopping_list_temp_id });
+
+  // Count items in this list (exclude soft-deleted)
+  const items = await db.shoppingListItems
+    .where('shopping_list_temp_id')
+    .equals(shopping_list_temp_id)
+    .toArray();
+
+  const activeItems = items.filter(i => i.sync_status !== 'deleted');
+  const total = activeItems.length;
+  const completed = activeItems.filter(i => i.is_completed).length;
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  await db.shoppingLists.where('temp_id').equals(shopping_list_temp_id).modify({
+    total_items: total,
+    completed_items: completed,
+    completion_percentage: percentage,
+    updated_at: new Date()
+  });
+
+  logger.debug('[shoppingOps] Stats updated', {
+    shopping_list_temp_id,
+    total,
+    completed,
+    percentage
+  });
+}
+
+/**
+ * Get shopping list by temp_id
+ * @param temp_id - Shopping list temp_id
+ * @returns Shopping list or undefined
+ */
+export async function getShoppingListByTempId(temp_id: string): Promise<LocalShoppingList | undefined> {
+  logger.debug('[shoppingOps] getShoppingListByTempId', { temp_id });
+  return await db.shoppingLists.where('temp_id').equals(temp_id).first();
+}

@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import logging
 import time
+from typing import Any
 
 import httpx
 
@@ -170,7 +171,7 @@ async def validate_telegram_user(telegram_id: int) -> bool:
         return False
 
 
-async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
+async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
     """
     Fetch user information from Telegram using Bot API.
 
@@ -298,7 +299,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
         return None
 
 
-def validate_telegram_auth(data: dict[str, any]) -> bool:
+def validate_telegram_auth(data: dict[str, Any]) -> bool:
     """
     Validate Telegram OAuth authentication data.
 

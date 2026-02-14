@@ -132,8 +132,13 @@ export async function createItem(data: ItemData): Promise<any> {
       result = { tempId: temp_id, id: null };
       debugLog('[LIST_OPS] Item created in PGlite', { temp_id });
 
-      // Reload items from PGlite
-      if (state.currentListId) {
+      // Reload items from PGlite using temp_id (NOT numeric ID!)
+      // This ensures Dexie query finds the correct items by UUID temp_id
+      if (currentList.temp_id) {
+        await loadShoppingListItems(currentList.temp_id);
+      } else if (state.currentListId !== null) {
+        // Fallback: if temp_id missing (old lists), use numeric ID
+        debugLog('[LIST_OPS] No temp_id for list, using numeric ID fallback');
         await loadShoppingListItems(state.currentListId);
       }
 

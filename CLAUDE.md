@@ -133,9 +133,9 @@ npm run test:e2e:headed       # Headed mode (see browser)
 | **Production** | https://fb.ikeniborn.ru/ | Live users |
 | **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
-For analysis logs connect to test server via "ssh budget-test".
-Work directory "/opt/budget"
-Git directory "~/familyBudget"
+- For analysis logs connect to test server via "ssh budget-test".
+- Work directory "/opt/budget"
+- Git directory "~/familyBudget"
 
 ## Documentation Index
 
@@ -285,3 +285,6 @@ PHASE 5D → Task Summary
 
 **Data Flow:**
 - PHASE N output → PHASE N+1 input
+
+**Git requests**
+- Only create requets to test branch from dev/* branches 

@@ -27,6 +27,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_shopping_list_created,
+    broadcast_shopping_list_deleted,
+    broadcast_shopping_list_updated,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.shopping_list import ShoppingList
@@ -130,7 +135,15 @@ async def create_shopping_list(
         f"by user {current_user.id}"
     )
 
-    return ShoppingListResponse.model_validate(shopping_list)
+    response = ShoppingListResponse.model_validate(shopping_list)
+
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for created list {shopping_list.id}: {e}")
+
+    return response
 
 
 @router.get(
@@ -265,7 +278,15 @@ async def update_shopping_list(
         f"fields: {changed_fields} by user {current_user.id}"
     )
 
-    return ShoppingListResponse.model_validate(shopping_list)
+    response = ShoppingListResponse.model_validate(shopping_list)
+
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for updated list {shopping_list_id}: {e}")
+
+    return response
 
 
 @router.put(
@@ -414,6 +435,12 @@ async def delete_shopping_list(
     # Delete shopping list (CASCADE will delete all items via FK constraint)
     await session.delete(shopping_list)
     await session.commit()
+
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_deleted(shopping_list_id)
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for deleted list {shopping_list_id}: {e}")
 
     logger.info(
         f"Deleted shopping list {shopping_list_id} ({shopping_list.name}) "

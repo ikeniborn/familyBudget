@@ -60,12 +60,6 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      # TypeScript type check (REMOVED - already in pre-commit hook)
-      # Kept in CI only as safety net if pre-commit bypassed
-      - name: TypeScript type check (safety net)
-        run: npm run type-check
-        continue-on-error: false
-
       - name: ESLint
         run: npm run lint
 
@@ -175,80 +169,35 @@ jobs:
   # Backend Checks
   # ============================================================================
   backend-quality:
-    name: Backend Quality & Tests
+    name: Backend Quality Checks
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: familybudget_test
-          POSTGRES_USER: familybudget
-          POSTGRES_PASSWORD: test_password_12345678901234567890
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup test services
-        uses: ./.github/actions/setup-test-services
-        with:
-          postgres-password: test_password_12345678901234567890
-
       - name: Setup backend
         uses: ./.github/actions/setup-backend
         with:
           python-version: '3.11'
-          database-url: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
 
       - name: Install quality tools
         run: pip install mypy ruff
 
       - name: Python mypy type check
-        run: mypy backend/ || true
-        continue-on-error: true
+        run: |
+          python -m mypy backend/app/ \
+            --config-file=pyproject.toml \
+            --explicit-package-bases \
+            --namespace-packages
+        continue-on-error: true  # Allow merge while fixing 20+ existing type errors
 
       - name: Python ruff lint
         run: ruff check backend/
 
-      - name: Backend unit tests
-        env:
-          POSTGRES_HOST: localhost
-          TEST_DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5432/familybudget_test
-          REDIS_ENABLED: true
-          REDIS_URL: redis://localhost:6379/0
-          JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
-          SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
-          TELEGRAM_BOT_TOKEN: test_bot_token_for_ci_only
-          ADMIN_TELEGRAM_ID: 123456789
-          API_INTERNAL_KEY: test_internal_key_for_ci_only
-          CORS_ORIGINS: http://localhost:8000
-        run: pytest tests/unit/ --cov --cov-report=xml
-
-      - name: Upload backend coverage
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.xml
-          flags: backend
-          fail_ci_if_error: false
+      # Backend unit tests removed - fully covered by backend-tests.yml workflow
+      # backend-tests.yml runs more comprehensive tests (tests/ instead of tests/unit/)
+      # and includes integration tests with PostgreSQL + Redis services
 
   # ============================================================================
   # PR Summary
@@ -270,8 +219,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🎯 Optimization Notes" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Type check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Unit tests: Run once in CI with full coverage" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ TypeScript type check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
           echo "- ⚡ console.log check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Backend unit tests: Covered by backend-tests.yml workflow" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Frontend unit tests: Run once in CI with full coverage" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Time saved:** ~7 minutes per PR (eliminated test duplication)" >> $GITHUB_STEP_SUMMARY
+          echo "**Time saved:** ~10 minutes per PR (eliminated duplicate checks)" >> $GITHUB_STEP_SUMMARY
