@@ -20,6 +20,7 @@ from backend.app.models.user import User
 
 @pytest.mark.integration
 @pytest.mark.backend
+@pytest.mark.destructive
 class TestAdminDeleteEndpoint:
     """Test DELETE /api/v1/admin/facts/{fact_id} endpoint."""
 

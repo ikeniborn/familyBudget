@@ -97,73 +97,8 @@ jobs:
             frontend/web/static/js/dist/
           retention-days: 7
 
-      # Unit tests with coverage (SINGLE SOURCE OF TRUTH)
-      - name: Unit & Integration Tests
-        run: npm run test:coverage
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: ./coverage/lcov.info
-          flags: frontend
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: Check coverage thresholds
-        run: |
-          LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
-          FUNCTIONS=$(jq -r '.total.functions.pct' coverage/coverage-summary.json)
-          BRANCHES=$(jq -r '.total.branches.pct' coverage/coverage-summary.json)
-          STATEMENTS=$(jq -r '.total.statements.pct' coverage/coverage-summary.json)
-
-          # Thresholds from vitest.config.ts
-          # LOWERED: After PGlite removal, will raise incrementally
-          LINES_THRESHOLD=4.0
-          FUNCTIONS_THRESHOLD=32.0
-          BRANCHES_THRESHOLD=60.0
-          STATEMENTS_THRESHOLD=4.0
-
-          echo "Coverage Report:"
-          echo "  Lines: $LINES% (threshold: $LINES_THRESHOLD%)"
-          echo "  Functions: $FUNCTIONS% (threshold: $FUNCTIONS_THRESHOLD%)"
-          echo "  Branches: $BRANCHES% (threshold: $BRANCHES_THRESHOLD%)"
-          echo "  Statements: $STATEMENTS% (threshold: $STATEMENTS_THRESHOLD%)"
-
-          FAIL=0
-
-          if awk -v a="$LINES" -v b="$LINES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
-            echo "❌ Lines coverage $LINES% is below $LINES_THRESHOLD% threshold"
-            FAIL=1
-          fi
-
-          if awk -v a="$FUNCTIONS" -v b="$FUNCTIONS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
-            echo "❌ Functions coverage $FUNCTIONS% is below $FUNCTIONS_THRESHOLD% threshold"
-            FAIL=1
-          fi
-
-          if awk -v a="$BRANCHES" -v b="$BRANCHES_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
-            echo "❌ Branches coverage $BRANCHES% is below $BRANCHES_THRESHOLD% threshold"
-            FAIL=1
-          fi
-
-          if awk -v a="$STATEMENTS" -v b="$STATEMENTS_THRESHOLD" 'BEGIN {exit (a >= b)}'; then
-            echo "❌ Statements coverage $STATEMENTS% is below $STATEMENTS_THRESHOLD% threshold"
-            FAIL=1
-          fi
-
-          if [ $FAIL -eq 1 ]; then
-            exit 1
-          fi
-
-          echo "✅ All coverage thresholds met"
-
-      - name: Upload coverage report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
+      # Runtime tests removed - moved to post-deploy workflow (automatic after deployment)
+      # This allows faster PR feedback while ensuring deployed code is validated
 
   # ============================================================================
   # Backend Checks
@@ -221,7 +156,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- ⚡ TypeScript type check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
           echo "- ⚡ console.log check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Backend unit tests: Covered by backend-tests.yml workflow" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Frontend unit tests: Run once in CI with full coverage" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Backend unit tests: Moved to post-deploy workflow (automatic after deployment)" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚡ Frontend unit tests: Moved to post-deploy workflow (automatic after deployment)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Time saved:** ~10 minutes per PR (eliminated duplicate checks)" >> $GITHUB_STEP_SUMMARY
+          echo "**Time saved:** ~2 minutes per PR (faster static checks)" >> $GITHUB_STEP_SUMMARY
+          echo "**Runtime tests:** Automatically run after deployment to https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY

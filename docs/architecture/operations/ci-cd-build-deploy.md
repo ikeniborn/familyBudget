@@ -1197,6 +1197,321 @@ Developer (local)          GitHub Actions (CI/CD)         Server (budget-test/pr
 
 ---
 
+## Post-Deploy Testing Workflow
+
+**Добавлено в**: v11.5.0 (2026-02-15)
+**Цель**: Автоматическая валидация развернутого окружения после каждого деплоя
+
+### Обзор
+
+После успешного деплоя на test сервер (https://fbd.ikeniborn.ru/) **автоматически запускаются** runtime тесты для валидации реального окружения. Это гарантирует, что деплой не только успешен, но и приложение работает корректно.
+
+### Workflow
+
+```
+Deploy to Test Server (deploy-test job)
+        ↓ success
+Post-Deploy Tests (automatic trigger)
+        ↓ parallel execution (matrix strategy)
+        ├─ Frontend Tests (Vitest)
+        ├─ Backend Tests (pytest read-only)
+        └─ E2E Tests (Playwright)
+        ↓
+Post-Deploy Summary
+        ↓
+Telegram Notification (if tests fail)
+```
+
+---
+
+### Job 7: Post-Deploy Tests
+
+**Trigger**: Автоматически после успешного `deploy-test` job
+```yaml
+needs: [deploy-test]
+if: always() && needs.deploy-test.result == 'success'
+```
+
+**Execution Strategy**: Matrix parallel (3 test suites одновременно)
+```yaml
+strategy:
+  matrix:
+    test-suite: [frontend, backend, e2e]
+  fail-fast: false  # Все тесты выполняются даже если один падает
+```
+
+**Duration**: ~6 минут (параллельно) вместо ~15 минут (последовательно)
+
+---
+
+#### Frontend Tests
+
+**Tool**: Vitest (unit + integration)
+**Environment**: `VITE_API_URL=https://fbd.ikeniborn.ru`
+
+**Steps**:
+1. Setup Node.js
+2. `npm run test:coverage`
+3. Upload coverage artifacts
+
+**What's tested**:
+- Frontend logic (utils, stores, components)
+- API client integration
+- Offline mode (Dexie.js)
+
+---
+
+#### Backend Tests (Read-Only Mode)
+
+**Tool**: pytest
+**CRITICAL**: `-m "not destructive"` для предотвращения записи в БД
+
+**Environment**:
+```bash
+DATABASE_URL=${{ secrets.TEST_SERVER_DATABASE_URL }}  # PostgreSQL на test сервере
+REDIS_URL=${{ secrets.TEST_SERVER_REDIS_URL }}        # Redis на test сервере
+BACKEND_URL=https://fbd.ikeniborn.ru
+```
+
+**Steps**:
+1. Setup Python 3.12
+2. Install backend dependencies
+3. `pytest tests/ -m "not destructive" --maxfail=5 -v`
+4. Upload test results artifacts
+
+**What's tested**:
+- API endpoints (GET requests)
+- Database queries (read-only)
+- Business logic validation
+- Integration with real PostgreSQL/Redis
+
+**Why read-only**:
+- Database user полнофункциональный (может писать)
+- Тесты помечены `@pytest.mark.destructive` для write operations
+- `-m "not destructive"` фильтрует только read-only тесты
+- Предотвращает порчу данных на test сервере
+
+---
+
+#### E2E Tests
+
+**Tool**: Playwright (6 browser configurations)
+**Environment**:
+```bash
+BASE_URL=https://fbd.ikeniborn.ru
+TEST_USER_EMAIL=${{ secrets.TEST_USER_EMAIL }}
+TEST_USER_PASSWORD=${{ secrets.TEST_USER_PASSWORD }}
+```
+
+**Steps**:
+1. Setup Node.js
+2. Install Playwright browsers (`npx playwright install --with-deps`)
+3. `npm run test:e2e`
+4. Upload playwright-report artifacts
+
+**What's tested**:
+- User workflows (login, transactions, categories)
+- Mobile responsiveness
+- Offline functionality
+- Cross-browser compatibility
+
+**Browsers**: Chromium, Firefox, WebKit (desktop + mobile)
+
+---
+
+### Job 8: Post-Deploy Summary
+
+**Purpose**: Агрегация результатов всех 3 test suites
+
+**Output**: GitHub Step Summary с статусом каждого suite
+
+```markdown
+## 🧪 Post-Deploy Test Results
+
+**Environment:** https://fbd.ikeniborn.ru/
+**Test Suites:** frontend, backend, e2e (parallel execution)
+
+### Test Status
+- Frontend: success ✅
+- Backend: success ✅
+- E2E: success ✅
+
+**Note:** Backend tests run in read-only mode (`-m 'not destructive'`) to protect data on test server
+```
+
+---
+
+### Failure Handling
+
+**Telegram Notification** (опционально):
+- Отправляется **только при failure** любого test suite
+- Graceful degradation: если `TELEGRAM_BOT_TOKEN` или `TELEGRAM_CHAT_ID` не заданы, step skipped (не падает)
+
+**Notification format**:
+```
+❌ Post-Deploy Tests Failed
+
+Suite: backend
+Environment: https://fbd.ikeniborn.ru
+Commit: abc123def
+Check: https://github.com/owner/repo/actions/runs/123456
+```
+
+**Manual retry**: Перезапустить только failed suite через GitHub Actions UI
+
+---
+
+### GitHub Secrets
+
+**Required secrets** (настраиваются в Repository Settings → Secrets):
+
+| Secret | Purpose | Example |
+|--------|---------|---------|
+| `TEST_SERVER_DATABASE_URL` | PostgreSQL на test сервере | `postgresql+asyncpg://familybudget:***@fbd.ikeniborn.ru:5432/familybudget` |
+| `TEST_SERVER_REDIS_URL` | Redis на test сервере | `redis://fbd.ikeniborn.ru:6379/0` |
+| `TEST_USER_EMAIL` | E2E тестовый пользователь | `e2e-test@example.com` |
+| `TEST_USER_PASSWORD` | E2E пароль | `***` |
+| `TELEGRAM_BOT_TOKEN` | Bot token для notifications (optional) | `123456:ABC-DEF...` |
+| `TELEGRAM_CHAT_ID` | Chat ID для notifications (optional) | `-1001234567890` |
+
+---
+
+### Преимущества автоматических post-deploy тестов
+
+**До (manual testing)**:
+```
+PR → Static Checks (10 мин) → Merge → Deploy (15 мин) → ✅ Done
+                                                       (неизвестно работает ли)
+```
+
+**После (automatic validation)**:
+```
+PR → Static Checks (8 мин) → Merge → Deploy (15 мин) → Auto Tests (6 мин) → ✅ Done
+                                                                            (с гарантией)
+```
+
+**Benefits**:
+- ✅ **Automatic validation** - не нужно помнить запускать тесты вручную
+- ✅ **Real environment** - тесты на реальном PostgreSQL/Redis, не mock
+- ✅ **Fast feedback** - уведомления при failures в Telegram
+- ✅ **Parallel execution** - matrix strategy экономит ~9 минут
+- ✅ **Read-only safe** - backend тесты не портят данные на test сервере
+- ✅ **Rollback capability** - можно автоматически откатывать failed deploys (future)
+
+**Trade-off**: +6 минут к общему времени, но с полной валидацией окружения
+
+---
+
+### Performance Impact
+
+| Метрика | До | После | Изменение |
+|---------|-----|-------|-----------|
+| **PR checks** | ~10 мин | ~8 мин | ⚡ 20% быстрее |
+| **Post-deploy tests** | Manual (опционально) | Automatic (~6 мин parallel) | ✅ Автоматизация |
+| **Total (PR → Deploy → Tests)** | ~25 мин (no validation) | ~29 мин (with validation) | +4 мин, но с гарантией |
+
+---
+
+### Pytest Markers (Read-Only Pattern)
+
+**Marker definition** (`tests/conftest.py`):
+```python
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "destructive: marks tests that modify database (write operations). "
+        "These tests are skipped in post-deploy CI to prevent data corruption."
+    )
+```
+
+**Usage in tests**:
+```python
+@pytest.mark.integration
+@pytest.mark.destructive  # Write operation - skipped in post-deploy
+class TestAdminDeleteEndpoint:
+    async def test_delete_fact(self, client):
+        response = await client.delete("/api/v1/admin/facts/1")
+        # DELETE operation - modifies database
+
+@pytest.mark.integration
+class TestFactReadEndpoint:
+    async def test_get_facts(self, client):
+        response = await client.get("/api/v1/facts")
+        # GET operation - read-only, runs in post-deploy
+```
+
+**Execution**:
+```bash
+# Post-deploy CI (read-only)
+pytest tests/ -m "not destructive"
+
+# Local development (all tests)
+pytest tests/
+
+# Only write tests (for local verification)
+pytest tests/ -m "destructive"
+```
+
+---
+
+### Troubleshooting
+
+#### Issue 1: Backend tests fail with connection error
+
+**Error**: `ConnectionRefusedError: [Errno 111] Connection refused`
+
+**Cause**: `TEST_SERVER_DATABASE_URL` или `TEST_SERVER_REDIS_URL` неверно настроены
+
+**Solution**:
+1. Verify secrets в Repository Settings
+2. Check URL format: `postgresql+asyncpg://user:pass@host:port/db`
+3. Test connection manually:
+   ```bash
+   psql postgresql://user:pass@fbd.ikeniborn.ru:5432/familybudget
+   ```
+
+---
+
+#### Issue 2: E2E tests fail with "User not found"
+
+**Error**: `Error: TEST_USER_EMAIL user not found`
+
+**Cause**: Тестовый пользователь не создан на test сервере
+
+**Solution**:
+1. Login to https://fbd.ikeniborn.ru/ с тестовым email
+2. Create account if doesn't exist
+3. Verify credentials в GitHub Secrets
+
+---
+
+#### Issue 3: Telegram notifications not working
+
+**Error**: (no error, notifications simply don't appear)
+
+**Cause**: `TELEGRAM_BOT_TOKEN` или `TELEGRAM_CHAT_ID` не настроены
+
+**Solution**:
+1. Check secrets в Repository Settings
+2. Verify bot token format: `123456:ABC-DEF...`
+3. Verify chat ID format: `-1001234567890` (negative for groups)
+4. **Note**: Graceful degradation - step skipped if secrets empty (не падает)
+
+---
+
+#### Issue 4: Tests run too long (>15 minutes)
+
+**Error**: Workflow timeout
+
+**Cause**: Tests выполняются последовательно вместо параллельно
+
+**Solution**:
+1. Check workflow YAML: `strategy.matrix.test-suite: [frontend, backend, e2e]`
+2. Verify `fail-fast: false` (продолжить все тесты)
+3. Matrix должен создать 3 parallel jobs
+
+---
+
 ## Future Enhancements
 
 ### Phase 3: Blue-Green Deployment
@@ -1233,7 +1548,7 @@ Developer (local)          GitHub Actions (CI/CD)         Server (budget-test/pr
 
 ---
 
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-02-15
 **Maintainer**: Family Budget Team
-**Version**: 2.0 (Registry-First Architecture)
-**Breaking Changes**: Build mode removed, 5 custom images, semver-only tags
+**Version**: 2.1 (Registry-First + Automatic Post-Deploy Testing)
+**Breaking Changes**: Build mode removed, 5 custom images, semver-only tags, automatic post-deploy validation

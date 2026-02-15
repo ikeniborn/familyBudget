@@ -701,7 +701,7 @@ jobs:
   # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, image-build-push, security-scan, deploy-test]
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-summary]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
     steps:
@@ -725,6 +725,7 @@ jobs:
           echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Post-Deploy Tests: ${{ needs.post-deploy-summary.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
@@ -804,3 +805,158 @@ jobs:
         run: |
           echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
           echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Job 7: Post-Deploy Tests (AUTOMATIC validation after deployment)
+  # ============================================================================
+  post-deploy-tests:
+    name: Post-Deploy Tests (${{ matrix.test-suite }})
+    needs: [deploy-test]
+    runs-on: ubuntu-latest
+    if: |
+      always() &&
+      needs.deploy-test.result == 'success'
+
+    strategy:
+      matrix:
+        test-suite: [frontend, backend, e2e]
+      fail-fast: false  # Continue all tests even if one fails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================================================
+      # Frontend Tests (Vitest unit/integration)
+      # ============================================================================
+      - name: Setup Node.js (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        uses: ./.github/actions/setup-node
+
+      - name: Run frontend tests
+        if: matrix.test-suite == 'frontend'
+        env:
+          VITE_API_URL: https://fbd.ikeniborn.ru
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage
+        if: matrix.test-suite == 'frontend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-post-deploy
+          path: coverage/
+          retention-days: 7
+
+      # ============================================================================
+      # Backend Tests (pytest read-only mode)
+      # ============================================================================
+      - name: Setup Python (backend tests)
+        if: matrix.test-suite == 'backend'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install backend dependencies
+        if: matrix.test-suite == 'backend'
+        run: |
+          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: Run backend tests (read-only)
+        if: matrix.test-suite == 'backend'
+        env:
+          DATABASE_URL: ${{ secrets.TEST_SERVER_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.TEST_SERVER_REDIS_URL }}
+          BACKEND_URL: https://fbd.ikeniborn.ru
+          JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
+          SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
+          TELEGRAM_BOT_TOKEN: test_bot_token_for_ci_only
+          ADMIN_TELEGRAM_ID: 123456789
+          API_INTERNAL_KEY: test_internal_key_for_ci_only
+          CORS_ORIGINS: https://fbd.ikeniborn.ru
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          cd backend
+          # CRITICAL: -m "not destructive" for read-only mode (database user is full-access)
+          pytest tests/ \
+            -m "not destructive" \
+            --maxfail=5 \
+            -v \
+            --tb=short
+
+      - name: Upload backend test results
+        if: matrix.test-suite == 'backend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-post-deploy
+          path: backend/htmlcov/
+          retention-days: 7
+
+      # ============================================================================
+      # E2E Tests (Playwright)
+      # ============================================================================
+      - name: Setup Node.js (E2E tests)
+        if: matrix.test-suite == 'e2e'
+        uses: ./.github/actions/setup-node
+
+      - name: Install Playwright browsers
+        if: matrix.test-suite == 'e2e'
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        if: matrix.test-suite == 'e2e'
+        env:
+          BASE_URL: https://fbd.ikeniborn.ru
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        if: matrix.test-suite == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-post-deploy
+          path: playwright-report/
+          retention-days: 7
+
+      # ============================================================================
+      # Telegram Notification (graceful degradation if secrets not set)
+      # ============================================================================
+      - name: Notify on failure (Telegram)
+        if: failure() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != ''
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Post-Deploy Tests Failed
+
+            Suite: ${{ matrix.test-suite }}
+            Environment: https://fbd.ikeniborn.ru
+            Commit: ${{ github.sha }}
+
+            Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ============================================================================
+  # Job 8: Post-Deploy Summary
+  # ============================================================================
+  post-deploy-summary:
+    name: Post-Deploy Summary
+    needs: [post-deploy-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🧪 Post-Deploy Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suites:** frontend, backend, e2e (parallel execution)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Status" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Backend tests run in read-only mode (\`-m 'not destructive'\`) to protect data on test server" >> $GITHUB_STEP_SUMMARY

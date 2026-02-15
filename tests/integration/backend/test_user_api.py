@@ -22,6 +22,7 @@ from backend.app.services.user_service import create_initial_history
 
 @pytest.mark.integration
 @pytest.mark.backend
+@pytest.mark.destructive
 class TestUserProfileUpdate:
     """Test PUT /api/v1/admin/users/{id} endpoint (Hybrid SCD1 + History SCD2)."""
 
@@ -396,6 +397,7 @@ class TestUserHistory:
 
 @pytest.mark.integration
 @pytest.mark.backend
+@pytest.mark.destructive
 class TestAuthLoginLastLogin:
     """Test login updates last_login_at without creating history."""
 
