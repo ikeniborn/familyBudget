@@ -1,15 +1,11 @@
 {% extends "base.html" %}
 {% from "components/modal_confirm.html" import confirm_modal %}
-{% from "components/mobile_alert.html" import mobile_restriction_alert %}
 {% from "components/status_filter.html" import status_filter_buttons %}
 {% from "components/macros/delete_buttons.html" import delete_button_mobile %}
 
 {% block content %}
-<!-- Mobile restriction alert (from macro) -->
-{{ mobile_restriction_alert() }}
-
-<!-- Main content (hidden on mobile) -->
-<div class="hidden md:block space-y-6">
+<!-- Main content -->
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📁 Управление категориями бюджета</h1>
@@ -49,14 +45,17 @@
                 </div>
             </div>
 
-            <div id="articles-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="articles-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="articles-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Create Article Modal -->

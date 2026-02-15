@@ -37,7 +37,11 @@
                 </div>
             </div>
 
-            <div id="groups-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="groups-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="groups-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
@@ -138,6 +142,7 @@
 window.onStatusFilterChange = function(status) {
     currentStatusFilter = status;
     renderProductGroupsTree();
+    renderMobileCards();
 };
 
 // Check if current user is admin
@@ -177,10 +182,99 @@ async function loadProductGroups() {
         productGroupsData = data.product_groups || [];
 
         renderProductGroupsTree();
+        renderMobileCards();
     } catch (error) {
         console.error('Failed to load product groups:', error);
         container.innerHTML = '<div class="alert alert-error"><span>❌ Ошибка загрузки групп товаров. Попробуйте перезагрузить страницу.</span></div>';
     }
+}
+
+// Render mobile cards with hierarchy
+function renderMobileCards() {
+    const container = document.getElementById('groups-cards-container');
+
+    // Filter by status
+    let filtered = productGroupsData;
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(g => g.is_active === true);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(g => g.is_active === false);
+    }
+
+    // Filter by search query
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filtered = filtered.filter(g => g.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        const message = currentSearchQuery
+            ? `📦 Группы товаров не найдены по запросу "${currentSearchQuery}".`
+            : '📦 Группы товаров не найдены. Нажмите "➕ Новая группа" для создания.';
+        container.innerHTML = `<div class="text-center py-8 text-base-content/60">${message}</div>`;
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    // Render tree recursively
+    const html = renderMobileTreeNodes(tree, 0);
+    container.innerHTML = html;
+}
+
+// Render mobile tree nodes recursively
+function renderMobileTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const isArchived = !node.is_active;
+        const statusBadge = node.is_active
+            ? '<span class="badge badge-success badge-xs">✓ Активна</span>'
+            : '<span class="badge badge-warning badge-xs">📦 Архив</span>';
+
+        const parentInfo = level > 0 ? '<div class="text-xs text-base-content/60">↳ Подгруппа</div>' : '';
+
+        html += `
+            <div class="card bg-base-100 shadow-md border border-base-300"
+                 style="margin-left: ${level * 1.5}rem;">
+                <div class="card-body p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-base flex-1">${escapeHtml(node.name)}</h3>
+                        ${statusBadge}
+                    </div>
+                    ${parentInfo}
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-base-content/60">Код:</span> <span class="badge badge-outline badge-sm">${node.code}</span></div>
+                        <div><span class="text-base-content/60">Уровень:</span> ${level + 1}</div>
+                    </div>
+                    ${node.description ? `<p class="text-sm text-base-content/70">${escapeHtml(node.description)}</p>` : ''}
+                    <div class="flex gap-2 pt-2 border-t border-base-300">
+                        <button class="btn btn-sm btn-primary flex-1" onclick="showEditModal(${node.id})">
+                            ✏️ Изменить
+                        </button>
+                        ${isAdmin && !isArchived ? `
+                            <button class="btn btn-sm btn-warning" onclick="archiveProductGroup(${node.id})" title="Архивировать">
+                                📦
+                            </button>
+                        ` : ''}
+                        ${isAdmin && isArchived ? `
+                            <button class="btn btn-sm btn-success" onclick="restoreProductGroup(${node.id})" title="Восстановить">
+                                ♻️
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Render children recursively
+        if (node.children && node.children.length > 0) {
+            html += renderMobileTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
 }
 
 // Render product groups tree

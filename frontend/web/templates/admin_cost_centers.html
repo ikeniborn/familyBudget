@@ -1,15 +1,11 @@
 {% extends "base.html" %}
 {% from "components/modal_confirm.html" import confirm_modal %}
-{% from "components/mobile_alert.html" import mobile_restriction_alert %}
 {% from "components/status_filter.html" import status_filter %}
 {% from "components/macros/delete_buttons.html" import delete_button_mobile %}
 
 {% block content %}
-<!-- Mobile restriction alert (from macro) -->
-{{ mobile_restriction_alert() }}
-
-<!-- Main content (hidden on mobile) -->
-<div class="hidden md:block space-y-6">
+<!-- Main content -->
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📊 Управление местами затрат</h1>
@@ -32,14 +28,17 @@
             <!-- Status Filter (from macro) -->
             {{ status_filter() }}
 
-            <div id="centers-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="centers-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="centers-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Create Cost Center Modal -->
@@ -141,6 +140,7 @@ let centersData = [];
 window.onStatusFilterChange = function(status) {
     currentStatusFilter = status;
     renderCentersTable(centersData);
+    renderMobileCards(centersData);
 };
 let financialCentersData = [];
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
@@ -176,6 +176,7 @@ async function loadCenters() {
         centersData = data.cost_centers || [];
 
         renderCentersTable(centersData);
+        renderMobileCards(centersData);
     } catch (error) {
         console.error('Error loading cost centers:', error);
         container.innerHTML = ''; // очистить
@@ -234,6 +235,81 @@ function getFCNamesLabel(fcIds) {
         return `<span class="badge badge-info badge-sm">${names.slice(0, 2).join(', ')} +${names.length - 2}</span>`;
     }
     return `<span class="badge badge-info badge-sm">${names.join(', ')}</span>`;
+}
+
+// Render mobile cards
+function renderMobileCards(centers) {
+    const container = document.getElementById('centers-cards-container');
+
+    // Filter by status
+    let filteredCenters = centers;
+    if (currentStatusFilter === 'active') {
+        filteredCenters = centers.filter(c => c.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filteredCenters = centers.filter(c => c.is_active === false);
+    }
+
+    if (filteredCenters.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 МЗ не найдены. Нажмите "➕ Новое МЗ" для создания.</div>';
+        return;
+    }
+
+    let html = '';
+    filteredCenters.forEach(center => {
+        const isArchived = center.is_active === false;
+        const archivedBadge = isArchived ? '<span class="badge badge-warning badge-sm">📦 архив</span>' : '';
+        const createdDate = center.created_at ? new Date(center.created_at).toLocaleDateString('ru-RU') : '—';
+        const description = center.description || '';
+
+        // Financial centers badges
+        let fcBadges = '';
+        if (!center.financial_center_ids || center.financial_center_ids.length === 0) {
+            fcBadges = '<span class="badge badge-ghost badge-sm">Все счета</span>';
+        } else {
+            center.financial_center_ids.forEach(fcId => {
+                const fc = financialCentersData.find(f => f.id === fcId);
+                const fcName = fc ? fc.name : `#${fcId}`;
+                fcBadges += `<span class="badge badge-info badge-sm mr-1 mb-1">${fcName}</span>`;
+            });
+        }
+
+        html += `
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-base flex-1">${center.name}</h3>
+                        ${archivedBadge}
+                    </div>
+                    <div class="text-sm">
+                        <span class="text-base-content/60">🏦 Счета:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">${fcBadges}</div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-base-content/60">Код:</span> <span class="font-mono">${center.code || '—'}</span></div>
+                        <div><span class="text-base-content/60">Создан:</span> ${createdDate}</div>
+                    </div>
+                    ${description ? `<p class="text-sm text-base-content/70">${description}</p>` : ''}
+                    <div class="flex gap-2 pt-2 border-t border-base-300">
+                        <button class="btn btn-sm btn-primary flex-1" onclick="showEditModal(${center.id})">
+                            ✏️ Изменить
+                        </button>
+                        ${isAdmin && !isArchived ? `
+                            <button class="btn btn-sm btn-warning" onclick="archiveCenter(${center.id})" title="Архивировать">
+                                📦
+                            </button>
+                        ` : ''}
+                        ${isAdmin && isArchived ? `
+                            <button class="btn btn-sm btn-success" onclick="restoreCenter(${center.id})" title="Восстановить">
+                                ♻️
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 // Render centers table
