@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build → Push → Deploy → Test
 
 on:
   push:
@@ -827,6 +827,33 @@ jobs:
         uses: actions/checkout@v4
 
       # ============================================================================
+      # SSH Setup (for backend tests)
+      # ============================================================================
+      - name: Setup SSH for backend tests
+        if: matrix.test-suite == 'backend'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SERVER_HOST }}
+          SSH_USER: ${{ secrets.TEST_SERVER_USER }}
+          SSH_PORT: ${{ secrets.TEST_SERVER_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TEST_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add test server to known_hosts
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          # Create SSH config
+          cat >> ~/.ssh/config << EOF
+          Host budget-test
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          EOF
+
+      # ============================================================================
       # Frontend Tests (Vitest unit/integration)
       # ============================================================================
       - name: Setup Node.js (frontend tests)
@@ -853,11 +880,11 @@ jobs:
       - name: Run backend tests on test server (read-only)
         if: matrix.test-suite == 'backend'
         run: |
-          ssh budget-test << 'EOF'
+          ssh budget-test "bash -s" << EOF
             set -e
             cd ~/familyBudget
 
-            # Pull latest changes
+            # Pull latest changes and checkout specific commit
             git fetch origin
             git checkout ${{ github.sha }}
 
@@ -942,11 +969,23 @@ jobs:
           echo "## 🧪 Post-Deploy Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
-          echo "**Test Suites:** frontend, backend, e2e (parallel execution)" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Test Status" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- E2E: ${{ needs.post-deploy-tests.result }}" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.post-deploy-tests.result }}" == "success" ]; then
+            echo "### ✅ All Test Suites Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Some Test Suites Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suites (parallel execution):**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** Vitest unit/integration tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** pytest read-only mode (via SSH to test server)" >> $GITHUB_STEP_SUMMARY
+          echo "- **E2E:** Playwright (6 browser configurations)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**View individual test suite results:**" >> $GITHUB_STEP_SUMMARY
+          echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note:** Backend tests run in read-only mode (\`-m 'not destructive'\`) to protect data on test server" >> $GITHUB_STEP_SUMMARY
