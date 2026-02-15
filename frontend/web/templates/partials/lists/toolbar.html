@@ -12,7 +12,11 @@
     <!-- Note: Mark All, Unmark All, Delete Completed moved to FAB menu -->
     <div class="flex gap-1 sm:gap-2" id="shared-controls">
         <button id="toggle-hide-completed-btn" class="btn btn-sm btn-outline sm:min-w-44" onclick="toggleHideCompleted()" title="Скрыть выполненные">
-            <span>👁️</span><span class="hidden sm:inline ml-1">Скрыть выполненные</span>
+            <span>👁️</span>
+            <span class="ml-1">
+                <span class="sm:hidden">Скрыть</span><!-- Mobile: short -->
+                <span class="hidden sm:inline">Скрыть выполненные</span><!-- Desktop: full -->
+            </span>
         </button>
     </div>
 

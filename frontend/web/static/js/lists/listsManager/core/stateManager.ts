@@ -24,6 +24,15 @@ import type {
 } from '@db/dexie';
 
 // ============================================================================
+// Constants
+// ============================================================================
+
+/** Prefix for generated temp_id when backend doesn't provide one */
+const TEMP_ID_PREFIX = 'list_';
+/** Suffix for generated temp_id (indicates fallback generation) */
+const TEMP_ID_SUFFIX = '_temp';
+
+// ============================================================================
 // Type Definitions
 // ============================================================================
 
@@ -53,7 +62,16 @@ declare global {
 function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
   // CRITICAL: Generate temp_id if missing (backend API doesn't include it yet)
   // Format: "list_{id}_{timestamp}" - stable across page reloads for same list
-  const temp_id = local.temp_id || `list_${local.id}_temp`;
+  const temp_id = local.temp_id || `${TEMP_ID_PREFIX}${local.id}${TEMP_ID_SUFFIX}`;
+
+  // Log warning if temp_id is missing (indicates backend API issue)
+  if (!local.temp_id) {
+    console.warn('[STATE_MANAGER] Missing temp_id for list, using fallback', {
+      listId: local.id,
+      fallback: temp_id,
+      message: 'Backend API should return temp_id field'
+    });
+  }
 
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet

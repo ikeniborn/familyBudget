@@ -55,7 +55,18 @@ export async function queryShoppingLists(
 
   let results = await db.shoppingLists.toArray();
 
-  // Apply filters
+  // CRITICAL FIX: Filter out deleted lists by default (data integrity best practice)
+  // Prevents UI from displaying soft-deleted records (avoids user confusion)
+  // Deleted lists only visible when explicitly requested via filters.sync_status === 'deleted'
+  results = results.filter(list => {
+    // Default filter: exclude deleted lists unless explicitly requested
+    if (!filters?.sync_status || filters.sync_status !== 'deleted') {
+      if (list.sync_status === 'deleted') return false;
+    }
+    return true;
+  });
+
+  // Apply user-provided filters
   if (filters) {
     results = results.filter(list => {
       if (filters.is_active !== undefined && list.is_active !== filters.is_active) return false;
