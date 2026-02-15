@@ -358,6 +358,7 @@ async function loadArticles() {
             articlesData = responseData.articles;  // Extract nested array for non-admin
         }
         renderArticlesTable(articlesData);
+        renderMobileCards(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);
         container.innerHTML = ''; // очистить
@@ -368,6 +369,118 @@ async function loadArticles() {
         alertDiv.appendChild(span);
         container.appendChild(alertDiv);
     }
+}
+
+// Render mobile cards with hierarchy
+function renderMobileCards(articles) {
+    const container = document.getElementById('articles-cards-container');
+
+    // Apply same filters as desktop
+    let filtered = currentType === 'all'
+        ? articles
+        : articles.filter(a => a.type === currentType);
+
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(a => a.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(a => a.is_active === false);
+    }
+
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        const message = currentSearchQuery
+            ? `📝 Категории не найдены по запросу "${currentSearchQuery}".`
+            : '📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.';
+        container.innerHTML = `<div class="text-center py-8 text-base-content/60">${message}</div>`;
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    // Render tree recursively
+    const html = renderMobileTreeNodes(tree, 0);
+    container.innerHTML = html;
+}
+
+// Render mobile tree nodes recursively
+function renderMobileTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const isArchived = node.is_active === false;
+
+        // Type-based border color
+        const borderColor = {
+            'income': 'border-success',
+            'expense': 'border-error',
+            'debit': 'border-info',
+            'credit': 'border-warning'
+        }[node.type] || 'border-base-300';
+
+        // Type badge
+        let typeIcon;
+        switch (node.type) {
+            case 'income': typeIcon = '💰 Доход'; break;
+            case 'expense': typeIcon = '💸 Расход'; break;
+            case 'debit': typeIcon = '📤 Списание'; break;
+            case 'credit': typeIcon = '📥 Пополнение'; break;
+            default: typeIcon = node.type;
+        }
+
+        const statusBadge = isArchived ? '<span class="badge badge-warning badge-xs">📦 архив</span>' : '';
+        const parentInfo = level > 0 ? '<div class="text-xs text-base-content/60">↳ Подкатегория</div>' : '';
+        const ownerLabel = node.user_name || '—';
+        const fcLabel = getFCNamesLabel(node.financial_center_ids);
+
+        html += `
+            <div class="card bg-base-100 shadow-md border-l-4 ${borderColor}"
+                 style="margin-left: ${level * 1.5}rem;">
+                <div class="card-body p-4 space-y-2">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-base flex-1">${escapeHtml(node.name)}</h3>
+                        <span class="badge badge-sm">${typeIcon}</span>
+                    </div>
+                    ${statusBadge ? `<div>${statusBadge}</div>` : ''}
+                    ${parentInfo}
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-base-content/60">Код:</span> ${node.code || '—'}</div>
+                        <div><span class="text-base-content/60">Уровень:</span> ${level + 1}</div>
+                    </div>
+                    <div class="text-sm">
+                        <div><span class="text-base-content/60">🏦 Счета:</span> ${fcLabel}</div>
+                        <div><span class="text-base-content/60">👤 Владелец:</span> ${ownerLabel}</div>
+                    </div>
+                    <div class="flex gap-2 pt-2 border-t">
+                        <button class="btn btn-sm btn-primary flex-1" onclick="showEditModal(${node.id})">
+                            ✏️ Изменить
+                        </button>
+                        ${isAdmin && !isArchived ? `
+                            <button class="btn btn-sm btn-warning" onclick="archiveArticle(${node.id})" title="Архивировать">
+                                📦
+                            </button>
+                        ` : ''}
+                        ${isAdmin && isArchived ? `
+                            <button class="btn btn-sm btn-success" onclick="restoreArticle(${node.id})" title="Восстановить">
+                                ♻️
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Render children recursively
+        if (node.children && node.children.length > 0) {
+            html += renderMobileTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
 }
 
 // Render articles table with hierarchy
