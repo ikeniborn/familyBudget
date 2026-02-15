@@ -1,13 +1,9 @@
 {% extends "base.html" %}
 {% from "components/modal_confirm.html" import confirm_modal %}
-{% from "components/mobile_alert.html" import mobile_restriction_alert %}
 
 {% block content %}
-<!-- Mobile restriction alert (from macro) -->
-{{ mobile_restriction_alert() }}
-
-<!-- Main content (hidden on mobile) -->
-<div class="hidden md:block space-y-6">
+<!-- Main content -->
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">👥 Управление пользователями</h1>
@@ -39,14 +35,17 @@
                 </div>
             </div>
 
-            <div id="users-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="users-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="users-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <!-- Create User Modal -->
@@ -415,11 +414,125 @@ async function loadUsers() {
         const users = data.users || data;  // Support both new and old format
         usersData = users;
         renderUsersTable(users);
+        renderMobileCards(users);
     } catch (error) {
         console.error('Error loading users:', error);
         const errorMessage = error?.message || String(error);
         container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки пользователей: ${errorMessage}</span></div>`;
     }
+}
+
+// Render mobile cards
+function renderMobileCards(users) {
+    const container = document.getElementById('users-cards-container');
+
+    if (users.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">👤 Пользователи не найдены</div>';
+        return;
+    }
+
+    let html = '';
+    users.forEach(user => {
+        const isActive = user.is_active && !user.merged_into_user_id;
+        const displayName = user.first_name || user.username || (user.telegram_id ? `User ${user.telegram_id}` : (user.email || 'Без имени'));
+
+        // Badges
+        const adminBadge = user.is_admin ? '<span class="badge badge-warning badge-xs">🔑 Админ</span>' : '';
+        const twoFactorBadge = user.two_factor_enabled ? '<span class="badge badge-success badge-xs">2FA</span>' : '';
+        const biometricBadge = user.has_webauthn_credentials ? '<span class="badge badge-info badge-xs">👆 Биометрия</span>' : '';
+
+        let statusBadge = '';
+        if (user.merged_into_user_id) {
+            const targetUser = usersData.find(u => u.id === user.merged_into_user_id);
+            const targetName = targetUser ? (targetUser.first_name || targetUser.username || `ID ${targetUser.id}`) : `ID ${user.merged_into_user_id}`;
+            statusBadge = `<span class="badge badge-error badge-xs">🔗 → ${targetName}</span>`;
+        } else if (!isActive) {
+            statusBadge = '<span class="badge badge-warning badge-xs">⏳ Ожидает</span>';
+        }
+
+        // Avatar
+        const initial = (user.first_name || user.username || user.email || 'U')[0].toUpperCase();
+        const avatarHtml = user.photo_url
+            ? `<img src="${user.photo_url}" alt="${displayName}" loading="lazy" />`
+            : `<span class="text-lg">${initial}</span>`;
+
+        // Dates
+        const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : 'Никогда';
+        const createdDate = user.created_at ? formatDate(user.created_at) : '—';
+
+        html += `
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body p-4 space-y-3">
+                    <!-- Avatar + Name + Badges -->
+                    <div class="flex items-start gap-3">
+                        <div class="avatar${!user.photo_url ? ' placeholder' : ''}">
+                            <div class="w-12 h-12 rounded-full ${!user.photo_url ? 'bg-neutral-focus text-neutral-content' : ''}">
+                                ${avatarHtml}
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-base">${displayName}</h3>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${adminBadge}
+                                ${twoFactorBadge}
+                                ${biometricBadge}
+                                ${statusBadge}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Info -->
+                    <div class="space-y-1 text-sm">
+                        ${user.telegram_id ? `<div>📱 Telegram: <span class="font-mono">${user.telegram_id}</span></div>` : ''}
+                        ${user.email ? `<div>📧 Email: <span class="text-xs break-all">${user.email}</span></div>` : ''}
+                        ${user.username ? `<div>👤 Username: @${user.username}</div>` : ''}
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 gap-2 text-sm pt-2 border-t border-base-300">
+                        <div><span class="text-base-content/60">Создан:</span> ${createdDate}</div>
+                        <div><span class="text-base-content/60">Вход:</span> ${lastLogin}</div>
+                        <div><span class="text-base-content/60">ID:</span> <span class="font-mono">${user.id}</span></div>
+                    </div>
+
+                    <!-- Action Dropdown (opens upward) -->
+                    <div class="dropdown dropdown-top w-full pt-2 border-t border-base-300">
+                        <button class="btn btn-sm btn-primary w-full">
+                            ⚙️ Действия
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <ul class="dropdown-content menu p-2 shadow-xl bg-base-100 rounded-box w-full mb-2 z-10">
+                            <li><a onclick="showEditModal(${user.id})">✏️ Редактировать</a></li>
+                            ${isActive ? `
+                                <li><a onclick="deactivateUser(${user.id})">⏸️ Деактивировать</a></li>
+                            ` : `
+                                <li><a onclick="activateUser(${user.id})">▶️ Активировать</a></li>
+                            `}
+                            ${user.is_admin ? `
+                                <li><a onclick="removeAdminRole(${user.id})">👤 Снять роль админа</a></li>
+                            ` : `
+                                <li><a onclick="grantAdminRole(${user.id})">🔑 Назначить админом</a></li>
+                            `}
+                            <li><a onclick="refreshTelegramData(${user.id})">🔄 Обновить из Telegram</a></li>
+                            ${user.two_factor_enabled ? `
+                                <li><a onclick="reset2FA(${user.id})">🔓 Сбросить 2FA</a></li>
+                            ` : ''}
+                            <li><a onclick="resetPassword(${user.id})">🔑 Сбросить пароль</a></li>
+                            ${user.has_webauthn_credentials ? `
+                                <li><a onclick="resetWebAuthn(${user.id})">👆 Сбросить биометрию</a></li>
+                            ` : ''}
+                            <li class="divider"></li>
+                            <li><a onclick="deleteUser(${user.id})" class="text-error">🗑️ Удалить</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 // Render users table

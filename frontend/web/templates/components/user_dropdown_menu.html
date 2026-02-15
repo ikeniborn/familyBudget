@@ -154,16 +154,16 @@
                 <li data-offline-hidden="true"><a href="/notifications" data-nav-item>🔔 Уведомления</a></li>
                 <li class="hidden md:block" data-offline-hidden="true"><a href="/import" data-nav-item>📥 Импорт</a></li>
                 <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
-                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles" data-nav-item>📁 Категории</a></li>
-                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers" data-nav-item>💼 Места затрат</a></li>
-                <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers" data-nav-item>🏢 Счета</a></li>
+                <li data-offline-hidden="true"><a href="/admin/articles" data-nav-item>📁 Категории</a></li>
+                <li data-offline-hidden="true"><a href="/admin/cost-centers" data-nav-item>💼 Места затрат</a></li>
+                <li data-offline-hidden="true"><a href="/admin/financial-centers" data-nav-item>🏢 Счета</a></li>
                 <li data-offline-hidden="true"><a href="/admin/stores" data-nav-item>🏪 Магазины</a></li>
                 <li data-offline-hidden="true"><a href="/admin/product-groups" data-nav-item>📦 Группы товаров</a></li>
                 {% endif %}
 
                 {% if user and user.is_admin %}
                     <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users" data-nav-item>👥 Пользователи</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/users" data-nav-item>👥 Пользователи</a></li>
                     <li data-offline-hidden="true"><a href="/admin/monitoring" data-nav-item>🔍 Мониторинг</a></li>
                     <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs" data-nav-item>📋 Системные логи</a></li>
                 {% endif %}

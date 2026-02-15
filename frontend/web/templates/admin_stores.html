@@ -27,7 +27,11 @@
             <!-- Status Filter (from macro) -->
             {{ status_filter() }}
 
-            <div id="stores-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="stores-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="stores-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
@@ -125,6 +129,7 @@ let storesData = [];
 window.onStatusFilterChange = function(status) {
     currentStatusFilter = status;
     renderStoresTable();
+    renderMobileCards();
 };
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 const isAdmin = {{ 'true' if user.is_admin else 'false' }};
@@ -158,10 +163,71 @@ async function loadStores() {
         storesData = data.stores || [];
 
         renderStoresTable();
+        renderMobileCards();
     } catch (error) {
         console.error('Failed to load stores:', error);
         container.innerHTML = '<div class="alert alert-error"><span>❌ Ошибка загрузки магазинов. Попробуйте перезагрузить страницу.</span></div>';
     }
+}
+
+// Render mobile cards
+function renderMobileCards() {
+    const container = document.getElementById('stores-cards-container');
+
+    // Filter stores by status
+    let filteredStores = storesData;
+    if (currentStatusFilter === 'active') {
+        filteredStores = storesData.filter(s => s.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filteredStores = storesData.filter(s => s.is_active === false);
+    }
+
+    if (filteredStores.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏪 Магазины не найдены. Нажмите "➕ Новый магазин" для создания.</div>';
+        return;
+    }
+
+    let html = '';
+    filteredStores.forEach(store => {
+        const isArchived = store.is_active === false;
+        const statusBadge = isArchived ? '<span class="badge badge-warning badge-sm">📦 архив</span>' : '';
+        const address = store.address || '';
+        const description = store.description || '';
+
+        html += `
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-base flex-1">${store.name}</h3>
+                        ${statusBadge}
+                    </div>
+                    ${address ? `<div class="text-sm"><span class="text-base-content/60">📍 Адрес:</span> ${address}</div>` : ''}
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-base-content/60">Код:</span> <span class="font-mono">${store.code || '—'}</span></div>
+                        <div><span class="text-base-content/60">ID:</span> <span class="font-mono">${store.id}</span></div>
+                    </div>
+                    ${description ? `<p class="text-sm text-base-content/70">${description}</p>` : ''}
+                    <div class="flex gap-2 pt-2 border-t border-base-300">
+                        <button class="btn btn-sm btn-primary flex-1" onclick="showEditModal(${store.id})">
+                            ✏️ Изменить
+                        </button>
+                        ${isAdmin && !isArchived ? `
+                            <button class="btn btn-sm btn-warning" onclick="archiveStore(${store.id})" title="Архивировать">
+                                📦
+                            </button>
+                        ` : ''}
+                        ${isAdmin && isArchived ? `
+                            <button class="btn btn-sm btn-success" onclick="restoreStore(${store.id})" title="Восстановить">
+                                ♻️
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 // Render stores table
