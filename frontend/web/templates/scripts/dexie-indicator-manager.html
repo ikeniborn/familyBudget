@@ -111,9 +111,17 @@
 
     /**
      * Initialize indicator based on localStorage.dexieActive
+     * DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
+     * NOTE: base.html sets default to 'true' on first visit
      */
     async function initDexieIndicator() {
         try {
+            // Fallback: Set default if not initialized (edge case if this runs before base.html)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.info('[DEXIE_INDICATOR] dexieActive flag initialized to true (fallback)');
+            }
+
             const isDexieEnabled = localStorage.getItem('dexieActive') === 'true';
 
             if (isDexieEnabled) {
