@@ -1261,29 +1261,47 @@ strategy:
 
 ---
 
-#### Backend Tests (Read-Only Mode)
+#### Backend Tests (Read-Only Mode via SSH)
 
-**Tool**: pytest
+**Tool**: pytest (выполняется на test сервере через SSH)
 **CRITICAL**: `-m "not destructive"` для предотвращения записи в БД
 
-**Environment**:
+**Execution Method**: SSH exec на budget-test сервер
+```yaml
+run: ssh budget-test << 'EOF'
+  cd ~/familyBudget
+  git checkout ${{ github.sha }}
+  export DATABASE_URL="postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@postgres:5432/familybudget"
+  export REDIS_URL="redis://redis:6379/0"
+  cd backend
+  .venv/bin/pytest tests/ -m "not destructive" --maxfail=5 -v
+EOF
+```
+
+**Environment** (статичные значения, без GitHub Secrets):
 ```bash
-DATABASE_URL=${{ secrets.TEST_SERVER_DATABASE_URL }}  # PostgreSQL на test сервере
-REDIS_URL=${{ secrets.TEST_SERVER_REDIS_URL }}        # Redis на test сервере
+DATABASE_URL=postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@postgres:5432/familybudget
+REDIS_URL=redis://redis:6379/0
 BACKEND_URL=https://fbd.ikeniborn.ru
 ```
 
+**Why SSH exec**:
+- PostgreSQL и Redis - внутренние docker контейнеры (недоступны извне)
+- Используются docker service names (postgres:5432, redis:6379)
+- Virtual environment предустановлен: `~/familyBudget/backend/.venv`
+- Пароль PostgreSQL берется из .env файла на сервере (через `${POSTGRES_PASSWORD}`)
+
 **Steps**:
-1. Setup Python 3.12
-2. Install backend dependencies
-3. `pytest tests/ -m "not destructive" --maxfail=5 -v`
-4. Upload test results artifacts
+1. SSH подключение к budget-test
+2. Checkout нужного commit (`${{ github.sha }}`)
+3. Export переменных окружения
+4. Запуск pytest через virtual environment
 
 **What's tested**:
 - API endpoints (GET requests)
 - Database queries (read-only)
 - Business logic validation
-- Integration with real PostgreSQL/Redis
+- Integration с реальным PostgreSQL/Redis на test сервере
 
 **Why read-only**:
 - Database user полнофункциональный (может писать)
@@ -1367,12 +1385,12 @@ Check: https://github.com/owner/repo/actions/runs/123456
 
 | Secret | Purpose | Example |
 |--------|---------|---------|
-| `TEST_SERVER_DATABASE_URL` | PostgreSQL на test сервере | `postgresql+asyncpg://familybudget:***@fbd.ikeniborn.ru:5432/familybudget` |
-| `TEST_SERVER_REDIS_URL` | Redis на test сервере | `redis://fbd.ikeniborn.ru:6379/0` |
 | `TEST_USER_EMAIL` | E2E тестовый пользователь | `e2e-test@example.com` |
 | `TEST_USER_PASSWORD` | E2E пароль | `***` |
 | `TELEGRAM_BOT_TOKEN` | Bot token для notifications (optional) | `123456:ABC-DEF...` |
 | `TELEGRAM_CHAT_ID` | Chat ID для notifications (optional) | `-1001234567890` |
+
+**Note**: PostgreSQL и Redis credentials НЕ требуются в GitHub Secrets, т.к. backend тесты запускаются на test сервере через SSH с использованием локальных docker service names (postgres:5432, redis:6379).
 
 ---
 
@@ -1456,19 +1474,29 @@ pytest tests/ -m "destructive"
 
 ### Troubleshooting
 
-#### Issue 1: Backend tests fail with connection error
+#### Issue 1: Backend tests fail with SSH connection error
 
-**Error**: `ConnectionRefusedError: [Errno 111] Connection refused`
+**Error**: `ssh: Could not resolve hostname budget-test`
 
-**Cause**: `TEST_SERVER_DATABASE_URL` или `TEST_SERVER_REDIS_URL` неверно настроены
+**Cause**: SSH config не настроен на GitHub Actions runner
 
 **Solution**:
-1. Verify secrets в Repository Settings
-2. Check URL format: `postgresql+asyncpg://user:pass@host:port/db`
-3. Test connection manually:
+1. Verify SSH key добавлен в Secrets (`SSH_PRIVATE_KEY`)
+2. Verify SSH known_hosts настроен
+3. Check SSH config создается в workflow перед запуском тестов
+4. Test SSH connection manually:
    ```bash
-   psql postgresql://user:pass@fbd.ikeniborn.ru:5432/familybudget
+   ssh budget-test "echo 'Connection OK'"
    ```
+
+**Alternative Error**: `ConnectionRefusedError` от pytest
+
+**Cause**: PostgreSQL или Redis контейнер не запущен на test сервере
+
+**Solution**:
+1. SSH на budget-test
+2. Check containers: `docker ps | grep -E 'postgres|redis'`
+3. Restart if needed: `cd /opt/budget && docker-compose up -d postgres redis`
 
 ---
 

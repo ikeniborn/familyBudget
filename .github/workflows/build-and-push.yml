@@ -848,49 +848,39 @@ jobs:
           retention-days: 7
 
       # ============================================================================
-      # Backend Tests (pytest read-only mode)
+      # Backend Tests (pytest read-only mode via SSH)
       # ============================================================================
-      - name: Setup Python (backend tests)
-        if: matrix.test-suite == 'backend'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install backend dependencies
+      - name: Run backend tests on test server (read-only)
         if: matrix.test-suite == 'backend'
         run: |
-          pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+          ssh budget-test << 'EOF'
+            set -e
+            cd ~/familyBudget
 
-      - name: Run backend tests (read-only)
-        if: matrix.test-suite == 'backend'
-        env:
-          DATABASE_URL: ${{ secrets.TEST_SERVER_DATABASE_URL }}
-          REDIS_URL: ${{ secrets.TEST_SERVER_REDIS_URL }}
-          BACKEND_URL: https://fbd.ikeniborn.ru
-          JWT_SECRET: test_jwt_secret_for_ci_only_do_not_use_in_production
-          SECRET_KEY: test_secret_key_for_ci_only_do_not_use_in_production
-          TELEGRAM_BOT_TOKEN: test_bot_token_for_ci_only
-          ADMIN_TELEGRAM_ID: 123456789
-          API_INTERNAL_KEY: test_internal_key_for_ci_only
-          CORS_ORIGINS: https://fbd.ikeniborn.ru
-          PYTHONPATH: ${{ github.workspace }}
-        run: |
-          cd backend
-          # CRITICAL: -m "not destructive" for read-only mode (database user is full-access)
-          pytest tests/ \
-            -m "not destructive" \
-            --maxfail=5 \
-            -v \
-            --tb=short
+            # Pull latest changes
+            git fetch origin
+            git checkout ${{ github.sha }}
 
-      - name: Upload backend test results
-        if: matrix.test-suite == 'backend' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-test-results-post-deploy
-          path: backend/htmlcov/
-          retention-days: 7
+            # Run pytest in read-only mode
+            export DATABASE_URL="postgresql+asyncpg://familybudget:\${POSTGRES_PASSWORD}@postgres:5432/familybudget"
+            export REDIS_URL="redis://redis:6379/0"
+            export BACKEND_URL="https://fbd.ikeniborn.ru"
+            export JWT_SECRET="test_jwt_secret_for_ci_only"
+            export SECRET_KEY="test_secret_key_for_ci_only"
+            export TELEGRAM_BOT_TOKEN="test_bot_token_for_ci_only"
+            export ADMIN_TELEGRAM_ID="123456789"
+            export API_INTERNAL_KEY="test_internal_key_for_ci_only"
+            export CORS_ORIGINS="https://fbd.ikeniborn.ru"
+            export PYTHONPATH="/home/ikeniborn/familyBudget"
+
+            cd backend
+            # CRITICAL: -m "not destructive" for read-only mode (database user is full-access)
+            .venv/bin/pytest tests/ \
+              -m "not destructive" \
+              --maxfail=5 \
+              -v \
+              --tb=short
+          EOF
 
       # ============================================================================
       # E2E Tests (Playwright)
