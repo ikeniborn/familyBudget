@@ -55,6 +55,15 @@ function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): 
   // Format: "list_{id}_{timestamp}" - stable across page reloads for same list
   const temp_id = local.temp_id || `list_${local.id}_temp`;
 
+  // Log warning if temp_id is missing (indicates backend API issue)
+  if (!local.temp_id) {
+    console.warn('[STATE_MANAGER] Missing temp_id for list, using fallback', {
+      listId: local.id,
+      fallback: temp_id,
+      message: 'Backend API should return temp_id field'
+    });
+  }
+
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
     temp_id,        // Preserve or generate temp_id for Dexie operations

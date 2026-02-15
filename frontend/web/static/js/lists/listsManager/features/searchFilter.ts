@@ -117,21 +117,35 @@ export function updateHideCompletedButton(): void {
   if (!btn) return;
 
   const iconSpan = btn.querySelector('span:first-child');
-  const textSpan = btn.querySelector('span:last-child');
+  const textSpan = btn.querySelector('span:nth-child(2)');
 
   if (state.hideCompleted) {
     if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
-    if (textSpan) textSpan.textContent = 'Показать все';
+    // Update both mobile and desktop text
+    if (textSpan) {
+      textSpan.innerHTML = `
+        <span class="sm:hidden">Показать</span>
+        <span class="hidden sm:inline">Показать все</span>
+      `;
+    }
     btn.title = 'Показать все товары';
     btn.classList.add('btn-primary');
     btn.classList.remove('btn-outline');
   } else {
     if (iconSpan) iconSpan.textContent = '👁️';
-    if (textSpan) textSpan.textContent = 'Скрыть выполненные';
+    if (textSpan) {
+      textSpan.innerHTML = `
+        <span class="sm:hidden">Скрыть</span>
+        <span class="hidden sm:inline">Скрыть выполненные</span>
+      `;
+    }
     btn.title = 'Скрыть выполненные товары';
     btn.classList.remove('btn-primary');
     btn.classList.add('btn-outline');
   }
+
+  // Update icon visibility based on completion state
+  updateFABButtons();
 }
 
 // ============================================================================
