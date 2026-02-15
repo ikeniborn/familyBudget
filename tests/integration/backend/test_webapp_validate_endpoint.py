@@ -22,6 +22,7 @@ settings = get_settings()
 @pytest.mark.integration
 @pytest.mark.backend
 @pytest.mark.webapp
+@pytest.mark.destructive
 class TestWebAppValidateEndpoint:
     """Test /api/v1/webapp/validate endpoint."""
 

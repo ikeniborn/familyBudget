@@ -201,3 +201,20 @@ def mock_telegram_initdata():
 def anyio_backend():
     """Use asyncio as async backend for tests."""
     return "asyncio"
+
+
+# ==================== Pytest Configuration ====================
+
+
+def pytest_configure(config):
+    """
+    Pytest configuration hook.
+
+    Registers custom markers for test categorization.
+    """
+    config.addinivalue_line(
+        "markers",
+        "destructive: marks tests that modify database (write operations - CREATE/UPDATE/DELETE). "
+        "These tests are skipped in post-deploy CI to prevent data corruption on test server. "
+        "Use: pytest -m 'not destructive' for read-only test execution."
+    )
