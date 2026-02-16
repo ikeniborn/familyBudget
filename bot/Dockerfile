@@ -47,8 +47,8 @@ WORKDIR /app
 # Copy bot application (distroless runs as nonroot user UID 65532)
 COPY bot/ /app/bot/
 
-# Copy healthcheck script (Python-based, no pgrep needed in distroless)
-COPY bot/healthcheck.py /app/healthcheck.py
+# Copy healthcheck script with executable permissions (Python-based, no pgrep needed in distroless)
+COPY --chmod=755 bot/healthcheck.py /app/healthcheck.py
 
 # Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
