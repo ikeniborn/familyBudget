@@ -31,7 +31,7 @@ FROM gcr.io/distroless/python3-debian12:latest
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/app
+    PYTHONPATH=/opt/venv/lib/python3.11/site-packages:/app
 
 # Copy SSL/TLS libraries from builder (required for Telegram API HTTPS connections)
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
