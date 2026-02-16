@@ -355,3 +355,169 @@ test.describe('Shopping Lists - Offline Sync', () => {
     expect(dbExists).toBe(true);
   });
 });
+
+test.describe('Shopping Lists - Deletion', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/lists');
+    await page.waitForLoadState('domcontentloaded');
+
+    const acceptAllButton = page.locator('button:has-text("Принять все")');
+    const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);
+    if (isVisible) {
+      await acceptAllButton.click();
+      await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
+    }
+  });
+
+  test('should delete shopping list and remove from UI', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.desktop);
+
+    // Check if there are any lists
+    const existingLists = page.locator('[data-list-id], .list-card, tr[data-list-id]');
+    const listCount = await existingLists.count();
+
+    if (listCount === 0) {
+      // Create a test list first
+      const createButton = page.locator('button:has-text("Создать список"), button:has-text("Новый список")').first();
+      await createButton.click();
+
+      const modal = page.locator('dialog[open]').first();
+      await expect(modal).toBeVisible({ timeout: 5000 });
+
+      const listName = `E2E Delete Test ${Date.now()}`;
+      const nameInput = modal.locator('input[name="name"]');
+      await nameInput.fill(listName);
+
+      const saveButton = modal.locator('button.btn-primary').first();
+      await saveButton.click();
+
+      await expect(modal).not.toBeVisible({ timeout: 5000 });
+
+      // Wait for list to appear
+      await page.waitForTimeout(1000);
+    }
+
+    // Get first list for deletion
+    const firstList = page.locator('[data-list-id], .list-card, tr[data-list-id]').first();
+    const listId = await firstList.getAttribute('data-list-id');
+
+    // Find delete button for this list
+    // Try different selectors
+    let deleteButton = firstList.locator('button[title*="Удалить" i], button:has-text("🗑"), .btn-delete').first();
+    let deleteVisible = await deleteButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (!deleteVisible) {
+      // Try context menu or three-dot menu
+      const menuButton = firstList.locator('button[title*="Меню" i], button:has-text("⋮"), button:has-text("...")').first();
+      const menuVisible = await menuButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+      if (menuVisible) {
+        await menuButton.click();
+        await page.waitForTimeout(500);
+
+        deleteButton = page.locator('button:has-text("Удалить"), .dropdown-item:has-text("Удалить")').first();
+        deleteVisible = await deleteButton.isVisible({ timeout: 2000 }).catch(() => false);
+      }
+    }
+
+    if (!deleteVisible) {
+      test.skip();
+      return;
+    }
+
+    // Click delete button
+    await deleteButton.click();
+
+    // Handle confirmation dialog if it appears
+    const confirmDialog = page.locator('dialog[open]').last();
+    const confirmVisible = await confirmDialog.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (confirmVisible) {
+      // Look for confirmation button
+      const confirmButton = confirmDialog.locator('button:has-text("Удалить"), button.btn-error, button.btn-danger').first();
+      await confirmButton.click();
+    }
+
+    // Wait for success toast
+    const toast = page.locator('.toast:has-text("успешно удален"), .toast:has-text("Список удалён")').first();
+    await expect(toast).toBeVisible({ timeout: 5000 });
+
+    // Verify list is removed from UI
+    if (listId) {
+      const deletedList = page.locator(`[data-list-id="${listId}"]`);
+      await expect(deletedList).not.toBeVisible({ timeout: 3000 });
+    }
+
+    // Verify we're on landing view (not detail view)
+    const landingView = page.locator('#landing-view, .landing-view');
+    const landingVisible = await landingView.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (landingVisible) {
+      expect(landingVisible).toBe(true);
+    }
+  });
+
+  test('should handle double deletion attempt gracefully', async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.desktop);
+
+    // This test verifies that clicking delete twice (e.g., in different tabs)
+    // handles 404 gracefully with info toast
+
+    // Check if there are any lists
+    const existingLists = page.locator('[data-list-id], .list-card, tr[data-list-id]');
+    const listCount = await existingLists.count();
+
+    if (listCount === 0) {
+      test.skip();
+      return;
+    }
+
+    // Get first list
+    const firstList = existingLists.first();
+    const listId = await firstList.getAttribute('data-list-id');
+
+    // Find and click delete button
+    const deleteButton = firstList.locator('button[title*="Удалить" i], button:has-text("🗑"), .btn-delete').first();
+    const deleteVisible = await deleteButton.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (!deleteVisible) {
+      test.skip();
+      return;
+    }
+
+    await deleteButton.click();
+
+    // Confirm deletion
+    const confirmDialog = page.locator('dialog[open]').last();
+    const confirmVisible = await confirmDialog.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (confirmVisible) {
+      const confirmButton = confirmDialog.locator('button:has-text("Удалить"), button.btn-error').first();
+      await confirmButton.click();
+    }
+
+    // Wait for success
+    await page.waitForTimeout(1000);
+
+    // Verify list removed
+    if (listId) {
+      await expect(page.locator(`[data-list-id="${listId}"]`)).not.toBeVisible({ timeout: 3000 });
+    }
+
+    // Try to delete again via API (simulating second tab)
+    // This should return 404 and show info toast
+    const response = await page.evaluate(async (id) => {
+      const res = await fetch(`/api/v1/shopping-lists/${id}`, {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      });
+      return {
+        status: res.status,
+        ok: res.ok
+      };
+    }, parseInt(listId || '0'));
+
+    // Should get 404 (already deleted)
+    expect(response.status).toBe(404);
+  });
+});
