@@ -19,6 +19,7 @@ from sqlmodel import select
 
 from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
+from backend.app.models.store import Store
 from backend.app.models.user import User
 
 
@@ -27,6 +28,19 @@ from backend.app.models.user import User
 @pytest.mark.destructive
 class TestShoppingListDelete:
     """Test DELETE /api/v1/shopping-lists/{id} endpoint."""
+
+    @pytest.fixture
+    async def test_store(self, db_session: AsyncSession):
+        """Create test store for shopping list items."""
+        store = Store(
+            name="Test Store",
+            description="Integration test store",
+            is_active=True,
+        )
+        db_session.add(store)
+        await db_session.commit()
+        await db_session.refresh(store)
+        return store
 
     @pytest.fixture
     async def shopping_list(self, db_session: AsyncSession, test_user: User):
@@ -45,13 +59,14 @@ class TestShoppingListDelete:
         return shopping_list
 
     @pytest.fixture
-    async def shopping_list_with_items(self, db_session: AsyncSession, shopping_list: ShoppingList):
+    async def shopping_list_with_items(self, db_session: AsyncSession, shopping_list: ShoppingList, test_store: Store):
         """Create shopping list with 5 items for cascade delete test."""
         items = []
         for i in range(5):
             item = ShoppingListItem(
                 creator_id=shopping_list.creator_id,
                 shopping_list_id=shopping_list.id,
+                store_id=test_store.id,
                 product_name=f"Test Product {i+1}",
                 quantity=i + 1,
                 price_cents=100 * (i + 1),  # 100, 200, 300, 400, 500 cents
@@ -131,7 +146,10 @@ class TestShoppingListDelete:
         # Then: 403 Forbidden
         assert response.status_code == 403
         error_data = response.json()
-        assert "creator" in error_data["detail"].lower() or "owner" in error_data["detail"].lower()
+        # Handle both string and dict error formats
+        detail = error_data["detail"]
+        error_message = detail["message"] if isinstance(detail, dict) else detail
+        assert "creator" in error_message.lower() or "owner" in error_message.lower()
 
     async def test_delete_shopping_list_not_found(
         self,
@@ -156,8 +174,11 @@ class TestShoppingListDelete:
         # Then: 404 Not Found
         assert response.status_code == 404
         error_data = response.json()
-        assert "not found" in error_data["detail"].lower()
-        assert str(non_existent_id) in error_data["detail"]
+        # Handle both string and dict error formats
+        detail = error_data["detail"]
+        error_message = detail["message"] if isinstance(detail, dict) else detail
+        assert "not found" in error_message.lower()
+        assert str(non_existent_id) in error_message
 
     async def test_delete_shopping_list_cascades_items(
         self,
@@ -269,7 +290,10 @@ class TestShoppingListDelete:
         )
         assert response2.status_code == 404
         error_data = response2.json()
-        assert "not found" in error_data["detail"].lower()
+        # Handle both string and dict error formats
+        detail = error_data["detail"]
+        error_message = detail["message"] if isinstance(detail, dict) else detail
+        assert "not found" in error_message.lower()
 
 
 @pytest.mark.integration
