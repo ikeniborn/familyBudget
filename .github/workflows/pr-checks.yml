@@ -118,11 +118,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install backend dependencies (for type checking)
+      - name: Install backend dependencies
         run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
 
       - name: Install quality tools
         run: pip install mypy ruff
