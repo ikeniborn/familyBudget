@@ -54,8 +54,9 @@ COPY --chmod=755 bot/healthcheck.py /app/healthcheck.py
 
 # Python-based healthcheck (no pgrep in distroless)
 # ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# NOTE: Distroless doesn't support shebang, must explicitly call python3
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/app/healthcheck.py"]
+    CMD ["python3", "/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
