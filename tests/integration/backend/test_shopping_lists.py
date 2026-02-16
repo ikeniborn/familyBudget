@@ -30,9 +30,10 @@ class TestShoppingListDelete:
     """Test DELETE /api/v1/shopping-lists/{id} endpoint."""
 
     @pytest.fixture
-    async def test_store(self, db_session: AsyncSession):
+    async def test_store(self, db_session: AsyncSession, test_user: User):
         """Create test store for shopping list items."""
         store = Store(
+            creator_id=test_user.id,
             name="Test Store",
             description="Integration test store",
             is_active=True,
