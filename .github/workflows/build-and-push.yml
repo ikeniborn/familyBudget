@@ -80,6 +80,23 @@ jobs:
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
+      - name: Notify workflow started (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 Workflow Started
+
+            Version: ${{ steps.read.outputs.VERSION }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}
+            Author: ${{ github.actor }}
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
   # ============================================================================
   # Job 2: Build services (frontend: cache busting, minification, validation)
   # ============================================================================
@@ -548,6 +565,22 @@ jobs:
             echo "ℹ️ No changes to IMAGE_VERSIONS.json"
           fi
 
+      - name: Notify build completed (Telegram)
+        if: success()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Build Completed
+
+            Version: ${{ needs.check-version.outputs.current_version }}
+            Images built: backend, bot, nginx
+            Cache version: ${{ steps.cache_bust.outputs.cache_version }}
+
+            Security scan: Starting...
+
   # ============================================================================
   # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
@@ -819,6 +852,21 @@ jobs:
           echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
           echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY
 
+      - name: Notify deployment status (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ job.status == 'success' && '✅ Deploy Completed' || '❌ Deploy Failed' }}
+
+            Environment: https://fbd.ikeniborn.ru/
+            Version: ${{ needs.check-version.outputs.current_version }}
+
+            ${{ job.status == 'success' && 'Post-deploy tests: Starting...' || format('Check logs: {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+
   # ============================================================================
   # Job 7: Post-Deploy Tests (AUTOMATIC validation after deployment)
   # ============================================================================
@@ -956,6 +1004,19 @@ jobs:
       # ============================================================================
       # Telegram Notification (graceful degradation if secrets not set)
       # ============================================================================
+      - name: Notify test suite completed (Telegram)
+        if: success()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Tests Passed: ${{ matrix.test-suite }}
+
+            Environment: https://fbd.ikeniborn.ru
+            Version: ${{ needs.check-version.outputs.current_version }}
+
       - name: Notify on failure (Telegram)
         if: failure()
         continue-on-error: true
@@ -1007,3 +1068,21 @@ jobs:
           echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Note:** Backend tests run in read-only mode (\`-m 'not destructive'\`) to protect data on test server" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify workflow completed (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ needs.post-deploy-tests.result == 'success' && '✅ Workflow Completed Successfully' || '⚠️ Workflow Completed with Issues' }}
+
+            Version: ${{ needs.check-version.outputs.current_version }}
+            Environment: https://fbd.ikeniborn.ru/
+
+            Test Results:
+            ${{ needs.post-deploy-tests.result == 'success' && '- ✅ Frontend: Passed\n- ✅ Backend: Passed\n- ✅ E2E: Passed' || '- ⚠️ Some tests failed' }}
+
+            Summary: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
