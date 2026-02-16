@@ -2,7 +2,9 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-!**NEVER** edit CLAUDE.md. Only user can add or delete tgis file.
+**NEVER**: 
+- Edit CLAUDE.md. Only user can add or delete tgis file.
+- Delete volume docker. Only after approve user.
 
 ## Project Overview
 
