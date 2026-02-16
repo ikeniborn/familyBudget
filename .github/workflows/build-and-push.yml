@@ -781,8 +781,12 @@ jobs:
             git pull origin test
 
             # Run deploy script in registry mode
+            # CRITICAL: Check exit code to catch deployment failures (sync errors, etc.)
             echo "🐳 Pulling Docker images and restarting containers..."
-            sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+            if ! sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart; then
+              echo "❌ Deployment failed! Check logs for details."
+              exit 1
+            fi
 
             # Wait for services to start
             echo "⏳ Waiting for services to initialize (30s)..."

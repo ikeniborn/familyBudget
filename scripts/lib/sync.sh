@@ -385,7 +385,8 @@ sync_update() {
 
     # Show preview (first 20 files)
     info "Preview of changes (first 20 files):"
-    echo "$SYNC_CHANGED_FILES" | head -20
+    # Use here-string to avoid "Argument list too long" with large file lists
+    head -20 <<< "$SYNC_CHANGED_FILES"
 
     echo ""
     info "Proceeding with update sync (auto-confirmed)..."
