@@ -253,20 +253,17 @@ export async function loadShoppingLists(): Promise<void> {
 /**
  * Load items for specific shopping list (PGlite-first with API fallback)
  *
- * @param listId - Shopping list ID or temp_id (string for PGlite, number for API)
+ * @param listId - Shopping list numeric ID
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
-export async function loadShoppingListItems(listId: number | string): Promise<void> {
+export async function loadShoppingListItems(listId: number): Promise<void> {
   try {
-    // DataLayer automatically handles PGlite-first + API fallback
-    // Convert listId to string for PGlite temp_id compatibility
-    const listTempId = String(listId);
-    const localItems = await dataLayer.getShoppingListItems(listTempId);
+    // DataLayer now accepts numeric ID and handles Dexie temp_id lookup internally
+    const localItems = await dataLayer.getShoppingListItems(listId);
 
-    // Convert to UI types (use numeric listId for compatibility)
-    const numericListId = typeof listId === 'number' ? listId : parseInt(listId, 10) || 0;
-    const currentItems = localItems.map(item => convertShoppingListItem(item, numericListId));
+    // Convert to UI types
+    const currentItems = localItems.map(item => convertShoppingListItem(item, listId));
 
     updateState({ currentItems });
     debugLog('[ListsManager] Loaded items:', currentItems.length);
