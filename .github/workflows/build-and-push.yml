@@ -771,6 +771,15 @@ jobs:
             git checkout test
             git pull origin test
 
+            # CRITICAL: Wait for IMAGE_VERSIONS.json commit to propagate
+            # Race condition: image-build-push may still be pushing the commit
+            echo "⏳ Waiting for IMAGE_VERSIONS.json commit to propagate (10s)..."
+            sleep 10
+
+            # Pull again to ensure we have the latest IMAGE_VERSIONS.json
+            echo "📥 Pulling IMAGE_VERSIONS.json updates..."
+            git pull origin test
+
             # Run deploy script in registry mode
             echo "🐳 Pulling Docker images and restarting containers..."
             sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
@@ -860,6 +869,10 @@ jobs:
         if: matrix.test-suite == 'frontend'
         uses: ./.github/actions/setup-node
 
+      - name: Install dependencies (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        run: npm ci
+
       - name: Run frontend tests
         if: matrix.test-suite == 'frontend'
         env:
@@ -889,8 +902,10 @@ jobs:
             git checkout ${{ github.sha }}
 
             # Run pytest (test database allows write operations)
-            export DATABASE_URL="postgresql+asyncpg://familybudget:\${POSTGRES_PASSWORD}@postgres:5432/familybudget"
-            export REDIS_URL="redis://redis:6379/0"
+            # CRITICAL: Unset TEST_DATABASE_URL to prevent .env.test from overriding DATABASE_URL
+            unset TEST_DATABASE_URL
+            export DATABASE_URL="postgresql+asyncpg://familybudget:\${POSTGRES_PASSWORD}@localhost:5432/familybudget"
+            export REDIS_URL="redis://localhost:6379/0"
             export BACKEND_URL="https://fbd.ikeniborn.ru"
             export JWT_SECRET="test_jwt_secret_for_ci_only"
             export SECRET_KEY="test_secret_key_for_ci_only"
