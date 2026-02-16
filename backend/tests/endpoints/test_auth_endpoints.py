@@ -11,12 +11,12 @@ Endpoints tested:
 import hashlib
 import hmac
 import time
+from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import Any
 
 from backend.app.core.config import get_settings
 from backend.app.models.user import User
