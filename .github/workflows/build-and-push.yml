@@ -95,8 +95,6 @@ jobs:
             Commit: ${{ github.event.head_commit.message }}
             Author: ${{ github.actor }}
 
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
   # ============================================================================
   # Job 2: Build services (frontend: cache busting, minification, validation)
   # ============================================================================
@@ -1031,8 +1029,6 @@ jobs:
             Environment: https://fbd.ikeniborn.ru
             Commit: ${{ github.sha }}
 
-            Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
   # ============================================================================
   # Job 8: Post-Deploy Summary
   # ============================================================================
@@ -1084,5 +1080,3 @@ jobs:
 
             Test Results:
             ${{ needs.post-deploy-tests.result == 'success' && '- ✅ Frontend: Passed\n- ✅ Backend: Passed\n- ✅ E2E: Passed' || '- ⚠️ Some tests failed' }}
-
-            Summary: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
