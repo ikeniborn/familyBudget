@@ -47,14 +47,14 @@ class TestLogoutEndpoint:
 
     async def test_logout_without_cookies(self, client: AsyncClient):
         """Test logout succeeds even without cookies (graceful degradation)."""
-        # Create new client without cookies
-        async with AsyncClient(app=app, base_url="http://test") as clean_client:
-            response = await clean_client.post("/api/v1/auth/logout")
+        # Use existing client fixture (already configured with app via ASGI transport)
+        # No need to create new AsyncClient - fixture handles proper setup
+        response = await client.post("/api/v1/auth/logout")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert "message" in data
-            assert data["message"] == "Logout successful"
+        assert response.status_code == 200
+        data = response.json()
+        assert "message" in data
+        assert data["message"] == "Logout successful"
 
 
     async def test_logout_returns_json(self, client: AsyncClient):

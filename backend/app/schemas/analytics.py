@@ -5,8 +5,23 @@ This module defines request/response schemas for analytical data operations,
 including plan hints and fact hints for transaction forms.
 """
 from decimal import Decimal
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class TransactionFilterEnum(str, Enum):
+    """
+    Enum for transaction filter values in heatmap endpoint.
+
+    Allowed values:
+    - debit: Show only expense transactions (debit)
+    - credit: Show only income transactions (credit)
+    - all: Show all transactions (default)
+    """
+    DEBIT = "debit"
+    CREDIT = "credit"
+    ALL = "all"
 
 
 class PlanHintsResponse(BaseModel):

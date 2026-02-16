@@ -19,6 +19,7 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.schemas.analytics import (
     FactHintsResponse,
     PlanHintsResponse,
+    TransactionFilterEnum,
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.utils.date_helpers import (
@@ -1996,6 +1997,7 @@ async def get_heatmap_data(
     period: str | None = Query(None, pattern="^(month|quarter|year)$"),
     date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    transaction_filter: TransactionFilterEnum | None = Query(None, description="Filter by transaction type (debit/credit/all) - takes priority over article_type"),
     article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
     record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
@@ -2068,8 +2070,15 @@ async def get_heatmap_data(
             Fact.fact_date <= end_date
         )
 
-        # Apply article type filter if not 'all' (v5.1.4)
-        if article_type != 'all':
+        # Apply transaction_filter (takes priority over article_type)
+        # transaction_filter is validated by TransactionFilterEnum (only debit/credit/all allowed)
+        if transaction_filter is not None:
+            # transaction_filter takes priority over legacy article_type parameter
+            effective_filter = transaction_filter.value  # debit, credit, or all
+            if effective_filter != 'all':
+                query = query.where(Article.type == effective_filter)
+        elif article_type != 'all':
+            # Fallback to article_type if transaction_filter not provided (backward compatibility)
             query = query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
