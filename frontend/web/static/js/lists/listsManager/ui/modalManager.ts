@@ -12,6 +12,7 @@ import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
+import { getDexieManager, isDexieActive } from '@db/dexie';
 
 declare const window: Window & {
   dexieManager?: any;
@@ -521,6 +522,13 @@ export async function confirmDeleteList(): Promise<void> {
         // Failed to parse JSON, use status code
       }
 
+      // Handle 404 Not Found (already deleted)
+      if (response.status === 404) {
+        showToast('Список уже удалён', 'info');
+        await renderLandingView();  // Refresh UI anyway
+        return;
+      }
+
       // Handle 403 Forbidden (not creator)
       if (response.status === 403) {
         throw new Error('Только создатель списка может его удалить');
@@ -534,7 +542,20 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] List deleted successfully:', listId);
 
-    // Reload shopping lists
+    // Force Dexie cache invalidation + fresh API load
+    const dexie = await getDexieManager();
+    const state = getState();
+
+    // Find deleted list's temp_id
+    const deletedList = state.shoppingLists.find(list => list.id === listId);
+    if (deletedList?.temp_id && isDexieActive() && dexie.isReady()) {
+      // Invalidate Dexie cache
+      const { deleteShoppingList } = await import('@db/dexie');
+      await deleteShoppingList(deletedList.temp_id);
+      debugLog('[DeleteList] Dexie cache invalidated for list:', deletedList.temp_id);
+    }
+
+    // Reload landing view (will now fetch fresh data from API)
     await renderLandingView();
 
   } catch (error) {

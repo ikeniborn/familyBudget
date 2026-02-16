@@ -11,7 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { updateItemsCache } from '../core/listOperations';
 import { renderCurrentView } from '../rendering/tableBuilder';
-import { updateFABVisibility } from '../rendering/listRenderer';
+import { updateFABVisibility, renderLandingView, renderShoppingListCards } from '../rendering/listRenderer';
 import { updateFABButtons } from '../features/searchFilter';
 
 // ============================================================================
@@ -212,4 +212,48 @@ export function handleItemCompletedToggled(itemId: number, isCompleted: boolean,
   updateFABButtons();
   updateFABVisibility();
   updateItemsCache();
+}
+
+/**
+ * Handle shopping list deleted event from WebSocket
+ *
+ * Removes shopping list from global state and triggers UI reload
+ *
+ * @param shoppingListId - Shopping list ID to remove
+ */
+export function handleShoppingListDeleted(shoppingListId: number): void {
+  if (!shoppingListId) {
+    debugLog('[ListsManager] Invalid shoppingListId for handleShoppingListDeleted');
+    return;
+  }
+
+  const state = getState();
+
+  // Find the list in current lists
+  const listIndex = state.shoppingLists.findIndex(list => list.id === shoppingListId);
+  if (listIndex === -1) {
+    debugLog('[ListsManager] Shopping list not found for removal:', shoppingListId);
+    return;
+  }
+
+  const removedList = state.shoppingLists[listIndex];
+
+  // Remove from shopping lists array
+  const newLists = [...state.shoppingLists];
+  newLists.splice(listIndex, 1);
+
+  updateState({ shoppingLists: newLists });
+  debugLog('[ListsManager] Removed shopping list from WebSocket:', shoppingListId);
+
+  // If currently viewing this list, redirect to landing view
+  if (state.currentListId === shoppingListId) {
+    debugLog('[ListsManager] Deleted list was active, returning to landing view');
+    renderLandingView();
+  } else {
+    // Otherwise, just refresh the cards view
+    renderShoppingListCards();
+  }
+
+  // Show notification
+  showToast(`Список удалён: ${removedList.name}`, 'info');
 }

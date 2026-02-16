@@ -139,7 +139,8 @@ export {
   handleItemCreated,
   handleItemUpdated,
   handleItemDeleted,
-  handleItemCompletedToggled
+  handleItemCompletedToggled,
+  handleShoppingListDeleted
 } from './integration/wsEventHandlers';
 
 export { initializeImportManager } from './integration/importIntegration';
