@@ -9,7 +9,6 @@ Tests DELETE /api/v1/shopping-lists/{id} endpoint with:
 - WebSocket broadcast (shopping_list_deleted event)
 """
 
-from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,6 +16,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.models.product_group import ProductGroup
 from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.models.store import Store
@@ -44,6 +44,20 @@ class TestShoppingListDelete:
         return store
 
     @pytest.fixture
+    async def test_product_group(self, db_session: AsyncSession, test_user: User):
+        """Create test product group for shopping list items."""
+        product_group = ProductGroup(
+            creator_id=test_user.id,
+            name="Test Product Group",
+            description="Integration test product group",
+            is_active=True,
+        )
+        db_session.add(product_group)
+        await db_session.commit()
+        await db_session.refresh(product_group)
+        return product_group
+
+    @pytest.fixture
     async def shopping_list(self, db_session: AsyncSession, test_user: User):
         """Create test shopping list owned by test_user."""
         shopping_list = ShoppingList(
@@ -51,8 +65,6 @@ class TestShoppingListDelete:
             name="Test Shopping List",
             description="Integration test shopping list",
             is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
         )
         db_session.add(shopping_list)
         await db_session.commit()
@@ -60,7 +72,13 @@ class TestShoppingListDelete:
         return shopping_list
 
     @pytest.fixture
-    async def shopping_list_with_items(self, db_session: AsyncSession, shopping_list: ShoppingList, test_store: Store):
+    async def shopping_list_with_items(
+        self,
+        db_session: AsyncSession,
+        shopping_list: ShoppingList,
+        test_store: Store,
+        test_product_group: ProductGroup
+    ):
         """Create shopping list with 5 items for cascade delete test."""
         items = []
         for i in range(5):
@@ -68,12 +86,10 @@ class TestShoppingListDelete:
                 creator_id=shopping_list.creator_id,
                 shopping_list_id=shopping_list.id,
                 store_id=test_store.id,
+                product_group_id=test_product_group.id,
                 product_name=f"Test Product {i+1}",
                 quantity=i + 1,
-                price_cents=100 * (i + 1),  # 100, 200, 300, 400, 500 cents
                 is_completed=False,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
             )
             db_session.add(item)
             items.append(item)
@@ -359,8 +375,6 @@ class TestShoppingListDeleteEdgeCases:
             creator_id=test_user.id,
             name="Test List for Broadcast Failure",
             is_active=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
         )
         db_session.add(shopping_list)
         await db_session.commit()

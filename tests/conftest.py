@@ -251,41 +251,6 @@ async def authenticated_admin_client(client: AsyncClient, admin_user):
     return client
 
 
-@pytest.fixture
-async def admin_user(db_session: AsyncSession, admin_user_data):
-    """
-    Create and persist admin user in database.
-
-    Returns User model instance with admin privileges (SCD Type 1).
-    """
-    from backend.app.models.user import User
-
-    user = User(
-        telegram_id=admin_user_data["telegram_id"],
-        username=admin_user_data["username"],
-        first_name=admin_user_data["first_name"],
-        last_name=admin_user_data["last_name"],
-        is_admin=True,
-    )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
-
-
-@pytest.fixture
-async def admin_client(client: AsyncClient, admin_user):
-    """
-    HTTP client authenticated as admin user.
-
-    Creates admin user and returns client for making authenticated requests.
-    For now, returns unauthenticated client (JWT auth not yet implemented).
-    """
-    # TODO: Add JWT token to client.headers once auth is implemented
-    # client.headers["Authorization"] = f"Bearer {jwt_token}"
-    return client
-
-
 # ==================== Web Apps Fixtures ====================
 
 
