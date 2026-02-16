@@ -28,6 +28,7 @@ from redis.asyncio import ConnectionPool, Redis
 
 from backend.app.core.config import get_settings
 
+
 logger = logging.getLogger(__name__)
 
 # Global connection pool
