@@ -148,6 +148,7 @@ def test_user_data():
         "first_name": "Test",
         "last_name": "User",
         "is_admin": False,
+        "is_active": True,
     }
 
 
@@ -160,6 +161,7 @@ def admin_user_data():
         "first_name": "Admin",
         "last_name": "User",
         "is_admin": True,
+        "is_active": True,
     }
 
 

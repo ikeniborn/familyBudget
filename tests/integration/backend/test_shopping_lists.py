@@ -50,6 +50,7 @@ class TestShoppingListDelete:
         items = []
         for i in range(5):
             item = ShoppingListItem(
+                creator_id=shopping_list.creator_id,
                 shopping_list_id=shopping_list.id,
                 product_name=f"Test Product {i+1}",
                 quantity=i + 1,
