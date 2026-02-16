@@ -20,6 +20,7 @@ Endpoints:
 """
 
 import logging
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -127,7 +128,6 @@ async def create_shopping_list(
     )
 
     # Generate temp_id for offline sync (before commit)
-    import uuid
     shopping_list.temp_id = str(uuid.uuid4())
 
     session.add(shopping_list)
