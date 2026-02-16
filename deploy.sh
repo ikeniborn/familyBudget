@@ -1118,6 +1118,15 @@ main() {
     success "All Docker images pulled successfully"
     echo ""
 
+    # Compare running containers with pulled images
+    # Sets NEEDS_*_RECREATE flags if images differ or containers unhealthy
+    info "Comparing running containers with pulled images..."
+    if ! compare_running_vs_pulled_images; then
+        error "Failed to compare container images"
+        exit 1
+    fi
+    echo ""
+
 
     # REMOVED: Build artifacts validation (v9.0 registry-first)
     # validate_build_artifacts() function was removed - artifacts are validated in CI/CD
