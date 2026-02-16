@@ -1,5 +1,6 @@
 # Multi-stage build for Family Budget Bot
 # Stage 1: Builder
+# Force rebuild: v11.4.51 - healthcheck fix deployed
 FROM python:3.11-slim-bookworm as builder
 
 ARG PYTHON_VERSION=3.11
