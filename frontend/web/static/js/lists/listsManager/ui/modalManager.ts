@@ -506,6 +506,12 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] Deleting list:', listId);
 
+    // CRITICAL: Get temp_id BEFORE DELETE API call to avoid race condition
+    // (WebSocket event may remove list from state before we can read it)
+    const state = getState();
+    const deletedList = state.shoppingLists.find(list => list.id === listId);
+    const deletedListTempId = deletedList?.temp_id;
+
     // Call DELETE endpoint
     const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
       method: 'DELETE',
@@ -543,16 +549,19 @@ export async function confirmDeleteList(): Promise<void> {
     debugLog('[DeleteList] List deleted successfully:', listId);
 
     // Force Dexie cache invalidation + fresh API load
-    const dexie = await getDexieManager();
-    const state = getState();
-
-    // Find deleted list's temp_id
-    const deletedList = state.shoppingLists.find(list => list.id === listId);
-    if (deletedList?.temp_id && isDexieActive() && dexie.isReady()) {
-      // Invalidate Dexie cache
-      const { deleteShoppingList } = await import('@db/dexie');
-      await deleteShoppingList(deletedList.temp_id);
-      debugLog('[DeleteList] Dexie cache invalidated for list:', deletedList.temp_id);
+    if (deletedListTempId) {
+      try {
+        const dexie = await getDexieManager();
+        if (isDexieActive() && dexie.isReady()) {
+          // Invalidate Dexie cache
+          const { deleteShoppingList } = await import('@db/dexie');
+          await deleteShoppingList(deletedListTempId);
+          debugLog('[DeleteList] Dexie cache invalidated for list:', deletedListTempId);
+        }
+      } catch (dexieError) {
+        // Log but don't fail - cache invalidation is non-critical
+        console.warn('[DeleteList] Failed to invalidate Dexie cache:', dexieError);
+      }
     }
 
     // Reload landing view (will now fetch fresh data from API)

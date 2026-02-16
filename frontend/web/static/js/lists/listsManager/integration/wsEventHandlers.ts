@@ -248,7 +248,12 @@ export function handleShoppingListDeleted(shoppingListId: number): void {
   // If currently viewing this list, redirect to landing view
   if (state.currentListId === shoppingListId) {
     debugLog('[ListsManager] Deleted list was active, returning to landing view');
-    renderLandingView();
+    // Handle async function with error handling
+    renderLandingView().catch(err => {
+      console.error('[ListsManager] Failed to render landing view after list deletion:', err);
+      // Fallback: just refresh the cards
+      renderShoppingListCards();
+    });
   } else {
     // Otherwise, just refresh the cards view
     renderShoppingListCards();
