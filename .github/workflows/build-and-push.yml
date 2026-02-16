@@ -875,9 +875,9 @@ jobs:
           retention-days: 7
 
       # ============================================================================
-      # Backend Tests (pytest read-only mode via SSH)
+      # Backend Tests (pytest via SSH)
       # ============================================================================
-      - name: Run backend tests on test server (read-only)
+      - name: Run backend tests on test server
         if: matrix.test-suite == 'backend'
         run: |
           ssh budget-test "bash -s" << EOF
@@ -888,7 +888,7 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
-            # Run pytest in read-only mode
+            # Run pytest (test database allows write operations)
             export DATABASE_URL="postgresql+asyncpg://familybudget:\${POSTGRES_PASSWORD}@postgres:5432/familybudget"
             export REDIS_URL="redis://redis:6379/0"
             export BACKEND_URL="https://fbd.ikeniborn.ru"
@@ -901,9 +901,7 @@ jobs:
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
             cd backend
-            # CRITICAL: -m "not destructive" for read-only mode (database user is full-access)
             .venv/bin/pytest tests/ \
-              -m "not destructive" \
               --maxfail=5 \
               -v \
               --tb=short

@@ -1214,7 +1214,7 @@ Deploy to Test Server (deploy-test job)
 Post-Deploy Tests (automatic trigger)
         ↓ parallel execution (matrix strategy)
         ├─ Frontend Tests (Vitest)
-        ├─ Backend Tests (pytest read-only)
+        ├─ Backend Tests (pytest)
         └─ E2E Tests (Playwright)
         ↓
 Post-Deploy Summary
@@ -1261,10 +1261,9 @@ strategy:
 
 ---
 
-#### Backend Tests (Read-Only Mode via SSH)
+#### Backend Tests (via SSH)
 
 **Tool**: pytest (выполняется на test сервере через SSH)
-**CRITICAL**: `-m "not destructive"` для предотвращения записи в БД
 
 **Execution Method**: SSH exec на budget-test сервер
 ```yaml
@@ -1274,7 +1273,7 @@ run: ssh budget-test << 'EOF'
   export DATABASE_URL="postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@postgres:5432/familybudget"
   export REDIS_URL="redis://redis:6379/0"
   cd backend
-  .venv/bin/pytest tests/ -m "not destructive" --maxfail=5 -v
+  .venv/bin/pytest tests/ --maxfail=5 -v
 EOF
 ```
 
@@ -1298,16 +1297,15 @@ BACKEND_URL=https://fbd.ikeniborn.ru
 4. Запуск pytest через virtual environment
 
 **What's tested**:
-- API endpoints (GET requests)
-- Database queries (read-only)
+- API endpoints (все операции: GET, POST, PUT, DELETE)
+- Database queries (read and write operations)
 - Business logic validation
 - Integration с реальным PostgreSQL/Redis на test сервере
 
-**Why read-only**:
-- Database user полнофункциональный (может писать)
-- Тесты помечены `@pytest.mark.destructive` для write operations
-- `-m "not destructive"` фильтрует только read-only тесты
-- Предотвращает порчу данных на test сервере
+**Database Access**:
+- Test database на сервере позволяет write operations
+- Fixtures создают и удаляют тестовые данные
+- Тесты могут выполнять destructive operations (безопасно для test окружения)
 
 ---
 
