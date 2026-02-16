@@ -170,3 +170,10 @@ export type {
   HierarchyItem,
   ListsManagerProxy
 } from './types/hierarchy';
+
+// ============================================================================
+// Debug Utilities (Testing Support)
+// ============================================================================
+
+export { shoppingListDebug } from './testing/debugUtils';
+export type { } from './testing/debugUtils';

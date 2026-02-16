@@ -15,6 +15,7 @@ import { getState, updateState } from './ListsState';
 import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsState';
 import { dataLayer } from '../../../data/DataLayer';
 import { getDexieManager } from '@db/dexie';
+import { shouldSimulateLoadError, isVerboseLoggingEnabled } from '../testing/debugUtils';
 import type {
   LocalShoppingList,
   ShoppingListWithStats,
@@ -227,6 +228,14 @@ export function isOnline(): boolean {
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadShoppingLists(): Promise<void> {
+  // DEBUG: Simulate load error for async error testing
+  if (shouldSimulateLoadError()) {
+    if (isVerboseLoggingEnabled()) {
+      console.log('[ListsManager] ❌ Simulating load error (debug mode)');
+    }
+    throw new Error('Simulated load error for testing');
+  }
+
   try {
     // DataLayer automatically handles PGlite-first + API fallback
     const localLists = await dataLayer.getShoppingLists({ is_active: true });
