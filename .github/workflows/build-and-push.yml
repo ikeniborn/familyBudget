@@ -168,7 +168,7 @@ jobs:
           NODE_ENV: production
         run: npm run build:prod  # Skip type-check (38 Dexie errors)
 
-      - name: Validate cache busting and PGlite
+      - name: Validate cache busting
         run: bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION" --strict-sw
 
       # NOTE: Template files (frontend/web/templates/, frontend/webapp/) are NOT committed back to git
