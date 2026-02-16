@@ -24,10 +24,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 import redis.asyncio as redis
-from redis.asyncio import ConnectionPool, Redis
-
 from backend.app.core.config import get_settings
-
+from redis.asyncio import ConnectionPool, Redis
 
 logger = logging.getLogger(__name__)
 
