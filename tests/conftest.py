@@ -164,14 +164,88 @@ def admin_user_data():
 
 
 @pytest.fixture
-async def authenticated_client(client: AsyncClient, test_user_data):
+async def test_user(db_session: AsyncSession, test_user_data):
     """
-    HTTP client with authenticated user.
+    Create test user in database.
 
-    Creates test user and includes JWT token in requests.
+    Creates a regular (non-admin) user for authentication testing.
     """
-    # TODO: Implement user creation and JWT token generation
-    # This will be implemented when we add user creation logic
+    from backend.app.models.user import User
+
+    user = User(**test_user_data)
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def admin_user(db_session: AsyncSession, admin_user_data):
+    """
+    Create admin user in database.
+
+    Creates an admin user for testing admin-only endpoints.
+    """
+    from backend.app.models.user import User
+
+    user = User(**admin_user_data)
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def authenticated_client(client: AsyncClient, test_user):
+    """
+    HTTP client with authenticated test user.
+
+    Creates JWT token for test_user and sets it in cookies.
+    All requests from this client will be authenticated as test_user.
+
+    Example:
+        >>> async def test_protected_endpoint(authenticated_client):
+        ...     response = await authenticated_client.get("/api/v1/shopping-lists")
+        ...     assert response.status_code == 200
+    """
+    from backend.app.services.jwt import create_access_token
+
+    # Generate JWT access token
+    access_token = create_access_token(
+        user_id=test_user.id,
+        telegram_id=test_user.telegram_id
+    )
+
+    # Set token in cookies (same as auth endpoint does)
+    client.cookies.set("access_token", access_token)
+
+    return client
+
+
+@pytest.fixture
+async def authenticated_admin_client(client: AsyncClient, admin_user):
+    """
+    HTTP client with authenticated admin user.
+
+    Creates JWT token for admin_user and sets it in cookies.
+    All requests from this client will be authenticated as admin.
+
+    Example:
+        >>> async def test_admin_endpoint(authenticated_admin_client):
+        ...     response = await authenticated_admin_client.get("/api/v1/admin/users")
+        ...     assert response.status_code == 200
+    """
+    from backend.app.services.jwt import create_access_token
+
+    # Generate JWT access token
+    access_token = create_access_token(
+        user_id=admin_user.id,
+        telegram_id=admin_user.telegram_id
+    )
+
+    # Set token in cookies (same as auth endpoint does)
+    client.cookies.set("access_token", access_token)
+
     return client
 
 
