@@ -961,7 +961,7 @@ jobs:
         continue-on-error: true
         uses: appleboy/telegram-action@master
         with:
-          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
           message: |
             ❌ Post-Deploy Tests Failed
