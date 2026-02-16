@@ -53,8 +53,9 @@ COPY bot/healthcheck.py /app/healthcheck.py
 # Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
 # Python-based healthcheck (no pgrep in distroless)
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["python", "/app/healthcheck.py"]
+    CMD ["/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
@@ -71,4 +72,6 @@ LABEL org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
-CMD ["python", "-m", "bot.main"]
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# CMD provides only the arguments to python
+CMD ["-m", "bot.main"]
