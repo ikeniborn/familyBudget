@@ -16,9 +16,15 @@ from sqlmodel import SQLModel
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
-os.environ["DATABASE_URL"] = os.getenv(
-    "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/familybudget_test"
-)
+
+# Database URL Priority:
+# 1. DATABASE_URL environment variable (CI/CD workflow, explicit override)
+# 2. TEST_DATABASE_URL environment variable (local development via .env.test)
+# 3. Default: localhost:5432/familybudget_test (docker-compose-test.yml)
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = os.getenv(
+        "TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/familybudget_test"
+    )
 
 # Set required settings for tests (dummy values)
 os.environ.setdefault("JWT_SECRET", "test-jwt-secret-key-for-testing-only")
