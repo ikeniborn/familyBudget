@@ -29,6 +29,7 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="Admin",
             is_admin=True,
+            is_active=True,
         )
         db_session.add(admin)
         await db_session.commit()
@@ -44,6 +45,7 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="User",
             is_admin=False,
+            is_active=True,
         )
         db_session.add(user)
         await db_session.commit()
