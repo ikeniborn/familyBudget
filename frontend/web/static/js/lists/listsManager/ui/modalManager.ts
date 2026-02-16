@@ -12,6 +12,8 @@ import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
+import { getDexieManager, isDexieActive } from '@db/dexie';
+import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
 declare const window: Window & {
   dexieManager?: any;
@@ -505,6 +507,21 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] Deleting list:', listId);
 
+    // CRITICAL: Get temp_id BEFORE DELETE API call to avoid race condition
+    // (WebSocket event may remove list from state before we can read it)
+    const state = getState();
+    const deletedList = state.shoppingLists.find(list => list.id === listId);
+    const deletedListTempId = deletedList?.temp_id;
+
+    // DEBUG: Network delay simulation for race condition testing
+    const networkDelay = getNetworkDelay();
+    if (networkDelay > 0) {
+      if (isVerboseLoggingEnabled()) {
+        console.log(`[DeleteList] 🐌 Simulating slow network: ${networkDelay}ms delay`);
+      }
+      await new Promise(resolve => setTimeout(resolve, networkDelay));
+    }
+
     // Call DELETE endpoint
     const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
       method: 'DELETE',
@@ -521,6 +538,13 @@ export async function confirmDeleteList(): Promise<void> {
         // Failed to parse JSON, use status code
       }
 
+      // Handle 404 Not Found (already deleted)
+      if (response.status === 404) {
+        showToast('Список уже удалён', 'info');
+        await renderLandingView();  // Refresh UI anyway
+        return;
+      }
+
       // Handle 403 Forbidden (not creator)
       if (response.status === 403) {
         throw new Error('Только создатель списка может его удалить');
@@ -534,7 +558,28 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] List deleted successfully:', listId);
 
-    // Reload shopping lists
+    // Force Dexie cache invalidation + fresh API load
+    if (deletedListTempId) {
+      // DEBUG: Skip Dexie operations if disabled for testing
+      if (isDexieDisabledForTesting()) {
+        console.warn('[DeleteList] ⚠️  Dexie disabled for testing - skipping cache invalidation');
+      } else {
+        try {
+          const dexie = await getDexieManager();
+          if (isDexieActive() && dexie.isReady()) {
+            // Invalidate Dexie cache
+            const { deleteShoppingList } = await import('@db/dexie');
+            await deleteShoppingList(deletedListTempId);
+            debugLog('[DeleteList] Dexie cache invalidated for list:', deletedListTempId);
+          }
+        } catch (dexieError) {
+          // Log but don't fail - cache invalidation is non-critical
+          console.warn('[DeleteList] Failed to invalidate Dexie cache:', dexieError);
+        }
+      }
+    }
+
+    // Reload landing view (will now fetch fresh data from API)
     await renderLandingView();
 
   } catch (error) {

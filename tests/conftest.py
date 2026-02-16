@@ -148,6 +148,7 @@ def test_user_data():
         "first_name": "Test",
         "last_name": "User",
         "is_admin": False,
+        "is_active": True,
     }
 
 
@@ -160,37 +161,20 @@ def admin_user_data():
         "first_name": "Admin",
         "last_name": "User",
         "is_admin": True,
+        "is_active": True,
     }
 
 
 @pytest.fixture
-async def authenticated_client(client: AsyncClient, test_user_data):
+async def test_user(db_session: AsyncSession, test_user_data):
     """
-    HTTP client with authenticated user.
+    Create test user in database.
 
-    Creates test user and includes JWT token in requests.
-    """
-    # TODO: Implement user creation and JWT token generation
-    # This will be implemented when we add user creation logic
-    return client
-
-
-@pytest.fixture
-async def admin_user(db_session: AsyncSession, admin_user_data):
-    """
-    Create and persist admin user in database.
-
-    Returns User model instance with admin privileges (SCD Type 1).
+    Creates a regular (non-admin) user for authentication testing.
     """
     from backend.app.models.user import User
 
-    user = User(
-        telegram_id=admin_user_data["telegram_id"],
-        username=admin_user_data["username"],
-        first_name=admin_user_data["first_name"],
-        last_name=admin_user_data["last_name"],
-        is_admin=True,
-    )
+    user = User(**test_user_data)
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
@@ -198,15 +182,72 @@ async def admin_user(db_session: AsyncSession, admin_user_data):
 
 
 @pytest.fixture
-async def admin_client(client: AsyncClient, admin_user):
+async def admin_user(db_session: AsyncSession, admin_user_data):
     """
-    HTTP client authenticated as admin user.
+    Create admin user in database.
 
-    Creates admin user and returns client for making authenticated requests.
-    For now, returns unauthenticated client (JWT auth not yet implemented).
+    Creates an admin user for testing admin-only endpoints.
     """
-    # TODO: Add JWT token to client.headers once auth is implemented
-    # client.headers["Authorization"] = f"Bearer {jwt_token}"
+    from backend.app.models.user import User
+
+    user = User(**admin_user_data)
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def authenticated_client(client: AsyncClient, test_user):
+    """
+    HTTP client with authenticated test user.
+
+    Creates JWT token for test_user and sets it in cookies.
+    All requests from this client will be authenticated as test_user.
+
+    Example:
+        >>> async def test_protected_endpoint(authenticated_client):
+        ...     response = await authenticated_client.get("/api/v1/shopping-lists")
+        ...     assert response.status_code == 200
+    """
+    from backend.app.services.jwt import create_access_token
+
+    # Generate JWT access token
+    access_token = create_access_token(
+        user_id=test_user.id,
+        telegram_id=test_user.telegram_id
+    )
+
+    # Set token in cookies (same as auth endpoint does)
+    client.cookies.set("access_token", access_token)
+
+    return client
+
+
+@pytest.fixture
+async def authenticated_admin_client(client: AsyncClient, admin_user):
+    """
+    HTTP client with authenticated admin user.
+
+    Creates JWT token for admin_user and sets it in cookies.
+    All requests from this client will be authenticated as admin.
+
+    Example:
+        >>> async def test_admin_endpoint(authenticated_admin_client):
+        ...     response = await authenticated_admin_client.get("/api/v1/admin/users")
+        ...     assert response.status_code == 200
+    """
+    from backend.app.services.jwt import create_access_token
+
+    # Generate JWT access token
+    access_token = create_access_token(
+        user_id=admin_user.id,
+        telegram_id=admin_user.telegram_id
+    )
+
+    # Set token in cookies (same as auth endpoint does)
+    client.cookies.set("access_token", access_token)
+
     return client
 
 

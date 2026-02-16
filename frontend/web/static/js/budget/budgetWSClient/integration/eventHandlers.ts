@@ -164,11 +164,12 @@ export function handleShoppingListUpdated(data: ShoppingListUpdatedEvent): void 
  * Handle shopping_list_deleted event
  */
 export function handleShoppingListDeleted(data: ShoppingListDeletedEvent): void {
-  debugLog('[WS] Shopping list deleted:', data);
+  debugLog('[BudgetWS] Handling shopping_list_deleted event', data);
   notifyHandlers('shopping_list_deleted', data);
 
-  if ((window as any).listsManager?.refreshDashboard) {
-    (window as any).listsManager.refreshDashboard('deleted', data);
+  // Notify lists manager if available
+  if ((window as any).listsManager?.handleShoppingListDeleted) {
+    (window as any).listsManager.handleShoppingListDeleted(data.id);
   }
 }
 

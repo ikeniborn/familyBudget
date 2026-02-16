@@ -29,6 +29,7 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="Admin",
             is_admin=True,
+            is_active=True,
         )
         db_session.add(admin)
         await db_session.commit()
@@ -44,6 +45,7 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="User",
             is_admin=False,
+            is_active=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -115,14 +117,14 @@ class TestAdminSystemStats:
 
     async def test_get_system_stats_success(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User,
         regular_user: User,
         test_articles: list[Article],
         test_facts: list[Fact]
     ):
         """Test getting system-wide statistics (Shared Family Budget)."""
-        response = await admin_client.get("/api/v1/admin/users/stats/system")
+        response = await authenticated_admin_client.get("/api/v1/admin/users/stats/system")
 
         assert response.status_code == 200
         data = response.json()
@@ -143,14 +145,14 @@ class TestAdminSystemStats:
 
     async def test_system_stats_no_user_id_filtering(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User,
         regular_user: User,
         test_articles: list[Article],
         test_facts: list[Fact]
     ):
         """Test that stats are NOT filtered by user_id (Shared Family Budget)."""
-        response = await admin_client.get("/api/v1/admin/users/stats/system")
+        response = await authenticated_admin_client.get("/api/v1/admin/users/stats/system")
 
         assert response.status_code == 200
         data = response.json()
@@ -165,11 +167,11 @@ class TestAdminSystemStats:
 
     async def test_system_stats_empty_database(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User
     ):
         """Test system stats with no facts or articles."""
-        response = await admin_client.get("/api/v1/admin/users/stats/system")
+        response = await authenticated_admin_client.get("/api/v1/admin/users/stats/system")
 
         assert response.status_code == 200
         data = response.json()
@@ -195,13 +197,13 @@ class TestAdminSystemStats:
 
     async def test_system_stats_multiple_users_no_facts(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User,
         regular_user: User,
         test_articles: list[Article]
     ):
         """Test stats with multiple users but no transactions."""
-        response = await admin_client.get("/api/v1/admin/users/stats/system")
+        response = await authenticated_admin_client.get("/api/v1/admin/users/stats/system")
 
         assert response.status_code == 200
         data = response.json()

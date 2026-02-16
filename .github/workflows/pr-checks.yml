@@ -118,11 +118,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install backend dependencies (for type checking)
+      - name: Install backend dependencies
         run: |
-          cd backend
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
 
       - name: Install quality tools
         run: pip install mypy ruff
@@ -138,9 +137,57 @@ jobs:
       - name: Python ruff lint
         run: ruff check backend/
 
-      # Backend unit tests removed - fully covered by backend-tests.yml workflow
-      # backend-tests.yml runs more comprehensive tests (tests/ instead of tests/unit/)
-      # and includes integration tests with PostgreSQL + Redis services
+  # ============================================================================
+  # Backend Integration Tests (NOT E2E)
+  # ============================================================================
+  backend-tests:
+    name: Backend Integration Tests
+    runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: familybudget
+          POSTGRES_PASSWORD: test_password_12345678901234567890
+          POSTGRES_DB: familybudget_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements-dev.txt
+          pip install -r backend/requirements.txt
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test
+        run: |
+          alembic -c backend/db/migrations/alembic.ini upgrade head
+
+      - name: Run backend integration tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test
+        run: |
+          pytest tests/integration/backend/ -v --tb=short
+
+      # E2E tests excluded - run in post-deploy workflow after deployment to https://fbd.ikeniborn.ru/
+      # E2E requires deployed application to test against
 
   # ============================================================================
   # PR Summary
@@ -148,7 +195,7 @@ jobs:
   summary:
     name: PR Summary
     runs-on: ubuntu-latest
-    needs: [frontend-quality, backend-quality]
+    needs: [frontend-quality, backend-quality, backend-tests]
     if: always()
 
     steps:
@@ -160,12 +207,15 @@ jobs:
           echo "**Branch:** ${{ github.head_ref }} → ${{ github.base_ref }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🎯 Optimization Notes" >> $GITHUB_STEP_SUMMARY
+          echo "### 🎯 Test Strategy" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ TypeScript type check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ console.log check: Run in pre-commit hook (local)" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Backend unit tests: Moved to post-deploy workflow (automatic after deployment)" >> $GITHUB_STEP_SUMMARY
-          echo "- ⚡ Frontend unit tests: Moved to post-deploy workflow (automatic after deployment)" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Checks (Pre-Merge):**" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Linting & Formatting (ESLint, mypy, ruff)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Backend Integration Tests (pytest with PostgreSQL)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build Verification (CSS, JS bundling)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Time saved:** ~2 minutes per PR (faster static checks)" >> $GITHUB_STEP_SUMMARY
-          echo "**Runtime tests:** Automatically run after deployment to https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "**Post-Deploy Checks (After Deployment):**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 E2E Tests (Playwright against https://fbd.ikeniborn.ru/)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 Frontend Unit Tests (Vitest)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Rationale:** E2E tests require deployed code on test server, so they run post-deploy." >> $GITHUB_STEP_SUMMARY

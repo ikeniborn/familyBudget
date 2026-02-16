@@ -104,7 +104,7 @@ class TestAdminDeleteEndpoint:
 
     async def test_delete_existing_fact_returns_success(
         self,
-        client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         db_session: AsyncSession,
         test_fact: Fact,
         mock_admin_dependency
@@ -113,7 +113,7 @@ class TestAdminDeleteEndpoint:
         fact_id = test_fact.id
 
         # DELETE existing fact
-        response = await client.delete(f"/api/v1/admin/facts/{fact_id}")
+        response = await authenticated_admin_client.delete(f"/api/v1/admin/facts/{fact_id}")
 
         # Assert response
         assert response.status_code == 200
@@ -132,14 +132,14 @@ class TestAdminDeleteEndpoint:
 
     async def test_delete_nonexistent_fact_returns_already_deleted(
         self,
-        client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         mock_admin_dependency
     ):
         """Test DELETE non-existent fact returns 200 OK with status='already_deleted'."""
         nonexistent_fact_id = 999999
 
         # DELETE non-existent fact
-        response = await client.delete(f"/api/v1/admin/facts/{nonexistent_fact_id}")
+        response = await authenticated_admin_client.delete(f"/api/v1/admin/facts/{nonexistent_fact_id}")
 
         # Assert response (idempotent DELETE - no 404!)
         assert response.status_code == 200
@@ -151,7 +151,7 @@ class TestAdminDeleteEndpoint:
 
     async def test_delete_same_fact_twice_is_idempotent(
         self,
-        client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         db_session: AsyncSession,
         test_fact: Fact,
         mock_admin_dependency
@@ -160,13 +160,13 @@ class TestAdminDeleteEndpoint:
         fact_id = test_fact.id
 
         # First DELETE - should succeed
-        response1 = await client.delete(f"/api/v1/admin/facts/{fact_id}")
+        response1 = await authenticated_admin_client.delete(f"/api/v1/admin/facts/{fact_id}")
 
         assert response1.status_code == 200
         assert response1.json()["status"] == "deleted"
 
         # Second DELETE - should return already_deleted
-        response2 = await client.delete(f"/api/v1/admin/facts/{fact_id}")
+        response2 = await authenticated_admin_client.delete(f"/api/v1/admin/facts/{fact_id}")
 
         assert response2.status_code == 200
         assert response2.json()["status"] == "already_deleted"
@@ -174,7 +174,7 @@ class TestAdminDeleteEndpoint:
 
     async def test_delete_without_admin_privilege_returns_401(
         self,
-        client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         test_fact: Fact
     ):
         """Test DELETE without admin authentication returns 401."""
@@ -183,14 +183,14 @@ class TestAdminDeleteEndpoint:
         fact_id = test_fact.id
 
         # DELETE without auth
-        response = await client.delete(f"/api/v1/admin/facts/{fact_id}")
+        response = await authenticated_admin_client.delete(f"/api/v1/admin/facts/{fact_id}")
 
         # Assert 401 Unauthorized (no admin privilege)
         assert response.status_code in [401, 403]
 
     async def test_delete_logs_warning_for_nonexistent_fact(
         self,
-        client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         mock_admin_dependency,
         caplog
     ):
@@ -201,7 +201,7 @@ class TestAdminDeleteEndpoint:
         nonexistent_fact_id = 888888
 
         # DELETE non-existent fact
-        await client.delete(f"/api/v1/admin/facts/{nonexistent_fact_id}")
+        await authenticated_admin_client.delete(f"/api/v1/admin/facts/{nonexistent_fact_id}")
 
         # Assert WARNING log was recorded
         assert any(

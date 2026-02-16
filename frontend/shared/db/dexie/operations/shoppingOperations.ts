@@ -248,13 +248,15 @@ export async function updateShoppingList(
 export async function deleteShoppingList(temp_id: string): Promise<void> {
   logger.debug('[shoppingOps] deleteShoppingList', { temp_id });
 
+  // Soft delete: mark as deleted without removing from Dexie
   await db.shoppingLists.where('temp_id').equals(temp_id).modify({
     sync_status: 'deleted',
+    is_active: false,  // Mark inactive
     synced_at: null,  // Reset synced_at to trigger upload
     updated_at: new Date()
   });
 
-  logger.info('[shoppingOps] ✅ Shopping list deleted', { temp_id });
+  logger.info('[shoppingOps] ✅ Shopping list soft-deleted', { temp_id });
 }
 
 /**
