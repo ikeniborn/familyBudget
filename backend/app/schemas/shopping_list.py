@@ -141,6 +141,12 @@ class ShoppingListResponse(BaseModel):
         examples=[1]
     )
 
+    temp_id: str | None = Field(
+        default=None,
+        description="Client-side UUID for offline sync",
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+
     creator_id: int = Field(
         description="Creator user ID (owner - used for delete permission)",
         examples=[123]
@@ -199,6 +205,11 @@ class ShoppingListCardResponse(BaseModel):
     id: int = Field(
         description="Shopping list ID",
         examples=[1]
+    )
+
+    temp_id: str | None = Field(
+        default=None,
+        description="Client-side UUID for offline sync"
     )
 
     name: str = Field(

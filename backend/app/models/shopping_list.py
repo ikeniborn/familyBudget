@@ -81,6 +81,15 @@ class ShoppingList(SQLModel, table=True):
         description="Surrogate primary key"
     )
 
+    # Offline sync field
+    temp_id: str | None = Field(
+        default=None,
+        max_length=36,
+        index=True,
+        unique=True,
+        description="Client-side UUID for offline sync (guaranteed unique)"
+    )
+
     # Foreign keys
     creator_id: int = Field(
         foreign_key="t_d_user.id",

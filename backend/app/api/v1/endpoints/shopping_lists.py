@@ -126,6 +126,10 @@ async def create_shopping_list(
         description=shopping_list_data.description,
     )
 
+    # Generate temp_id for offline sync (before commit)
+    import uuid
+    shopping_list.temp_id = str(uuid.uuid4())
+
     session.add(shopping_list)
     await session.commit()
     await session.refresh(shopping_list)

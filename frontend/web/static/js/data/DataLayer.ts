@@ -698,13 +698,13 @@ export class DataLayer {
    * NEW STRATEGY (API-First with Opt-In PGlite)
    */
   async getShoppingListItems(
-    listTempId: string,
+    listId: number,
     filters?: ShoppingListItemFilters
   ): Promise<LocalShoppingListItem[]> {
     const startTime = performance.now();
 
     console.debug('[DATA_LAYER] getShoppingListItems', {
-      listTempId,
+      listId,
       filters,
       usePGlite: this.shouldUsePGlite()
     });
@@ -712,7 +712,7 @@ export class DataLayer {
     try {
       // API-FIRST
       if (!this.shouldUsePGlite()) {
-        const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+        const result = await this.getShoppingListItemsFromAPI(listId, filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getShoppingListItems', duration);
         console.debug('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
@@ -730,14 +730,25 @@ export class DataLayer {
 
         if (!pglite.isReady()) {
           console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
-          const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+          const result = await this.getShoppingListItemsFromAPI(listId, filters);
           performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
           return result;
         }
       }
 
       console.debug('[DATA_LAYER] Using PGlite');
-      let result = await pglite.queryShoppingListItems(listTempId);  // ← FIX: Pass only string, not object
+
+      // Lookup list by numeric ID to get temp_id (for Dexie FK queries)
+      const list = await pglite.getDB().shoppingLists.where('id').equals(listId).first();
+      if (!list || !list.temp_id) {
+        console.warn('[DATA_LAYER] List not found in Dexie or missing temp_id, using API fallback');
+        const result = await this.getShoppingListItemsFromAPI(listId, filters);
+        performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
+        return result;
+      }
+
+      const listTempId = list.temp_id;  // ← Use Dexie temp_id for FK query
+      let result = await pglite.queryShoppingListItems(listTempId);
       const duration = performance.now() - startTime;
 
       // Apply filters in-memory (client-side filtering)
@@ -788,7 +799,7 @@ export class DataLayer {
 
       if (result.length === 0) {
         console.warn('[DATA_LAYER] Dexie returned empty, using API fallback');
-        let apiResult = await this.getShoppingListItemsFromAPI(listTempId, filters);
+        let apiResult = await this.getShoppingListItemsFromAPI(listId, filters);
 
         // CRITICAL FIX: Ensure temp_id exists for all API items (for bulk delete compatibility)
         apiResult = apiResult.map(item => ({
@@ -807,7 +818,7 @@ export class DataLayer {
 
     } catch (error) {
       console.error('[DATA_LAYER] Error in getShoppingListItems', error);
-      const result = await this.getShoppingListItemsFromAPI(listTempId, filters);
+      const result = await this.getShoppingListItemsFromAPI(listId, filters);
       performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
       return result;
     }
@@ -816,17 +827,17 @@ export class DataLayer {
   /**
    * Fetch shopping list items from REST API
    *
-   * @param listTempId - Shopping list ID (can be numeric ID or temp_id)
+   * @param listId - Shopping list numeric ID
    * @param filters - Optional filters
    * @returns Array of shopping list items
    */
   private async getShoppingListItemsFromAPI(
-    listTempId: string,
+    listId: number,
     filters?: ShoppingListItemFilters
   ): Promise<LocalShoppingListItem[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
-    params.set('shopping_list_id', listTempId);
+    params.set('shopping_list_id', String(listId));
 
     if (filters?.is_completed !== undefined) {
       params.set('is_completed', filters.is_completed.toString());
