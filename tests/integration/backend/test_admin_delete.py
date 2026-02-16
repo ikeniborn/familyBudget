@@ -4,7 +4,7 @@ Integration tests for Admin DELETE endpoint.
 Tests the idempotent DELETE behavior for facts.
 """
 
-from datetime import date, datetime
+from datetime import date
 
 import pytest
 from httpx import AsyncClient
@@ -26,16 +26,13 @@ class TestAdminDeleteEndpoint:
 
     @pytest.fixture
     async def admin_user(self, db_session: AsyncSession):
-        """Create admin user for testing."""
+        """Create admin user for testing (SCD Type 1)."""
         admin = User(
             telegram_id=999999999,
             username="testadmin",
             first_name="Test",
             last_name="Admin",
             is_admin=True,
-            is_current=True,
-            valid_from=datetime.now(),
-            valid_to=datetime(9999, 12, 31)
         )
         db_session.add(admin)
         await db_session.commit()
@@ -43,16 +40,13 @@ class TestAdminDeleteEndpoint:
         return admin
 
     @pytest.fixture
-    async def test_article(self, db_session: AsyncSession):
-        """Create test article for facts."""
+    async def test_article(self, db_session: AsyncSession, admin_user: User):
+        """Create test article for facts (SCD Type 1)."""
         article = Article(
             name="Test Category",
             type="expense",
             parent_id=None,
-            user_id=1,
-            is_current=True,
-            valid_from=datetime.now(),
-            valid_to=datetime(9999, 12, 31)
+            user_id=admin_user.id,
         )
         db_session.add(article)
         await db_session.commit()
@@ -60,15 +54,12 @@ class TestAdminDeleteEndpoint:
         return article
 
     @pytest.fixture
-    async def test_financial_center(self, db_session: AsyncSession):
-        """Create test financial center."""
+    async def test_financial_center(self, db_session: AsyncSession, admin_user: User):
+        """Create test financial center (SCD Type 1)."""
         fc = FinancialCenter(
             name="Test ЦФО",
             description="Test Financial Center",
-            user_id=1,
-            is_current=True,
-            valid_from=datetime.now(),
-            valid_to=datetime(9999, 12, 31)
+            user_id=admin_user.id,
         )
         db_session.add(fc)
         await db_session.commit()

@@ -22,16 +22,13 @@ class TestAdminSystemStats:
 
     @pytest.fixture
     async def admin_user(self, db_session: AsyncSession):
-        """Create admin user for testing."""
+        """Create admin user for testing (SCD Type 1)."""
         admin = User(
             telegram_id=999999999,
             username="testadmin",
             first_name="Test",
             last_name="Admin",
             is_admin=True,
-            is_active=True,  # NEW: SCD Type 1 field
-            created_at=datetime.now(),
-            updated_at=datetime.now()
         )
         db_session.add(admin)
         await db_session.commit()
@@ -40,16 +37,13 @@ class TestAdminSystemStats:
 
     @pytest.fixture
     async def regular_user(self, db_session: AsyncSession):
-        """Create regular user for testing."""
+        """Create regular user for testing (SCD Type 1)."""
         user = User(
             telegram_id=888888888,
             username="testuser",
             first_name="Test",
             last_name="User",
             is_admin=False,
-            is_active=True,  # NEW: SCD Type 1 field
-            created_at=datetime.now(),
-            updated_at=datetime.now()
         )
         db_session.add(user)
         await db_session.commit()
@@ -58,25 +52,19 @@ class TestAdminSystemStats:
 
     @pytest.fixture
     async def test_articles(self, db_session: AsyncSession, admin_user: User):
-        """Create test articles."""
+        """Create test articles (SCD Type 1)."""
         articles = [
             Article(
                 name="Продукты",
                 type="expense",
                 parent_id=None,
                 user_id=admin_user.id,
-                is_current=True,
-                valid_from=datetime.now(),
-                valid_to=datetime(9999, 12, 31)
             ),
             Article(
                 name="Зарплата",
                 type="income",
                 parent_id=None,
                 user_id=admin_user.id,
-                is_current=True,
-                valid_from=datetime.now(),
-                valid_to=datetime(9999, 12, 31)
             ),
         ]
         for article in articles:
