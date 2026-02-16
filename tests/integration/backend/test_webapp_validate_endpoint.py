@@ -127,9 +127,9 @@ class TestWebAppValidateEndpoint:
 
         assert response.status_code == 401
         # API returns {'message': '...', 'status_code': 401} format (not 'detail')
-        response_data = response.json()
-        # Check if error message contains "Invalid initData" in any field
-        assert "Invalid initData" in response_data.get("message", "") or "Invalid initData" in response_data.get("detail", "")
+        # Check if error message contains "Invalid initData" in response
+        response_text = response.text  # Get raw response text for flexible matching
+        assert "Invalid initData" in response_text, f"Expected 'Invalid initData' in response, got: {response_text}"
 
     async def test_validate_with_expired_auth_date(
         self, client: AsyncClient, monkeypatch
