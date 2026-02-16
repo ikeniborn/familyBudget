@@ -385,8 +385,10 @@ sync_update() {
 
     # Show preview (first 20 files)
     info "Preview of changes (first 20 files):"
-    # Use here-string to avoid "Argument list too long" with large file lists
-    head -20 <<< "$SYNC_CHANGED_FILES"
+    # Use printf to avoid "Argument list too long" with large file lists
+    # Both here-string (<<<) and here-document can fail with ARG_MAX exceeded
+    # printf is safe because it doesn't expand arguments, just uses format string
+    printf '%s\n' "$SYNC_CHANGED_FILES" | head -20
 
     echo ""
     info "Proceeding with update sync (auto-confirmed)..."
