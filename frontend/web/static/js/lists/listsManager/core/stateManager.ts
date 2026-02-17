@@ -231,7 +231,7 @@ export async function loadShoppingLists(): Promise<void> {
   // DEBUG: Simulate load error for async error testing
   if (shouldSimulateLoadError()) {
     if (isVerboseLoggingEnabled()) {
-      console.log('[ListsManager] ❌ Simulating load error (debug mode)');
+      debugLog('[ListsManager] ❌ Simulating load error (debug mode)');
     }
     throw new Error('Simulated load error for testing');
   }

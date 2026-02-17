@@ -8,7 +8,7 @@ declare global {
     htmx: any;
 
     // Dexie Manager (offline database)
-    dexieManager?: import('@db/dexie').DexieManager;
+    dexieManager?: any;
 
     // From hierarchyView.js
     hierarchyView: any;
