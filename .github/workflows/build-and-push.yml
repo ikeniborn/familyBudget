@@ -1104,6 +1104,7 @@ jobs:
             # Run pytest against production PostgreSQL (real server, no test container needed)
             # conftest.py reads POSTGRES_PASSWORD from env; port/db point to production DB
             unset TEST_DATABASE_URL
+            export DATABASE_URL="postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@localhost:5432/familybudget"
             export POSTGRES_PORT="5432"
             export POSTGRES_DB="familybudget"
             export REDIS_URL="redis://localhost:6379/0"
