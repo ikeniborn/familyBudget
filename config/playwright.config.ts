@@ -19,10 +19,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
 
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
 
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
+
+  /* Per-test timeout: 60s (default 30s often too low for slow CI) */
+  timeout: 60 * 1000,
+
+  /* Global timeout for entire test run: 25 minutes */
+  globalTimeout: 25 * 60 * 1000,
 
   /* Reporter to use */
   reporter: [

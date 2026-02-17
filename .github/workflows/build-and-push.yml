@@ -1017,6 +1017,7 @@ jobs:
     name: Post-Deploy Tests (${{ matrix.test-suite }})
     needs: [deploy-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: |
       always() &&
       needs.deploy-test.result == 'success'
@@ -1136,6 +1137,7 @@ jobs:
 
       - name: Run E2E tests
         if: matrix.test-suite == 'e2e'
+        timeout-minutes: 25
         env:
           BASE_URL: https://fbd.ikeniborn.ru
           TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
