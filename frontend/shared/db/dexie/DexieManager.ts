@@ -174,6 +174,15 @@ export class DexieManager {
       localStorage.setItem(factsKey, '90');
       localStorage.setItem(plansKey, '3');
     }
+
+    // Step 2: split plans → plans_history + plans_future (v11.6.0+)
+    const plansHistoryKey = 'budget_dexie_sync_period_plans_history';
+    const plansFutureKey = 'budget_dexie_sync_period_plans_future';
+    if (!localStorage.getItem(plansHistoryKey) && !localStorage.getItem(plansFutureKey)) {
+      const base = parseInt(localStorage.getItem(plansKey) ?? '3', 10);
+      localStorage.setItem(plansHistoryKey, base.toString());
+      localStorage.setItem(plansFutureKey, base.toString());
+    }
   }
 
   /**
@@ -927,6 +936,8 @@ export class DexieManager {
     syncPeriod: {
       facts: number;
       plans: number;
+      plansHistory: number;
+      plansFuture: number;
     };
   }> {
     const articlesCount = await this.getDB().articles.count();
@@ -984,7 +995,9 @@ export class DexieManager {
       },
       syncPeriod: {
         facts: this.getSyncPeriodDays(),
-        plans: this.getSyncPeriodMonths()
+        plans: this.getSyncPeriodMonths(),
+        plansHistory: this.getSyncPeriodPlansHistory(),
+        plansFuture: this.getSyncPeriodPlansFuture()
       }
     };
   }
@@ -1130,6 +1143,54 @@ export class DexieManager {
     }
     localStorage.setItem('budget_dexie_sync_period_plans', months.toString());
     logger.info('[DexieManager] Plans sync period updated', { months });
+  }
+
+  /**
+   * Get sync period for Plans history (months back) (v11.6.0+)
+   * @returns Number of months of past plans to keep in Dexie (1-6)
+   */
+  getSyncPeriodPlansHistory(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period_plans_history');
+    if (!saved) {
+      return this.getSyncPeriodMonths(); // fallback to legacy plans key
+    }
+    return parseInt(saved, 10);
+  }
+
+  /**
+   * Set sync period for Plans history (months back) (v11.6.0+)
+   * @param months - Number of months of past plans (1-6)
+   */
+  setSyncPeriodPlansHistory(months: number): void {
+    if (months < 1 || months > 6) {
+      throw new Error('[DexieManager] Invalid plans history period: must be 1-6 months');
+    }
+    localStorage.setItem('budget_dexie_sync_period_plans_history', months.toString());
+    logger.info('[DexieManager] Plans history sync period updated', { months });
+  }
+
+  /**
+   * Get sync period for Plans future (months ahead) (v11.6.0+)
+   * @returns Number of months of future plans to keep in Dexie (1-6)
+   */
+  getSyncPeriodPlansFuture(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period_plans_future');
+    if (!saved) {
+      return this.getSyncPeriodMonths(); // fallback to legacy plans key
+    }
+    return parseInt(saved, 10);
+  }
+
+  /**
+   * Set sync period for Plans future (months ahead) (v11.6.0+)
+   * @param months - Number of months of future plans (1-6)
+   */
+  setSyncPeriodPlansFuture(months: number): void {
+    if (months < 1 || months > 6) {
+      throw new Error('[DexieManager] Invalid plans future period: must be 1-6 months');
+    }
+    localStorage.setItem('budget_dexie_sync_period_plans_future', months.toString());
+    logger.info('[DexieManager] Plans future sync period updated', { months });
   }
 
   /**

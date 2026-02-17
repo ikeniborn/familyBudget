@@ -58,6 +58,8 @@ interface DiagnosticData {
   syncPeriod: {
     facts: number;
     plans: number;
+    plansHistory: number;
+    plansFuture: number;
   };
   websocket?: {
     connected: boolean;
@@ -183,9 +185,6 @@ export class DexieDiagnosticModal extends BaseModal {
 
       const baseData = await pglite.getDiagnosticData();
 
-      // Add sync period information (v11.4.0+)
-      const syncPeriodDays = pglite.getSyncPeriodDays?.() ?? 90;
-
       // Add WebSocket diagnostics (v11.4.0+)
       const budgetWSClient = (window as any).budgetWSClient;
 
@@ -209,10 +208,6 @@ export class DexieDiagnosticModal extends BaseModal {
       // Build complete diagnostic data object
       const data: DiagnosticData = {
         ...baseData,
-        syncPeriod: {
-          facts: syncPeriodDays,
-          plans: syncPeriodDays
-        },
         websocket: {
           connected: budgetWSClient?.ws?.readyState === 1,  // WebSocket.OPEN = 1
           state: budgetWSClient?.ws
@@ -401,7 +396,7 @@ export class DexieDiagnosticModal extends BaseModal {
             </tr>
             <tr>
               <td>Plans</td>
-              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} days)</span></td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} months)</span></td>
             </tr>
             <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
             <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
@@ -471,22 +466,41 @@ export class DexieDiagnosticModal extends BaseModal {
           </div>
         </div>
 
-        <!-- Plans Slider (Months) -->
-        <div class="form-control">
+        <!-- Plans History Slider (months back) -->
+        <div class="form-control mb-3">
           <label class="label">
-            <span class="label-text text-xs">Plans retention (months):</span>
+            <span class="label-text text-xs">Plans history (months back):</span>
           </label>
           <input type="range" min="1" max="6" step="1"
-                 value="${data.syncPeriod.plans}"
+                 value="${data.syncPeriod.plansHistory}"
                  class="range range-xs range-secondary"
-                 id="sync-period-plans-slider"
-                 oninput="window.updateSyncPeriodPlansDisplay?.(this.value)"
-                 onchange="window.updateSyncPeriodPlans?.(this.value)">
+                 id="sync-period-plans-history-slider"
+                 oninput="window.updateSyncPeriodPlansHistoryDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodPlansHistory?.(this.value)">
           <div class="w-full flex justify-between text-xs px-2 opacity-60">
             <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
           </div>
-          <div class="text-xs text-center mt-1" id="sync-period-plans-value">
-            ${data.syncPeriod.plans} months
+          <div class="text-xs text-center mt-1" id="sync-period-plans-history-value">
+            ${data.syncPeriod.plansHistory} months
+          </div>
+        </div>
+
+        <!-- Plans Future Slider (months ahead) -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text text-xs">Plans future (months ahead):</span>
+          </label>
+          <input type="range" min="1" max="6" step="1"
+                 value="${data.syncPeriod.plansFuture}"
+                 class="range range-xs range-accent"
+                 id="sync-period-plans-future-slider"
+                 oninput="window.updateSyncPeriodPlansFutureDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodPlansFuture?.(this.value)">
+          <div class="w-full flex justify-between text-xs px-2 opacity-60">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          </div>
+          <div class="text-xs text-center mt-1" id="sync-period-plans-future-value">
+            ${data.syncPeriod.plansFuture} months
           </div>
         </div>
       </div>
@@ -698,6 +712,58 @@ export class DexieDiagnosticModal extends BaseModal {
       logger.error('[SYNC_PERIOD] Failed to update Plans sync period', error);
     }
   }
+
+  /**
+   * Update Plans history display (real-time slider feedback) (v11.6.0+)
+   */
+  private updateSyncPeriodPlansHistoryDisplay(months: number): void {
+    const valueEl = document.getElementById('sync-period-plans-history-value');
+    if (valueEl) {
+      valueEl.textContent = `${months} months`;
+    }
+  }
+
+  /**
+   * Update Plans history sync period (v11.6.0+)
+   */
+  private async updateSyncPeriodPlansHistory(months: number): Promise<void> {
+    try {
+      const dexieManager = await getDexieManager();
+      dexieManager.setSyncPeriodPlansHistory(months);
+      this.updateSyncPeriodPlansHistoryDisplay(months);
+
+      logger.info('[SYNC_PERIOD] Plans history period updated (will apply on next sync):', months);
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update Plans history period', error);
+    }
+  }
+
+  /**
+   * Update Plans future display (real-time slider feedback) (v11.6.0+)
+   */
+  private updateSyncPeriodPlansFutureDisplay(months: number): void {
+    const valueEl = document.getElementById('sync-period-plans-future-value');
+    if (valueEl) {
+      valueEl.textContent = `${months} months`;
+    }
+  }
+
+  /**
+   * Update Plans future sync period (v11.6.0+)
+   */
+  private async updateSyncPeriodPlansFuture(months: number): Promise<void> {
+    try {
+      const dexieManager = await getDexieManager();
+      dexieManager.setSyncPeriodPlansFuture(months);
+      this.updateSyncPeriodPlansFutureDisplay(months);
+
+      logger.info('[SYNC_PERIOD] Plans future period updated (will apply on next sync):', months);
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update Plans future period', error);
+    }
+  }
 }
 
 /**
@@ -729,6 +795,22 @@ export function openDexieDiagnostic(): void {
 
   (window as any).updateSyncPeriodPlans = (months: number) => {
     diagnosticModalInstance?.['updateSyncPeriodPlans'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansHistoryDisplay = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansHistoryDisplay'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansHistory = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansHistory'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansFutureDisplay = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansFutureDisplay'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansFuture = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansFuture'](months);
   };
 
   diagnosticModalInstance.open();

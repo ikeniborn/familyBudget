@@ -307,19 +307,8 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
  * - Today: 2025-01-15, months: 2
  *   → from_date: 2024-11-01, to_date: 2025-03-31
  */
-function calculateFullMonthsRange(months: number): { fromDate: string; toDate: string } {
+function calculatePlansRange(historyMonths: number, futureMonths: number): { fromDate: string; toDate: string } {
   const today = new Date();
-
-  // Calculate from_date (start of month N months ago)
-  const fromYear = today.getFullYear();
-  const fromMonth = today.getMonth() - months;
-  const fromDate = new Date(fromYear, fromMonth, 1);
-
-  // Calculate to_date (end of month N months ahead)
-  // Use next month's day 0 = last day of target month
-  const toYear = today.getFullYear();
-  const toMonth = today.getMonth() + months + 1;
-  const toDate = new Date(toYear, toMonth, 0);
 
   // Format dates manually to avoid timezone issues
   const formatDate = (d: Date) => {
@@ -328,6 +317,13 @@ function calculateFullMonthsRange(months: number): { fromDate: string; toDate: s
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // Calculate from_date (start of month N months ago)
+  const fromDate = new Date(today.getFullYear(), today.getMonth() - historyMonths, 1);
+
+  // Calculate to_date (end of month N months ahead)
+  // Use next month's day 0 = last day of target month
+  const toDate = new Date(today.getFullYear(), today.getMonth() + futureMonths + 1, 0);
 
   return {
     fromDate: formatDate(fromDate),
@@ -345,13 +341,17 @@ function calculateFullMonthsRange(months: number): { fromDate: string; toDate: s
  */
 export async function syncRecurringPlans(
   userId: number,
-  syncPeriodMonths: number = 3
+  syncPeriodMonths: number = 3,
+  historyMonths?: number,
+  futureMonths?: number
 ): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodMonths });
+  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodMonths, historyMonths, futureMonths });
 
   try {
-    // Calculate full months range
-    const { fromDate, toDate } = calculateFullMonthsRange(syncPeriodMonths);
+    // Calculate range using split history/future or symmetric fallback
+    const history = historyMonths ?? syncPeriodMonths;
+    const future = futureMonths ?? syncPeriodMonths;
+    const { fromDate, toDate } = calculatePlansRange(history, future);
 
     // Try with date filtering (v11.5.0+)
     const params = new URLSearchParams({
@@ -433,6 +433,8 @@ export async function initialReferenceSync(
   // Get sync period for plans from DexieManager (v11.5.0+)
   const dexieManager = await import('../DexieManager').then(m => m.getDexieManager());
   const syncPeriodMonths = (await dexieManager).getSyncPeriodMonths?.() ?? 3;
+  const historyMonths = (await dexieManager).getSyncPeriodPlansHistory?.() ?? syncPeriodMonths;
+  const futureMonths = (await dexieManager).getSyncPeriodPlansFuture?.() ?? syncPeriodMonths;
 
   const results = {
     articles: await syncArticles(userId),
@@ -442,7 +444,7 @@ export async function initialReferenceSync(
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
     productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths)  // v11.5.0: Month-based sync
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths, historyMonths, futureMonths)  // v11.6.0: Split history/future
   };
 
   // Critical syncs (required for app to work)

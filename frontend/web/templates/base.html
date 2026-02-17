@@ -458,6 +458,11 @@
     <!-- Dexie Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
     <script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
 
+    <!-- Dexie Diagnostic (global for all authenticated pages) (v11.6.0+) -->
+    {% if user %}
+    <script src="/static/js/diagnostics/dexie-diagnostic.min.js?v=PLACEHOLDER"></script>
+    {% endif %}
+
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
 
