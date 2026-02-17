@@ -1109,14 +1109,14 @@ jobs:
               docker exec familybudget-postgres-test pg_isready -U familybudget -q 2>/dev/null && break || sleep 1
             done
 
-            # Apply migrations to test database
-            cd backend
+            # Apply migrations to test database (run from ~/familyBudget, not backend/)
             DATABASE_URL="postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
-              .venv/bin/alembic -c db/migrations/alembic.ini upgrade head
+              backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
 
             # Run pytest against test PostgreSQL (isolated, safe for writes/deletes)
             # conftest.py defaults: port=5433, db=familybudget_test, password=test_password_*
             unset TEST_DATABASE_URL
+            cd backend
             export REDIS_URL="redis://localhost:6379/0"
             export BACKEND_URL="https://fbd.ikeniborn.ru"
             export JWT_SECRET="test_jwt_secret_for_ci_only"
