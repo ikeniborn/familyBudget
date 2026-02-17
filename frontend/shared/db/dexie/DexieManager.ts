@@ -916,7 +916,7 @@ export class DexieManager {
       stores: number;           // v11.4.2+
       productGroups: number;    // v11.4.2+
       shoppingLists: number;    // v11.4.2+
-      shoppingListItems: number; // v11.4.2+
+      shoppingListItems: number; // added in getDiagnosticData
     };
     syncStatus: 'error' | 'idle' | 'syncing';
     performance: { avgQueryTime: number };

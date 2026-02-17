@@ -435,7 +435,11 @@
             document.documentElement.classList.add('offline-mode');
         });
         window.addEventListener('online', function() {
-            document.documentElement.classList.remove('offline-mode');
+            // Only remove offline-mode from native event if auto-offline-mode is not active.
+            // offline-status-change is the authoritative source when auto-offline-mode is enabled.
+            if (localStorage.getItem('budget_auto_offline_mode') !== 'true') {
+                document.documentElement.classList.remove('offline-mode');
+            }
         });
         window.addEventListener('offline-status-change', function(e) {
             var isOnline = e.detail && e.detail.online;
