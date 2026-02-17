@@ -549,7 +549,7 @@ export async function confirmDeleteList(): Promise<void> {
     const networkDelay = getNetworkDelay();
     if (networkDelay > 0) {
       if (isVerboseLoggingEnabled()) {
-        console.log(`[DeleteList] 🐌 Simulating slow network: ${networkDelay}ms delay`);
+        debugLog(`[DeleteList] 🐌 Simulating slow network: ${networkDelay}ms delay`);
       }
       await new Promise(resolve => setTimeout(resolve, networkDelay));
     }
