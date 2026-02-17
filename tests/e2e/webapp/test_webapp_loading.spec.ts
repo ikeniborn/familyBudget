@@ -61,7 +61,7 @@ test.describe('Web App Loading', () => {
     });
 
     await page.goto('/webapp/test.html');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');  // networkidle hangs with WebSocket
 
     // Wait a bit for scripts to initialize
     await page.waitForTimeout(1000);
