@@ -30,7 +30,7 @@ import type {
  * Default schema version
  * Increment this when adding new migrations
  */
-const DEFAULT_SCHEMA_VERSION = 3;  // Remove user_id from Stores/ProductGroups (global reference data)
+const DEFAULT_SCHEMA_VERSION = 4;  // Acknowledge native v4 from SchemaDiff workaround
 
 /**
  * Cached database version (to avoid redundant Dexie.exists() calls)
@@ -87,6 +87,9 @@ export function clearVersionCache(): void {
 /**
  * Family Budget Dexie Database
  * Version 1: Initial schema (migrated from PGlite v7)
+ * Version 2: Shopping lists creator_id schema fix
+ * Version 3: Remove user_id from Stores/ProductGroups (global reference data)
+ * Version 4: No-op — acknowledges native v4 created by Dexie SchemaDiff workaround
  */
 export class FamilyBudgetDB extends Dexie {
   // Reference Data Tables
@@ -119,6 +122,7 @@ export class FamilyBudgetDB extends Dexie {
      * Version 1: Initial schema (migrated from PGlite v7)
      * Version 2: Shopping lists creator_id schema fix
      * Version 3: Remove user_id from Stores/ProductGroups (global reference data)
+     * Version 4: No-op — acknowledges native v4 created by Dexie SchemaDiff workaround
      *
      * ВАЖНО: Indexes определяют как быстро можно искать данные
      * Формат: 'primaryKey, index1, index2, [compound+index]'
@@ -166,6 +170,12 @@ export class FamilyBudgetDB extends Dexie {
 
       logger.info('[Dexie Migration v3] ✅ Schema migration complete. Data will be re-synced.');
     });
+
+    // Version 4: No-op migration — acknowledges native v4 browsers
+    // Background: Dexie SchemaDiff auto-incremented v3→v4 for users who had
+    // the old v1 schema (before creator_id was added in commit 48fe5552).
+    // This version prevents repeated SchemaDiff warnings.
+    this.version(4).stores({});
   }
 }
 
