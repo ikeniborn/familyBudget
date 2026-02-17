@@ -111,12 +111,12 @@ async def test_create_fact_article_not_found(auth_client: AsyncClient, test_fina
 
 @pytest.mark.asyncio
 async def test_create_fact_article_shared(
-    auth_client: AsyncClient, session: AsyncSession, test_financial_center
+    auth_client: AsyncClient, session: AsyncSession, test_financial_center, test_admin: User
 ):
     """Test creating fact with another user's article (should succeed - articles are shared)."""
-    # Create article for another user (user_id=999)
+    # Create article for another user (test_admin) to avoid FK violation with user_id=999
     other_article = Article(
-        user_id=999,
+        user_id=test_admin.id,
         name="Other Article",
         type="expense",
     )
@@ -214,12 +214,12 @@ async def test_list_facts_basic(auth_client: AsyncClient, test_fact: BudgetFact)
 
 
 @pytest.mark.asyncio
-async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSession, test_article_root: Article):
+async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User):
     """Test pagination of facts list."""
     # Create 10 facts
     for i in range(10):
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=date(2025, 10, i + 1),
             amount=Decimal(f"{i * 10}.00"),
@@ -240,14 +240,14 @@ async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_list_facts_filter_by_date_range(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User
 ):
     """Test filtering facts by date range."""
     # Create facts with different dates
     dates = [date(2025, 10, 1), date(2025, 10, 15), date(2025, 10, 30)]
     for d in dates:
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=d,
             amount=Decimal("100.00"),
@@ -273,18 +273,18 @@ async def test_list_facts_filter_by_date_range(
 
 @pytest.mark.asyncio
 async def test_list_facts_filter_by_article(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_article_child: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_article_child: Article, test_user: User
 ):
     """Test filtering facts by article_id."""
     # Create facts for different articles
     fact1 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     fact2 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_child.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("50.00"),

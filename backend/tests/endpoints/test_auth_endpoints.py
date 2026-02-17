@@ -361,6 +361,7 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
         username="johndoe",
         first_name="John",
         is_admin=False,
+        is_active=True,
     )
     session.add(jwt_user)
     await session.commit()
