@@ -1089,7 +1089,7 @@ jobs:
       - name: Run backend tests on test server
         if: matrix.test-suite == 'backend'
         run: |
-          ssh budget-test "bash -s" << EOF
+          ssh budget-test "bash -s" << 'EOF'
             set -e
             cd ~/familyBudget
 
@@ -1097,10 +1097,15 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
+            # Source server environment to get POSTGRES_PASSWORD
+            set -a
+            source /opt/budget/.env
+            set +a
+
             # Run pytest (test database allows write operations)
             # CRITICAL: Unset TEST_DATABASE_URL to prevent .env.test from overriding DATABASE_URL
             unset TEST_DATABASE_URL
-            export DATABASE_URL="postgresql+asyncpg://familybudget:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/familybudget"
+            export DATABASE_URL="postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@localhost:5432/familybudget"
             export POSTGRES_PORT="5432"
             export POSTGRES_DB="familybudget"
             export REDIS_URL="redis://localhost:6379/0"
