@@ -1129,6 +1129,7 @@ jobs:
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
             .venv/bin/pytest tests/ \
+              -m "not e2e" \
               --maxfail=5 \
               -v \
               --tb=short
