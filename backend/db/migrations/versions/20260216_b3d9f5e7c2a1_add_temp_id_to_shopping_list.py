@@ -33,11 +33,24 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """Add temp_id field to shopping lists."""
 
-    # Step 1: Add temp_id column
+    # Step 1: Add temp_id column (IF NOT EXISTS for idempotency)
     print("[MIGRATION] Adding temp_id column to t_f_shopping_list...")
     op.execute("""
         ALTER TABLE t_f_shopping_list
-        ADD COLUMN temp_id VARCHAR(36) UNIQUE;
+        ADD COLUMN IF NOT EXISTS temp_id VARCHAR(36);
+    """)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 't_f_shopping_list_temp_id_key'
+                  AND conrelid = 't_f_shopping_list'::regclass
+            ) THEN
+                ALTER TABLE t_f_shopping_list
+                ADD CONSTRAINT t_f_shopping_list_temp_id_key UNIQUE (temp_id);
+            END IF;
+        END $$;
     """)
 
     # Step 2: Generate UUID for existing records (backward compatibility)
