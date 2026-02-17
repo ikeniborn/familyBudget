@@ -37,6 +37,7 @@ interface DiagnosticData {
     stores: number;           // v11.4.2+
     productGroups: number;    // v11.4.2+
     shoppingLists: number;    // v11.4.2+
+    shoppingListItems?: number; // v11.4.2+
   };
   syncStatus: 'error' | 'idle' | 'syncing';
   performance: {
@@ -96,6 +97,7 @@ export class DexieDiagnosticModal extends BaseModal {
   constructor() {
     super({
       id: 'dexie-diagnostic-modal',
+      hideCloseButton: true,
       title: '🔍 Dexie Diagnostics',
       size: 'max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
       onOpen: () => {
@@ -214,7 +216,7 @@ export class DexieDiagnosticModal extends BaseModal {
             ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][budgetWSClient.ws.readyState]
             : 'NO_SOCKET',
           enabled: budgetWSClient?.enabled ?? false,
-          offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? false
+          offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? localStorage.getItem('budget_auto_offline_mode') === 'true'
         },
         syncMetadata: {
           recurring_plans: plansSyncMetadata ? {
@@ -396,11 +398,12 @@ export class DexieDiagnosticModal extends BaseModal {
             </tr>
             <tr>
               <td>Plans</td>
-              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} months)</span></td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(−${data.syncPeriod.plansHistory} / +${data.syncPeriod.plansFuture} months)</span></td>
             </tr>
             <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
             <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
             <tr><td>Shopping Lists</td><td>${data.tableStats.shoppingLists}</td></tr>
+            <tr><td>└ Items</td><td>${data.tableStats.shoppingListItems ?? '—'}</td></tr>
           </tbody>
         </table>
       </div>
