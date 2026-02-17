@@ -15,7 +15,6 @@ on:
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/build-and-push.yml'
   workflow_dispatch:
     inputs:
       custom_tag:
@@ -717,7 +716,7 @@ jobs:
   # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-summary]
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-tests, post-deploy-summary]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
     permissions:
@@ -763,7 +762,7 @@ jobs:
           RESULT_DOCKER:   ${{ needs.image-build-push.result }}
           RESULT_SECURITY: ${{ needs.security-scan.result }}
           RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
-          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
           BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
           BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
           BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
@@ -808,12 +807,13 @@ jobs:
             esac
           }
 
-          # Container line: ✅ name:ver (new) OR ⏭ name:ver
+          # Container line: ✅ name:ver (new) OR ✅ name:ver (current) OR ⏭ name:ver
+          # Show ✅ current only when Docker Images job actually ran (not skipped)
           c_line() {
             local name="$1" built="$2" ver="$3"
             if [[ "$built" == "true" ]]; then
               echo "✅ ${name}:${ver} (new)"
-            elif [[ "$ver" == "$VERSION" ]]; then
+            elif [[ "$RESULT_DOCKER" == "success" && "$ver" == "$VERSION" ]]; then
               echo "✅ ${name}:${ver}"
             else
               echo "⏭ ${name}:${ver}"
@@ -854,7 +854,7 @@ jobs:
           RESULT_DOCKER:   ${{ needs.image-build-push.result }}
           RESULT_SECURITY: ${{ needs.security-scan.result }}
           RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
-          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
           BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
           BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
           BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
@@ -882,7 +882,7 @@ jobs:
             local name="$1" built="$2" ver="$3"
             if [[ "$built" == "true" ]]; then
               echo "| ${name} | \`${ver}\` | ✅ updated |"
-            elif [[ "$ver" == "$VERSION" ]]; then
+            elif [[ "$RESULT_DOCKER" == "success" && "$ver" == "$VERSION" ]]; then
               echo "| ${name} | \`${ver}\` | ✅ current |"
             else
               echo "| ${name} | \`${ver}\` | ⏭ unchanged |"
