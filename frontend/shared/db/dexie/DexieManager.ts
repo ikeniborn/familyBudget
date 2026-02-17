@@ -916,6 +916,7 @@ export class DexieManager {
       stores: number;           // v11.4.2+
       productGroups: number;    // v11.4.2+
       shoppingLists: number;    // v11.4.2+
+      shoppingListItems: number; // v11.4.2+
     };
     syncStatus: 'error' | 'idle' | 'syncing';
     performance: { avgQueryTime: number };
@@ -942,6 +943,7 @@ export class DexieManager {
     const articlesCount = await this.getDB().articles.count();
     const factsCount = await this.getDB().budgetFacts.count();
     const shoppingListsCount = await this.getDB().shoppingLists.count();
+    const shoppingListItemsCount = await this.getDB().shoppingListItems.count();
     const financialCentersCount = await this.getDB().financialCenters.count();
     const costCentersCount = await this.getDB().costCenters.count();
     const recurringPlansCount = await this.getDB().recurringPlans.count();
@@ -973,7 +975,8 @@ export class DexieManager {
         plans: recurringPlansCount,
         stores: storesCount,
         productGroups: productGroupsCount,
-        shoppingLists: shoppingListsCount
+        shoppingLists: shoppingListsCount,
+        shoppingListItems: shoppingListItemsCount
       },
       syncStatus: 'idle' as const,
       performance: {
