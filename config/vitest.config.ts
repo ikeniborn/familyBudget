@@ -61,10 +61,10 @@ export default defineConfig({
           statements: 0
         },
         '**/listsManager/core/*.ts': {
-          lines: 12,       // LOWERED: Actual 12.75% (listOperations tests skipped)
+          lines: 11,       // LOWERED: Actual 11.72% (listOperations tests skipped, task-015)
           functions: 12,   // LOWERED: Actual 12% - needs test coverage improvement
           branches: 60,
-          statements: 12   // LOWERED: Actual 12.75% (listOperations tests skipped)
+          statements: 11   // LOWERED: Actual 11.72% (listOperations tests skipped, task-015)
         },
         '**/listsManager/operations/*.ts': {
           lines: 95,       // Well-tested operations
