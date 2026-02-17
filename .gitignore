@@ -350,3 +350,5 @@ frontend/web/static/sw.min.js.gz
 backend/.env.test
 
 .claude/sessions/
+# Claude Code Agent Workspace
+.iclaude/
