@@ -813,6 +813,8 @@ jobs:
             local name="$1" built="$2" ver="$3"
             if [[ "$built" == "true" ]]; then
               echo "✅ ${name}:${ver} (new)"
+            elif [[ "$ver" == "$VERSION" ]]; then
+              echo "✅ ${name}:${ver}"
             else
               echo "⏭ ${name}:${ver}"
             fi
@@ -880,6 +882,8 @@ jobs:
             local name="$1" built="$2" ver="$3"
             if [[ "$built" == "true" ]]; then
               echo "| ${name} | \`${ver}\` | ✅ updated |"
+            elif [[ "$ver" == "$VERSION" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ current |"
             else
               echo "| ${name} | \`${ver}\` | ⏭ unchanged |"
             fi
