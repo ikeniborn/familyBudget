@@ -430,6 +430,17 @@
                 localStorage.removeItem('budget_manual_offline_mode');
             } catch(e) {}
         })();
+
+        window.addEventListener('offline', function() {
+            document.documentElement.classList.add('offline-mode');
+        });
+        window.addEventListener('online', function() {
+            document.documentElement.classList.remove('offline-mode');
+        });
+        window.addEventListener('offline-status-change', function(e) {
+            var isOnline = e.detail && e.detail.online;
+            document.documentElement.classList.toggle('offline-mode', !isOnline);
+        });
     </script>
 
     <!-- Feature Flags Configuration (Web Workers, Debug Mode, WebSocket) -->
