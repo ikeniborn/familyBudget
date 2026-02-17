@@ -56,7 +56,7 @@ services:
       - "-c"
       - "effective_cache_size=1GB"
       - "-c"
-      - "maintenance_work_mem=256MB"
+      - "maintenance_work_mem=64MB"
       - "-c"
       - "checkpoint_completion_target=0.9"
       - "-c"
