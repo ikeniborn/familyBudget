@@ -1097,16 +1097,26 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
-            # Read POSTGRES_PASSWORD from running production container (ikeniborn is in docker group)
-            # /opt/budget/.env is owned by root and not readable by CI user
-            export POSTGRES_PASSWORD=$(docker inspect familybudget-postgres --format '{{range .Config.Env}}{{println .}}{{end}}' | grep ^POSTGRES_PASSWORD= | cut -d= -f2-)
+            # Start isolated test PostgreSQL container (port 5433, separate from production)
+            docker compose -f docker-compose-test.yml up -d
 
-            # Run pytest against production PostgreSQL (real server, no test container needed)
-            # conftest.py reads POSTGRES_PASSWORD from env; port/db point to production DB
+            # Cleanup test container on exit (even if tests fail)
+            trap 'docker compose -f ~/familyBudget/docker-compose-test.yml down 2>/dev/null || true' EXIT
+
+            # Wait for test database to be ready
+            echo "Waiting for test database..."
+            for i in $(seq 1 30); do
+              docker exec familybudget-postgres-test pg_isready -U familybudget -q 2>/dev/null && break || sleep 1
+            done
+
+            # Apply migrations to test database
+            cd backend
+            DATABASE_URL="postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
+              .venv/bin/alembic -c db/migrations/alembic.ini upgrade head
+
+            # Run pytest against test PostgreSQL (isolated, safe for writes/deletes)
+            # conftest.py defaults: port=5433, db=familybudget_test, password=test_password_*
             unset TEST_DATABASE_URL
-            export DATABASE_URL="postgresql+asyncpg://familybudget:${POSTGRES_PASSWORD}@localhost:5432/familybudget"
-            export POSTGRES_PORT="5432"
-            export POSTGRES_DB="familybudget"
             export REDIS_URL="redis://localhost:6379/0"
             export BACKEND_URL="https://fbd.ikeniborn.ru"
             export JWT_SECRET="test_jwt_secret_for_ci_only"
@@ -1117,7 +1127,6 @@ jobs:
             export CORS_ORIGINS="https://fbd.ikeniborn.ru"
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
-            cd backend
             .venv/bin/pytest tests/ \
               --maxfail=5 \
               -v \
