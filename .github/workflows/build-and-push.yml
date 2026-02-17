@@ -1097,10 +1097,9 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
-            # Source server environment to get POSTGRES_PASSWORD and other secrets
-            set -a
-            source /opt/budget/.env
-            set +a
+            # Read POSTGRES_PASSWORD from running production container (ikeniborn is in docker group)
+            # /opt/budget/.env is owned by root and not readable by CI user
+            export POSTGRES_PASSWORD=$(docker inspect familybudget-postgres --format '{{range .Config.Env}}{{println .}}{{end}}' | grep ^POSTGRES_PASSWORD= | cut -d= -f2-)
 
             # Run pytest against production PostgreSQL (real server, no test container needed)
             # conftest.py reads POSTGRES_PASSWORD from env; port/db point to production DB
