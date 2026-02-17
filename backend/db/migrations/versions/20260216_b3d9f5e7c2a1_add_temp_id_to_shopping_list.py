@@ -8,8 +8,8 @@ This migration adds temp_id field to t_f_shopping_list table
 for client-side offline sync and Dexie consistency.
 
 Changes:
-1. Add temp_id VARCHAR(36) UNIQUE NULL to t_f_shopping_list
-   (or convert existing BIGINT to VARCHAR if column already exists)
+1. Add temp_id UUID UNIQUE NULL to t_f_shopping_list
+   (or convert existing BIGINT/VARCHAR to UUID if column already exists)
 2. Generate UUID for existing records (backward compatibility)
 3. Create index for temp_id queries
 4. Add comment explaining field purpose
@@ -20,10 +20,16 @@ Use Case:
 - Enables Dexie FK queries by temp_id (not numeric ID)
 - Guarantees consistency between server and client
 
-Note on BIGINT → VARCHAR conversion:
-  Column may exist as BIGINT from a previous SQLModel autogenerate.
-  We detect this and convert it to VARCHAR(36) for UUID storage.
-  Existing BIGINT values are cleared (set to NULL) and re-filled with UUIDs.
+Type choice: native PostgreSQL UUID
+- 16 bytes vs 36 bytes (VARCHAR) — 2.25x storage reduction
+- Built-in validation (DB rejects malformed UUIDs)
+- Better index performance
+- psycopg2 returns UUID as str when as_uuid=False — API/Dexie compatible
+
+Note on type conversion:
+  BIGINT  → ALTER COLUMN TYPE UUID USING NULL (existing values cleared)
+  VARCHAR → ALTER COLUMN TYPE UUID USING temp_id::UUID
+            (valid UUID strings preserved, invalid ones raise error)
 """
 from collections.abc import Sequence
 
@@ -37,10 +43,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add temp_id field to shopping lists (idempotent, handles BIGINT → VARCHAR conversion)."""
+    """Add temp_id UUID field (idempotent, handles BIGINT/VARCHAR → UUID conversion)."""
 
-    # Step 1: Add column if missing, or convert BIGINT → VARCHAR(36) if already exists
-    print("[MIGRATION] Ensuring temp_id column is VARCHAR(36) in t_f_shopping_list...")
+    # Step 1: Ensure column exists as native UUID type
+    print("[MIGRATION] Ensuring temp_id column is UUID in t_f_shopping_list...")
     op.execute("""
         DO $$
         BEGIN
@@ -49,9 +55,9 @@ def upgrade() -> None:
                 WHERE table_name = 't_f_shopping_list'
                   AND column_name = 'temp_id'
             ) THEN
-                -- Column does not exist: create fresh as VARCHAR(36)
+                -- Column does not exist: create fresh as UUID
                 ALTER TABLE t_f_shopping_list
-                ADD COLUMN temp_id VARCHAR(36);
+                ADD COLUMN temp_id UUID;
 
             ELSIF EXISTS (
                 SELECT 1 FROM information_schema.columns
@@ -59,14 +65,26 @@ def upgrade() -> None:
                   AND column_name = 'temp_id'
                   AND data_type = 'bigint'
             ) THEN
-                -- Column exists as BIGINT (legacy int53): convert to VARCHAR(36)
-                -- Drop old SQLModel auto-generated index before ALTER
+                -- Column exists as BIGINT (legacy int53): convert to UUID
                 DROP INDEX IF EXISTS ix_t_f_shopping_list_temp_id;
-                -- USING NULL: BIGINT values cannot be UUIDs, reset to NULL
+                -- USING NULL: BIGINT values are not valid UUIDs
                 ALTER TABLE t_f_shopping_list
-                ALTER COLUMN temp_id TYPE VARCHAR(36) USING NULL;
+                ALTER COLUMN temp_id TYPE UUID USING NULL;
+
+            ELSIF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 't_f_shopping_list'
+                  AND column_name = 'temp_id'
+                  AND data_type = 'character varying'
+            ) THEN
+                -- Column exists as VARCHAR: convert UUID strings to native UUID
+                DROP INDEX IF EXISTS idx_shopping_list_temp_id;
+                DROP INDEX IF EXISTS ix_t_f_shopping_list_temp_id;
+                -- USING temp_id::UUID: valid UUID strings are preserved
+                ALTER TABLE t_f_shopping_list
+                ALTER COLUMN temp_id TYPE UUID USING temp_id::UUID;
             END IF;
-            -- If already VARCHAR(36): nothing to do
+            -- If already UUID: nothing to do
         END $$;
     """)
 
@@ -86,11 +104,11 @@ def upgrade() -> None:
         END $$;
     """)
 
-    # Step 3: Generate UUID for existing records (backward compatibility)
+    # Step 3: Generate UUID for existing records without temp_id
     print("[MIGRATION] Generating UUIDs for existing records...")
     op.execute("""
         UPDATE t_f_shopping_list
-        SET temp_id = gen_random_uuid()::TEXT
+        SET temp_id = gen_random_uuid()
         WHERE temp_id IS NULL;
     """)
 
@@ -105,13 +123,12 @@ def upgrade() -> None:
     print("[MIGRATION] Adding column comment...")
     op.execute("""
         COMMENT ON COLUMN t_f_shopping_list.temp_id IS
-            'Client-side UUID for offline sync (guaranteed unique, used for Dexie queries)';
+            'Client-side UUID for offline sync (native UUID type, guaranteed unique, used for Dexie queries)';
     """)
 
-    # Update table statistics for query planner
     op.execute("ANALYZE t_f_shopping_list;")
 
-    print("[MIGRATION] temp_id field migration completed successfully")
+    print("[MIGRATION] temp_id UUID field migration completed successfully")
 
 
 def downgrade() -> None:
