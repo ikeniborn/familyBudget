@@ -266,10 +266,10 @@ generate_env_from_image_versions() {
     # Use temp file for atomic update
     local temp_env="${env_file}.tmp"
 
-    # Copy existing .env, removing old version variables
+    # Copy existing .env, removing old version variables and their auto-generated comments
     if [[ -f "$env_file" ]]; then
-        # Filter out version variables (exit code 1 if no matches is OK)
-        if ! grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=' "$env_file" > "$temp_env" 2>/dev/null; then
+        # Filter out version variables and their section comments (exit code 1 if no matches is OK)
+        if ! grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=|^# Image versions \(auto-generated|^# Updated: [0-9]{4}-[0-9]{2}' "$env_file" > "$temp_env" 2>/dev/null; then
             # File contains only version variables or is empty - create empty temp
             : > "$temp_env"
         fi
