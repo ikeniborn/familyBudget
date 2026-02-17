@@ -1017,14 +1017,14 @@ jobs:
     name: Post-Deploy Tests (${{ matrix.test-suite }})
     needs: [deploy-test]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     if: |
       always() &&
       needs.deploy-test.result == 'success'
 
     strategy:
       matrix:
-        test-suite: [frontend, backend, e2e]
+        test-suite: [frontend, backend]
       fail-fast: false  # Continue all tests even if one fails
 
     steps:
@@ -1120,38 +1120,6 @@ jobs:
               --tb=short
           EOF
 
-      # ============================================================================
-      # E2E Tests (Playwright)
-      # ============================================================================
-      - name: Setup Node.js (E2E tests)
-        if: matrix.test-suite == 'e2e'
-        uses: ./.github/actions/setup-node
-
-      - name: Install dependencies (E2E tests)
-        if: matrix.test-suite == 'e2e'
-        run: npm ci
-
-      - name: Install Playwright browsers
-        if: matrix.test-suite == 'e2e'
-        run: npx playwright install --with-deps
-
-      - name: Run E2E tests
-        if: matrix.test-suite == 'e2e'
-        timeout-minutes: 25
-        env:
-          BASE_URL: https://fbd.ikeniborn.ru
-          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
-          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
-        run: npm run test:e2e
-
-      - name: Upload E2E test results
-        if: matrix.test-suite == 'e2e' && always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report-post-deploy
-          path: playwright-report/
-          retention-days: 7
-
   # ============================================================================
   # Job 8: Post-Deploy Summary
   # ============================================================================
@@ -1181,7 +1149,8 @@ jobs:
           echo "**Test Suites (parallel execution):**" >> $GITHUB_STEP_SUMMARY
           echo "- **Frontend:** Vitest unit/integration tests" >> $GITHUB_STEP_SUMMARY
           echo "- **Backend:** pytest read-only mode (via SSH to test server)" >> $GITHUB_STEP_SUMMARY
-          echo "- **E2E:** Playwright (6 browser configurations)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 E2E tests (Playwright) run separately — trigger manually via [e2e-tests workflow](${{ github.server_url }}/${{ github.repository }}/actions/workflows/e2e-tests.yml)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**View individual test suite results:**" >> $GITHUB_STEP_SUMMARY
           echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
