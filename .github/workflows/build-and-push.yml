@@ -720,15 +720,40 @@ jobs:
     needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-summary]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Fetch latest IMAGE_VERSIONS.json from registry commit
-        # image-build-push commits IMAGE_VERSIONS.json after push — fetch the file only
+      - name: Query container versions from registry
+        id: registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER:    ${{ github.repository_owner }}
         run: |
-          git fetch origin ${{ github.ref_name }}
-          git checkout origin/${{ github.ref_name }} -- IMAGE_VERSIONS.json || true
+          # Get the latest semver tag (X.Y.Z) for a container package in ghcr.io
+          get_latest_tag() {
+            local pkg="$1"
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/users/${OWNER}/packages/container/${pkg}/versions?per_page=100" \
+              --jq '[
+                .[] |
+                select(.metadata.container.tags |
+                  map(select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) | length > 0
+                )
+              ] | sort_by(.updated_at) | last |
+              .metadata.container.tags[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+              2>/dev/null | head -1 || echo "?"
+          }
+
+          echo "backend=$(    get_latest_tag familybudget-backend)"    >> "$GITHUB_OUTPUT"
+          echo "bot=$(        get_latest_tag familybudget-bot)"        >> "$GITHUB_OUTPUT"
+          echo "nginx=$(      get_latest_tag familybudget-nginx)"      >> "$GITHUB_OUTPUT"
+          echo "redis=$(      get_latest_tag familybudget-redis)"      >> "$GITHUB_OUTPUT"
+          echo "postgresql=$( get_latest_tag familybudget-postgresql)" >> "$GITHUB_OUTPUT"
 
       - name: Compute pipeline status and build Telegram message
         id: msg
@@ -744,6 +769,11 @@ jobs:
           BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
           BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
           BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
           BRANCH:          ${{ github.ref_name }}
           RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -751,18 +781,6 @@ jobs:
 
           # Commit subject (first line only — avoid multi-line commit messages)
           COMMIT=$(git log -1 --pretty=format:"%s")
-
-          # Container versions from IMAGE_VERSIONS.json (actual deployed versions)
-          if [ -f IMAGE_VERSIONS.json ]; then
-            VER_BACKEND=$(jq -r '.backend.version    // "?"' IMAGE_VERSIONS.json)
-            VER_BOT=$(    jq -r '.bot.version        // "?"' IMAGE_VERSIONS.json)
-            VER_NGINX=$(  jq -r '.nginx.version      // "?"' IMAGE_VERSIONS.json)
-            VER_REDIS=$(  jq -r '.redis.version      // "?"' IMAGE_VERSIONS.json)
-            VER_PG=$(     jq -r '.postgresql.version // "?"' IMAGE_VERSIONS.json)
-          else
-            VER_BACKEND="$VERSION"; VER_BOT="$VERSION"; VER_NGINX="$VERSION"
-            VER_REDIS="$VERSION";   VER_PG="$VERSION"
-          fi
 
           # Overall status:
           # - any failure  → ❌ Pipeline Failed
@@ -835,6 +853,16 @@ jobs:
           RESULT_SECURITY: ${{ needs.security-scan.result }}
           RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
           RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
         run: |
           VERSION=$(cat VERSION)
 
@@ -848,6 +876,15 @@ jobs:
             esac
           }
 
+          c_md() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ updated |"
+            else
+              echo "| ${name} | \`${ver}\` | ⏭ unchanged |"
+            fi
+          }
+
           {
             echo "## 🚀 CI/CD Pipeline Summary"
             echo ""
@@ -857,19 +894,21 @@ jobs:
             echo "### Job Status"
             echo "| Job | Result |"
             echo "|-----|--------|"
-            echo "| Version Check    | $(icon_md "$RESULT_CHECK")  \`${RESULT_CHECK}\` |"
-            echo "| Frontend Build   | $(icon_md "$RESULT_BUILD")  \`${RESULT_BUILD}\` |"
-            echo "| Docker Images    | $(icon_md "$RESULT_DOCKER")  \`${RESULT_DOCKER}\` |"
-            echo "| Security Scan    | $(icon_md "$RESULT_SECURITY")  \`${RESULT_SECURITY}\` |"
-            echo "| Deploy Test      | $(icon_md "$RESULT_DEPLOY")  \`${RESULT_DEPLOY}\` |"
-            echo "| Post-Deploy Tests| $(icon_md "$RESULT_TESTS")  \`${RESULT_TESTS}\` |"
+            echo "| Version Check     | $(icon_md "$RESULT_CHECK")  \`${RESULT_CHECK}\` |"
+            echo "| Frontend Build    | $(icon_md "$RESULT_BUILD")  \`${RESULT_BUILD}\` |"
+            echo "| Docker Images     | $(icon_md "$RESULT_DOCKER")  \`${RESULT_DOCKER}\` |"
+            echo "| Security Scan     | $(icon_md "$RESULT_SECURITY")  \`${RESULT_SECURITY}\` |"
+            echo "| Deploy Test       | $(icon_md "$RESULT_DEPLOY")  \`${RESULT_DEPLOY}\` |"
+            echo "| Post-Deploy Tests | $(icon_md "$RESULT_TESTS")  \`${RESULT_TESTS}\` |"
             echo ""
-            echo "### Container Versions (from IMAGE_VERSIONS.json)"
-            if [ -f IMAGE_VERSIONS.json ]; then
-              echo "| Image | Version |"
-              echo "|-------|---------|"
-              jq -r 'to_entries[] | "| \(.key) | `\(.value.version)` |"' IMAGE_VERSIONS.json
-            fi
+            echo "### Container Versions (from ghcr.io)"
+            echo "| Image | Version | Status |"
+            echo "|-------|---------|--------|"
+            echo "$(c_md backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_md bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_md nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_md redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_md postgresql "$BUILT_PG"      "$VER_PG")"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Notify pipeline summary (Telegram)
