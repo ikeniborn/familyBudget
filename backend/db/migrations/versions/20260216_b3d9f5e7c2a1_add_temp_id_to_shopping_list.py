@@ -9,6 +9,7 @@ for client-side offline sync and Dexie consistency.
 
 Changes:
 1. Add temp_id VARCHAR(36) UNIQUE NULL to t_f_shopping_list
+   (or convert existing BIGINT to VARCHAR if column already exists)
 2. Generate UUID for existing records (backward compatibility)
 3. Create index for temp_id queries
 4. Add comment explaining field purpose
@@ -18,6 +19,11 @@ Use Case:
 - Backend always generates UUID temp_id (eliminates frontend fallback)
 - Enables Dexie FK queries by temp_id (not numeric ID)
 - Guarantees consistency between server and client
+
+Note on BIGINT → VARCHAR conversion:
+  Column may exist as BIGINT from a previous SQLModel autogenerate.
+  We detect this and convert it to VARCHAR(36) for UUID storage.
+  Existing BIGINT values are cleared (set to NULL) and re-filled with UUIDs.
 """
 from collections.abc import Sequence
 
@@ -31,14 +37,41 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add temp_id field to shopping lists."""
+    """Add temp_id field to shopping lists (idempotent, handles BIGINT → VARCHAR conversion)."""
 
-    # Step 1: Add temp_id column (IF NOT EXISTS for idempotency)
-    print("[MIGRATION] Adding temp_id column to t_f_shopping_list...")
+    # Step 1: Add column if missing, or convert BIGINT → VARCHAR(36) if already exists
+    print("[MIGRATION] Ensuring temp_id column is VARCHAR(36) in t_f_shopping_list...")
     op.execute("""
-        ALTER TABLE t_f_shopping_list
-        ADD COLUMN IF NOT EXISTS temp_id VARCHAR(36);
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 't_f_shopping_list'
+                  AND column_name = 'temp_id'
+            ) THEN
+                -- Column does not exist: create fresh as VARCHAR(36)
+                ALTER TABLE t_f_shopping_list
+                ADD COLUMN temp_id VARCHAR(36);
+
+            ELSIF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 't_f_shopping_list'
+                  AND column_name = 'temp_id'
+                  AND data_type = 'bigint'
+            ) THEN
+                -- Column exists as BIGINT (legacy int53): convert to VARCHAR(36)
+                -- Drop old SQLModel auto-generated index before ALTER
+                DROP INDEX IF EXISTS ix_t_f_shopping_list_temp_id;
+                -- USING NULL: BIGINT values cannot be UUIDs, reset to NULL
+                ALTER TABLE t_f_shopping_list
+                ALTER COLUMN temp_id TYPE VARCHAR(36) USING NULL;
+            END IF;
+            -- If already VARCHAR(36): nothing to do
+        END $$;
     """)
+
+    # Step 2: Add UNIQUE constraint if not exists
+    print("[MIGRATION] Adding UNIQUE constraint to temp_id...")
     op.execute("""
         DO $$
         BEGIN
@@ -53,7 +86,7 @@ def upgrade() -> None:
         END $$;
     """)
 
-    # Step 2: Generate UUID for existing records (backward compatibility)
+    # Step 3: Generate UUID for existing records (backward compatibility)
     print("[MIGRATION] Generating UUIDs for existing records...")
     op.execute("""
         UPDATE t_f_shopping_list
@@ -61,14 +94,14 @@ def upgrade() -> None:
         WHERE temp_id IS NULL;
     """)
 
-    # Step 3: Create index for queries
+    # Step 4: Create index for queries
     print("[MIGRATION] Creating index for temp_id...")
     op.execute("""
         CREATE INDEX IF NOT EXISTS idx_shopping_list_temp_id
         ON t_f_shopping_list(temp_id);
     """)
 
-    # Step 4: Add comment
+    # Step 5: Add comment
     print("[MIGRATION] Adding column comment...")
     op.execute("""
         COMMENT ON COLUMN t_f_shopping_list.temp_id IS
@@ -88,6 +121,6 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS idx_shopping_list_temp_id;")
 
     print("[MIGRATION] Removing temp_id column from t_f_shopping_list...")
-    op.execute("ALTER TABLE t_f_shopping_list DROP COLUMN temp_id;")
+    op.execute("ALTER TABLE t_f_shopping_list DROP COLUMN IF EXISTS temp_id;")
 
     print("[MIGRATION] temp_id field rollback completed")
