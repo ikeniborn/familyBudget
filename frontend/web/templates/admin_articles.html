@@ -1257,5 +1257,12 @@ function showNotification(message, type) {
         setTimeout(() => toast.remove(), 300);
     });
 }
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 </script>
 {% endblock %}
