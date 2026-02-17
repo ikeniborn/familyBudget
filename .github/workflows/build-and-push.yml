@@ -724,31 +724,153 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read VERSION
-        id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Create summary
+      - name: Fetch latest IMAGE_VERSIONS.json from registry commit
+        # image-build-push commits IMAGE_VERSIONS.json after push — fetch the file only
         run: |
-          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch/Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Post-Deploy Tests: ${{ needs.post-deploy-summary.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          git fetch origin ${{ github.ref_name }}
+          git checkout origin/${{ github.ref_name }} -- IMAGE_VERSIONS.json || true
+
+      - name: Compute pipeline status and build Telegram message
+        id: msg
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          BRANCH:          ${{ github.ref_name }}
+          RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          # Commit subject (first line only — avoid multi-line commit messages)
+          COMMIT=$(git log -1 --pretty=format:"%s")
+
+          # Container versions from IMAGE_VERSIONS.json (actual deployed versions)
+          if [ -f IMAGE_VERSIONS.json ]; then
+            VER_BACKEND=$(jq -r '.backend.version    // "?"' IMAGE_VERSIONS.json)
+            VER_BOT=$(    jq -r '.bot.version        // "?"' IMAGE_VERSIONS.json)
+            VER_NGINX=$(  jq -r '.nginx.version      // "?"' IMAGE_VERSIONS.json)
+            VER_REDIS=$(  jq -r '.redis.version      // "?"' IMAGE_VERSIONS.json)
+            VER_PG=$(     jq -r '.postgresql.version // "?"' IMAGE_VERSIONS.json)
+          else
+            VER_BACKEND="$VERSION"; VER_BOT="$VERSION"; VER_NGINX="$VERSION"
+            VER_REDIS="$VERSION";   VER_PG="$VERSION"
+          fi
+
+          # Overall status:
+          # - any failure  → ❌ Pipeline Failed
+          # - build jobs all skipped (no VERSION change) → ⏭ Pipeline Skipped
+          # - otherwise    → ✅ Pipeline Completed
+          if [[ "$RESULT_BUILD" == "failure" || "$RESULT_DOCKER" == "failure" ||
+                "$RESULT_SECURITY" == "failure" || "$RESULT_DEPLOY" == "failure" ||
+                "$RESULT_TESTS" == "failure" ]]; then
+            OVERALL="❌ Pipeline Failed"
+          elif [[ "$RESULT_BUILD" == "skipped" && "$RESULT_DOCKER" == "skipped" &&
+                  "$RESULT_SECURITY" == "skipped" && "$RESULT_DEPLOY" == "skipped" ]]; then
+            OVERALL="⏭ Pipeline Skipped (no VERSION change)"
+          else
+            OVERALL="✅ Pipeline Completed"
+          fi
+
+          # Job status icon helper
+          icon() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          # Container line: ✅ name:ver (new) OR ⏭ name:ver
+          c_line() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "✅ ${name}:${ver} (new)"
+            else
+              echo "⏭ ${name}:${ver}"
+            fi
+          }
+
+          # Build multi-line GITHUB_OUTPUT value
+          {
+            echo 'message<<TEOF'
+            echo "$OVERALL"
+            echo ""
+            echo "v${VERSION} · ${BRANCH}"
+            echo "${COMMIT}"
+            echo ""
+            echo "Jobs:"
+            echo "$(icon "$RESULT_CHECK")  Version Check"
+            echo "$(icon "$RESULT_BUILD")  Frontend Build"
+            echo "$(icon "$RESULT_DOCKER")  Docker Images"
+            echo "$(icon "$RESULT_SECURITY")  Security Scan"
+            echo "$(icon "$RESULT_DEPLOY")  Deploy → fbd.ikeniborn.ru"
+            echo "$(icon "$RESULT_TESTS")  Post-Deploy Tests"
+            echo ""
+            echo "Containers:"
+            echo "$(c_line backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_line bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_line nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_line redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_line postgresql "$BUILT_PG"      "$VER_PG")"
+            echo ""
+            echo "Logs: ${RUN_URL}"
+            echo 'TEOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create summary (markdown)
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          icon_md() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          {
+            echo "## 🚀 CI/CD Pipeline Summary"
+            echo ""
+            echo "**Version:** \`${VERSION}\`  |  **Branch:** \`${{ github.ref_name }}\`"
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo ""
+            echo "### Job Status"
+            echo "| Job | Result |"
+            echo "|-----|--------|"
+            echo "| Version Check    | $(icon_md "$RESULT_CHECK")  \`${RESULT_CHECK}\` |"
+            echo "| Frontend Build   | $(icon_md "$RESULT_BUILD")  \`${RESULT_BUILD}\` |"
+            echo "| Docker Images    | $(icon_md "$RESULT_DOCKER")  \`${RESULT_DOCKER}\` |"
+            echo "| Security Scan    | $(icon_md "$RESULT_SECURITY")  \`${RESULT_SECURITY}\` |"
+            echo "| Deploy Test      | $(icon_md "$RESULT_DEPLOY")  \`${RESULT_DEPLOY}\` |"
+            echo "| Post-Deploy Tests| $(icon_md "$RESULT_TESTS")  \`${RESULT_TESTS}\` |"
+            echo ""
+            echo "### Container Versions (from IMAGE_VERSIONS.json)"
+            if [ -f IMAGE_VERSIONS.json ]; then
+              echo "| Image | Version |"
+              echo "|-------|---------|"
+              jq -r 'to_entries[] | "| \(.key) | `\(.value.version)` |"' IMAGE_VERSIONS.json
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Notify pipeline summary (Telegram)
         if: always()
@@ -757,28 +879,7 @@ jobs:
         with:
           to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
-          message: |
-            ${{ (needs.service-build.result == 'success' && needs.image-build-push.result == 'success' && needs.security-scan.result == 'success' && needs.deploy-test.result == 'success' && needs.post-deploy-summary.result == 'success') && '✅ Pipeline Completed' || '❌ Pipeline Failed' }}
-
-            Version: ${{ steps.version.outputs.VERSION }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.event.head_commit.message }}
-
-            Jobs:
-            ${{ needs.service-build.result == 'success' && '✅' || needs.service-build.result == 'skipped' && '⏭' || '❌' }} Frontend Build
-            ${{ needs.image-build-push.result == 'success' && '✅' || needs.image-build-push.result == 'skipped' && '⏭' || '❌' }} Docker Build (${{ steps.version.outputs.VERSION }})
-            ${{ needs.security-scan.result == 'success' && '✅' || needs.security-scan.result == 'skipped' && '⏭' || '❌' }} Security Scan
-            ${{ needs.deploy-test.result == 'success' && '✅' || needs.deploy-test.result == 'skipped' && '⏭' || '❌' }} Deploy → fbd.ikeniborn.ru
-            ${{ needs.post-deploy-summary.result == 'success' && '✅' || needs.post-deploy-summary.result == 'skipped' && '⏭' || '❌' }} Post-Deploy Tests
-
-            Containers (ghcr.io/ikeniborn):
-            familybudget-backend:${{ steps.version.outputs.VERSION }}
-            familybudget-bot:${{ steps.version.outputs.VERSION }}
-            familybudget-nginx:${{ steps.version.outputs.VERSION }}
-            familybudget-redis:${{ steps.version.outputs.VERSION }}
-            familybudget-postgresql:${{ steps.version.outputs.VERSION }}
-
-            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          message: ${{ steps.msg.outputs.message }}
 
   # ============================================================================
   # Job 6: Deploy to test server (only for test branch)
