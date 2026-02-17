@@ -353,7 +353,7 @@ async def test_telegram_login_cookie_attributes(client: AsyncClient, session: As
 
 
 @pytest.mark.asyncio
-async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: AsyncSession):
+async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: AsyncSession, engine):
     """Test that JWT token can be used for authenticated requests."""
     # Pre-create user (admin registration required)
     jwt_user = User(
@@ -386,7 +386,8 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
     from backend.app.core.dependencies import get_session
 
     async def override_get_session():
-        async with AsyncSession(session.bind, expire_on_commit=False) as s:
+        # Use engine directly (session.bind removed in SQLAlchemy 2.0)
+        async with AsyncSession(engine, expire_on_commit=False) as s:
             yield s
 
     from backend.app.main import app
@@ -492,8 +493,18 @@ async def test_telegram_login_multiple_users(client: AsyncClient, session: Async
 
 
 @pytest.mark.asyncio
-async def test_telegram_login_returns_user_id(client: AsyncClient):
+async def test_telegram_login_returns_user_id(client: AsyncClient, session: AsyncSession):
     """Test that login response includes user ID."""
+    # Pre-create user (admin registration required)
+    user = User(
+        telegram_id=123456789,
+        first_name="John",
+        is_admin=False,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
         first_name="John",
@@ -513,6 +524,17 @@ async def test_telegram_login_returns_user_id(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_telegram_login_with_photo_url(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with photo_url field."""
+    # Pre-create user (admin registration required)
+    photo_user = User(
+        telegram_id=123456789,
+        first_name="John",
+        username="johndoe",
+        is_admin=False,
+    )
+    session.add(photo_user)
+    await session.commit()
+    await session.refresh(photo_user)
+
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
         first_name="John",

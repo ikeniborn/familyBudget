@@ -1126,6 +1126,7 @@ jobs:
             export ADMIN_TELEGRAM_ID="123456789"
             export API_INTERNAL_KEY="test_internal_key_for_ci_only"
             export CORS_ORIGINS="https://fbd.ikeniborn.ru"
+            export ENVIRONMENT="test"
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
             .venv/bin/pytest tests/ \

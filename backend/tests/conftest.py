@@ -550,3 +550,24 @@ async def test_import_template(session: AsyncSession, test_user: User):
     await session.commit()
     await session.refresh(template)
     return template
+
+
+@pytest_asyncio.fixture
+async def test_financial_center(session: AsyncSession, test_user: User):
+    """
+    Create test financial center (account/wallet).
+
+    Returns:
+        FinancialCenter: Test account (user-specific, active)
+    """
+    from backend.app.models.financial_center import FinancialCenter
+
+    fc = FinancialCenter(
+        user_id=test_user.id,
+        name="Test Account",
+        is_active=True,
+    )
+    session.add(fc)
+    await session.commit()
+    await session.refresh(fc)
+    return fc
