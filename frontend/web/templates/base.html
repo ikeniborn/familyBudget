@@ -850,7 +850,13 @@
 
         // Dexie Background Initialization (offline-first mode)
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if Dexie enabled and not already initialized
+            // Initialize dexieActive flag if not set (first visit)
+            // DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.info('[APP] dexieActive flag initialized to true (first visit)');
+            }
+
             const dexieActive = localStorage.getItem('dexieActive') === 'true';
 
             if (dexieActive && typeof window.Dexie !== 'undefined') {
@@ -861,10 +867,10 @@
                     console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
-            } else if (dexieActive) {
-                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
+            } else if (!dexieActive) {
+                console.info('[APP] Dexie disabled (dexieActive=false), skipping background init');
             } else {
-                console.info('[APP] Dexie disabled, skipping background init');
+                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
             }
         });
 

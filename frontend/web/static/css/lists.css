@@ -738,6 +738,30 @@
         flex-shrink: 0;        /* Don't shrink buttons */
         margin-left: 1rem;     /* Space from quantity */
     }
+
+    /* CRITICAL FIX: Show edit/delete buttons on completed items (desktop only) */
+    /* Completed items have reduced opacity for visual distinction */
+    .hierarchy-item.completed:hover .hierarchy-item-actions {
+        display: flex;              /* Show on hover (same as normal items) */
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.375rem;
+        flex-shrink: 0;
+        margin-left: 1rem;
+        opacity: 0.8;               /* Slightly dimmed for completed items */
+    }
+
+    /* Buttons inside completed items have full opacity on hover */
+    .hierarchy-item.completed:hover .hierarchy-item-actions button {
+        opacity: 1;                 /* Full opacity for buttons */
+    }
+
+    /* Ensure buttons are visible and clickable */
+    .hierarchy-item.completed .hierarchy-item-actions button:hover {
+        opacity: 1;                 /* Full opacity on button hover */
+        transform: scale(1.05);     /* Slight scale for feedback */
+        transition: transform 0.15s ease, opacity 0.15s ease;
+    }
 }
 
 /* ---- Tablet/Wide Mobile ---- */

@@ -12,6 +12,27 @@ import { getState, updateState } from '../core/ListsState';
 import { renderCurrentView } from '../rendering/tableBuilder';
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Create responsive text with mobile (short) and desktop (full) versions
+ * Used for button labels that need different text on mobile vs desktop
+ * @param short - Short text for mobile (<640px), e.g. "Скрыть"
+ * @param full - Full text for desktop (>=640px), e.g. "Скрыть выполненные"
+ * @returns HTML string with responsive spans using Tailwind classes
+ * @example
+ * createResponsiveText('Показать', 'Показать все')
+ * // Returns: '<span class="sm:hidden">Показать</span><span class="hidden sm:inline">Показать все</span>'
+ */
+function createResponsiveText(short: string, full: string): string {
+  return `
+    <span class="sm:hidden">${short}</span>
+    <span class="hidden sm:inline">${full}</span>
+  `;
+}
+
+// ============================================================================
 // Type Definitions
 // ============================================================================
 
@@ -83,58 +104,6 @@ export function toggleSearchField(): void {
 }
 
 // ============================================================================
-// Hide Completed Filter
-// ============================================================================
-
-/**
- * Toggle hide completed items filter
- * Saves preference to localStorage for persistence across sessions
- */
-export function toggleHideCompleted(): void {
-  const state = getState();
-  const newValue = !state.hideCompleted;
-  updateState({ hideCompleted: newValue });
-
-  // Save preference to localStorage
-  try {
-    localStorage.setItem('lists_hide_completed_preference', newValue.toString());
-    debugLog('[ListsManager] Saved hide completed preference:', newValue);
-  } catch (e) {
-    // localStorage may be unavailable in private browsing
-  }
-
-  updateHideCompletedButton();
-  renderCurrentView();
-  updateFABButtons();
-}
-
-/**
- * Update hide completed button state
- */
-export function updateHideCompletedButton(): void {
-  const state = getState();
-  const btn = document.getElementById('toggle-hide-completed-btn');
-  if (!btn) return;
-
-  const iconSpan = btn.querySelector('span:first-child');
-  const textSpan = btn.querySelector('span:last-child');
-
-  if (state.hideCompleted) {
-    if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
-    if (textSpan) textSpan.textContent = 'Показать все';
-    btn.title = 'Показать все товары';
-    btn.classList.add('btn-primary');
-    btn.classList.remove('btn-outline');
-  } else {
-    if (iconSpan) iconSpan.textContent = '👁️';
-    if (textSpan) textSpan.textContent = 'Скрыть выполненные';
-    btn.title = 'Скрыть выполненные товары';
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-outline');
-  }
-}
-
-// ============================================================================
 // FAB Buttons Management
 // ============================================================================
 
@@ -191,5 +160,66 @@ export function updateFABButtons(): void {
     } else {
       unmarkAllItem.classList.add('hidden');
     }
+  }
+}
+
+// ============================================================================
+// Hide Completed Filter
+// ============================================================================
+
+/**
+ * Toggle hide completed items filter
+ * Saves preference to localStorage for persistence across sessions
+ */
+export function toggleHideCompleted(): void {
+  const state = getState();
+  const newValue = !state.hideCompleted;
+  updateState({ hideCompleted: newValue });
+
+  // Save preference to localStorage
+  try {
+    localStorage.setItem('lists_hide_completed_preference', newValue.toString());
+    debugLog('[ListsManager] Saved hide completed preference:', newValue);
+  } catch (e) {
+    // localStorage may be unavailable in private browsing
+  }
+
+  updateHideCompletedButton();
+  renderCurrentView();
+  updateFABButtons();
+}
+
+/**
+ * Update hide completed button state
+ */
+export function updateHideCompletedButton(): void {
+  const state = getState();
+  const btn = document.getElementById('toggle-hide-completed-btn');
+  if (!btn) return;
+
+  const iconSpan = btn.querySelector('span:first-child');
+  const textSpan = btn.querySelector('span:nth-child(2)');
+
+  if (state.hideCompleted) {
+    if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
+    if (textSpan) {
+      textSpan.innerHTML = createResponsiveText('Показать', 'Показать все');
+    }
+    btn.title = 'Показать все товары';
+    btn.classList.add('btn-primary');
+    btn.classList.remove('btn-outline');
+  } else {
+    if (iconSpan) iconSpan.textContent = '👁️';
+    if (textSpan) {
+      textSpan.innerHTML = createResponsiveText('Скрыть', 'Скрыть выполненные');
+    }
+    btn.title = 'Скрыть выполненные товары';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-outline');
+  }
+
+  // Update icon visibility based on completion state
+  if (typeof updateFABButtons === 'function') {
+    updateFABButtons();
   }
 }

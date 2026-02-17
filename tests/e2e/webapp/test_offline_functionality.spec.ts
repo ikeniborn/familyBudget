@@ -131,7 +131,7 @@ test.describe('Offline Functionality - Basic Checks', () => {
 test.describe('Offline Functionality - Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');  // Uses baseURL from playwright.config.ts
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');  // networkidle hangs with WebSocket
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
     const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);
@@ -190,7 +190,7 @@ test.describe('Offline Functionality - Navigation', () => {
 test.describe('Offline Functionality - PGlite Storage', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');  // Uses baseURL from playwright.config.ts
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');  // networkidle hangs with WebSocket
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
     const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);

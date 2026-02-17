@@ -172,11 +172,15 @@ describe('searchFilter', () => {
             // Mock button with spans
             const btn = document.getElementById('toggle-hide-completed-btn') as any;
             const iconSpan = { textContent: '👁️' };
-            const textSpan = { textContent: 'Скрыть выполненные' };
+            const textSpan = {
+                textContent: 'Скрыть выполненные',
+                innerHTML: ''
+            };
 
             btn.querySelector = vi.fn((selector: string) => {
                 if (selector === 'span:first-child') return iconSpan;
                 if (selector === 'span:last-child') return textSpan;
+                if (selector === 'span:nth-child(2)') return textSpan;
                 return null;
             });
         });
@@ -217,7 +221,9 @@ describe('searchFilter', () => {
             toggleHideCompleted();
 
             expect(iconSpan.textContent).toBe('👁️‍🗨️');
-            expect(textSpan.textContent).toBe('Показать все');
+            // textSpan.innerHTML contains responsive spans, so textContent includes both mobile and desktop text
+            expect(textSpan.innerHTML).toContain('Показать все');
+            expect(textSpan.innerHTML).toContain('Показать');
             expect(btn?.title).toBe('Показать все товары');
             expect(btn?.classList.add).toHaveBeenCalledWith('btn-primary');
             expect(btn?.classList.remove).toHaveBeenCalledWith('btn-outline');
@@ -232,7 +238,9 @@ describe('searchFilter', () => {
             toggleHideCompleted();
 
             expect(iconSpan.textContent).toBe('👁️');
-            expect(textSpan.textContent).toBe('Скрыть выполненные');
+            // textSpan.innerHTML contains responsive spans, so textContent includes both mobile and desktop text
+            expect(textSpan.innerHTML).toContain('Скрыть выполненные');
+            expect(textSpan.innerHTML).toContain('Скрыть');
             expect(btn?.title).toBe('Скрыть выполненные товары');
             expect(btn?.classList.remove).toHaveBeenCalledWith('btn-primary');
             expect(btn?.classList.add).toHaveBeenCalledWith('btn-outline');

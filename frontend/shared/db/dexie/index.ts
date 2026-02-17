@@ -32,6 +32,7 @@ export function isDexieActive(): boolean {
  */
 export function setDexieActive(active: boolean): void {
   localStorage.setItem('dexieActive', active ? 'true' : 'false');
+  console.warn(`[Dexie] dexieActive flag set to: ${active}`);
 }
 
 /**

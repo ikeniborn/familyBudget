@@ -788,6 +788,11 @@ main() {
     touch "$LOG_FILE"
     chmod 644 "$LOG_FILE"
 
+    # Setup cleanup trap for temporary files
+    # This ensures SYNC_FILES_TEMP is removed on script exit (success, error, or Ctrl+C)
+    # Prevents accumulation of legacy deployment files in /tmp
+    trap 'rm -f /tmp/sync_changed_files_* 2>/dev/null || true' EXIT
+
     echo "========================================================================"
     print_message "$BLUE" "       Family Budget - Deployment Script"
     echo "========================================================================"
@@ -1111,6 +1116,15 @@ main() {
     fi
     echo ""
     success "All Docker images pulled successfully"
+    echo ""
+
+    # Compare running containers with pulled images
+    # Sets NEEDS_*_RECREATE flags if images differ or containers unhealthy
+    info "Comparing running containers with pulled images..."
+    if ! compare_running_vs_pulled_images; then
+        error "Failed to compare container images"
+        exit 1
+    fi
     echo ""
 
 
@@ -1552,6 +1566,11 @@ main() {
             save_deployed_version "$NEW_VERSION"
         fi
         echo ""
+
+        # Cleanup temporary sync files
+        # Remove any sync_changed_files_* from current and previous deployments
+        # This complements the trap EXIT cleanup for additional safety
+        rm -f /tmp/sync_changed_files_* 2>/dev/null || true
 
         print_status
     else

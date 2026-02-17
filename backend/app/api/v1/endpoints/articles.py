@@ -430,7 +430,12 @@ async def update_article(
 
     # Validate: At least one field provided
     update_data = article_data.model_dump(exclude_unset=True)
-    if not update_data:
+
+    # Извлечь financial_center_ids ДО проверки изменений
+    financial_center_ids = update_data.pop('financial_center_ids', None)
+    logger.info(f"[UPDATE_ARTICLE] Extracted financial_center_ids: {financial_center_ids}")
+
+    if not update_data and financial_center_ids is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="At least one field must be provided for update"
@@ -477,7 +482,7 @@ async def update_article(
     logger = logging.getLogger(__name__)
     logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
 
-    if not changed:
+    if not changed and financial_center_ids is None:
         # No changes, return existing article
         logger.info("[ARTICLE UPDATE] No changes detected, returning old article")
         return old_article
@@ -526,15 +531,45 @@ async def update_article(
             change_type="UPDATE",
         )
         logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
-        # Invalidate articles cache
-        await cache_service.invalidate_articles()
-        return updated_article
+        result_article = updated_article
     else:
         # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
         logger.info("[ARTICLE UPDATE] Only is_active changed, returning updated article")
-        # Invalidate articles cache (is_active change affects listing)
-        await cache_service.invalidate_articles()
-        return old_article
+        result_article = old_article
+
+    # Обработка financial_center_ids (Many-to-Many связь)
+    if financial_center_ids is not None:
+        from sqlalchemy import delete
+
+        from backend.app.models.article_financial_center import ArticleFinancialCenter
+
+        logger.info(f"[UPDATE_ARTICLE] Updating financial center links for article_id={article_id}")
+
+        # Удалить существующие связи
+        delete_stmt = delete(ArticleFinancialCenter).where(
+            ArticleFinancialCenter.article_id == article_id
+        )
+        await session.execute(delete_stmt)
+        logger.info("[UPDATE_ARTICLE] Deleted existing FC links")
+
+        # Вставить новые связи (если список не пустой)
+        if financial_center_ids:
+            for fc_id in financial_center_ids:
+                link = ArticleFinancialCenter(
+                    article_id=article_id,
+                    financial_center_id=fc_id
+                )
+                session.add(link)
+            logger.info(f"[UPDATE_ARTICLE] Created {len(financial_center_ids)} new FC links")
+        else:
+            logger.info("[UPDATE_ARTICLE] Cleared all FC links (available for all FCs)")
+
+        await session.commit()
+        await session.refresh(result_article)
+
+    # Invalidate cache ПОСЛЕ обновления M2M связей
+    await cache_service.invalidate_articles()
+    return result_article
 
 
 @router.delete(

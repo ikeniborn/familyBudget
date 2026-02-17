@@ -380,12 +380,16 @@ sync_update() {
         --exclude='.git*' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null)
 
-    # Export for later analysis (filter only actual file transfers, not directories)
-    export SYNC_CHANGED_FILES=$(echo "$changed_files_raw" | grep '^>' | awk '{print $2}' | grep -v '/$')
+    # Save changed files to temporary file (avoids ARG_MAX limit with large file lists)
+    # Environment variables have size limits and affect all child processes
+    # Using temp file solves "Argument list too long" errors
+    export SYNC_FILES_TEMP="/tmp/sync_changed_files_$$"
+    echo "$changed_files_raw" | grep '^>' | awk '{print $2}' | grep -v '/$' > "$SYNC_FILES_TEMP"
 
     # Show preview (first 20 files)
     info "Preview of changes (first 20 files):"
-    echo "$SYNC_CHANGED_FILES" | head -20
+    # Read from temp file to avoid variable expansion issues
+    head -20 "$SYNC_FILES_TEMP"
 
     echo ""
     info "Proceeding with update sync (auto-confirmed)..."
@@ -500,7 +504,7 @@ sync_update() {
     done < "$temp_deploy_list"
 
     # Cleanup temp files
-    rm -f "$temp_repo_list" "$temp_deploy_list"
+    rm -f "$temp_repo_list" "$temp_deploy_list" "$SYNC_FILES_TEMP"
 
     # Remove empty directories
     find "$DEPLOY_DIR" -type d -empty -delete 2>/dev/null || true
@@ -652,7 +656,7 @@ sync_clean() {
 }
 
 # Analyze which services need recreation based on sync changes
-# Uses SYNC_CHANGED_FILES environment variable set by sync_update()
+# Uses SYNC_FILES_TEMP temporary file set by sync_update()
 # Sets environment variables:
 #   - NEEDS_POSTGRES_RECREATE=true  if migrations changed
 #   - NEEDS_REDIS_RECREATE=true     if redis code/config changed
@@ -671,8 +675,8 @@ analyze_sync_changes() {
     export NEEDS_NGINX_RECREATE=false
     export NEEDS_FULL_RESTART=false
 
-    # Check if SYNC_CHANGED_FILES is set (from sync_update)
-    if [[ -z "${SYNC_CHANGED_FILES:-}" ]]; then
+    # Check if SYNC_FILES_TEMP exists and is not empty (from sync_update)
+    if [[ ! -s "${SYNC_FILES_TEMP:-}" ]]; then
         info "No file changes detected in sync - containers may not need recreation"
         info "This is normal if code is up-to-date or sync was skipped"
 
@@ -684,9 +688,9 @@ analyze_sync_changes() {
         return 0
     fi
 
-    # Count total changes
+    # Count total changes (read from temp file)
     local total_changes
-    total_changes=$(echo "$SYNC_CHANGED_FILES" | wc -l)
+    total_changes=$(wc -l < "$SYNC_FILES_TEMP")
     info "Analyzing $total_changes changed file(s)..."
 
     # Analyze which directories have changes
@@ -726,7 +730,7 @@ analyze_sync_changes() {
         # PRIORITY 3: Service-specific file matching
         match_file_to_services "$file"
 
-    done <<< "$SYNC_CHANGED_FILES"
+    done < "$SYNC_FILES_TEMP"
 
     # If no specific services identified BUT files changed, recreate backend as safety
     # This covers edge cases like:
@@ -739,10 +743,10 @@ analyze_sync_changes() {
        [[ "$postgres_changes" == "false" ]] && \
        [[ "$redis_changes" == "false" ]] && \
        [[ "$config_changes" == "false" ]] && \
-       [[ -n "$SYNC_CHANGED_FILES" ]]; then
+       [[ -s "$SYNC_FILES_TEMP" ]]; then
         export NEEDS_BACKEND_RECREATE=true
         warning "File changes detected but not categorized - recreating backend as safety measure"
-        warning "Changed files: $(echo "$SYNC_CHANGED_FILES" | head -5 | tr '\n' ', ')"
+        warning "Changed files: $(head -5 "$SYNC_FILES_TEMP" | tr '\n' ', ')"
     fi
 
     # Report final decisions with formatted table

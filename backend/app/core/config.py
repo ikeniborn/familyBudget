@@ -135,7 +135,7 @@ class Settings(BaseSettings):
 
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
-    def validate_timezone(cls, v):
+    def validate_timezone(cls, v: str) -> str:
         """
         Validate IANA timezone name.
 
@@ -152,7 +152,7 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v):
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         """
         Parse CORS origins from various formats.
 
@@ -197,7 +197,7 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS")
     @classmethod
-    def validate_cors(cls, v):
+    def validate_cors(cls, v: list[str]) -> list[str]:
         """
         Validate CORS origins - block wildcard for security.
 

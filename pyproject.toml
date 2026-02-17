@@ -27,3 +27,40 @@ select = [
 ignore = [
     "E501",  # Line too long (handled by formatter)
 ]
+
+[tool.mypy]
+# Mypy configuration for type checking
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_any_unimported = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+strict_optional = true
+
+# Namespace packages configuration (fixes module name conflict)
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
+
+# Exclude paths
+exclude = [
+    "^build/",
+    "^dist/",
+    "^\\.venv/",
+    "^venv/",
+    "^node_modules/",
+]
+
+# Per-module options
+[[tool.mypy.overrides]]
+module = [
+    "telegram.*",
+    "redis.*",
+    "uvicorn.*",
+]
+ignore_missing_imports = true

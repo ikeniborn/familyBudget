@@ -1,5 +1,6 @@
 # Multi-stage build for Family Budget Bot
 # Stage 1: Builder
+# Force rebuild: v11.4.51 - healthcheck fix deployed
 FROM python:3.11-slim-bookworm as builder
 
 ARG PYTHON_VERSION=3.11
@@ -31,7 +32,7 @@ FROM gcr.io/distroless/python3-debian12:latest
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
-    PYTHONPATH=/app
+    PYTHONPATH=/opt/venv/lib/python3.11/site-packages:/app
 
 # Copy SSL/TLS libraries from builder (required for Telegram API HTTPS connections)
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
@@ -47,14 +48,16 @@ WORKDIR /app
 # Copy bot application (distroless runs as nonroot user UID 65532)
 COPY bot/ /app/bot/
 
-# Copy healthcheck script (Python-based, no pgrep needed in distroless)
-COPY bot/healthcheck.py /app/healthcheck.py
+# Copy healthcheck script with executable permissions (Python-based, no pgrep needed in distroless)
+COPY --chmod=755 bot/healthcheck.py /app/healthcheck.py
 
 # Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
 # Python-based healthcheck (no pgrep in distroless)
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# NOTE: Distroless doesn't support shebang, must explicitly call python3
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["python", "/app/healthcheck.py"]
+    CMD ["python3", "/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
@@ -71,4 +74,6 @@ LABEL org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
-CMD ["python", "-m", "bot.main"]
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# CMD provides only the arguments to python
+CMD ["-m", "bot.main"]

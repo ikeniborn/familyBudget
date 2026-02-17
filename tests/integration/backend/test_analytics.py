@@ -12,10 +12,10 @@ from httpx import AsyncClient
 class TestHeatmapEndpoint:
     """Test heatmap endpoint functionality with transaction_filter."""
 
-    async def test_heatmap_with_transaction_filter_debit(self, client: AsyncClient):
+    async def test_heatmap_with_transaction_filter_debit(self, authenticated_admin_client: AsyncClient):
         """Test heatmap endpoint with transaction_filter=debit parameter."""
         # Request heatmap with debit filter
-        response = await client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/analytics/heatmap",
             params={
                 "period": "month",
@@ -39,10 +39,10 @@ class TestHeatmapEndpoint:
         assert isinstance(data["yAxis"], list)
         assert isinstance(data["data"], list)
 
-    async def test_heatmap_with_transaction_filter_credit(self, client: AsyncClient):
+    async def test_heatmap_with_transaction_filter_credit(self, authenticated_admin_client: AsyncClient):
         """Test heatmap endpoint with transaction_filter=credit parameter."""
         # Request heatmap with credit filter
-        response = await client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/analytics/heatmap",
             params={
                 "period": "month",
@@ -61,10 +61,10 @@ class TestHeatmapEndpoint:
         assert "period" in data
         assert "aggregation" in data
 
-    async def test_heatmap_backward_compatibility_article_type(self, client: AsyncClient):
+    async def test_heatmap_backward_compatibility_article_type(self, authenticated_admin_client: AsyncClient):
         """Test backward compatibility: article_type parameter still works without transaction_filter."""
         # Request heatmap with legacy article_type parameter
-        response = await client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/analytics/heatmap",
             params={
                 "period": "month",
@@ -81,10 +81,10 @@ class TestHeatmapEndpoint:
         assert "yAxis" in data
         assert "data" in data
 
-    async def test_heatmap_transaction_filter_invalid_value(self, client: AsyncClient):
+    async def test_heatmap_transaction_filter_invalid_value(self, authenticated_admin_client: AsyncClient):
         """Test heatmap endpoint rejects invalid transaction_filter values."""
         # Request with invalid transaction_filter
-        response = await client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/analytics/heatmap",
             params={
                 "period": "month",
@@ -95,11 +95,11 @@ class TestHeatmapEndpoint:
         # Should return validation error (422 Unprocessable Entity)
         assert response.status_code == 422
 
-    async def test_heatmap_transaction_filter_priority_over_article_type(self, client: AsyncClient):
+    async def test_heatmap_transaction_filter_priority_over_article_type(self, authenticated_admin_client: AsyncClient):
         """Test that transaction_filter takes priority over article_type."""
         # Request with both transaction_filter and article_type
         # Backend should use transaction_filter (debit → expense categories)
-        response = await client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/analytics/heatmap",
             params={
                 "period": "month",

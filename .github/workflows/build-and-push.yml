@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build → Push → Deploy → Test
 
 on:
   push:
@@ -80,6 +80,21 @@ jobs:
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
+      - name: Notify workflow started (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 Workflow Started
+
+            Version: ${{ steps.read.outputs.VERSION }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}
+            Author: ${{ github.actor }}
+
   # ============================================================================
   # Job 2: Build services (frontend: cache busting, minification, validation)
   # ============================================================================
@@ -153,7 +168,7 @@ jobs:
           NODE_ENV: production
         run: npm run build:prod  # Skip type-check (38 Dexie errors)
 
-      - name: Validate cache busting and PGlite
+      - name: Validate cache busting
         run: bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION" --strict-sw
 
       # NOTE: Template files (frontend/web/templates/, frontend/webapp/) are NOT committed back to git
@@ -548,6 +563,7 @@ jobs:
             echo "ℹ️ No changes to IMAGE_VERSIONS.json"
           fi
 
+
   # ============================================================================
   # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
@@ -701,37 +717,212 @@ jobs:
   # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, image-build-push, security-scan, deploy-test]
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-summary]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read VERSION
-        id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Create summary
+      - name: Query container versions from registry
+        id: registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER:    ${{ github.repository_owner }}
         run: |
-          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch/Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          # Get the latest semver tag (X.Y.Z) for a container package in ghcr.io
+          get_latest_tag() {
+            local pkg="$1"
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/users/${OWNER}/packages/container/${pkg}/versions?per_page=100" \
+              --jq '[
+                .[] |
+                select(.metadata.container.tags |
+                  map(select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) | length > 0
+                )
+              ] | sort_by(.updated_at) | last |
+              .metadata.container.tags[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+              2>/dev/null | head -1 || echo "?"
+          }
+
+          echo "backend=$(    get_latest_tag familybudget-backend)"    >> "$GITHUB_OUTPUT"
+          echo "bot=$(        get_latest_tag familybudget-bot)"        >> "$GITHUB_OUTPUT"
+          echo "nginx=$(      get_latest_tag familybudget-nginx)"      >> "$GITHUB_OUTPUT"
+          echo "redis=$(      get_latest_tag familybudget-redis)"      >> "$GITHUB_OUTPUT"
+          echo "postgresql=$( get_latest_tag familybudget-postgresql)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute pipeline status and build Telegram message
+        id: msg
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
+          BRANCH:          ${{ github.ref_name }}
+          RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          # Commit subject (first line only — avoid multi-line commit messages)
+          COMMIT=$(git log -1 --pretty=format:"%s")
+
+          # Overall status:
+          # - any failure  → ❌ Pipeline Failed
+          # - build jobs all skipped (no VERSION change) → ⏭ Pipeline Skipped
+          # - otherwise    → ✅ Pipeline Completed
+          if [[ "$RESULT_BUILD" == "failure" || "$RESULT_DOCKER" == "failure" ||
+                "$RESULT_SECURITY" == "failure" || "$RESULT_DEPLOY" == "failure" ||
+                "$RESULT_TESTS" == "failure" ]]; then
+            OVERALL="❌ Pipeline Failed"
+          elif [[ "$RESULT_BUILD" == "skipped" && "$RESULT_DOCKER" == "skipped" &&
+                  "$RESULT_SECURITY" == "skipped" && "$RESULT_DEPLOY" == "skipped" ]]; then
+            OVERALL="⏭ Pipeline Skipped (no VERSION change)"
+          else
+            OVERALL="✅ Pipeline Completed"
+          fi
+
+          # Job status icon helper
+          icon() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          # Container line: ✅ name:ver (new) OR ⏭ name:ver
+          c_line() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "✅ ${name}:${ver} (new)"
+            elif [[ "$ver" == "$VERSION" ]]; then
+              echo "✅ ${name}:${ver}"
+            else
+              echo "⏭ ${name}:${ver}"
+            fi
+          }
+
+          # Build multi-line GITHUB_OUTPUT value
+          {
+            echo 'message<<TEOF'
+            echo "$OVERALL"
+            echo ""
+            echo "v${VERSION} · ${BRANCH}"
+            echo "${COMMIT}"
+            echo ""
+            echo "Jobs:"
+            echo "$(icon "$RESULT_CHECK")  Version Check"
+            echo "$(icon "$RESULT_BUILD")  Frontend Build"
+            echo "$(icon "$RESULT_DOCKER")  Docker Images"
+            echo "$(icon "$RESULT_SECURITY")  Security Scan"
+            echo "$(icon "$RESULT_DEPLOY")  Deploy → fbd.ikeniborn.ru"
+            echo "$(icon "$RESULT_TESTS")  Post-Deploy Tests"
+            echo ""
+            echo "Containers:"
+            echo "$(c_line backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_line bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_line nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_line redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_line postgresql "$BUILT_PG"      "$VER_PG")"
+            echo ""
+            echo "Logs: ${RUN_URL}"
+            echo 'TEOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create summary (markdown)
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-summary.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          icon_md() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          c_md() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ updated |"
+            elif [[ "$ver" == "$VERSION" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ current |"
+            else
+              echo "| ${name} | \`${ver}\` | ⏭ unchanged |"
+            fi
+          }
+
+          {
+            echo "## 🚀 CI/CD Pipeline Summary"
+            echo ""
+            echo "**Version:** \`${VERSION}\`  |  **Branch:** \`${{ github.ref_name }}\`"
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo ""
+            echo "### Job Status"
+            echo "| Job | Result |"
+            echo "|-----|--------|"
+            echo "| Version Check     | $(icon_md "$RESULT_CHECK")  \`${RESULT_CHECK}\` |"
+            echo "| Frontend Build    | $(icon_md "$RESULT_BUILD")  \`${RESULT_BUILD}\` |"
+            echo "| Docker Images     | $(icon_md "$RESULT_DOCKER")  \`${RESULT_DOCKER}\` |"
+            echo "| Security Scan     | $(icon_md "$RESULT_SECURITY")  \`${RESULT_SECURITY}\` |"
+            echo "| Deploy Test       | $(icon_md "$RESULT_DEPLOY")  \`${RESULT_DEPLOY}\` |"
+            echo "| Post-Deploy Tests | $(icon_md "$RESULT_TESTS")  \`${RESULT_TESTS}\` |"
+            echo ""
+            echo "### Container Versions (from ghcr.io)"
+            echo "| Image | Version | Status |"
+            echo "|-------|---------|--------|"
+            echo "$(c_md backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_md bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_md nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_md redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_md postgresql "$BUILT_PG"      "$VER_PG")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify pipeline summary (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: ${{ steps.msg.outputs.message }}
 
   # ============================================================================
   # Job 6: Deploy to test server (only for test branch)
@@ -770,9 +961,22 @@ jobs:
             git checkout test
             git pull origin test
 
+            # CRITICAL: Wait for IMAGE_VERSIONS.json commit to propagate
+            # Race condition: image-build-push may still be pushing the commit
+            echo "⏳ Waiting for IMAGE_VERSIONS.json commit to propagate (10s)..."
+            sleep 10
+
+            # Pull again to ensure we have the latest IMAGE_VERSIONS.json
+            echo "📥 Pulling IMAGE_VERSIONS.json updates..."
+            git pull origin test
+
             # Run deploy script in registry mode
+            # CRITICAL: Check exit code to catch deployment failures (sync errors, etc.)
             echo "🐳 Pulling Docker images and restarting containers..."
-            sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+            if ! sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart; then
+              echo "❌ Deployment failed! Check logs for details."
+              exit 1
+            fi
 
             # Wait for services to start
             echo "⏳ Waiting for services to initialize (30s)..."
@@ -804,3 +1008,183 @@ jobs:
         run: |
           echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
           echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY
+
+
+  # ============================================================================
+  # Job 7: Post-Deploy Tests (AUTOMATIC validation after deployment)
+  # ============================================================================
+  post-deploy-tests:
+    name: Post-Deploy Tests (${{ matrix.test-suite }})
+    needs: [deploy-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: |
+      always() &&
+      needs.deploy-test.result == 'success'
+
+    strategy:
+      matrix:
+        test-suite: [frontend, backend, e2e]
+      fail-fast: false  # Continue all tests even if one fails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================================================
+      # SSH Setup (for backend tests)
+      # ============================================================================
+      - name: Setup SSH for backend tests
+        if: matrix.test-suite == 'backend'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SERVER_HOST }}
+          SSH_USER: ${{ secrets.TEST_SERVER_USER }}
+          SSH_PORT: ${{ secrets.TEST_SERVER_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TEST_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add test server to known_hosts
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          # Create SSH config
+          cat >> ~/.ssh/config << EOF
+          Host budget-test
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          EOF
+
+      # ============================================================================
+      # Frontend Tests (Vitest unit/integration)
+      # ============================================================================
+      - name: Setup Node.js (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        run: npm ci
+
+      - name: Run frontend tests
+        if: matrix.test-suite == 'frontend'
+        env:
+          VITE_API_URL: https://fbd.ikeniborn.ru
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage
+        if: matrix.test-suite == 'frontend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-post-deploy
+          path: coverage/
+          retention-days: 7
+
+      # ============================================================================
+      # Backend Tests (pytest via SSH)
+      # ============================================================================
+      - name: Run backend tests on test server
+        if: matrix.test-suite == 'backend'
+        run: |
+          ssh budget-test "bash -s" << EOF
+            set -e
+            cd ~/familyBudget
+
+            # Pull latest changes and checkout specific commit
+            git fetch origin
+            git checkout ${{ github.sha }}
+
+            # Run pytest (test database allows write operations)
+            # CRITICAL: Unset TEST_DATABASE_URL to prevent .env.test from overriding DATABASE_URL
+            unset TEST_DATABASE_URL
+            export DATABASE_URL="postgresql+asyncpg://familybudget:\${POSTGRES_PASSWORD}@localhost:5432/familybudget"
+            export POSTGRES_PORT="5432"
+            export POSTGRES_DB="familybudget"
+            export REDIS_URL="redis://localhost:6379/0"
+            export BACKEND_URL="https://fbd.ikeniborn.ru"
+            export JWT_SECRET="test_jwt_secret_for_ci_only"
+            export SECRET_KEY="test_secret_key_for_ci_only"
+            export TELEGRAM_BOT_TOKEN="test_bot_token_for_ci_only"
+            export ADMIN_TELEGRAM_ID="123456789"
+            export API_INTERNAL_KEY="test_internal_key_for_ci_only"
+            export CORS_ORIGINS="https://fbd.ikeniborn.ru"
+            export PYTHONPATH="/home/ikeniborn/familyBudget"
+
+            cd backend
+            .venv/bin/pytest tests/ \
+              --maxfail=5 \
+              -v \
+              --tb=short
+          EOF
+
+      # ============================================================================
+      # E2E Tests (Playwright)
+      # ============================================================================
+      - name: Setup Node.js (E2E tests)
+        if: matrix.test-suite == 'e2e'
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies (E2E tests)
+        if: matrix.test-suite == 'e2e'
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: matrix.test-suite == 'e2e'
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        if: matrix.test-suite == 'e2e'
+        timeout-minutes: 25
+        env:
+          BASE_URL: https://fbd.ikeniborn.ru
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Upload E2E test results
+        if: matrix.test-suite == 'e2e' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-post-deploy
+          path: playwright-report/
+          retention-days: 7
+
+  # ============================================================================
+  # Job 8: Post-Deploy Summary
+  # ============================================================================
+  post-deploy-summary:
+    name: Post-Deploy Summary
+    needs: [post-deploy-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🧪 Post-Deploy Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.post-deploy-tests.result }}" == "success" ]; then
+            echo "### ✅ All Test Suites Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Some Test Suites Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suites (parallel execution):**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** Vitest unit/integration tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** pytest read-only mode (via SSH to test server)" >> $GITHUB_STEP_SUMMARY
+          echo "- **E2E:** Playwright (6 browser configurations)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**View individual test suite results:**" >> $GITHUB_STEP_SUMMARY
+          echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Backend tests run in read-only mode (\`-m 'not destructive'\`) to protect data on test server" >> $GITHUB_STEP_SUMMARY
+

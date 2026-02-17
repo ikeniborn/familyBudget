@@ -22,6 +22,7 @@ from backend.app.services.user_service import create_initial_history
 
 @pytest.mark.integration
 @pytest.mark.backend
+@pytest.mark.destructive
 class TestUserProfileUpdate:
     """Test PUT /api/v1/admin/users/{id} endpoint (Hybrid SCD1 + History SCD2)."""
 
@@ -80,7 +81,7 @@ class TestUserProfileUpdate:
 
     async def test_update_user_profile_creates_history_not_new_version(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User,
         regular_user: User,
         db_session: AsyncSession
@@ -103,7 +104,7 @@ class TestUserProfileUpdate:
             "is_admin": True,  # Promote to admin
         }
 
-        response = await admin_client.put(
+        response = await authenticated_admin_client.put(
             f"/api/v1/admin/users/{regular_user.id}",
             json=update_data
         )
@@ -157,7 +158,7 @@ class TestUserProfileUpdate:
 
     async def test_update_user_profile_no_user_id_change(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         regular_user: User,
         db_session: AsyncSession
     ):
@@ -169,13 +170,13 @@ class TestUserProfileUpdate:
         original_user_id = regular_user.id
 
         # First update
-        response1 = await admin_client.put(
+        response1 = await authenticated_admin_client.put(
             f"/api/v1/admin/users/{regular_user.id}",
             json={"username": "update1"}
         )
 
         # Second update
-        response2 = await admin_client.put(
+        response2 = await authenticated_admin_client.put(
             f"/api/v1/admin/users/{regular_user.id}",
             json={"username": "update2"}
         )
@@ -214,10 +215,10 @@ class TestUserProfileUpdate:
 
     async def test_update_nonexistent_user_returns_404(
         self,
-        admin_client: AsyncClient
+        authenticated_admin_client: AsyncClient
     ):
         """Test updating non-existent user returns 404."""
-        response = await admin_client.put(
+        response = await authenticated_admin_client.put(
             "/api/v1/admin/users/999999",
             json={"username": "test"}
         )
@@ -298,7 +299,7 @@ class TestUserHistory:
 
     async def test_get_user_history_returns_all_versions(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         user_with_history: User,
         db_session: AsyncSession
     ):
@@ -310,7 +311,7 @@ class TestUserHistory:
         - Ordered by valid_from DESC (newest first)
         - Each version is full snapshot with all fields
         """
-        response = await admin_client.get(
+        response = await authenticated_admin_client.get(
             f"/api/v1/admin/users/{user_with_history.id}/history"
         )
 
@@ -348,11 +349,11 @@ class TestUserHistory:
 
     async def test_get_user_history_empty_for_new_user(
         self,
-        admin_client: AsyncClient,
+        authenticated_admin_client: AsyncClient,
         admin_user: User
     ):
         """Test history for user with only CREATE record."""
-        response = await admin_client.get(
+        response = await authenticated_admin_client.get(
             f"/api/v1/admin/users/{admin_user.id}/history"
         )
 
@@ -382,10 +383,10 @@ class TestUserHistory:
 
     async def test_get_history_nonexistent_user_returns_404(
         self,
-        admin_client: AsyncClient
+        authenticated_admin_client: AsyncClient
     ):
         """Test getting history for non-existent user returns 404."""
-        response = await admin_client.get(
+        response = await authenticated_admin_client.get(
             "/api/v1/admin/users/999999/history"
         )
 
@@ -396,6 +397,7 @@ class TestUserHistory:
 
 @pytest.mark.integration
 @pytest.mark.backend
+@pytest.mark.destructive
 class TestAuthLoginLastLogin:
     """Test login updates last_login_at without creating history."""
 

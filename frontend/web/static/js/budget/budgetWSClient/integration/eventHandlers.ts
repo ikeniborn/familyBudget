@@ -22,6 +22,9 @@ import type {
   ItemUpdatedEvent,
   ItemDeletedEvent,
   ItemCompletedEvent,
+  ShoppingListCreatedEvent,
+  ShoppingListUpdatedEvent,
+  ShoppingListDeletedEvent,
   SyncInitialResponse,
   SyncIncrementalResponse,
   SyncClientChangesResponse,
@@ -133,6 +136,44 @@ export function handleItemCompleted(data: ItemCompletedEvent): void {
 }
 
 /**
+ * Handle shopping_list_created event
+ */
+export function handleShoppingListCreated(data: ShoppingListCreatedEvent): void {
+  debugLog('[WS] Shopping list created:', data);
+  notifyHandlers('shopping_list_created', data);
+
+  // Refresh dashboard if on landing view
+  if ((window as any).listsManager?.refreshDashboard) {
+    (window as any).listsManager.refreshDashboard('created', data);
+  }
+}
+
+/**
+ * Handle shopping_list_updated event
+ */
+export function handleShoppingListUpdated(data: ShoppingListUpdatedEvent): void {
+  debugLog('[WS] Shopping list updated:', data);
+  notifyHandlers('shopping_list_updated', data);
+
+  if ((window as any).listsManager?.refreshDashboard) {
+    (window as any).listsManager.refreshDashboard('updated', data);
+  }
+}
+
+/**
+ * Handle shopping_list_deleted event
+ */
+export function handleShoppingListDeleted(data: ShoppingListDeletedEvent): void {
+  debugLog('[BudgetWS] Handling shopping_list_deleted event', data);
+  notifyHandlers('shopping_list_deleted', data);
+
+  // Notify lists manager if available
+  if ((window as any).listsManager?.handleShoppingListDeleted) {
+    (window as any).listsManager.handleShoppingListDeleted(data.id);
+  }
+}
+
+/**
  * Handle generic event
  */
 export function handleEvent(eventType: string, data: unknown): void {
@@ -199,6 +240,15 @@ export function dispatchEvent(eventType: string, eventData: unknown): void {
       break;
     case 'item_completed':
       handleItemCompleted(eventData as ItemCompletedEvent);
+      break;
+    case 'shopping_list_created':
+      handleShoppingListCreated(eventData as ShoppingListCreatedEvent);
+      break;
+    case 'shopping_list_updated':
+      handleShoppingListUpdated(eventData as ShoppingListUpdatedEvent);
+      break;
+    case 'shopping_list_deleted':
+      handleShoppingListDeleted(eventData as ShoppingListDeletedEvent);
       break;
     case 'sync_initial':
       handleSyncInitial((eventData as SyncInitialResponse).data).catch(err => {

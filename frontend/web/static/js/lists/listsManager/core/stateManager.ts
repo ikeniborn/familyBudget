@@ -15,6 +15,7 @@ import { getState, updateState } from './ListsState';
 import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsState';
 import { dataLayer } from '../../../data/DataLayer';
 import { getDexieManager } from '@db/dexie';
+import { shouldSimulateLoadError, isVerboseLoggingEnabled } from '../testing/debugUtils';
 import type {
   LocalShoppingList,
   ShoppingListWithStats,
@@ -22,6 +23,15 @@ import type {
   LocalStore,
   LocalProductGroup
 } from '@db/dexie';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Prefix for generated temp_id when backend doesn't provide one */
+const TEMP_ID_PREFIX = 'list_';
+/** Suffix for generated temp_id (indicates fallback generation) */
+const TEMP_ID_SUFFIX = '_temp';
 
 // ============================================================================
 // Type Definitions
@@ -46,11 +56,27 @@ declare global {
  * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
  *
  * Handles both PGlite records (without stats) and API responses (with stats).
+ *
+ * CRITICAL FIX (Task #9): Generate temp_id if missing (backend doesn't return it yet)
+ * This ensures Dexie queries work correctly when matching items by shopping_list_temp_id
  */
 function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
+  // CRITICAL: Generate temp_id if missing (backend API doesn't include it yet)
+  // Format: "list_{id}_{timestamp}" - stable across page reloads for same list
+  const temp_id = local.temp_id || `${TEMP_ID_PREFIX}${local.id}${TEMP_ID_SUFFIX}`;
+
+  // Log warning if temp_id is missing (indicates backend API issue)
+  if (!local.temp_id) {
+    console.warn('[STATE_MANAGER] Missing temp_id for list, using fallback', {
+      listId: local.id,
+      fallback: temp_id,
+      message: 'Backend API should return temp_id field'
+    });
+  }
+
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
-    temp_id: local.temp_id,        // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    temp_id,        // Preserve or generate temp_id for Dexie operations
     name: local.name,
     is_active: local.is_active,
     // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
@@ -202,6 +228,14 @@ export function isOnline(): boolean {
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadShoppingLists(): Promise<void> {
+  // DEBUG: Simulate load error for async error testing
+  if (shouldSimulateLoadError()) {
+    if (isVerboseLoggingEnabled()) {
+      debugLog('[ListsManager] ❌ Simulating load error (debug mode)');
+    }
+    throw new Error('Simulated load error for testing');
+  }
+
   try {
     // DataLayer automatically handles PGlite-first + API fallback
     const localLists = await dataLayer.getShoppingLists({ is_active: true });
@@ -219,20 +253,17 @@ export async function loadShoppingLists(): Promise<void> {
 /**
  * Load items for specific shopping list (PGlite-first with API fallback)
  *
- * @param listId - Shopping list ID or temp_id (string for PGlite, number for API)
+ * @param listId - Shopping list numeric ID
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
-export async function loadShoppingListItems(listId: number | string): Promise<void> {
+export async function loadShoppingListItems(listId: number): Promise<void> {
   try {
-    // DataLayer automatically handles PGlite-first + API fallback
-    // Convert listId to string for PGlite temp_id compatibility
-    const listTempId = String(listId);
-    const localItems = await dataLayer.getShoppingListItems(listTempId);
+    // DataLayer now accepts numeric ID and handles Dexie temp_id lookup internally
+    const localItems = await dataLayer.getShoppingListItems(listId);
 
-    // Convert to UI types (use numeric listId for compatibility)
-    const numericListId = typeof listId === 'number' ? listId : parseInt(listId, 10) || 0;
-    const currentItems = localItems.map(item => convertShoppingListItem(item, numericListId));
+    // Convert to UI types
+    const currentItems = localItems.map(item => convertShoppingListItem(item, listId));
 
     updateState({ currentItems });
     debugLog('[ListsManager] Loaded items:', currentItems.length);

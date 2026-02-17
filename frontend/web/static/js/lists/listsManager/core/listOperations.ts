@@ -132,8 +132,10 @@ export async function createItem(data: ItemData): Promise<any> {
       result = { tempId: temp_id, id: null };
       debugLog('[LIST_OPS] Item created in PGlite', { temp_id });
 
-      // Reload items from PGlite
-      if (state.currentListId) {
+      // Reload items from PGlite (DataLayer now handles temp_id lookup internally)
+      if (currentList.id) {
+        await loadShoppingListItems(currentList.id);
+      } else if (state.currentListId !== null) {
         await loadShoppingListItems(state.currentListId);
       }
 
@@ -157,6 +159,71 @@ export async function createItem(data: ItemData): Promise<any> {
 
       result = await response.json();
       debugLog('[LIST_OPS] Item created via API', { id: result.id });
+
+      // Background sync to Dexie (non-blocking, same pattern as list creation)
+      (async () => {
+        try {
+          // Wait for dexieManager initialization
+          const maxWait = 2000;
+          const startTime = Date.now();
+
+          while (!window.dexieManager && (Date.now() - startTime) < maxWait) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+          if (!window.dexieManager) {
+            console.warn('[LIST_OPS] dexieManager not available, skipping item Dexie sync');
+            return;
+          }
+
+          const dexie = window.dexieManager;
+          const creatorId = (window as any).userData?.id || null;
+
+          // Find current list to get temp_id
+          const currentList = state.shoppingLists.find(l => l.id === state.currentListId);
+          if (!currentList?.temp_id) {
+            console.warn('[LIST_OPS] Current list not found or missing temp_id, skipping Dexie sync');
+            return;
+          }
+
+          // Convert API response to LocalShoppingListItem
+          const localItem = {
+            id: result.id,
+            temp_id: result.temp_id || `item_${result.id}_${Date.now()}`,  // Fallback for old API
+            shopping_list_temp_id: currentList.temp_id,  // ✅ Use list's temp_id (now UUID)
+            store_id: result.store_id,
+            product_group_id: result.product_group_id,
+            product_name: result.product_name,
+            quantity: result.quantity,
+            unit: result.unit,
+            comment: result.comment,
+            position: result.position,
+            is_completed: false,
+            creator_id: creatorId,
+            created_at: new Date(result.created_at),
+            updated_at: new Date(result.updated_at),
+            sync_status: 'synced' as const,
+            sync_hash: null,
+            content_hash: null,
+            version: 1,
+            deleted_at: null,
+            last_modified_by: creatorId,
+            synced_at: new Date(),
+            completed_at: null
+          };
+
+          // Use Dexie database.shoppingListItems.put() directly
+          await dexie.getDB().shoppingListItems.put(localItem);
+          debugLog('[LIST_OPS] ✅ Item synced to Dexie', {
+            itemId: result.id,
+            listTempId: currentList.temp_id
+          });
+
+        } catch (error) {
+          console.error('[LIST_OPS] ❌ Item Dexie sync failed:', error);
+          // Non-critical - API write succeeded, Dexie is cache only
+        }
+      })();
 
       // Reload items from API
       if (state.currentListId) {

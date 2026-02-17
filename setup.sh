@@ -1603,8 +1603,50 @@ create_env_file() {
     # Set secure permissions (640: owner read/write, group read)
     chmod 640 "$env_file"
 
+    # Set correct ownership (root:username if running as root, otherwise username:username)
+    # This ensures .env is readable by docker-compose when run by non-root user
+    local username="${SUDO_USER:-$USER}"
+    if [[ "$EUID" -eq 0 ]] && [[ -n "$username" ]] && [[ "$username" != "root" ]]; then
+        # Running as root (via sudo), set owner to root and group to actual user
+        chown "root:$username" "$env_file"
+        info "File ownership set to root:$username (secure for docker-compose)"
+    elif [[ "$username" != "root" ]]; then
+        # Running as non-root user
+        chown "$username:$username" "$env_file"
+        info "File ownership set to $username:$username"
+    fi
+
     success ".env file created"
     info "File permissions set to 640 (read/write for owner, read for group)"
+}
+
+# Fix file permissions for project files
+# This ensures Docker containers can read mounted source files
+fix_project_permissions() {
+    section "Fixing Project File Permissions"
+
+    info "Ensuring all Python files are readable by Docker containers..."
+
+    # Fix permissions for Python files that may have restrictive permissions (600)
+    # Docker containers run as non-root user (UID 65532 in distroless) and need group read access
+    local fixed_count=0
+
+    # Find all Python files with 600 permissions and change to 664
+    while IFS= read -r -d '' file; do
+        chmod 664 "$file"
+        ((fixed_count++))
+    done < <(find "$DEPLOY_DIR/backend" -type f -name "*.py" -perm 600 -print0 2>/dev/null)
+
+    if [[ $fixed_count -gt 0 ]]; then
+        success "Fixed permissions for $fixed_count Python files"
+    else
+        info "No permission issues found"
+    fi
+
+    # Also ensure directories are executable
+    find "$DEPLOY_DIR/backend" -type d -exec chmod 755 {} \; 2>/dev/null || true
+
+    info "Project file permissions verified"
 }
 
 # Validate configuration
@@ -1872,6 +1914,9 @@ main() {
     echo ""
 
     validate_configuration
+    echo ""
+
+    fix_project_permissions
     echo ""
 
     build_docker_images

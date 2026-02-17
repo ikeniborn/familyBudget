@@ -7,6 +7,9 @@ declare global {
     logAPI: any;
     htmx: any;
 
+    // Dexie Manager (offline database)
+    dexieManager?: any;
+
     // From hierarchyView.js
     hierarchyView: any;
     HierarchyView: any;

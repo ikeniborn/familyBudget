@@ -119,7 +119,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteProductGroupFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -529,10 +529,36 @@ function closeEditModal() {
 }
 
 // Delete product group from edit modal (mobile only)
-function deleteProductGroupFromEditModal() {
+async function deleteProductGroupFromEditModal() {
     const productGroupId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deleteProductGroup(productGroupId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Создать overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление группы товаров...</p>
+        </div>
+    `;
+
+    // Добавить overlay к модальному окну
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Ждем завершения удаления
+        await deleteProductGroup(productGroupId);
+
+        // ✅ Закрываем модальное окно ПОСЛЕ успешного удаления
+        closeEditModal();
+    } catch (error) {
+        // Ошибка уже обработана в deleteProductGroup()
+        // Убрать overlay
+        overlay.remove();
+    }
 }
 
 // Update product group
@@ -629,7 +655,19 @@ async function restoreProductGroup(groupId) {
 
 // Delete product group
 async function deleteProductGroup(groupId) {
-    const group = productGroupsData.find(g => g.id === groupId);
+    // ✅ Нормализуем ID к integer для корректного сравнения
+    const groupIdInt = typeof groupId === 'string' ? parseInt(groupId, 10) : groupId;
+
+    // ✅ Поиск с нормализованным ID
+    const group = productGroupsData.find(g => g.id === groupIdInt);
+
+    // ✅ Проверка на undefined ПЕРЕД использованием
+    if (!group) {
+        console.error(`Product group with ID ${groupId} not found in productGroupsData`);
+        showToast('❌ Группа товаров не найдена', 'error');
+        throw new Error(`Product group with ID ${groupId} not found`);
+    }
+
     const confirmed = await showConfirmDialog(
         'Удалить группу товаров?',
         `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${group.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все дочерние группы\n• Все товары в списках покупок для этой группы\n\nРекомендуется использовать архивирование вместо удаления.`
@@ -638,7 +676,7 @@ async function deleteProductGroup(groupId) {
     if (!confirmed) return;
 
     try {
-        const response = await fetch(`/api/v1/product-groups/${groupId}`, {
+        const response = await fetch(`/api/v1/product-groups/${groupIdInt}`, {
             method: 'DELETE',
             credentials: 'include',
         });
