@@ -176,6 +176,21 @@ jobs:
       # Build artifacts (dist/, *.min.css) are also excluded per registry-first architecture
       # All built files exist only in Docker images, not in git
 
+      - name: Notify service-build (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ job.status == 'success' && '✅ Frontend Build' || '❌ Frontend Build Failed' }}
+
+            Version: ${{ needs.check-version.outputs.current_version }}
+            Cache: ${{ steps.cache_bust.outputs.cache_version }}
+            Branch: ${{ github.ref_name }}
+            ${{ job.status != 'success' && format('Logs: {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
+
   # ============================================================================
   # Job 3: Build and push Docker images to GitHub Container Registry
   # ============================================================================
@@ -563,21 +578,24 @@ jobs:
             echo "ℹ️ No changes to IMAGE_VERSIONS.json"
           fi
 
-      - name: Notify build completed (Telegram)
-        if: success()
+      - name: Notify image-build-push (Telegram)
+        if: always()
         continue-on-error: true
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
           message: |
-            ✅ Build Completed
+            ${{ job.status == 'success' && '✅ Docker Images Built' || '❌ Docker Build Failed' }}
 
-            Version: ${{ needs.check-version.outputs.current_version }}
-            Images built: backend, bot, nginx
-            Cache version: ${{ steps.cache_bust.outputs.cache_version }}
-
-            Security scan: Starting...
+            Version: ${{ steps.version.outputs.VERSION }}
+            Containers:
+            ${{ steps.changes.outputs.backend == 'true' && format('✅ backend:{0}', steps.version.outputs.VERSION) || '⏭ backend: no changes' }}
+            ${{ steps.changes.outputs.bot == 'true' && format('✅ bot:{0}', steps.version.outputs.VERSION) || '⏭ bot: no changes' }}
+            ${{ steps.changes.outputs.nginx == 'true' && format('✅ nginx:{0}', steps.version.outputs.VERSION) || '⏭ nginx: no changes' }}
+            ${{ steps.changes.outputs.redis == 'true' && format('✅ redis:{0}', steps.version.outputs.VERSION) || '⏭ redis: no changes' }}
+            ${{ steps.changes.outputs.postgresql == 'true' && format('✅ postgresql:{0}', steps.version.outputs.VERSION) || '⏭ postgresql: no changes' }}
+            ${{ job.status != 'success' && format('Logs: {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
 
   # ============================================================================
   # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
@@ -728,6 +746,21 @@ jobs:
           category: 'bot-image'
         continue-on-error: true
 
+      - name: Notify security-scan (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ${{ job.status == 'success' && '✅ Security Scan Passed' || '❌ Security Scan Failed' }}
+
+            Version: ${{ steps.tag.outputs.TAG }}
+            ${{ needs.image-build-push.outputs.backend_built == 'true' && (job.status == 'success' && '✅ backend: no CRITICAL/HIGH' || '❌ backend: vulnerabilities found') || '⏭ backend: skipped' }}
+            ${{ needs.image-build-push.outputs.bot_built == 'true' && (job.status == 'success' && '✅ bot: no CRITICAL/HIGH' || '❌ bot: vulnerabilities found') || '⏭ bot: skipped' }}
+            ${{ job.status != 'success' && format('Logs: {0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) || '' }}
+
   # ============================================================================
   # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
@@ -764,6 +797,28 @@ jobs:
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify pipeline summary (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            📊 Pipeline Summary: ${{ github.ref_name }}
+
+            Version: ${{ steps.version.outputs.VERSION }}
+            Commit: ${{ github.event.head_commit.message }}
+
+            Jobs:
+            ${{ needs.service-build.result == 'success' && '✅' || needs.service-build.result == 'skipped' && '⏭' || '❌' }} Frontend Build: ${{ needs.service-build.result }}
+            ${{ needs.image-build-push.result == 'success' && '✅' || needs.image-build-push.result == 'skipped' && '⏭' || '❌' }} Docker Build: ${{ needs.image-build-push.result }}
+            ${{ needs.security-scan.result == 'success' && '✅' || needs.security-scan.result == 'skipped' && '⏭' || '❌' }} Security Scan: ${{ needs.security-scan.result }}
+            ${{ needs.deploy-test.result == 'success' && '✅' || needs.deploy-test.result == 'skipped' && '⏭' || '❌' }} Deploy Test: ${{ needs.deploy-test.result }}
+            ${{ needs.post-deploy-summary.result == 'success' && '✅' || needs.post-deploy-summary.result == 'skipped' && '⏭' || '❌' }} Post-Deploy Tests: ${{ needs.post-deploy-summary.result }}
+
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   # ============================================================================
   # Job 6: Deploy to test server (only for test branch)
