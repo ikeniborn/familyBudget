@@ -149,33 +149,32 @@ export class DexieManager {
     const factsKey = 'budget_dexie_sync_period_facts';
     const plansKey = 'budget_dexie_sync_period_plans';
 
-    // Skip if already migrated
-    if (localStorage.getItem(factsKey) || localStorage.getItem(plansKey)) {
-      return;
-    }
+    // Step 1: migrate legacy → facts/plans (v11.5.0+)
+    if (!localStorage.getItem(factsKey) && !localStorage.getItem(plansKey)) {
+      const legacyValue = localStorage.getItem(legacyKey);
 
-    const legacyValue = localStorage.getItem(legacyKey);
+      if (legacyValue) {
+        // Migrate: keep facts period, convert to months for plans
+        localStorage.setItem(factsKey, legacyValue); // e.g., "90"
 
-    if (legacyValue) {
-      // Migrate: keep facts period, convert to months for plans
-      localStorage.setItem(factsKey, legacyValue); // e.g., "90"
+        const daysAsMonths = Math.round(parseInt(legacyValue, 10) / 30);
+        const plansMonths = Math.max(1, Math.min(6, daysAsMonths));
+        localStorage.setItem(plansKey, plansMonths.toString());
 
-      const daysAsMonths = Math.round(parseInt(legacyValue, 10) / 30);
-      const plansMonths = Math.max(1, Math.min(6, daysAsMonths));
-      localStorage.setItem(plansKey, plansMonths.toString());
-
-      logger.info('[DexieManager] Migrated sync period settings', {
-        legacy: legacyValue,
-        facts: legacyValue,
-        plans: plansMonths
-      });
-    } else {
-      // Set defaults
-      localStorage.setItem(factsKey, '90');
-      localStorage.setItem(plansKey, '3');
+        logger.info('[DexieManager] Migrated sync period settings', {
+          legacy: legacyValue,
+          facts: legacyValue,
+          plans: plansMonths
+        });
+      } else {
+        // Set defaults
+        localStorage.setItem(factsKey, '90');
+        localStorage.setItem(plansKey, '3');
+      }
     }
 
     // Step 2: split plans → plans_history + plans_future (v11.6.0+)
+    // Runs independently — existing users who completed step 1 also need this
     const plansHistoryKey = 'budget_dexie_sync_period_plans_history';
     const plansFutureKey = 'budget_dexie_sync_period_plans_future';
     if (!localStorage.getItem(plansHistoryKey) && !localStorage.getItem(plansFutureKey)) {
