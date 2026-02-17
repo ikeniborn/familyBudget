@@ -181,8 +181,14 @@ class LogsCollector {
 
         // Send batch every 30 seconds
         this.intervalId = setInterval(() => {
-            this.sendBatch();
-        }, this.batchInterval);
+                const isOffline = !navigator.onLine || localStorage.getItem('budget_auto_offline_mode') === 'true';
+                if (!isOffline) { this.sendBatch(); }
+            }, this.batchInterval);
+            window.addEventListener('offline-status-change', (e) => {
+                if (e.detail && e.detail.online && this.isRunning && this.buffer.length > 0) {
+                    this.sendBatch();
+                }
+            });
 
         // Send batch on page unload (best effort)
         window.addEventListener('beforeunload', () => {
