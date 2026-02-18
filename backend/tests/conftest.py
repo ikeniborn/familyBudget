@@ -85,22 +85,70 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
     # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
     async with engine.begin() as conn:
-        # Delete in correct order to handle FK constraints
+        # Delete in correct order to handle FK constraints (leaf tables first)
         # Note: Could use SET CONSTRAINTS ALL DEFERRED, but DELETE is more portable
+
+        # --- Fact/transaction tables (no children referencing them) ---
+        await conn.execute(text("DELETE FROM t_scheduled_reminder"))  # no FK deps
+        await conn.execute(text("DELETE FROM t_f_budget_fact_history"))  # no FK constraint on fact_id
         await conn.execute(text("DELETE FROM t_f_refresh_token"))
         await conn.execute(text("DELETE FROM t_notification"))
         await conn.execute(text("DELETE FROM t_f_budget_fact"))
+
+        # --- Shopping list hierarchy ---
         await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
         await conn.execute(text("DELETE FROM t_f_shopping_list"))
-        await conn.execute(text("DELETE FROM t_d_recurring_plan"))  # Must be before financial_center (FK constraint)
+
+        # --- Recurring plans (FK to article, financial_center, cost_center, user) ---
+        await conn.execute(text("DELETE FROM t_d_recurring_plan"))
+
+        # --- Import tables (leaf → parent) ---
+        await conn.execute(text("DELETE FROM t_import_staging"))
+        await conn.execute(text("DELETE FROM t_import_file_upload"))
+        await conn.execute(text("DELETE FROM t_import_column_mapping"))
+        await conn.execute(text("DELETE FROM t_d_import_template"))
+
+        # --- Article hierarchy (usage stats + hierarchy before article) ---
+        await conn.execute(text("DELETE FROM t_article_usage_stats"))
         await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
+        await conn.execute(text("DELETE FROM t_article_financial_center"))
+        await conn.execute(text("DELETE FROM t_d_article_version_link"))
+        await conn.execute(text("DELETE FROM t_d_article_history"))
+
+        # --- Product group hierarchy ---
         await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
+        await conn.execute(text("DELETE FROM t_d_product_group_history"))
+
+        # --- Financial center (aggregates + history + version links before FC) ---
+        await conn.execute(text("DELETE FROM t_agg_financial_center_balance_monthly"))
+        await conn.execute(text("DELETE FROM t_d_financial_center_history"))
+        await conn.execute(text("DELETE FROM t_d_financial_center_version_link"))
+        await conn.execute(text("DELETE FROM t_cost_center_financial_center"))
+
+        # --- Cost center (history + version links before CC) ---
+        await conn.execute(text("DELETE FROM t_d_cost_center_history"))
+        await conn.execute(text("DELETE FROM t_d_cost_center_version_link"))
+
+        # --- Dimension tables ---
         await conn.execute(text("DELETE FROM t_d_financial_center"))
         await conn.execute(text("DELETE FROM t_d_cost_center"))
         await conn.execute(text("DELETE FROM t_d_article"))
         await conn.execute(text("DELETE FROM t_d_product_group"))
+
+        # --- Store history before store ---
+        await conn.execute(text("DELETE FROM t_d_store_history"))
         await conn.execute(text("DELETE FROM t_d_store"))
-        await conn.execute(text("DELETE FROM t_d_import_template"))
+
+        # --- User-dependent tables (must be before t_d_user) ---
+        await conn.execute(text("DELETE FROM t_user_consent"))
+        await conn.execute(text("DELETE FROM t_push_subscription"))
+        await conn.execute(text("DELETE FROM t_2fa_session"))
+        await conn.execute(text("DELETE FROM t_f_webauthn_audit_log"))
+        await conn.execute(text("DELETE FROM t_f_webauthn_challenge"))
+        await conn.execute(text("DELETE FROM t_d_webauthn_credential"))
+        await conn.execute(text("DELETE FROM t_d_user_history"))
+
+        # --- User table (last — referenced by all above) ---
         await conn.execute(text("DELETE FROM t_d_user"))
 
 
