@@ -20,6 +20,10 @@ declare const debugLog: (...args: any[]) => void;
  */
 let keyboardShortcutsCleanup: (() => void) | null = null;
 
+/** CalendarWidget instances for date fields (destroyed on modal close) */
+let factDateCalendar: any = null;
+let transferDateCalendar: any = null;
+
 /**
  * Cache entry with timestamp and TTL
  */
@@ -551,6 +555,9 @@ export async function openModalFact(): Promise<void> {
       (window as any).setFactTransferDate(0); // Transfer tab: 0 = today
     }
 
+    // Initialize CalendarWidget for date inputs
+    initFactCalendarWidgets();
+
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
 
@@ -577,11 +584,59 @@ export async function openModalFact(): Promise<void> {
 }
 
 /**
+ * Initialize CalendarWidget for fact_date and transfer_date inputs.
+ * Destroys existing instances before creating new ones.
+ */
+function initFactCalendarWidgets(): void {
+  if (!window.BudgetShared?.CalendarWidget) return;
+
+  // Destroy old instances
+  if (factDateCalendar) {
+    try { factDateCalendar.destroy(); } catch (_) {}
+    factDateCalendar = null;
+  }
+  if (transferDateCalendar) {
+    try { transferDateCalendar.destroy(); } catch (_) {}
+    transferDateCalendar = null;
+  }
+
+  const factDateInput = document.querySelector<HTMLInputElement>(
+    '#modal_fact-tab-transaction input[name="fact_date"]'
+  );
+  if (factDateInput) {
+    factDateCalendar = new window.BudgetShared.CalendarWidget({
+      inputElement: factDateInput,
+      mode: 'single',
+    });
+  }
+
+  const transferDateInput = document.querySelector<HTMLInputElement>(
+    '#modal_fact-tab-transfer input[name="transfer_date"]'
+  );
+  if (transferDateInput) {
+    transferDateCalendar = new window.BudgetShared.CalendarWidget({
+      inputElement: transferDateInput,
+      mode: 'single',
+    });
+  }
+}
+
+/**
  * Close modal fact and clear cache
  */
 export function closeModalFact(): void {
   const modal = document.getElementById('modal_fact') as HTMLDialogElement;
   modal?.close();
+
+  // Destroy calendar widgets
+  if (factDateCalendar) {
+    try { factDateCalendar.destroy(); } catch (_) {}
+    factDateCalendar = null;
+  }
+  if (transferDateCalendar) {
+    try { transferDateCalendar.destroy(); } catch (_) {}
+    transferDateCalendar = null;
+  }
 
   // Clear form
   const form = document.getElementById('form_modal_fact') as HTMLFormElement;

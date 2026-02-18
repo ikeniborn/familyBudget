@@ -294,42 +294,6 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
   }
 }
 
-/**
- * Calculate date range for full months (v11.5.0+)
- *
- * @param months - Number of months to include in each direction
- * @returns Object with fromDate and toDate in YYYY-MM-DD format
- *
- * EXAMPLES:
- * - Today: 2025-02-09, months: 3
- *   → from_date: 2024-11-01, to_date: 2025-05-31
- *
- * - Today: 2025-01-15, months: 2
- *   → from_date: 2024-11-01, to_date: 2025-03-31
- */
-function calculatePlansRange(historyMonths: number, futureMonths: number): { fromDate: string; toDate: string } {
-  const today = new Date();
-
-  // Format dates manually to avoid timezone issues
-  const formatDate = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Calculate from_date (start of month N months ago)
-  const fromDate = new Date(today.getFullYear(), today.getMonth() - historyMonths, 1);
-
-  // Calculate to_date (end of month N months ahead)
-  // Use next month's day 0 = last day of target month
-  const toDate = new Date(today.getFullYear(), today.getMonth() + futureMonths + 1, 0);
-
-  return {
-    fromDate: formatDate(fromDate),
-    toDate: formatDate(toDate)
-  };
-}
 
 /**
  * Sync recurring plans from server (v11.5.0+)
@@ -348,16 +312,11 @@ export async function syncRecurringPlans(
   logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodMonths, historyMonths, futureMonths });
 
   try {
-    // Calculate range using split history/future or symmetric fallback
-    const history = historyMonths ?? syncPeriodMonths;
-    const future = futureMonths ?? syncPeriodMonths;
-    const { fromDate, toDate } = calculatePlansRange(history, future);
-
-    // Try with date filtering (v11.5.0+)
+    // Fetch all active plans without date filter to ensure complete dataset in Dexie
+    // Date filtering was removed because it caused incomplete results when plans fall
+    // outside the window (e.g. yearly plans, plans near boundary dates)
     const params = new URLSearchParams({
-      from_date: fromDate,  // YYYY-MM-DD (start of month)
-      to_date: toDate,      // YYYY-MM-DD (end of month)
-      limit: '100'  // Matches DataLayer.ts:1373 (fixed in 329f1822) and backend constraint
+      limit: '500'
     });
 
     const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {

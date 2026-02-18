@@ -22,7 +22,7 @@
  * @module data/DataLayer
  */
 
-import { getDexieManager, DexieManager } from '@db/dexie';
+import { getDexieManager, DexieManager, db as dexieDb } from '@db/dexie';
 import { isDexieActive } from '@db/dexie';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
@@ -31,6 +31,7 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
+  LocalShoppingList,
   ShoppingListWithStats,
   LocalShoppingListItem,
   LocalStore,
@@ -653,13 +654,54 @@ export class DataLayer {
 
       performanceMonitor.trackDexieCall('getShoppingLists', duration);
       console.debug('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
-      return result;
+      // Enrich Dexie results with stats computed from items (fixes missing total_items/completed_items)
+      return await this.enrichShoppingListsWithStats(result);
 
     } catch (error) {
       console.error('[DATA_LAYER] Error in getShoppingLists', error);
       const result = await this.getShoppingListsFromAPI(filters);
       performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
       return result;
+    }
+  }
+
+  /**
+   * Enrich shopping lists from Dexie with stats computed from items.
+   * Called when lists are loaded from Dexie (offline) which doesn't store stats.
+   */
+  private async enrichShoppingListsWithStats(lists: LocalShoppingList[]): Promise<ShoppingListWithStats[]> {
+    try {
+      // Get all items in a single query, then group by list
+      const allItems = await dexieDb.shoppingListItems.toArray();
+      const statsMap = new Map<string, { total: number; completed: number }>();
+
+      for (const item of allItems) {
+        if (item.deleted_at) continue; // Skip soft-deleted items
+        const key = item.shopping_list_temp_id;
+        if (!statsMap.has(key)) statsMap.set(key, { total: 0, completed: 0 });
+        const s = statsMap.get(key)!;
+        s.total++;
+        if (item.is_completed) s.completed++;
+      }
+
+      return lists.map(list => {
+        const s = statsMap.get(list.temp_id) ?? { total: 0, completed: 0 };
+        const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+        return {
+          ...list,
+          total_items: s.total,
+          completed_items: s.completed,
+          completion_percentage: pct,
+        } as ShoppingListWithStats;
+      });
+    } catch (error) {
+      console.warn('[DATA_LAYER] Failed to compute shopping list stats from Dexie:', error);
+      return lists.map(list => ({
+        ...list,
+        total_items: 0,
+        completed_items: 0,
+        completion_percentage: 0,
+      } as ShoppingListWithStats));
     }
   }
 

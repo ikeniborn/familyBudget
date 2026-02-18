@@ -6,6 +6,11 @@
 {% from "components/modal_plan.html" import modal_plan %}
 {% from "components/modal_confirm.html" import confirm_modal %}
 
+{% block extra_head %}
+<!-- CalendarWidget CSS for date pickers in fact/plan modals -->
+<link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     {% if user %}

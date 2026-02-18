@@ -397,8 +397,8 @@ export class DexieDiagnosticModal extends BaseModal {
               <td>${data.tableStats.facts} <span class="text-xs opacity-60">(${data.syncPeriod.facts} days)</span></td>
             </tr>
             <tr>
-              <td>Plans <span class="text-xs opacity-60">(cached)</span></td>
-              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(−${data.syncPeriod.plansHistory} / +${data.syncPeriod.plansFuture} months window)</span></td>
+              <td>Plans</td>
+              <td>${data.tableStats.plans}</td>
             </tr>
             <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
             <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
