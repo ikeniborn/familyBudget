@@ -1100,7 +1100,7 @@ jobs:
             git checkout ${{ github.sha }}
 
             # Build DATABASE_URL with localhost (tests run on host, not inside Docker network)
-            # All secrets passed via GitHub Actions ${{ }} expansion inside the heredoc
+            # All secrets passed via GitHub Actions expression expansion inside the heredoc
             export DATABASE_URL="postgresql+asyncpg://familybudget:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/familybudget"
             export JWT_SECRET="${{ secrets.TEST_JWT_SECRET }}"
             export TELEGRAM_BOT_TOKEN="${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}"
