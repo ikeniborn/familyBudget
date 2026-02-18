@@ -19,6 +19,7 @@ import { updateFABVisibility } from '../rendering/listRenderer';
 import {
   getDexieManager,
   isDexieActive,
+  db as dexieDb,
   addItemToList,
   updateShoppingListItem,
   toggleItemCompleted as toggleItemCompletedDexie,
@@ -163,20 +164,6 @@ export async function createItem(data: ItemData): Promise<any> {
       // Background sync to Dexie (non-blocking, same pattern as list creation)
       (async () => {
         try {
-          // Wait for dexieManager initialization
-          const maxWait = 2000;
-          const startTime = Date.now();
-
-          while (!window.dexieManager && (Date.now() - startTime) < maxWait) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-
-          if (!window.dexieManager) {
-            console.warn('[LIST_OPS] dexieManager not available, skipping item Dexie sync');
-            return;
-          }
-
-          const dexie = window.dexieManager;
           const creatorId = (window as any).userData?.id || null;
 
           // Find current list to get temp_id
@@ -212,8 +199,8 @@ export async function createItem(data: ItemData): Promise<any> {
             completed_at: null
           };
 
-          // Use Dexie database.shoppingListItems.put() directly
-          await dexie.getDB().shoppingListItems.put(localItem);
+          // Use Dexie db directly (public API, no private method access)
+          await dexieDb.shoppingListItems.put(localItem);
           debugLog('[LIST_OPS] ✅ Item synced to Dexie', {
             itemId: result.id,
             listTempId: currentList.temp_id

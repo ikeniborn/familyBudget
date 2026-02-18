@@ -12,12 +12,8 @@ import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { setupProductAutocomplete } from '../features/autocomplete';
-import { getDexieManager, isDexieActive } from '@db/dexie';
+import { getDexieManager, isDexieActive, db as dexieDb } from '@db/dexie';
 import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
-
-declare const window: Window & {
-  dexieManager?: any;
-};
 
 // ============================================================================
 // Type Definitions
@@ -145,21 +141,6 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Start background sync (non-blocking, with proper error handling)
     (async () => {
       try {
-        // Wait for dexieManager initialization (max 2 seconds)
-        const maxWait = 2000;
-        const startTime = Date.now();
-
-        while (!window.dexieManager && (Date.now() - startTime) < maxWait) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        if (!window.dexieManager) {
-          console.warn('[ListsManager] dexieManager not available after 2s, skipping Dexie sync');
-          return;
-        }
-
-        const dexie = window.dexieManager;
-
         // Validate creator_id (fallback to null if not available)
         const creatorId = (window as any).userData?.id || null;
         if (!creatorId) {
@@ -190,8 +171,8 @@ export async function handleCreateList(event: Event): Promise<void> {
           deleted_at: null
         };
 
-        // Use Dexie database.shoppingLists.put() directly
-        await dexie.getDB().shoppingLists.put(localList);
+        // Use Dexie db directly (public API, no private method access)
+        await dexieDb.shoppingLists.put(localList);
         debugLog('[ListsManager] ✅ List synced to Dexie', {
           listId: newList.id,
           tempId: newList.temp_id
