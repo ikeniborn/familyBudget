@@ -11,6 +11,7 @@
 import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
+import { loadShoppingLists } from '../core/stateManager';
 import { setupProductAutocomplete } from '../features/autocomplete';
 import { getDexieManager, isDexieActive, db as dexieDb } from '@db/dexie';
 import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
@@ -187,6 +188,11 @@ export async function handleCreateList(event: Event): Promise<void> {
         }
       }
     })();
+
+    // Reload shopping lists from Dexie to ensure state is up-to-date before entering detail view
+    // This guarantees state.shoppingLists contains the new list with temp_id,
+    // which is required by createItem() for Dexie-first item creation
+    await loadShoppingLists();
 
     // Open the newly created list immediately
     await renderDetailView(newList.id);
