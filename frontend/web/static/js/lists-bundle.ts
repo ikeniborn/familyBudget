@@ -80,7 +80,8 @@ import {
   // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
   handleItemCreated,
   handleItemUpdated,
-  handleItemDeleted
+  handleItemDeleted,
+  handleShoppingListUpdated
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -255,7 +256,7 @@ try {
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
-    // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI)
+    // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI, handleShoppingListUpdated)
     Object.defineProperty(window, 'listsManager', {
       value: {
         showDetailView: renderDetailView,
@@ -264,7 +265,9 @@ try {
         // WebSocket compatibility aliases (v7.0.1)
         addItemToUI: handleItemCreated,
         updateItemInUI: handleItemUpdated,
-        removeItemFromUI: handleItemDeleted
+        removeItemFromUI: handleItemDeleted,
+        // Shopping list update handler (v11.5.x - stats refresh on item add/delete)
+        handleShoppingListUpdated
       },
       writable: false,
       configurable: false,

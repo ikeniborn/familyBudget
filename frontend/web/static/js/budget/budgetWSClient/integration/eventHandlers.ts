@@ -155,7 +155,12 @@ export function handleShoppingListUpdated(data: ShoppingListUpdatedEvent): void 
   debugLog('[WS] Shopping list updated:', data);
   notifyHandlers('shopping_list_updated', data);
 
-  if ((window as any).listsManager?.refreshDashboard) {
+  // Use efficient in-state stats update (no API reload) when available
+  // This updates total_items/completed_items/completion_percentage in landing page cards
+  if ((window as any).listsManager?.handleShoppingListUpdated) {
+    (window as any).listsManager.handleShoppingListUpdated(data);
+  } else if ((window as any).listsManager?.refreshDashboard) {
+    // Fallback: full API reload (older implementation)
     (window as any).listsManager.refreshDashboard('updated', data);
   }
 }

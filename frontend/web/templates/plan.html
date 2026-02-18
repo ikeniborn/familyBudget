@@ -121,7 +121,7 @@
 </div>
 
 <!-- v9.0 Tabbed Modals -->
-{{ modal_plan('modal_plan') }}
+{{ modal_plan('modal_add_plan') }}
 
 <!-- Edit Plan Modal -->
 {{ edit_plan_modal('edit-modal') }}
@@ -1199,10 +1199,15 @@ document.addEventListener('DOMContentLoaded', function() {
     deferredInit(() => initializeReminderTimeInputs(modalId));
 
     // Обработчик отправки формы создания плана
-    document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await createPlan(e);
-    });
+    const addPlanForm = document.getElementById('form_modal_add_plan');
+    if (addPlanForm) {
+        addPlanForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await createPlan(e);
+        });
+    } else {
+        console.warn('[plan.html] form_modal_add_plan not found in DOM');
+    }
 
     // Transfer form submit handler (online only)
     // CRITICAL: Guard against duplicate event listener registration

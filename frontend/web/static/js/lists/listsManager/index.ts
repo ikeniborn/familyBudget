@@ -140,6 +140,7 @@ export {
   handleItemUpdated,
   handleItemDeleted,
   handleItemCompletedToggled,
+  handleShoppingListUpdated,
   handleShoppingListDeleted
 } from './integration/wsEventHandlers';
 
