@@ -1097,35 +1097,19 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
-            # Start isolated test PostgreSQL container (port 5433, separate from production)
-            docker compose -f docker-compose-test.yml up -d
+            # Load all secrets from test server .env
+            set -a && source /opt/budget/.env && set +a
 
-            # Cleanup test container on exit (even if tests fail)
-            trap 'docker compose -f ~/familyBudget/docker-compose-test.yml down 2>/dev/null || true' EXIT
+            # Build DATABASE_URL with localhost (tests run on host, not inside Docker network)
+            export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER:-familybudget}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-familybudget}"
 
-            # Wait for test database to be ready
-            echo "Waiting for test database..."
-            for i in $(seq 1 30); do
-              docker exec familybudget-postgres-test pg_isready -U familybudget -q 2>/dev/null && break || sleep 1
-            done
+            # Apply migrations (idempotent — deployment already ran them)
+            backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
 
-            # Apply migrations to test database (run from ~/familyBudget, not backend/)
-            DATABASE_URL="postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
-              backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
-
-            # Run pytest against test PostgreSQL (isolated, safe for writes/deletes)
-            # DATABASE_URL required by FastAPI Settings (loaded via conftest.py → app import)
-            unset TEST_DATABASE_URL
-            export DATABASE_URL="postgresql+asyncpg://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test"
+            # Run pytest using test server's existing database
+            # Tests use rollback isolation — no data is permanently written
             cd backend
-            export REDIS_URL="redis://localhost:6379/0"
-            export BACKEND_URL="https://fbd.ikeniborn.ru"
-            export JWT_SECRET="test_jwt_secret_for_ci_only"
-            export SECRET_KEY="test_secret_key_for_ci_only"
-            export TELEGRAM_BOT_TOKEN="test_bot_token_for_ci_only"
-            export ADMIN_TELEGRAM_ID="123456789"
-            export API_INTERNAL_KEY="test_internal_key_for_ci_only"
-            export CORS_ORIGINS="https://fbd.ikeniborn.ru"
+            export REDIS_URL="redis://:${REDIS_PASSWORD}@localhost:6379/0"
             export ENVIRONMENT="test"
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 

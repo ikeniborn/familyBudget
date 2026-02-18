@@ -36,28 +36,21 @@ print_error() {
 run_backend_tests() {
     print_header "Backend Tests (pytest)"
 
-    # Check if test database is running
-    if ! docker ps | grep -q familybudget-postgres-test; then
-        print_warning "Test database not running. Starting..."
-        docker-compose -f docker-compose-test.yml up -d
-
-        echo "Waiting for PostgreSQL to be ready..."
-        until docker exec familybudget-postgres-test pg_isready -U familybudget 2>/dev/null; do
-            echo -n "."
-            sleep 1
-        done
-        echo ""
-        print_success "PostgreSQL is ready"
+    if [ -z "$DATABASE_URL" ]; then
+        print_warning "DATABASE_URL not set. Using default: localhost:5433/familybudget_test"
+        print_warning "Quick start:"
+        print_warning "  docker run -d --name pg-test -p 5433:5432 \\"
+        print_warning "    -e POSTGRES_USER=familybudget \\"
+        print_warning "    -e POSTGRES_PASSWORD=test_password_12345678901234567890 \\"
+        print_warning "    -e POSTGRES_DB=familybudget_test postgres:16-alpine"
     fi
 
-    # Check if migrations applied
+    # Apply migrations
     print_warning "Applying migrations (if needed)..."
-    DATABASE_URL="postgresql://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
-        backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
+    backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
 
     # Run tests
     print_warning "Running backend tests..."
-    set -a && source backend/.env.test && set +a
     PYTHONPATH="$SCRIPT_DIR" backend/.venv/bin/pytest backend/tests/ -v --tb=short
 
     print_success "Backend tests completed"

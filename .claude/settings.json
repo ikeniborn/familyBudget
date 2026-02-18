@@ -64,5 +64,6 @@
     "pyright-lsp@claude-plugins-official": true,
     "context7@claude-plugins-official": true
   },
-  "language": "Russian"
+  "language": "Russian",
+  "plansDirectory": "docs/plans"
 }

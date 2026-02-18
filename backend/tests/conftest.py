@@ -27,10 +27,11 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 from backend.app.services.jwt import create_access_token
 
-_db_host = os.getenv("POSTGRES_HOST", "localhost")  # Default to localhost for local testing
-_db_port = os.getenv("POSTGRES_PORT", "5433")  # Use 5433 for local test DB (docker-compose-test.yml)
-_db_name = os.getenv("POSTGRES_DB", "familybudget_test")  # Configurable DB name (CI uses production DB)
-TEST_DATABASE_URL = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:{_db_port}/{_db_name}"
+_db_host = os.getenv("POSTGRES_HOST", "localhost")
+_db_port = os.getenv("POSTGRES_PORT", "5433")
+_db_name = os.getenv("POSTGRES_DB", "familybudget_test")
+_default_url = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:{_db_port}/{_db_name}"
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", _default_url)
 
 
 @pytest.fixture(scope="session")
