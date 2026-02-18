@@ -676,7 +676,7 @@ export class DataLayer {
       const statsMap = new Map<string, { total: number; completed: number }>();
 
       for (const item of allItems) {
-        if (item.deleted_at) continue; // Skip soft-deleted items
+        if (item.deleted_at || item.sync_status === 'deleted') continue; // Skip soft-deleted items
         const key = item.shopping_list_temp_id;
         if (!statsMap.has(key)) statsMap.set(key, { total: 0, completed: 0 });
         const s = statsMap.get(key)!;

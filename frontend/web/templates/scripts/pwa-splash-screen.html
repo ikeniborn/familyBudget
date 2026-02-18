@@ -127,6 +127,16 @@
 
     // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
     if (!isColdStart || isReload) {
+        // IMPORTANT: If this is a reload on cold start (e.g. after SW update clears sessionStorage),
+        // set the session key now so subsequent page navigations don't show splash again.
+        if (isColdStart && isReload) {
+            try {
+                sessionStorage.setItem(SPLASH_SESSION_KEY, Date.now().toString());
+                console.log('[PWA_SPLASH] Set session key on cold-start reload (prevents splash on next navigation)');
+            } catch (e) {
+                console.warn('[PWA_SPLASH] Failed to set sessionStorage on reload:', e);
+            }
+        }
         try {
             console.log('[PWA_SPLASH] Skipping splash:', {
                 reason: !isColdStart ? 'session active' : 'page reload',

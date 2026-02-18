@@ -49,17 +49,8 @@ const STATIC_CACHE = [
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/favicon.ico',
-  // iOS Splash - ALL 10 images for comprehensive device coverage
-  '/static/icons/splash/splash-750x1334.png',   // iPhone SE/7/8
-  '/static/icons/splash/splash-828x1792.png',   // iPhone XR/11
-  '/static/icons/splash/splash-1080x2340.png',  // Android (1080x2340)
-  '/static/icons/splash/splash-1125x2436.png',  // iPhone X/XS/11 Pro
-  '/static/icons/splash/splash-1170x2532.png',  // iPhone 12/13/14
-  '/static/icons/splash/splash-1179x2556.png',  // iPhone 14/15 Pro
-  '/static/icons/splash/splash-1242x2208.png',  // iPhone 6+/7+/8+
-  '/static/icons/splash/splash-1242x2688.png',  // iPhone XS Max/11 Pro Max
-  '/static/icons/splash/splash-1284x2778.png',  // iPhone 14/15 Pro Max
-  '/static/icons/splash/splash-1290x2796.png'   // iPhone 14/15 Pro Max
+  // iOS Splash screens intentionally removed - files not generated in build pipeline
+  // To re-enable, add splash screen generation to CI/CD and uncomment:
 ];
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
@@ -74,7 +65,7 @@ const OFFLINE_PAGE_ASSETS = [
   // CSS
   '/static/css/lists.min.css',
   // JS - offline support
-  '/static/js/offline/offlineShoppingManager.min.js',
+  '/static/js/offline/offlineManager.min.js',
   // JS - lists functionality (единый бандл с v7.0.1+)
   '/static/js/lists.min.js',
   // JS - WebSocket client

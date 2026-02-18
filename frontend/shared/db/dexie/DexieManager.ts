@@ -685,9 +685,9 @@ export class DexieManager {
    * @param syncPeriodMonths - Number of months to sync (default: 3)
    * @returns Sync result with count
    */
-  async syncRecurringPlans(userId: number, syncPeriodMonths?: number): Promise<{ success: boolean; count: number }> {
-    logger.debug('[DexieManager] syncRecurringPlans', { userId, syncPeriodMonths });
-    return await syncRecurringPlans(userId, syncPeriodMonths);
+  async syncRecurringPlans(userId: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncRecurringPlans', { userId });
+    return await syncRecurringPlans(userId);
   }
 
   // ============================================================

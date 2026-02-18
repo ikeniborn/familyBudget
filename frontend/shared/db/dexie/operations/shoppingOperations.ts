@@ -124,6 +124,7 @@ export async function queryShoppingListItems(
   const items = await db.shoppingListItems
     .where('shopping_list_temp_id')
     .equals(shopping_list_temp_id)
+    .filter(item => item.sync_status !== 'deleted')  // Exclude soft-deleted items
     .toArray();
 
   return items.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));

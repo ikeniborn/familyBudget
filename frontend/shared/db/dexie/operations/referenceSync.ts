@@ -304,12 +304,9 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
  * v11.5.0: Changed to month-based period (full months calculation)
  */
 export async function syncRecurringPlans(
-  userId: number,
-  syncPeriodMonths: number = 3,
-  historyMonths?: number,
-  futureMonths?: number
+  userId: number
 ): Promise<{ success: boolean; count: number }> {
-  logger.info('[referenceSync] Syncing recurring plans...', { userId, syncPeriodMonths, historyMonths, futureMonths });
+  logger.info('[referenceSync] Syncing recurring plans...', { userId });
 
   try {
     // Fetch all active plans without date filter to ensure complete dataset in Dexie
@@ -389,12 +386,6 @@ export async function initialReferenceSync(
 }> {
   logger.info('[referenceSync] Starting initial sync...', { userId });
 
-  // Get sync period for plans from DexieManager (v11.5.0+)
-  const dexieManager = await import('../DexieManager').then(m => m.getDexieManager());
-  const syncPeriodMonths = (await dexieManager).getSyncPeriodMonths?.() ?? 3;
-  const historyMonths = (await dexieManager).getSyncPeriodPlansHistory?.() ?? syncPeriodMonths;
-  const futureMonths = (await dexieManager).getSyncPeriodPlansFuture?.() ?? syncPeriodMonths;
-
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
@@ -403,7 +394,7 @@ export async function initialReferenceSync(
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
     productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths, historyMonths, futureMonths)  // v11.6.0: Split history/future
+    recurringPlans: await syncRecurringPlans(userId)  // v11.6.0: No date filter - fetch all active plans
   };
 
   // Critical syncs (required for app to work)
