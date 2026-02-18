@@ -1088,6 +1088,8 @@ jobs:
       # ============================================================================
       - name: Run backend tests on test server
         if: matrix.test-suite == 'backend'
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
         run: |
           ssh budget-test "bash -s" << 'EOF'
             set -e
@@ -1097,19 +1099,17 @@ jobs:
             git fetch origin
             git checkout ${{ github.sha }}
 
-            # Load all secrets from test server .env
-            set -a && source /opt/budget/.env && set +a
-
             # Build DATABASE_URL with localhost (tests run on host, not inside Docker network)
-            export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER:-familybudget}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB:-familybudget}"
+            # POSTGRES_PASSWORD is passed via SSH from GitHub secret TEST_POSTGRES_PASSWORD
+            # to avoid requiring read access to /opt/budget/.env on the server
+            export DATABASE_URL="postgresql+asyncpg://familybudget:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/familybudget"
 
             # Apply migrations (idempotent — deployment already ran them)
             backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
 
             # Run pytest using test server's existing database
-            # Tests use rollback isolation — no data is permanently written
+            # Tests create and delete their own data (DELETE cleanup) — no existing data is modified
             cd backend
-            export REDIS_URL="redis://:${REDIS_PASSWORD}@localhost:6379/0"
             export ENVIRONMENT="test"
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
