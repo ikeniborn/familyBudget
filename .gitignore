@@ -352,3 +352,6 @@ backend/.env.test
 .claude/sessions/
 # Claude Code Agent Workspace
 .claude/workspace
+
+# Claude Code Agent Workspace
+.claude/workspace/

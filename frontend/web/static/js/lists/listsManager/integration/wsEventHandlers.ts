@@ -215,6 +215,63 @@ export function handleItemCompletedToggled(itemId: number, isCompleted: boolean,
 }
 
 /**
+ * Handle shopping list updated event from WebSocket
+ *
+ * Updates item stats (total_items, completed_items, completion_percentage) in global state
+ * and re-renders landing page cards if currently on the landing view.
+ *
+ * Called when: items are added/deleted/completed on another device (after Phase 1 backend fix)
+ *
+ * @param shoppingListData - Updated shopping list data from server (includes stats)
+ */
+export function handleShoppingListUpdated(shoppingListData: any): void {
+  if (!shoppingListData || !shoppingListData.id) {
+    debugLog('[ListsManager] Invalid data for handleShoppingListUpdated');
+    return;
+  }
+
+  const state = getState();
+
+  // Find the list in current state
+  const listIndex = state.shoppingLists.findIndex(list => list.id === shoppingListData.id);
+  if (listIndex === -1) {
+    debugLog('[ListsManager] Shopping list not found in state for update:', shoppingListData.id);
+    // List not in state - trigger full reload on landing view
+    const landingView = document.getElementById('landing-view');
+    if (landingView && !landingView.classList.contains('hidden')) {
+      renderShoppingListCards();
+    }
+    return;
+  }
+
+  // Update stats in state (merge new stats into existing list entry)
+  const updatedList = {
+    ...state.shoppingLists[listIndex],
+    ...(shoppingListData.total_items !== undefined && { total_items: shoppingListData.total_items }),
+    ...(shoppingListData.completed_items !== undefined && { completed_items: shoppingListData.completed_items }),
+    ...(shoppingListData.completion_percentage !== undefined && { completion_percentage: shoppingListData.completion_percentage }),
+    ...(shoppingListData.name !== undefined && { name: shoppingListData.name }),
+  };
+
+  const newLists = [...state.shoppingLists];
+  newLists[listIndex] = updatedList;
+  updateState({ shoppingLists: newLists });
+
+  debugLog('[ListsManager] Updated shopping list stats from WebSocket:', {
+    id: shoppingListData.id,
+    total_items: shoppingListData.total_items,
+    completed_items: shoppingListData.completed_items,
+  });
+
+  // Re-render landing page cards if on landing view
+  const landingView = document.getElementById('landing-view');
+  if (landingView && !landingView.classList.contains('hidden')) {
+    renderShoppingListCards();
+    debugLog('[ListsManager] Re-rendered landing page cards with updated stats');
+  }
+}
+
+/**
  * Handle shopping list deleted event from WebSocket
  *
  * Removes shopping list from global state and triggers UI reload

@@ -28,6 +28,7 @@ from sqlmodel import select
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.product_group import ProductGroup
+from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.models.store import Store
 from backend.app.schemas.errors import get_common_responses
@@ -62,6 +63,79 @@ def _get_ws_broadcast():
         from backend.app.api.v1.endpoints import budget_ws
         _ws_module = budget_ws
     return _ws_module
+
+
+async def _broadcast_list_stats_update(session: AsyncSession, shopping_list_id: int) -> None:
+    """
+    Broadcast shopping_list_updated event with updated item stats.
+
+    Called after item create/update/delete to notify all connected clients
+    that the parent shopping list's stats (total_items, completed_items) have changed.
+    This enables real-time stats refresh on landing page cards for other devices.
+
+    Args:
+        session: AsyncSession for database operations
+        shopping_list_id: Parent shopping list ID to compute stats for
+    """
+    try:
+        # Fetch the shopping list record
+        list_result = await session.execute(
+            select(ShoppingList).where(ShoppingList.id == shopping_list_id)
+        )
+        shopping_list = list_result.scalar_one_or_none()
+        if not shopping_list:
+            logger.warning(
+                f"[LIST_STATS] Shopping list {shopping_list_id} not found for stats broadcast"
+            )
+            return
+
+        # Count total and completed items (exclude soft-deleted)
+        total_result = await session.execute(
+            select(func.count()).where(
+                ShoppingListItem.shopping_list_id == shopping_list_id,
+                ShoppingListItem.deleted_at.is_(None),
+            )
+        )
+        total_items = total_result.scalar_one()
+
+        completed_result = await session.execute(
+            select(func.count()).where(
+                ShoppingListItem.shopping_list_id == shopping_list_id,
+                ShoppingListItem.is_completed == True,  # noqa: E712
+                ShoppingListItem.deleted_at.is_(None),
+            )
+        )
+        completed_items = completed_result.scalar_one()
+
+        completion_percentage = round(
+            (completed_items / total_items * 100) if total_items > 0 else 0.0, 1
+        )
+
+        # Build broadcast payload (matches SAFE_SHOPPING_LIST_FIELDS)
+        list_data = {
+            "id": shopping_list.id,
+            "name": shopping_list.name,
+            "description": shopping_list.description,
+            "creator_id": shopping_list.creator_id,
+            "is_active": shopping_list.is_active,
+            "total_items": total_items,
+            "completed_items": completed_items,
+            "completion_percentage": completion_percentage,
+            "created_at": shopping_list.created_at.isoformat() if shopping_list.created_at else None,
+            "updated_at": shopping_list.updated_at.isoformat() if shopping_list.updated_at else None,
+        }
+
+        ws = _get_ws_broadcast()
+        await ws.broadcast_shopping_list_updated(list_data)
+        logger.debug(
+            f"[LIST_STATS] Broadcast shopping_list_updated: list_id={shopping_list_id}, "
+            f"total={total_items}, completed={completed_items}"
+        )
+    except Exception as e:
+        # Non-critical: item operation already succeeded, only stats broadcast failed
+        logger.warning(
+            f"[LIST_STATS] Failed to broadcast shopping_list_updated for list {shopping_list_id}: {e}"
+        )
 
 
 router = APIRouter(
@@ -240,6 +314,9 @@ async def create_shopping_list_item(
         await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for created item {item.id}: {e}")
+
+    # Broadcast updated shopping list stats to refresh landing page cards on all devices
+    await _broadcast_list_stats_update(session, item.shopping_list_id)
 
     return response
 
@@ -662,6 +739,11 @@ async def update_shopping_list_item(
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for updated item {item_id}: {e}")
 
+    # Broadcast updated shopping list stats when completion status changes
+    # (completed_items count changes → landing page cards need refresh)
+    if update_data.is_completed is not None:
+        await _broadcast_list_stats_update(session, item.shopping_list_id)
+
     return response
 
 
@@ -723,6 +805,9 @@ async def delete_shopping_list_item(
         await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for deleted item {item_id}: {e}")
+
+    # Broadcast updated shopping list stats to refresh landing page cards on all devices
+    await _broadcast_list_stats_update(session, list_id)
 
     return None  # 204 No Content
 
@@ -860,6 +945,10 @@ async def batch_complete_items(
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for batch complete: {e}")
 
+    # Broadcast updated shopping list stats for all affected lists
+    for list_id in items_by_list.keys():
+        await _broadcast_list_stats_update(session, list_id)
+
     return {
         "message": f"Marked {count} items as {'completed' if request.is_completed else 'incomplete'}",
         "count": count,
@@ -935,6 +1024,10 @@ async def batch_delete_items(
                 await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
+
+    # Broadcast updated shopping list stats for all affected lists
+    for list_id in items_by_list.keys():
+        await _broadcast_list_stats_update(session, list_id)
 
     return {"message": f"Deleted {count} items", "count": count}
 
