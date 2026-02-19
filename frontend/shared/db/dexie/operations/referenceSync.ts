@@ -19,7 +19,8 @@ import type {
   LocalArticleHierarchy,
   LocalRecurringPlan,
   LocalBudgetFact,
-  LocalSyncMetadata
+  LocalSyncMetadata,
+  LocalShoppingListItem
 } from '../types/models';
 
 /**
@@ -287,7 +288,71 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
       await db.shoppingLists.bulkPut(transformedLists);
     }
 
-    logger.info('[referenceSync] ✅ Shopping lists synced', { count: transformedLists.length });
+    // Sync shopping list items for each list (v11.6.1+)
+    // API: GET /api/v1/shopping-list-items?shopping_list_id={id}
+    // Returns { items: [...], total, limit, offset }
+    let totalItems = 0;
+    for (const list of transformedLists) {
+      const serverId = list.id;
+      if (!serverId) continue; // Skip offline-only lists (no server ID yet)
+
+      try {
+        const itemsResponse = await fetchWithTimeout(
+          `/api/v1/shopping-list-items?shopping_list_id=${serverId}`,
+          { method: 'GET', credentials: 'include' }
+        );
+
+        if (!itemsResponse.ok) {
+          logger.warn('[referenceSync] Failed to fetch items for list', {
+            shopping_list_id: serverId,
+            status: itemsResponse.status
+          });
+          continue;
+        }
+
+        const itemsData = await itemsResponse.json();
+        const items = itemsData.items || [];
+
+        // Clear existing items for this list (keyed by shopping_list_temp_id)
+        await db.shoppingListItems
+          .where('shopping_list_temp_id')
+          .equals(list.temp_id)
+          .delete();
+
+        // Transform and store items
+        if (items.length > 0) {
+          const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
+            ...item,
+            temp_id: item.temp_id || `item_${item.id}_${Date.now()}`,
+            shopping_list_temp_id: list.temp_id, // Link to the Dexie list by temp_id
+            sync_status: 'synced',
+            synced_at: new Date(),
+            created_at: item.created_at ? new Date(item.created_at) : new Date(),
+            updated_at: item.updated_at ? new Date(item.updated_at) : new Date(),
+            completed_at: item.completed_at ? new Date(item.completed_at) : null,
+            deleted_at: item.deleted_at ? new Date(item.deleted_at) : null,
+            sync_hash: item.sync_hash || null,
+            content_hash: item.content_hash || null,
+            version: item.version ?? 1,
+            last_modified_by: item.last_modified_by || null,
+            conflict_data: undefined
+          }));
+          await db.shoppingListItems.bulkPut(transformedItems);
+          totalItems += transformedItems.length;
+        }
+      } catch (itemError) {
+        logger.warn('[referenceSync] Error fetching items for list (non-critical)', {
+          shopping_list_id: serverId,
+          error: itemError
+        });
+        // Continue with next list — item sync failure is non-critical
+      }
+    }
+
+    logger.info('[referenceSync] ✅ Shopping lists synced', {
+      count: transformedLists.length,
+      items: totalItems
+    });
     return { success: true, count: transformedLists.length };
   } catch (error) {
     logger.error('[referenceSync] ❌ Shopping lists sync failed:', error);
