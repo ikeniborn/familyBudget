@@ -914,7 +914,8 @@ export class DexieManager {
       financial_centers: number;
       cost_centers: number;
       facts: number;
-      plans: number;
+      plans: number;            // regular plans (record_type='plan') from budgetFacts
+      recurringPlans: number;   // recurring plans from recurringPlans table (v11.6.1+)
       stores: number;           // v11.4.2+
       productGroups: number;    // v11.4.2+
       shoppingLists: number;    // v11.4.2+
@@ -944,6 +945,7 @@ export class DexieManager {
   }> {
     const articlesCount = await this.getDB().articles.count();
     const factsCount = await this.getDB().budgetFacts.count();
+    const plansCount = await this.getDB().budgetFacts.where('record_type').equals('plan').count();
     const shoppingListsCount = await this.getDB().shoppingLists.count();
     const shoppingListItemsCount = await this.getDB().shoppingListItems.count();
     const financialCentersCount = await this.getDB().financialCenters.count();
@@ -974,7 +976,8 @@ export class DexieManager {
         financial_centers: financialCentersCount,
         cost_centers: costCentersCount,
         facts: factsCount,
-        plans: recurringPlansCount,
+        plans: plansCount,              // regular plans (record_type='plan') from budgetFacts
+        recurringPlans: recurringPlansCount, // from recurringPlans table (v11.6.1+)
         stores: storesCount,
         productGroups: productGroupsCount,
         shoppingLists: shoppingListsCount,

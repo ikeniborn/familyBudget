@@ -33,11 +33,12 @@ interface DiagnosticData {
     financial_centers: number;
     cost_centers: number;
     facts: number;
-    plans: number;
-    stores: number;           // v11.4.2+
-    productGroups: number;    // v11.4.2+
-    shoppingLists: number;    // v11.4.2+
-    shoppingListItems?: number; // v11.4.2+
+    plans: number;               // regular plans (record_type='plan') from budgetFacts
+    recurringPlans?: number;     // recurring plans from recurringPlans table (v11.6.1+)
+    stores: number;              // v11.4.2+
+    productGroups: number;       // v11.4.2+
+    shoppingLists: number;       // v11.4.2+
+    shoppingListItems?: number;  // v11.4.2+
   };
   syncStatus: 'error' | 'idle' | 'syncing';
   performance: {
@@ -294,8 +295,10 @@ export class DexieDiagnosticModal extends BaseModal {
    * @returns true if warning should be shown
    */
   private shouldShowPlansSyncWarning(data: DiagnosticData): boolean {
-    // If plans count > 0, no warning needed
-    if (data.tableStats.plans > 0) {
+    // If recurring plans count > 0, no warning needed
+    // Use recurringPlans if available (v11.6.1+), fallback to plans for backward compat
+    const recurringCount = data.tableStats.recurringPlans ?? data.tableStats.plans;
+    if (recurringCount > 0) {
       return false;
     }
 
@@ -398,7 +401,11 @@ export class DexieDiagnosticModal extends BaseModal {
             </tr>
             <tr>
               <td>Plans</td>
-              <td>${data.tableStats.plans}</td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(record_type=plan)</span></td>
+            </tr>
+            <tr>
+              <td>└ Recurring Plans</td>
+              <td>${data.tableStats.recurringPlans ?? '—'}</td>
             </tr>
             <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
             <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
