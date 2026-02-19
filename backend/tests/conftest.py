@@ -27,6 +27,56 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 from backend.app.services.jwt import create_access_token
 
+# Tables to clean, ordered leaf → parent (FK-safe). Used in fixtures below.
+_CLEANUP_TABLES = [
+    "t_scheduled_reminder",
+    "t_f_budget_fact_history",
+    "t_f_refresh_token",
+    "t_notification",
+    "t_f_budget_fact",
+    "t_f_shopping_list_item",
+    "t_f_shopping_list",
+    "t_d_recurring_plan",
+    "t_import_staging",
+    "t_import_file_upload",
+    "t_import_column_mapping",
+    "t_d_import_template",
+    "t_article_usage_stats",
+    "t_d_article_hierarchy",
+    "t_article_financial_center",
+    "t_d_article_version_link",
+    "t_d_article_history",
+    "t_d_product_group_hierarchy",
+    "t_d_product_group_history",
+    "t_agg_financial_center_balance_monthly",
+    "t_d_financial_center_history",
+    "t_d_financial_center_version_link",
+    "t_cost_center_financial_center",
+    "t_d_cost_center_history",
+    "t_d_cost_center_version_link",
+    "t_d_financial_center",
+    "t_d_cost_center",
+    "t_d_article",
+    "t_d_product_group",
+    "t_d_store_history",
+    "t_d_store",
+    "t_user_consent",
+    "t_push_subscription",
+    "t_2fa_session",
+    "t_f_webauthn_audit_log",
+    "t_f_webauthn_challenge",
+    "t_d_webauthn_credential",
+    "t_d_user_history",
+    "t_d_user",
+]
+# Single PL/pgSQL block: skips tables that don't exist (handles schema differences)
+_CLEANUP_SQL = "DO $$ BEGIN\n" + "\n".join(
+    f"  IF EXISTS (SELECT FROM information_schema.tables "
+    f"WHERE table_schema='public' AND table_name='{t}') "
+    f"THEN DELETE FROM {t}; END IF;"
+    for t in _CLEANUP_TABLES
+) + "\nEND $$;"
+
 _db_host = os.getenv("POSTGRES_HOST", "localhost")
 _db_port = os.getenv("POSTGRES_PORT", "5433")
 _db_name = os.getenv("POSTGRES_DB", "familybudget_test")
@@ -41,50 +91,12 @@ async def _clean_database_before_session() -> None:
 
     Handles dirty state from previous CI/CD runs that were killed before
     post-test cleanup could complete. Runs automatically before any test.
+    Uses IF EXISTS to handle schema differences across environments.
     """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     try:
         async with engine.begin() as conn:
-            # Same order as post-test cleanup in session fixture (leaf → parent)
-            await conn.execute(text("DELETE FROM t_scheduled_reminder"))
-            await conn.execute(text("DELETE FROM t_f_budget_fact_history"))
-            await conn.execute(text("DELETE FROM t_f_refresh_token"))
-            await conn.execute(text("DELETE FROM t_notification"))
-            await conn.execute(text("DELETE FROM t_f_budget_fact"))
-            await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
-            await conn.execute(text("DELETE FROM t_f_shopping_list"))
-            await conn.execute(text("DELETE FROM t_d_recurring_plan"))
-            await conn.execute(text("DELETE FROM t_import_staging"))
-            await conn.execute(text("DELETE FROM t_import_file_upload"))
-            await conn.execute(text("DELETE FROM t_import_column_mapping"))
-            await conn.execute(text("DELETE FROM t_d_import_template"))
-            await conn.execute(text("DELETE FROM t_article_usage_stats"))
-            await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
-            await conn.execute(text("DELETE FROM t_article_financial_center"))
-            await conn.execute(text("DELETE FROM t_d_article_version_link"))
-            await conn.execute(text("DELETE FROM t_d_article_history"))
-            await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
-            await conn.execute(text("DELETE FROM t_d_product_group_history"))
-            await conn.execute(text("DELETE FROM t_agg_financial_center_balance_monthly"))
-            await conn.execute(text("DELETE FROM t_d_financial_center_history"))
-            await conn.execute(text("DELETE FROM t_d_financial_center_version_link"))
-            await conn.execute(text("DELETE FROM t_cost_center_financial_center"))
-            await conn.execute(text("DELETE FROM t_d_cost_center_history"))
-            await conn.execute(text("DELETE FROM t_d_cost_center_version_link"))
-            await conn.execute(text("DELETE FROM t_d_financial_center"))
-            await conn.execute(text("DELETE FROM t_d_cost_center"))
-            await conn.execute(text("DELETE FROM t_d_article"))
-            await conn.execute(text("DELETE FROM t_d_product_group"))
-            await conn.execute(text("DELETE FROM t_d_store_history"))
-            await conn.execute(text("DELETE FROM t_d_store"))
-            await conn.execute(text("DELETE FROM t_user_consent"))
-            await conn.execute(text("DELETE FROM t_push_subscription"))
-            await conn.execute(text("DELETE FROM t_2fa_session"))
-            await conn.execute(text("DELETE FROM t_f_webauthn_audit_log"))
-            await conn.execute(text("DELETE FROM t_f_webauthn_challenge"))
-            await conn.execute(text("DELETE FROM t_d_webauthn_credential"))
-            await conn.execute(text("DELETE FROM t_d_user_history"))
-            await conn.execute(text("DELETE FROM t_d_user"))
+            await conn.execute(text(_CLEANUP_SQL))
     finally:
         await engine.dispose()
 
@@ -139,72 +151,9 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 
     # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
+    # Uses PL/pgSQL IF EXISTS to handle schema differences across environments
     async with engine.begin() as conn:
-        # Delete in correct order to handle FK constraints (leaf tables first)
-        # Note: Could use SET CONSTRAINTS ALL DEFERRED, but DELETE is more portable
-
-        # --- Fact/transaction tables (no children referencing them) ---
-        await conn.execute(text("DELETE FROM t_scheduled_reminder"))  # no FK deps
-        await conn.execute(text("DELETE FROM t_f_budget_fact_history"))  # no FK constraint on fact_id
-        await conn.execute(text("DELETE FROM t_f_refresh_token"))
-        await conn.execute(text("DELETE FROM t_notification"))
-        await conn.execute(text("DELETE FROM t_f_budget_fact"))
-
-        # --- Shopping list hierarchy ---
-        await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
-        await conn.execute(text("DELETE FROM t_f_shopping_list"))
-
-        # --- Recurring plans (FK to article, financial_center, cost_center, user) ---
-        await conn.execute(text("DELETE FROM t_d_recurring_plan"))
-
-        # --- Import tables (leaf → parent) ---
-        await conn.execute(text("DELETE FROM t_import_staging"))
-        await conn.execute(text("DELETE FROM t_import_file_upload"))
-        await conn.execute(text("DELETE FROM t_import_column_mapping"))
-        await conn.execute(text("DELETE FROM t_d_import_template"))
-
-        # --- Article hierarchy (usage stats + hierarchy before article) ---
-        await conn.execute(text("DELETE FROM t_article_usage_stats"))
-        await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
-        await conn.execute(text("DELETE FROM t_article_financial_center"))
-        await conn.execute(text("DELETE FROM t_d_article_version_link"))
-        await conn.execute(text("DELETE FROM t_d_article_history"))
-
-        # --- Product group hierarchy ---
-        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
-        await conn.execute(text("DELETE FROM t_d_product_group_history"))
-
-        # --- Financial center (aggregates + history + version links before FC) ---
-        await conn.execute(text("DELETE FROM t_agg_financial_center_balance_monthly"))
-        await conn.execute(text("DELETE FROM t_d_financial_center_history"))
-        await conn.execute(text("DELETE FROM t_d_financial_center_version_link"))
-        await conn.execute(text("DELETE FROM t_cost_center_financial_center"))
-
-        # --- Cost center (history + version links before CC) ---
-        await conn.execute(text("DELETE FROM t_d_cost_center_history"))
-        await conn.execute(text("DELETE FROM t_d_cost_center_version_link"))
-
-        # --- Dimension tables ---
-        await conn.execute(text("DELETE FROM t_d_financial_center"))
-        await conn.execute(text("DELETE FROM t_d_cost_center"))
-        await conn.execute(text("DELETE FROM t_d_article"))
-        await conn.execute(text("DELETE FROM t_d_product_group"))
-
-        # --- Store history before store ---
-        await conn.execute(text("DELETE FROM t_d_store_history"))
-        await conn.execute(text("DELETE FROM t_d_store"))
-
-        # --- User-dependent tables (must be before t_d_user) ---
-        await conn.execute(text("DELETE FROM t_user_consent"))
-        await conn.execute(text("DELETE FROM t_push_subscription"))
-        await conn.execute(text("DELETE FROM t_2fa_session"))
-        await conn.execute(text("DELETE FROM t_f_webauthn_audit_log"))
-        await conn.execute(text("DELETE FROM t_f_webauthn_challenge"))
-        await conn.execute(text("DELETE FROM t_d_webauthn_credential"))
-        await conn.execute(text("DELETE FROM t_d_user_history"))
-
-        # --- User table (last — referenced by all above) ---
-        await conn.execute(text("DELETE FROM t_d_user"))
+        await conn.execute(text(_CLEANUP_SQL))
 
 
 # Cleanup is now handled by session fixture teardown (see above)
