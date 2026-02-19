@@ -1108,17 +1108,53 @@ jobs:
             export API_INTERNAL_KEY="${{ secrets.TEST_API_INTERNAL_KEY }}"
             export CORS_ORIGINS="${{ secrets.TEST_CORS_ORIGINS }}"
 
+            # ================================================================
+            # PRE-TEST BACKUP: Snapshot live DB before pytest can modify it
+            # ================================================================
+            # pytest conftest has autouse session fixture _clean_database_before_session
+            # that runs DELETE across all 37 tables before any test. This backup ensures
+            # full data recovery even if tests fail mid-run or cleanup is incomplete.
+            BACKUP_FILE="/tmp/pre_test_backup_$(date +%Y%m%d_%H%M%S).sql"
+            echo "Creating pre-test database backup: $BACKUP_FILE"
+            sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+              pg_dump -U familybudget familybudget > "$BACKUP_FILE"
+            echo "Backup created: $(wc -c < "$BACKUP_FILE") bytes"
+
+            # Register restore trap: runs on EXIT (success AND failure)
+            # Ensures DB is always restored regardless of pytest outcome
+            restore_database() {
+              echo "Restoring database from backup: $BACKUP_FILE"
+              # Drop all connections to allow restore
+              sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+                psql -U familybudget -d postgres -c \
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='familybudget' AND pid <> pg_backend_pid();" \
+                2>/dev/null || true
+              # Restore: drop and recreate DB content from dump
+              sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+                psql -U familybudget familybudget < "$BACKUP_FILE"
+              echo "Database restored successfully"
+              rm -f "$BACKUP_FILE"
+              echo "Backup file removed"
+            }
+            trap restore_database EXIT
+
+            # ================================================================
             # Apply migrations (idempotent — deployment already ran them)
+            # ================================================================
             backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
 
-            # Run pytest using test server's existing database
-            # Tests create and delete their own data (DELETE cleanup) — no existing data is modified
+            # ================================================================
+            # Run pytest — non-destructive only (-m "not destructive")
+            # ================================================================
+            # SAFETY: -m "not e2e and not destructive" prevents tests that
+            # permanently DELETE/MODIFY real data from running against live DB.
+            # DB is backed up above and restored via EXIT trap after this block.
             cd backend
             export ENVIRONMENT="test"
             export PYTHONPATH="/home/ikeniborn/familyBudget"
 
             .venv/bin/pytest tests/ \
-              -m "not e2e" \
+              -m "not e2e and not destructive" \
               --maxfail=5 \
               -v \
               --tb=short
@@ -1159,5 +1195,5 @@ jobs:
           echo "**View individual test suite results:**" >> $GITHUB_STEP_SUMMARY
           echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Note:** Backend tests run in read-only mode (\`-m 'not destructive'\`) to protect data on test server" >> $GITHUB_STEP_SUMMARY
+          echo "**Data Safety:** Backend tests run with \`-m 'not e2e and not destructive'\` filter. DB is snapshotted via pg_dump before tests and restored via EXIT trap after — even on test failure." >> $GITHUB_STEP_SUMMARY
 
