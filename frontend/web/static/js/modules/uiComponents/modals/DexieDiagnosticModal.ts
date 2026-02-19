@@ -19,6 +19,23 @@ import { getDexieManager } from '@db/dexie';
 import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
 import { logger } from '@db/dexie/utils/logger';
 
+/**
+ * Resolve getDexieManager dynamically to handle the dexie-diagnostic.min.js bundle issue
+ * where @db/dexie is external and mapped to window.Dexie (which is null at load time).
+ * Falls back to window.Dexie.getDexieManager() at call time when window.Dexie is ready.
+ */
+function resolveDexieManager(): ReturnType<typeof getDexieManager> {
+  try {
+    return getDexieManager();
+  } catch {
+    const dexie = (window as any).Dexie;
+    if (dexie && typeof dexie.getDexieManager === 'function') {
+      return dexie.getDexieManager();
+    }
+    throw new Error('[DexieDiagnosticModal] getDexieManager not available (window.Dexie not initialized)');
+  }
+}
+
 // TODO: Move these types to @db/dexie when getDiagnosticData is implemented
 interface DiagnosticData {
   initializationStatus: string;
@@ -130,7 +147,7 @@ export class DexieDiagnosticModal extends BaseModal {
 
     try {
       // getDexieManager() returns Promise due to window.Dexie Proxy
-      const pglite = await getDexieManager();
+      const pglite = await resolveDexieManager();
 
       // Wait for Dexie initialization (with timeout)
       const maxWaitMs = 30000; // 30 seconds (increased from 10)
@@ -313,7 +330,7 @@ export class DexieDiagnosticModal extends BaseModal {
     try {
       logger.info('[DIAGNOSTIC] Retrying Plans sync...');
 
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
 
       // Get userId from window context (same as DexieManager.syncReferenceData)
       let userId: number | undefined;
@@ -634,7 +651,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodFacts(days: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodDays(days);
       this.updateSyncPeriodFactsDisplay(days);
 
@@ -663,7 +680,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodPlans(months: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodMonths(months);
       this.updateSyncPeriodPlansDisplay(months);
 
@@ -689,7 +706,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodPlansHistory(months: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodPlansHistory(months);
       this.updateSyncPeriodPlansHistoryDisplay(months);
 
@@ -715,7 +732,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodPlansFuture(months: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodPlansFuture(months);
       this.updateSyncPeriodPlansFutureDisplay(months);
 

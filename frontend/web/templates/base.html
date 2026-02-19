@@ -1142,16 +1142,22 @@
         let clickTimer = null;
 
         wrapper.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
             clickCount++;
+
+            console.debug('[WS_INDICATOR] click', clickCount, '/', PENTA_CLICK_COUNT);
 
             if (clickCount === 1) {
                 clickTimer = setTimeout(function() { clickCount = 0; }, CLICK_RESET_TIMEOUT_MS);
             } else if (clickCount === PENTA_CLICK_COUNT) {
                 if (clickTimer) clearTimeout(clickTimer);
                 clickCount = 0;
+                console.debug('[WS_INDICATOR] 5-click detected, opening Dexie diagnostics...');
                 if (typeof window.openDexieDiagnostic === 'function') {
                     window.openDexieDiagnostic();
+                } else {
+                    console.error('[WS_INDICATOR] window.openDexieDiagnostic not available');
                 }
             }
         });
