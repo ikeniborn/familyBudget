@@ -348,7 +348,7 @@ export async function syncPlans(
     }
 
     const data = await response.json();
-    const plans = (data.items || data) as LocalBudgetFact[];
+    const plans = (data.facts || data.items || []) as LocalBudgetFact[];
 
     // Convert amounts to cents before storing
     const plansWithCents = plans.map((plan: LocalBudgetFact) => ({
