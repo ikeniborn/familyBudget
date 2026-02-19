@@ -614,7 +614,9 @@ export class DexieManager {
       throw new Error('[DexieManager] Internal error: userId is undefined after resolution');
     }
 
-    const result = await initialReferenceSync(effectiveUserId);
+    const historyMonths = this.getSyncPeriodPlansHistory?.() ?? this.getSyncPeriodMonths?.() ?? 3;
+    const futureMonths = this.getSyncPeriodPlansFuture?.() ?? this.getSyncPeriodMonths?.() ?? 3;
+    const result = await initialReferenceSync(effectiveUserId, historyMonths, futureMonths);
 
     if (!result.success) {
       const failedSyncs = Object.entries(result.results)

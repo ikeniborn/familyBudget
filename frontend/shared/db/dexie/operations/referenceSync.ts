@@ -18,6 +18,7 @@ import type {
   LocalCostCenter,
   LocalArticleHierarchy,
   LocalRecurringPlan,
+  LocalBudgetFact,
   LocalSyncMetadata
 } from '../types/models';
 
@@ -296,12 +297,99 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
 
 
 /**
- * Sync recurring plans from server (v11.5.0+)
- * Supports sync period filtering via from_date/to_date
+ * Calculate date range for full months
  *
- * v11.4.2: Removed due to 422 error
- * v11.4.6: Restored with confirmed working endpoint
- * v11.5.0: Changed to month-based period (full months calculation)
+ * @param historyMonths - Months into the past (from start of month)
+ * @param futureMonths  - Months into the future (to end of month)
+ * @returns Object with fromDate and toDate in YYYY-MM-DD format
+ */
+function calculatePlansRange(historyMonths: number, futureMonths: number): { fromDate: string; toDate: string } {
+  const today = new Date();
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const fromDate = new Date(today.getFullYear(), today.getMonth() - historyMonths, 1);
+  const toDate = new Date(today.getFullYear(), today.getMonth() + futureMonths + 1, 0);
+  return { fromDate: formatDate(fromDate), toDate: formatDate(toDate) };
+}
+
+/**
+ * Sync regular plans (record_type='plan') from server
+ * Uses historyMonths/futureMonths date window to control scope
+ *
+ * v11.6.0: Added to complement syncRecurringPlans for offline plan access
+ */
+export async function syncPlans(
+  userId: number,
+  historyMonths: number = 3,
+  futureMonths: number = 3
+): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing plans...', { userId, historyMonths, futureMonths });
+
+  try {
+    const { fromDate, toDate } = calculatePlansRange(historyMonths, futureMonths);
+    const params = new URLSearchParams({
+      record_type: 'plan',
+      date_from: fromDate,
+      date_to: toDate,
+      limit: '500'
+    });
+
+    const response = await fetchWithTimeout(`/api/v1/facts?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const plans = (data.items || data) as LocalBudgetFact[];
+
+    // Convert amounts to cents before storing
+    const plansWithCents = plans.map((plan: LocalBudgetFact) => ({
+      ...plan,
+      amount: toCents(plan.amount)
+    }));
+
+    // Replace server-synced plans in the date window; preserve pending/conflict local records
+    await db.transaction('rw', db.budgetFacts, async () => {
+      await db.budgetFacts
+        .where('[user_id+date]')
+        .between([userId, fromDate], [userId, toDate + '\uffff'])
+        .filter((f: LocalBudgetFact) =>
+          f.record_type === 'plan' &&
+          (f.sync_status === 'synced' || f.sync_status === 'deleted')
+        )
+        .delete();
+
+      if (plansWithCents.length > 0) {
+        await db.budgetFacts.bulkPut(plansWithCents);
+      }
+    });
+
+    await updateSyncMetadata('plans', plans.length);
+
+    logger.info('[referenceSync] ✅ Plans synced', { count: plans.length, fromDate, toDate });
+    return { success: true, count: plans.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Plans sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
+ * Sync recurring plans from server (v11.5.0+)
+ * Note: /api/v1/recurring-plans does NOT support date filtering (422 if date params sent)
+ * Fetches all active recurring plans without a date window.
+ *
+ * v11.4.2: Date filter removed — endpoint returned 422 with date params
+ * v11.4.6: Restored with confirmed working endpoint (no date params)
+ * v11.6.0: No date filter; regular plans synced separately via syncPlans()
  */
 export async function syncRecurringPlans(
   userId: number
@@ -322,25 +410,6 @@ export async function syncRecurringPlans(
     });
 
     if (!response.ok) {
-      // Enhanced logging for 422 errors
-      if (response.status === 422) {
-        try {
-          const errorData = await response.json();
-          logger.error('[referenceSync] ❌ Recurring plans sync failed: Invalid params', {
-            status: response.status,
-            from_date: params.get('from_date'),
-            to_date: params.get('to_date'),
-            error: errorData
-          });
-        } catch {
-          // If response is not JSON, log basic info
-          logger.error('[referenceSync] ❌ Recurring plans 422 error (non-JSON response)', {
-            status: response.status,
-            from_date: params.get('from_date'),
-            to_date: params.get('to_date')
-          });
-        }
-      }
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
@@ -377,24 +446,28 @@ export async function syncRecurringPlans(
  * v11.4.3: Restored shoppingLists (transactional data for offline /lists)
  * v11.4.6: Restored recurringPlans (proactive sync with working endpoint)
  * v11.5.0: Changed recurringPlans to month-based sync (3 months default)
+ * v11.6.0: Added syncPlans for regular plans (record_type='plan') with date window
  */
 export async function initialReferenceSync(
-  userId: number
+  userId: number,
+  historyMonths: number = 3,
+  futureMonths: number = 3
 ): Promise<{
   success: boolean;
   results: Record<string, { success: boolean; count: number }>;
 }> {
-  logger.info('[referenceSync] Starting initial sync...', { userId });
+  logger.info('[referenceSync] Starting initial sync...', { userId, historyMonths, futureMonths });
 
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
-    stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
-    productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
+    stores: await syncStores(),                      // v11.4.2+ (global reference data, no userId)
+    productGroups: await syncProductGroups(),         // v11.4.2+ (global reference data, no userId)
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
-    recurringPlans: await syncRecurringPlans(userId)  // v11.6.0: No date filter - fetch all active plans
+    plans: await syncPlans(userId, historyMonths, futureMonths),  // v11.6.0: regular plans with date window
+    recurringPlans: await syncRecurringPlans(userId) // v11.6.0: all active recurring plans (no date filter)
   };
 
   // Critical syncs (required for app to work)
@@ -402,7 +475,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'recurringPlans'];
+  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'plans', 'recurringPlans'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);
