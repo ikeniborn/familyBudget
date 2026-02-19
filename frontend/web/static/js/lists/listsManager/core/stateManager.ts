@@ -53,6 +53,22 @@ declare global {
 // ============================================================================
 
 /**
+ * Generate stable negative numeric ID from UUID temp_id
+ * Used when items don't have a server ID yet (pending sync)
+ * Negative to avoid collisions with real server IDs (which are positive)
+ */
+function tempIdToVirtualId(tempId: string): number {
+  // FNV-1a hash: fast, good distribution for UUIDs
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < tempId.length; i++) {
+    hash ^= tempId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  // Return as negative integer (range: -1 to -2147483647)
+  return -(hash >>> 0 || 1);
+}
+
+/**
  * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
  *
  * Handles both PGlite records (without stats) and API responses (with stats).
@@ -97,7 +113,7 @@ function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): 
  */
 function convertShoppingListItem(local: LocalShoppingListItem, listId: number): ShoppingItem {
   return {
-    id: local.id || 0,
+    id: local.id ?? tempIdToVirtualId(local.temp_id),
     list_id: listId,
     temp_id: local.temp_id,         // Preserve PGlite temp_id for write operations (task-015 Phase 4)
     product_name: local.product_name,

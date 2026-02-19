@@ -269,11 +269,21 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
     const data = await response.json();
     const lists = data.shopping_lists || [];
 
-    // Transform API data: id → temp_id mapping for Dexie schema compatibility
+    // CRITICAL FIX: Preserve existing temp_ids for lists already in Dexie
+    // If a list was created locally (UUID temp_id), we must keep that UUID
+    // so that shopping_list_items (keyed by temp_id) remain findable
+    const existingListsInDexie = await db.shoppingLists.where('creator_id').equals(userId).toArray();
+    const existingTempIdByServerId = new Map<number, string>(
+      existingListsInDexie
+        .filter(l => l.id != null)
+        .map(l => [l.id!, l.temp_id])
+    );
+
+    // Transform API data: preserve existing temp_id if list already exists locally
     const transformedLists = lists.map((list: any) => ({
       ...list,
-      temp_id: list.id?.toString() || list.temp_id,  // Use server ID as temp_id if missing
-      creator_id: list.creator_id || userId,          // Fallback to current user
+      temp_id: existingTempIdByServerId.get(list.id) || list.temp_id || list.id?.toString(),
+      creator_id: list.creator_id || userId,
       is_active: list.is_active ?? true,
       sync_status: 'synced',
       synced_at: new Date(),
@@ -281,7 +291,7 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
       updated_at: list.updated_at ? new Date(list.updated_at) : new Date()
     }));
 
-    // Clear existing user's lists
+    // Clear existing user's lists (after preserving temp_ids)
     await db.shoppingLists.where('creator_id').equals(userId).delete();
 
     // Bulk insert
@@ -314,10 +324,11 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         const itemsData = await itemsResponse.json();
         const items = itemsData.items || [];
 
-        // Clear existing items for this list (keyed by shopping_list_temp_id)
+        // Clear only SYNCED items for this list (preserve pending/unsent items)
         await db.shoppingListItems
           .where('shopping_list_temp_id')
           .equals(list.temp_id)
+          .filter(item => item.sync_status === 'synced')
           .delete();
 
         // Transform and store items
@@ -533,6 +544,16 @@ export async function initialReferenceSync(
   results: Record<string, { success: boolean; count: number }>;
 }> {
   logger.info('[referenceSync] Starting initial sync...', { userId, historyMonths, futureMonths });
+
+  // Upload pending shopping items BEFORE downloading (prevents data loss on cache refresh)
+  try {
+    const { uploadPendingShoppingOperations, uploadPendingShoppingLists } = await import('./shoppingSync');
+    await uploadPendingShoppingLists();
+    await uploadPendingShoppingOperations();
+    logger.info('[referenceSync] Pending shopping operations uploaded before sync');
+  } catch (uploadError) {
+    logger.warn('[referenceSync] Failed to upload pending shopping operations (continuing sync)', uploadError);
+  }
 
   const results = {
     articles: await syncArticles(userId),

@@ -564,7 +564,7 @@
             <!-- Dexie Status Indicator (Database Icon + Status Dot) -->
             <div id="dexie-indicator-wrapper"
                  class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
-                 data-tip="Локальная БД (Dexie)">
+                 data-tip="Локальная БД · нажмите 3× для диагностики">
                 <div class="relative flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200 transition-colors">
                     <!-- Active State: Green Database Icon -->
                     <div id="dexie-icon-active" class="flex items-center gap-1.5">
@@ -652,8 +652,8 @@
             </div>
 
             <!-- Budget WebSocket Status Indicator (real-time sync status) -->
-            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
-                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center cursor-pointer" data-tip="Онлайн синхронизация · нажмите 5× для диагностики">
+                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус онлайн синхронизации">
                     <span class="loading loading-ring loading-xs sm:loading-sm"></span>
                 </span>
             </div>
@@ -1129,6 +1129,34 @@
     {% include 'scripts/dexie-indicator-manager.html' %}
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
+
+    <!-- WS Indicator: 5-click opens Dexie diagnostics -->
+    <script>
+    (function setupWSPentaClickDiagnostics() {
+        const wrapper = document.getElementById('budget-sse-status-wrapper');
+        if (!wrapper) return;
+
+        const CLICK_RESET_TIMEOUT_MS = 800;
+        const PENTA_CLICK_COUNT = 5;
+        let clickCount = 0;
+        let clickTimer = null;
+
+        wrapper.addEventListener('click', function(e) {
+            e.stopPropagation();
+            clickCount++;
+
+            if (clickCount === 1) {
+                clickTimer = setTimeout(function() { clickCount = 0; }, CLICK_RESET_TIMEOUT_MS);
+            } else if (clickCount === PENTA_CLICK_COUNT) {
+                if (clickTimer) clearTimeout(clickTimer);
+                clickCount = 0;
+                if (typeof window.openDexieDiagnostic === 'function') {
+                    window.openDexieDiagnostic();
+                }
+            }
+        });
+    })();
+    </script>
     {% endif %}
 
     {% if user %}

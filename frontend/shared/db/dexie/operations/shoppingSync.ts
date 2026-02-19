@@ -67,22 +67,46 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
   let endpoint: string;
   let method: string;
 
+  // Resolve server shopping_list_id from Dexie (needed for POST)
+  let shoppingListServerId: number | null = null;
+  if (item.id === null) {
+    const list = await db.shoppingLists.where('temp_id').equals(item.shopping_list_temp_id).first();
+    shoppingListServerId = list?.id ?? null;
+    if (!shoppingListServerId) {
+      throw new Error(`Cannot upload item: shopping list not yet synced (temp_id: ${item.shopping_list_temp_id})`);
+    }
+  }
+
   if (item.id === null) {
     // Create
-    endpoint = '/api/v1/shopping-items';
+    endpoint = '/api/v1/shopping-list-items';
     method = 'POST';
   } else {
     // Update
-    endpoint = `/api/v1/shopping-items/${item.id}`;
+    endpoint = `/api/v1/shopping-list-items/${item.id}`;
     method = 'PUT';
   }
+
+  // Send only API-compatible fields (exclude Dexie-specific metadata)
+  const apiPayload = {
+    shopping_list_id: shoppingListServerId,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    unit: item.unit,
+    comment: item.comment,
+    store_id: item.store_id,
+    product_group_id: item.product_group_id,
+    position: item.position,
+    is_completed: item.is_completed,
+    completed_at: item.completed_at
+  };
 
   const response = await fetchWithTimeout(endpoint, {
     method,
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(item),
+    body: JSON.stringify(apiPayload),
     credentials: 'include'
   });
 

@@ -63,12 +63,6 @@ interface DiagnosticData {
     plansHistory: number;
     plansFuture: number;
   };
-  websocket?: {
-    connected: boolean;
-    state: string;
-    enabled: boolean;
-    offlineMode: boolean;
-  };
   syncMetadata?: {
     recurring_plans?: {
       last_sync_timestamp: Date | null;
@@ -188,9 +182,6 @@ export class DexieDiagnosticModal extends BaseModal {
 
       const baseData = await pglite.getDiagnosticData();
 
-      // Add WebSocket diagnostics (v11.4.0+)
-      const budgetWSClient = (window as any).budgetWSClient;
-
       // Load conflict metrics (task-009)
       try {
         this.conflictMetrics = await pglite.getConflictMetrics();
@@ -211,14 +202,6 @@ export class DexieDiagnosticModal extends BaseModal {
       // Build complete diagnostic data object
       const data: DiagnosticData = {
         ...baseData,
-        websocket: {
-          connected: budgetWSClient?.ws?.readyState === 1,  // WebSocket.OPEN = 1
-          state: budgetWSClient?.ws
-            ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][budgetWSClient.ws.readyState]
-            : 'NO_SOCKET',
-          enabled: budgetWSClient?.enabled ?? false,
-          offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? localStorage.getItem('budget_auto_offline_mode') === 'true'
-        },
         syncMetadata: {
           recurring_plans: plansSyncMetadata ? {
             last_sync_timestamp: plansSyncMetadata.last_sync_timestamp,
@@ -451,14 +434,12 @@ export class DexieDiagnosticModal extends BaseModal {
 
       ${this.renderConflictMetrics()}
 
-      ${this.renderWebSocketDiagnostics(data)}
-
       <!-- Sync Period Controls (v11.5.0+) -->
       <div class="mb-3">
         <h3 class="text-xs font-semibold mb-2">Sync Period (Offline Data Retention)</h3>
 
         <!-- Facts Slider (Days) -->
-        <div class="form-control mb-3">
+        <div class="form-control mb-3" style="min-height: 80px;">
           <label class="label">
             <span class="label-text text-xs">Facts retention (days):</span>
           </label>
@@ -477,7 +458,7 @@ export class DexieDiagnosticModal extends BaseModal {
         </div>
 
         <!-- Plans History Slider (months back) -->
-        <div class="form-control mb-3">
+        <div class="form-control mb-3" style="min-height: 80px;">
           <label class="label">
             <span class="label-text text-xs">Plans history (months back):</span>
           </label>
@@ -496,7 +477,7 @@ export class DexieDiagnosticModal extends BaseModal {
         </div>
 
         <!-- Plans Future Slider (months ahead) -->
-        <div class="form-control">
+        <div class="form-control mb-3" style="min-height: 80px;">
           <label class="label">
             <span class="label-text text-xs">Plans future (months ahead):</span>
           </label>
@@ -637,36 +618,6 @@ export class DexieDiagnosticModal extends BaseModal {
     `;
   }
 
-  /**
-   * Render WebSocket diagnostics (v11.4.0+)
-   */
-  private renderWebSocketDiagnostics(data: DiagnosticData): string {
-    if (!data.websocket) {
-      return '';
-    }
-
-    const ws = data.websocket;
-    const stateClass = ws.connected ? 'text-success' : 'text-error';
-    const stateIcon = ws.connected ? '✓' : '✗';
-
-    return `
-      <!-- WebSocket Diagnostics (v11.4.0+) -->
-      <div class="overflow-x-auto mb-3">
-        <table class="table table-xs table-zebra w-full">
-          <thead><tr><th class="text-xs">WebSocket</th><th class="text-xs">Value</th></tr></thead>
-          <tbody class="text-xs">
-            <tr>
-              <td>Connection</td>
-              <td class="${stateClass}">${stateIcon} ${ws.connected ? 'Connected' : 'Disconnected'}</td>
-            </tr>
-            <tr><td>State</td><td>${ws.state}</td></tr>
-            <tr><td>Enabled</td><td>${ws.enabled ? 'Yes' : 'No'}</td></tr>
-            <tr><td>Offline Mode</td><td>${ws.offlineMode ? 'Active' : 'Inactive'}</td></tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
 
   /**
    * Update Facts sync period display (real-time slider feedback) (v11.5.0+)
