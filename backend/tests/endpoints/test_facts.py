@@ -222,7 +222,7 @@ async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSes
             user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=date(2025, 10, i + 1),
-            amount=Decimal(f"{i * 10}.00"),
+            amount=Decimal(f"{(i + 1) * 10}.00"),  # Start from 10 to avoid amount=0
         )
         session.add(fact)
     await session.commit()
@@ -306,14 +306,14 @@ async def test_list_facts_filter_by_article(
 
 @pytest.mark.asyncio
 async def test_list_facts_ordered_by_date_desc(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User
 ):
     """Test facts are ordered by date descending (newest first)."""
     # Create facts with different dates
     dates = [date(2025, 10, 1), date(2025, 10, 15), date(2025, 10, 30)]
     for d in dates:
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=d,
             amount=Decimal("100.00"),
@@ -335,12 +335,12 @@ async def test_list_facts_ordered_by_date_desc(
 
 @pytest.mark.asyncio
 async def test_list_facts_user_isolation(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_admin: User
 ):
     """Test that regular user only sees their own facts."""
-    # Create fact for another user
+    # Create fact for another user (admin, which is a real user in the DB)
     other_fact = BudgetFact(
-        user_id=999,  # Different user
+        user_id=test_admin.id,  # Different user
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
@@ -355,23 +355,24 @@ async def test_list_facts_user_isolation(
     data = response.json()
     # Should not include other user's facts
     user_ids = {fact["user_id"] for fact in data["facts"]}
-    assert 999 not in user_ids
+    assert test_admin.id not in user_ids
 
 
 @pytest.mark.asyncio
 async def test_list_facts_admin_sees_all(
-    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article,
+    test_user: User, test_admin: User
 ):
     """Test that admin sees facts from all users."""
-    # Create facts for different users
+    # Create facts for different users (use real user IDs from fixtures)
     fact1 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     fact2 = BudgetFact(
-        user_id=999,
+        user_id=test_admin.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("200.00"),
@@ -387,7 +388,7 @@ async def test_list_facts_admin_sees_all(
     data = response.json()
     # Admin should see facts from all users
     user_ids = {fact["user_id"] for fact in data["facts"]}
-    assert 1 in user_ids or 999 in user_ids  # At least some facts visible
+    assert test_user.id in user_ids or test_admin.id in user_ids
 
 
 @pytest.mark.asyncio
@@ -405,18 +406,19 @@ async def test_list_facts_unauthenticated(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_facts_summary_basic(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_global_article: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article,
+    test_global_article: Article, test_user: User
 ):
     """Test getting facts summary with income/expense totals."""
     # Create income and expense facts
     expense_fact = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,  # expense type
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     income_fact = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_global_article.id,  # income type
         fact_date=date(2025, 10, 13),
         amount=Decimal("500.00"),
