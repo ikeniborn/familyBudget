@@ -34,6 +34,61 @@ _default_url = f"postgresql+asyncpg://familybudget:test_password_123456789012345
 TEST_DATABASE_URL = os.getenv("DATABASE_URL", _default_url)
 
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _clean_database_before_session() -> None:
+    """
+    Clean database once at the very start of the test session.
+
+    Handles dirty state from previous CI/CD runs that were killed before
+    post-test cleanup could complete. Runs automatically before any test.
+    """
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            # Same order as post-test cleanup in session fixture (leaf → parent)
+            await conn.execute(text("DELETE FROM t_scheduled_reminder"))
+            await conn.execute(text("DELETE FROM t_f_budget_fact_history"))
+            await conn.execute(text("DELETE FROM t_f_refresh_token"))
+            await conn.execute(text("DELETE FROM t_notification"))
+            await conn.execute(text("DELETE FROM t_f_budget_fact"))
+            await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
+            await conn.execute(text("DELETE FROM t_f_shopping_list"))
+            await conn.execute(text("DELETE FROM t_d_recurring_plan"))
+            await conn.execute(text("DELETE FROM t_import_staging"))
+            await conn.execute(text("DELETE FROM t_import_file_upload"))
+            await conn.execute(text("DELETE FROM t_import_column_mapping"))
+            await conn.execute(text("DELETE FROM t_d_import_template"))
+            await conn.execute(text("DELETE FROM t_article_usage_stats"))
+            await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
+            await conn.execute(text("DELETE FROM t_article_financial_center"))
+            await conn.execute(text("DELETE FROM t_d_article_version_link"))
+            await conn.execute(text("DELETE FROM t_d_article_history"))
+            await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
+            await conn.execute(text("DELETE FROM t_d_product_group_history"))
+            await conn.execute(text("DELETE FROM t_agg_financial_center_balance_monthly"))
+            await conn.execute(text("DELETE FROM t_d_financial_center_history"))
+            await conn.execute(text("DELETE FROM t_d_financial_center_version_link"))
+            await conn.execute(text("DELETE FROM t_cost_center_financial_center"))
+            await conn.execute(text("DELETE FROM t_d_cost_center_history"))
+            await conn.execute(text("DELETE FROM t_d_cost_center_version_link"))
+            await conn.execute(text("DELETE FROM t_d_financial_center"))
+            await conn.execute(text("DELETE FROM t_d_cost_center"))
+            await conn.execute(text("DELETE FROM t_d_article"))
+            await conn.execute(text("DELETE FROM t_d_product_group"))
+            await conn.execute(text("DELETE FROM t_d_store_history"))
+            await conn.execute(text("DELETE FROM t_d_store"))
+            await conn.execute(text("DELETE FROM t_user_consent"))
+            await conn.execute(text("DELETE FROM t_push_subscription"))
+            await conn.execute(text("DELETE FROM t_2fa_session"))
+            await conn.execute(text("DELETE FROM t_f_webauthn_audit_log"))
+            await conn.execute(text("DELETE FROM t_f_webauthn_challenge"))
+            await conn.execute(text("DELETE FROM t_d_webauthn_credential"))
+            await conn.execute(text("DELETE FROM t_d_user_history"))
+            await conn.execute(text("DELETE FROM t_d_user"))
+    finally:
+        await engine.dispose()
+
+
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
     """
