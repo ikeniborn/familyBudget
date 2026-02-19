@@ -92,6 +92,18 @@ async def _clean_database_before_session() -> None:
     Handles dirty state from previous CI/CD runs that were killed before
     post-test cleanup could complete. Runs automatically before any test.
     Uses IF EXISTS to handle schema differences across environments.
+
+    WARNING (CI/CD): This fixture runs DELETE across ALL 37 tables (see _CLEANUP_SQL)
+    against whatever DATABASE_URL is configured. In post-deploy CI, DATABASE_URL points
+    to the LIVE 'familybudget' database on the test server (not a test-isolated DB).
+
+    The CI/CD workflow (.github/workflows/build-and-push.yml, job: post-deploy-tests)
+    protects against data loss by:
+      1. Taking a pg_dump snapshot BEFORE pytest starts (captures pre-test DB state)
+      2. Restoring the snapshot via EXIT trap AFTER pytest completes (success or failure)
+      3. Running only non-destructive tests: -m "not e2e and not destructive"
+
+    If running tests locally against a shared DB, take a manual backup first.
     """
     engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
     try:
