@@ -401,7 +401,7 @@ export class DexieDiagnosticModal extends BaseModal {
             </tr>
             <tr>
               <td>Plans</td>
-              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(record_type=plan)</span></td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(−${data.syncPeriod.plansHistory} / +${data.syncPeriod.plansFuture} months)</span></td>
             </tr>
             <tr>
               <td>└ Recurring Plans</td>
