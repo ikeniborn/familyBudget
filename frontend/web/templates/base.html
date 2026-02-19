@@ -860,11 +860,36 @@
 
             const dexieActive = localStorage.getItem('dexieActive') === 'true';
 
+            // Check if this page load follows a SW update that cleared FamilyBudgetDB
+            // Flag set in service-worker-registration.html handleUpdateNow() Step 4
+            const isPostSWUpdate = localStorage.getItem('sw_post_update_sync') === 'true';
+            if (isPostSWUpdate) {
+                localStorage.removeItem('sw_post_update_sync');
+                console.info('[APP] Post-SW-update detected: will re-sync reference data after Dexie init');
+            }
+
             if (dexieActive && typeof window.Dexie !== 'undefined') {
                 console.info('[APP] Starting Dexie background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
-                window.Dexie.initializeDatabaseInBackground().catch(error => {
+                window.Dexie.initializeDatabaseInBackground().then(async () => {
+                    // After SW update: DB was cleared, must re-sync reference data
+                    if (isPostSWUpdate) {
+                        console.info('[APP] Post-SW-update: triggering reference data re-sync...');
+                        try {
+                            const dexie = await window.Dexie.getDexieManager();
+                            const userId = window.userData?.id || window.user?.id;
+                            if (userId) {
+                                await dexie.syncReferenceData();
+                                console.info('[APP] ✅ Post-SW-update reference data sync complete');
+                            } else {
+                                console.warn('[APP] Post-SW-update sync skipped: userId not available');
+                            }
+                        } catch (syncError) {
+                            console.warn('[APP] Post-SW-update sync failed (non-critical):', syncError);
+                        }
+                    }
+                }).catch(error => {
                     console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });

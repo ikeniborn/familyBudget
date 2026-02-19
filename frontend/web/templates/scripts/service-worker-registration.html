@@ -212,6 +212,12 @@
 
             showToast('Обновление приложения...', 'info', 15000);
 
+            // Show "updating" state in Dexie indicator (yellow icon) while update is in progress
+            if (typeof updateDexieIndicator === 'function') {
+                updateDexieIndicator('initializing');
+                console.log('[SW_UPDATE] Dexie indicator set to "initializing" (yellow)');
+            }
+
             try {
                 // Step 1/5: Unregister Service Worker
                 console.log('[SW_UPDATE] Step 1/5: Unregister SW...');
@@ -264,9 +270,12 @@
                 const lsKeys = Object.keys(localStorage).length;
                 localStorage.clear();
                 if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
-                // NEW: Skip SW registration on next load to keep cache empty
+                // Skip SW registration on next load to keep cache empty
                 localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
-                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
+                // Signal post-update: Dexie DB was cleared, next load must re-sync reference data
+                // This flag is read by base.html DOMContentLoaded handler after module loading completes
+                localStorage.setItem('sw_post_update_sync', 'true');
+                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration + sw_post_update_sync flags');
 
                 // Set Cache API flag for SW to detect post-update mode
                 // This is more reliable than MessageChannel after unregister()
@@ -327,6 +336,13 @@
                     message: error.message,
                     stack: error.stack
                 });
+
+                // Show error state in Dexie indicator (red icon) on update failure
+                if (typeof updateDexieIndicator === 'function') {
+                    updateDexieIndicator('error');
+                    console.log('[SW_UPDATE] Dexie indicator set to "error" (red)');
+                }
+
                 showToast('Ошибка обновления, перезагрузка...', 'error');
 
                 // Force reload on error

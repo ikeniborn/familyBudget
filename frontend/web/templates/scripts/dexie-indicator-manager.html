@@ -109,6 +109,55 @@
         }
     }
 
+    // Russian month names for dynamic tooltip
+    const RUSSIAN_MONTHS = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+
+    /**
+     * Update dexie indicator tooltip with dynamic offline date range
+     * Reads sync period from localStorage (same keys as DexieManager.ts)
+     * Format: "Офлайн: 7 мес. (Ноябрь 2025 — Май 2026)"
+     */
+    function updateDexieTooltip() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (!wrapper) return;
+
+        try {
+            // Read sync periods from localStorage (keys match DexieManager.ts)
+            const historyMonths = parseInt(localStorage.getItem('budget_dexie_sync_period_plans_history') || '0', 10) ||
+                                  parseInt(localStorage.getItem('budget_dexie_sync_period_plans') || '0', 10) ||
+                                  3; // Default: 3 months history
+            const futureMonths = parseInt(localStorage.getItem('budget_dexie_sync_period_plans_future') || '0', 10) ||
+                                 parseInt(localStorage.getItem('budget_dexie_sync_period_plans') || '0', 10) ||
+                                 3; // Default: 3 months future
+            const totalMonths = historyMonths + futureMonths;
+
+            // Calculate date range
+            const today = new Date();
+
+            const startDate = new Date(today.getFullYear(), today.getMonth() - historyMonths, 1);
+            const endDate = new Date(today.getFullYear(), today.getMonth() + futureMonths + 1, 0);
+
+            const startMonth = RUSSIAN_MONTHS[startDate.getMonth()];
+            const endMonth = RUSSIAN_MONTHS[endDate.getMonth()];
+            const startYear = startDate.getFullYear();
+            const endYear = endDate.getFullYear();
+
+            // Format: "Ноябрь 2025" or "Ноябрь" if same year
+            const startLabel = startYear !== endYear ? `${startMonth} ${startYear}` : startMonth;
+            const endLabel = `${endMonth} ${endYear}`;
+
+            const tooltipText = `Офлайн: ${totalMonths} мес. (${startLabel} — ${endLabel})`;
+            wrapper.setAttribute('data-tip', tooltipText);
+            console.debug('[DEXIE_INDICATOR] Tooltip updated:', tooltipText);
+        } catch (error) {
+            console.warn('[DEXIE_INDICATOR] Tooltip update failed:', error);
+            // Keep default data-tip from HTML as fallback
+        }
+    }
+
     /**
      * Initialize indicator based on localStorage.dexieActive
      * DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
@@ -128,6 +177,8 @@
                 showDexieIndicator();
                 // Default to active state (Dexie operations module will update state as needed)
                 updateDexieIndicator('active');
+                // Update tooltip with dynamic offline date range
+                updateDexieTooltip();
             } else {
                 hideDexieIndicator();
             }
@@ -155,6 +206,8 @@
     function onDexieSyncComplete() {
         console.debug('[DEXIE_INDICATOR] Sync completed');
         updateDexieIndicator('active');
+        // Refresh tooltip in case sync period settings changed
+        updateDexieTooltip();
     }
 
     /**
