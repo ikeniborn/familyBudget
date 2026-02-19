@@ -510,10 +510,12 @@ export async function syncRecurringPlans(
     }));
 
     // Clear user's existing plans and insert new ones
+    // Use bulkPut (not bulkAdd) for idempotent sync: prevents ConstraintError if sync
+    // is called twice (e.g. post-SW-update trigger + normal init race condition)
     await db.transaction('rw', db.recurringPlans, async () => {
       await db.recurringPlans.where('user_id').equals(userId).delete();
       if (plansWithCents.length > 0) {
-        await db.recurringPlans.bulkAdd(plansWithCents);
+        await db.recurringPlans.bulkPut(plansWithCents);
       }
     });
 
