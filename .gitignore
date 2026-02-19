@@ -358,3 +358,6 @@ backend/.env.test
 
 # Claude Code Agent Workspace
 .claude/workspace/
+
+# Sphinx build output
+docs/sphinx/_build/
