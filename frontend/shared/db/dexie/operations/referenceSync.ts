@@ -22,6 +22,7 @@ import type {
   LocalSyncMetadata,
   LocalShoppingListItem
 } from '../types/models';
+import { mapAPIFactToLocal } from '../utils/apiMapper';
 
 /**
  * Sync articles from server
@@ -413,7 +414,17 @@ export async function syncPlans(
     }
 
     const data = await response.json();
-    const plans = (data.facts || data.items || []) as LocalBudgetFact[];
+    const rawPlans = data.facts || data.items || [];
+
+    // Map API response → LocalBudgetFact (generates temp_id, normalises field names)
+    // IMPORTANT: API returns objects with server `id` but NO `temp_id`.
+    // Without this mapping bulkPut throws:
+    //   "DataError: Evaluating the object store's key path did not yield a value"
+    // because `budgetFacts` uses `temp_id` as its primary key.
+    // mapAPIFactToLocal generates temp_id = "server-{id}" for stable re-sync identity.
+    const plans: LocalBudgetFact[] = rawPlans.map((plan: Record<string, unknown>) =>
+      mapAPIFactToLocal(plan)
+    );
 
     // Convert amounts to cents before storing
     const plansWithCents = plans.map((plan: LocalBudgetFact) => ({

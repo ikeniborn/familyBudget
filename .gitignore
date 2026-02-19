@@ -207,6 +207,9 @@ frontend/shared/static/css/*.min.css
 frontend/web/static/css/tailwind-daisyui.css
 frontend/**/static/js/**/*.min.js
 frontend/**/static/js/**/*.min.js.map
+# Pre-compiled offline bundles (no TS source in repo — built externally, must be committed)
+!frontend/web/static/js/offline/offlineManager.min.js
+!frontend/web/static/js/offline/offlineManager.min.js.map
 # PGlite lazy-loaded chunks and bundles (built by Vite in CI/CD)
 frontend/shared/db/assets/
 frontend/shared/db/*.min.js
