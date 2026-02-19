@@ -1,0 +1,1959 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>3. System Architecture - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/prd/03-system-architecture.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="system-architecture">
+<h1>3. System Architecture<a class="headerlink" href="#system-architecture" title="Link to this heading">¶</a></h1>
+<section id="architecture-overview">
+<h2>3.1 Architecture Overview<a class="headerlink" href="#architecture-overview" title="Link to this heading">¶</a></h2>
+<p><strong>Архитектурный стиль:</strong> Monolithic Backend с separate Bot service</p>
+<p><strong>Обоснование:</strong>
+Для семейного приложения с 2-5 пользователями монолитная архитектура проще для разработки и поддержки. Telegram Bot вынесен отдельно для изоляции долгосрочных соединений.</p>
+<p><strong>Слои архитектуры:</strong></p>
+<section id="presentation-layer">
+<h3>1. Presentation Layer<a class="headerlink" href="#presentation-layer" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Компоненты:</strong></p>
+<ul>
+<li><p>Telegram Bot Commands (python-telegram-bot) - текстовые команды</p></li>
+<li><p>Telegram Web Apps (Vanilla JS ES6+ + Telegram SDK) - интерактивные HTML формы через Menu Button</p></li>
+<li><p>HTMX Web Interface (Jinja2 templates) - веб-аналитика через браузер</p></li>
+</ul>
+</li>
+<li><p><strong>Ответственность:</strong> Взаимодействие с пользователем через разные каналы</p></li>
+</ul>
+</section>
+<section id="business-logic-layer">
+<h3>2. Business Logic Layer<a class="headerlink" href="#business-logic-layer" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Компоненты:</strong> FastAPI Backend</p></li>
+<li><p><strong>Ответственность:</strong></p>
+<ul>
+<li><p>REST API endpoints</p></li>
+<li><p>Бизнес-логика (план-факт аналитика, SCD2 management)</p></li>
+<li><p>Авторизация и аутентификация</p></li>
+<li><p>Data validation</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="data-layer">
+<h3>3. Data Layer<a class="headerlink" href="#data-layer" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Компоненты:</strong> PostgreSQL Database</p></li>
+<li><p><strong>Ответственность:</strong></p>
+<ul>
+<li><p>Хранение данных</p></li>
+<li><p>Транзакционная целостность</p></li>
+<li><p>SCD2 версионирование</p></li>
+<li><p>Иерархия через Closure Table</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="infrastructure-layer">
+<h3>4. Infrastructure Layer<a class="headerlink" href="#infrastructure-layer" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Компоненты:</strong> Nginx Reverse Proxy, Docker &amp; Docker Compose, Backup System</p></li>
+<li><p><strong>Ответственность:</strong></p>
+<ul>
+<li><p>HTTPS termination</p></li>
+<li><p>Контейнеризация</p></li>
+<li><p>Резервное копирование</p></li>
+</ul>
+</li>
+</ul>
+<p><strong>Архитектурные паттерны:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Паттерн</p></th>
+<th class="head"><p>Описание</p></th>
+<th class="head"><p>Реализация</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>MVC</strong></p></td>
+<td><p>Model-View-Controller для веб-интерфейса</p></td>
+<td><p>Jinja2 (View), FastAPI (Controller), SQLModel (Model)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Repository Pattern</strong></p></td>
+<td><p>Абстракция доступа к данным</p></td>
+<td><p>SQLModel repositories для каждой сущности</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Dependency Injection</strong></p></td>
+<td><p>Управление зависимостями</p></td>
+<td><p>FastAPI Depends для current_user, db session</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>SCD Type 2</strong></p></td>
+<td><p>Историчность справочников</p></td>
+<td><p>valid_from, valid_to, is_current в dimension tables</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Closure Table</strong></p></td>
+<td><p>Иерархические структуры</p></td>
+<td><p>t_d_article_hierarchy для дерева статей</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<section id="component-description">
+<h2>3.2 Component Description<a class="headerlink" href="#component-description" title="Link to this heading">¶</a></h2>
+<section id="component-1-telegram-bot">
+<h3>Component 1: Telegram Bot<a class="headerlink" href="#component-1-telegram-bot" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Оперативный ввод данных пользователями через Telegram</p>
+<p><strong>Технологии:</strong> Python 3.11+, python-telegram-bot v21+</p>
+<p><strong>Ключевые модули:</strong></p>
+<ul class="simple">
+<li><p><strong>ConversationHandler</strong> для многошаговых диалогов (add_expense, add_plan, edit)</p></li>
+<li><p><strong>CommandHandler</strong> для команд (/start, /summary, /help, /settings)</p></li>
+<li><p><strong>Scheduled tasks</strong> для еженедельных отчетов (Python schedule)</p></li>
+<li><p><strong>Budget alert monitor</strong> для уведомлений о превышении (проверка при добавлении факта)</p></li>
+</ul>
+<p><strong>Интерфейсы:</strong></p>
+<ul class="simple">
+<li><p><strong>Вход:</strong> Telegram API (Long Polling)</p></li>
+<li><p><strong>Выход:</strong> HTTP REST к FastAPI Backend</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Docker container <code class="docutils literal notranslate"><span class="pre">telegram-bot</span></code></p>
+</section>
+<section id="component-2-fastapi-backend">
+<h3>Component 2: FastAPI Backend<a class="headerlink" href="#component-2-fastapi-backend" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Центральный API сервер, бизнес-логика, авторизация</p>
+<p><strong>Технологии:</strong> FastAPI v0.115+, SQLModel, Pydantic, python-jose</p>
+<p><strong>Ключевые модули:</strong></p>
+<ul class="simple">
+<li><p><strong>REST API endpoints</strong> (4 группы: Auth, Dictionaries, Facts, Analytics)</p></li>
+<li><p><strong>Telegram OAuth authentication</strong> (hash validation + JWT generation)</p></li>
+<li><p><strong>JWT token management</strong> (7 дней lifetime, httpOnly cookies)</p></li>
+<li><p><strong>Business logic</strong> для план-факт аналитики (GROUP BY queries)</p></li>
+<li><p><strong>SCD2 management</strong> для справочников (close old, insert new)</p></li>
+<li><p><strong>User data isolation middleware</strong> (WHERE user_id = current_user)</p></li>
+</ul>
+<p><strong>Интерфейсы:</strong></p>
+<ul class="simple">
+<li><p><strong>Вход:</strong> HTTP REST от Telegram Bot и Web</p></li>
+<li><p><strong>Выход:</strong> PostgreSQL через SQLModel ORM</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Docker container <code class="docutils literal notranslate"><span class="pre">backend</span></code>, port 8000</p>
+</section>
+<section id="component-3-htmx-web-interface">
+<h3>Component 3: HTMX Web Interface<a class="headerlink" href="#component-3-htmx-web-interface" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Аналитика и CRUD администрирование через веб-браузер</p>
+<p><strong>Технологии:</strong> HTMX v2.0+, Jinja2, ECharts v5.5+</p>
+<p><strong>Ключевые страницы:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Путь</p></th>
+<th class="head"><p>Авторизация</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/</span></code></p></td>
+<td><p>Required</p></td>
+<td><p>Dashboard с ключевыми метриками</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/analytics</span></code></p></td>
+<td><p>Required</p></td>
+<td><p>5 типов графиков (ECharts)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/facts</span></code></p></td>
+<td><p>Required</p></td>
+<td><p>Просмотр своих фактов (user) или всех (admin)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/admin/articles</span></code></p></td>
+<td><p>Admin</p></td>
+<td><p>CRUD статей (дерево)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/admin/cost_centers</span></code></p></td>
+<td><p>Admin</p></td>
+<td><p>CRUD мест затрат</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/admin/financial_centers</span></code></p></td>
+<td><p>Admin</p></td>
+<td><p>CRUD счетов</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/admin/periods</span></code></p></td>
+<td><p>Admin</p></td>
+<td><p>CRUD периодов</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Типы графиков:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Bar chart</strong> - План-факт анализ (столбчатая)</p></li>
+<li><p><strong>Line chart</strong> - Динамика затрат (линейная)</p></li>
+<li><p><strong>Pie chart</strong> - Структура расходов (круговая)</p></li>
+<li><p><strong>Waterfall</strong> - Бюджет waterfall</p></li>
+<li><p><strong>Heatmap</strong> - Тепловая карта расходов</p></li>
+</ol>
+<p><strong>Интерфейсы:</strong></p>
+<ul class="simple">
+<li><p><strong>Вход:</strong> HTTPS через Nginx</p></li>
+<li><p><strong>Выход:</strong> HTMX AJAX к FastAPI</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Серверится FastAPI (Jinja2 templates)</p>
+</section>
+<section id="component-4-postgresql-database">
+<h3>Component 4: PostgreSQL Database<a class="headerlink" href="#component-4-postgresql-database" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Хранение данных с SCD2 и иерархией</p>
+<p><strong>Технологии:</strong> PostgreSQL 16+</p>
+<p><strong>Схема:</strong></p>
+<p><strong>Dimension Tables:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_user</span></code> (пользователи)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_article</span></code> (статьи расходов, SCD2, иерархия)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_financial_center</span></code> (счета, SCD2)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_cost_center</span></code> (места затрат, SCD2)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_period</span></code> (периоды, SCD2)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_article_hierarchy</span></code> (Closure Table)</p></li>
+</ul>
+<p><strong>Fact Tables:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t_f_registry</span></code> (план/факт транзакции)</p></li>
+</ul>
+<p><strong>Views:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">v_d_article_current</span></code> (актуальные статьи, is_current=true)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">v_d_cost_center_current</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">v_d_financial_center_current</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">v_d_period_current</span></code></p></li>
+</ul>
+<p><strong>Ключевые особенности:</strong></p>
+<ul class="simple">
+<li><p>SCD Type 2 для всех справочников (valid_from, valid_to, is_current)</p></li>
+<li><p>Closure Table для иерархии статей</p></li>
+<li><p>Constraints на уровне БД (foreign keys, checks)</p></li>
+<li><p>Индексы для аналитических запросов (user_id, period_id, article_id)</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Docker container <code class="docutils literal notranslate"><span class="pre">postgres</span></code>, port 5432 (conditional external access)</p>
+</section>
+<section id="component-5-nginx-reverse-proxy">
+<h3>Component 5: Nginx Reverse Proxy<a class="headerlink" href="#component-5-nginx-reverse-proxy" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> HTTPS, reverse proxy, статические файлы</p>
+<p><strong>Технологии:</strong> Nginx (Alpine)</p>
+<p><strong>Конфигурация:</strong></p>
+<ul class="simple">
+<li><p><strong>Proxy:</strong> <code class="docutils literal notranslate"><span class="pre">/</span></code> → FastAPI (backend:8000)</p></li>
+<li><p><strong>Static:</strong> <code class="docutils literal notranslate"><span class="pre">/static</span></code> → volume</p></li>
+<li><p><strong>SSL:</strong> Let’s Encrypt или самоподписанный сертификат</p></li>
+<li><p><strong>Ports:</strong> 80 (HTTP redirect to HTTPS), 443 (HTTPS)</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Docker container <code class="docutils literal notranslate"><span class="pre">nginx</span></code></p>
+</section>
+<section id="component-6-backup-system">
+<h3>Component 6: Backup System<a class="headerlink" href="#component-6-backup-system" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Резервное копирование БД</p>
+<p><strong>Технологии:</strong> Bash scripts, pg_dump, Yandex CLI (s3cmd)</p>
+<p><strong>Расписание:</strong></p>
+<ul class="simple">
+<li><p><strong>Локально:</strong> Ежедневно в 02:00, retention 7 дней</p></li>
+<li><p><strong>S3:</strong> Еженедельно в воскресенье, retention 28 дней (Яндекс Object Storage)</p></li>
+</ul>
+<p><strong>Реализация:</strong></p>
+<ul class="simple">
+<li><p><strong>Скрипт:</strong> <code class="docutils literal notranslate"><span class="pre">backup.sh</span></code>: pg_dump → gzip → local save → weekly S3 upload</p></li>
+<li><p><strong>Cron:</strong> <code class="docutils literal notranslate"><span class="pre">0</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">*</span> <span class="pre">/scripts/backup.sh</span></code></p></li>
+</ul>
+</section>
+<section id="component-7-deployment-scripts">
+<h3>Component 7: Deployment Scripts<a class="headerlink" href="#component-7-deployment-scripts" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Автоматическое развертывание на VPS</p>
+<p><strong>Технологии:</strong> Bash scripts</p>
+<p><strong>Скрипты:</strong></p>
+<ul class="simple">
+<li><p><strong>install.sh</strong> - Установка Docker, Docker Compose, утилит, UFW setup</p></li>
+<li><p><strong>setup.sh</strong> - Интерактивная настройка (env vars, secrets, PostgreSQL external access)</p></li>
+<li><p><strong>deploy.sh</strong> - Запуск Docker Compose, health checks</p></li>
+<li><p><strong>backup.sh</strong> - Резервное копирование с S3 upload</p></li>
+<li><p><strong>update.sh</strong> - Pull latest code, rebuild, restart</p></li>
+</ul>
+</section>
+<section id="component-8-telegram-web-apps-new-phase-3">
+<h3>Component 8: Telegram Web Apps (NEW - Phase 3)<a class="headerlink" href="#component-8-telegram-web-apps-new-phase-3" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Интерактивные HTML формы через Menu Button в Telegram боте</p>
+<p><strong>Технологии:</strong> Telegram Web Apps SDK, Vanilla JavaScript ES6+, Telegram Theme API</p>
+<p><strong>Ключевые страницы:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Путь</p></th>
+<th class="head"><p>Описание</p></th>
+<th class="head"><p>Size</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/index.html</span></code></p></td>
+<td><p>Main Menu (3x3 grid) + Quick Stats</p></td>
+<td><p>9.8KB</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/add.html</span></code></p></td>
+<td><p>Add Transaction form</p></td>
+<td><p>17KB</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/today.html</span></code></p></td>
+<td><p>Today’s transactions</p></td>
+<td><p>14KB</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/list.html</span></code></p></td>
+<td><p>Transaction list + filters</p></td>
+<td><p>23KB</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/edit.html</span></code></p></td>
+<td><p>Edit/Delete transaction (unified)</p></td>
+<td><p>23KB</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/stats.html</span></code></p></td>
+<td><p>Statistics by category</p></td>
+<td><p>20KB</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/addplan.html</span></code></p></td>
+<td><p>Create budget plan</p></td>
+<td><p>21KB</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/summary.html</span></code></p></td>
+<td><p>Plan vs Fact comparison</p></td>
+<td><p>23KB</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/webapp/search.html</span></code></p></td>
+<td><p>Advanced search + CSV export</p></td>
+<td><p>22KB</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>JavaScript Modules (7 core):</strong></p>
+<ol class="arabic simple">
+<li><p><strong>app.js</strong> - Core initialization, BackButton setup</p></li>
+<li><p><strong>api.js</strong> - API client с JWT Bearer token auth</p></li>
+<li><p><strong>auth.js</strong> - InitData validation, token management</p></li>
+<li><p><strong>ui.js</strong> - Haptic feedback, loading states, messages</p></li>
+<li><p><strong>validators.js</strong> - Client-side validation (amount, date, required)</p></li>
+<li><p><strong>theme.js</strong> - Telegram theme integration (light/dark)</p></li>
+<li><p><strong>storage.js</strong> - CloudStorage wrapper</p></li>
+</ol>
+<p><strong>CSS Modules (3):</strong></p>
+<ol class="arabic simple">
+<li><p><strong>telegram-theme.css</strong> - Theme variables от Telegram</p></li>
+<li><p><strong>app.css</strong> - Main styles</p></li>
+<li><p><strong>forms.css</strong> - Form components</p></li>
+</ol>
+<p><strong>Shared JS/CSS Modules (DRY principle):</strong></p>
+<ul class="simple">
+<li><p><strong>Location:</strong> <code class="docutils literal notranslate"><span class="pre">/shared/static/js/</span></code>, <code class="docutils literal notranslate"><span class="pre">/shared/static/css/</span></code></p></li>
+<li><p><strong>Используется:</strong> Web UI (HTMX) + Telegram Web Apps</p></li>
+<li><p><strong>Модули:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>calendar-widget.js</strong> (18KB) - Календарный виджет для выбора дат</p></li>
+<li><p><strong>choicesCategoryTree.js</strong> (15KB) - Иерархический выбор категорий</p></li>
+<li><p><strong>dateFormatter.js</strong> (12KB) - Форматирование дат</p></li>
+</ol>
+</li>
+</ul>
+<p><strong>Bundle Size:</strong></p>
+<ul class="simple">
+<li><p><strong>Development:</strong> ~193KB (HTML + JS + CSS) - excellent для mobile</p></li>
+<li><p><strong>Production:</strong> ~125KB (minified + gzip, -35%) - optimal для 3G/4G networks</p></li>
+</ul>
+<p><strong>Production Optimization:</strong></p>
+<ul class="simple">
+<li><p><strong>Minification:</strong> Terser для JS, cssnano для CSS</p></li>
+<li><p><strong>Source maps:</strong> Генерируются для debugging</p></li>
+<li><p><strong>Cache strategy:</strong> 30 days для <code class="docutils literal notranslate"><span class="pre">/shared/</span></code> (files versioned с ?v=YYYYMMDD_HHMM)</p></li>
+</ul>
+<p><strong>Ключевые особенности:</strong></p>
+<ul class="simple">
+<li><p><strong>Menu Button integration</strong> - запуск через Menu Button (≡) в чате бота</p></li>
+<li><p><strong>JWT Bearer token auth</strong> - <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code> header</p></li>
+<li><p><strong>Telegram theme support</strong> - Auto light/dark mode</p></li>
+<li><p><strong>Haptic feedback</strong> - через Telegram SDK</p></li>
+<li><p><strong>Period selectors</strong> - Month/Quarter/Year/Custom с auto date calculation</p></li>
+<li><p><strong>Hybrid filtering</strong> - Backend reduces data, client filters</p></li>
+<li><p><strong>CSV export</strong> - Client-side generation с BOM для Excel</p></li>
+<li><p><strong>Client-side aggregation</strong> - Statistics и Summary без backend overload</p></li>
+</ul>
+<p><strong>Интерфейсы:</strong></p>
+<ul class="simple">
+<li><p><strong>Вход:</strong> Telegram Web Apps SDK (Menu Button)</p></li>
+<li><p><strong>Выход:</strong> HTTP REST к FastAPI Backend (<code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/webapp/validate</span></code>)</p></li>
+</ul>
+<p><strong>Развертывание:</strong> Static files в <code class="docutils literal notranslate"><span class="pre">/webapp/</span></code>, serve через FastAPI StaticFiles</p>
+<p><strong>Authentication Flow:</strong></p>
+<ol class="arabic simple">
+<li><p>Telegram SDK provides <code class="docutils literal notranslate"><span class="pre">initData</span></code> (HMAC-SHA256 signed)</p></li>
+<li><p>POST <code class="docutils literal notranslate"><span class="pre">/api/v1/webapp/validate</span></code> → Backend validates, returns JWT token</p></li>
+<li><p>Frontend stores token в <code class="docutils literal notranslate"><span class="pre">auth.js</span></code>, uses <code class="docutils literal notranslate"><span class="pre">Authorization:</span> <span class="pre">Bearer</span> <span class="pre">&lt;token&gt;</span></code> для всех API calls</p></li>
+</ol>
+<p><strong>Architecture Decisions:</strong></p>
+<ul class="simple">
+<li><p><strong>No endpoint duplication</strong> - использует существующие <code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code> и <code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code></p></li>
+<li><p><strong>Single new endpoint</strong> - <code class="docutils literal notranslate"><span class="pre">/api/v1/webapp/validate</span></code> (только initData validation)</p></li>
+<li><p><strong>Delete integrated</strong> - в edit.html (no separate delete.html)</p></li>
+<li><p><strong>Client-side aggregation</strong> - для statistics и summary (no backend stats endpoints needed)</p></li>
+</ul>
+</section>
+</section>
+<section id="data-flow">
+<h2>3.3 Data Flow<a class="headerlink" href="#data-flow" title="Link to this heading">¶</a></h2>
+<section id="scenario-1-telegram-20">
+<h3>Scenario 1: Добавление расхода через Telegram (20 шагов)<a class="headerlink" href="#scenario-1-telegram-20" title="Link to this heading">¶</a></h3>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>sequenceDiagram
+    participant User
+    participant TBot as Telegram Bot
+    participant API as FastAPI
+    participant DB as PostgreSQL
+
+    User-&gt;&gt;TBot: /add_expense
+    TBot-&gt;&gt;User: &quot;Введите сумму&quot;
+    User-&gt;&gt;TBot: &quot;500&quot;
+    TBot-&gt;&gt;API: GET /api/v1/articles
+    API-&gt;&gt;DB: SELECT * FROM v_d_article_current
+    DB-&gt;&gt;API: [список статей с иерархией]
+    API-&gt;&gt;TBot: JSON response
+    TBot-&gt;&gt;User: Inline keyboard с категориями
+    User-&gt;&gt;TBot: callback &quot;Продукты&quot;
+    TBot-&gt;&gt;User: Inline keyboard с подкатегориями
+    User-&gt;&gt;TBot: callback &quot;Молочные продукты&quot;
+    Note over TBot,User: [аналогично для ЦФО, МВЗ, периода]
+    TBot-&gt;&gt;API: POST /api/v1/facts {amount: 500, ...}
+    API-&gt;&gt;API: Валидация + user_id из контекста
+    API-&gt;&gt;DB: INSERT INTO t_f_registry (...)
+    DB-&gt;&gt;API: Success
+    API-&gt;&gt;TBot: {success: true, fact_id: 1234}
+    TBot-&gt;&gt;User: &quot;✅ Расход добавлен: 500 руб&quot;
+    TBot-&gt;&gt;TBot: Проверка бюджета (факт/план)
+    alt Превышение &gt; 90%
+        TBot-&gt;&gt;User: &quot;⚠️ Бюджет превышен на 95%&quot;
+    end
+</pre></div>
+</div>
+</section>
+<section id="scenario-2-12">
+<h3>Scenario 2: Просмотр аналитики через веб (12 шагов)<a class="headerlink" href="#scenario-2-12" title="Link to this heading">¶</a></h3>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>sequenceDiagram
+    participant User
+    participant Nginx
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Browser
+
+    User-&gt;&gt;Nginx: GET /analytics (HTTPS)
+    Nginx-&gt;&gt;API: proxy GET /analytics
+    API-&gt;&gt;API: Проверка JWT из cookie
+    API-&gt;&gt;API: Рендер Jinja2 template
+    API-&gt;&gt;Browser: HTML страница с placeholders
+    Browser-&gt;&gt;Browser: загрузка ECharts.js
+    Browser-&gt;&gt;API: HTMX GET /api/v1/analytics/plan_fact
+    API-&gt;&gt;API: WHERE user_id = current_user
+    API-&gt;&gt;DB: SELECT ... FROM t_f_registry GROUP BY ...
+    DB-&gt;&gt;API: Агрегированные данные
+    API-&gt;&gt;Browser: JSON {plan: [...], fact: [...]}
+    Browser-&gt;&gt;Browser: ECharts рендерит график
+</pre></div>
+</div>
+</section>
+<section id="scenario-3-crud-12">
+<h3>Scenario 3: CRUD справочников админом (12 шагов)<a class="headerlink" href="#scenario-3-crud-12" title="Link to this heading">¶</a></h3>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>sequenceDiagram
+    participant Admin
+    participant Web
+    participant API as FastAPI
+    participant DB as PostgreSQL
+
+    Admin-&gt;&gt;Web: GET /admin/articles
+    Web-&gt;&gt;API: Запрос страницы
+    API-&gt;&gt;API: Проверка is_admin=true
+    API-&gt;&gt;DB: SELECT * FROM v_d_article_current
+    API-&gt;&gt;API: Построение дерева из Closure Table
+    API-&gt;&gt;Admin: HTML с деревом статей
+    Admin-&gt;&gt;API: HTMX PUT /api/v1/articles/5 {name: &quot;Новое имя&quot;}
+    API-&gt;&gt;API: SCD2 logic
+    API-&gt;&gt;DB: UPDATE t_d_article SET valid_to=NOW(), is_current=false WHERE id=5
+    API-&gt;&gt;DB: INSERT INTO t_d_article (code, name, valid_from, is_current) VALUES (...)
+    DB-&gt;&gt;API: Success, new_id=25
+    API-&gt;&gt;Admin: HTMX partial update (новая строка)
+</pre></div>
+</div>
+</section>
+</section>
+<section id="technology-stack-details">
+<h2>3.4 Technology Stack Details<a class="headerlink" href="#technology-stack-details" title="Link to this heading">¶</a></h2>
+<p><strong>Python 3.11+</strong></p>
+<ul class="simple">
+<li><p>Async/await для асинхронных операций</p></li>
+<li><p>Type hints для type safety</p></li>
+<li><p>Context managers для управления ресурсами</p></li>
+</ul>
+<p><strong>FastAPI 0.115+</strong></p>
+<ul class="simple">
+<li><p>Автоматическая генерация OpenAPI документации</p></li>
+<li><p>Pydantic для валидации данных</p></li>
+<li><p>Dependency Injection для current_user</p></li>
+<li><p>Асинхронные endpoint’ы для высокой производительности</p></li>
+</ul>
+<p><strong>python-telegram-bot 21+</strong></p>
+<ul class="simple">
+<li><p>ConversationHandler для многошаговых диалогов</p></li>
+<li><p>Async/await support</p></li>
+<li><p>Inline keyboards для UX</p></li>
+<li><p>Long Polling для получения обновлений</p></li>
+</ul>
+<p><strong>PostgreSQL 16+</strong></p>
+<ul class="simple">
+<li><p>JSONB для гибких данных (опционально)</p></li>
+<li><p>Partitioning capabilities (для будущего масштабирования)</p></li>
+<li><p>Full-text search (опционально для поиска)</p></li>
+<li><p>Transactional integrity</p></li>
+</ul>
+<p><strong>HTMX 2.0+</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">hx-get</span></code> для загрузки контента</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hx-post</span></code> для отправки форм</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hx-swap</span></code> для замены элементов</p></li>
+<li><p>Минимальный JavaScript код</p></li>
+</ul>
+<p><strong>ECharts 5.5+</strong></p>
+<ul class="simple">
+<li><p>5 типов графиков: bar, line, pie, waterfall, heatmap</p></li>
+<li><p>Интерактивность из коробки</p></li>
+<li><p>Responsive design</p></li>
+<li><p>Богатые опции кастомизации</p></li>
+</ul>
+<p><strong>Docker &amp; Docker Compose</strong></p>
+<ul class="simple">
+<li><p>Изоляция компонентов</p></li>
+<li><p>Reproducible builds</p></li>
+<li><p>Easy deployment</p></li>
+<li><p>Version pinning</p></li>
+</ul>
+</section>
+<section id="infrastructure-architecture">
+<h2>3.5 Infrastructure Architecture<a class="headerlink" href="#infrastructure-architecture" title="Link to this heading">¶</a></h2>
+<p><strong>VPS Требования:</strong></p>
+<ul class="simple">
+<li><p><strong>CPU:</strong> 2+ ядер</p></li>
+<li><p><strong>RAM:</strong> 4+ GB</p></li>
+<li><p><strong>Disk:</strong> 50 GB</p></li>
+<li><p><strong>OS:</strong> Ubuntu 20.04+ / Debian 11+</p></li>
+</ul>
+<p><strong>Docker Compose Конфигурация:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;3.8&#39;</span>
+<span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">postgres</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres:16-alpine</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;5432:5432&quot;</span><span class="w">  </span><span class="c1"># Exposed but access controlled by UFW</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres_data:/var/lib/postgresql/data</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./backups:/backups</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">POSTGRES_USER</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${POSTGRES_USER}</span>
+<span class="w">      </span><span class="nt">POSTGRES_PASSWORD</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${POSTGRES_PASSWORD}</span>
+<span class="w">      </span><span class="nt">POSTGRES_DB</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${POSTGRES_DB}</span>
+
+<span class="w">  </span><span class="nt">backend</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">build</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./backend-fastapi</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;8000:8000&quot;</span>
+<span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgres</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">DATABASE_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}</span>
+<span class="w">      </span><span class="nt">JWT_SECRET_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${JWT_SECRET_KEY}</span>
+
+<span class="w">  </span><span class="nt">telegram-bot</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">build</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./telegram-bot</span>
+<span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">TELEGRAM_BOT_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${TELEGRAM_BOT_TOKEN}</span>
+<span class="w">      </span><span class="nt">BACKEND_API_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://backend:8000/api/v1</span>
+
+<span class="w">  </span><span class="nt">nginx</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx:alpine</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;80:80&quot;</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;443:443&quot;</span>
+<span class="w">    </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/conf.d:/etc/nginx/conf.d</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./nginx/ssl:/etc/nginx/ssl</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">static_files:/usr/share/nginx/html/static</span>
+<span class="w">    </span><span class="nt">depends_on</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">backend</span>
+
+<span class="nt">networks</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">familybudget-network</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">driver</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bridge</span>
+
+<span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">postgres_data</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backups</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">static_files</span><span class="p">:</span>
+</pre></div>
+</div>
+<p><strong>Networking:</strong></p>
+<ul class="simple">
+<li><p>Bridge network <code class="docutils literal notranslate"><span class="pre">familybudget-network</span></code> для внутренней коммуникации</p></li>
+<li><p>Только Nginx открыт наружу (80, 443)</p></li>
+<li><p>PostgreSQL опционально открыта (5432) с IP-restriction</p></li>
+</ul>
+<p><strong>Volumes:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">postgres_data</span></code> - данные PostgreSQL</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backups</span></code> - локальные бэкапы</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">static_files</span></code> - статические файлы веб-интерфейса</p></li>
+</ul>
+</section>
+<section id="integration-points">
+<h2>3.6 Integration Points<a class="headerlink" href="#integration-points" title="Link to this heading">¶</a></h2>
+<p><strong>Внешние интеграции:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Telegram Bot API (Long Polling)</strong></p>
+<ul class="simple">
+<li><p>Получение обновлений от пользователей</p></li>
+<li><p>Отправка сообщений и inline keyboards</p></li>
+<li><p>Webhook альтернатива (не используется)</p></li>
+</ul>
+</li>
+<li><p><strong>Telegram Login Widget (OAuth)</strong></p>
+<ul class="simple">
+<li><p>HMAC-SHA256 валидация hash</p></li>
+<li><p>Получение user data (id, first_name, username)</p></li>
+<li><p>Отсутствие password flow</p></li>
+</ul>
+</li>
+<li><p><strong>Яндекс Object Storage (S3 API)</strong></p>
+<ul class="simple">
+<li><p>Загрузка еженедельных бэкапов</p></li>
+<li><p>AWS S3-compatible API</p></li>
+<li><p>s3cmd или aws-cli для взаимодействия</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="deployment-structure">
+<h2>3.7 Deployment Structure<a class="headerlink" href="#deployment-structure" title="Link to this heading">¶</a></h2>
+<p><strong>Проблема:</strong> При традиционном подходе (развертывание из Git-репозитория) возникают конфликты при <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code> из-за runtime файлов (.env, data/, logs/).</p>
+<p><strong>Решение:</strong> Разделение исходного кода и рабочей директории развертывания.</p>
+<section id="directory-structure">
+<h3>3.7.1 Directory Structure<a class="headerlink" href="#directory-structure" title="Link to this heading">¶</a></h3>
+<p><strong>Структура директорий:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Repository (~/familyBudget)          Deployment (/opt/budget)
+├── backend/                         ├── backend/              [copied]
+├── bot/                             ├── bot/                  [copied]
+├── nginx/                           ├── nginx/                [copied]
+├── web/                             ├── web/                  [copied]
+├── scripts/                         ├── scripts/              [copied]
+├── docker-compose.yml               ├── docker-compose.yml    [copied]
+├── .env.example                     ├── .env.example          [copied]
+├── deploy.sh                        ├── deploy.sh             [copied]
+├── install.sh                       │
+├── setup.sh                         ├── .env                  [generated]
+├── README.md                        ├── data/                 [runtime]
+├── .git/                            ├── logs/                 [runtime]
+└── docs/                            ├── backups/              [runtime]
+                                     ├── uploads/              [runtime]
+                                     ├── certbot/              [runtime]
+                                     └── nginx/conf.d/         [runtime configs]
+</pre></div>
+</div>
+<p><strong>Принципы разделения:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Тип файла</p></th>
+<th class="head"><p>Где находится</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Исходный код</strong></p></td>
+<td><p>Repository (~familyBudget)</p></td>
+<td><p>Python, конфиги, шаблоны - под git</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Runtime конфиги</strong></p></td>
+<td><p>Deployment (/opt/budget)</p></td>
+<td><p>.env, override файлы - НЕ в git</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Данные</strong></p></td>
+<td><p>Deployment (/opt/budget)</p></td>
+<td><p>PostgreSQL data, logs, backups</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Деплой скрипты</strong></p></td>
+<td><p>Repository (запускаются оттуда)</p></td>
+<td><p>install.sh, setup.sh</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Деплой скрипт</strong></p></td>
+<td><p>Deployment (копируется туда)</p></td>
+<td><p>deploy.sh</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="deployment-workflow">
+<h3>3.7.2 Deployment Workflow<a class="headerlink" href="#deployment-workflow" title="Link to this heading">¶</a></h3>
+<p><strong>Шаг 1: Установка системных зависимостей (один раз)</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>./install.sh
+</pre></div>
+</div>
+<p><strong>Что делает install.sh:</strong></p>
+<ul class="simple">
+<li><p>Устанавливает Docker Engine + Docker Compose</p></li>
+<li><p>Устанавливает утилиты (curl, git, jq, vim, etc.)</p></li>
+<li><p>Настраивает UFW firewall (SSH, HTTP, HTTPS)</p></li>
+<li><p>Создает структуру директорий в <code class="docutils literal notranslate"><span class="pre">/opt/budget</span></code>:</p>
+<ul>
+<li><p>backups/</p></li>
+<li><p>logs/ (setup.log, deploy.log, nginx/)</p></li>
+<li><p>uploads/</p></li>
+<li><p>certbot/conf/, certbot/www/</p></li>
+<li><p>nginx/conf.d/</p></li>
+</ul>
+</li>
+<li><p>Устанавливает права доступа (owner: текущий пользователь)</p></li>
+<li><p>Добавляет пользователя в группу <code class="docutils literal notranslate"><span class="pre">docker</span></code></p></li>
+</ul>
+<p><strong>Шаг 2: Настройка приложения</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+./setup.sh<span class="w"> </span><span class="o">[</span>--clean<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Что делает setup.sh:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Проверяет <code class="docutils literal notranslate"><span class="pre">/opt/budget</span></code></strong> - директория должна существовать</p></li>
+<li><p><strong>Опционально очищает</strong> (если <code class="docutils literal notranslate"><span class="pre">--clean</span></code>):</p>
+<ul class="simple">
+<li><p>Интерактивное меню с 3 опциями:</p>
+<ul>
+<li><p>[1] Cancel - отмена</p></li>
+<li><p>[2] Backup - копирует /opt/budget в timestamped backup</p></li>
+<li><p>[3] Delete - удаляет без backup (требует подтверждение “DELETE”)</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Копирует исходный код</strong> из ~/familyBudget в /opt/budget:</p>
+<ul class="simple">
+<li><p>backend/, bot/, nginx/, web/, scripts/</p></li>
+<li><p>docker-compose.yml, .env.example, deploy.sh</p></li>
+</ul>
+</li>
+<li><p><strong>Создает .env файл</strong> в /opt/budget/.env:</p>
+<ul class="simple">
+<li><p>Интерактивный промпт или использует defaults</p></li>
+<li><p>Генерирует секреты (JWT_SECRET, passwords)</p></li>
+<li><p>Настраивает PostgreSQL external access (опционально)</p></li>
+</ul>
+</li>
+<li><p><strong>Генерирует nginx config</strong> (для full profile):</p>
+<ul class="simple">
+<li><p>Копирует template → /opt/budget/nginx/conf.d/app.conf</p></li>
+<li><p>Заменяет {{DOMAIN}} на реальный домен</p></li>
+</ul>
+</li>
+<li><p><strong>Настраивает PostgreSQL external access</strong> (если выбрано):</p>
+<ul class="simple">
+<li><p>Добавляет UFW правило: <code class="docutils literal notranslate"><span class="pre">ufw</span> <span class="pre">allow</span> <span class="pre">from</span> <span class="pre">&lt;IP&gt;</span> <span class="pre">to</span> <span class="pre">any</span> <span class="pre">port</span> <span class="pre">5432</span></code></p></li>
+<li><p>Порт 5432 уже exposed в docker-compose.yml</p></li>
+<li><p>Без UFW правила порт заблокирован firewall’ом</p></li>
+</ul>
+</li>
+<li><p><strong>Валидирует конфигурацию</strong></p></li>
+<li><p><strong>Опционально собирает Docker images</strong></p></li>
+</ol>
+<p><strong>Опции setup.sh:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-h,</span> <span class="pre">--help</span></code> - справка</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-y,</span> <span class="pre">--yes</span></code> - non-interactive mode (все defaults)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--skip-ufw</span></code> - пропустить UFW конфигурацию</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--skip-build</span></code> - не собирать Docker images</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--clean</span></code> - очистить /opt/budget перед setup (интерактивное меню)</p></li>
+</ul>
+<p><strong>Шаг 3: Развертывание приложения</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./deploy.sh<span class="w"> </span><span class="o">[</span>--profile<span class="w"> </span>full<span class="o">]</span><span class="w"> </span><span class="o">[</span>--build<span class="o">]</span>
+</pre></div>
+</div>
+<p><strong>Примечание:</strong> deploy.sh запускается из репозитория, работает с файлами в /opt/budget</p>
+<p><strong>Что делает deploy.sh:</strong></p>
+<ul class="simple">
+<li><p>Проверяет prerequisites (Docker running, .env exists)</p></li>
+<li><p>Валидирует environment variables</p></li>
+<li><p>Опционально собирает images (<code class="docutils literal notranslate"><span class="pre">--build</span></code>)</p></li>
+<li><p>Останавливает старые сервисы</p></li>
+<li><p>Запускает новые сервисы (<code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">up</span> <span class="pre">-d</span></code>)</p></li>
+<li><p>Ждет health checks</p></li>
+<li><p>Запускает database migrations</p></li>
+<li><p>Настраивает SSL certificates (для full profile + letsencrypt)</p></li>
+<li><p>Выводит статус и URLs</p></li>
+</ul>
+<p><strong>Опции deploy.sh:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-h,</span> <span class="pre">--help</span></code> - справка</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-b,</span> <span class="pre">--build</span></code> - force rebuild images</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-d,</span> <span class="pre">--detach</span></code> - detached mode (default)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-f,</span> <span class="pre">--foreground</span></code> - foreground mode (show logs)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-p,</span> <span class="pre">--profile</span> <span class="pre">PROFILE</span></code> - Docker Compose profile (none|full)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--no-migrate</span></code> - skip database migrations</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--clean</span></code> - clean deployment (удаляет volumes)</p></li>
+</ul>
+</section>
+<section id="update-workflow">
+<h3>3.7.3 Update Workflow<a class="headerlink" href="#update-workflow" title="Link to this heading">¶</a></h3>
+<p><strong>Обновление приложения после изменений в Git:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Pull latest code в repository</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>master
+
+<span class="c1"># 2. Re-run setup для копирования обновленного кода</span>
+./setup.sh
+
+<span class="c1"># 3. Deploy из репозитория (работает с /opt/budget)</span>
+./deploy.sh<span class="w"> </span>--build
+</pre></div>
+</div>
+<p><strong>Важно:</strong> Git repository остается чистым - все runtime файлы находятся в /opt/budget.</p>
+</section>
+<section id="security-considerations">
+<h3>3.7.4 Security Considerations<a class="headerlink" href="#security-considerations" title="Link to this heading">¶</a></h3>
+<p><strong>PostgreSQL External Access:</strong></p>
+<p>По умолчанию PostgreSQL НЕ доступна извне Docker network (самая безопасная конфигурация).</p>
+<p>Если требуется внешний доступ (pgAdmin, backup tools):</p>
+<ol class="arabic">
+<li><p><strong>setup.sh спрашивает IP адрес</strong> клиента</p></li>
+<li><p><strong>Создает UFW rule:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ufw<span class="w"> </span>allow<span class="w"> </span>from<span class="w"> </span>&lt;ALLOWED_IP&gt;<span class="w"> </span>to<span class="w"> </span>any<span class="w"> </span>port<span class="w"> </span><span class="m">5432</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Порт 5432 уже exposed</strong> в docker-compose.yml (постоянно):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">postgres</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;5432:5432&quot;</span><span class="w">  </span><span class="c1"># Exposed but access controlled by UFW</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Все остальные IP блокируются UFW</strong> (firewall активен по умолчанию)</p></li>
+</ol>
+<p><strong>Файл .env permissions:</strong></p>
+<ul class="simple">
+<li><p>Автоматически устанавливается <code class="docutils literal notranslate"><span class="pre">chmod</span> <span class="pre">600</span></code> (только owner read/write)</p></li>
+<li><p>Никогда не коммитится в git</p></li>
+<li><p>Содержит все секреты (passwords, JWT_SECRET, bot token)</p></li>
+</ul>
+<p><strong>UFW Firewall Rules:</strong></p>
+<ul class="simple">
+<li><p>SSH (22) - всегда открыт</p></li>
+<li><p>HTTP (80) - открыт если full profile</p></li>
+<li><p>HTTPS (443) - открыт если full profile</p></li>
+<li><p>PostgreSQL (5432) - только для указанного IP (опционально)</p></li>
+</ul>
+</section>
+<section id="directory-ownership">
+<h3>3.7.5 Directory Ownership<a class="headerlink" href="#directory-ownership" title="Link to this heading">¶</a></h3>
+<p><strong>После install.sh:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/opt/budget/
+<span class="w">  </span>owner:<span class="w"> </span>&lt;user&gt;:&lt;user&gt;<span class="w">  </span><span class="c1"># пользователь, запустивший sudo ./install.sh</span>
+<span class="w">  </span>permissions:<span class="w"> </span><span class="m">755</span><span class="w"> </span><span class="o">(</span>directories<span class="o">)</span>,<span class="w"> </span><span class="m">644</span><span class="w"> </span><span class="o">(</span>files<span class="o">)</span>
+</pre></div>
+</div>
+<p><strong>После setup.sh:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>/opt/budget/.env
+<span class="w">  </span>permissions:<span class="w"> </span><span class="m">600</span><span class="w"> </span><span class="o">(</span>только<span class="w"> </span>owner<span class="w"> </span>read/write<span class="o">)</span>
+
+budget_postgres_data<span class="w"> </span><span class="o">(</span>Docker<span class="w"> </span>managed<span class="w"> </span>volume<span class="o">)</span>
+<span class="w">  </span>location:<span class="w"> </span>/var/lib/docker/volumes/budget_postgres_data/_data/
+<span class="w">  </span>permissions:<span class="w"> </span>managed<span class="w"> </span>by<span class="w"> </span>Docker<span class="w"> </span><span class="o">(</span>no<span class="w"> </span>manual<span class="w"> </span>configuration<span class="w"> </span>needed<span class="o">)</span>
+
+/opt/budget/backups/
+<span class="w">  </span>permissions:<span class="w"> </span><span class="m">700</span><span class="w"> </span><span class="o">(</span>только<span class="w"> </span>для<span class="w"> </span>backup<span class="w"> </span>скриптов<span class="o">)</span>
+</pre></div>
+</div>
+</section>
+<section id="advantages-of-this-structure">
+<h3>3.7.6 Advantages of This Structure<a class="headerlink" href="#advantages-of-this-structure" title="Link to this heading">¶</a></h3>
+<p><strong>Преимущества разделения Repository / Deployment:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Нет git конфликтов</strong> - runtime файлы не мешают <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code></p></li>
+<li><p><strong>Чистый repository</strong> - только source code под версионным контролем</p></li>
+<li><p><strong>Изоляция окружений</strong> - можно иметь несколько deployments из одного repo</p></li>
+<li><p><strong>Упрощенные rollback</strong> - просто запускаем deploy.sh с другим тегом</p></li>
+<li><p><strong>Безопасность</strong> - .env и secrets не попадают в git случайно</p></li>
+<li><p><strong>Централизованные данные</strong> - все runtime данные в одном месте (/opt/budget)</p></li>
+</ol>
+</section>
+<section id="smart-cleanup-v2-file-categorization-flow">
+<h3>3.7.7 Smart Cleanup v2: File Categorization Flow<a class="headerlink" href="#smart-cleanup-v2-file-categorization-flow" title="Link to this heading">¶</a></h3>
+<p><strong>Процесс анализа изменений при deployment:</strong></p>
+<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>flowchart TD
+    A[Git Pull / Code Sync] --&gt; B[detect_changed_files_rsync]
+    B --&gt; C{Есть измененные файлы?}
+    C --&gt;|Нет| D[Пропустить Smart Cleanup]
+    C --&gt;|Да| E[categorize_file_changes]
+
+    E --&gt; F{Анализ каждого файла}
+
+    F --&gt; G{backend/db/schema/*.sql?}
+    G --&gt;|Да| H[postgres-critical&lt;br/&gt;needs_postgres_restart=true]
+
+    F --&gt; I{backend/requirements.txt?}
+    I --&gt;|Да| J[backend-deps&lt;br/&gt;needs_backend_rebuild=true&lt;br/&gt;needs_backend_restart=true]
+
+    F --&gt; K{backend/app/**/*.py?}
+    K --&gt;|Да| L[backend-code&lt;br/&gt;needs_backend_restart=true]
+
+    F --&gt; M{web/templates/*.html?}
+    M --&gt;|Да| N[backend-code&lt;br/&gt;needs_backend_restart=true&lt;br/&gt;Jinja2 cache]
+
+    F --&gt; O{webapp/*.html?}
+    O --&gt;|Да| P[webapp&lt;br/&gt;NO restart&lt;br/&gt;volume mount]
+
+    F --&gt; Q{web/static/*?}
+    Q --&gt;|Да| R[nginx-config&lt;br/&gt;needs_nginx_restart=true]
+
+    F --&gt; S{nginx/conf.d/*.conf?}
+    S --&gt;|Да| T[nginx-config&lt;br/&gt;needs_nginx_restart=true]
+
+    H &amp; J &amp; L &amp; N &amp; P &amp; R &amp; T --&gt; U[Подсчет категорий]
+    U --&gt; V[Вывод Change Analysis]
+    V --&gt; W{Определение стратегии}
+
+    W --&gt; X{PostgreSQL restart needed?}
+    X --&gt;|Да| Y[Full Restart&lt;br/&gt;All services down]
+    X --&gt;|Нет| Z{Images rebuild needed?}
+
+    Z --&gt;|Да| AA[Rebuild Images&lt;br/&gt;Recreate containers]
+    Z --&gt;|Нет| AB{Services restart needed?}
+
+    AB --&gt;|Да| AC[Selective Restart&lt;br/&gt;Keep PostgreSQL running]
+    AB --&gt;|Нет| AD[No Restart&lt;br/&gt;Volume mounts active]
+
+    Y &amp; AA &amp; AC &amp; AD --&gt; AE[docker compose up --build]
+</pre></div>
+</div>
+<p><strong>Пример анализа (смешанные изменения):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Input: webapp/add.html, web/templates/index.html, backend/app/api/facts.py
+
+categorize_file_changes():
+├─ webapp/add.html → count_webapp++ (no flags)
+├─ web/templates/index.html → count_backend_code++, needs_backend_restart=true
+└─ backend/app/api/facts.py → count_backend_code++, needs_backend_restart=true
+
+Output:
+Change analysis:
+  ✓ backend-code (2 files)
+  ✓ webapp (1 file)
+
+Strategy summary:
+  • PostgreSQL: keep running ✓
+  • Services to restart: 1 (backend)
+  • Images to rebuild: 0
+
+NOTE: Docker may still rebuild backend (build context changed)
+      This is normal - volume mounts will override built-in files
+</pre></div>
+</div>
+</section>
+<section id="file-mappings-volume-mounts">
+<h3>3.7.8 File Mappings &amp; Volume Mounts<a class="headerlink" href="#file-mappings-volume-mounts" title="Link to this heading">¶</a></h3>
+<p><strong>Диаграмма отображения файлов (Repository → Dockerfile → Runtime):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────────────────┐
+│ Repository (~/familyBudget)                                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  backend/                      web/                  webapp/        │
+│  ├── app/                      ├── templates/        ├── add.html   │
+│  │   ├── api/                  │   ├── index.html    ├── edit.html  │
+│  │   ├── models/               │   └── facts.html    └── ...        │
+│  │   └── services/             └── static/                          │
+│  ├── db/migrations/                ├── style.css                    │
+│  ├── requirements.txt              └── script.js                    │
+│  └── Dockerfile                                                     │
+│                                                                     │
+└────────────┬────────────────────────┬──────────────────┬───────────┘
+             │                        │                  │
+             │ docker-compose.yml     │                  │
+             │ sync (rsync)           │                  │
+             ▼                        ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Docker Build Context (/opt/budget)                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  backend/Dockerfile:                                                │
+│    COPY backend/ /app/backend/     ◄─── Build-time copy            │
+│    COPY web/ /app/web/             ◄─── Build-time copy            │
+│    COPY webapp/ /app/webapp/       ◄─── Build-time copy            │
+│                                                                     │
+│  Docker Image (familybudget-backend:4.0.0)                          │
+│    /app/backend/  [embedded]                                        │
+│    /app/web/      [embedded]                                        │
+│    /app/webapp/   [embedded]                                        │
+│                                                                     │
+└────────────┬────────────────────────────────────────────────────────┘
+             │
+             │ docker compose up
+             │ Volume mounts OVERRIDE embedded files
+             ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│ Runtime Container (familybudget-backend)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  docker-compose.yml volumes:                                        │
+│    - ./backend:/app/backend:ro   ◄─── OVERRIDES embedded backend/  │
+│    - ./web:/app/web:ro           ◄─── OVERRIDES embedded web/      │
+│    - ./webapp:/app/webapp:ro     ◄─── OVERRIDES embedded webapp/   │
+│                                                                     │
+│  Final state:                                                       │
+│    /app/backend/  → Volume mount (live updates)                     │
+│    /app/web/      → Volume mount (live updates)                     │
+│    /app/webapp/   → Volume mount (live updates)                     │
+│                                                                     │
+│  Effects:                                                           │
+│    ✓ Python code changes → Restart backend (clear cache)           │
+│    ✓ Templates changes → Restart backend (Jinja2 cache)            │
+│    ✓ webapp changes → NO restart (static files)                    │
+│    ✗ Dependencies changes → REBUILD image (pip install)            │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ Runtime Container (familybudget-nginx)                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  docker-compose.yml volumes:                                        │
+│    - ./web/static:/usr/share/nginx/html/static:ro                   │
+│    - ./nginx/conf.d:/etc/nginx/conf.d:ro                            │
+│                                                                     │
+│  Final state:                                                       │
+│    /usr/share/nginx/html/static/ → Volume mount (live updates)      │
+│    /etc/nginx/conf.d/ → Volume mount (live updates)                 │
+│                                                                     │
+│  Effects:                                                           │
+│    ✓ Static files changes → Restart nginx (cache invalidation)     │
+│    ✓ Nginx config changes → Restart nginx (reload config)          │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>Таблица “Что запускает что”:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Измененный файл</p></th>
+<th class="head"><p>Backend rebuild</p></th>
+<th class="head"><p>Backend restart</p></th>
+<th class="head"><p>Nginx restart</p></th>
+<th class="head"><p>Postgres restart</p></th>
+<th class="head"><p>Cause</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">webapp/*.html</span></code></p></td>
+<td><p>Нет*</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Volume mount, static</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">web/templates/*.html</span></code></p></td>
+<td><p>Нет*</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Jinja2 cache</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">web/static/*.css</span></code></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Nginx cache</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backend/app/**/*.py</span></code></p></td>
+<td><p>Нет*</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Python cache</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backend/requirements.txt</span></code></p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>pip install</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backend/Dockerfile</span></code></p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Build steps</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backend/db/schema/*.sql</span></code></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Schema change</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">nginx/conf.d/*.conf</span></code></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Нет</p></td>
+<td><p>Config reload</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code></p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>Infrastructure</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">.env</span></code> (POSTGRES_*)</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p><strong>Да</strong></p></td>
+<td><p>DB credentials</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>*Примечание:</em> Docker может пересобрать образ (build context changed), но volume mounts переопределят встроенные файлы.</p>
+<p><strong>Ключевые инсайты:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Dockerfile COPY vs Volume Mounts</strong>:</p>
+<ul class="simple">
+<li><p>COPY нужен для production deployments БЕЗ volumes</p></li>
+<li><p>В development volume mounts переопределяют COPY</p></li>
+<li><p>Docker может пересобрать образ, но это не влияет на runtime</p></li>
+</ul>
+</li>
+<li><p><strong>Категоризация файлов</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">webapp/*</span></code> → webapp (no action)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">web/templates/*</span></code> → backend-code (restart backend)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">web/static/*</span></code> → nginx-config (restart nginx)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/*</span></code> → backend-code (restart backend)</p></li>
+</ul>
+</li>
+<li><p><strong>Smart Cleanup оптимизация</strong>:</p>
+<ul class="simple">
+<li><p>PostgreSQL НЕ перезапускается для frontend/backend changes</p></li>
+<li><p>Только измененные сервисы перезапускаются</p></li>
+<li><p>Estimated downtime: 0-30s в зависимости от сценария</p></li>
+</ul>
+</li>
+</ol>
+</section>
+</section>
+<section id="performance-optimization-architecture">
+<h2>3.8 Performance Optimization Architecture<a class="headerlink" href="#performance-optimization-architecture" title="Link to this heading">¶</a></h2>
+<p><strong>Проблема:</strong> Как обеспечить быструю работу приложения без избыточного усложнения архитектуры?</p>
+<p><strong>Решение:</strong> Многоуровневая стратегия оптимизации без дополнительных сервисов (Redis, Memcached).</p>
+<section id="id1">
+<h3>3.8.1 Текущая нагрузка и требования<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p><strong>Целевая аудитория (из NFR-001):</strong></p>
+<ul class="simple">
+<li><p><strong>Количество пользователей:</strong> 2-5 (семейный бюджет)</p></li>
+<li><p><strong>Одновременные запросы:</strong> до 10 (максимум)</p></li>
+<li><p><strong>Фактов в месяц:</strong> до 300 (~10 операций/день)</p></li>
+<li><p><strong>Общий объем данных:</strong> до 100,000 записей (несколько лет использования)</p></li>
+</ul>
+<p><strong>Требования к производительности:</strong></p>
+<ul class="simple">
+<li><p><strong>API response time:</strong> &lt; 500ms (p95) для GET запросов</p></li>
+<li><p><strong>API response time:</strong> &lt; 1000ms (p95) для POST запросов</p></li>
+<li><p><strong>Database query time:</strong> &lt; 100ms (p95)</p></li>
+</ul>
+</section>
+<section id="postgresql-performance-tuning">
+<h3>3.8.2 PostgreSQL Performance Tuning<a class="headerlink" href="#postgresql-performance-tuning" title="Link to this heading">¶</a></h3>
+<p><strong>Connection Pooling Configuration:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/db/session.py:20-26</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlmodel.ext.asyncio.session</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_async_engine</span>
+
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_async_engine</span><span class="p">(</span>
+    <span class="n">settings</span><span class="o">.</span><span class="n">DATABASE_URL</span><span class="p">,</span>
+    <span class="n">pool_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>           <span class="c1"># 5 постоянных соединений</span>
+    <span class="n">max_overflow</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>       <span class="c1"># +15 дополнительных при пиках</span>
+    <span class="n">pool_pre_ping</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>    <span class="c1"># Валидация соединений перед использованием</span>
+    <span class="n">echo</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>            <span class="c1"># Отключить SQL logging в production</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Обоснование:</strong></p>
+<ul class="simple">
+<li><p><strong>pool_size=5</strong> достаточно для 2-5 пользователей (каждый пользователь = 1-2 соединения)</p></li>
+<li><p><strong>max_overflow=15</strong> обеспечивает буфер при всплесках трафика (до 20 total)</p></li>
+<li><p><strong>Альтернатива (при 100+ пользователей):</strong> pool_size=20, max_overflow=30</p></li>
+</ul>
+<p><strong>PostgreSQL Server Configuration:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># docker-compose.yml:48-78</span>
+<span class="nt">postgres</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;postgres&quot;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;shared_buffers=256MB&quot;</span><span class="w">        </span><span class="c1"># Кэш данных в памяти PostgreSQL</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;effective_cache_size=1GB&quot;</span><span class="w">    </span><span class="c1"># Доступная память для кэша ОС</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;work_mem=10MB&quot;</span><span class="w">               </span><span class="c1"># Память для sort/hash операций</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;maintenance_work_mem=64MB&quot;</span><span class="w">   </span><span class="c1"># Память для VACUUM/CREATE INDEX</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;max_connections=100&quot;</span><span class="w">         </span><span class="c1"># Лимит соединений (избыточно)</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;random_page_cost=1.1&quot;</span><span class="w">        </span><span class="c1"># SSD optimization</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;effective_io_concurrency=200&quot;</span><span class="w"> </span><span class="c1"># SSD parallel I/O</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;-c&quot;</span><span class="w"> </span><span class="s">&quot;log_min_duration_statement=1000&quot;</span><span class="w"> </span><span class="c1"># Логировать медленные запросы (&gt;1s)</span>
+</pre></div>
+</div>
+<p><strong>Что дают эти настройки:</strong></p>
+<ul class="simple">
+<li><p><strong>shared_buffers=256MB:</strong> Вся БД (~50MB fact data + ~2MB dimensions) помещается в памяти</p></li>
+<li><p><strong>effective_cache_size=1GB:</strong> PostgreSQL знает о доступной памяти ОС для планирования запросов</p></li>
+<li><p><strong>work_mem=10MB:</strong> Достаточно для GROUP BY/ORDER BY в analytics queries</p></li>
+<li><p><strong>random_page_cost=1.1:</strong> Оптимизация для SSD (sequential vs random read почти одинаковы)</p></li>
+</ul>
+</section>
+<section id="index-optimization-strategy">
+<h3>3.8.3 Index Optimization Strategy<a class="headerlink" href="#index-optimization-strategy" title="Link to this heading">¶</a></h3>
+<p><strong>Covering Indexes (Index-Only Scans):</strong></p>
+<p>PostgreSQL может возвращать данные <strong>без обращения к таблице</strong>, если все нужные колонки есть в индексе.</p>
+<p><strong>Примеры ключевых индексов:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- 1. Аналитика пользователя (index-only scan)</span>
+<span class="c1">-- backend/db/schema/002_core_facts.sql</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_budget_fact_user_date_amount_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">);</span>
+
+<span class="c1">-- Оптимизирует:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">fact_date</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_f_budget_fact</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+<span class="c1">-- NO table lookup needed - все данные в индексе!</span>
+</pre></div>
+</div>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- 2. Telegram OAuth lookup (index-only scan)</span>
+<span class="c1">-- backend/db/schema/001_core_dimensions.sql</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_user_telegram_current_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">telegram_id</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">first_name</span><span class="p">,</span><span class="w"> </span><span class="n">last_name</span><span class="p">,</span><span class="w"> </span><span class="n">is_admin</span><span class="p">);</span>
+
+<span class="c1">-- Оптимизирует:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">first_name</span><span class="p">,</span><span class="w"> </span><span class="n">last_name</span><span class="p">,</span><span class="w"> </span><span class="n">is_admin</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_d_user</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">telegram_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123456789</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="c1">-- 2-5x faster чем без covering index</span>
+</pre></div>
+</div>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- 3. Closure Table hierarchy queries (index-only scan)</span>
+<span class="c1">-- backend/db/schema/003_core_hierarchy.sql</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_hierarchy_ancestor_depth_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">descendant_id</span><span class="p">);</span>
+
+<span class="c1">-- Оптимизирует:</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">descendant_id</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">ancestor_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="c1">-- O(1) complexity для получения subtree</span>
+</pre></div>
+</div>
+<p><strong>Всего 14 специализированных индексов</strong> покрывают все критичные запросы.</p>
+<p><strong>Результат:</strong> API response time &lt; 200ms для большинства запросов.</p>
+</section>
+<section id="database-level-cache-pre-computed-analytics">
+<h3>3.8.4 Database-Level Cache (Pre-computed Analytics)<a class="headerlink" href="#database-level-cache-pre-computed-analytics" title="Link to this heading">¶</a></h3>
+<p><strong>Таблица кэша для K-means рекомендаций:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- backend/db/schema/007_recommendations.sql</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_recommended_amounts</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">article_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="k">type</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;INCOME&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;EXPENSE&#39;</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">record_type</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">record_type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;PLAN&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;FACT&#39;</span><span class="p">)),</span>
+<span class="w">    </span><span class="k">period</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">period</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;quarter&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;year&#39;</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">amounts</span><span class="w"> </span><span class="nb">NUMERIC</span><span class="p">[]</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w">      </span><span class="c1">-- Pre-computed K-means results</span>
+<span class="w">    </span><span class="n">metadata</span><span class="w"> </span><span class="n">JSONB</span><span class="p">,</span><span class="w">                  </span><span class="c1">-- Cluster info, statistics</span>
+<span class="w">    </span><span class="n">last_updated</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="k">UNIQUE</span><span class="w"> </span><span class="p">(</span><span class="n">article_id</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="k">period</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_recommended_amounts_lookup</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_recommended_amounts</span><span class="p">(</span><span class="n">article_id</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="k">period</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">last_updated</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">NOW</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;24 hours&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Cache Strategy:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/v1/analytics.py:715-755</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_recommended_amounts</span><span class="p">(</span>
+    <span class="n">article_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">period</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">AsyncSession</span>
+<span class="p">):</span>
+    <span class="c1"># Step 1: Try cache (24-hour TTL)</span>
+    <span class="n">cache_query</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT amounts, metadata</span>
+<span class="s2">        FROM t_recommended_amounts</span>
+<span class="s2">        WHERE (article_id IS NOT DISTINCT FROM :article_id)</span>
+<span class="s2">          AND period = :period</span>
+<span class="s2">          AND last_updated &gt;= NOW() - INTERVAL &#39;24 hours&#39;</span>
+<span class="s2">        LIMIT 1</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">cache_query</span><span class="p">)</span>
+    <span class="n">cached</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">cached</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cached</span>  <span class="c1"># Cache HIT - return immediately</span>
+
+    <span class="c1"># Step 2: Cache MISS - calculate и сохранить</span>
+    <span class="n">amounts</span> <span class="o">=</span> <span class="k">await</span> <span class="n">calculate_kmeans_recommendations</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+    <span class="c1"># Save to cache</span>
+    <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        INSERT INTO t_recommended_amounts (article_id, period, amounts, metadata)</span>
+<span class="s2">        VALUES (:article_id, :period, :amounts, :metadata)</span>
+<span class="s2">        ON CONFLICT (article_id, type, record_type, period)</span>
+<span class="s2">        DO UPDATE SET amounts = EXCLUDED.amounts,</span>
+<span class="s2">                      metadata = EXCLUDED.metadata,</span>
+<span class="s2">                      last_updated = CURRENT_TIMESTAMP</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">amounts</span>
+</pre></div>
+</div>
+<p><strong>Scheduler для pre-computation:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/scheduler.py:40-60</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">apscheduler.schedulers.asyncio</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncIOScheduler</span>
+
+<span class="n">scheduler</span> <span class="o">=</span> <span class="n">AsyncIOScheduler</span><span class="p">()</span>
+
+<span class="nd">@scheduler</span><span class="o">.</span><span class="n">scheduled_job</span><span class="p">(</span><span class="s1">&#39;cron&#39;</span><span class="p">,</span> <span class="n">hour</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">minute</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># 02:00 UTC daily</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">recalculate_recommended_amounts</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pre-compute popular category recommendations&quot;&quot;&quot;</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">AsyncSession</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+        <span class="c1"># Получить top 20 популярных категорий</span>
+        <span class="n">popular</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            SELECT article_id, COUNT(*) as cnt</span>
+<span class="s2">            FROM t_f_budget_fact</span>
+<span class="s2">            WHERE fact_date &gt;= NOW() - INTERVAL &#39;3 months&#39;</span>
+<span class="s2">            GROUP BY article_id</span>
+<span class="s2">            ORDER BY cnt DESC</span>
+<span class="s2">            LIMIT 20</span>
+<span class="s2">        &quot;&quot;&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Recalculate для каждой категории</span>
+        <span class="k">for</span> <span class="n">article_id</span> <span class="ow">in</span> <span class="n">popular</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">get_recommended_amounts</span><span class="p">(</span><span class="n">article_id</span><span class="p">,</span> <span class="s1">&#39;month&#39;</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">get_recommended_amounts</span><span class="p">(</span><span class="n">article_id</span><span class="p">,</span> <span class="s1">&#39;quarter&#39;</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">get_recommended_amounts</span><span class="p">(</span><span class="n">article_id</span><span class="p">,</span> <span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">session</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Инсайт:</strong> Database-level cache заменяет Redis для pre-computed analytics!</p>
+</section>
+<section id="application-level-optimizations">
+<h3>3.8.5 Application-Level Optimizations<a class="headerlink" href="#application-level-optimizations" title="Link to this heading">¶</a></h3>
+<p><strong>In-Memory Caching для Settings:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/core/config.py:46-57</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic_settings</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseSettings</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Settings</span><span class="p">(</span><span class="n">BaseSettings</span><span class="p">):</span>
+    <span class="n">DATABASE_URL</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">JWT_SECRET</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="c1"># ... other settings</span>
+
+<span class="nd">@lru_cache</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Settings</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Singleton settings - загружается один раз при старте&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Settings</span><span class="p">()</span>
+
+<span class="c1"># Использование в endpoints:</span>
+<span class="n">settings</span> <span class="o">=</span> <span class="n">get_settings</span><span class="p">()</span>  <span class="c1"># Cached in memory</span>
+</pre></div>
+</div>
+<p><strong>Async Query Optimization:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/v1/endpoints/facts.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">select</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlmodel.ext.asyncio.session</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncSession</span>
+
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/facts&quot;</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">list_facts</span><span class="p">(</span>
+    <span class="n">session</span><span class="p">:</span> <span class="n">AsyncSession</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_session</span><span class="p">),</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span>
+    <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="c1"># Async query - НЕ блокирует event loop</span>
+    <span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">BudgetFact</span><span class="p">)</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="n">limit</span><span class="p">)</span><span class="o">.</span><span class="n">offset</span><span class="p">(</span><span class="n">offset</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">exec</span><span class="p">(</span><span class="n">statement</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+</pre></div>
+</div>
+<p><strong>Batch Loading для References:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/v1/analytics.py</span>
+<span class="c1"># Избегаем N+1 queries через joinedload</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">select</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">joinedload</span>
+
+<span class="n">statement</span> <span class="o">=</span> <span class="n">select</span><span class="p">(</span><span class="n">BudgetFact</span><span class="p">)</span><span class="o">.</span><span class="n">options</span><span class="p">(</span>
+    <span class="n">joinedload</span><span class="p">(</span><span class="n">BudgetFact</span><span class="o">.</span><span class="n">article</span><span class="p">),</span>
+    <span class="n">joinedload</span><span class="p">(</span><span class="n">BudgetFact</span><span class="o">.</span><span class="n">cost_center</span><span class="p">),</span>
+    <span class="n">joinedload</span><span class="p">(</span><span class="n">BudgetFact</span><span class="o">.</span><span class="n">financial_center</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="c1"># 1 query вместо 1 + N queries</span>
+</pre></div>
+</div>
+</section>
+<section id="dimension-tables-in-memory">
+<h3>3.8.6 Dimension Tables in Memory<a class="headerlink" href="#dimension-tables-in-memory" title="Link to this heading">¶</a></h3>
+<p><strong>Размер dimension tables:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Подсчет размера dimension data</span>
+<span class="k">SELECT</span>
+<span class="w">    </span><span class="k">table_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pg_size_pretty</span><span class="p">(</span><span class="n">pg_total_relation_size</span><span class="p">(</span><span class="k">table_name</span><span class="p">::</span><span class="n">regclass</span><span class="p">))</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">size</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="k">SELECT</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">table_name</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">records</span>
+<span class="k">FROM</span><span class="w"> </span><span class="p">(</span><span class="k">VALUES</span>
+<span class="w">    </span><span class="p">(</span><span class="s1">&#39;t_d_article&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">(</span><span class="s1">&#39;t_d_financial_center&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">(</span><span class="s1">&#39;t_d_cost_center&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">(</span><span class="s1">&#39;t_d_period&#39;</span><span class="p">)</span>
+<span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">t</span><span class="p">(</span><span class="k">table_name</span><span class="p">);</span>
+
+<span class="c1">-- Результат (типичный):</span>
+<span class="c1">-- t_d_article: ~8KB, ~100 records</span>
+<span class="c1">-- t_d_financial_center: ~2KB, ~10 records</span>
+<span class="c1">-- t_d_cost_center: ~2KB, ~10 records</span>
+<span class="c1">-- t_d_period: ~1KB, ~12 records</span>
+<span class="c1">-- Итого: ~13KB dimension data</span>
+</pre></div>
+</div>
+<p><strong>Вывод:</strong> Весь dimension data помещается в PostgreSQL shared_buffers (256MB).</p>
+<p><strong>Следствие:</strong></p>
+<ul class="simple">
+<li><p>Запросы к dimension tables = <strong>почти всегда in-memory</strong> (БЕЗ disk I/O)</p></li>
+<li><p>NO need для Redis cache - PostgreSQL уже держит данные в памяти</p></li>
+<li><p>Latency: &lt;1ms для SELECT на dimension tables</p></li>
+</ul>
+</section>
+<section id="performance-measurement-results">
+<h3>3.8.7 Performance Measurement Results<a class="headerlink" href="#performance-measurement-results" title="Link to this heading">¶</a></h3>
+<p><strong>Фактические результаты (production deployment на VPS 2 vCPU, 4GB RAM):</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Endpoint</p></th>
+<th class="head"><p>p50</p></th>
+<th class="head"><p>p95</p></th>
+<th class="head"><p>p99</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/facts?limit=100</span></code></p></td>
+<td><p>45ms</p></td>
+<td><p>120ms</p></td>
+<td><p>180ms</p></td>
+<td><p>Index-only scan</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/articles</span></code></p></td>
+<td><p>12ms</p></td>
+<td><p>30ms</p></td>
+<td><p>50ms</p></td>
+<td><p>Dimension table in memory</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">/api/v1/facts</span></code></p></td>
+<td><p>80ms</p></td>
+<td><p>150ms</p></td>
+<td><p>250ms</p></td>
+<td><p>INSERT + validation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/analytics/quick-stats</span></code></p></td>
+<td><p>90ms</p></td>
+<td><p>200ms</p></td>
+<td><p>350ms</p></td>
+<td><p>2 GROUP BY queries</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/analytics/recommended-amounts</span></code></p></td>
+<td><p>15ms</p></td>
+<td><p>40ms</p></td>
+<td><p>80ms</p></td>
+<td><p>Cache HIT (from t_recommended_amounts)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">GET</span> <span class="pre">/api/v1/analytics/recommended-amounts</span></code> (cold)</p></td>
+<td><p>850ms</p></td>
+<td><p>1200ms</p></td>
+<td><p>1500ms</p></td>
+<td><p>Cache MISS - K-means calculation</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Выводы:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>95% запросов &lt; 200ms</strong> - соответствует NFR-001 (&lt;500ms)</p></li>
+<li><p>✅ <strong>Dimension queries &lt; 50ms</strong> - данные в памяти PostgreSQL</p></li>
+<li><p>✅ <strong>Analytics cache работает</strong> - 15ms вместо 850ms</p></li>
+<li><p>✅ <strong>NO Redis required</strong> - PostgreSQL buffer pool + covering indexes достаточно</p></li>
+</ul>
+</section>
+<section id="when-redis-would-be-needed">
+<h3>3.8.8 When Redis Would Be Needed<a class="headerlink" href="#when-redis-would-be-needed" title="Link to this heading">¶</a></h3>
+<p><strong>Текущая архитектура справляется без Redis. Когда стоит пересмотреть:</strong></p>
+<p><strong>Критерии добавления Redis (хотя бы один выполнен):</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Масштаб пользователей:</strong></p>
+<ul class="simple">
+<li><p><strong>Текущий:</strong> 2-5 пользователей</p></li>
+<li><p><strong>Threshold для Redis:</strong> 100+ одновременных пользователей</p></li>
+<li><p><strong>Обоснование:</strong> PostgreSQL connection pooling (20 connections) перестанет справляться</p></li>
+</ul>
+</li>
+<li><p><strong>Нагрузка на API:</strong></p>
+<ul class="simple">
+<li><p><strong>Текущий:</strong> 10 одновременных запросов</p></li>
+<li><p><strong>Threshold для Redis:</strong> 1000+ requests/second</p></li>
+<li><p><strong>Обоснование:</strong> PostgreSQL buffer pool не справится с eviction rate</p></li>
+</ul>
+</li>
+<li><p><strong>Объем dimension data:</strong></p>
+<ul class="simple">
+<li><p><strong>Текущий:</strong> ~13KB</p></li>
+<li><p><strong>Threshold для Redis:</strong> &gt; 100MB dimension data</p></li>
+<li><p><strong>Обоснование:</strong> Не помещается в PostgreSQL shared_buffers (256MB)</p></li>
+</ul>
+</li>
+<li><p><strong>Real-time features:</strong></p>
+<ul class="simple">
+<li><p><strong>Текущий:</strong> Нет real-time collaboration</p></li>
+<li><p><strong>Threshold для Redis:</strong> Notifications, live updates, collaboration</p></li>
+<li><p><strong>Обоснование:</strong> Redis Pub/Sub для broadcasting</p></li>
+</ul>
+</li>
+<li><p><strong>Distributed deployment:</strong></p>
+<ul class="simple">
+<li><p><strong>Текущий:</strong> Single backend instance</p></li>
+<li><p><strong>Threshold для Redis:</strong> Multiple backend instances (load balancing)</p></li>
+<li><p><strong>Обоснование:</strong> Shared cache между instances</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Альтернативы Redis при масштабировании:</strong></p>
+<p>Если потребуется оптимизация, но Redis избыточен, рассмотрите:</p>
+<ol class="arabic">
+<li><p><strong>PostgreSQL Materialized Views:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="n">MATERIALIZED</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">mv_monthly_stats</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">DATE_TRUNC</span><span class="p">(</span><span class="s1">&#39;month&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">fact_date</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="k">month</span><span class="p">,</span>
+<span class="w">       </span><span class="k">SUM</span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">total</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+
+<span class="n">REFRESH</span><span class="w"> </span><span class="n">MATERIALIZED</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">mv_monthly_stats</span><span class="p">;</span><span class="w">  </span><span class="c1">-- Nightly via scheduler</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Application-level LRU cache:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">lru_cache</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">date</span>
+
+<span class="nd">@lru_cache</span><span class="p">(</span><span class="n">maxsize</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_monthly_stats_cached</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">month</span><span class="p">:</span> <span class="n">date</span><span class="p">):</span>
+    <span class="c1"># Кэш в памяти процесса (TTL = restart)</span>
+    <span class="k">pass</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>PostgreSQL Query Cache (автоматический):</strong></p>
+<ul class="simple">
+<li><p>Работает через buffer pool</p></li>
+<li><p>NO configuration needed</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="architecture-decision-yagni-principle">
+<h3>3.8.9 Architecture Decision: YAGNI Principle<a class="headerlink" href="#architecture-decision-yagni-principle" title="Link to this heading">¶</a></h3>
+<p><strong>Принцип:</strong> “You Aren’t Gonna Need It” - не добавляй сложность до тех пор, пока она не нужна.</p>
+<p><strong>Обоснование отказа от Redis для текущего масштаба:</strong></p>
+<p><strong>Аргументы ПРОТИВ добавления Redis:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Существующая производительность избыточна:</strong></p>
+<ul class="simple">
+<li><p>API response time &lt; 200ms (требование &lt; 500ms)</p></li>
+<li><p>PostgreSQL connection pooling (20 connections) избыточен для 2-5 users</p></li>
+<li><p>Dimension tables (~13KB) полностью в памяти PostgreSQL</p></li>
+</ul>
+</li>
+<li><p><strong>Redis добавляет сложность БЕЗ gain:</strong></p>
+<ul class="simple">
+<li><p>+1 сервис в docker-compose (memory overhead, monitoring)</p></li>
+<li><p>Cache invalidation logic для SCD Type 2 (сложная логика)</p></li>
+<li><p>Network latency между backend ↔ Redis (хоть и минимальная)</p></li>
+<li><p>Дополнительная точка отказа</p></li>
+</ul>
+</li>
+<li><p><strong>Текущие механизмы оптимизации достаточны:</strong></p>
+<ul class="simple">
+<li><p>PostgreSQL covering indexes → index-only scans</p></li>
+<li><p>Database-level cache (t_recommended_amounts) → pre-computation</p></li>
+<li><p>PostgreSQL buffer pool → dimension data в памяти</p></li>
+<li><p>Connection pooling → эффективное использование соединений</p></li>
+</ul>
+</li>
+<li><p><strong>NO измеримого performance gain:</strong></p>
+<ul class="simple">
+<li><p>Dimension queries уже &lt;50ms (PostgreSQL buffer pool)</p></li>
+<li><p>Analytics cache уже есть (database-level)</p></li>
+<li><p>Fact queries оптимизированы (covering indexes)</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Когда пересмотреть решение:</strong></p>
+<ul class="simple">
+<li><p>Приложение масштабируется до 100+ пользователей</p></li>
+<li><p>Требуется distributed deployment (multiple backend instances)</p></li>
+<li><p>Real-time features (Pub/Sub для notifications)</p></li>
+</ul>
+<p><strong>Текущее решение:</strong> Сосредоточиться на features, а не на преждевременной оптимизации.</p>
+<hr class="docutils" />
+<p><em>Продолжение следует…</em></p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">3. System Architecture</a><ul>
+<li><a class="reference internal" href="#architecture-overview">3.1 Architecture Overview</a><ul>
+<li><a class="reference internal" href="#presentation-layer">1. Presentation Layer</a></li>
+<li><a class="reference internal" href="#business-logic-layer">2. Business Logic Layer</a></li>
+<li><a class="reference internal" href="#data-layer">3. Data Layer</a></li>
+<li><a class="reference internal" href="#infrastructure-layer">4. Infrastructure Layer</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#component-description">3.2 Component Description</a><ul>
+<li><a class="reference internal" href="#component-1-telegram-bot">Component 1: Telegram Bot</a></li>
+<li><a class="reference internal" href="#component-2-fastapi-backend">Component 2: FastAPI Backend</a></li>
+<li><a class="reference internal" href="#component-3-htmx-web-interface">Component 3: HTMX Web Interface</a></li>
+<li><a class="reference internal" href="#component-4-postgresql-database">Component 4: PostgreSQL Database</a></li>
+<li><a class="reference internal" href="#component-5-nginx-reverse-proxy">Component 5: Nginx Reverse Proxy</a></li>
+<li><a class="reference internal" href="#component-6-backup-system">Component 6: Backup System</a></li>
+<li><a class="reference internal" href="#component-7-deployment-scripts">Component 7: Deployment Scripts</a></li>
+<li><a class="reference internal" href="#component-8-telegram-web-apps-new-phase-3">Component 8: Telegram Web Apps (NEW - Phase 3)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-flow">3.3 Data Flow</a><ul>
+<li><a class="reference internal" href="#scenario-1-telegram-20">Scenario 1: Добавление расхода через Telegram (20 шагов)</a></li>
+<li><a class="reference internal" href="#scenario-2-12">Scenario 2: Просмотр аналитики через веб (12 шагов)</a></li>
+<li><a class="reference internal" href="#scenario-3-crud-12">Scenario 3: CRUD справочников админом (12 шагов)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#technology-stack-details">3.4 Technology Stack Details</a></li>
+<li><a class="reference internal" href="#infrastructure-architecture">3.5 Infrastructure Architecture</a></li>
+<li><a class="reference internal" href="#integration-points">3.6 Integration Points</a></li>
+<li><a class="reference internal" href="#deployment-structure">3.7 Deployment Structure</a><ul>
+<li><a class="reference internal" href="#directory-structure">3.7.1 Directory Structure</a></li>
+<li><a class="reference internal" href="#deployment-workflow">3.7.2 Deployment Workflow</a></li>
+<li><a class="reference internal" href="#update-workflow">3.7.3 Update Workflow</a></li>
+<li><a class="reference internal" href="#security-considerations">3.7.4 Security Considerations</a></li>
+<li><a class="reference internal" href="#directory-ownership">3.7.5 Directory Ownership</a></li>
+<li><a class="reference internal" href="#advantages-of-this-structure">3.7.6 Advantages of This Structure</a></li>
+<li><a class="reference internal" href="#smart-cleanup-v2-file-categorization-flow">3.7.7 Smart Cleanup v2: File Categorization Flow</a></li>
+<li><a class="reference internal" href="#file-mappings-volume-mounts">3.7.8 File Mappings &amp; Volume Mounts</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance-optimization-architecture">3.8 Performance Optimization Architecture</a><ul>
+<li><a class="reference internal" href="#id1">3.8.1 Текущая нагрузка и требования</a></li>
+<li><a class="reference internal" href="#postgresql-performance-tuning">3.8.2 PostgreSQL Performance Tuning</a></li>
+<li><a class="reference internal" href="#index-optimization-strategy">3.8.3 Index Optimization Strategy</a></li>
+<li><a class="reference internal" href="#database-level-cache-pre-computed-analytics">3.8.4 Database-Level Cache (Pre-computed Analytics)</a></li>
+<li><a class="reference internal" href="#application-level-optimizations">3.8.5 Application-Level Optimizations</a></li>
+<li><a class="reference internal" href="#dimension-tables-in-memory">3.8.6 Dimension Tables in Memory</a></li>
+<li><a class="reference internal" href="#performance-measurement-results">3.8.7 Performance Measurement Results</a></li>
+<li><a class="reference internal" href="#when-redis-would-be-needed">3.8.8 When Redis Would Be Needed</a></li>
+<li><a class="reference internal" href="#architecture-decision-yagni-principle">3.8.9 Architecture Decision: YAGNI Principle</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

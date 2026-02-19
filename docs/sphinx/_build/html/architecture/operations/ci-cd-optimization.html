@@ -1,0 +1,683 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>CI/CD Optimization - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/ci-cd-optimization.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="ci-cd-optimization">
+<h1>CI/CD Optimization<a class="headerlink" href="#ci-cd-optimization" title="Link to this heading">¶</a></h1>
+<p><strong>Дата создания:</strong> 2026-02-03
+<strong>Версия:</strong> v11.1.41
+<strong>Статус:</strong> Implemented</p>
+<hr class="docutils" />
+<section id="id1">
+<h2>Проблема<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<p>До оптимизации workflow имел значительное дублирование тестов между pre-commit hook и CI/CD pipelines.</p>
+<section id="id2">
+<h3>Дублирование<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Проверка</p></th>
+<th class="head"><p>Pre-commit</p></th>
+<th class="head"><p>pr-checks.yml</p></th>
+<th class="head"><p>frontend-tests.yml</p></th>
+<th class="head"><p>Дублирований</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>console.log</p></td>
+<td><p>✓</p></td>
+<td><p>-</p></td>
+<td><p>✓</p></td>
+<td><p><strong>2x</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>Type check</p></td>
+<td><p>✓</p></td>
+<td><p>✓</p></td>
+<td><p>✓</p></td>
+<td><p><strong>3x</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>Unit tests</p></td>
+<td><p>✓</p></td>
+<td><p>✓</p></td>
+<td><p>✓</p></td>
+<td><p><strong>3x</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Потери производительности:</strong></p>
+<ul class="simple">
+<li><p>Type check: ~15s × 3 = <strong>45 секунд</strong></p></li>
+<li><p>Unit tests: ~30s × 3 = <strong>90 секунд</strong></p></li>
+<li><p><strong>Total waste: ~135 секунд на каждый PR</strong></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id3">
+<h2>Решение<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<section id="id4">
+<h3>Стратегия: Разделение ответственности<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<p><strong>Принцип:</strong></p>
+<ul class="simple">
+<li><p><strong>Pre-commit</strong> = Быстрые локальные проверки (&lt; 15s)</p></li>
+<li><p><strong>CI/CD</strong> = Полные проверки + интеграционные тесты</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id5">
+<h2>Изменения<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<section id="pre-commit-hook-husky-pre-commit">
+<h3>1. Pre-commit Hook (.husky/pre-commit)<a class="headerlink" href="#pre-commit-hook-husky-pre-commit" title="Link to this heading">¶</a></h3>
+<p><strong>Оставлено:</strong></p>
+<ul class="simple">
+<li><p>✅ console.log check (~1s)</p></li>
+<li><p>✅ TypeScript type check (~10s)</p></li>
+<li><p>✅ VERSION sync (auto-stage)</p></li>
+</ul>
+<p><strong>Удалено:</strong></p>
+<ul class="simple">
+<li><p>❌ Unit tests (перенесены в CI/CD)</p></li>
+</ul>
+<p><strong>Обоснование:</strong></p>
+<ul class="simple">
+<li><p>Type check быстрый и ловит 80% ошибок TypeScript</p></li>
+<li><p>Unit tests медленные, лучше выполнять в CI с полным coverage</p></li>
+</ul>
+<p><strong>Время выполнения:</strong> 10-15 секунд ⚡ (было: 40-60s)</p>
+</section>
+<hr class="docutils" />
+<section id="pr-checks-github-workflows-pr-checks-yml">
+<h3>2. PR Checks (.github/workflows/pr-checks.yml)<a class="headerlink" href="#pr-checks-github-workflows-pr-checks-yml" title="Link to this heading">¶</a></h3>
+<p><strong>Consolidated workflow объединяет:</strong></p>
+<ul class="simple">
+<li><p>Frontend quality checks (из frontend-tests.yml)</p></li>
+<li><p>Backend quality checks</p></li>
+<li><p>Coverage reporting</p></li>
+</ul>
+<p><strong>Изменения:</strong></p>
+<ul class="simple">
+<li><p>✅ Type check оставлен как safety net (если pre-commit bypassed)</p></li>
+<li><p>✅ Добавлен npm/pip cache для ускорения builds</p></li>
+<li><p>✅ Unit tests выполняются ОДИН РАЗ с полным coverage</p></li>
+<li><p>✅ Удалён <code class="docutils literal notranslate"><span class="pre">continue-on-error</span></code> для unit tests (блокируют PR при failure)</p></li>
+</ul>
+<p><strong>Структура:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">frontend-quality</span><span class="p">:</span><span class="w">     </span><span class="c1"># Frontend: type-check, eslint, build, tests, coverage</span>
+<span class="w">  </span><span class="nt">backend-quality</span><span class="p">:</span><span class="w">      </span><span class="c1"># Backend: mypy, ruff, pytest, coverage</span>
+<span class="w">  </span><span class="nt">summary</span><span class="p">:</span><span class="w">              </span><span class="c1"># PR summary with optimization notes</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="frontend-tests">
+<h3>3. Frontend Tests (Удалён)<a class="headerlink" href="#frontend-tests" title="Link to this heading">¶</a></h3>
+<p><strong>Действие:</strong> <code class="docutils literal notranslate"><span class="pre">.github/workflows/frontend-tests.yml</span></code> → DEPRECATED</p>
+<p><strong>Причина:</strong> Функциональность объединена в pr-checks.yml</p>
+<p><strong>Если нужен отдельный workflow:</strong></p>
+<ul class="simple">
+<li><p>Переименовать в <code class="docutils literal notranslate"><span class="pre">frontend-tests.yml.disabled</span></code></p></li>
+<li><p>Или удалить: <code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">.github/workflows/frontend-tests.yml</span></code></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id6">
+<h2>Результаты оптимизации<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<section id="id7">
+<h3>Экономия времени<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Workflow</p></th>
+<th class="head"><p>До</p></th>
+<th class="head"><p>После</p></th>
+<th class="head"><p>Экономия</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Pre-commit</strong></p></td>
+<td><p>40-60s</p></td>
+<td><p>10-15s</p></td>
+<td><p><strong>~45s</strong> ⚡</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>pr-checks.yml</strong></p></td>
+<td><p>8-10 min</p></td>
+<td><p>6-7 min</p></td>
+<td><p><strong>~2 min</strong> ⚡</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>frontend-tests.yml</strong></p></td>
+<td><p>5-6 min</p></td>
+<td><p>0 min (удалён)</p></td>
+<td><p><strong>~5 min</strong> ⚡</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Total savings per PR:</strong> ~7 минут</p>
+<p><strong>При 3-5 commits на PR:</strong> <strong>21-35 минут экономии</strong> 🚀</p>
+</section>
+<hr class="docutils" />
+<section id="id8">
+<h3>Дополнительные улучшения<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<p><strong>1. Cache Optimization</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Cache node modules</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v3</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.npm</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ runner.os }}-node-${{ hashFiles(&#39;**/package-lock.json&#39;) }}</span>
+</pre></div>
+</div>
+<p><strong>Экономия:</strong> ~30-60s на job</p>
+<p><strong>2. Parallel Jobs</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">frontend-quality</span><span class="p">:</span><span class="w">   </span><span class="c1"># Runs in parallel</span>
+<span class="w">  </span><span class="nt">backend-quality</span><span class="p">:</span><span class="w">    </span><span class="c1"># Runs in parallel</span>
+<span class="w">  </span><span class="nt">summary</span><span class="p">:</span><span class="w">            </span><span class="c1"># Waits for both (needs: [...])</span>
+</pre></div>
+</div>
+<p><strong>Экономия:</strong> ~3-5 min (frontend + backend run simultaneously)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>Использование<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<section id="id10">
+<h3>Локальная разработка<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<p><strong>Обычный commit:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>.
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: add new feature&quot;</span>
+<span class="c1"># Runs: console.log check + type-check (~10-15s)</span>
+</pre></div>
+</div>
+<p><strong>WIP commit (пропуск type-check):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>commit<span class="w"> </span>--no-verify<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;wip: work in progress&quot;</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="ci-cd-pipeline">
+<h3>CI/CD Pipeline<a class="headerlink" href="#ci-cd-pipeline" title="Link to this heading">¶</a></h3>
+<p><strong>Триггер:</strong> Pull Request → <code class="docutils literal notranslate"><span class="pre">test</span></code> или <code class="docutils literal notranslate"><span class="pre">main</span></code> branch</p>
+<p><strong>Автоматически запускаются:</strong></p>
+<ol class="arabic simple">
+<li><p>✅ Frontend quality checks</p>
+<ul class="simple">
+<li><p>Type check (safety net)</p></li>
+<li><p>ESLint</p></li>
+<li><p>Build</p></li>
+<li><p>Unit tests + coverage</p></li>
+<li><p>Bundle size validation</p></li>
+</ul>
+</li>
+<li><p>✅ Backend quality checks</p>
+<ul class="simple">
+<li><p>mypy type check</p></li>
+<li><p>ruff lint</p></li>
+<li><p>pytest unit tests</p></li>
+<li><p>Coverage upload</p></li>
+</ul>
+</li>
+<li><p>✅ PR summary</p>
+<ul class="simple">
+<li><p>Optimization notes</p></li>
+<li><p>Time saved metrics</p></li>
+</ul>
+</li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id11">
+<h2>Мониторинг<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
+<section id="id12">
+<h3>Метрики для отслеживания<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<p><strong>GitHub Actions:</strong></p>
+<ul class="simple">
+<li><p>Workflow duration (target: &lt; 7 min)</p></li>
+<li><p>Cache hit rate (target: &gt; 80%)</p></li>
+<li><p>Test pass rate (target: 100%)</p></li>
+</ul>
+<p><strong>Codecov:</strong></p>
+<ul class="simple">
+<li><p>Frontend coverage (thresholds: см. vitest.config.ts)</p></li>
+<li><p>Backend coverage (thresholds: см. pytest.ini)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<section id="pre-commit-hook">
+<h3>Pre-commit hook слишком медленный<a class="headerlink" href="#pre-commit-hook" title="Link to this heading">¶</a></h3>
+<p><strong>Проблема:</strong> Type check занимает &gt; 30s</p>
+<p><strong>Решение:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Temporary bypass</span>
+<span class="nv">SKIP_TESTS</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;...&quot;</span>
+
+<span class="c1"># Or disable pre-commit completely</span>
+git<span class="w"> </span>commit<span class="w"> </span>--no-verify<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;...&quot;</span>
+</pre></div>
+</div>
+<p><strong>Note:</strong> CI/CD всё равно выполнит все проверки.</p>
+</section>
+<hr class="docutils" />
+<section id="ci-cd-tests-failing-bypass">
+<h3>CI/CD tests failing после bypass<a class="headerlink" href="#ci-cd-tests-failing-bypass" title="Link to this heading">¶</a></h3>
+<p><strong>Проблема:</strong> Pre-commit bypassed, CI/CD обнаружил ошибки</p>
+<p><strong>Решение:</strong></p>
+<ol class="arabic simple">
+<li><p>Исправить ошибки локально</p></li>
+<li><p>Запустить <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">type-check</span></code> вручную</p></li>
+<li><p>Commit с нормальным pre-commit hook</p></li>
+<li><p>Force-push если нужно</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="cache">
+<h3>Cache не работает<a class="headerlink" href="#cache" title="Link to this heading">¶</a></h3>
+<p><strong>Проблема:</strong> npm ci занимает &gt; 2 min каждый раз</p>
+<p><strong>Диагностика:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить cache key в GitHub Actions logs</span>
+<span class="c1"># Should see: &quot;Cache hit: true&quot;</span>
+</pre></div>
+</div>
+<p><strong>Решение:</strong></p>
+<ul class="simple">
+<li><p>Проверить что <code class="docutils literal notranslate"><span class="pre">package-lock.json</span></code> committed</p></li>
+<li><p>Очистить cache в Settings → Actions → Caches</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="migration-guide">
+<h2>Migration Guide<a class="headerlink" href="#migration-guide" title="Link to this heading">¶</a></h2>
+<section id="contributors">
+<h3>Для новых contributors<a class="headerlink" href="#contributors" title="Link to this heading">¶</a></h3>
+<p><strong>Нет миграции</strong> - всё работает автоматически после <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone</span></code>.</p>
+</section>
+<section id="id13">
+<h3>Для существующих веток<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h3>
+<p><strong>Если есть старый pre-commit hook:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Обновить husky hooks</span>
+npm<span class="w"> </span>install
+npx<span class="w"> </span>husky<span class="w"> </span>install
+
+<span class="c1"># Verify</span>
+cat<span class="w"> </span>.husky/pre-commit<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Unit tests&quot;</span>
+<span class="c1"># Should see: &quot;Unit tests will run in CI/CD pipeline&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="future-improvements">
+<h2>Future Improvements<a class="headerlink" href="#future-improvements" title="Link to this heading">¶</a></h2>
+<section id="id14">
+<h3>Возможные оптимизации<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h3>
+<p><strong>1. Incremental Type Check</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TypeScript incremental check</span>
+<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">npm run type-check -- --incremental</span>
+</pre></div>
+</div>
+<p><strong>Экономия:</strong> ~30-50% времени type-check</p>
+<p><strong>2. Affected Tests Only</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Run affected tests</span>
+<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">npm test -- --changed --since=${{ github.base_ref }}</span>
+</pre></div>
+</div>
+<p><strong>Экономия:</strong> ~40-60% времени на tests (если изменения локальные)</p>
+<p><strong>3. Matrix Strategy для E2E</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">strategy</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">matrix</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">browser</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">chromium</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">firefox</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">webkit</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p><strong>Ускорение:</strong> E2E tests run in parallel per browser</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>GitHub Actions Cache: https://docs.github.com/en/actions/using-workflows/caching-dependencies</p></li>
+<li><p>Codecov: https://docs.codecov.com/docs/quick-start</p></li>
+<li><p>Vitest Coverage: https://vitest.dev/guide/coverage.html</p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Last Updated:</strong> 2026-02-03
+<strong>Author:</strong> ikeniborn (CI/CD optimization)</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">CI/CD Optimization</a><ul>
+<li><a class="reference internal" href="#id1">Проблема</a><ul>
+<li><a class="reference internal" href="#id2">Дублирование</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">Решение</a><ul>
+<li><a class="reference internal" href="#id4">Стратегия: Разделение ответственности</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id5">Изменения</a><ul>
+<li><a class="reference internal" href="#pre-commit-hook-husky-pre-commit">1. Pre-commit Hook (.husky/pre-commit)</a></li>
+<li><a class="reference internal" href="#pr-checks-github-workflows-pr-checks-yml">2. PR Checks (.github/workflows/pr-checks.yml)</a></li>
+<li><a class="reference internal" href="#frontend-tests">3. Frontend Tests (Удалён)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id6">Результаты оптимизации</a><ul>
+<li><a class="reference internal" href="#id7">Экономия времени</a></li>
+<li><a class="reference internal" href="#id8">Дополнительные улучшения</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id9">Использование</a><ul>
+<li><a class="reference internal" href="#id10">Локальная разработка</a></li>
+<li><a class="reference internal" href="#ci-cd-pipeline">CI/CD Pipeline</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id11">Мониторинг</a><ul>
+<li><a class="reference internal" href="#id12">Метрики для отслеживания</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li><a class="reference internal" href="#pre-commit-hook">Pre-commit hook слишком медленный</a></li>
+<li><a class="reference internal" href="#ci-cd-tests-failing-bypass">CI/CD tests failing после bypass</a></li>
+<li><a class="reference internal" href="#cache">Cache не работает</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#migration-guide">Migration Guide</a><ul>
+<li><a class="reference internal" href="#contributors">Для новых contributors</a></li>
+<li><a class="reference internal" href="#id13">Для существующих веток</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#future-improvements">Future Improvements</a><ul>
+<li><a class="reference internal" href="#id14">Возможные оптимизации</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

@@ -1,0 +1,833 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Versioning Strategy - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/versioning.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="versioning-strategy">
+<h1>Versioning Strategy<a class="headerlink" href="#versioning-strategy" title="Link to this heading">¶</a></h1>
+<p><strong>Last Updated:</strong> 2026-01-24
+<strong>Version:</strong> 10.0.0+</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Family Budget использует <strong>единую систему версионирования</strong> на основе Semantic Versioning:</p>
+<ul class="simple">
+<li><p><strong>VERSION файл</strong> - единый источник истины для всех компонентов</p></li>
+<li><p><strong>Semantic Versioning (X.Y.Z)</strong> - формат версии</p></li>
+<li><p><strong>Manual version bump</strong> - строгий контроль версий разработчиком</p></li>
+</ul>
+<p><strong>Важное изменение (v10.0+)</strong>: Cache busting теперь использует semantic version из VERSION файла вместо timestamp.</p>
+</section>
+<hr class="docutils" />
+<section id="version-file">
+<h2>VERSION File<a class="headerlink" href="#version-file" title="Link to this heading">¶</a></h2>
+<p><strong>Location</strong>: <code class="docutils literal notranslate"><span class="pre">/VERSION</span></code> (root directory)
+<strong>Format</strong>: Semantic versioning (X.Y.Z)
+<strong>Example</strong>: <code class="docutils literal notranslate"><span class="pre">10.0.23</span></code></p>
+<section id="structure">
+<h3>Structure<a class="headerlink" href="#structure" title="Link to this heading">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>10.0.23
+│  │  └─ Patch: Bug fixes, minor changes
+│  └──── Minor: New features, backward compatible
+└─────── Major: Breaking changes
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="usage-version">
+<h2>Usage: Где Используется VERSION<a class="headerlink" href="#usage-version" title="Link to this heading">¶</a></h2>
+<p>VERSION файл является единым источником истины для всех компонентов системы:</p>
+<section id="docker-image-tags">
+<h3>1. Docker Image Tags<a class="headerlink" href="#docker-image-tags" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Docker images used in production</span>
+ghcr.io/ikeniborn/familybudget-backend:10.0.23
+ghcr.io/ikeniborn/familybudget-bot:10.0.23
+ghcr.io/ikeniborn/familybudget-nginx:10.0.23
+ghcr.io/ikeniborn/familybudget-redis:10.0.23
+ghcr.io/ikeniborn/familybudget-postgresql:10.0.23
+</pre></div>
+</div>
+</section>
+<section id="cache-busting-v10-0">
+<h3>2. Cache Busting (НОВОЕ v10.0+)<a class="headerlink" href="#cache-busting-v10-0" title="Link to this heading">¶</a></h3>
+<p><strong>HTML templates</strong> - query parameters для static assets:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- frontend/web/templates/base.html --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/app.min.js?v=10.0.23&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">link</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;stylesheet&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/static/css/style.min.css?v=10.0.23&quot;</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><strong>Service Worker</strong> - cache name:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// frontend/web/static/workers/core/sw.ts</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">CACHE_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10.0.23&quot;</span><span class="p">;</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">CACHE_NAME</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`budget-v</span><span class="si">${</span><span class="nx">CACHE_VERSION</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>До v10.0 (legacy)</strong>: Cache busting использовал timestamp <code class="docutils literal notranslate"><span class="pre">v20260124_1530</span></code></p>
+</section>
+<section id="build-metadata">
+<h3>3. Build Metadata<a class="headerlink" href="#build-metadata" title="Link to this heading">¶</a></h3>
+<p><strong>GitHub Actions</strong> - build info:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># .github/workflows/build-and-push.yml</span>
+<span class="l l-Scalar l-Scalar-Plain">VERSION=$(cat VERSION)</span>
+<span class="l l-Scalar l-Scalar-Plain">echo &quot;Building version</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$VERSION&quot;</span>
+</pre></div>
+</div>
+<p><strong>Backend API</strong> - version endpoint:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/v1/endpoints/system.py</span>
+<span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/version&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_version</span><span class="p">():</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;VERSION&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()}</span>
+</pre></div>
+</div>
+</section>
+<section id="environment-configuration">
+<h3>4. Environment Configuration<a class="headerlink" href="#environment-configuration" title="Link to this heading">¶</a></h3>
+<p><strong>.env файл</strong> - docker compose:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">VERSION</span><span class="o">=</span><span class="m">10</span>.0.23
+</pre></div>
+</div>
+<p><strong>package.json</strong> - npm package metadata:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;10.0.23&quot;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="update-process">
+<h2>Update Process<a class="headerlink" href="#update-process" title="Link to this heading">¶</a></h2>
+<section id="manual-version-bump">
+<h3>1. Manual Version Bump<a class="headerlink" href="#manual-version-bump" title="Link to this heading">¶</a></h3>
+<p>VERSION <strong>ВСЕГДА</strong> обновляется вручную разработчиком:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Increment patch version (bug fixes)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.0.24&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+
+<span class="c1"># Increment minor version (new features)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.1.0&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+
+<span class="c1"># Increment major version (breaking changes)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;11.0.0&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+</pre></div>
+</div>
+<p><strong>Важно</strong>: Автоматическое обновление VERSION намеренно отключено для строгого контроля версий.</p>
+</section>
+<section id="commit">
+<h3>2. Commit<a class="headerlink" href="#commit" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>VERSION
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: bump version to 10.0.24&quot;</span>
+</pre></div>
+</div>
+<p><strong>Commit message convention:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">chore:</span> <span class="pre">bump</span> <span class="pre">version</span> <span class="pre">to</span> <span class="pre">X.Y.Z</span></code> - version bump</p></li>
+</ul>
+</section>
+<section id="push-ci-cd">
+<h3>3. Push &amp; CI/CD<a class="headerlink" href="#push-ci-cd" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+<p><strong>GitHub Actions автоматически</strong>:</p>
+<ol class="arabic simple">
+<li><p>Читает VERSION файл</p></li>
+<li><p>Валидирует формат semantic versioning</p></li>
+<li><p>Применяет cache busting ко всем templates (<code class="docutils literal notranslate"><span class="pre">?v=10.0.24</span></code>)</p></li>
+<li><p>Обновляет Service Worker CACHE_VERSION</p></li>
+<li><p>Собирает Docker images с tags из VERSION</p></li>
+<li><p>Загружает images в ghcr.io</p></li>
+</ol>
+</section>
+<section id="deployment">
+<h3>4. Deployment<a class="headerlink" href="#deployment" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># На сервере</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+git<span class="w"> </span>pull
+docker<span class="w"> </span>compose<span class="w"> </span>pull<span class="w">  </span><span class="c1"># Pulls images with VERSION tag</span>
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="validation">
+<h2>Validation<a class="headerlink" href="#validation" title="Link to this heading">¶</a></h2>
+<section id="ci-cd-pipeline">
+<h3>CI/CD Pipeline<a class="headerlink" href="#ci-cd-pipeline" title="Link to this heading">¶</a></h3>
+<p><strong>Automatic validation</strong> в <code class="docutils literal notranslate"><span class="pre">.github/workflows/build-and-push.yml</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Cache busting</span>
+<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no"># Проверка существования VERSION файла</span>
+<span class="w">    </span><span class="no">if [[ ! -f VERSION ]]; then</span>
+<span class="w">      </span><span class="no">echo &quot;❌ VERSION file not found&quot;</span>
+<span class="w">      </span><span class="no">exit 1</span>
+<span class="w">    </span><span class="no">fi</span>
+
+<span class="w">    </span><span class="no">CACHE_VERSION=$(cat VERSION | tr -d &#39;[:space:]&#39;)</span>
+
+<span class="w">    </span><span class="no"># Валидация semantic versioning (X.Y.Z)</span>
+<span class="w">    </span><span class="no">if [[ ! &quot;$CACHE_VERSION&quot; =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then</span>
+<span class="w">      </span><span class="no">echo &quot;❌ Invalid VERSION format: $CACHE_VERSION&quot;</span>
+<span class="w">      </span><span class="no">echo &quot;   Expected: X.Y.Z (e.g., 10.0.23)&quot;</span>
+<span class="w">      </span><span class="no">exit 1</span>
+<span class="w">    </span><span class="no">fi</span>
+</pre></div>
+</div>
+<p><strong>Build fails если</strong>:</p>
+<ul class="simple">
+<li><p>VERSION файл отсутствует</p></li>
+<li><p>Формат невалиден (не X.Y.Z)</p></li>
+<li><p>VERSION не изменился при push в test branch (optional warning)</p></li>
+</ul>
+</section>
+<section id="manual-validation">
+<h3>Manual Validation<a class="headerlink" href="#manual-validation" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить формат VERSION</span>
+<span class="nv">VERSION_CONTENT</span><span class="o">=</span><span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;[:space:]&#39;</span><span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$VERSION_CONTENT</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^<span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+$<span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ VERSION format valid: </span><span class="nv">$VERSION_CONTENT</span><span class="s2">&quot;</span>
+<span class="k">else</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;❌ VERSION format invalid: </span><span class="nv">$VERSION_CONTENT</span><span class="s2">&quot;</span>
+<span class="k">fi</span>
+
+<span class="c1"># Проверить что cache busting применился</span>
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;?v=</span><span class="nv">$VERSION_CONTENT</span><span class="s2">&quot;</span><span class="w"> </span>frontend/web/templates/<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="migration-from-timestamp-to-semantic-versioning">
+<h2>Migration from Timestamp to Semantic Versioning<a class="headerlink" href="#migration-from-timestamp-to-semantic-versioning" title="Link to this heading">¶</a></h2>
+<section id="v10-0-timestamp-based-cache-versioning">
+<h3>До v10.0: Timestamp-Based Cache Versioning<a class="headerlink" href="#v10-0-timestamp-based-cache-versioning" title="Link to this heading">¶</a></h3>
+<p><strong>Старый подход</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">CACHE_VERSION</span><span class="o">=</span><span class="s2">&quot;v</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>+%Y%m%d_%H%M<span class="k">)</span><span class="s2">&quot;</span><span class="w">  </span><span class="c1"># v20260124_1530</span>
+</pre></div>
+</div>
+<p><strong>Проблемы</strong>:</p>
+<ul class="simple">
+<li><p>Непредсказуемость: версия зависит от времени запуска CI</p></li>
+<li><p>Дублирование: повторные сборки создают разные версии</p></li>
+<li><p>Несоответствие: Docker tags использовали VERSION (semantic), а cache busting - timestamp</p></li>
+</ul>
+</section>
+<section id="v10-0-semantic-versioning">
+<h3>v10.0+: Semantic Versioning для Всех Компонентов<a class="headerlink" href="#v10-0-semantic-versioning" title="Link to this heading">¶</a></h3>
+<p><strong>Новый подход</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">CACHE_VERSION</span><span class="o">=</span><span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;[:space:]&#39;</span><span class="k">)</span><span class="w">  </span><span class="c1"># 10.0.23</span>
+</pre></div>
+</div>
+<p><strong>Преимущества</strong>:</p>
+<ul class="simple">
+<li><p><strong>Единый источник</strong>: VERSION файл для всех компонентов</p></li>
+<li><p><strong>Предсказуемость</strong>: версия не зависит от времени сборки</p></li>
+<li><p><strong>Контроль</strong>: manual bump требует осознанного решения</p></li>
+<li><p><strong>Consistency</strong>: Docker tags и cache versions совпадают</p></li>
+</ul>
+</section>
+<section id="backward-compatibility">
+<h3>Backward Compatibility<a class="headerlink" href="#backward-compatibility" title="Link to this heading">¶</a></h3>
+<p>Во время переходного периода (v10.0 - v10.1) поддерживаются <strong>оба формата</strong>:</p>
+<p><strong>Semantic versioning</strong> (рекомендуется):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">10.0.23</span>
+</pre></div>
+</div>
+<p><strong>Legacy timestamp</strong> (deprecated):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">v20260124_1530</span>
+</pre></div>
+</div>
+</section>
+<section id="regex-patterns">
+<h3>Regex Patterns<a class="headerlink" href="#regex-patterns" title="Link to this heading">¶</a></h3>
+<p><strong>scripts/ci/cache_busting_ci.sh</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Поддержка обоих форматов</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>!<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CACHE_VERSION</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^<span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+$<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">   </span><span class="o">[[</span><span class="w"> </span>!<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CACHE_VERSION</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^v<span class="o">[</span><span class="m">0</span>-9a-f_<span class="o">]</span>+$<span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;❌ Invalid version format&quot;</span>
+<span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+</pre></div>
+</div>
+<p><strong>Perl regex</strong> в замене:</p>
+<div class="highlight-perl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Matches: 10.0.23 (semantic) OR v20260124_1530 (legacy)</span>
+<span class="sr">s{\?v=(PLACEHOLDER|v?[0-9a-f_]+|[0-9]+\.[0-9]+\.[0-9]+)}{\?v=${version}</span><span class="p">}</span><span class="n">g</span>
+</pre></div>
+</div>
+</section>
+<section id="migration-timeline">
+<h3>Migration Timeline<a class="headerlink" href="#migration-timeline" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>v10.0</strong>: Введение semantic versioning из VERSION файла для cache busting</p></li>
+<li><p><strong>v10.0 - v10.1</strong>: Поддержка обоих форматов (smooth migration)</p></li>
+<li><p><strong>v10.2+</strong>: Удаление legacy timestamp support</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h2>
+<section id="always-bump-version-before-changes">
+<h3>1. Always Bump VERSION Before Changes<a class="headerlink" href="#always-bump-version-before-changes" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ❌ WRONG</span>
+git<span class="w"> </span>add<span class="w"> </span>frontend/web/static/js/app.ts
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: add new feature&quot;</span>
+git<span class="w"> </span>push
+
+<span class="c1"># ✅ CORRECT</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.0.24&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+git<span class="w"> </span>add<span class="w"> </span>VERSION
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: bump version to 10.0.24&quot;</span>
+git<span class="w"> </span>push
+
+<span class="c1"># Then make changes</span>
+git<span class="w"> </span>add<span class="w"> </span>frontend/web/static/js/app.ts
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: add new feature&quot;</span>
+git<span class="w"> </span>push
+</pre></div>
+</div>
+</section>
+<section id="semantic-version-increments">
+<h3>2. Semantic Version Increments<a class="headerlink" href="#semantic-version-increments" title="Link to this heading">¶</a></h3>
+<p><strong>Patch (X.Y.Z)</strong>: Bug fixes, minor changes</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: 10.0.23 → 10.0.24</span>
+-<span class="w"> </span>Fix<span class="w"> </span>cache<span class="w"> </span>busting<span class="w"> </span>regex<span class="w"> </span>pattern
+-<span class="w"> </span>Update<span class="w"> </span>documentation<span class="w"> </span>typo
+-<span class="w"> </span>Optimize<span class="w"> </span>Service<span class="w"> </span>Worker<span class="w"> </span>logic
+</pre></div>
+</div>
+<p><strong>Minor (X.Y.0)</strong>: New features, backward compatible</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: 10.0.23 → 10.1.0</span>
+-<span class="w"> </span>Add<span class="w"> </span>new<span class="w"> </span>API<span class="w"> </span>endpoint
+-<span class="w"> </span>Introduce<span class="w"> </span>new<span class="w"> </span>frontend<span class="w"> </span>component
+-<span class="w"> </span>Add<span class="w"> </span>WebSocket<span class="w"> </span>feature
+</pre></div>
+</div>
+<p><strong>Major (X.0.0)</strong>: Breaking changes</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Example: 10.0.23 → 11.0.0</span>
+-<span class="w"> </span>Change<span class="w"> </span>API<span class="w"> </span>response<span class="w"> </span>format
+-<span class="w"> </span>Remove<span class="w"> </span>deprecated<span class="w"> </span>endpoints
+-<span class="w"> </span>Database<span class="w"> </span>schema<span class="w"> </span>breaking<span class="w"> </span>change
+</pre></div>
+</div>
+</section>
+<section id="one-version-per-feature-branch">
+<h3>3. One VERSION Per Feature Branch<a class="headerlink" href="#one-version-per-feature-branch" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Feature branch</span>
+git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feature/new-feature
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.1.0&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION<span class="w">  </span><span class="c1"># Bump once at start</span>
+git<span class="w"> </span>add<span class="w"> </span>VERSION
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: bump version to 10.1.0&quot;</span>
+
+<span class="c1"># Work on feature...</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: implement new feature&quot;</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;test: add tests for new feature&quot;</span>
+
+<span class="c1"># Merge to test</span>
+git<span class="w"> </span>checkout<span class="w"> </span><span class="nb">test</span>
+git<span class="w"> </span>merge<span class="w"> </span>feature/new-feature
+git<span class="w"> </span>push
+</pre></div>
+</div>
+</section>
+<section id="check-version-in-pr-reviews">
+<h3>4. Check VERSION in PR Reviews<a class="headerlink" href="#check-version-in-pr-reviews" title="Link to this heading">¶</a></h3>
+<p><strong>Reviewer checklist</strong>:</p>
+<ul class="simple">
+<li><p>[ ] VERSION файл обновлен</p></li>
+<li><p>[ ] Версия соответствует типу изменений (patch/minor/major)</p></li>
+<li><p>[ ] Версия не конфликтует с другими PR</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<section id="issue-1-build-fails-version-file-not-found">
+<h3>Issue 1: Build Fails “VERSION file not found”<a class="headerlink" href="#issue-1-build-fails-version-file-not-found" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>❌ VERSION file not found
+Error: Process completed with exit code 1
+</pre></div>
+</div>
+<p><strong>Solution</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.0.23&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+git<span class="w"> </span>add<span class="w"> </span>VERSION
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: add VERSION file&quot;</span>
+git<span class="w"> </span>push
+</pre></div>
+</div>
+</section>
+<section id="issue-2-build-fails-invalid-version-format">
+<h3>Issue 2: Build Fails “Invalid VERSION format”<a class="headerlink" href="#issue-2-build-fails-invalid-version-format" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>❌ Invalid VERSION format: 10.0
+   Expected: X.Y.Z (e.g., 10.0.23)
+</pre></div>
+</div>
+<p><strong>Solution</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ❌ WRONG</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.0&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+
+<span class="c1"># ✅ CORRECT</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;10.0.0&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>VERSION
+</pre></div>
+</div>
+</section>
+<section id="issue-3-cache-not-invalidating">
+<h3>Issue 3: Cache Not Invalidating<a class="headerlink" href="#issue-3-cache-not-invalidating" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>: Browser serves old cached files after deployment</p>
+<p><strong>Solution</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Verify VERSION was updated</span>
+cat<span class="w"> </span>VERSION
+
+<span class="c1"># 2. Check cache busting applied in templates</span>
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;?v=</span><span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>frontend/web/templates/<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
+
+<span class="c1"># 3. Verify Service Worker CACHE_VERSION</span>
+grep<span class="w"> </span><span class="s2">&quot;CACHE_VERSION&quot;</span><span class="w"> </span>frontend/web/static/sw.min.js
+
+<span class="c1"># 4. Force browser cache clear (user)</span>
+Ctrl+Shift+R<span class="w"> </span><span class="o">(</span>hard<span class="w"> </span>reload<span class="o">)</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-4-docker-images-not-found">
+<h3>Issue 4: Docker Images Not Found<a class="headerlink" href="#issue-4-docker-images-not-found" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Error</span> <span class="n">response</span> <span class="kn">from</span><span class="w"> </span><span class="nn">daemon</span><span class="p">:</span> <span class="n">manifest</span> <span class="k">for</span> <span class="n">ghcr</span><span class="o">.</span><span class="n">io</span><span class="o">/.../</span><span class="n">backend</span><span class="p">:</span><span class="mf">10.0.99</span> <span class="ow">not</span> <span class="n">found</span>
+</pre></div>
+</div>
+<p><strong>Solution</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Check GitHub Actions build logs</span>
+https://github.com/ikeniborn/familyBudget/actions
+
+<span class="c1"># 2. Verify VERSION matches built images</span>
+cat<span class="w"> </span>VERSION<span class="w">  </span><span class="c1"># Should match failed pull</span>
+
+<span class="c1"># 3. Check IMAGE_VERSIONS.json</span>
+cat<span class="w"> </span>IMAGE_VERSIONS.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.backend.current_version&#39;</span>
+
+<span class="c1"># 4. Re-run build if needed</span>
+git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--force
+</pre></div>
+</div>
+</section>
+<section id="issue-5">
+<h3>Issue 5: Версия на странице мониторинга показывает старую версию<a class="headerlink" href="#issue-5" title="Link to this heading">¶</a></h3>
+<p><strong>Причина</strong>: <code class="docutils literal notranslate"><span class="pre">.env</span></code> файл в <code class="docutils literal notranslate"><span class="pre">/opt/budget/</span></code> не синхронизирован с VERSION файлом.</p>
+<p><strong>Решение</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить текущие версии</span>
+cat<span class="w"> </span>VERSION
+grep<span class="w"> </span>VERSION<span class="w"> </span>.env
+
+<span class="c1"># 2. Синхронизировать вручную если отличаются</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;VERSION=</span><span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.env
+
+<span class="c1"># 3. Перезапустить контейнеры</span>
+docker<span class="w"> </span>compose<span class="w"> </span>down<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+</pre></div>
+</div>
+<p><strong>Проверка</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-s<span class="w"> </span>https://domain/health/detailed<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.version
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="version">
+<h2>Автоматическая синхронизация VERSION<a class="headerlink" href="#version" title="Link to this heading">¶</a></h2>
+<section id="deploy-sh">
+<h3>При деплое через deploy.sh происходит:<a class="headerlink" href="#deploy-sh" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Sync code</strong> → копирование кода в /opt/budget</p></li>
+<li><p><strong>VERSION → package.json sync</strong> → если VERSION ≠ package.json</p></li>
+<li><p><strong>package.json → .npm-isolated sync</strong> → если package.json изменился</p></li>
+<li><p><strong>Version bump</strong> (если указан –version TYPE)</p>
+<ul class="simple">
+<li><p>Обновляется VERSION файл</p></li>
+<li><p>Обновляется package.json</p></li>
+<li><p>Синхронизируется .npm-isolated/package.json</p></li>
+<li><p>Обновляется .env</p></li>
+</ul>
+</li>
+<li><p><strong>.env VERSION sync</strong> (ВСЕГДА)</p>
+<ul class="simple">
+<li><p>Проверяется наличие VERSION в .env</p></li>
+<li><p>Если VERSION отсутствует, пустой или отличается - синхронизируется</p></li>
+<li><p>Предотвращает fallback к значению 4.0.0 в docker-compose</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="id1">
+<h3>Проверка синхронизации<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить текущие версии</span>
+cat<span class="w"> </span>VERSION
+grep<span class="w"> </span>version<span class="w"> </span>package.json
+grep<span class="w"> </span>VERSION<span class="w"> </span>.env
+grep<span class="w"> </span>version<span class="w"> </span>.npm-isolated/package.json
+</pre></div>
+</div>
+<p>Все 4 файла должны иметь одинаковую версию.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="related-documentation">
+<h2>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/build-system.md</span></code> - Build pipeline с cache busting</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/ci-cd-build-deploy.md</span></code> - CI/CD процесс</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/docker.md</span></code> - Docker multi-stage builds</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/pwa.md</span></code> - Service Worker cache management</p></li>
+</ul>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://semver.org/">Semantic Versioning 2.0.0</a></p></li>
+<li><p><a class="reference external" href="https://docs.docker.com/engine/reference/commandline/tag/">Docker Image Tags Best Practices</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control">HTTP Cache-Control</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Versioning Strategy</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#version-file">VERSION File</a><ul>
+<li><a class="reference internal" href="#structure">Structure</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#usage-version">Usage: Где Используется VERSION</a><ul>
+<li><a class="reference internal" href="#docker-image-tags">1. Docker Image Tags</a></li>
+<li><a class="reference internal" href="#cache-busting-v10-0">2. Cache Busting (НОВОЕ v10.0+)</a></li>
+<li><a class="reference internal" href="#build-metadata">3. Build Metadata</a></li>
+<li><a class="reference internal" href="#environment-configuration">4. Environment Configuration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#update-process">Update Process</a><ul>
+<li><a class="reference internal" href="#manual-version-bump">1. Manual Version Bump</a></li>
+<li><a class="reference internal" href="#commit">2. Commit</a></li>
+<li><a class="reference internal" href="#push-ci-cd">3. Push &amp; CI/CD</a></li>
+<li><a class="reference internal" href="#deployment">4. Deployment</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#validation">Validation</a><ul>
+<li><a class="reference internal" href="#ci-cd-pipeline">CI/CD Pipeline</a></li>
+<li><a class="reference internal" href="#manual-validation">Manual Validation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#migration-from-timestamp-to-semantic-versioning">Migration from Timestamp to Semantic Versioning</a><ul>
+<li><a class="reference internal" href="#v10-0-timestamp-based-cache-versioning">До v10.0: Timestamp-Based Cache Versioning</a></li>
+<li><a class="reference internal" href="#v10-0-semantic-versioning">v10.0+: Semantic Versioning для Всех Компонентов</a></li>
+<li><a class="reference internal" href="#backward-compatibility">Backward Compatibility</a></li>
+<li><a class="reference internal" href="#regex-patterns">Regex Patterns</a></li>
+<li><a class="reference internal" href="#migration-timeline">Migration Timeline</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#best-practices">Best Practices</a><ul>
+<li><a class="reference internal" href="#always-bump-version-before-changes">1. Always Bump VERSION Before Changes</a></li>
+<li><a class="reference internal" href="#semantic-version-increments">2. Semantic Version Increments</a></li>
+<li><a class="reference internal" href="#one-version-per-feature-branch">3. One VERSION Per Feature Branch</a></li>
+<li><a class="reference internal" href="#check-version-in-pr-reviews">4. Check VERSION in PR Reviews</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li><a class="reference internal" href="#issue-1-build-fails-version-file-not-found">Issue 1: Build Fails “VERSION file not found”</a></li>
+<li><a class="reference internal" href="#issue-2-build-fails-invalid-version-format">Issue 2: Build Fails “Invalid VERSION format”</a></li>
+<li><a class="reference internal" href="#issue-3-cache-not-invalidating">Issue 3: Cache Not Invalidating</a></li>
+<li><a class="reference internal" href="#issue-4-docker-images-not-found">Issue 4: Docker Images Not Found</a></li>
+<li><a class="reference internal" href="#issue-5">Issue 5: Версия на странице мониторинга показывает старую версию</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#version">Автоматическая синхронизация VERSION</a><ul>
+<li><a class="reference internal" href="#deploy-sh">При деплое через deploy.sh происходит:</a></li>
+<li><a class="reference internal" href="#id1">Проверка синхронизации</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#related-documentation">Related Documentation</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

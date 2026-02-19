@@ -1,0 +1,1679 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Frontend Loading Patterns - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/frontend/loading-patterns.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="frontend-loading-patterns">
+<h1>Frontend Loading Patterns<a class="headerlink" href="#frontend-loading-patterns" title="Link to this heading">¶</a></h1>
+<p><strong>Last Updated:</strong> 2025-12-25
+<strong>Version:</strong> v6.2</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Family Budget frontend uses a combination of HTMX, JavaScript fetch, and WebSocket for efficient data loading and real-time updates. This document describes loading patterns, best practices, and common pitfalls.</p>
+</section>
+<hr class="docutils" />
+<section id="page-initialization-patterns">
+<h2>Page Initialization Patterns<a class="headerlink" href="#page-initialization-patterns" title="Link to this heading">¶</a></h2>
+<section id="dashboard-index-html">
+<h3>Dashboard (index.html)<a class="headerlink" href="#dashboard-index-html" title="Link to this heading">¶</a></h3>
+<p><strong>Pattern:</strong> Parallel HTMX requests on page load</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- Quick Stats Card --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">hx-get</span><span class="o">=</span><span class="s">&quot;/api/v1/analytics/quick-stats-html&quot;</span> <span class="na">hx-trigger</span><span class="o">=</span><span class="s">&quot;load&quot;</span> <span class="na">hx-swap</span><span class="o">=</span><span class="s">&quot;innerHTML&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;loading loading-spinner&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- Account Balances --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">hx-get</span><span class="o">=</span><span class="s">&quot;/api/v1/analytics/account-balances-html&quot;</span> <span class="na">hx-trigger</span><span class="o">=</span><span class="s">&quot;load&quot;</span> <span class="na">hx-swap</span><span class="o">=</span><span class="s">&quot;innerHTML&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;loading loading-spinner&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- Recent Transactions --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">hx-get</span><span class="o">=</span><span class="s">&quot;/api/v1/facts/recent-html?limit=10&quot;</span> <span class="na">hx-trigger</span><span class="o">=</span><span class="s">&quot;load&quot;</span> <span class="na">hx-swap</span><span class="o">=</span><span class="s">&quot;innerHTML&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;loading loading-spinner&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><strong>Characteristics:</strong></p>
+<ul class="simple">
+<li><p><strong>3 parallel HTTP requests</strong> on page load</p></li>
+<li><p><strong>HTMX automatic handling</strong> of loading states</p></li>
+<li><p><strong>Server-side HTML generation</strong> (Jinja2 templates)</p></li>
+<li><p><strong>Redis caching</strong> (10-30s TTL) reduces DB load</p></li>
+</ul>
+<p><strong>Performance:</strong></p>
+<ul class="simple">
+<li><p>First load: ~1-2s (cold cache)</p></li>
+<li><p>Subsequent loads: ~300-500ms (warm cache)</p></li>
+</ul>
+<p><strong>Refresh triggers:</strong> WebSocket events (<code class="docutils literal notranslate"><span class="pre">fact_created</span></code>, <code class="docutils literal notranslate"><span class="pre">fact_updated</span></code>, <code class="docutils literal notranslate"><span class="pre">fact_deleted</span></code>)</p>
+</section>
+<hr class="docutils" />
+<section id="facts-plan-pages-facts-html-plan-html">
+<h3>Facts/Plan Pages (facts.html, plan.html)<a class="headerlink" href="#facts-plan-pages-facts-html-plan-html" title="Link to this heading">¶</a></h3>
+<p><strong>Pattern:</strong> JavaScript fetch with manual DOM manipulation</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Page initialization (DOMContentLoaded event)</span>
+<span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">initializePage</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Phase 1: Load independent reference data (parallel)</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span>
+<span class="w">            </span><span class="nx">loadUsers</span><span class="p">(),</span>
+<span class="w">            </span><span class="nx">loadFinancialCenters</span><span class="p">(),</span>
+<span class="w">            </span><span class="nx">loadCostCenters</span><span class="p">()</span>
+<span class="w">        </span><span class="p">]);</span>
+
+<span class="w">        </span><span class="c1">// Phase 2: Load articles (may depend on hierarchy)</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">loadArticles</span><span class="p">();</span>
+
+<span class="w">        </span><span class="c1">// Phase 3: Load facts (depends on all reference data being ready)</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span>
+
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Initialization failed:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">showErrorNotification</span><span class="p">(</span><span class="s1">&#39;Failed to load page data. Please refresh.&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Characteristics:</strong></p>
+<ul class="simple">
+<li><p><strong>Sequential phased loading</strong> prevents race conditions</p></li>
+<li><p><strong>Awaited promises</strong> ensure data dependencies are met</p></li>
+<li><p><strong>Global variables</strong> (allCategories, allFinancialCenters) populated before facts render</p></li>
+<li><p><strong>No HTMX</strong> - pure JavaScript fetch + DOM manipulation</p></li>
+</ul>
+<p><strong>Load sequence:</strong></p>
+<ol class="arabic simple">
+<li><p>Reference data (users, FCs, CCs) - parallel (<strong>~300ms</strong>)</p></li>
+<li><p>Articles - sequential (<strong>~200ms</strong>, depends on hierarchy)</p></li>
+<li><p>Facts table - sequential (<strong>~500ms</strong>, depends on filters)</p></li>
+</ol>
+<p><strong>Total load time:</strong> ~1000ms (first load), ~600ms (cached)</p>
+<p><strong>Why not parallel for all?</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">loadFacts()</span></code> may reference <code class="docutils literal notranslate"><span class="pre">allCategories</span></code> for rendering</p></li>
+<li><p>Race condition risk if facts load before categories</p></li>
+<li><p>Better UX: show complete data at once vs. partial/flickering render</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="data-loading-functions">
+<h2>Data Loading Functions<a class="headerlink" href="#data-loading-functions" title="Link to this heading">¶</a></h2>
+<section id="loadfacts-fetch-and-render-transactions">
+<h3>loadFacts() - Fetch and Render Transactions<a class="headerlink" href="#loadfacts-fetch-and-render-transactions" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">container</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;facts-table-container&#39;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// Show loading state</span>
+<span class="w">    </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;loading loading-spinner&quot;&gt;...&lt;/div&gt;&#39;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Build query params with filters</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="nx">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">({</span>
+<span class="w">            </span><span class="nx">limit</span><span class="o">:</span><span class="w"> </span><span class="nx">pageSize</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">offset</span><span class="o">:</span><span class="w"> </span><span class="nx">currentPage</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">pageSize</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">        </span><span class="nx">params</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">&#39;record_type&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;fact&#39;</span><span class="p">);</span><span class="w">  </span><span class="c1">// or &#39;plan&#39;</span>
+
+<span class="w">        </span><span class="c1">// Apply user-selected filters</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">filters</span><span class="p">.</span><span class="nx">date_from</span><span class="p">)</span><span class="w"> </span><span class="nx">params</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">&#39;date_from&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">date_from</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">filters</span><span class="p">.</span><span class="nx">date_to</span><span class="p">)</span><span class="w"> </span><span class="nx">params</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s1">&#39;date_to&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">date_to</span><span class="p">);</span>
+<span class="w">        </span><span class="c1">// ... other filters ...</span>
+
+<span class="w">        </span><span class="c1">// Parallel fetch of data and count</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">factsResponse</span><span class="p">,</span><span class="w"> </span><span class="nx">countResponse</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span>
+<span class="w">            </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/v1/facts?</span><span class="si">${</span><span class="nx">params</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">credentials</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;include&#39;</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">            </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/v1/facts/count?</span><span class="si">${</span><span class="nx">countParams</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">credentials</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;include&#39;</span><span class="w"> </span><span class="p">})</span>
+<span class="w">        </span><span class="p">]);</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">factsResponse</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="sb">`HTTP </span><span class="si">${</span><span class="nx">factsResponse</span><span class="p">.</span><span class="nx">status</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">factsResponse</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+<span class="w">        </span><span class="nx">factsData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">data</span><span class="p">.</span><span class="nx">facts</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">        </span><span class="nx">totalFacts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">countData</span><span class="p">.</span><span class="nx">total</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Atomic render (single DOM update)</span>
+<span class="w">        </span><span class="nx">renderFactsTable</span><span class="p">(</span><span class="nx">factsData</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">updateStats</span><span class="p">();</span>
+<span class="w">        </span><span class="nx">updatePagination</span><span class="p">();</span>
+
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Failed to load facts:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;alert alert-error&quot;&gt;Failed to load&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Key points:</strong></p>
+<ul class="simple">
+<li><p><strong>Atomic render</strong> - table appears all at once, no gradual loading</p></li>
+<li><p><strong>Parallel count query</strong> - avoids sequential DB queries</p></li>
+<li><p><strong>Error handling</strong> - shows user-friendly message on failure</p></li>
+<li><p><strong>Filter serialization</strong> - URL query params for pagination/filters</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="renderfactstable-dom-generation">
+<h3>renderFactsTable() - DOM Generation<a class="headerlink" href="#renderfactstable-dom-generation" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">renderFactsTable</span><span class="p">(</span><span class="nx">facts</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">container</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;facts-table-container&#39;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">facts</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div&gt;No facts found&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Build full HTML string (desktop + mobile)</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="nx">tableHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;hidden md:block&quot;&gt;&lt;table&gt;...&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="nx">mobileHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;md:hidden&quot;&gt;...&#39;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="nx">facts</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">fact</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Desktop row</span>
+<span class="w">        </span><span class="nx">tableHtml</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="sb">`&lt;tr data-fact-id=&quot;</span><span class="si">${</span><span class="nx">fact</span><span class="p">.</span><span class="nx">id</span><span class="si">}</span><span class="sb">&quot;&gt;...`</span><span class="p">;</span>
+
+<span class="w">        </span><span class="c1">// Mobile card</span>
+<span class="w">        </span><span class="nx">mobileHtml</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="sb">`&lt;div class=&quot;transaction-item&quot;&gt;...`</span><span class="p">;</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="nx">tableHtml</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s1">&#39;&lt;/table&gt;&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">mobileHtml</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="s1">&#39;&lt;/div&gt;&#39;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Single atomic DOM update</span>
+<span class="w">    </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tableHtml</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">mobileHtml</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Performance:</strong></p>
+<ul class="simple">
+<li><p><strong>String concatenation</strong> - fastest for large datasets</p></li>
+<li><p><strong>Single <code class="docutils literal notranslate"><span class="pre">innerHTML</span></code> assignment</strong> - prevents intermediate reflows</p></li>
+<li><p><strong>No DocumentFragment</strong> - simpler, sufficient for this use case</p></li>
+<li><p><strong>Responsive design</strong> - separate desktop/mobile HTML (hidden via CSS)</p></li>
+</ul>
+<p><strong>Rendering time:</strong></p>
+<ul class="simple">
+<li><p>10 records: ~10ms</p></li>
+<li><p>100 records: ~50ms</p></li>
+<li><p>1000 records: ~300ms (pagination recommended)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="real-time-updates-websocket">
+<h2>Real-Time Updates (WebSocket)<a class="headerlink" href="#real-time-updates-websocket" title="Link to this heading">¶</a></h2>
+<section id="event-listeners">
+<h3>Event Listeners<a class="headerlink" href="#event-listeners" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Fact created</span>
+<span class="nb">window</span><span class="p">.</span><span class="nx">budgetWSClient</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;fact_created&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">data</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">loadFactsDebounced</span><span class="p">();</span><span class="w">  </span><span class="c1">// 300ms debounce</span>
+<span class="p">});</span>
+
+<span class="c1">// Fact updated</span>
+<span class="nb">window</span><span class="p">.</span><span class="nx">budgetWSClient</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;fact_updated&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">data</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">loadFactsDebounced</span><span class="p">();</span>
+<span class="p">});</span>
+
+<span class="c1">// Fact deleted</span>
+<span class="nb">window</span><span class="p">.</span><span class="nx">budgetWSClient</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s1">&#39;fact_deleted&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">data</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">loadFactsDebounced</span><span class="p">();</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>Debouncing:</strong> Prevents multiple rapid reloads when batch operations occur.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Debounced reload (300ms wait)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">loadFactsDebounced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">debounce</span><span class="p">(</span><span class="nx">loadFacts</span><span class="p">,</span><span class="w"> </span><span class="mf">300</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>Why debounce?</strong></p>
+<ul class="simple">
+<li><p>Batch delete of 10 facts → 10 WebSocket events → only 1 reload (after 300ms)</p></li>
+<li><p>Prevents UI flickering from rapid re-renders</p></li>
+<li><p>Reduces server load from duplicate fetch requests</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="incrementalupdates-optimization">
+<h3>IncrementalUpdates (Optimization)<a class="headerlink" href="#incrementalupdates-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Alternative to full reload:</strong> Direct DOM manipulation</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Instead of full table reload</span>
+<span class="nx">IncrementalUpdates</span><span class="p">.</span><span class="nx">onFactCreated</span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">newRow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createFactRow</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">fact</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">table</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;tbody&#39;</span><span class="p">).</span><span class="nx">prepend</span><span class="p">(</span><span class="nx">newRow</span><span class="p">);</span><span class="w">  </span><span class="c1">// Add to top</span>
+<span class="w">    </span><span class="nx">updateStats</span><span class="p">();</span><span class="w">  </span><span class="c1">// Recalculate totals</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Benefits:</strong></p>
+<ul class="simple">
+<li><p><strong>75% fewer HTTP requests</strong> (no fetch, direct insert)</p></li>
+<li><p><strong>&lt;100ms latency</strong> vs. ~500ms for full reload</p></li>
+<li><p><strong>Smoother UX</strong> - no spinner, no table rebuild</p></li>
+</ul>
+<p><strong>Trade-offs:</strong></p>
+<ul class="simple">
+<li><p>More complex code (manual DOM manipulation)</p></li>
+<li><p>Needs reference data cached (article names, etc.)</p></li>
+<li><p>Only works for simple append/update/remove operations</p></li>
+</ul>
+<p><strong>Usage:</strong> Dashboard widgets (quick stats, recent transactions)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="http-caching-for-dynamic-data">
+<h2>HTTP Caching for Dynamic Data<a class="headerlink" href="#http-caching-for-dynamic-data" title="Link to this heading">¶</a></h2>
+<section id="facts-api-api-v1-facts">
+<h3>Facts API (<code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code>)<a class="headerlink" href="#facts-api-api-v1-facts" title="Link to this heading">¶</a></h3>
+<p><strong>Policy:</strong> <code class="docutils literal notranslate"><span class="pre">private,</span> <span class="pre">no-cache,</span> <span class="pre">must-revalidate</span></code></p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="err">Cache-Control: private, no-cache, must-revalidate</span>
+<span class="err">Pragma: no-cache</span>
+<span class="err">Vary: Cookie</span>
+</pre></div>
+</div>
+<p><strong>Rationale:</strong></p>
+<ul class="simple">
+<li><p><strong>Frequently changing</strong> - Transactions created/edited often</p></li>
+<li><p><strong>Must be fresh</strong> - Users expect immediate updates after mutations</p></li>
+<li><p><strong>User-specific</strong> - Different users see different data (JWT auth)</p></li>
+</ul>
+<p><strong>Service Worker behavior:</strong></p>
+<ul class="simple">
+<li><p>Respects <code class="docutils literal notranslate"><span class="pre">no-cache</span></code> directive</p></li>
+<li><p>Always revalidates with server</p></li>
+<li><p>Cache used ONLY as offline fallback</p></li>
+</ul>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/facts.py:440-444</span></code></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Cache-Control&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;private, no-cache, must-revalidate&quot;</span>
+<span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Pragma&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;no-cache&quot;</span>
+<span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Vary&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;Cookie&quot;</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="reference-data-api-v1-articles-api-v1-financial-centers">
+<h3>Reference Data (<code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/financial-centers</span></code>)<a class="headerlink" href="#reference-data-api-v1-articles-api-v1-financial-centers" title="Link to this heading">¶</a></h3>
+<p><strong>Policy:</strong> <code class="docutils literal notranslate"><span class="pre">private,</span> <span class="pre">max-age=300</span></code> (5 minutes)</p>
+<p><strong>Rationale:</strong></p>
+<ul class="simple">
+<li><p><strong>Rarely changes</strong> - Categories, accounts updated infrequently</p></li>
+<li><p><strong>Safe to cache</strong> - Stale data acceptable for 5 minutes</p></li>
+<li><p><strong>Performance boost</strong> - Avoids repeated DB queries</p></li>
+</ul>
+<p><strong>Service Worker behavior:</strong></p>
+<ul class="simple">
+<li><p>Caches for 5 minutes (browser + SW cache)</p></li>
+<li><p>Background revalidation (stale-while-revalidate)</p></li>
+</ul>
+<p><strong>Redis cache:</strong> 300s TTL (CacheTTL.REFERENCE)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="loading-states-error-handling">
+<h2>Loading States &amp; Error Handling<a class="headerlink" href="#loading-states-error-handling" title="Link to this heading">¶</a></h2>
+<section id="loading-state-pattern">
+<h3>Loading State Pattern<a class="headerlink" href="#loading-state-pattern" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Show loading spinner</span>
+<span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;loading loading-spinner loading-lg&quot;&gt;&lt;/div&gt;&#39;</span><span class="p">;</span>
+
+<span class="c1">// Fetch data</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">);</span>
+
+<span class="c1">// Success: render data</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+<span class="w">    </span><span class="nx">renderData</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Error: show retry option</span>
+<span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span>
+<span class="sb">        &lt;div class=&quot;alert alert-error&quot;&gt;</span>
+<span class="sb">            &lt;span&gt;Failed to load data&lt;/span&gt;</span>
+<span class="sb">            &lt;button class=&quot;btn btn-sm&quot; onclick=&quot;retry()&quot;&gt;Retry&lt;/button&gt;</span>
+<span class="sb">        &lt;/div&gt;</span>
+<span class="sb">    `</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="error-recovery-strategies">
+<h3>Error Recovery Strategies<a class="headerlink" href="#error-recovery-strategies" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Error Type</p></th>
+<th class="head"><p>Strategy</p></th>
+<th class="head"><p>User Action</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Network error</strong></p></td>
+<td><p>Show offline message + retry button</p></td>
+<td><p>Manual retry or wait for reconnect</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>HTTP 401/403</strong></p></td>
+<td><p>Redirect to login</p></td>
+<td><p>User must re-authenticate</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>HTTP 404</strong></p></td>
+<td><p>Show “not found” message</p></td>
+<td><p>Return to previous page</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>HTTP 500</strong></p></td>
+<td><p>Show error + retry button</p></td>
+<td><p>Manual retry or report issue</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Timeout</strong></p></td>
+<td><p>Show timeout message + retry</p></td>
+<td><p>Check network connection</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Timeout configuration:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">controller</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">AbortController</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">timeoutId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">setTimeout</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">controller</span><span class="p">.</span><span class="nx">abort</span><span class="p">(),</span><span class="w"> </span><span class="mf">10000</span><span class="p">);</span><span class="w">  </span><span class="c1">// 10s timeout</span>
+
+<span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">signal</span><span class="o">:</span><span class="w"> </span><span class="nx">controller</span><span class="p">.</span><span class="nx">signal</span><span class="w"> </span><span class="p">})</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">clearTimeout</span><span class="p">(</span><span class="nx">timeoutId</span><span class="p">);</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">});</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="filter-management">
+<h2>Filter Management<a class="headerlink" href="#filter-management" title="Link to this heading">¶</a></h2>
+<section id="filter-state-object">
+<h3>Filter State Object<a class="headerlink" href="#filter-state-object" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">filters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">date_from</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">date_to</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">article_id</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">article_type</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">financial_center_id</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">cost_center_id</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="kc">null</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
+<section id="apply-filters-flow">
+<h3>Apply Filters Flow<a class="headerlink" href="#apply-filters-flow" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">applyFilters</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 1. Update filters object from UI</span>
+<span class="w">    </span><span class="nx">filters</span><span class="p">.</span><span class="nx">date_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;filter-date-from&#39;</span><span class="p">).</span><span class="nx">value</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">filters</span><span class="p">.</span><span class="nx">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">parseInt</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;filter-article&#39;</span><span class="p">).</span><span class="nx">value</span><span class="p">)</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// ... other filters ...</span>
+
+<span class="w">    </span><span class="c1">// 2. Reset pagination</span>
+<span class="w">    </span><span class="nx">currentPage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 3. Reload data</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 4. Update filter indicator (badge count)</span>
+<span class="w">    </span><span class="nx">updateFilterIndicator</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="filter-indicator">
+<h3>Filter Indicator<a class="headerlink" href="#filter-indicator" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">updateFilterIndicator</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">activeFilters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">values</span><span class="p">(</span><span class="nx">filters</span><span class="p">).</span><span class="nx">filter</span><span class="p">(</span><span class="nx">v</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">v</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="p">).</span><span class="nx">length</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">badge</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;filter-count-badge&#39;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">activeFilters</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">badge</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">activeFilters</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">badge</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">remove</span><span class="p">(</span><span class="s1">&#39;hidden&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">badge</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s1">&#39;hidden&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>UX:</strong> Shows number of active filters as badge on “Filters” button.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="modal-form-submission-loading-states">
+<h2>Modal Form Submission Loading States<a class="headerlink" href="#modal-form-submission-loading-states" title="Link to this heading">¶</a></h2>
+<section id="edit-modal-save-buttons">
+<h3>Edit Modal Save Buttons<a class="headerlink" href="#edit-modal-save-buttons" title="Link to this heading">¶</a></h3>
+<p><strong>Pattern:</strong> Button loading state during async form submission</p>
+<p><strong>Implementation:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">updateFact</span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// Validation first (early returns OK)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">isValid</span><span class="p">(</span><span class="nx">formData</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Validation error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="c1">// Early return - button NOT disabled</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Show loading AFTER validation passes</span>
+<span class="w">    </span><span class="nx">setSubmitLoading</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ... fetch logic ...</span>
+<span class="w">        </span><span class="nx">closeEditModal</span><span class="p">();</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span>
+<span class="w">        </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Success!&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;success&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">showToast</span><span class="p">(</span><span class="sb">`Error: </span><span class="si">${</span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Always restore button</span>
+<span class="w">        </span><span class="nx">setSubmitLoading</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Files:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/facts.html:updateFact()</span></code> - Facts page edit modal</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/plan.html:updateFact()</span></code> - Plan page edit modal</p></li>
+</ul>
+<p><strong>Visual feedback:</strong></p>
+<ul class="simple">
+<li><p>Button disabled: prevents double-click</p></li>
+<li><p>Spinner icon: shows processing state</p></li>
+<li><p>Text changes: “Сохранить” → “Сохранение…”</p></li>
+<li><p>Auto-restores: on success or error</p></li>
+</ul>
+<p><strong>Key features:</strong></p>
+<ul class="simple">
+<li><p>Validation with early returns happens BEFORE <code class="docutils literal notranslate"><span class="pre">setSubmitLoading(true)</span></code></p></li>
+<li><p>If validation fails → early return → button never disabled</p></li>
+<li><p>If validation passes → button disabled → fetch → finally restores button</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">finally</span></code> block ensures restoration in all cases (success, error, or exception)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="modal-button-state-management-v6-2">
+<h2>Modal Button State Management (v6.2+)<a class="headerlink" href="#modal-button-state-management-v6-2" title="Link to this heading">¶</a></h2>
+<p><strong>Last Updated:</strong> 2025-12-25
+<strong>Breaking Changes:</strong> Introduced <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code> helper function, deprecated direct <code class="docutils literal notranslate"><span class="pre">.loading</span></code> class usage</p>
+<section id="helper-function-setbuttonloading">
+<h3>Helper Function: <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code><a class="headerlink" href="#helper-function-setbuttonloading" title="Link to this heading">¶</a></h3>
+<p><strong>Location:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/base.html</span></code> (global utility function)</p>
+<p><strong>Purpose:</strong> Manage button loading state with controlled content replacement (prevents button expansion).</p>
+<p><strong>Implementation:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="nx">isLoading</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isLoading</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">originalHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">button</span><span class="p">.</span><span class="nx">innerHTML</span><span class="p">;</span>
+<span class="w">        </span><span class="c1">// Use loading-xs for btn-sm, loading-sm otherwise</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">spinnerSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">button</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="s1">&#39;btn-sm&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;loading-xs&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;loading-sm&#39;</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">button</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`&lt;span class=&quot;loading loading-spinner </span><span class="si">${</span><span class="nx">spinnerSize</span><span class="si">}</span><span class="sb">&quot;&gt;&lt;/span&gt; Сохранение...`</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">originalHtml</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">button</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">originalHtml</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Key Features:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>Content replacement</strong> instead of inline addition (prevents button expansion)</p></li>
+<li><p>✅ <strong>Fixed button width</strong> (no horizontal scrolling in modals)</p></li>
+<li><p>✅ <strong>Adaptive spinner size</strong> (<code class="docutils literal notranslate"><span class="pre">loading-xs</span></code> for <code class="docutils literal notranslate"><span class="pre">btn-sm</span></code>, <code class="docutils literal notranslate"><span class="pre">loading-sm</span></code> for regular)</p></li>
+<li><p>✅ <strong>Original HTML preservation</strong> in <code class="docutils literal notranslate"><span class="pre">dataset.originalHtml</span></code></p></li>
+<li><p>✅ <strong>Graceful degradation</strong> (null-safe, checks for button existence)</p></li>
+</ul>
+<p><strong>Why this is better than <code class="docutils literal notranslate"><span class="pre">.classList.add('loading')</span></code>:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Approach</p></th>
+<th class="head"><p>Button Content</p></th>
+<th class="head"><p>Result</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>OLD: <code class="docutils literal notranslate"><span class="pre">.classList.add('loading')</span></code></strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[Icon]</span> <span class="pre">Сохранить</span></code> → <code class="docutils literal notranslate"><span class="pre">[Spinner]</span> <span class="pre">[Icon]</span> <span class="pre">Сохранить</span></code></p></td>
+<td><p>❌ Button expands, causes horizontal scroll</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>NEW: <code class="docutils literal notranslate"><span class="pre">setButtonLoading(button,</span> <span class="pre">true)</span></code></strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[Icon]</span> <span class="pre">Сохранить</span></code> → <code class="docutils literal notranslate"><span class="pre">[Spinner]</span> <span class="pre">Сохранение...</span></code></p></td>
+<td><p>✅ Fixed width, clean UI</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="recommended-pattern-v6-2">
+<h3>Recommended Pattern (v6.2+)<a class="headerlink" href="#recommended-pattern-v6-2" title="Link to this heading">¶</a></h3>
+<p><strong>Architecture:</strong> Wrapper function controls button state using <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code>, form submit handler only does async API call.</p>
+<p><strong>Wrapper Function (saveTransaction, savePlan, saveTransfer):</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">saveTransaction</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="c1">// Prevent double-click</span>
+
+<span class="w">    </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">formId</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">form</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">checkValidity</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Re-enable button if validation fails</span>
+<span class="w">        </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">form</span><span class="o">?</span><span class="p">.</span><span class="nx">reportValidity</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Form Submit Handler:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_modal_add_transaction&#39;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;submit&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">e</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">formData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">FormData</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ... build data object ...</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/v1/facts&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;POST&#39;</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s1">&#39;Content-Type&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;application/json&#39;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="nx">credentials</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;include&#39;</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">data</span><span class="p">)</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">modal_add_transaction</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">reset</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Транзакция успешно сохранена!&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;success&#39;</span><span class="p">);</span>
+<span class="w">            </span><span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span><span class="w"> </span><span class="c1">// Reload data</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Ошибка: &#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">detail</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">),</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Error creating transaction:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Ошибка: &#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Re-enable button using setButtonLoading()</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">submitBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;.save-btn&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">submitBtn</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>Why this pattern works:</strong></p>
+<ul class="simple">
+<li><p>✅ Button disabled only once (no double-disable race condition)</p></li>
+<li><p>✅ Controlled HTML replacement (prevents button expansion)</p></li>
+<li><p>✅ Validation errors handled immediately in wrapper</p></li>
+<li><p>✅ Form handler just does async call + button restoration</p></li>
+<li><p>✅ Button always restored in finally block (even on error)</p></li>
+<li><p>✅ Cleaner code (single function call vs. 3 lines)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="deprecated-pattern-index-html-pre-v6-1">
+<h3>Deprecated Pattern (index.html pre-v6.1)<a class="headerlink" href="#deprecated-pattern-index-html-pre-v6-1" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong> Double button disable + HTML storage causes persistent loading spinner.</p>
+<p><strong>Old Wrapper Function:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ❌ OLD (BUGGY):</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">saveTransaction</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span><span class="w">              </span><span class="c1">// ← First disable</span>
+<span class="w">    </span><span class="nx">button</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s1">&#39;loading&#39;</span><span class="p">);</span><span class="w">     </span><span class="c1">// ← First loading class</span>
+<span class="w">    </span><span class="nx">unifiedSave</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;transaction&#39;</span><span class="p">);</span><span class="w">  </span><span class="c1">// → calls form.requestSubmit()</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Old Form Submit Handler:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ❌ OLD (BUGGY):</span>
+<span class="nx">form</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;submit&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">e</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+<span class="w">    </span><span class="nx">setSubmitLoading</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span><span class="w">   </span><span class="c1">// ← SECOND disable + HTML replacement!</span>
+<span class="w">    </span><span class="c1">// ... API call ...</span>
+<span class="w">    </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">setSubmitLoading</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span><span class="w">  </span><span class="c1">// ← Restore HTML</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>What went wrong:</strong></p>
+<ol class="arabic simple">
+<li><p>Wrapper disables button and adds <code class="docutils literal notranslate"><span class="pre">loading</span></code> class</p></li>
+<li><p>Form handler calls <code class="docutils literal notranslate"><span class="pre">setSubmitLoading(true)</span></code> which stores current button HTML (now includes spinner!)</p></li>
+<li><p>API call completes, modal closes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">finally</span></code> block calls <code class="docutils literal notranslate"><span class="pre">setSubmitLoading(false)</span></code> → restores from <code class="docutils literal notranslate"><span class="pre">dataset.originalHtml</span></code> (which is spinner)</p></li>
+<li><p>User reopens modal → button still shows spinner</p></li>
+<li><p>Next submit → <code class="docutils literal notranslate"><span class="pre">setSubmitLoading(true)</span></code> captures spinner as “original” again</p></li>
+</ol>
+<p><strong>Root cause:</strong> <code class="docutils literal notranslate"><span class="pre">dataset.originalHtml</span></code> captured spinner instead of button, creating persistent loading state.</p>
+</section>
+<hr class="docutils" />
+<section id="modal-open-functions-button-state-reset">
+<h3>Modal Open Functions - Button State Reset<a class="headerlink" href="#modal-open-functions-button-state-reset" title="Link to this heading">¶</a></h3>
+<p><strong>Pattern:</strong> Clear any stale loading state when modal opens.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">openAddTransactionModal</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Reset button state</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_modal_add_transaction&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">submitBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">form</span><span class="o">?</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;.save-btn&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">submitBtn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">remove</span><span class="p">(</span><span class="s1">&#39;loading&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="ow">delete</span><span class="w"> </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">originalHtml</span><span class="p">;</span><span class="w"> </span><span class="c1">// Clear cache (if exists)</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Set today date</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">factDateInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;#form_modal_add_transaction input[name=&quot;fact_date&quot;]&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">factDateInput</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">factDateInput</span><span class="p">.</span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">BudgetShared</span><span class="p">.</span><span class="nx">DateFormatter</span><span class="p">.</span><span class="nx">today</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nx">modal_add_transaction</span><span class="p">.</span><span class="nx">showModal</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Why this is critical:</strong></p>
+<ul class="simple">
+<li><p>Clears any leftover loading state from previous submit</p></li>
+<li><p>Prevents “stuck spinner” bug on modal reopen</p></li>
+<li><p>Acts as safety net even if finally block fails</p></li>
+</ul>
+<p><strong>Pages affected:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code>: <code class="docutils literal notranslate"><span class="pre">openAddTransactionModal()</span></code>, <code class="docutils literal notranslate"><span class="pre">openAddPlanModal()</span></code>, <code class="docutils literal notranslate"><span class="pre">openFactTransferModal()</span></code>, <code class="docutils literal notranslate"><span class="pre">openPlanTransferModal()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">facts.html</span></code>: <code class="docutils literal notranslate"><span class="pre">openCreateModal()</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan.html</span></code>: <code class="docutils literal notranslate"><span class="pre">openAddPlanModal()</span></code>, <code class="docutils literal notranslate"><span class="pre">openPlanTransferModal()</span></code></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="common-pitfall-missing-form-submit-handlers">
+<h3>Common Pitfall: Missing Form Submit Handlers<a class="headerlink" href="#common-pitfall-missing-form-submit-handlers" title="Link to this heading">¶</a></h3>
+<p><strong>Symptom:</strong> Button gets disabled when clicked, but form doesn’t submit. No API call happens.</p>
+<p><strong>Root cause:</strong> Wrapper function calls <code class="docutils literal notranslate"><span class="pre">form.requestSubmit()</span></code> but NO <code class="docutils literal notranslate"><span class="pre">addEventListener('submit')</span></code> handler exists.</p>
+<p><strong>Example (transfer modal bug pre-v6.1):</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Wrapper exists:</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">saveTransfer</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">button</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">add</span><span class="p">(</span><span class="s1">&#39;loading&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_transfer&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span><span class="w"> </span><span class="c1">// ← Fires &#39;submit&#39; event</span>
+<span class="p">}</span>
+
+<span class="c1">// ❌ BUT NO HANDLER EXISTS!</span>
+<span class="c1">// Expected but missing:</span>
+<span class="c1">// document.getElementById(&#39;form_transfer&#39;).addEventListener(&#39;submit&#39;, async function(e) { ... });</span>
+</pre></div>
+</div>
+<p><strong>Result:</strong></p>
+<ul class="simple">
+<li><p>Button becomes disabled ✅</p></li>
+<li><p>Loading spinner shows ✅</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">submit</span></code> event fires… but nobody handles it ❌</p></li>
+<li><p>No API call happens ❌</p></li>
+<li><p>Modal stays open with disabled button ❌</p></li>
+</ul>
+<p><strong>How to diagnose:</strong></p>
+<ol class="arabic">
+<li><p>Check browser console for form submit event registration:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// In console:</span>
+<span class="nx">$0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_transfer&#39;</span><span class="p">);</span>
+<span class="nx">getEventListeners</span><span class="p">(</span><span class="nx">$0</span><span class="p">).</span><span class="nx">submit</span><span class="p">;</span><span class="w"> </span><span class="c1">// Should show listener, not undefined</span>
+</pre></div>
+</div>
+</li>
+<li><p>Look for RuntimeWarning in backend logs (won’t exist - no API call made)</p></li>
+<li><p>Check Network tab - no POST request to <code class="docutils literal notranslate"><span class="pre">/api/v1/transfers</span></code></p></li>
+</ol>
+<p><strong>Fix:</strong> Add the missing submit handler:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_transfer&#39;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;submit&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">e</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// ... handle form submission ...</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>Affected modals (fixed in v6.1):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">transfer_modal</span></code> on index.html (was broken)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transfer_modal</span></code> on facts.html (was broken)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transfer_modal</span></code> on plan.html (was broken)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="best-practices-v6-2">
+<h3>Best Practices (v6.2+)<a class="headerlink" href="#best-practices-v6-2" title="Link to this heading">¶</a></h3>
+<section id="always-pair-form-requestsubmit-with-addeventlistener-submit">
+<h4>1. Always Pair <code class="docutils literal notranslate"><span class="pre">form.requestSubmit()</span></code> with <code class="docutils literal notranslate"><span class="pre">addEventListener('submit')</span></code><a class="headerlink" href="#always-pair-form-requestsubmit-with-addeventlistener-submit" title="Link to this heading">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ✅ CORRECT:</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">saveTransaction</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">formId</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">form</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">checkValidity</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span><span class="w"> </span><span class="c1">// ← Fires &#39;submit&#39; event</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// ✅ HANDLER EXISTS:</span>
+<span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_modal_add_transaction&#39;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;submit&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">e</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+<span class="w">    </span><span class="c1">// ... handle submission ...</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ❌ INCORRECT (missing handler):</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">saveTransaction</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">formId</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span><span class="w"> </span><span class="c1">// ← Fires event, but nobody listens!</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="wrapper-functions-handle-validation-button-disable">
+<h4>2. Wrapper Functions Handle Validation + Button Disable<a class="headerlink" href="#wrapper-functions-handle-validation-button-disable" title="Link to this heading">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ✅ CORRECT (v6.2+):</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">saveTransaction</span><span class="p">(</span><span class="nx">button</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">disabled</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span><span class="w"> </span><span class="c1">// Double-click prevention</span>
+
+<span class="w">    </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="nx">button</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">formId</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">form</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">checkValidity</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">form</span><span class="p">.</span><span class="nx">requestSubmit</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Validation failed - re-enable button immediately</span>
+<span class="w">        </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">button</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">form</span><span class="o">?</span><span class="p">.</span><span class="nx">reportValidity</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Responsibilities:</strong></p>
+<ul class="simple">
+<li><p>Check <code class="docutils literal notranslate"><span class="pre">button.disabled</span></code> to prevent double-click</p></li>
+<li><p>Call <code class="docutils literal notranslate"><span class="pre">setButtonLoading(button,</span> <span class="pre">true)</span></code> to show loading state</p></li>
+<li><p>Validate form BEFORE calling <code class="docutils literal notranslate"><span class="pre">requestSubmit()</span></code></p></li>
+<li><p>Re-enable button if validation fails (no API call needed)</p></li>
+</ul>
+</section>
+<section id="form-submit-handlers-only-do-async-api-call">
+<h4>3. Form Submit Handlers Only Do Async API Call<a class="headerlink" href="#form-submit-handlers-only-do-async-api-call" title="Link to this heading">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ✅ CORRECT:</span>
+<span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_modal_add_transaction&#39;</span><span class="p">).</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;submit&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">e</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">formData</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">FormData</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ... build data object ...</span>
+
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Just do the async API call - button already disabled by wrapper</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">&#39;/api/v1/facts&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* ... */</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">modal_add_transaction</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">reset</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Success!&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;success&#39;</span><span class="p">);</span>
+<span class="w">            </span><span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+<span class="w">            </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Error: &#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">detail</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;Error:&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">showToast</span><span class="p">(</span><span class="s1">&#39;Error: &#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Always restore button using setButtonLoading()</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">submitBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;.save-btn&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">setButtonLoading</span><span class="p">(</span><span class="nx">submitBtn</span><span class="p">,</span><span class="w"> </span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>Responsibilities:</strong></p>
+<ul class="simple">
+<li><p>Prevent default form submission (<code class="docutils literal notranslate"><span class="pre">e.preventDefault()</span></code>)</p></li>
+<li><p>Execute async API call (fetch, OfflineManager, etc.)</p></li>
+<li><p>Close modal and reset form on success</p></li>
+<li><p>Show error toast on failure</p></li>
+<li><p><strong>Always</strong> restore button in finally block</p></li>
+</ul>
+</section>
+<section id="reset-button-state-on-modal-open">
+<h4>4. Reset Button State on Modal Open<a class="headerlink" href="#reset-button-state-on-modal-open" title="Link to this heading">¶</a></h4>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ✅ CORRECT:</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">openAddTransactionModal</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Reset button state FIRST</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;form_modal_add_transaction&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">submitBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">form</span><span class="o">?</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;.save-btn&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">submitBtn</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">remove</span><span class="p">(</span><span class="s1">&#39;loading&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="ow">delete</span><span class="w"> </span><span class="nx">submitBtn</span><span class="p">.</span><span class="nx">dataset</span><span class="p">.</span><span class="nx">originalHtml</span><span class="p">;</span><span class="w"> </span><span class="c1">// Clear stale cache</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Then set default values</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">dateInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;input[name=&quot;fact_date&quot;]&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">dateInput</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">dateInput</span><span class="p">.</span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">BudgetShared</span><span class="p">.</span><span class="nx">DateFormatter</span><span class="p">.</span><span class="nx">today</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// Finally open modal</span>
+<span class="w">    </span><span class="nx">modal_add_transaction</span><span class="p">.</span><span class="nx">showModal</span><span class="p">();</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Why this is critical:</strong></p>
+<ul class="simple">
+<li><p>Clears leftover loading state from previous submit</p></li>
+<li><p>Prevents “stuck spinner” on modal reopen</p></li>
+<li><p>Safety net in case finally block failed (e.g., exception thrown)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="migration-guide-v6-0-v6-1">
+<h3>Migration Guide (v6.0 → v6.1)<a class="headerlink" href="#migration-guide-v6-0-v6-1" title="Link to this heading">¶</a></h3>
+<p>If you have modal forms using the old <code class="docutils literal notranslate"><span class="pre">setSubmitLoading()</span></code> pattern:</p>
+<p><strong>Step 1:</strong> Remove <code class="docutils literal notranslate"><span class="pre">setSubmitLoading()</span></code> calls from form submit handlers:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> form.addEventListener(&#39;submit&#39;, async function(e) {
+<span class="w"> </span>     e.preventDefault();
+<span class="gd">-     setSubmitLoading(e.target, true);</span>
+
+<span class="w"> </span>     try {
+<span class="w"> </span>         // ... API call ...
+<span class="w"> </span>     } finally {
+<span class="gd">-         setSubmitLoading(e.target, false);</span>
+<span class="gi">+         // Re-enable button</span>
+<span class="gi">+         const submitBtn = e.target.querySelector(&#39;.save-btn&#39;);</span>
+<span class="gi">+         if (submitBtn) {</span>
+<span class="gi">+             submitBtn.disabled = false;</span>
+<span class="gi">+             submitBtn.classList.remove(&#39;loading&#39;);</span>
+<span class="gi">+         }</span>
+<span class="w"> </span>     }
+<span class="w"> </span> });
+</pre></div>
+</div>
+<p><strong>Step 2:</strong> Update wrapper functions to validate and enable on failure:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> function saveTransaction(button) {
+<span class="w"> </span>     if (button.disabled) return;
+<span class="w"> </span>     button.disabled = true;
+<span class="w"> </span>     button.classList.add(&#39;loading&#39;);
+
+<span class="w"> </span>     const form = document.getElementById(button.dataset.formId);
+<span class="gd">-     form.requestSubmit();</span>
+<span class="gi">+     if (form &amp;&amp; form.checkValidity()) {</span>
+<span class="gi">+         form.requestSubmit();</span>
+<span class="gi">+     } else {</span>
+<span class="gi">+         button.disabled = false;</span>
+<span class="gi">+         button.classList.remove(&#39;loading&#39;);</span>
+<span class="gi">+         form?.reportValidity();</span>
+<span class="gi">+     }</span>
+<span class="w"> </span> }
+</pre></div>
+</div>
+<p><strong>Step 3:</strong> Add button state reset to modal open functions:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> function openAddTransactionModal() {
+<span class="gi">+     // Reset button state</span>
+<span class="gi">+     const form = document.getElementById(&#39;form_modal_add_transaction&#39;);</span>
+<span class="gi">+     const submitBtn = form?.querySelector(&#39;.save-btn&#39;);</span>
+<span class="gi">+     if (submitBtn) {</span>
+<span class="gi">+         submitBtn.disabled = false;</span>
+<span class="gi">+         submitBtn.classList.remove(&#39;loading&#39;);</span>
+<span class="gi">+         delete submitBtn.dataset.originalHtml;</span>
+<span class="gi">+     }</span>
+
+<span class="w"> </span>     // Set today date
+<span class="w"> </span>     const dateInput = form.querySelector(&#39;input[name=&quot;fact_date&quot;]&#39;);
+<span class="w"> </span>     if (dateInput) {
+<span class="w"> </span>         dateInput.value = BudgetShared.DateFormatter.today();
+<span class="w"> </span>     }
+
+<span class="w"> </span>     modal_add_transaction.showModal();
+<span class="w"> </span> }
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="migration-guide-v6-1-v6-2">
+<h3>Migration Guide (v6.1 → v6.2)<a class="headerlink" href="#migration-guide-v6-1-v6-2" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong> Using DaisyUI <code class="docutils literal notranslate"><span class="pre">.loading</span></code> class directly causes button expansion and horizontal scrolling in narrow modals.</p>
+<p><strong>Solution:</strong> Replace direct <code class="docutils literal notranslate"><span class="pre">.classList</span></code> operations with <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code> helper function.</p>
+<section id="step-1-update-wrapper-functions">
+<h4>Step 1: Update Wrapper Functions<a class="headerlink" href="#step-1-update-wrapper-functions" title="Link to this heading">¶</a></h4>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">classList</span></code> operations with <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code> calls:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> function saveTransaction(button) {
+<span class="w"> </span>     if (button.disabled) return;
+<span class="gd">-     button.disabled = true;</span>
+<span class="gd">-     button.classList.add(&#39;loading&#39;);</span>
+<span class="gi">+     setButtonLoading(button, true);</span>
+
+<span class="w"> </span>     const form = document.getElementById(button.dataset.formId);
+<span class="w"> </span>     if (form &amp;&amp; form.checkValidity()) {
+<span class="w"> </span>         form.requestSubmit();
+<span class="w"> </span>     } else {
+<span class="gd">-         button.disabled = false;</span>
+<span class="gd">-         button.classList.remove(&#39;loading&#39;);</span>
+<span class="gi">+         setButtonLoading(button, false);</span>
+<span class="w"> </span>         form?.reportValidity();
+<span class="w"> </span>     }
+<span class="w"> </span> }
+</pre></div>
+</div>
+<p><strong>Files affected:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code>: 6 wrapper functions (saveTransaction, savePlan, saveTransfer + 3 offline versions)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">facts.html</span></code>: 2 wrapper functions (saveTransaction, saveTransfer)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan.html</span></code>: 2 wrapper functions (savePlan, saveTransfer)</p></li>
+</ul>
+</section>
+<section id="step-2-update-form-submit-handlers">
+<h4>Step 2: Update Form Submit Handlers<a class="headerlink" href="#step-2-update-form-submit-handlers" title="Link to this heading">¶</a></h4>
+<p>Replace button restoration in <code class="docutils literal notranslate"><span class="pre">finally</span></code> blocks:</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> form.addEventListener(&#39;submit&#39;, async function(e) {
+<span class="w"> </span>     e.preventDefault();
+
+<span class="w"> </span>     try {
+<span class="w"> </span>         // ... API call ...
+<span class="w"> </span>     } finally {
+<span class="w"> </span>         const submitBtn = e.target.querySelector(&#39;.save-btn&#39;);
+<span class="gd">-         if (submitBtn) {</span>
+<span class="gd">-             submitBtn.disabled = false;</span>
+<span class="gd">-             submitBtn.classList.remove(&#39;loading&#39;);</span>
+<span class="gd">-         }</span>
+<span class="gi">+         setButtonLoading(submitBtn, false);</span>
+<span class="w"> </span>     }
+<span class="w"> </span> });
+</pre></div>
+</div>
+<p><strong>Files affected:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code>: 7 form submit handlers</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">facts.html</span></code>: 2 form submit handlers</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan.html</span></code>: 3 form submit handlers</p></li>
+</ul>
+</section>
+<section id="step-3-update-modal-open-functions">
+<h4>Step 3: Update Modal Open Functions<a class="headerlink" href="#step-3-update-modal-open-functions" title="Link to this heading">¶</a></h4>
+<p>Remove <code class="docutils literal notranslate"><span class="pre">.classList.remove('loading')</span></code> line (keep <code class="docutils literal notranslate"><span class="pre">delete</span> <span class="pre">dataset.originalHtml</span></code>):</p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span><span class="w"> </span> function openAddTransactionModal() {
+<span class="w"> </span>     const form = document.getElementById(&#39;form_modal_add_transaction&#39;);
+<span class="w"> </span>     const submitBtn = form?.querySelector(&#39;.save-btn&#39;);
+<span class="w"> </span>     if (submitBtn) {
+<span class="w"> </span>         submitBtn.disabled = false;
+<span class="gd">-         submitBtn.classList.remove(&#39;loading&#39;);</span>
+<span class="w"> </span>         delete submitBtn.dataset.originalHtml;
+<span class="w"> </span>     }
+<span class="w"> </span>     // ... rest of function ...
+<span class="w"> </span> }
+</pre></div>
+</div>
+<p><strong>Files affected:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code>: 4 modal open functions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">facts.html</span></code>: 1 modal open function</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan.html</span></code>: 2 modal open functions</p></li>
+</ul>
+</section>
+<section id="total-changes">
+<h4>Total Changes<a class="headerlink" href="#total-changes" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>File</p></th>
+<th class="head"><p>Wrapper Functions</p></th>
+<th class="head"><p>Form Handlers</p></th>
+<th class="head"><p>Modal Opens</p></th>
+<th class="head"><p><strong>Total</strong></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code></p></td>
+<td><p>6 functions</p></td>
+<td><p>7 locations</p></td>
+<td><p>4 locations</p></td>
+<td><p><strong>17</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">facts.html</span></code></p></td>
+<td><p>2 functions</p></td>
+<td><p>2 locations</p></td>
+<td><p>1 location</p></td>
+<td><p><strong>5</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">plan.html</span></code></p></td>
+<td><p>2 functions</p></td>
+<td><p>3 locations</p></td>
+<td><p>2 locations</p></td>
+<td><p><strong>7</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>TOTAL</strong></p></td>
+<td><p><strong>10</strong></p></td>
+<td><p><strong>12</strong></p></td>
+<td><p><strong>7</strong></p></td>
+<td><p><strong>29</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="verification">
+<h4>Verification<a class="headerlink" href="#verification" title="Link to this heading">¶</a></h4>
+<p>After migration, confirm:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Should return 0 matches</span>
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;classList\.\(add\|remove\)(&#39;loading&#39;)&quot;</span><span class="w"> </span>frontend/web/templates/index.html
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;classList\.\(add\|remove\)(&#39;loading&#39;)&quot;</span><span class="w"> </span>frontend/web/templates/facts.html
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;classList\.\(add\|remove\)(&#39;loading&#39;)&quot;</span><span class="w"> </span>frontend/web/templates/plan.html
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="pagination">
+<h2>Pagination<a class="headerlink" href="#pagination" title="Link to this heading">¶</a></h2>
+<section id="pagination-state">
+<h3>Pagination State<a class="headerlink" href="#pagination-state" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="nx">currentPage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span><span class="w">  </span><span class="c1">// 0-indexed</span>
+<span class="kd">let</span><span class="w"> </span><span class="nx">pageSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">20</span><span class="p">;</span><span class="w">    </span><span class="c1">// Records per page</span>
+<span class="kd">let</span><span class="w"> </span><span class="nx">totalFacts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span><span class="w">   </span><span class="c1">// Total count (from server)</span>
+</pre></div>
+</div>
+</section>
+<section id="pagination-controls">
+<h3>Pagination Controls<a class="headerlink" href="#pagination-controls" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span><span class="w"> </span><span class="nx">updatePagination</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">totalPages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">ceil</span><span class="p">(</span><span class="nx">totalFacts</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">pageSize</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">prevBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;prev-btn&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">nextBtn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;next-btn&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">pageInfo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;page-info&#39;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="nx">prevBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">currentPage</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">nextBtn</span><span class="p">.</span><span class="nx">disabled</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">currentPage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="nx">totalPages</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">pageInfo</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`Page </span><span class="si">${</span><span class="nx">currentPage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="si">}</span><span class="sb"> of </span><span class="si">${</span><span class="nx">totalPages</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">nextPage</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">((</span><span class="nx">currentPage</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">pageSize</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nx">totalFacts</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">currentPage</span><span class="o">++</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">loadFacts</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">previousPage</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">currentPage</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">currentPage</span><span class="o">--</span><span class="p">;</span>
+<span class="w">        </span><span class="nx">loadFacts</span><span class="p">();</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Performance:</strong></p>
+<ul class="simple">
+<li><p>Server-side pagination (LIMIT/OFFSET)</p></li>
+<li><p>Count query separate from data query (parallel)</p></li>
+<li><p>Client maintains current page state</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="common-pitfalls-solutions">
+<h2>Common Pitfalls &amp; Solutions<a class="headerlink" href="#common-pitfalls-solutions" title="Link to this heading">¶</a></h2>
+<section id="pitfall-1-race-conditions-in-initialization">
+<h3>Pitfall 1: Race Conditions in Initialization<a class="headerlink" href="#pitfall-1-race-conditions-in-initialization" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// BAD: All load in parallel, race condition</span>
+<span class="nx">loadUsers</span><span class="p">();</span>
+<span class="nx">loadArticles</span><span class="p">();</span>
+<span class="nx">loadFacts</span><span class="p">();</span><span class="w">  </span><span class="c1">// May finish before loadArticles()!</span>
+</pre></div>
+</div>
+<p><strong>Solution:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// GOOD: Sequential phased loading</span>
+<span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span><span class="nx">loadUsers</span><span class="p">(),</span><span class="w"> </span><span class="nx">loadFinancialCenters</span><span class="p">()]);</span><span class="w">  </span><span class="c1">// Phase 1</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">loadArticles</span><span class="p">();</span><span class="w">  </span><span class="c1">// Phase 2 (depends on hierarchy)</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span><span class="w">  </span><span class="c1">// Phase 3 (depends on all reference data)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="pitfall-2-multiple-reflows-from-incremental-dom-updates">
+<h3>Pitfall 2: Multiple Reflows from Incremental DOM Updates<a class="headerlink" href="#pitfall-2-multiple-reflows-from-incremental-dom-updates" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// BAD: Multiple DOM updates (causes reflows)</span>
+<span class="nx">facts</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">fact</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">row</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createRow</span><span class="p">(</span><span class="nx">fact</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">table</span><span class="p">.</span><span class="nx">appendChild</span><span class="p">(</span><span class="nx">row</span><span class="p">);</span><span class="w">  </span><span class="c1">// Reflow on EVERY append!</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>Solution:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// GOOD: Build full HTML string, single update</span>
+<span class="kd">let</span><span class="w"> </span><span class="nx">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="p">;</span>
+<span class="nx">facts</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">fact</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">html</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="sb">`&lt;tr&gt;</span><span class="si">${</span><span class="nx">fact</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">&lt;/tr&gt;`</span><span class="p">;</span>
+<span class="p">});</span>
+<span class="nx">table</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">html</span><span class="p">;</span><span class="w">  </span><span class="c1">// Single reflow</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="pitfall-3-stale-global-variables">
+<h3>Pitfall 3: Stale Global Variables<a class="headerlink" href="#pitfall-3-stale-global-variables" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">let</span><span class="w"> </span><span class="nx">allCategories</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span><span class="w">  </span><span class="c1">// Global</span>
+
+<span class="nx">loadArticles</span><span class="p">();</span><span class="w">  </span><span class="c1">// Async, doesn&#39;t await</span>
+<span class="nx">loadFacts</span><span class="p">();</span><span class="w">     </span><span class="c1">// Uses allCategories → may be empty!</span>
+</pre></div>
+</div>
+<p><strong>Solution:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">await</span><span class="w"> </span><span class="nx">loadArticles</span><span class="p">();</span><span class="w">  </span><span class="c1">// Wait for categories to load</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span><span class="w">     </span><span class="c1">// Now allCategories is populated</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="pitfall-4-forgot-to-clear-loading-state-on-error">
+<h3>Pitfall 4: Forgot to Clear Loading State on Error<a class="headerlink" href="#pitfall-4-forgot-to-clear-loading-state-on-error" title="Link to this heading">¶</a></h3>
+<p><strong>Problem:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;loading&quot;&gt;...&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// ... forgot to handle error case</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Loading spinner stuck forever!</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Solution:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;loading&quot;&gt;...&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">url</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">renderData</span><span class="p">(</span><span class="nx">data</span><span class="p">);</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">container</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;error&quot;&gt;Failed&lt;/div&gt;&#39;</span><span class="p">;</span><span class="w">  </span><span class="c1">// Clear loading</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="mobile-ui-components">
+<h2>Mobile UI Components<a class="headerlink" href="#mobile-ui-components" title="Link to this heading">¶</a></h2>
+<section id="fixed-bottom-fab-toolbar-v6-6-0">
+<h3>Fixed Bottom FAB Toolbar (v6.6.0+)<a class="headerlink" href="#fixed-bottom-fab-toolbar-v6-6-0" title="Link to this heading">¶</a></h3>
+<p><strong>Component:</strong> <code class="docutils literal notranslate"><span class="pre">components/fab_toolbar.html</span></code></p>
+<p><strong>Conditional Rendering:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># In base.html Jinja2 template</span>
+<span class="p">{</span><span class="o">%</span> <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;/facts&#39;</span><span class="p">,</span> <span class="s1">&#39;/plan&#39;</span><span class="p">]</span> <span class="o">%</span><span class="p">}</span>
+    <span class="p">{</span><span class="o">%</span> <span class="n">include</span> <span class="s1">&#39;components/fab_toolbar.html&#39;</span> <span class="o">%</span><span class="p">}</span>
+<span class="p">{</span><span class="o">%</span> <span class="n">endif</span> <span class="o">%</span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>JavaScript Initialization:</strong></p>
+<ul class="simple">
+<li><p>Auto-initializes on DOMContentLoaded</p></li>
+<li><p>Logs button clicks for debugging</p></li>
+<li><p>Dropdown menu uses DaisyUI <code class="docutils literal notranslate"><span class="pre">dropdown-top</span></code> class</p></li>
+</ul>
+<p><strong>Performance:</strong></p>
+<ul class="simple">
+<li><p>GPU-accelerated (<code class="docutils literal notranslate"><span class="pre">transform:</span> <span class="pre">translateZ(0)</span></code>)</p></li>
+<li><p>No layout thrashing (fixed positioning)</p></li>
+<li><p>Touch-optimized (≥48px tap targets)</p></li>
+</ul>
+<p><strong>Accessibility:</strong></p>
+<ul class="simple">
+<li><p>ARIA labels on all buttons</p></li>
+<li><p>Keyboard navigation support (tab/enter)</p></li>
+<li><p>Screen reader friendly tooltips</p></li>
+<li><p>Reduced motion support</p></li>
+</ul>
+<p><strong>Console Logs:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">FAB_TOOLBAR</span><span class="p">]</span><span class="w"> </span><span class="nx">Toolbar</span><span class="w"> </span><span class="nx">initialized</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">buttonsCount</span><span class="o">:</span><span class="w"> </span><span class="mf">4</span><span class="w"> </span><span class="p">}</span>
+<span class="p">[</span><span class="nx">FAB_TOOLBAR</span><span class="p">]</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="nx">clicked</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">index</span><span class="o">:</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Добавить транзакцию&quot;</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="testing-frontend-loading">
+<h2>Testing Frontend Loading<a class="headerlink" href="#testing-frontend-loading" title="Link to this heading">¶</a></h2>
+<section id="manual-testing-checklist">
+<h3>Manual Testing Checklist<a class="headerlink" href="#manual-testing-checklist" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Clear all caches</strong> (Ctrl+Shift+Del)</p></li>
+<li><p><strong>Disable Service Worker</strong> (Chrome DevTools → Application → Service Workers → Bypass)</p></li>
+<li><p><strong>Throttle network</strong> (Chrome DevTools → Network → Slow 3G)</p></li>
+<li><p><strong>Test scenarios:</strong></p>
+<ul class="simple">
+<li><p>✅ First load (cold cache)</p></li>
+<li><p>✅ Reload (warm cache)</p></li>
+<li><p>✅ Create transaction → table updates</p></li>
+<li><p>✅ Filter change → table updates</p></li>
+<li><p>✅ Pagination → correct page loads</p></li>
+<li><p>✅ Error handling (disconnect network)</p></li>
+<li><p>✅ Offline mode (Service Worker fallback)</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="performance-profiling">
+<h3>Performance Profiling<a class="headerlink" href="#performance-profiling" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Measure load time</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">time</span><span class="p">(</span><span class="s1">&#39;loadFacts&#39;</span><span class="p">);</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">loadFacts</span><span class="p">();</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">timeEnd</span><span class="p">(</span><span class="s1">&#39;loadFacts&#39;</span><span class="p">);</span>
+<span class="c1">// Output: loadFacts: 487.23ms</span>
+</pre></div>
+</div>
+<p><strong>Chrome DevTools:</strong></p>
+<ul class="simple">
+<li><p><strong>Performance tab</strong> → Record page load</p></li>
+<li><p><strong>Network tab</strong> → Check request waterfall</p></li>
+<li><p><strong>Lighthouse</strong> → Run audit (PWA, performance)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<section id="related-files">
+<h3>Related Files<a class="headerlink" href="#related-files" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/facts.html</span></code> - Facts page JavaScript</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/plan.html</span></code> - Plan page JavaScript</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/index.html</span></code> - Dashboard HTMX widgets</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/budgetWSClient.js</span></code> - WebSocket client</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/incrementalUpdates.js</span></code> - Optimized real-time updates</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/facts.py</span></code> - Facts API with cache headers</p></li>
+</ul>
+</section>
+<section id="architecture-docs">
+<h3>Architecture Docs<a class="headerlink" href="#architecture-docs" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/caching-strategy.md</span></code> - HTTP caching, Redis, Service Worker</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/README.md</span></code> - Architecture overview</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/backup-system.md</span></code> - Data persistence</p></li>
+</ul>
+</section>
+<section id="external-resources">
+<h3>External Resources<a class="headerlink" href="#external-resources" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://htmx.org/docs/">HTMX Documentation</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API">Fetch API - MDN</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/WebSocket">WebSocket API - MDN</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service Workers - MDN</a></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Frontend Loading Patterns</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#page-initialization-patterns">Page Initialization Patterns</a><ul>
+<li><a class="reference internal" href="#dashboard-index-html">Dashboard (index.html)</a></li>
+<li><a class="reference internal" href="#facts-plan-pages-facts-html-plan-html">Facts/Plan Pages (facts.html, plan.html)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#data-loading-functions">Data Loading Functions</a><ul>
+<li><a class="reference internal" href="#loadfacts-fetch-and-render-transactions">loadFacts() - Fetch and Render Transactions</a></li>
+<li><a class="reference internal" href="#renderfactstable-dom-generation">renderFactsTable() - DOM Generation</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#real-time-updates-websocket">Real-Time Updates (WebSocket)</a><ul>
+<li><a class="reference internal" href="#event-listeners">Event Listeners</a></li>
+<li><a class="reference internal" href="#incrementalupdates-optimization">IncrementalUpdates (Optimization)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#http-caching-for-dynamic-data">HTTP Caching for Dynamic Data</a><ul>
+<li><a class="reference internal" href="#facts-api-api-v1-facts">Facts API (<code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code>)</a></li>
+<li><a class="reference internal" href="#reference-data-api-v1-articles-api-v1-financial-centers">Reference Data (<code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/financial-centers</span></code>)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#loading-states-error-handling">Loading States &amp; Error Handling</a><ul>
+<li><a class="reference internal" href="#loading-state-pattern">Loading State Pattern</a></li>
+<li><a class="reference internal" href="#error-recovery-strategies">Error Recovery Strategies</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#filter-management">Filter Management</a><ul>
+<li><a class="reference internal" href="#filter-state-object">Filter State Object</a></li>
+<li><a class="reference internal" href="#apply-filters-flow">Apply Filters Flow</a></li>
+<li><a class="reference internal" href="#filter-indicator">Filter Indicator</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modal-form-submission-loading-states">Modal Form Submission Loading States</a><ul>
+<li><a class="reference internal" href="#edit-modal-save-buttons">Edit Modal Save Buttons</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#modal-button-state-management-v6-2">Modal Button State Management (v6.2+)</a><ul>
+<li><a class="reference internal" href="#helper-function-setbuttonloading">Helper Function: <code class="docutils literal notranslate"><span class="pre">setButtonLoading()</span></code></a></li>
+<li><a class="reference internal" href="#recommended-pattern-v6-2">Recommended Pattern (v6.2+)</a></li>
+<li><a class="reference internal" href="#deprecated-pattern-index-html-pre-v6-1">Deprecated Pattern (index.html pre-v6.1)</a></li>
+<li><a class="reference internal" href="#modal-open-functions-button-state-reset">Modal Open Functions - Button State Reset</a></li>
+<li><a class="reference internal" href="#common-pitfall-missing-form-submit-handlers">Common Pitfall: Missing Form Submit Handlers</a></li>
+<li><a class="reference internal" href="#best-practices-v6-2">Best Practices (v6.2+)</a><ul>
+<li><a class="reference internal" href="#always-pair-form-requestsubmit-with-addeventlistener-submit">1. Always Pair <code class="docutils literal notranslate"><span class="pre">form.requestSubmit()</span></code> with <code class="docutils literal notranslate"><span class="pre">addEventListener('submit')</span></code></a></li>
+<li><a class="reference internal" href="#wrapper-functions-handle-validation-button-disable">2. Wrapper Functions Handle Validation + Button Disable</a></li>
+<li><a class="reference internal" href="#form-submit-handlers-only-do-async-api-call">3. Form Submit Handlers Only Do Async API Call</a></li>
+<li><a class="reference internal" href="#reset-button-state-on-modal-open">4. Reset Button State on Modal Open</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#migration-guide-v6-0-v6-1">Migration Guide (v6.0 → v6.1)</a></li>
+<li><a class="reference internal" href="#migration-guide-v6-1-v6-2">Migration Guide (v6.1 → v6.2)</a><ul>
+<li><a class="reference internal" href="#step-1-update-wrapper-functions">Step 1: Update Wrapper Functions</a></li>
+<li><a class="reference internal" href="#step-2-update-form-submit-handlers">Step 2: Update Form Submit Handlers</a></li>
+<li><a class="reference internal" href="#step-3-update-modal-open-functions">Step 3: Update Modal Open Functions</a></li>
+<li><a class="reference internal" href="#total-changes">Total Changes</a></li>
+<li><a class="reference internal" href="#verification">Verification</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pagination">Pagination</a><ul>
+<li><a class="reference internal" href="#pagination-state">Pagination State</a></li>
+<li><a class="reference internal" href="#pagination-controls">Pagination Controls</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-pitfalls-solutions">Common Pitfalls &amp; Solutions</a><ul>
+<li><a class="reference internal" href="#pitfall-1-race-conditions-in-initialization">Pitfall 1: Race Conditions in Initialization</a></li>
+<li><a class="reference internal" href="#pitfall-2-multiple-reflows-from-incremental-dom-updates">Pitfall 2: Multiple Reflows from Incremental DOM Updates</a></li>
+<li><a class="reference internal" href="#pitfall-3-stale-global-variables">Pitfall 3: Stale Global Variables</a></li>
+<li><a class="reference internal" href="#pitfall-4-forgot-to-clear-loading-state-on-error">Pitfall 4: Forgot to Clear Loading State on Error</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mobile-ui-components">Mobile UI Components</a><ul>
+<li><a class="reference internal" href="#fixed-bottom-fab-toolbar-v6-6-0">Fixed Bottom FAB Toolbar (v6.6.0+)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#testing-frontend-loading">Testing Frontend Loading</a><ul>
+<li><a class="reference internal" href="#manual-testing-checklist">Manual Testing Checklist</a></li>
+<li><a class="reference internal" href="#performance-profiling">Performance Profiling</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references">References</a><ul>
+<li><a class="reference internal" href="#related-files">Related Files</a></li>
+<li><a class="reference internal" href="#architecture-docs">Architecture Docs</a></li>
+<li><a class="reference internal" href="#external-resources">External Resources</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

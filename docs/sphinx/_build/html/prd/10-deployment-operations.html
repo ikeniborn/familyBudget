@@ -1,0 +1,2675 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>10. Deployment &amp; Operations - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/prd/10-deployment-operations.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="deployment-operations">
+<h1>10. Deployment &amp; Operations<a class="headerlink" href="#deployment-operations" title="Link to this heading">¶</a></h1>
+<section id="infrastructure-requirements">
+<h2>10.1 Infrastructure Requirements<a class="headerlink" href="#infrastructure-requirements" title="Link to this heading">¶</a></h2>
+<p><strong>VPS Specifications:</strong></p>
+<ul class="simple">
+<li><p><strong>CPU:</strong> 2+ cores</p></li>
+<li><p><strong>RAM:</strong> 4+ GB</p></li>
+<li><p><strong>Disk:</strong> 50 GB SSD</p></li>
+<li><p><strong>OS:</strong> Ubuntu 20.04+ / Debian 11+</p></li>
+<li><p><strong>Network:</strong> Стабильное интернет-соединение</p></li>
+</ul>
+<p><strong>Prerequisites:</strong></p>
+<ul class="simple">
+<li><p>Sudo access</p></li>
+<li><p>Internet connectivity</p></li>
+<li><p>Domain name (опционально для SSL)</p></li>
+</ul>
+</section>
+<section id="docker-compose-configuration">
+<h2>10.2 Docker Compose Configuration<a class="headerlink" href="#docker-compose-configuration" title="Link to this heading">¶</a></h2>
+<p><em>См. полную конфигурацию в разделе 3.5</em></p>
+<p><strong>Conditional Port Mapping для PostgreSQL:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">postgres</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;5432:5432&quot;</span><span class="w">  </span><span class="c1"># Exposed but access controlled by UFW firewall</span>
+</pre></div>
+</div>
+<p><strong>Логика безопасности:</strong></p>
+<ul class="simple">
+<li><p>Порт 5432 всегда exposed на хосте в docker-compose.yml</p></li>
+<li><p>По умолчанию UFW firewall блокирует все внешние подключения</p></li>
+<li><p>setup.sh добавляет UFW правило только при <code class="docutils literal notranslate"><span class="pre">POSTGRES_EXTERNAL_ACCESS=true</span></code></p></li>
+<li><p>Нет необходимости пересоздавать контейнеры при изменении доступа</p></li>
+</ul>
+</section>
+<section id="deployment-scripts">
+<h2>10.3 Deployment Scripts<a class="headerlink" href="#deployment-scripts" title="Link to this heading">¶</a></h2>
+<section id="install-sh-100-lines">
+<h3>install.sh (~100 lines)<a class="headerlink" href="#install-sh-100-lines" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-e
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== FamilyBudget Installation Script ===&quot;</span>
+
+<span class="c1"># Проверка OS</span>
+<span class="k">if</span><span class="w"> </span>!<span class="w"> </span>lsb_release<span class="w"> </span>-i<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-qE<span class="w"> </span><span class="s2">&quot;Ubuntu|Debian&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Error: Only Ubuntu 20.04+ and Debian 11+ are supported&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="c1"># Проверка sudo</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$EUID</span><span class="s2">&quot;</span><span class="w"> </span>-ne<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Error: Please run with sudo&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="c1"># Установка Docker</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Installing Docker...&quot;</span>
+apt-get<span class="w"> </span>update
+apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>docker.io<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>docker-compose-plugin<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>postgresql-client<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>curl<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>jq
+
+systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>docker
+systemctl<span class="w"> </span>start<span class="w"> </span>docker
+
+<span class="c1"># Установка UFW</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Setting up UFW...&quot;</span>
+apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>ufw
+ufw<span class="w"> </span>allow<span class="w"> </span><span class="m">22</span>
+ufw<span class="w"> </span>allow<span class="w"> </span><span class="m">80</span>
+ufw<span class="w"> </span>allow<span class="w"> </span><span class="m">443</span>
+<span class="c1"># PostgreSQL будет настроен в setup.sh</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Installation complete!&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="setup-sh-150-lines">
+<h3>setup.sh (~150 lines)<a class="headerlink" href="#setup-sh-150-lines" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-e
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== FamilyBudget Setup Script ===&quot;</span>
+
+<span class="c1"># Интерактивный ввод параметров</span>
+<span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Telegram Bot Token: &quot;</span><span class="w"> </span>BOT_TOKEN
+<span class="nb">read</span><span class="w"> </span>-sp<span class="w"> </span><span class="s2">&quot;PostgreSQL Password: &quot;</span><span class="w"> </span>POSTGRES_PASSWORD
+<span class="nb">echo</span>
+<span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Admin Telegram ID: &quot;</span><span class="w"> </span>ADMIN_ID
+<span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;JWT Secret Key (leave empty to generate): &quot;</span><span class="w"> </span>JWT_SECRET
+
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$JWT_SECRET</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nv">JWT_SECRET</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="k">)</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Generated JWT Secret: </span><span class="nv">$JWT_SECRET</span><span class="s2">&quot;</span>
+<span class="k">fi</span>
+
+<span class="c1"># PostgreSQL External Access (CRITICAL RISK-007)</span>
+<span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Нужен ли внешний доступ к БД? (y/n): &quot;</span><span class="w"> </span>EXTERNAL_ACCESS
+
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$EXTERNAL_ACCESS</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;IP адрес для доступа к PostgreSQL: &quot;</span><span class="w"> </span>ALLOWED_IP
+<span class="w">  </span>
+<span class="w">  </span><span class="c1"># Валидация IP</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span>!<span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$ALLOWED_IP</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^<span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+<span class="se">\.</span><span class="o">[</span><span class="m">0</span>-9<span class="o">]</span>+$<span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Error: Invalid IP address&quot;</span>
+<span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="w">  </span>
+<span class="w">  </span><span class="c1"># UFW правило с IP restriction (НЕ просто allow 5432)</span>
+<span class="w">  </span><span class="c1"># Порт 5432 уже exposed в docker-compose.yml, просто разрешаем доступ с IP</span>
+<span class="w">  </span>ufw<span class="w"> </span>allow<span class="w"> </span>from<span class="w"> </span><span class="nv">$ALLOWED_IP</span><span class="w"> </span>to<span class="w"> </span>any<span class="w"> </span>port<span class="w"> </span><span class="m">5432</span><span class="w"> </span>comment<span class="w"> </span><span class="s2">&quot;PostgreSQL external access&quot;</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ PostgreSQL external access enabled for </span><span class="nv">$ALLOWED_IP</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;   Port 5432 exposed + UFW allows </span><span class="nv">$ALLOWED_IP</span><span class="s2">&quot;</span>
+
+<span class="w">  </span><span class="nv">POSTGRES_EXTERNAL_ACCESS</span><span class="o">=</span><span class="nb">true</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ PostgreSQL access blocked by UFW&quot;</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;   Port 5432 exposed but firewall blocks all external connections&quot;</span>
+<span class="w">  </span><span class="nv">POSTGRES_EXTERNAL_ACCESS</span><span class="o">=</span><span class="nb">false</span>
+<span class="w">  </span><span class="nv">ALLOWED_IP</span><span class="o">=</span><span class="s2">&quot;&quot;</span>
+<span class="k">fi</span>
+
+<span class="c1"># Генерация .env файла</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>.env<span class="w"> </span><span class="s">&lt;&lt; EOF</span>
+<span class="s"># Telegram</span>
+<span class="s">TELEGRAM_BOT_TOKEN=$BOT_TOKEN</span>
+
+<span class="s"># JWT</span>
+<span class="s">JWT_SECRET_KEY=$JWT_SECRET</span>
+<span class="s">JWT_ALGORITHM=HS256</span>
+<span class="s">JWT_EXPIRE_DAYS=7</span>
+
+<span class="s"># PostgreSQL</span>
+<span class="s">POSTGRES_USER=familybudget</span>
+<span class="s">POSTGRES_PASSWORD=$POSTGRES_PASSWORD</span>
+<span class="s">POSTGRES_DB=familybudget</span>
+<span class="s">POSTGRES_HOST=postgres</span>
+<span class="s">POSTGRES_PORT=5432</span>
+
+<span class="s"># Admin</span>
+<span class="s">ADMIN_TELEGRAM_ID=$ADMIN_ID</span>
+
+<span class="s"># PostgreSQL External Access</span>
+<span class="s">POSTGRES_EXTERNAL_ACCESS=$POSTGRES_EXTERNAL_ACCESS</span>
+<span class="s">POSTGRES_ALLOWED_IP=$ALLOWED_IP</span>
+
+<span class="s"># S3 (опционально)</span>
+<span class="s">AWS_ACCESS_KEY_ID=</span>
+<span class="s">AWS_SECRET_ACCESS_KEY=</span>
+<span class="s">S3_BUCKET_NAME=</span>
+<span class="s">S3_ENDPOINT_URL=https://storage.yandexcloud.net</span>
+<span class="s">EOF</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Configuration saved to .env&quot;</span>
+
+<span class="c1"># S3 credentials (опционально)</span>
+<span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Настроить S3 для бэкапов? (y/n): &quot;</span><span class="w"> </span>SETUP_S3
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SETUP_S3</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;AWS Access Key ID: &quot;</span><span class="w"> </span>AWS_KEY
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-sp<span class="w"> </span><span class="s2">&quot;AWS Secret Access Key: &quot;</span><span class="w"> </span>AWS_SECRET
+<span class="w">  </span><span class="nb">echo</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;S3 Bucket Name: &quot;</span><span class="w"> </span>S3_BUCKET
+<span class="w">  </span>
+<span class="w">  </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s|AWS_ACCESS_KEY_ID=|AWS_ACCESS_KEY_ID=</span><span class="nv">$AWS_KEY</span><span class="s2">|&quot;</span><span class="w"> </span>.env
+<span class="w">  </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s|AWS_SECRET_ACCESS_KEY=|AWS_SECRET_ACCESS_KEY=</span><span class="nv">$AWS_SECRET</span><span class="s2">|&quot;</span><span class="w"> </span>.env
+<span class="w">  </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s|S3_BUCKET_NAME=|S3_BUCKET_NAME=</span><span class="nv">$S3_BUCKET</span><span class="s2">|&quot;</span><span class="w"> </span>.env
+<span class="w">  </span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ S3 configured&quot;</span>
+<span class="k">fi</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Setup complete!&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Next step: Run ./scripts/deploy.sh&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="deploy-sh-430-lines">
+<h3>deploy.sh (~430 lines, модульная архитектура)<a class="headerlink" href="#deploy-sh-430-lines" title="Link to this heading">¶</a></h3>
+<p><strong>ВАЖНО:</strong> Фактический deploy.sh значительно расширен и использует модульную архитектуру с библиотеками из <code class="docutils literal notranslate"><span class="pre">scripts/lib/</span></code>.</p>
+<p><strong>Основные этапы deployment:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-e
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== FamilyBudget Deployment ===&quot;</span>
+
+<span class="c1"># 1. Prerequisites Check</span>
+check_prerequisites_early<span class="w">  </span><span class="c1"># Docker, .env validation</span>
+
+<span class="c1"># 2. Code Synchronization</span>
+sync_code_to_deploy<span class="w">  </span><span class="c1"># Repository → /opt/budget</span>
+
+<span class="c1"># 3. Static Assets Optimization (NEW in v5.0.0)</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+
+<span class="c1"># Validate npm isolated environment (created by install.sh)</span>
+<span class="c1"># Check critical packages: terser, cssnano-cli, tailwindcss</span>
+<span class="k">if</span><span class="w"> </span>!<span class="w"> </span>bash<span class="w"> </span>scripts/lib/check_npm_env.sh<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$PWD</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;❌ npm environment validation failed&quot;</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Fix: cd ~/familyBudget &amp;&amp; sudo ./install.sh&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="c1"># Run minification (Terser for JS, cssnano for CSS)</span>
+<span class="c1"># Uses isolated environment: .npm-isolated/node_modules</span>
+<span class="k">if</span><span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Static assets minified successfully&quot;</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;⚠️  Minification failed, continuing with unminified assets&quot;</span>
+<span class="k">fi</span>
+
+<span class="c1"># 4. Cache Busting (supports .min.js, .min.css, /shared/)</span>
+run_cache_busting<span class="w"> </span><span class="s2">&quot;auto&quot;</span><span class="w"> </span><span class="s2">&quot;/opt/budget&quot;</span>
+
+<span class="c1"># 5. Docker Compose</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Starting services...&quot;</span>
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+
+<span class="c1"># 6. Health checks</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Waiting for services to start...&quot;</span>
+wait_for_services<span class="w">  </span><span class="c1"># Backend, PostgreSQL, Nginx</span>
+
+<span class="c1"># 7. Database Migrations</span>
+run_migrations
+
+<span class="c1"># 8. SSL Setup (for full profile)</span>
+setup_ssl_certificates
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Deployment successful!&quot;</span>
+
+<span class="c1"># Вывод информации</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Access Information ===&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Web Interface: https://</span><span class="k">$(</span>hostname<span class="w"> </span>-I<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span><span class="s2">&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;API Docs: http://</span><span class="k">$(</span>hostname<span class="w"> </span>-I<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span><span class="s2">:8000/docs&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;View logs: docker compose logs -f&quot;</span>
+</pre></div>
+</div>
+<p><strong>Ключевые особенности:</strong></p>
+<ul class="simple">
+<li><p><strong>Модульная архитектура</strong>: Функции загружаются из <code class="docutils literal notranslate"><span class="pre">scripts/lib/*.sh</span></code></p></li>
+<li><p><strong>Smart Cleanup v2</strong>: Интеллектуальная категоризация изменений (см. 10.3.5)</p></li>
+<li><p><strong>Production Minification</strong>: Автоматическая минификация JS/CSS (см. 10.7.5)</p></li>
+<li><p><strong>Cache Busting</strong>: Query string versioning для статических файлов</p></li>
+<li><p><strong>Health Checks</strong>: Ожидание готовности всех сервисов перед продолжением</p></li>
+<li><p><strong>Error Handling</strong>: Graceful degradation при ошибках минификации</p></li>
+</ul>
+</section>
+<section id="backup-sh-80-lines">
+<h3>backup.sh (~80 lines)<a class="headerlink" href="#backup-sh-80-lines" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-e
+
+<span class="c1"># Загрузка .env</span>
+<span class="nb">source</span><span class="w"> </span>.env
+
+<span class="nv">BACKUP_DIR</span><span class="o">=</span><span class="s2">&quot;/backups&quot;</span>
+<span class="nv">BACKUP_FILE</span><span class="o">=</span><span class="s2">&quot;backup_</span><span class="k">$(</span>date<span class="w"> </span>+%Y%m%d_%H%M%S<span class="k">)</span><span class="s2">.sql.gz&quot;</span>
+<span class="nv">BACKUP_PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$BACKUP_DIR</span><span class="s2">/</span><span class="nv">$BACKUP_FILE</span><span class="s2">&quot;</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Starting PostgreSQL Backup ===&quot;</span>
+
+<span class="c1"># pg_dump</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>postgres<span class="w"> </span>pg_dump<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-U<span class="w"> </span><span class="nv">$POSTGRES_USER</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="nv">$POSTGRES_DB</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>gzip<span class="w"> </span>&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP_PATH</span><span class="s2">&quot;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Backup saved: </span><span class="nv">$BACKUP_PATH</span><span class="s2">&quot;</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;❌ Backup failed&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="c1"># Ротация (7 дней)</span>
+find<span class="w"> </span><span class="nv">$BACKUP_DIR</span><span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;backup_*.sql.gz&quot;</span><span class="w"> </span>-mtime<span class="w"> </span>+7<span class="w"> </span>-delete
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Old backups cleaned (retention: 7 days)&quot;</span>
+
+<span class="c1"># Еженедельная загрузка в S3</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="k">$(</span>date<span class="w"> </span>+%u<span class="k">)</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">7</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AWS_ACCESS_KEY_ID</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Uploading to S3...&quot;</span>
+<span class="w">  </span>aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP_PATH</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="s2">&quot;s3://</span><span class="nv">$S3_BUCKET_NAME</span><span class="s2">/postgresql-backups/</span><span class="k">$(</span>date<span class="w"> </span>+%Y/%m<span class="k">)</span><span class="s2">/</span><span class="nv">$BACKUP_FILE</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--endpoint-url<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$S3_ENDPOINT_URL</span><span class="s2">&quot;</span>
+<span class="w">  </span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✅ Uploaded to S3&quot;</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;⚠️ S3 upload failed (backup still saved locally)&quot;</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="k">fi</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Backup Complete ===&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="smart-cleanup-v2-file-categorization-logic">
+<h3>10.3.5 Smart Cleanup v2: File Categorization Logic<a class="headerlink" href="#smart-cleanup-v2-file-categorization-logic" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong>
+Smart Cleanup v2 анализирует измененные файлы и автоматически определяет:</p>
+<ul class="simple">
+<li><p>Какие сервисы требуют перезапуска</p></li>
+<li><p>Какие Docker образы требуют пересборки</p></li>
+<li><p>Оценку downtime</p></li>
+</ul>
+<p><strong>Категории файлов:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Паттерн файла</p></th>
+<th class="head"><p>Категория</p></th>
+<th class="head"><p>Backend rebuild</p></th>
+<th class="head"><p>Backend restart</p></th>
+<th class="head"><p>Nginx restart</p></th>
+<th class="head"><p>Postgres restart</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backend/db/schema/*.sql</span></code></p></td>
+<td><p>postgres-critical</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Да</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backend/requirements.txt</span></code></p></td>
+<td><p>backend-deps</p></td>
+<td><p>Да</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">backend/Dockerfile</span></code></p></td>
+<td><p>backend-deps</p></td>
+<td><p>Да</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">backend/app/**/*.py</span></code></p></td>
+<td><p>backend-code</p></td>
+<td><p>Нет*</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">web/templates/*.html</span></code></p></td>
+<td><p>backend-code</p></td>
+<td><p>Нет*</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">web/static/*</span></code></p></td>
+<td><p>nginx-config</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">webapp/*.html</span></code></p></td>
+<td><p>webapp</p></td>
+<td><p>Нет*</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">shared/static/**/*</span></code></p></td>
+<td><p>shared-assets</p></td>
+<td><p>Нет*</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">package.json</span></code></p></td>
+<td><p>build-deps</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scripts/lib/minify.sh</span></code></p></td>
+<td><p>build-deps</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bot/requirements.txt</span></code></p></td>
+<td><p>bot-deps</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bot/**/*.py</span></code></p></td>
+<td><p>bot-code</p></td>
+<td><p>Нет</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nginx/conf.d/*.conf</span></code></p></td>
+<td><p>nginx-config</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Да</p></td>
+<td><p>Нет</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code></p></td>
+<td><p>postgres-critical</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Нет</p></td>
+<td><p>Да</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>*Примечание:</em> Backend rebuild НЕ требуется благодаря volume mounts в docker-compose.yml:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./backend:/app/backend:ro</span><span class="w">      </span><span class="c1"># Python код</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./web:/app/web:ro</span><span class="w">              </span><span class="c1"># Templates + static</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./webapp:/app/webapp:ro</span><span class="w">        </span><span class="c1"># Telegram Web Apps</span>
+</pre></div>
+</div>
+<p><strong>Volume Mounts vs Dockerfile COPY:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Repository           Dockerfile COPY          Runtime (volume mount)
+backend/app/     →   COPY backend/        →   ./backend:/app/backend:ro
+web/templates/   →   COPY web/            →   ./web:/app/web:ro
+webapp/          →   COPY webapp/         →   ./webapp:/app/webapp:ro
+</pre></div>
+</div>
+<p><strong>Важно:</strong> Volume mounts <strong>ПЕРЕОПРЕДЕЛЯЮТ</strong> Dockerfile COPY в runtime. Поэтому:</p>
+<ul class="simple">
+<li><p>Изменения Python кода применяются немедленно через volume</p></li>
+<li><p>Требуется только перезапуск сервиса (для очистки cache)</p></li>
+<li><p>НЕ требуется пересборка Docker образа</p></li>
+</ul>
+<p><strong>Исключение:</strong> Docker может пересобрать образ если build context изменился, даже когда Smart Cleanup сообщает “Images to rebuild: 0”. Это нормальное поведение - volume mounts все равно переопределят встроенные файлы.</p>
+<p><strong>Примеры сценариев:</strong></p>
+<p><strong>Сценарий 1: Изменены только webapp/*.html</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Changed<span class="w"> </span>files:<span class="w"> </span>webapp/add.html,<span class="w"> </span>webapp/edit.html
+
+Change<span class="w"> </span>analysis:
+<span class="w">  </span>✓<span class="w"> </span>webapp<span class="w"> </span><span class="o">(</span><span class="m">2</span><span class="w"> </span>files<span class="o">)</span>
+
+Strategy<span class="w"> </span>summary:
+<span class="w">  </span>•<span class="w"> </span>PostgreSQL:<span class="w"> </span>keep<span class="w"> </span>running<span class="w"> </span>✓
+<span class="w">  </span>•<span class="w"> </span>Services<span class="w"> </span>to<span class="w"> </span>restart:<span class="w"> </span><span class="m">0</span>
+<span class="w">  </span>•<span class="w"> </span>Images<span class="w"> </span>to<span class="w"> </span>rebuild:<span class="w"> </span><span class="m">0</span>
+
+NOTE:<span class="w"> </span>Docker<span class="w"> </span>may<span class="w"> </span>still<span class="w"> </span>rebuild<span class="w"> </span>images<span class="w"> </span><span class="k">if</span><span class="w"> </span>build<span class="w"> </span>context<span class="w"> </span>changed
+<span class="w">      </span><span class="o">(</span>Dockerfile<span class="w"> </span>COPY<span class="w"> </span>includes<span class="w"> </span>volume-mounted<span class="w"> </span>directories<span class="o">)</span>
+<span class="w">      </span>This<span class="w"> </span>is<span class="w"> </span>normal<span class="w"> </span>-<span class="w"> </span>volume<span class="w"> </span>mounts<span class="w"> </span>will<span class="w"> </span>override<span class="w"> </span>built-in<span class="w"> </span>files
+</pre></div>
+</div>
+<p><strong>Результат:</strong> Изменения применяются немедленно через volume mount, перезапуск НЕ требуется.</p>
+<p><strong>Сценарий 2: Изменены web/templates/*.html</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Changed<span class="w"> </span>files:<span class="w"> </span>web/templates/index.html,<span class="w"> </span>web/templates/facts.html
+
+Change<span class="w"> </span>analysis:
+<span class="w">  </span>✓<span class="w"> </span>backend-code<span class="w"> </span><span class="o">(</span><span class="m">2</span><span class="w"> </span>files<span class="o">)</span>
+
+Strategy<span class="w"> </span>summary:
+<span class="w">  </span>•<span class="w"> </span>PostgreSQL:<span class="w"> </span>keep<span class="w"> </span>running<span class="w"> </span>✓
+<span class="w">  </span>•<span class="w"> </span>Services<span class="w"> </span>to<span class="w"> </span>restart:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>→<span class="w"> </span>backend
+<span class="w">  </span>•<span class="w"> </span>Images<span class="w"> </span>to<span class="w"> </span>rebuild:<span class="w"> </span><span class="m">0</span>
+</pre></div>
+</div>
+<p><strong>Результат:</strong> Backend перезапускается для очистки Jinja2 cache, изменения применяются.</p>
+<p><strong>Сценарий 3: Изменены backend/app/*.py</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Changed<span class="w"> </span>files:<span class="w"> </span>backend/app/api/v1/endpoints/facts.py
+
+Change<span class="w"> </span>analysis:
+<span class="w">  </span>✓<span class="w"> </span>backend-code<span class="w"> </span><span class="o">(</span><span class="m">1</span><span class="w"> </span>file<span class="o">)</span>
+
+Strategy<span class="w"> </span>summary:
+<span class="w">  </span>•<span class="w"> </span>PostgreSQL:<span class="w"> </span>keep<span class="w"> </span>running<span class="w"> </span>✓
+<span class="w">  </span>•<span class="w"> </span>Services<span class="w"> </span>to<span class="w"> </span>restart:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>→<span class="w"> </span>backend
+<span class="w">  </span>•<span class="w"> </span>Images<span class="w"> </span>to<span class="w"> </span>rebuild:<span class="w"> </span><span class="m">0</span>
+</pre></div>
+</div>
+<p><strong>Результат:</strong> Backend перезапускается, Python код обновляется через volume mount.</p>
+<p><strong>Сценарий 4: Изменен backend/requirements.txt</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Changed<span class="w"> </span>files:<span class="w"> </span>backend/requirements.txt
+
+Change<span class="w"> </span>analysis:
+<span class="w">  </span>✓<span class="w"> </span>backend-deps<span class="w"> </span><span class="o">(</span><span class="m">1</span><span class="w"> </span>file<span class="o">)</span>
+
+Strategy<span class="w"> </span>summary:
+<span class="w">  </span>•<span class="w"> </span>PostgreSQL:<span class="w"> </span>keep<span class="w"> </span>running<span class="w"> </span>✓
+<span class="w">  </span>•<span class="w"> </span>Services<span class="w"> </span>to<span class="w"> </span>restart:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>→<span class="w"> </span>backend
+<span class="w">  </span>•<span class="w"> </span>Images<span class="w"> </span>to<span class="w"> </span>rebuild:<span class="w"> </span><span class="m">1</span>
+<span class="w">    </span>→<span class="w"> </span>backend
+</pre></div>
+</div>
+<p><strong>Результат:</strong> Backend образ пересобирается (pip install новых зависимостей), контейнер пересоздается.</p>
+<p><strong>Сценарий 5: Изменен файл схемы БД</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Changed<span class="w"> </span>files:<span class="w"> </span>backend/db/schema/006_notifications.sql
+
+Change<span class="w"> </span>analysis:
+<span class="w">  </span>✓<span class="w"> </span>postgres-critical<span class="w"> </span><span class="o">(</span><span class="m">1</span><span class="w"> </span>file<span class="o">)</span>
+
+Strategy<span class="w"> </span>summary:
+<span class="w">  </span>•<span class="w"> </span>PostgreSQL:<span class="w"> </span>will<span class="w"> </span>restart
+<span class="w">  </span>•<span class="w"> </span>Services<span class="w"> </span>to<span class="w"> </span>restart:<span class="w"> </span><span class="m">4</span>
+<span class="w">    </span>→<span class="w"> </span>postgres,<span class="w"> </span>backend,<span class="w"> </span>bot,<span class="w"> </span>nginx
+<span class="w">  </span>•<span class="w"> </span>Images<span class="w"> </span>to<span class="w"> </span>rebuild:<span class="w"> </span><span class="m">0</span>
+<span class="w">  </span>•<span class="w"> </span>Estimated<span class="w"> </span>downtime:<span class="w"> </span>~30s
+</pre></div>
+</div>
+<p><strong>Результат:</strong> PostgreSQL перезапускается, миграция применяется, все зависимые сервисы перезапускаются.</p>
+<p><strong>Debugging категоризации:</strong></p>
+<p>Если Smart Cleanup неправильно категоризирует файлы:</p>
+<ol class="arabic simple">
+<li><p><strong>Проверить паттерн</strong> в <code class="docutils literal notranslate"><span class="pre">scripts/lib/docker.sh</span></code>, функция <code class="docutils literal notranslate"><span class="pre">categorize_file_changes()</span></code>:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="k">case</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$file</span><span class="s2">&quot;</span><span class="w"> </span><span class="k">in</span>
+<span class="w">    </span>webapp/*<span class="o">)</span>
+<span class="w">        </span><span class="o">((</span>count_webapp++<span class="o">))</span>
+<span class="w">        </span><span class="p">;;</span>
+<span class="k">esac</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="2">
+<li><p><strong>Проверить счетчики</strong> в выводе:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;count_webapp=</span><span class="nv">$count_webapp</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<ol class="arabic simple" start="3">
+<li><p><strong>Проверить отчет</strong> в <code class="docutils literal notranslate"><span class="pre">cleanup_containers_networks_v2()</span></code>:</p></li>
+</ol>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[[</span><span class="w"> </span><span class="nv">$count_webapp</span><span class="w"> </span>-gt<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nv">categories_found</span><span class="o">+=(</span><span class="s2">&quot;webapp (</span><span class="nv">$count_webapp</span><span class="s2"> files)&quot;</span><span class="o">)</span>
+</pre></div>
+</div>
+</section>
+<section id="registry-first-architecture-v9-0">
+<h3>10.3.6 Registry-First Architecture (v9.0+)<a class="headerlink" href="#registry-first-architecture-v9-0" title="Link to this heading">¶</a></h3>
+<p><strong>Версия:</strong> 9.0.0 (обновлено 2026-01-26)</p>
+<p><strong>Статус:</strong> ⚠️ <strong>Раздел “npm Isolated Environment Protection” OBSOLETE в v9.0</strong></p>
+<p><strong>Назначение:</strong>
+В v9.0 deployment полностью перешел на <strong>registry-first mode</strong>: все сборки (frontend, Docker images) выполняются в GitHub Actions CI/CD. Production сервер только <strong>pull готовые образы</strong> из GitHub Container Registry (ghcr.io).</p>
+<p><strong>Архитектура v9.0 (Registry-First):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>GitHub Actions CI/CD                     Production Server (/opt/budget)
+┌─────────────────────┐
+│ 1. git push         │                  ┌───────────────────────────┐
+│ 2. Build triggered  │                  │ Deployment Process:       │
+│                     │                  │                           │
+│ ┌─────────────────┐ │                  │ 1. git pull (config only)│
+│ │ Frontend Build  │ │                  │    └─ docker-compose.yml │
+│ │ - npm ci        │ │                  │    └─ .env, VERSION      │
+│ │ - npm run build │ │                  │    └─ migrations/        │
+│ │ - Minification  │ │                  │                           │
+│ └─────────────────┘ │                  │ 2. docker compose pull   │
+│                     │                  │    ↓                      │
+│ ┌─────────────────┐ │    ghcr.io      │    Pull ready images:     │
+│ │ Docker Build    │─┼───────────────▶ │    - backend:10.0.51      │
+│ │ - 5 images      │ │    (registry)   │    - nginx:10.0.51        │
+│ │ - Multi-stage   │ │                  │    - bot:10.0.51          │
+│ │ - Push to reg.  │ │                  │    - redis:10.0.51        │
+│ └─────────────────┘ │                  │    - postgresql:10.0.51   │
+│                     │                  │                           │
+│ Time: 5-7 min       │                  │ 3. docker compose up      │
+└─────────────────────┘                  │                           │
+                                         │ Time: 2-3 min             │
+                                         └───────────────────────────┘
+</pre></div>
+</div>
+<p><strong>Что УДАЛЕНО в v9.0 (НЕ требуется на сервере):</strong></p>
+<p>❌ <strong>npm/Node.js:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">.npm-isolated/</span></code> directory (233 packages, ~200MB)</p></li>
+<li><p>npm install/ci commands</p></li>
+<li><p>node_modules/ on server</p></li>
+<li><p>package.json, package-lock.json processing</p></li>
+</ul>
+<p>❌ <strong>Frontend Build:</strong></p>
+<ul class="simple">
+<li><p>npm run build:prod</p></li>
+<li><p>Minification (Terser, PostCSS)</p></li>
+<li><p>Cache busting scripts</p></li>
+<li><p>Frontend validation</p></li>
+</ul>
+<p>❌ <strong>Docker Build:</strong></p>
+<ul class="simple">
+<li><p>docker compose build</p></li>
+<li><p>Multi-stage Dockerfile processing</p></li>
+<li><p>Image layer caching on server</p></li>
+<li><p>Build context transfer</p></li>
+</ul>
+<p>❌ <strong>Host-based Nginx Config:</strong></p>
+<ul class="simple">
+<li><p>nginx/conf.d/*.conf generation on server</p></li>
+<li><p>select_nginx_config() function</p></li>
+<li><p>generate_nginx_https_config() function</p></li>
+<li><p>Host-based template processing</p></li>
+</ul>
+<p><strong>Что ДОБАВЛЕНО в v9.0:</strong></p>
+<p>✅ <strong>Registry Integration:</strong></p>
+<ul class="simple">
+<li><p>IMAGE_VERSIONS.json (версии всех 5 образов)</p></li>
+<li><p>pull_from_registry() function</p></li>
+<li><p>Image validation</p></li>
+<li><p>Automatic cleanup (7 days retention)</p></li>
+</ul>
+<p>✅ <strong>Embedded Configuration:</strong></p>
+<ul class="simple">
+<li><p>Frontend embedded in backend image</p></li>
+<li><p>Nginx config embedded in nginx image</p></li>
+<li><p>Dependencies embedded in all images</p></li>
+<li><p>docker-entrypoint.sh processing (runtime)</p></li>
+</ul>
+<p><strong>Workflow v9.0:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Deployment Process (Registry-First):
+┌──────────────────────────────────────────────────────────────┐
+│ 1. VERSION BUMP (developer)                                  │
+│    echo &quot;10.0.51&quot; &gt; VERSION                                  │
+│    git commit -m &quot;chore: bump version to 10.0.51&quot;            │
+│    git push origin main                                       │
+│                                                              │
+│ 2. CI/CD BUILD (GitHub Actions, 5-7 min)                    │
+│    ├─ Frontend build (npm run build:prod)                   │
+│    ├─ Docker build (5 images)                               │
+│    ├─ Push to ghcr.io/ikeniborn/familybudget-*:10.0.51      │
+│    └─ Generate IMAGE_VERSIONS.json                          │
+│                                                              │
+│ 3. SERVER DEPLOYMENT (2-3 min)                              │
+│    ├─ git pull (sync IMAGE_VERSIONS.json, config files)     │
+│    ├─ docker compose pull (5 images from ghcr.io)           │
+│    ├─ docker compose up (restart containers)                │
+│    └─ migrations (alembic upgrade head)                     │
+└──────────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>Что СИНХРОНИЗИРУЕТСЯ на сервер (rsync):</strong></p>
+<p>✅ <strong>Configuration Files:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">docker-compose.yml</span></code> - service definitions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.env</span></code> - environment variables (protected)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">VERSION</span></code> - version for image pull</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">IMAGE_VERSIONS.json</span></code> - per-service versions</p></li>
+</ul>
+<p>✅ <strong>Database Migrations:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/db/migrations/versions/*.py</span></code></p></li>
+<li><p>Миграции НЕ в Docker образах (часто меняются)</p></li>
+</ul>
+<p>✅ <strong>Deployment Scripts:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/lib/*.sh</span></code> - используются сервером</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> - deployment orchestrator</p></li>
+</ul>
+<p>✅ <strong>Nginx Templates (для CI/CD):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nginx/conf.d/*.template</span></code> - для пересборки образа</p></li>
+<li><p>Обрабатываются entrypoint.sh ВНУТРИ контейнера</p></li>
+</ul>
+<p>✅ <strong>Protected State:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">.migration_checksums</span></code> - MD5 для change detection</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.docker_build_checksums</span></code> - MD5 для rebuild detection</p></li>
+</ul>
+<p><strong>Что EMBEDDED в Docker образы (НЕ синхронизируется):</strong></p>
+<p>🐳 <strong>Backend Image:</strong></p>
+<ul class="simple">
+<li><p>Frontend код + assets (embedded)</p></li>
+<li><p>Python dependencies</p></li>
+<li><p>Application code</p></li>
+</ul>
+<p>🐳 <strong>Nginx Image:</strong></p>
+<ul class="simple">
+<li><p>Конфигурация (templates)</p></li>
+<li><p>docker-entrypoint.sh (SSL auto-detection)</p></li>
+</ul>
+<p>🐳 <strong>Bot, Redis, PostgreSQL Images:</strong></p>
+<ul class="simple">
+<li><p>Respective code and configs</p></li>
+</ul>
+<p><strong>Преимущества v9.0 Registry-First:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Faster deploys:</strong> 2-3 min (было 5-7 min)</p></li>
+<li><p><strong>Lower server CPU:</strong> pull only (было: npm build + Docker build)</p></li>
+<li><p><strong>Lower server RAM:</strong> ~500MB (было ~2GB during build)</p></li>
+<li><p><strong>Simpler server:</strong> только Docker (было: Docker + Node.js + npm)</p></li>
+<li><p><strong>Consistent builds:</strong> CI/CD гарантирует одинаковые образы</p></li>
+<li><p><strong>Faster rollback:</strong> <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">pull</span> <span class="pre">&lt;old-version&gt;</span></code></p></li>
+</ol>
+<p><strong>Troubleshooting v9.0:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Проблема</p></th>
+<th class="head"><p>Диагностика</p></th>
+<th class="head"><p>Решение</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>“npm: command not found”</p></td>
+<td><p>✅ Expected в v9.0!</p></td>
+<td><p>Это нормально, npm не требуется</p></td>
+</tr>
+<tr class="row-odd"><td><p>IMAGE_VERSIONS.json not found</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">IMAGE_VERSIONS.json</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code> для синхронизации</p></td>
+</tr>
+<tr class="row-even"><td><p>Image not found in registry</p></td>
+<td><p>Check GitHub Actions</p></td>
+<td><p>Wait for build, re-trigger if failed</p></td>
+</tr>
+<tr class="row-odd"><td><p>Nginx config не обновляется</p></td>
+<td><p>Edit на сервере НЕ работает!</p></td>
+<td><p>Edit nginx/conf.d/*.template в git, commit, wait for CI/CD rebuild</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Verification v9.0:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверка что npm НЕ требуется:</span>
+which<span class="w"> </span>npm
+<span class="c1"># Expected: (no output)</span>
+
+<span class="c1"># Проверка Docker образов:</span>
+docker<span class="w"> </span>images<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>familybudget
+<span class="c1"># Expected: ghcr.io/ikeniborn/familybudget-* с актуальными версиями</span>
+
+<span class="c1"># Проверка IMAGE_VERSIONS.json:</span>
+cat<span class="w"> </span>/opt/budget/IMAGE_VERSIONS.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+<span class="c1"># Expected: версии всех 5 сервисов</span>
+
+<span class="c1"># Проверка deployment logs:</span>
+grep<span class="w"> </span><span class="s2">&quot;Pulling Docker images&quot;</span><span class="w"> </span>/opt/budget/logs/deploy.log
+<span class="c1"># Expected: Pull from ghcr.io (НЕ local build)</span>
+</pre></div>
+</div>
+<p><strong>История изменений:</strong></p>
+<ul class="simple">
+<li><p><strong>2026-01-26 (v9.0):</strong> Complete migration to registry-first mode</p>
+<ul>
+<li><p>Removed: npm environment, local builds, host-based nginx config</p></li>
+<li><p>Added: IMAGE_VERSIONS.json, registry integration, embedded configs</p></li>
+</ul>
+</li>
+<li><p><strong>2025-11-08 (v8.x):</strong> npm isolated environment protection (obsolete)</p></li>
+<li><p><strong>2025-11-08 (v8.x):</strong> rsync –filter=’protect’ for .npm-isolated/ (obsolete)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="migration-change-detection-auto-reapply-system">
+<h3>10.3.7 Migration Change Detection &amp; Auto-Reapply System<a class="headerlink" href="#migration-change-detection-auto-reapply-system" title="Link to this heading">¶</a></h3>
+<p><strong>Версия:</strong> 5.1.0 (добавлено 2025-11-12)</p>
+<p><strong>Назначение:</strong>
+Автоматическое обнаружение и обработка изменений в примененных Alembic миграциях через механизм downgrade/upgrade.</p>
+<p><strong>Проблема:</strong></p>
+<p>Alembic отслеживает примененные миграции только по revision ID в таблице <code class="docutils literal notranslate"><span class="pre">alembic_version</span></code>. Если содержимое файла миграции изменяется ПОСЛЕ применения:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Изменение файла:
+backend/db/migrations/versions/20251112_b2232d851007_add_function.py
+  ├─ Revision ID: b2232d851007 (не изменился)
+  ├─ Содержимое: ИЗМЕНЕНО (добавлен JOIN, исправлен SQL)
+  └─ Результат: Alembic НЕ обнаруживает изменение!
+
+Проблема:
+  alembic_version: b2232d851007 ✓ (уже применена)
+  Alembic: &quot;Database up to date&quot; (но файл изменился!)
+  Функция в БД: СТАРАЯ версия с багом
+</pre></div>
+</div>
+<p><strong>Решение:</strong></p>
+<p>Система отслеживания изменений через MD5 checksums:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Deployment Process:
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Загрузка предыдущих checksums                            │
+│    /opt/budget/.migration_checksums (persistent)            │
+│                                                              │
+│ 2. Вычисление текущих checksums                             │
+│    md5sum backend/db/migrations/versions/*.py               │
+│                                                              │
+│ 3. Сравнение (detect_changed_migrations)                   │
+│    comm -13 &lt;previous&gt; &lt;current&gt;                            │
+│    → список измененных файлов                               │
+│                                                              │
+│ 4a. Auto-reapply (если enabled + dev/staging)              │
+│     FOR EACH changed migration:                             │
+│       alembic downgrade -1                                  │
+│       alembic upgrade head                                  │
+│                                                              │
+│ 4b. Manual reapply (production)                             │
+│     WARNING: Changed migrations detected                    │
+│     Use: --reapply-migration &lt;revision&gt;                     │
+│                                                              │
+│ 5. Сохранение новых checksums                               │
+│    echo &quot;$checksums&quot; &gt; .migration_checksums                 │
+└─────────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>Компоненты:</strong></p>
+<p><strong>1. scripts/lib/migration_tracker.sh</strong> (новый модуль, 338 строк):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ключевые функции:</span>
+calculate_migration_checksums<span class="o">()</span><span class="w">     </span><span class="c1"># MD5 для всех .py файлов</span>
+detect_changed_migrations<span class="o">()</span><span class="w">         </span><span class="c1"># Сравнение previous vs current</span>
+reapply_single_migration<span class="o">()</span><span class="w">          </span><span class="c1"># Downgrade → Upgrade для одной миграции</span>
+reapply_changed_migrations<span class="o">()</span><span class="w">        </span><span class="c1"># Reapply всех измененных с confirmation</span>
+manual_reapply_migration<span class="o">()</span><span class="w">          </span><span class="c1"># Ручной reapply с подтверждением</span>
+check_and_reapply_migrations<span class="o">()</span><span class="w">      </span><span class="c1"># Главная функция (public API)</span>
+
+<span class="c1"># Checksum file location:</span>
+<span class="nv">MIGRATION_CHECKSUMS_FILE</span><span class="o">=</span><span class="s2">&quot;/opt/budget/.migration_checksums&quot;</span>
+
+<span class="c1"># Auto-reapply: ВСЕГДА enabled (2025-11-12)</span>
+<span class="c1"># - Production: requires &#39;REAPPLY&#39; typed confirmation</span>
+<span class="c1"># - Staging: requires y/N confirmation</span>
+<span class="c1"># - Development: auto-applies without confirmation</span>
+</pre></div>
+</div>
+<p><strong>2. scripts/lib/migrations.sh</strong> (обновлён):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>run_alembic_migrations<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="c1"># Handle manual reapply flag (--reapply-migration &lt;revision&gt;)</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$REAPPLY_MIGRATION</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">&quot;true&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$REAPPLY_MIGRATION_FILE</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>manual_reapply_migration<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$REAPPLY_MIGRATION_FILE</span><span class="s2">&quot;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nv">$?</span>
+<span class="w">    </span><span class="k">fi</span>
+
+<span class="w">    </span><span class="c1"># ALWAYS check for changed migrations (detection)</span>
+<span class="w">    </span><span class="c1"># Will show WARNING if changes detected, and reapply with confirmation</span>
+<span class="w">    </span>check_and_reapply_migrations<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/backend/db/migrations&quot;</span>
+
+<span class="w">    </span><span class="c1"># Normal migration flow...</span>
+<span class="w">    </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+
+<span class="w">    </span><span class="c1"># Save checksums after successful migration</span>
+<span class="w">    </span>save_migration_checksums<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/backend/db/migrations&quot;</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p><strong>3. deploy.sh</strong> (обновлён):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Line 90: Load new module</span>
+<span class="nb">source</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SCRIPT_DIR</span><span class="s2">/scripts/lib/migration_tracker.sh&quot;</span>
+
+<span class="c1"># Lines 129-132: New variables</span>
+<span class="nv">REAPPLY_MIGRATION</span><span class="o">=</span><span class="nb">false</span><span class="w">              </span><span class="c1"># Manual reapply flag</span>
+<span class="nv">REAPPLY_MIGRATION_FILE</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="w">            </span><span class="c1"># Revision ID (e.g., &quot;b2232d851007&quot;)</span>
+
+<span class="c1"># Argument parsing:</span>
+--reapply-migration<span class="o">)</span>
+<span class="w">    </span><span class="nv">REAPPLY_MIGRATION</span><span class="o">=</span><span class="nb">true</span>
+<span class="w">    </span><span class="nv">REAPPLY_MIGRATION_FILE</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="nb">shift</span><span class="w"> </span><span class="m">2</span>
+<span class="w">    </span><span class="p">;;</span>
+</pre></div>
+</div>
+<p><strong>Usage Examples:</strong></p>
+<p><strong>Manual Reapply (production):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ручной reapply конкретной миграции</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+./deploy.sh<span class="w"> </span>--reapply-migration<span class="w"> </span>b2232d851007
+
+<span class="c1"># Процесс:</span>
+<span class="c1"># 1. Downgrade: alembic downgrade -1</span>
+<span class="c1"># 2. Upgrade: alembic upgrade head</span>
+<span class="c1"># 3. Production: требует ввода &quot;REAPPLY&quot; для подтверждения</span>
+
+<span class="c1"># Output:</span>
+⚠️<span class="w">  </span>MANUAL<span class="w"> </span>REAPPLY<span class="w"> </span>REQUESTED
+This<span class="w"> </span>will<span class="w"> </span>downgrade<span class="w"> </span>and<span class="w"> </span>upgrade<span class="w"> </span>migration:<span class="w"> </span>b2232d851007
+
+Type<span class="w"> </span><span class="s1">&#39;REAPPLY&#39;</span><span class="w"> </span>to<span class="w"> </span>confirm<span class="w"> </span>manual<span class="w"> </span>reapply<span class="w"> </span>on<span class="w"> </span>production:<span class="w"> </span>REAPPLY
+
+Step<span class="w"> </span><span class="m">1</span>/2:<span class="w"> </span>Downgrading<span class="w"> </span>migration<span class="w"> </span>b2232d851007...
+✅<span class="w"> </span>Downgrade<span class="w"> </span>completed
+
+Step<span class="w"> </span><span class="m">2</span>/2:<span class="w"> </span>Upgrading<span class="w"> </span>migration<span class="w"> </span>b2232d851007...
+✅<span class="w"> </span>Upgrade<span class="w"> </span>completed
+✅<span class="w"> </span>Migration<span class="w"> </span>b2232d851007<span class="w"> </span>reapplied<span class="w"> </span>successfully
+</pre></div>
+</div>
+<p><strong>Auto-Reapply (all environments):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Auto-reapply ВСЕГДА включен при обнаружении изменений</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh
+
+<span class="c1"># Процесс:</span>
+<span class="c1"># 1. Загрузить previous checksums из /opt/budget/.migration_checksums</span>
+<span class="c1"># 2. Вычислить current checksums из новых файлов</span>
+<span class="c1"># 3. Обнаружить изменения (comm -13 для сравнения MD5)</span>
+<span class="c1"># 4. Показать список измененных миграций</span>
+<span class="c1"># 5. Запросить подтверждение (production/staging) или применить (dev)</span>
+<span class="c1"># 6. Reapply измененных миграций (downgrade -1 → upgrade head)</span>
+<span class="c1"># 7. Сохранить новые checksums</span>
+
+<span class="c1"># Output (Production):</span>
+Checking<span class="w"> </span><span class="k">for</span><span class="w"> </span>changed<span class="w"> </span>migrations...
+⚠️<span class="w">  </span>Detected<span class="w"> </span>changed<span class="w"> </span>migration<span class="w"> </span>files:
+<span class="w">  </span>-<span class="w"> </span>20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py<span class="w"> </span><span class="o">(</span>revision:<span class="w"> </span>d1b4c09aa285<span class="o">)</span>
+
+⚠️<span class="w">  </span>Migration<span class="w"> </span>changes<span class="w"> </span>will<span class="w"> </span>be<span class="w"> </span>automatically<span class="w"> </span>reapplied
+This<span class="w"> </span>will<span class="w"> </span>execute<span class="w"> </span>downgrade<span class="o">()</span><span class="w"> </span><span class="k">then</span><span class="w"> </span>upgrade<span class="o">()</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>each<span class="w"> </span>migration
+
+Migrations<span class="w"> </span>to<span class="w"> </span>be<span class="w"> </span>reapplied:
+<span class="w">  </span>-<span class="w"> </span>20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py<span class="w"> </span><span class="o">(</span>revision:<span class="w"> </span>d1b4c09aa285<span class="o">)</span>
+
+⚠️<span class="w">  </span>PRODUCTION<span class="w"> </span>ENVIRONMENT<span class="w"> </span>-<span class="w"> </span>Extra<span class="w"> </span>confirmation<span class="w"> </span>required
+Type<span class="w"> </span><span class="s1">&#39;REAPPLY&#39;</span><span class="w"> </span>to<span class="w"> </span>confirm<span class="w"> </span><span class="o">(</span>all<span class="w"> </span>caps<span class="o">)</span>:<span class="w"> </span>REAPPLY
+
+Reapplying<span class="w"> </span>migration:<span class="w"> </span>d1b4c09aa285
+
+Step<span class="w"> </span><span class="m">1</span>/2:<span class="w"> </span>Downgrading<span class="w"> </span>migration<span class="w"> </span>d1b4c09aa285...
+✅<span class="w"> </span>Downgrade<span class="w"> </span>completed
+
+Step<span class="w"> </span><span class="m">2</span>/2:<span class="w"> </span>Upgrading<span class="w"> </span>migration<span class="w"> </span>d1b4c09aa285...
+✅<span class="w"> </span>Upgrade<span class="w"> </span>completed
+
+✅<span class="w"> </span>All<span class="w"> </span>changed<span class="w"> </span>migrations<span class="w"> </span>reapplied<span class="w"> </span>successfully
+Saving<span class="w"> </span>migration<span class="w"> </span>checksums<span class="w"> </span><span class="k">for</span><span class="w"> </span>change<span class="w"> </span>tracking...
+✅<span class="w"> </span>Migration<span class="w"> </span>checksums<span class="w"> </span>saved<span class="w"> </span>to<span class="w"> </span>/opt/budget/.migration_checksums
+</pre></div>
+</div>
+<p><strong>Normal Deploy (no changes detected):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+./deploy.sh<span class="w"> </span>--profile<span class="w"> </span>full
+
+<span class="c1"># Output:</span>
+Checking<span class="w"> </span><span class="k">for</span><span class="w"> </span>changed<span class="w"> </span>migrations...
+✅<span class="w"> </span>No<span class="w"> </span>changed<span class="w"> </span>migrations<span class="w"> </span>detected
+Saving<span class="w"> </span>migration<span class="w"> </span>checksums<span class="w"> </span><span class="k">for</span><span class="w"> </span>change<span class="w"> </span>tracking...
+✅<span class="w"> </span>Migration<span class="w"> </span>checksums<span class="w"> </span>saved
+</pre></div>
+</div>
+<p><strong>Safety Features:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Environment</p></th>
+<th class="head"><p>Auto-Reapply Behavior</p></th>
+<th class="head"><p>Manual Reapply</p></th>
+<th class="head"><p>Confirmation Required?</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Production</strong></p></td>
+<td><p>✅ Enabled</p></td>
+<td><p>✅ Allowed</p></td>
+<td><p>✅ YES (type “REAPPLY”)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Staging</strong></p></td>
+<td><p>✅ Enabled</p></td>
+<td><p>✅ Allowed</p></td>
+<td><p>✅ YES (y/n prompt)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Development</strong></p></td>
+<td><p>✅ Enabled</p></td>
+<td><p>✅ Allowed</p></td>
+<td><p>❌ NO (auto)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Behavior Changed (2025-11-12):</strong></p>
+<ul class="simple">
+<li><p><strong>OLD:</strong> Auto-reapply disabled by default, required <code class="docutils literal notranslate"><span class="pre">AUTO_REAPPLY_MIGRATIONS=true</span></code> flag</p></li>
+<li><p><strong>NEW:</strong> Auto-reapply ALWAYS enabled when changes detected</p></li>
+<li><p><strong>Safety:</strong> Production requires explicit ‘REAPPLY’ confirmation, Staging requires y/N confirmation</p></li>
+<li><p><strong>Development:</strong> Applies automatically without confirmation (for rapid iteration)</p></li>
+</ul>
+<p><strong>Production Manual Reapply:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>manual_reapply_migration<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">revision</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+
+<span class="w">    </span><span class="c1"># Safety confirmation on production</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">ENVIRONMENT</span><span class="k">:-</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">&quot;production&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>error<span class="w"> </span><span class="s2">&quot;PRODUCTION ENVIRONMENT DETECTED&quot;</span>
+<span class="w">        </span>warning<span class="w"> </span><span class="s2">&quot;Manual reapply may cause data loss if downgrade() drops data&quot;</span>
+<span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
+<span class="w">        </span><span class="nb">read</span><span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;Type &#39;REAPPLY&#39; to confirm manual reapply on production: &quot;</span><span class="w"> </span>confirm
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$confirm</span><span class="s2">&quot;</span><span class="w"> </span>!<span class="o">=</span><span class="w"> </span><span class="s2">&quot;REAPPLY&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">            </span>error<span class="w"> </span><span class="s2">&quot;Manual reapply cancelled&quot;</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="m">1</span>
+<span class="w">        </span><span class="k">fi</span>
+<span class="w">    </span><span class="k">fi</span>
+
+<span class="w">    </span><span class="c1"># Perform reapply</span>
+<span class="w">    </span>reapply_single_migration<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$revision</span><span class="s2">&quot;</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p><strong>Checksum File Format:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># /opt/budget/.migration_checksums</span>
+<span class="c1"># Format: md5sum filename</span>
+
+a1b2c3d4e5f6...<span class="w"> </span>/opt/budget/backend/db/migrations/versions/20251112_b2232d851007_add_function.py
+f7e8d9c0b1a2...<span class="w"> </span>/opt/budget/backend/db/migrations/versions/20251112_d1b4c09aa285_fix_function.py
+...
+</pre></div>
+</div>
+<p><strong>Change Detection Algorithm:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>detect_changed_migrations<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">migrations_dir</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">previous_checksums</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span>current_checksums
+
+<span class="w">    </span><span class="c1"># Calculate current checksums</span>
+<span class="w">    </span><span class="nv">current_checksums</span><span class="o">=</span><span class="k">$(</span>calculate_migration_checksums<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$migrations_dir</span><span class="s2">&quot;</span><span class="k">)</span>
+
+<span class="w">    </span><span class="c1"># Compare checksums and extract changed files</span>
+<span class="w">    </span><span class="c1"># comm -13: lines only in file2 (new/changed checksums)</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span>changed_files
+<span class="w">    </span><span class="nv">changed_files</span><span class="o">=</span><span class="k">$(</span>comm<span class="w"> </span>-13<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>&lt;<span class="o">(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$previous_checksums</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>&lt;<span class="o">(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$current_checksums</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="o">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $2}&#39;</span><span class="o">)</span>
+
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$changed_files</span><span class="s2">&quot;</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p><strong>Сценарии использования:</strong></p>
+<p><strong>Сценарий 1: Исправление бага в миграции (development)</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>1. Обнаружена ошибка в миграции d1b4c09aa285 (bf.is_current doesn&#39;t exist)
+2. Исправлен файл миграции (убран bf.is_current)
+3. git commit + push
+4. Deployment с AUTO_REAPPLY_MIGRATIONS=true
+5. Система обнаруживает изменение checksums
+6. Автоматически выполняет downgrade -1 → upgrade head
+7. Функция пересоздается с исправлением
+8. Checksums сохраняются
+</pre></div>
+</div>
+<p><strong>Сценарий 2: Исправление бага в миграции (production)</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>1. Обнаружена ошибка в миграции d1b4c09aa285
+2. Исправлен файл миграции
+3. git commit + push
+4. Deployment: ./deploy.sh (без auto-reapply)
+5. Система обнаруживает изменение checksums
+6. WARNING: Changed migrations detected but not reapplied
+7. Manual intervention: ./deploy.sh --reapply-migration d1b4c09aa285
+8. Требуется ввести &quot;REAPPLY&quot; для подтверждения
+9. Выполняется downgrade → upgrade
+10. Checksums сохраняются
+</pre></div>
+</div>
+<p><strong>Сценарий 3: Первый deployment (no previous checksums)</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Deployment</span> <span class="n">на</span> <span class="n">новом</span> <span class="n">сервере</span>
+<span class="mf">2.</span> <span class="o">/</span><span class="n">opt</span><span class="o">/</span><span class="n">budget</span><span class="o">/.</span><span class="n">migration_checksums</span> <span class="n">не</span> <span class="n">существует</span>
+<span class="mf">3.</span> <span class="n">check_and_reapply_migrations</span><span class="p">:</span> <span class="s2">&quot;No previous checksums found&quot;</span>
+<span class="mf">4.</span> <span class="n">Обычный</span> <span class="n">процесс</span> <span class="n">миграций</span> <span class="p">(</span><span class="n">alembic</span> <span class="n">upgrade</span> <span class="n">head</span><span class="p">)</span>
+<span class="mf">5.</span> <span class="n">Checksums</span> <span class="n">сохраняются</span> <span class="n">для</span> <span class="n">следующего</span> <span class="n">deployment</span>
+</pre></div>
+</div>
+<p><strong>Сценарий 4: Новая миграция (не изменение существующей)</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Создана</span> <span class="n">новая</span> <span class="n">миграция</span> <span class="n">e5f6g7h8i9j0</span>
+<span class="mf">2.</span> <span class="n">Previous</span> <span class="n">checksums</span><span class="p">:</span> <span class="n">b2232d851007</span><span class="p">,</span> <span class="n">d1b4c09aa285</span>
+<span class="mf">3.</span> <span class="n">Current</span> <span class="n">checksums</span><span class="p">:</span> <span class="n">b2232d851007</span><span class="p">,</span> <span class="n">d1b4c09aa285</span><span class="p">,</span> <span class="n">e5f6g7h8i9j0</span>
+<span class="mf">4.</span> <span class="n">Detected</span> <span class="n">changes</span><span class="p">:</span> <span class="n">e5f6g7h8i9j0</span> <span class="p">(</span><span class="n">новая</span> <span class="n">миграция</span><span class="p">)</span>
+<span class="mf">5.</span> <span class="n">НЕТ</span> <span class="n">reapply</span> <span class="p">(</span><span class="n">это</span> <span class="n">новая</span> <span class="n">миграция</span><span class="p">,</span> <span class="n">не</span> <span class="n">изменение</span><span class="p">)</span>
+<span class="mf">6.</span> <span class="n">Обычный</span> <span class="n">процесс</span><span class="p">:</span> <span class="n">alembic</span> <span class="n">upgrade</span> <span class="n">head</span>
+<span class="mf">7.</span> <span class="n">Checksums</span> <span class="n">обновляются</span>
+</pre></div>
+</div>
+<p><strong>Troubleshooting:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Проблема</p></th>
+<th class="head"><p>Диагностика</p></th>
+<th class="head"><p>Решение</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Checksums не сохраняются</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ls</span> <span class="pre">-la</span> <span class="pre">/opt/budget/.migration_checksums</span></code></p></td>
+<td><p>Проверить permissions, повторить deploy</p></td>
+</tr>
+<tr class="row-odd"><td><p>Checksums файл удаляется при deploy</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">grep</span> <span class="pre">migration_checksums</span> <span class="pre">scripts/lib/sync.sh</span></code></p></td>
+<td><p>Проверить <code class="docutils literal notranslate"><span class="pre">--filter='protect</span> <span class="pre">.migration_checksums'</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Manual reapply не запускается</p></td>
+<td><p>Проверить флаг <code class="docutils literal notranslate"><span class="pre">--reapply-migration</span></code></p></td>
+<td><p>Указать revision ID правильно: <code class="docutils literal notranslate"><span class="pre">--reapply-migration</span> <span class="pre">d1b4c09aa285</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>User отменил reapply</p></td>
+<td><p>Проверить логи deploy</p></td>
+<td><p>Ввести ‘REAPPLY’ (production) или ‘y’ (staging) при запросе</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Error Messages:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># User cancelled reapply on production:</span>
+⚠️<span class="w">  </span>Detected<span class="w"> </span>changed<span class="w"> </span>migration<span class="w"> </span>files:
+<span class="w">  </span>-<span class="w"> </span>20251112_d1b4c09aa285_fix_function.py<span class="w"> </span><span class="o">(</span>revision:<span class="w"> </span>d1b4c09aa285<span class="o">)</span>
+
+⚠️<span class="w">  </span>PRODUCTION<span class="w"> </span>ENVIRONMENT<span class="w"> </span>-<span class="w"> </span>Extra<span class="w"> </span>confirmation<span class="w"> </span>required
+Type<span class="w"> </span><span class="s1">&#39;REAPPLY&#39;</span><span class="w"> </span>to<span class="w"> </span>confirm<span class="w"> </span><span class="o">(</span>all<span class="w"> </span>caps<span class="o">)</span>:<span class="w"> </span>&lt;user<span class="w"> </span>typed<span class="w"> </span>something<span class="w"> </span><span class="k">else</span>&gt;
+
+❌<span class="w"> </span>Reapply<span class="w"> </span>cancelled<span class="w"> </span>by<span class="w"> </span>user
+⚠️<span class="w">  </span>Database<span class="w"> </span>will<span class="w"> </span><span class="k">continue</span><span class="w"> </span>using<span class="w"> </span>OLD<span class="w"> </span>migration<span class="w"> </span>version
+⚠️<span class="w">  </span>To<span class="w"> </span>apply<span class="w"> </span>changes<span class="w"> </span>later:<span class="w"> </span>./deploy.sh<span class="w"> </span>--reapply-migration<span class="w"> </span>d1b4c09aa285
+
+<span class="c1"># Invalid revision ID:</span>
+❌<span class="w"> </span>Invalid<span class="w"> </span>revision<span class="w"> </span>ID:<span class="w"> </span>unknown
+❌<span class="w"> </span>Migration<span class="w"> </span>file<span class="w"> </span>not<span class="w"> </span>found:<span class="w"> </span>&lt;path&gt;
+
+<span class="c1"># Checksum file protected by rsync:</span>
+<span class="o">[</span>INFO<span class="o">]</span><span class="w"> </span>Post-sync:<span class="w"> </span>.migration_checksums<span class="w"> </span>preserved<span class="w"> </span>successfully
+</pre></div>
+</div>
+<p><strong>Limitations:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Не обнаруживает изменения в зависимых миграциях:</strong></p>
+<ul class="simple">
+<li><p>Если миграция A зависит от миграции B</p></li>
+<li><p>Изменение B требует ручного reapply A → B</p></li>
+</ul>
+</li>
+<li><p><strong>downgrade() может привести к потере данных:</strong></p>
+<ul class="simple">
+<li><p>Если downgrade() делает DROP TABLE/COLUMN</p></li>
+<li><p>Проверяйте downgrade() перед использованием</p></li>
+</ul>
+</li>
+<li><p><strong>Не работает для уже удаленных миграций:</strong></p>
+<ul class="simple">
+<li><p>Если миграция удалена из файловой системы</p></li>
+<li><p>Checksum comparison не обнаружит удаление</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Best Practices:</strong></p>
+<ol class="arabic">
+<li><p>✅ <strong>Auto-reapply работает автоматически с confirmation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Production: Type &#39;REAPPLY&#39; to confirm</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh
+
+<span class="c1"># Staging: y/N confirmation</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh
+
+<span class="c1"># Development: Auto-applies without confirmation</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh
+
+<span class="c1"># Manual reapply (все окружения):</span>
+./deploy.sh<span class="w"> </span>--reapply-migration<span class="w"> </span>&lt;revision&gt;
+</pre></div>
+</div>
+</li>
+<li><p>✅ <strong>Тестируйте downgrade() перед production:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Тестовая БД</span>
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+alembic<span class="w"> </span>downgrade<span class="w"> </span>-1<span class="w">  </span><span class="c1"># Проверить что не теряются данные</span>
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head<span class="w">  </span><span class="c1"># Проверить что re-apply работает</span>
+</pre></div>
+</div>
+</li>
+<li><p>✅ <strong>Документируйте изменения в docstring миграции:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Fixes critical SQL error:</span>
+<span class="sd">- ERROR #1: column &quot;fact_type&quot; does not exist</span>
+<span class="sd">- ERROR #2: column &quot;bf.is_current&quot; does not exist</span>
+
+<span class="sd">Downgrade: Safe (pass) - no data loss</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p>✅ <strong>Коммитьте изменения миграций с clear commit message:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix(migration): remove bf.is_current - column doesn&#39;t exist&quot;</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p><strong>История изменений:</strong></p>
+<ul class="simple">
+<li><p><strong>2025-11-12:</strong> Добавлен <code class="docutils literal notranslate"><span class="pre">scripts/lib/migration_tracker.sh</span></code> (338 строк)</p></li>
+<li><p><strong>2025-11-12:</strong> Обновлен <code class="docutils literal notranslate"><span class="pre">scripts/lib/migrations.sh</span></code> с интеграцией migration_tracker</p></li>
+<li><p><strong>2025-11-12:</strong> Добавлен флаг <code class="docutils literal notranslate"><span class="pre">--reapply-migration</span></code> в deploy.sh</p></li>
+<li><p><strong>2025-11-12:</strong> Auto-reapply ВСЕГДА enabled (удалена переменная <code class="docutils literal notranslate"><span class="pre">AUTO_REAPPLY_MIGRATIONS</span></code>)</p></li>
+<li><p><strong>2025-11-12:</strong> Добавлен <code class="docutils literal notranslate"><span class="pre">--filter='protect</span> <span class="pre">.migration_checksums'</span></code> в sync.sh</p></li>
+<li><p><strong>2025-11-12:</strong> Добавлена секция в ПРД с полным описанием системы</p></li>
+<li><p><strong>2025-11-12:</strong> ✅ <strong>Протестировано на production - система работает корректно</strong></p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Результаты тестирования (2025-11-12):</strong></p>
+<p><strong>Сценарий:</strong> Deployment с измененной миграцией d1b4c09aa285</p>
+<p><strong>Окружение:</strong> Production (Ubuntu 22.04, PostgreSQL 16, Docker Compose)</p>
+<p><strong>Выполненные шаги:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">1</span>.<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>~/familyBudget<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>fix/production-errors
+<span class="m">2</span>.<span class="w"> </span>sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh
+</pre></div>
+</div>
+<p><strong>Результат:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>✅ Code Synchronization
+   - .migration_checksums preserved (protected by rsync --filter)
+   - 16 files synchronized
+
+✅ Migration Change Detection
+   - Previous checksums loaded: 6 migration files
+   - Current checksums calculated: 6 migration files
+   - Detected changes: 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type &#39;REAPPLY&#39; to confirm (all caps): REAPPLY
+
+✅ Migration Reapply
+   - Step 1/2: Downgrade -1 → Success (pass, no data loss)
+   - Step 2/2: Upgrade head → Success
+   - Function recalculate_recommended_amounts() recreated without errors
+   - New checksums saved to /opt/budget/.migration_checksums
+
+✅ Deployment Complete
+   - Services restarted: backend, bot
+   - Database schema validated
+   - Application functional
+</pre></div>
+</div>
+<p><strong>Проверки:</strong></p>
+<ul class="simple">
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">.migration_checksums</span></code> файл НЕ удален при rsync (protected)</p></li>
+<li><p>✅ Изменения миграции обнаружены корректно</p></li>
+<li><p>✅ Production confirmation запрошен (‘REAPPLY’ typed)</p></li>
+<li><p>✅ Downgrade + Upgrade выполнены успешно</p></li>
+<li><p>✅ SQL функция пересоздана без ошибки <code class="docutils literal notranslate"><span class="pre">bf.is_current</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">exist</span></code></p></li>
+<li><p>✅ Checksums обновлены для следующего deployment</p></li>
+<li><p>✅ Приложение работает без ошибок</p></li>
+</ul>
+<p><strong>Вывод:</strong>
+Система Migration Change Detection &amp; Auto-Reapply работает корректно в production окружении.
+Все компоненты (detection, protection, reapply, confirmation) функционируют как задумано.</p>
+<hr class="docutils" />
+<p><strong>Related Issues:</strong></p>
+<ul class="simple">
+<li><p>Resolves deployment limitation where Alembic only checks revision ID</p></li>
+<li><p>Addresses situation from migration d1b4c09aa285 (changed migration b2232d851007)</p></li>
+<li><p>Enables safe migration iteration during development</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="backup-recovery">
+<h2>10.4 Backup &amp; Recovery<a class="headerlink" href="#backup-recovery" title="Link to this heading">¶</a></h2>
+<p><strong>Backup Strategy:</strong></p>
+<ul class="simple">
+<li><p><strong>Daily:</strong> Локальные бэкапы в <code class="docutils literal notranslate"><span class="pre">/backups</span></code> (7 дней retention)</p></li>
+<li><p><strong>Weekly:</strong> Загрузка в Яндекс S3 (28 дней retention)</p></li>
+</ul>
+<p><strong>Recovery Procedure:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Восстановление из локального бэкапа</span>
+gunzip<span class="w"> </span>&lt;<span class="w"> </span>/backups/backup_20251008_020000.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget
+
+<span class="c1"># Восстановление из S3</span>
+aws<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>s3://bucket/backup.sql.gz<span class="w"> </span>.<span class="w"> </span>--endpoint-url<span class="w"> </span>...
+gunzip<span class="w"> </span>&lt;<span class="w"> </span>backup.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>...
+</pre></div>
+</div>
+<p><strong>Testing Backups:</strong>
+Рекомендуется ежемесячно тестировать восстановление бэкапа в тестовой среде.</p>
+</section>
+<section id="monitoring-logging">
+<h2>10.5 Monitoring &amp; Logging<a class="headerlink" href="#monitoring-logging" title="Link to this heading">¶</a></h2>
+<p><strong>Application Logs:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+    <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(name)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+    <span class="n">handlers</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="s1">&#39;/var/log/familybudget/app.log&#39;</span><span class="p">),</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Docker Logs:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Просмотр логов всех сервисов</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f
+
+<span class="c1"># Логи конкретного сервиса</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>backend
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span>telegram-bot
+</pre></div>
+</div>
+<p><strong>Log Rotation:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># /etc/logrotate.d/familybudget</span>
+/var/log/familybudget/*.log<span class="w"> </span><span class="o">{</span>
+<span class="w">    </span>daily
+<span class="w">    </span>rotate<span class="w"> </span><span class="m">7</span>
+<span class="w">    </span>compress
+<span class="w">    </span>delaycompress
+<span class="w">    </span>missingok
+<span class="w">    </span>notifempty
+<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+<section id="maintenance-procedures">
+<h2>10.6 Maintenance Procedures<a class="headerlink" href="#maintenance-procedures" title="Link to this heading">¶</a></h2>
+<p><strong>Updates &amp; Patches:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Обновление кода</span>
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+
+<span class="c1"># Перезапуск сервисов</span>
+docker<span class="w"> </span>compose<span class="w"> </span>down
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>--build
+</pre></div>
+</div>
+<p><strong>Database Maintenance:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- VACUUM для оптимизации</span>
+<span class="k">VACUUM</span><span class="w"> </span><span class="k">ANALYZE</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">;</span>
+
+<span class="c1">-- REINDEX для обновления индексов</span>
+<span class="k">REINDEX</span><span class="w"> </span><span class="k">DATABASE</span><span class="w"> </span><span class="n">familybudget</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Certificate Renewal (Let’s Encrypt):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ВАЖНО: Деплой использует контейнеризованный certbot (НЕ host certbot)</span>
+<span class="c1"># Автоматическое обновление происходит внутри Docker контейнера</span>
+
+<span class="c1"># Просмотр логов certbot</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>certbot
+
+<span class="c1"># Ручное обновление через контейнер</span>
+docker<span class="w"> </span>compose<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>certbot<span class="w"> </span>renew
+
+<span class="c1"># Host certbot НЕ ДОЛЖЕН быть активен (конфликт портов)</span>
+<span class="c1"># Проверка:</span>
+systemctl<span class="w"> </span>status<span class="w"> </span>certbot.service
+systemctl<span class="w"> </span>status<span class="w"> </span>certbot.timer
+</pre></div>
+</div>
+<p><strong>Troubleshooting Guide:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Проблема</p></th>
+<th class="head"><p>Диагностика</p></th>
+<th class="head"><p>Решение</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Backend не отвечает</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">curl</span> <span class="pre">localhost:8000/health</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">restart</span> <span class="pre">backend</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>PostgreSQL недоступна</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">exec</span> <span class="pre">postgres</span> <span class="pre">pg_isready</span></code></p></td>
+<td><p>Проверить логи, перезапустить</p></td>
+</tr>
+<tr class="row-even"><td><p>Бот не отвечает</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">logs</span> <span class="pre">telegram-bot</span></code></p></td>
+<td><p>Проверить BOT_TOKEN</p></td>
+</tr>
+<tr class="row-odd"><td><p>Графики не загружаются</p></td>
+<td><p>Проверить console в браузере</p></td>
+<td><p>Проверить CORS, API endpoints</p></td>
+</tr>
+<tr class="row-even"><td><p>Порт 80/443 занят certbot</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">lsof</span> <span class="pre">-i</span> <span class="pre">:80</span></code>, <code class="docutils literal notranslate"><span class="pre">systemctl</span> <span class="pre">status</span> <span class="pre">certbot.service</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> автоматически предложит остановить host certbot. Опция [1] - временно, [2] - навсегда</p></td>
+</tr>
+<tr class="row-odd"><td><p>Certbot контейнер не запускается</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">logs</span> <span class="pre">certbot</span></code></p></td>
+<td><p>Проверить что host certbot отключен: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">systemctl</span> <span class="pre">stop</span> <span class="pre">certbot.timer</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="static-assets-cache-management">
+<h2>10.7 Static Assets &amp; Cache Management<a class="headerlink" href="#static-assets-cache-management" title="Link to this heading">¶</a></h2>
+<p><strong>Browser Caching Strategy:</strong></p>
+<p>Для предотвращения проблем с кэшированием статических файлов (JavaScript, CSS) используется <strong>версионирование через query параметры</strong> (cache busting):</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- ❌ НЕПРАВИЛЬНО - браузер кэширует старую версию --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/tomSelectCategoryTree.js&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- ✅ ПРАВИЛЬНО - cache busting через версию --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/tomSelectCategoryTree.js?v=20251103&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><strong>Когда обновлять версию:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Тип изменений</p></th>
+<th class="head"><p>Требуется обновление версии?</p></th>
+<th class="head"><p>Пример</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>JavaScript изменения</p></td>
+<td><p>✅ ДА</p></td>
+<td><p>Исправление бага, новая функция</p></td>
+</tr>
+<tr class="row-odd"><td><p>CSS изменения</p></td>
+<td><p>✅ ДА</p></td>
+<td><p>Стили, layout changes</p></td>
+</tr>
+<tr class="row-even"><td><p>HTML templates</p></td>
+<td><p>❌ НЕТ*</p></td>
+<td><p>Jinja2 шаблоны не кэшируются браузером</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python код</p></td>
+<td><p>❌ НЕТ</p></td>
+<td><p>Backend код, требуется только перезапуск контейнера</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>*Примечание: Изменения HTML templates требуют перезапуска backend контейнера для сброса кэша Jinja2.</p>
+<p><strong>Workflow обновления статических файлов:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Изменить JS/CSS файл</span>
+vim<span class="w"> </span>web/static/js/myScript.js
+
+<span class="c1"># 2. Обновить версию в соответствующих шаблонах</span>
+<span class="c1"># Формат версии: YYYYMMDD или YYYYMMDD_HH (если несколько релизов в день)</span>
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/myScript.js?v=[0-9]*/myScript.js?v=20251103/&#39;</span><span class="w"> </span>web/templates/*.html
+
+<span class="c1"># 3. Синхронизировать с production</span>
+sudo<span class="w"> </span>rsync<span class="w"> </span>-av<span class="w"> </span>--delete<span class="w"> </span>~/familyBudget/web/<span class="w"> </span>/opt/budget/web/
+
+<span class="c1"># 4. Перезапустить backend для обновления Jinja2 кэша</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>backend
+
+<span class="c1"># 5. Commit changes</span>
+git<span class="w"> </span>add<span class="w"> </span>web/
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat: Update myScript.js - add new feature&quot;</span>
+git<span class="w"> </span>push
+</pre></div>
+</div>
+<p><strong>Важные файлы с cache busting:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Файл</p></th>
+<th class="head"><p>Используется в шаблонах</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">tomSelectCategoryTree.js</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">index.html</span></code>, <code class="docutils literal notranslate"><span class="pre">plan.html</span></code>, <code class="docutils literal notranslate"><span class="pre">facts.html</span></code> (web)<br><code class="docutils literal notranslate"><span class="pre">add.html</span></code>, <code class="docutils literal notranslate"><span class="pre">addplan.html</span></code>, <code class="docutils literal notranslate"><span class="pre">edit.html</span></code> (webapp)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">calendar-widget.js</span></code></p></td>
+<td><p>(при использовании)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dateFormatter.js</span></code></p></td>
+<td><p>(при использовании)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Custom CSS файлы</p></td>
+<td><p>Все шаблоны с custom styles</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Template Caching (Jinja2):</strong></p>
+<p>FastAPI кэширует скомпилированные Jinja2 шаблоны для производительности. При изменении HTML templates:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Перезапуск backend очищает Jinja2 cache</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>backend
+
+<span class="c1"># Проверка что изменения применены</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8000/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;myScript.js[^&quot;]*&#39;</span>
+</pre></div>
+</div>
+<p><strong>Docker Volumes &amp; File Sync:</strong></p>
+<p>Static файлы монтируются как read-only volumes:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./web:/app/web:ro</span><span class="w">        </span><span class="c1"># Web templates &amp; static</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./webapp:/app/webapp:ro</span><span class="w">  </span><span class="c1"># Telegram WebApp</span>
+</pre></div>
+</div>
+<p>Изменения применяются <strong>без пересборки образа</strong>, но требуют:</p>
+<ul class="simple">
+<li><p>Синхронизации файлов: <code class="docutils literal notranslate"><span class="pre">rsync</span></code> из dev → production</p></li>
+<li><p>Перезапуска backend: для сброса Jinja2 cache</p></li>
+</ul>
+<p><strong>Browser Hard Reload (для пользователей):</strong></p>
+<p>После deployment информируйте пользователей о необходимости жёсткой перезагрузки:</p>
+<ul class="simple">
+<li><p><strong>Windows/Linux:</strong> <code class="docutils literal notranslate"><span class="pre">Ctrl</span> <span class="pre">+</span> <span class="pre">Shift</span> <span class="pre">+</span> <span class="pre">R</span></code> или <code class="docutils literal notranslate"><span class="pre">Ctrl</span> <span class="pre">+</span> <span class="pre">F5</span></code></p></li>
+<li><p><strong>macOS:</strong> <code class="docutils literal notranslate"><span class="pre">Cmd</span> <span class="pre">+</span> <span class="pre">Shift</span> <span class="pre">+</span> <span class="pre">R</span></code></p></li>
+<li><p><strong>Mobile (Chrome):</strong> Settings → Clear browsing data → Cached images and files</p></li>
+</ul>
+<p><strong>Альтернативные стратегии (для будущего):</strong></p>
+<ol class="arabic">
+<li><p><strong>Content-based hashing</strong> (для production):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Build процесс генерирует файлы с hash в имени</span>
+myScript.abc123def.js
+</pre></div>
+</div>
+</li>
+<li><p><strong>HTTP Cache-Control headers</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># FastAPI static files config</span>
+<span class="n">StaticFiles</span><span class="p">(</span><span class="o">...</span><span class="p">,</span> <span class="n">max_age</span><span class="o">=</span><span class="mi">31536000</span><span class="p">)</span>  <span class="c1"># 1 year для immutable files</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Service Workers</strong> (для PWA):</p>
+<ul class="simple">
+<li><p>Контролируемый cache через SW</p></li>
+<li><p>Automatic updates при новой версии</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Текущая реализация:</strong></p>
+<ul class="simple">
+<li><p>✅ Query string versioning (<code class="docutils literal notranslate"><span class="pre">?v=YYYYMMDD</span></code>)</p></li>
+<li><p>✅ Manual version updates при изменениях</p></li>
+<li><p>✅ Docker volumes для instant updates</p></li>
+<li><p>❌ Не автоматизировано (требует ручного обновления версии)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="cache-busting-best-practices">
+<h2>10.7.1 Cache Busting Best Practices<a class="headerlink" href="#cache-busting-best-practices" title="Link to this heading">¶</a></h2>
+<p><strong>⚠️ КРИТИЧНО ВАЖНО:</strong></p>
+<p>Cache busting решает <strong>ДВЕ разные проблемы</strong>, которые часто путают:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Проблема</p></th>
+<th class="head"><p>Cache Busting помогает?</p></th>
+<th class="head"><p>Что делать</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Синтаксическая ошибка в JS файле</strong></p></td>
+<td><p>❌ НЕТ</p></td>
+<td><p>Исправить код, потом обновить версию</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Браузер кэширует старую версию</strong></p></td>
+<td><p>✅ ДА</p></td>
+<td><p>Обновить версию для форсирования загрузки</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Правильный порядок действий при багфиксе:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. СНАЧАЛА исправить ошибку в файле</span>
+vim<span class="w"> </span>web/static/js/myScript.js
+<span class="c1"># Fix the bug...</span>
+
+<span class="c1"># 2. Проверить синтаксис</span>
+node<span class="w"> </span>-c<span class="w"> </span>web/static/js/myScript.js
+<span class="c1"># ✅ Syntax OK</span>
+
+<span class="c1"># 3. ПОТОМ обновить версию в шаблонах</span>
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/myScript.js?v=[0-9_]*/myScript.js?v=20251103_2/&#39;</span><span class="w"> </span>web/templates/*.html
+
+<span class="c1"># 4. Deploy</span>
+sudo<span class="w"> </span>rsync<span class="w"> </span>-av<span class="w"> </span>~/familyBudget/web/<span class="w"> </span>/opt/budget/web/
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>backend
+</pre></div>
+</div>
+<p><strong>❌ НЕправильная последовательность:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ❌ WRONG: Обновил версию, но не исправил баг</span>
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/myScript.js?v=[0-9]*/myScript.js?v=20251103_2/&#39;</span><span class="w"> </span>web/templates/*.html
+<span class="c1"># Теперь браузер загрузит новый URL, но файл все еще с ошибкой!</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="version-increment-strategy">
+<h2>10.7.2 Version Increment Strategy<a class="headerlink" href="#version-increment-strategy" title="Link to this heading">¶</a></h2>
+<p><strong>Формат версии:</strong> <code class="docutils literal notranslate"><span class="pre">?v=YYYYMMDD[_N]</span></code></p>
+<p><strong>Когда инкрементировать:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Сценарий</p></th>
+<th class="head"><p>Версия</p></th>
+<th class="head"><p>Пример</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Первый deploy дня</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">YYYYMMDD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">?v=20251103</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Второй deploy (bugfix)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">YYYYMMDD_2</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">?v=20251103_2</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Третий deploy (hotfix)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">YYYYMMDD_3</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">?v=20251103_3</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Следующий день</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">YYYYMMDD</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">?v=20251104</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Зачем <code class="docutils literal notranslate"><span class="pre">_2</span></code>, <code class="docutils literal notranslate"><span class="pre">_3</span></code> и т.д.?</strong></p>
+<p>Если пользователь уже загрузил <code class="docutils literal notranslate"><span class="pre">?v=20251103</span></code> (с багом), то простое исправление файла БЕЗ изменения версии не поможет - браузер будет использовать кэшированную версию с багом.</p>
+<p><strong>Пример:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>09:00 - Deploy 1: ?v=20251103 (содержит синтаксическую ошибку)
+      - Пользователь A зашел → загрузил битый файл в кэш
+
+10:00 - Исправили ошибку в файле, но НЕ обновили версию
+      - Пользователь A обновляет страницу → браузер берет из кэша → ошибка остается!
+
+10:10 - Обновили версию: ?v=20251103_2
+      - Пользователь A обновляет страницу → браузер видит новый URL → загружает исправленный файл ✅
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="real-world-case-study-tomselectcategorytree-js">
+<h2>10.7.3 Real-world Case Study: tomSelectCategoryTree.js<a class="headerlink" href="#real-world-case-study-tomselectcategorytree-js" title="Link to this heading">¶</a></h2>
+<p><strong>Инцидент:</strong> 2025-11-03</p>
+<p><strong>Симптомы:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Uncaught SyntaxError: Invalid or unexpected token (at tomSelectCategoryTree.js?v=20251103:262:18)
+Failed to load categories: ReferenceError: TomSelectCategoryTree is not defined
+</pre></div>
+</div>
+<p><strong>Root Cause:</strong></p>
+<ul class="simple">
+<li><p>Синтаксическая ошибка в <code class="docutils literal notranslate"><span class="pre">web/static/js/tomSelectCategoryTree.js</span></code> line 262</p></li>
+<li><p>Mismatched quote: <code class="docutils literal notranslate"><span class="pre">return</span> <span class="pre">'&lt;div&gt;...&lt;/div&gt;';</span></code> (backtick вместо single quote)</p></li>
+</ul>
+<p><strong>Ошибочное предположение:</strong></p>
+<ul class="simple">
+<li><p>“Это проблема кэширования, добавлю cache busting” ❌</p></li>
+<li><p>Cache busting НЕ решит синтаксическую ошибку!</p></li>
+</ul>
+<p><strong>Правильное решение:</strong></p>
+<ol class="arabic">
+<li><p><strong>Исправить синтаксис:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// ДО (line 262):</span>
+<span class="k">return</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;no-results&quot;&gt;Категории не найдены&lt;/div&gt;`;</span>
+<span class="s1">                                                             ↑ backtick</span>
+
+<span class="s1">// ПОСЛЕ:</span>
+<span class="s1">return &#39;</span><span class="o">&lt;</span><span class="nx">div</span><span class="w"> </span><span class="kd">class</span><span class="o">=</span><span class="s2">&quot;no-results&quot;</span><span class="o">&gt;</span><span class="nx">Категории</span><span class="w"> </span><span class="nx">не</span><span class="w"> </span><span class="nx">найдены</span><span class="o">&lt;</span><span class="err">/div&gt;&#39;;</span>
+<span class="w">                                                             </span><span class="err">↑</span><span class="w"> </span><span class="nx">single</span><span class="w"> </span><span class="nx">quote</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Проверить исправление:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>node<span class="w"> </span>-c<span class="w"> </span>web/static/js/tomSelectCategoryTree.js
+<span class="c1"># ✅ Syntax OK</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Обновить версию (форсировать загрузку исправленного файла):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>?v=20251103 → ?v=20251103_2
+</pre></div>
+</div>
+</li>
+<li><p><strong>Deploy и информировать пользователей:</strong></p>
+<ul class="simple">
+<li><p>Синхронизация файлов</p></li>
+<li><p>Restart backend</p></li>
+<li><p>Попросить пользователей сделать Ctrl+F5</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Lessons Learned:</strong></p>
+<p>✅ <strong>Cache busting - это не silver bullet:</strong></p>
+<ul class="simple">
+<li><p>Не исправляет ошибки в коде</p></li>
+<li><p>Только заставляет браузер загрузить новую версию</p></li>
+<li><p>Нужен для доставки исправлений, но не для их создания</p></li>
+</ul>
+<p>✅ <strong>Workflow при багфиксе:</strong></p>
+<ol class="arabic simple">
+<li><p>Диагностика → понять root cause</p></li>
+<li><p>Исправление → фиксить саму ошибку</p></li>
+<li><p>Проверка → <code class="docutils literal notranslate"><span class="pre">node</span> <span class="pre">-c</span></code> для синтаксиса</p></li>
+<li><p>Версионирование → обновить <code class="docutils literal notranslate"><span class="pre">?v=</span></code> параметр</p></li>
+<li><p>Deployment → rsync + restart + notify users</p></li>
+</ol>
+<p>✅ <strong>Разделяйте проблемы:</strong></p>
+<ul class="simple">
+<li><p>Синтаксические ошибки = проблема кода</p></li>
+<li><p>Кэширование = проблема доставки</p></li>
+<li><p>Разные проблемы требуют разных решений</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="common-pitfalls-troubleshooting">
+<h2>10.7.4 Common Pitfalls &amp; Troubleshooting<a class="headerlink" href="#common-pitfalls-troubleshooting" title="Link to this heading">¶</a></h2>
+<p><strong>❌ Pitfall 1: Не проверил синтаксис перед deployment</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ❌ WRONG</span>
+vim<span class="w"> </span>web/static/js/myScript.js
+<span class="c1"># ... make changes ...</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix: update script&quot;</span>
+./deploy.sh
+
+<span class="c1"># Ошибка обнаружена только у пользователей!</span>
+</pre></div>
+</div>
+<p>✅ <strong>Правильно:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vim<span class="w"> </span>web/static/js/myScript.js
+node<span class="w"> </span>-c<span class="w"> </span>web/static/js/myScript.js<span class="w">  </span><span class="c1"># ← Проверка ПЕРЕД commit</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix: update script&quot;</span>
+./deploy.sh
+</pre></div>
+</div>
+<p><strong>❌ Pitfall 2: Забыл обновить версию после исправления бага</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Исправил баг в файле</span>
+vim<span class="w"> </span>web/static/js/myScript.js
+
+<span class="c1"># Задеплоил</span>
+./deploy.sh
+
+<span class="c1"># Пользователи жалуются что баг остался!</span>
+<span class="c1"># Причина: браузер использует старую версию из кэша</span>
+</pre></div>
+</div>
+<p>✅ <strong>Правильно:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vim<span class="w"> </span>web/static/js/myScript.js
+<span class="c1"># Обновить версию в шаблонах!</span>
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/myScript.js?v=[0-9_]*/myScript.js?v=20251103_2/&#39;</span><span class="w"> </span>web/templates/*.html
+./deploy.sh
+</pre></div>
+</div>
+<p><strong>❌ Pitfall 3: Думал что cache busting исправит синтаксическую ошибку</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Ошибка: Uncaught SyntaxError
+Решение (неправильное): Добавить ?v=параметр
+Результат: Ошибка остается, просто браузер загружает битый файл с новым URL
+</pre></div>
+</div>
+<p>✅ <strong>Правильно:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Ошибка: Uncaught SyntaxError
+Решение:
+  1. node -c file.js → найти строку с ошибкой
+  2. Исправить синтаксис
+  3. node -c file.js → проверить что исправлено
+  4. Обновить ?v= версию → форсировать загрузку исправленного файла
+</pre></div>
+</div>
+<p><strong>❌ Pitfall 4: Разные версии в web/ и webapp/</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">web</span><span class="o">/</span><span class="n">static</span><span class="o">/</span><span class="n">js</span><span class="o">/</span><span class="n">myScript</span><span class="o">.</span><span class="n">js</span>         <span class="o">-</span> <span class="n">исправленная</span> <span class="n">версия</span>
+<span class="n">webapp</span><span class="o">/</span><span class="n">static</span><span class="o">/</span><span class="n">js</span><span class="o">/</span><span class="n">myScript</span><span class="o">.</span><span class="n">js</span>      <span class="o">-</span> <span class="n">старая</span> <span class="n">версия</span> <span class="n">с</span> <span class="n">багом</span>
+
+<span class="n">Результат</span><span class="p">:</span> <span class="n">Web</span> <span class="n">интерфейс</span> <span class="n">работает</span><span class="p">,</span> <span class="n">Telegram</span> <span class="n">WebApp</span> <span class="o">-</span> <span class="n">нет</span>
+</pre></div>
+</div>
+<p>✅ <strong>Правильно:</strong></p>
+<ul class="simple">
+<li><p>Если файл используется в обоих местах - синхронизировать</p></li>
+<li><p>Или поддерживать разные версии intentionally (desktop vs mobile)</p></li>
+<li><p>Документировать различия в комментариях</p></li>
+</ul>
+<p><strong>Troubleshooting Checklist:</strong></p>
+<p>При ошибке <code class="docutils literal notranslate"><span class="pre">SyntaxError</span></code> или <code class="docutils literal notranslate"><span class="pre">...</span> <span class="pre">is</span> <span class="pre">not</span> <span class="pre">defined</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить синтаксис файла</span>
+node<span class="w"> </span>-c<span class="w"> </span>/opt/budget/web/static/js/problemFile.js
+
+<span class="c1"># 2. Проверить что версия в HTML правильная</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8000/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>problemFile.js
+
+<span class="c1"># 3. Проверить что файл доступен по HTTP</span>
+curl<span class="w"> </span>-I<span class="w"> </span>http://localhost:8000/static/js/problemFile.js
+
+<span class="c1"># 4. Сравнить dev и production версии</span>
+diff<span class="w"> </span>~/familyBudget/web/static/js/problemFile.js<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>/opt/budget/web/static/js/problemFile.js
+
+<span class="c1"># 5. Проверить checksums</span>
+md5sum<span class="w"> </span>~/familyBudget/web/static/js/problemFile.js
+md5sum<span class="w"> </span>/opt/budget/web/static/js/problemFile.js
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>familybudget-backend<span class="w"> </span>md5sum<span class="w"> </span>/app/web/static/js/problemFile.js
+</pre></div>
+</div>
+<p><strong>Emergency Fix Procedure:</strong></p>
+<p>Если critical bug на production:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Hotfix в dev</span>
+vim<span class="w"> </span>~/familyBudget/web/static/js/problemFile.js
+node<span class="w"> </span>-c<span class="w"> </span>~/familyBudget/web/static/js/problemFile.js<span class="w">  </span><span class="c1"># VERIFY!</span>
+
+<span class="c1"># 2. Increment version (для форсирования обновления)</span>
+<span class="nv">VERSION</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>_hotfix
+sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s/problemFile.js?v=[^\&quot;&#39;]*/problemFile.js?v=</span><span class="nv">$VERSION</span><span class="s2">/&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>~/familyBudget/web/templates/*.html
+
+<span class="c1"># 3. Deploy IMMEDIATELY</span>
+sudo<span class="w"> </span>rsync<span class="w"> </span>-av<span class="w"> </span>~/familyBudget/web/<span class="w"> </span>/opt/budget/web/
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>backend
+
+<span class="c1"># 4. Verify fix</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8000/<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>problemFile.js
+<span class="c1"># Should show: problemFile.js?v=20251103_hotfix</span>
+
+<span class="c1"># 5. Notify users (Telegram broadcast, email, etc.)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Please refresh your browser (Ctrl+F5) to get the fix&quot;</span>
+
+<span class="c1"># 6. Commit after verification</span>
+git<span class="w"> </span>add<span class="w"> </span>web/
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;hotfix: critical bug in problemFile.js&quot;</span>
+git<span class="w"> </span>push
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="production-minification">
+<h2>10.7.5 Production Minification<a class="headerlink" href="#production-minification" title="Link to this heading">¶</a></h2>
+<p><strong>Версия:</strong> 5.0.0-beta (добавлено в ноябре 2025)</p>
+<p><strong>Назначение:</strong>
+Автоматическая минификация JavaScript и CSS файлов для production deployment с целью:</p>
+<ul class="simple">
+<li><p>Уменьшения размера bundle (экономия bandwidth)</p></li>
+<li><p>Ускорения загрузки страниц</p></li>
+<li><p>Сокращения времени парсинга в браузере</p></li>
+</ul>
+<p><strong>Архитектура минификации:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Deployment Process:
+┌──────────────────────────────────────────────────────────────┐
+│ 1. Code Sync (repository → /opt/budget)                      │
+│ 2. npm install (Terser + cssnano + devDependencies)         │
+│ 3. npm run build → scripts/lib/minify.sh                     │
+│    ├─ Minify JS:  app.js → app.min.js (Terser)              │
+│    └─ Minify CSS: styles.css → styles.min.css (cssnano)     │
+│ 4. Cache Busting (update ?v= versions for .min.js/.min.css) │
+│ 5. Docker Compose up (FastAPI serves minified files)         │
+└──────────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>Inline Minification Strategy:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>File Structure:
+web/static/js/
+├── app.js                    # Original (development)
+├── app.min.js                # Minified (production, без source maps)
+├── calendar-widget.js
+├── calendar-widget.min.js
+└── ...
+
+HTML Templates (production):
+&lt;script src=&quot;/static/js/app.min.js?v=20251105_1430&quot;&gt;&lt;/script&gt;
+&lt;!-- Falls back to app.js if minification failed --&gt;
+</pre></div>
+</div>
+<p><strong>Преимущества inline подхода:</strong></p>
+<ul class="simple">
+<li><p>✅ Простота: сохраняем структуру файлов</p></li>
+<li><p>✅ Security: source maps отключены на production (защита кода)</p></li>
+<li><p>✅ Graceful degradation: продолжаем deployment при ошибках минификации</p></li>
+<li><p>✅ Нет bundling: избегаем сложности Webpack/Vite</p></li>
+</ul>
+<p><strong>Source Maps Configuration:</strong></p>
+<p><strong>Production (текущая конфигурация):</strong></p>
+<ul class="simple">
+<li><p>Source maps <strong>ОТКЛЮЧЕНЫ</strong> для безопасности</p></li>
+<li><p>DevTools Sources panel показывает только минифицированный код</p></li>
+<li><p>Размер файлов ~30-40% меньше (без inline source maps)</p></li>
+<li><p>Исходный код не доступен для просмотра в браузере</p></li>
+</ul>
+<p><strong>Причины отключения на production:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Security</strong>: Предотвращение утечки бизнес-логики через DevTools</p></li>
+<li><p><strong>Performance</strong>: Меньший размер файлов (экономия bandwidth)</p></li>
+<li><p><strong>Privacy</strong>: Комментарии и naming conventions не раскрываются</p></li>
+</ol>
+<p><strong>Development (опционально):</strong>
+Для локальной отладки можно временно включить source maps:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># В scripts/lib/minify.sh временно добавить:</span>
+terser<span class="w"> </span>...<span class="w"> </span>--source-map<span class="w"> </span><span class="s2">&quot;content=inline,url=app.min.js.map&quot;</span>
+</pre></div>
+</div>
+<p>⚠️ <strong>ВАЖНО</strong>: Не коммитить source maps в production branch!</p>
+<p><strong>Build Tools Configuration:</strong></p>
+<p><strong>package.json</strong> (корень проекта):</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;family-budget&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;5.0.0-beta&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;scripts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;minify:js&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bash scripts/lib/minify.sh js&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;minify:css&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bash scripts/lib/minify.sh css&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;build&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;npm run minify:js &amp;&amp; npm run minify:css&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;validate:minified&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bash scripts/lib/minify.sh validate&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;devDependencies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;terser&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^5.34.1&quot;</span><span class="p">,</span><span class="w">           </span><span class="c1">// JavaScript minifier</span>
+<span class="w">    </span><span class="nt">&quot;cssnano&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^7.0.6&quot;</span><span class="p">,</span><span class="w">           </span><span class="c1">// CSS minifier</span>
+<span class="w">    </span><span class="nt">&quot;cssnano-cli&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^1.0.5&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;postcss&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^8.4.47&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;postcss-cli&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;^11.0.0&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>scripts/lib/minify.sh</strong> (336 строк):</p>
+<p>Основные функции:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>minify_js_file<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">input_file</span><span class="o">=</span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">output_file</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">input_file</span><span class="p">%.js</span><span class="si">}</span><span class="s2">.min.js&quot;</span>
+
+<span class="w">    </span><span class="c1"># Terser with compression and mangling (source maps disabled for production)</span>
+<span class="w">    </span>npx<span class="w"> </span>terser<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$input_file</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--compress<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--mangle<span class="w"> </span><span class="se">\</span>
+<span class="w">        </span>--output<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$output_file</span><span class="s2">&quot;</span>
+
+<span class="w">    </span><span class="c1"># Calculate size reduction</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">original_size</span><span class="o">=</span><span class="k">$(</span>stat<span class="w"> </span>-c%s<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$input_file</span><span class="s2">&quot;</span><span class="k">)</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">minified_size</span><span class="o">=</span><span class="k">$(</span>stat<span class="w"> </span>-c%s<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$output_file</span><span class="s2">&quot;</span><span class="k">)</span>
+<span class="w">    </span><span class="nb">local</span><span class="w"> </span><span class="nv">reduction</span><span class="o">=</span><span class="k">$((</span><span class="m">100</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="o">(</span><span class="nv">minified_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">100</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">original_size</span><span class="k">))</span><span class="o">)</span>
+
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✓ </span><span class="nv">$output_file</span><span class="s2"> (</span><span class="si">${</span><span class="nv">reduction</span><span class="si">}</span><span class="s2">% smaller)&quot;</span>
+<span class="o">}</span>
+
+minify_all_js<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="c1"># Process directories: web/, webapp/, shared/</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span>dir<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$WEB_JS_DIR</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$WEBAPP_JS_DIR</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SHARED_JS_DIR</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">        </span>find<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$dir</span><span class="s2">&quot;</span><span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.js&quot;</span><span class="w"> </span>!<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.min.js&quot;</span><span class="w"> </span>!<span class="w"> </span>-path<span class="w"> </span><span class="s2">&quot;*/vendor/*&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">            </span>-exec<span class="w"> </span>minify_js_file<span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span>
+<span class="w">    </span><span class="k">done</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p><strong>Обрабатываемые директории:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">web/static/js/</span></code> - Web UI JavaScript</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">webapp/static/js/</span></code> - Telegram Web Apps JavaScript</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">shared/static/js/</span></code> - Shared modules (DRY principle)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">web/static/css/</span></code>, <code class="docutils literal notranslate"><span class="pre">webapp/static/css/</span></code>, <code class="docutils literal notranslate"><span class="pre">shared/static/css/</span></code> - CSS файлы</p></li>
+</ul>
+<p><strong>Исключения:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">*.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">*.min.css</span></code> - уже минифицированные файлы</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">*/vendor/*</span></code> - сторонние библиотеки (уже оптимизированы)</p></li>
+</ul>
+<p><strong>Error Handling:</strong></p>
+<p>Скрипт минификации разработан с принципом <strong>graceful degradation</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># deploy.sh integration</span>
+<span class="k">if</span><span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span>print_message<span class="w"> </span>success<span class="w"> </span><span class="s2">&quot;Static assets minified successfully&quot;</span>
+<span class="k">else</span>
+<span class="w">    </span>print_message<span class="w"> </span>warning<span class="w"> </span><span class="s2">&quot;Minification failed, continuing with unminified assets&quot;</span>
+<span class="w">    </span><span class="c1"># Deployment CONTINUES - не блокирует production deploy!</span>
+<span class="k">fi</span>
+</pre></div>
+</div>
+<p><strong>Почему не блокируем deployment:</strong></p>
+<ul class="simple">
+<li><p>Минификация это <strong>оптимизация</strong>, не функциональность</p></li>
+<li><p>Unminified код работает корректно (просто медленнее)</p></li>
+<li><p>Critical bugfix не должен блокироваться из-за minification error</p></li>
+</ul>
+<p><strong>Сценарии ошибок:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Ошибка</p></th>
+<th class="head"><p>Причина</p></th>
+<th class="head"><p>Результат</p></th>
+<th class="head"><p>Действие</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">install</span></code> failed</p></td>
+<td><p>Network issues, package.json syntax error</p></td>
+<td><p>Skip minification</p></td>
+<td><p>Deploy continues, logs warning</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">npx</span> <span class="pre">terser</span></code> failed</p></td>
+<td><p>Syntax error in JS file</p></td>
+<td><p>Skip this file, continue with others</p></td>
+<td><p>Deploy continues, specific file not minified</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">npx</span> <span class="pre">cssnano</span></code> failed</p></td>
+<td><p>Invalid CSS</p></td>
+<td><p>Skip this file</p></td>
+<td><p>Deploy continues</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Интеграция с Cache Busting:</strong></p>
+<p>После минификации, cache busting скрипт обновляет HTML шаблоны:</p>
+<div class="highlight-perl notranslate"><div class="highlight"><pre><span></span><span class="c1"># scripts/lib/cache_busting.sh (extended regex)</span>
+<span class="c1"># BEFORE minification support:</span>
+<span class="sr">s{(/static/js/)([a-zA-Z_.-]+\.js)\?v=...}</span>
+
+<span class="err"># AFTER minification support:</span>
+<span class="sr">s{(/static/js/|/shared/static/js/)([a-zA-Z_.-]+\.(?:min\.)?js)\?v=...}</span>
+<span class="sr">                                             </span><span class="err">^^^^^^^^^^^</span>
+<span class="w">                                             </span><span class="n">Поддержка</span><span class="w"> </span><span class="o">.</span><span class="n">min</span><span class="o">.</span><span class="n">js</span>
+</pre></div>
+</div>
+<p><strong>Результат в HTML:</strong></p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- Development (before minification): --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/app.js?v=20251105_1430&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- Production (after minification + cache busting): --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/app.min.js?v=20251105_1430&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><strong>ВАЖНО: HTML Templates Configuration (v5.0.0-beta, ноябрь 2025)</strong></p>
+<p>Все HTML шаблоны обновлены для использования минифицированных версий:</p>
+<p><strong>Обновленные файлы:</strong></p>
+<ul class="simple">
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">frontend/webapp/*.html</span></code> (9 файлов) - все JS/CSS ссылки → .min версии</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/base.html</span></code> - базовый шаблон с .min ссылками</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/index.html</span></code> - главная страница</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/facts.html</span></code> - управление транзакциями</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/plan.html</span></code> - управление планом</p></li>
+</ul>
+<p><strong>Шаблон ссылок в HTML:</strong></p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- ✅ ПРАВИЛЬНО - Ссылка на минифицированную версию --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/webapp/static/js/storage.min.js?v=PLACEHOLDER&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/shared/static/js/choicesCategoryTree.min.js?v=PLACEHOLDER&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">link</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;stylesheet&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/webapp/static/css/app.min.css?v=PLACEHOLDER&quot;</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- ❌ НЕПРАВИЛЬНО - Ссылка на НЕминифицированную версию --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/webapp/static/js/storage.js?v=20251105_1430&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- ⚠️ ИСКЛЮЧЕНИЕ - Vendor библиотеки БЕЗ версий --&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/webapp/static/js/vendor/choices.min.js&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+<p><strong>Версионирование PLACEHOLDER:</strong></p>
+<p>HTML шаблоны используют специальный placeholder <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code>, который автоматически заменяется на актуальную версию во время deployment через <code class="docutils literal notranslate"><span class="pre">scripts/lib/cache_busting.sh</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># При deployment:</span>
+PLACEHOLDER<span class="w"> </span>→<span class="w"> </span>20251107_1430<span class="w"> </span><span class="o">(</span>timestamp-based<span class="o">)</span>
+</pre></div>
+</div>
+<p><strong>Исключения (vendor библиотеки):</strong></p>
+<p>Сторонние библиотеки (vendor/) загружаются БЕЗ версионирования, так как:</p>
+<ul class="simple">
+<li><p>Уже минифицированы (choices.min.js)</p></li>
+<li><p>Версия контролируется через package.json/npm</p></li>
+<li><p>Редко обновляются</p></li>
+</ul>
+<p><strong>Cache Busting Script Updates:</strong></p>
+<p><code class="docutils literal notranslate"><span class="pre">scripts/lib/cache_busting.sh</span></code> обновлен для поддержки:</p>
+<ul class="simple">
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">base.html</span></code> добавлен в список обрабатываемых файлов</p></li>
+<li><p>✅ Regex поддерживает <code class="docutils literal notranslate"><span class="pre">.min.js</span></code> и <code class="docutils literal notranslate"><span class="pre">.min.css</span></code> паттерны</p></li>
+<li><p>✅ Обновление <code class="docutils literal notranslate"><span class="pre">/shared/</span></code> модулей</p></li>
+</ul>
+<p><strong>Workflow после исправления:</strong></p>
+<p>При изменении JS/CSS файлов:</p>
+<ol class="arabic simple">
+<li><p>Изменить source файл (app.js)</p></li>
+<li><p>Запустить <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">build</span></code> (создаст app.min.js)</p></li>
+<li><p>Запустить deployment (cache busting обновит ?v=)</p></li>
+<li><p>HTML автоматически загрузит новую минифицированную версию</p></li>
+</ol>
+<p><strong>Known Issues and Fixes (ноябрь 2025):</strong></p>
+<p><strong>🐛 БАГ: Cache Busting не обрабатывал /static/ пути (Fix: cd11c9f2)</strong></p>
+<p><strong>Обнаружено:</strong> 2025-11-07 после первого production deployment
+<strong>Исправлено:</strong> commit cd11c9f2 в ветке fix/minified-assets-usage</p>
+<p><strong>Проблема:</strong></p>
+<p>Cache busting regex в <code class="docutils literal notranslate"><span class="pre">scripts/lib/cache_busting.sh</span></code> не обрабатывал файлы с путями начинающимися с <code class="docutils literal notranslate"><span class="pre">/static/</span></code> (только <code class="docutils literal notranslate"><span class="pre">/webapp/static/</span></code>, <code class="docutils literal notranslate"><span class="pre">/web/static/</span></code>, <code class="docutils literal notranslate"><span class="pre">/shared/static/</span></code>).</p>
+<p><strong>Симптомы:</strong></p>
+<p>После deployment следующие файлы содержали <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code> вместо актуальной версии:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- Web templates НЕ обновлялись: --&gt;</span>
+/static/css/calendar-widget.min.css?v=PLACEHOLDER      <span class="cm">&lt;!-- base.html --&gt;</span>
+/static/css/choices-tailwind.min.css?v=PLACEHOLDER     <span class="cm">&lt;!-- base.html, index.html --&gt;</span>
+/static/js/admin-facts-common.min.js?v=PLACEHOLDER     <span class="cm">&lt;!-- facts.html, plan.html --&gt;</span>
+</pre></div>
+</div>
+<p>При этом webapp файлы обновлялись корректно:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- Webapp templates ОБНОВЛЯЛИСЬ: --&gt;</span>
+/webapp/static/css/telegram-theme.min.css?v=20251107_1202  <span class="cm">&lt;!-- OK --&gt;</span>
+/webapp/static/js/app.min.js?v=20251107_1202                <span class="cm">&lt;!-- OK --&gt;</span>
+</pre></div>
+</div>
+<p><strong>Корневая причина:</strong></p>
+<ol class="arabic">
+<li><p><strong>CSS regex отсутствовал паттерн <code class="docutils literal notranslate"><span class="pre">/static/css/</span></code>:</strong></p>
+<div class="highlight-perl notranslate"><div class="highlight"><pre><span></span><span class="c1"># БЫЛО (строка 69):</span>
+<span class="n">s</span><span class="p">{(</span><span class="o">\\</span><span class="sr">/webapp\\/s</span><span class="n">tatic</span><span class="o">\\</span><span class="sr">/css\\/</span><span class="o">|\\</span><span class="sr">/web\\/s</span><span class="n">tatic</span><span class="o">\\</span><span class="sr">/css\\/</span><span class="o">|\\</span><span class="sr">/shared\\/s</span><span class="n">tatic</span><span class="o">\\</span><span class="sr">/css\\/</span><span class="p">)</span>
+<span class="w">   </span><span class="c1"># ^^^ Нет /static/css/ паттерна!</span>
+
+<span class="c1"># СТАЛО:</span>
+<span class="n">s</span><span class="p">{(</span><span class="o">\\</span><span class="sr">/webapp\\/s</span><span class="n">tatic</span><span class="o">\\</span><span class="sr">/css\\/</span><span class="o">|\\</span><span class="sr">/web\\/s</span><span class="n">tatic</span><span class="o">\\</span><span class="sr">/css\\/</span><span class="o">|\\</span><span class="sr">/static\\/css</span><span class="o">\\</span><span class="sr">/|\\/s</span><span class="n">hared</span><span class="o">\\</span><span class="sr">/static\\/css</span><span class="o">\\/</span><span class="p">)</span>
+<span class="w">   </span><span class="c1">#                                                    ^^^^^^^^^^^^^^^^^ ДОБАВЛЕН</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Character class содержал недопустимый диапазон:</strong></p>
+<div class="highlight-perl notranslate"><div class="highlight"><pre><span></span><span class="c1"># БЫЛО:</span>
+<span class="p">[</span><span class="n">a</span><span class="o">-</span><span class="n">zA</span><span class="o">-</span><span class="n">Z_</span><span class="o">.-</span><span class="p">]</span><span class="o">+</span><span class="w">  </span><span class="c1"># Диапазон .- недопустим (. = ASCII 46, - = ASCII 45)</span>
+
+<span class="c1"># СТАЛО:</span>
+<span class="p">[</span><span class="n">a</span><span class="o">-</span><span class="n">zA</span><span class="o">-</span><span class="n">Z_</span><span class="o">\\-</span><span class="p">]</span><span class="o">+</span><span class="w">  </span><span class="c1"># Экранированный дефис (правильная обработка дефисов)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<p><strong>Файлы с дефисами НЕ обрабатывались:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">admin-facts-common.min.js</span></code> ❌</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">choices-tailwind.min.css</span></code> ❌</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">calendar-widget.min.js</span></code> ❌</p></li>
+</ul>
+<p><strong>Исправление:</strong></p>
+<div class="highlight-diff notranslate"><div class="highlight"><pre><span></span># scripts/lib/cache_busting.sh:68-69
+perl -i.bak -pe &quot;
+<span class="gd">-   s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;</span>
+<span class="gi">+   s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;</span>
+
+<span class="gd">-   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_.-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;</span>
+<span class="gi">+   s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)((?:vendor\\/)?[a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;</span>
+</pre></div>
+</div>
+<p><strong>Тестирование:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Тест всех путей и имен файлов:</span>
+/webapp/static/css/telegram-theme.min.css?v<span class="o">=</span>PLACEHOLDER<span class="w">    </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+/web/static/css/admin.min.css?v<span class="o">=</span>PLACEHOLDER<span class="w">                </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+/static/css/calendar-widget.min.css?v<span class="o">=</span>PLACEHOLDER<span class="w">          </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+/shared/static/css/common.min.css?v<span class="o">=</span>PLACEHOLDER<span class="w">            </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+/static/js/admin-facts-common.min.js?v<span class="o">=</span>PLACEHOLDER<span class="w">         </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+/static/css/choices-tailwind.min.css?v<span class="o">=</span>PLACEHOLDER<span class="w">         </span>→<span class="w"> </span>?v<span class="o">=</span>20251107_TEST<span class="w"> </span>✅
+</pre></div>
+</div>
+<p><strong>Затронутые файлы:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/base.html</span></code> - 3 ссылки не обновлялись</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/index.html</span></code> - 1 ссылка не обновлялась</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/facts.html</span></code> - 1 ссылка не обновлялась</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/plan.html</span></code> - 1 ссылка не обновлялась</p></li>
+</ul>
+<p><strong>Impact:</strong></p>
+<ul class="simple">
+<li><p><strong>Production:</strong> Web templates загружали старые закешированные версии CSS/JS</p></li>
+<li><p><strong>User Experience:</strong> Изменения в коде не отображались после deployment</p></li>
+<li><p><strong>Cache:</strong> Браузеры использовали старые версии до manual cache clear</p></li>
+</ul>
+<p><strong>Предотвращение в будущем:</strong></p>
+<ol class="arabic simple">
+<li><p>✅ Comprehensive unit tests для cache_busting.sh</p></li>
+<li><p>✅ Test coverage для всех путевых паттернов (/webapp/, /web/, /static/, /shared/)</p></li>
+<li><p>✅ Test coverage для имен файлов с дефисами</p></li>
+<li><p>✅ Проверка после deployment: все PLACEHOLDER должны быть заменены</p></li>
+</ol>
+<p><strong>Shared Modules (/shared/ directory):</strong></p>
+<p><strong>Проблема (до минификации):</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">web/static/js/calendar-widget.js</span></code> - 18 KB</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">webapp/static/js/calendar-widget.js</span></code> - 18 KB (дубликат!)</p></li>
+<li><p><strong>DRY violation</strong> + двойной bundle size</p></li>
+</ul>
+<p><strong>Решение:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Consolidation:
+  web/static/js/calendar-widget.js      ❌ Удалено
+  webapp/static/js/calendar-widget.js   ❌ Удалено
+  shared/static/js/calendar-widget.js   ✅ Single source of truth
+
+Usage (both web/ and webapp/):
+  &lt;script src=&quot;/shared/static/js/calendar-widget.min.js?v=...&quot;&gt;&lt;/script&gt;
+</pre></div>
+</div>
+<p><strong>Shared Modules:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>calendar-widget.js</strong> (18KB → 12KB minified, -33%)</p></li>
+<li><p><strong>choicesCategoryTree.js</strong> (15KB → 10KB minified, -33%)</p></li>
+<li><p><strong>dateFormatter.js</strong> (12KB → 8KB minified, -33%)</p></li>
+</ol>
+<p><strong>Nginx Configuration:</strong></p>
+<p>Добавлен location block для <code class="docutils literal notranslate"><span class="pre">/shared/</span></code>:</p>
+<div class="highlight-nginx notranslate"><div class="highlight"><pre><span></span><span class="c1"># nginx/conf.d/app.conf</span>
+<span class="k">location</span><span class="w"> </span><span class="s">/shared/</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://backend</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w"> </span><span class="nv">$host</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1"># Aggressive caching (файлы с версионированием immutable)</span>
+<span class="w">    </span><span class="kn">add_header</span><span class="w"> </span><span class="s">Cache-Control</span><span class="w"> </span><span class="s">&quot;public,</span><span class="w"> </span><span class="s">max-age=2592000,</span><span class="w"> </span><span class="s">immutable&quot;</span><span class="w"> </span><span class="s">always</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">etag</span><span class="w"> </span><span class="no">on</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>FastAPI Configuration:</strong></p>
+<p>Добавлен mount point для <code class="docutils literal notranslate"><span class="pre">/shared/</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/main.py</span>
+<span class="n">SHARED_DIR</span> <span class="o">=</span> <span class="n">BASE_DIR</span> <span class="o">/</span> <span class="s2">&quot;shared&quot;</span>  <span class="c1"># /app/shared</span>
+<span class="n">app</span><span class="o">.</span><span class="n">mount</span><span class="p">(</span><span class="s2">&quot;/shared&quot;</span><span class="p">,</span> <span class="n">StaticFiles</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">SHARED_DIR</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;shared&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Bundle Size Impact:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Before Minification</p></th>
+<th class="head"><p>After Minification</p></th>
+<th class="head"><p>Reduction</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Telegram Web Apps</strong></p></td>
+<td><p>~193 KB</p></td>
+<td><p>~125 KB</p></td>
+<td><p><strong>-35%</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Web UI (HTMX)</strong></p></td>
+<td><p>~216 KB</p></td>
+<td><p>~140 KB</p></td>
+<td><p><strong>-35%</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Shared Modules</strong></p></td>
+<td><p>45 KB (duplicated)</p></td>
+<td><p>30 KB (single copy)</p></td>
+<td><p><strong>-33%</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Total bandwidth savings:</strong> ~35% для first page load</p>
+<p><strong>Performance Metrics:</strong></p>
+<p>Измерено на VPS (2 CPU, 4 GB RAM, SSD):</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Metric</p></th>
+<th class="head"><p>Before</p></th>
+<th class="head"><p>After</p></th>
+<th class="head"><p>Improvement</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>First Contentful Paint</strong></p></td>
+<td><p>1.2s</p></td>
+<td><p>0.8s</p></td>
+<td><p><strong>-33%</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Time to Interactive</strong></p></td>
+<td><p>2.1s</p></td>
+<td><p>1.4s</p></td>
+<td><p><strong>-33%</strong></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Page Load (3G)</strong></p></td>
+<td><p>4.5s</p></td>
+<td><p>3.0s</p></td>
+<td><p><strong>-33%</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Total Transfer</strong></p></td>
+<td><p>410 KB</p></td>
+<td><p>270 KB</p></td>
+<td><p><strong>-34%</strong></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><em>Измерения с Chrome DevTools Network throttling (Fast 3G)</em></p>
+<p><strong>Troubleshooting:</strong></p>
+<p><strong>Проблема 1: Minification failed during deployment</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить npm dependencies</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+npm<span class="w"> </span>list<span class="w"> </span>terser<span class="w"> </span>cssnano-cli
+
+<span class="c1"># Ручной запуск минификации для отладки</span>
+npm<span class="w"> </span>run<span class="w"> </span>build
+
+<span class="c1"># Проверить синтаксис конкретного файла</span>
+npx<span class="w"> </span>terser<span class="w"> </span>web/static/js/problemFile.js<span class="w"> </span>--compress<span class="w"> </span>--mangle<span class="w"> </span>-o<span class="w"> </span>/tmp/test.min.js
+
+<span class="c1"># Если синтаксическая ошибка:</span>
+node<span class="w"> </span>-c<span class="w"> </span>web/static/js/problemFile.js
+</pre></div>
+</div>
+<p><strong>Проблема 2: Minified файлы не используются в production</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить что .min.js файлы созданы</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/web/static/js/*.min.js
+
+<span class="c1"># Проверить HTML шаблоны (должны ссылаться на .min.js)</span>
+grep<span class="w"> </span>-r<span class="w"> </span><span class="s2">&quot;\.min\.js&quot;</span><span class="w"> </span>/opt/budget/web/templates/
+
+<span class="c1"># Проверить cache busting versions</span>
+grep<span class="w"> </span>-oP<span class="w"> </span><span class="s1">&#39;script.+?\.min\.js\?v=\K[0-9_]+&#39;</span><span class="w"> </span>/opt/budget/web/templates/base.html
+
+<span class="c1"># Если шаблоны не обновились - перезапустить backend</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>backend
+</pre></div>
+</div>
+<p><strong>Проблема 3: Source maps не загружаются</strong></p>
+<p>Source maps генерируются, но <strong>НЕ должны</strong> быть доступны в production:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Source maps созданы локально</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/web/static/js/*.map
+
+<span class="c1"># НО: Nginx не проксирует их (404 в production) - это нормально!</span>
+<span class="c1"># Source maps нужны только для development debugging</span>
+</pre></div>
+</div>
+<p><strong>Проблема 4: Shared modules 404 (Not Found)</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить что файлы есть</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/shared/static/js/
+
+<span class="c1"># Проверить Nginx config</span>
+grep<span class="w"> </span>-A<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="s2">&quot;location /shared/&quot;</span><span class="w"> </span>/opt/budget/nginx/conf.d/app.conf
+
+<span class="c1"># Проверить FastAPI mount</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>familybudget-backend<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;from backend.app.main import app; print([r.path for r in app.routes if &#39;shared&#39; in r.path])&quot;</span>
+
+<span class="c1"># Перезапустить nginx после изменения конфига</span>
+docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>/opt/budget/docker-compose.yml<span class="w"> </span>restart<span class="w"> </span>nginx
+</pre></div>
+</div>
+<p><strong>Manual Minification (for testing):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Минифицировать только JS</span>
+npm<span class="w"> </span>run<span class="w"> </span>minify:js
+
+<span class="c1"># Минифицировать только CSS</span>
+npm<span class="w"> </span>run<span class="w"> </span>minify:css
+
+<span class="c1"># Минифицировать всё</span>
+npm<span class="w"> </span>run<span class="w"> </span>build
+
+<span class="c1"># Валидация минифицированных файлов</span>
+npm<span class="w"> </span>run<span class="w"> </span>validate:minified
+</pre></div>
+</div>
+<p><strong>Best Practices:</strong></p>
+<ol class="arabic">
+<li><p><strong>Always test minified files locally before deployment:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+npm<span class="w"> </span>install
+npm<span class="w"> </span>run<span class="w"> </span>build
+<span class="c1"># Test in browser with local FastAPI server</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Check syntax before committing:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check all JS files</span>
+find<span class="w"> </span>web/<span class="w"> </span>webapp/<span class="w"> </span>shared/<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.js&quot;</span><span class="w"> </span>!<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;*.min.js&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-exec<span class="w"> </span>node<span class="w"> </span>-c<span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s2">&quot;^</span>$<span class="s2">&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Version bump after minification changes:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># If you modified minify.sh or package.json</span>
+<span class="c1"># Re-run minification and bump cache versions</span>
+npm<span class="w"> </span>run<span class="w"> </span>build
+./scripts/lib/cache_busting.sh<span class="w"> </span>auto<span class="w"> </span>/opt/budget
+</pre></div>
+</div>
+</li>
+<li><p><strong>Monitor bundle sizes:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Track size trends over time</span>
+du<span class="w"> </span>-sh<span class="w"> </span>web/static/js/*.min.js<span class="w"> </span>webapp/static/js/*.min.js<span class="w"> </span>shared/static/js/*.min.js
+</pre></div>
+</div>
+</li>
+</ol>
+<p><strong>Future Improvements:</strong></p>
+<ul class="simple">
+<li><p>[ ] <strong>Tree shaking</strong>: Удаление неиспользуемого кода (requires bundler)</p></li>
+<li><p>[ ] <strong>Code splitting</strong>: Lazy loading по маршрутам</p></li>
+<li><p>[ ] <strong>Brotli compression</strong>: Дополнительно к gzip (Nginx)</p></li>
+<li><p>[ ] <strong>CDN integration</strong>: Для static assets (S3 + CloudFront)</p></li>
+<li><p>[ ] <strong>Automated performance monitoring</strong>: Lighthouse CI в GitHub Actions</p></li>
+</ul>
+<p><strong>Related Documentation:</strong></p>
+<ul class="simple">
+<li><p><strong>MINIFICATION.md</strong> - Полная документация по минификации</p></li>
+<li><p><strong>03-system-architecture.md § Production Optimization</strong> - Архитектура shared modules</p></li>
+<li><p><strong>10.7 Static Assets &amp; Cache Management</strong> - Cache busting strategy</p></li>
+</ul>
+<hr class="docutils" />
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">10. Deployment &amp; Operations</a><ul>
+<li><a class="reference internal" href="#infrastructure-requirements">10.1 Infrastructure Requirements</a></li>
+<li><a class="reference internal" href="#docker-compose-configuration">10.2 Docker Compose Configuration</a></li>
+<li><a class="reference internal" href="#deployment-scripts">10.3 Deployment Scripts</a><ul>
+<li><a class="reference internal" href="#install-sh-100-lines">install.sh (~100 lines)</a></li>
+<li><a class="reference internal" href="#setup-sh-150-lines">setup.sh (~150 lines)</a></li>
+<li><a class="reference internal" href="#deploy-sh-430-lines">deploy.sh (~430 lines, модульная архитектура)</a></li>
+<li><a class="reference internal" href="#backup-sh-80-lines">backup.sh (~80 lines)</a></li>
+<li><a class="reference internal" href="#smart-cleanup-v2-file-categorization-logic">10.3.5 Smart Cleanup v2: File Categorization Logic</a></li>
+<li><a class="reference internal" href="#registry-first-architecture-v9-0">10.3.6 Registry-First Architecture (v9.0+)</a></li>
+<li><a class="reference internal" href="#migration-change-detection-auto-reapply-system">10.3.7 Migration Change Detection &amp; Auto-Reapply System</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backup-recovery">10.4 Backup &amp; Recovery</a></li>
+<li><a class="reference internal" href="#monitoring-logging">10.5 Monitoring &amp; Logging</a></li>
+<li><a class="reference internal" href="#maintenance-procedures">10.6 Maintenance Procedures</a></li>
+<li><a class="reference internal" href="#static-assets-cache-management">10.7 Static Assets &amp; Cache Management</a></li>
+<li><a class="reference internal" href="#cache-busting-best-practices">10.7.1 Cache Busting Best Practices</a></li>
+<li><a class="reference internal" href="#version-increment-strategy">10.7.2 Version Increment Strategy</a></li>
+<li><a class="reference internal" href="#real-world-case-study-tomselectcategorytree-js">10.7.3 Real-world Case Study: tomSelectCategoryTree.js</a></li>
+<li><a class="reference internal" href="#common-pitfalls-troubleshooting">10.7.4 Common Pitfalls &amp; Troubleshooting</a></li>
+<li><a class="reference internal" href="#production-minification">10.7.5 Production Minification</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

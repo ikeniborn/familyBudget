@@ -1,0 +1,544 @@
+# Realtime Module
+# WebSocket events, BudgetWebSocketManager
+
+meta:
+  version: "1.0.0"
+  description: "Real-time updates via WebSocket and Long Polling"
+  created: "2025-11-01"
+  last_updated: "2026-01-21"
+  status: "active"
+  version_introduced: "3.0.0"
+  breaking_changes:
+    - version: "6.6.0"
+      description: "Added bulk delete summary events"
+      migration: "See bulk-delete-optimization.md"
+  technologies:
+    - "WebSocket (FastAPI)"
+    - "Redis Pub/Sub (cross-worker)"
+    - "Long Polling fallback"
+  related_docs:
+    - "../websocket.md"
+    - "../endpoints/websocket.yaml"
+    - "../bulk-delete-optimization.md"
+
+module:
+  name: realtime
+  description: "Real-time обновления через WebSocket + Long Polling fallback"
+  critical: true
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services: []
+  # Note: In-memory BudgetWebSocketManager in endpoint file
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINT FILE
+  # ---------------------------------------------------------------------------
+  endpoint_file:
+    name: budget_ws
+    path: "backend/app/api/v1/endpoints/budget_ws.py"
+    loc: 870
+    description: "WebSocket connection management and broadcasting"
+
+  # ---------------------------------------------------------------------------
+  # CONNECTION MANAGER
+  # ---------------------------------------------------------------------------
+  connection_manager:
+    name: "BudgetWebSocketManager"
+    type: "In-memory"
+    description: |
+      Manages WebSocket connections for all connected clients.
+      Broadcasts events when data changes.
+      Uses Long Polling fallback for clients that can't use WebSocket.
+
+    methods:
+      - name: connect
+        description: "Add client to connection pool"
+      - name: disconnect
+        description: "Remove client from pool"
+      - name: broadcast
+        description: "Send event to all connected clients"
+      - name: cleanup_stale_connections
+        description: "Remove stale connections periodically"
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    $ref: "../endpoints/websocket.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # EVENT TYPES
+  # ---------------------------------------------------------------------------
+  events:
+    fact_created:
+      description: "New transaction created"
+      payload:
+        - id
+        - amount
+        - article_id
+        - fact_date
+      triggers_refresh:
+        - quick_stats
+        - recent_transactions
+        - account_balances
+
+    fact_updated:
+      description: "Transaction updated"
+      payload:
+        - id
+        - changed_fields
+      triggers_refresh:
+        - quick_stats
+        - recent_transactions
+
+    fact_deleted:
+      description: "Transaction deleted"
+      payload:
+        - id
+      triggers_refresh:
+        - quick_stats
+        - recent_transactions
+
+    transfer_created:
+      description: "Transfer between accounts"
+      payload:
+        - transfer_id
+        - from_financial_center_id
+        - to_financial_center_id
+        - amount
+      triggers_refresh:
+        - account_balances
+
+    shopping_list_item_created:
+      description: "Shopping list item added"
+      payload:
+        - id
+        - shopping_list_id
+        - name
+
+    shopping_list_item_updated:
+      description: "Shopping list item updated"
+      payload:
+        - id
+        - changed_fields
+
+    shopping_list_item_deleted:
+      description: "Shopping list item removed"
+      payload:
+        - id
+
+    article_created:
+      description: "New article created (admin)"
+      payload:
+        - id
+        - name
+        - type
+
+    article_updated:
+      description: "Article updated (admin)"
+      payload:
+        - id
+        - changed_fields
+
+  # ---------------------------------------------------------------------------
+  # CRITICAL CONSTRAINT
+  # ---------------------------------------------------------------------------
+  critical_constraint:
+    name: "Single Worker Requirement"
+    description: |
+      CRITICAL: Application MUST run with WORKERS=1 (single uvicorn worker).
+
+      The WebSocket implementation uses in-memory BudgetWebSocketManager which does NOT
+      share state between workers. Running with multiple workers will cause events
+      to be lost.
+
+    reason: |
+      Each uvicorn worker has SEPARATE BudgetWebSocketManager instance.
+      User A on worker 1 creates transaction → broadcast goes only to worker 1 clients.
+      User B on worker 2 does NOT receive event → stale UI without page reload.
+
+    configuration:
+      - "docker-compose.yml: --workers 1"
+      - "setup.sh: WORKERS=1"
+      - "Dockerfile: --workers 1"
+
+    scaling_solution: |
+      To scale: Implement Redis Pub/Sub to sync events between workers.
+      Reference: backend/app/api/v1/endpoints/budget_ws.py:9-11
+
+  # ---------------------------------------------------------------------------
+  # TRANSPORT LAYERS
+  # ---------------------------------------------------------------------------
+  transport:
+    primary:
+      name: "WebSocket"
+      protocol: "wss://"
+      endpoint: "/api/v1/budget/ws"
+      auth: "JWT token via query parameter"
+      description: |
+        Full-duplex bidirectional communication.
+        No buffering issues (unlike SSE on Safari iOS).
+        Supports client ping/pong and check_online messages.
+
+    fallback:
+      name: "Long Polling"
+      protocol: "https://"
+      endpoint: "/api/v1/budget/poll"
+      interval: "10 seconds"
+      auth: "JWT token via cookie"
+      description: |
+        Comet-style long polling fallback.
+        Client sends GET request with 'since' timestamp.
+        Server holds request until events available or timeout.
+        Used when WebSocket connection fails.
+
+  # ---------------------------------------------------------------------------
+  # BIDIRECTIONAL COMMUNICATION
+  # ---------------------------------------------------------------------------
+  bidirectional:
+    description: |
+      WebSocket enables bidirectional communication between client and server.
+      Client can send messages to server for connection management and offline detection.
+
+    client_to_server:
+      - type: "ping"
+        description: "Client keepalive, server responds with pong"
+        interval: "15 seconds"
+      - type: "check_online"
+        description: "Check server availability for offline mode detection"
+        response: "online_status"
+
+    server_to_client:
+      - type: "connected"
+        description: "Initial connection confirmation with connection_id"
+      - type: "ping"
+        description: "Server keepalive (every 10 seconds)"
+      - type: "pong"
+        description: "Response to client ping"
+      - type: "online_status"
+        description: "Response to check_online request"
+      - type: "fact_created/updated/deleted"
+        description: "Budget fact events"
+      - type: "plan_created/updated/deleted"
+        description: "Budget plan events"
+      - type: "transfer_created/deleted"
+        description: "Transfer events"
+      - type: "item_created/updated/deleted/completed"
+        description: "Shopping list item events"
+
+  # ---------------------------------------------------------------------------
+  # MULTI-TAB SUPPORT
+  # ---------------------------------------------------------------------------
+  multi_tab_support:
+    description: |
+      Web Locks API + BroadcastChannel для single WebSocket connection per browser.
+      Одно WS соединение на браузер, события рассылаются по вкладкам через BroadcastChannel.
+
+    leader_election:
+      method: "Web Locks API"
+      fallback: "Heartbeat-based detection при timeout"
+      non_safari_timeout: "100ms (Chrome, Firefox, Edge)"
+      safari_timeout: "500-2000ms (iOS и macOS Safari)"
+      first_tab_detection: |
+        При timeout проверяется lastLeaderHeartbeat.
+        Если heartbeat не получен за 5 секунд - это первая вкладка, становимся лидером.
+
+    inter_tab_communication:
+      method: "BroadcastChannel API"
+      channel: "budget-ws-channel"
+      message_types:
+        - ws_event: "WebSocket событие для рассылки follower'ам"
+        - heartbeat: "Leader alive signal (каждые 3 сек)"
+        - leader_changed: "Смена лидера"
+        - status_request: "Запрос статуса от follower"
+
+    ios_device_handling:
+      description: |
+        Все iOS браузеры используют per-tab connection (без Web Locks).
+        Все iOS браузеры основаны на WebKit (требование Apple App Store).
+        Web Locks API ненадёжен на всех iOS браузерах - пропускаем multi-tab.
+      affected_browsers:
+        - "Safari iOS"
+        - "Chrome iOS (CriOS)"
+        - "Firefox iOS (FxiOS)"
+        - "Yandex iOS (YaBrowser)"
+        - "Edge iOS (EdgiOS)"
+        - "PWA на iOS"
+      detection: "_detectIOSDevice()"
+      strategy: |
+        1. Пропуск Web Locks - каждая вкладка создаёт своё WebSocket соединение
+        2. Long Polling fallback если WebSocket не работает
+        3. Прямое подключение без leader election
+        4. Более частый client ping (8 сек вместо 15) для поддержания соединения
+        5. Debouncing status indicator (500ms) для предотвращения мерцания
+      improvements_over_sse:
+        - "Нет буферизации (SSE буферизировал до 2KB)"
+        - "Нет проблем с EventSource API"
+        - "Bidirectional communication для проверки соединения"
+      known_issue_fixed:
+        date: "2025-12-20"
+        issue: "Badge мерцает жёлтым и зелёным каждые 3 секунды на iOS"
+        fix: |
+          1. Определять ВСЕ iOS браузеры (не только Safari/Yandex)
+          2. Добавить debouncing для status indicator
+          3. Более частый ping для iOS (8 сек вместо 15)
+
+    connection_staleness:
+      ping_interval: "10 секунд (сервер)"
+      staleness_timeout: "45 секунд без ping = stale connection"
+      action: "Force reconnect при возврате на вкладку"
+
+  # ---------------------------------------------------------------------------
+  # INCREMENTAL UI UPDATES (OPTIMIZATION)
+  # ---------------------------------------------------------------------------
+  incremental_updates:
+    description: |
+      Оптимизация обработки WebSocket событий: вместо полного refresh виджетов
+      через HTMX, UI обновляется инкрементально из payload события.
+
+    motivation: |
+      БЫЛО: WS event → refreshDashboard() → 3 HTTP GET запроса
+      СТАЛО: WS event → IncrementalUpdates.onFactCreated(data) → 0 HTTP запросов
+
+      Результат:
+      - HTTP запросов при создании факта: 4 → 1 (только POST)
+      - Время отклика UI: 200-500ms → <100ms
+      - Нагрузка на backend снижена в 3-4 раза
+
+    js_module:
+      $ref: "../web/js-modules.yaml#/modules/incrementalUpdates"
+
+    architecture: |
+      ┌─────────────────────────────────────────────────────────────────┐
+      │                      WEBSOCKET EVENT FLOW                       │
+      └─────────────────────────────────────────────────────────────────┘
+
+      ┌────────────┐     ┌──────────────────┐     ┌───────────────────┐
+      │ WS Event   │────►│ IncrementalUpdates│────►│ Direct DOM Update │
+      │ (payload)  │     │ (if cache ready)  │     │ (no HTTP request) │
+      └────────────┘     └──────────────────┘     └───────────────────┘
+                                │
+                                │ (cache miss or complex update)
+                                ▼
+                         ┌──────────────────┐     ┌───────────────────┐
+                         │ HTMXWidgets      │────►│ HTTP GET request  │
+                         │ (debounced)      │     │ (fallback)        │
+                         └──────────────────┘     └───────────────────┘
+
+    cache_strategy:
+      articles: "Загружаются при инициализации: /api/v1/articles?leaf_only=false"
+      financial_centers: "Загружаются при инициализации: /api/v1/financial-centers"
+      refresh: "При изменении справочных данных (article_created, etc.)"
+
+    page_implementations:
+      index_html:
+        handlers:
+          - "fact_created → IncrementalUpdates.onFactCreated()"
+          - "fact_updated → IncrementalUpdates.onFactUpdated()"
+          - "fact_deleted → IncrementalUpdates.onFactDeleted()"
+          - "plan_*, transfer_* → Аналогично"
+        fallback: "HTMXWidgets.refreshWidgetDebounced()"
+
+      facts_html:
+        handlers:
+          - "fact_* → loadFactsDebounced() (debounce 300ms)"
+        note: "Полная загрузка таблицы с пагинацией - инкремент сложен"
+
+      lists_html:
+        handlers:
+          - "item_* → listsManager.addItemToUI() / updateItemInUI() / removeItemFromUI()"
+        note: "Уже использует инкрементальный подход через budgetWSClient"
+
+    debouncing:
+      delay: "300ms"
+      purpose: |
+        При быстрой последовательности WebSocket событий (например, bulk import)
+        debouncing предотвращает множественные HTTP запросы fallback.
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    js_module:
+      $ref: "../web/js-modules.yaml#/modules/budgetWSClient"
+
+    incremental_updates_module:
+      $ref: "../web/js-modules.yaml#/modules/incrementalUpdates"
+
+    ui_indicator:
+      location: "navbar"
+      description: "WebSocket connection status badge"
+      states:
+        connected: "🟢 green - Real-time синхронизация активна"
+        connected_via_leader: "🟢 green - Синхронизация через другую вкладку"
+        approaching_limit: "⚠️ warning - Много соединений"
+        disconnected: "🔴 red - Ошибка соединения"
+        reconnecting: "⏳ loading - Переподключение"
+        limit_reached: "🔴 red - Превышен лимит"
+        offline: "⚫ gray - Offline режим"
+
+  # ---------------------------------------------------------------------------
+  # FLOWS
+  # ---------------------------------------------------------------------------
+  flows:
+    ws_broadcast:
+      $ref: "../flows/ws-broadcast.yaml"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES
+  # ---------------------------------------------------------------------------
+  depends_on:
+    - $ref: "./budget-management.yaml#/module"
+    - $ref: "./shopping-lists.yaml#/module"
+    - $ref: "./transfers.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # USED BY
+  # ---------------------------------------------------------------------------
+  used_by:
+    - $ref: "../web/templates.yaml#/templates/base"
+    - $ref: "../web/templates.yaml#/templates/index"
+    - $ref: "../web/templates.yaml#/templates/lists"
+
+  # ---------------------------------------------------------------------------
+  # KNOWN ISSUES (Fixed 2025-12-20)
+  # ---------------------------------------------------------------------------
+  known_issues_fixed:
+    - issue: "sse variable undefined in facts.py"
+      severity: "CRITICAL"
+      description: |
+        Plan broadcast calls used undefined 'sse' variable instead of 'ws'.
+        Remnant from SSE → WebSocket migration in 2024.
+        Affected lines: 244, 1020, 1111, 1218 in facts.py
+      fix: "Changed sse.broadcast_plan_* to ws.broadcast_plan_*"
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Race conditions in connection manager"
+      severity: "HIGH"
+      description: |
+        send_to_connection() and update_activity() had no lock protection.
+        broadcast() correctly used async with self._lock, but other methods didn't.
+        Could cause IndexError or missed/duplicated messages during concurrent operations.
+      fix: |
+        Added async lock to both methods.
+        Made update_activity() async and updated all 3 callers to use await.
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Missing jitter in reconnect"
+      severity: "MEDIUM"
+      description: |
+        Exponential backoff without jitter caused thundering herd problem.
+        All disconnected clients retry at exact same intervals.
+      fix: "Added ±10% jitter to reconnect delay calculation"
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Long polling no exponential backoff"
+      severity: "MEDIUM"
+      description: |
+        Fixed 10s retry interval on errors caused excessive load on server.
+        No exponential backoff implementation.
+      fix: |
+        Added exponential backoff with jitter (1s → 30s max, 10 retries).
+        Reset retry count on successful poll.
+      status: fixed
+      date: "2025-12-20"
+
+  known_limitations:
+    - issue: "IncrementalUpdates cache invalidation"
+      severity: "LOW"
+      description: |
+        Article cache in incrementalUpdates.js is not invalidated when articles change.
+        Requires article_created/updated events from backend (not implemented).
+      status: deferred
+      notes: "Backend first needs to broadcast article_* events"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE MODE INTEGRATION
+  # ---------------------------------------------------------------------------
+  offline_mode_integration:
+    description: |
+      BudgetWSClient интегрирован с SmartNetworkDetector/OfflineManager.
+      При включении autoOfflineMode WebSocket отключается и не пытается переподключиться.
+
+    helper_method:
+      name: "_isOfflineModeActive()"
+      description: |
+        Проверяет window.offlineManager.networkDetector.autoOfflineMode.
+        При недоступности offlineManager использует fallback на localStorage:
+        localStorage.getItem('budget_auto_offline_mode') === 'true'.
+
+        Fallback необходим из-за timing issue при навигации между страницами:
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        может быть вызван до завершения offlineManager.init().
+
+        Используется во всех точках подключения/переподключения.
+
+    affected_methods:
+      - name: "connect()"
+        behavior: "Не подключается если autoOfflineMode = true"
+      - name: "_createConnection()"
+        behavior: "Не создаёт соединение если autoOfflineMode = true"
+      - name: "_startLongPolling()"
+        behavior: "Не запускает polling если autoOfflineMode = true"
+      - name: "_pollLoop()"
+        behavior: "Останавливает polling если autoOfflineMode = true"
+      - name: "_scheduleReconnect()"
+        behavior: "Не планирует переподключение если autoOfflineMode = true"
+      - name: "setEnabled(true)"
+        behavior: "Не подключается если autoOfflineMode = true"
+
+    fixed_issue:
+      date: "2025-12-21"
+      issue: "WebSocket и ListsManager делают запросы в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - WebSocket пытался получить token и падал с ERR_INTERNET_DISCONNECTED
+        - Long polling продолжал делать запросы и получал 503
+        - ListsManager делал API запросы (stores, product-groups, shopping-lists)
+        - Console заспамливался ошибками
+
+        Root cause: timing issue при навигации между страницами.
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        вызывался до завершения offlineManager.init().
+        Проверка offlineManager.networkDetector.autoOfflineMode возвращала false
+        так как networkDetector ещё не был инициализирован.
+      fix: |
+        1. Добавлен _isOfflineModeActive() helper с localStorage fallback:
+           - Сначала проверяет offlineManager.networkDetector.autoOfflineMode
+           - При недоступности читает localStorage('budget_auto_offline_mode')
+        2. Обновлён ListsManager.isOnline getter с аналогичным fallback
+        3. Проверки добавлены во все методы подключения/переподключения
+      status: fixed
+
+    fixed_issue_2:
+      date: "2025-12-21"
+      issue: "WebSocket переподключается при навигации в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - Global 'online' event listener пытался переподключить WebSocket
+        - Long polling продолжал делать запросы и получал 503 ошибки
+        - Console заспамливался ошибками "503 Service Unavailable"
+
+        Root cause:
+        1. Global 'online' event listener не проверял _isOfflineModeActive() перед connect()
+        2. Long polling не останавливался после множественных 503 ошибок в offline режиме
+      fix: |
+        1. Добавлена проверка _isOfflineModeActive() в global 'online' event listener:
+           - Если offline режим активен, reconnect пропускается
+           - Добавлен debugLog для отслеживания
+        2. Добавлен счётчик _consecutive503Count для отслеживания 503 ошибок:
+           - После 3 consecutive 503 + offline режим → polling останавливается
+           - Счётчик сбрасывается при успешном poll
+        3. При остановке вызывается _updateStatusIndicator() для обновления UI
+      status: fixed
+      affected_code:
+        - "budgetWSClient.js: constructor - добавлен _consecutive503Count = 0"
+        - "budgetWSClient.js: global 'online' listener - добавлена проверка _isOfflineModeActive()"
+        - "budgetWSClient.js: _pollLoop() - добавлена логика остановки при 503 + offline"

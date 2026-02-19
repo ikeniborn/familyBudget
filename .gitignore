@@ -360,4 +360,4 @@ backend/.env.test
 .claude/workspace/
 
 # Sphinx build output
-docs/sphinx/_build/
+docs/sphinx/_build/.doctrees/

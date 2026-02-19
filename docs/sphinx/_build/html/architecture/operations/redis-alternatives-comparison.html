@@ -1,0 +1,1107 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Redis Alternatives: Сравнительный анализ - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/redis-alternatives-comparison.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="redis-alternatives">
+<h1>Redis Alternatives: Сравнительный анализ<a class="headerlink" href="#redis-alternatives" title="Link to this heading">¶</a></h1>
+<section id="id1">
+<h2>Обзор<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<p>Данный документ анализирует альтернативы Redis для проекта Family Budget и оценивает возможность полной замены функционала, реализованного через Redis.</p>
+<p><strong>Дата анализа:</strong> 2026-02-03
+<strong>Версия Redis в проекте:</strong> redis&gt;=5.0.0 (Python client), Redis 7.x (server)</p>
+</section>
+<hr class="docutils" />
+<section id="redis">
+<h2>Текущее использование Redis в проекте<a class="headerlink" href="#redis" title="Link to this heading">¶</a></h2>
+<section id="websocket-pub-sub-redis-pubsub-service-py">
+<h3>1. <strong>WebSocket Pub/Sub</strong> (<code class="docutils literal notranslate"><span class="pre">redis_pubsub_service.py</span></code>)<a class="headerlink" href="#websocket-pub-sub-redis-pubsub-service-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Канал:</strong> <code class="docutils literal notranslate"><span class="pre">budget:events</span></code></p></li>
+<li><p><strong>Назначение:</strong> Синхронизация WebSocket событий между несколькими uvicorn workers</p></li>
+<li><p><strong>Функции:</strong></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">publish_event()</span></code> - публикация событий</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_events_since()</span></code> - получение событий с timestamp (для long polling)</p></li>
+<li><p>Event buffer (ZSET) с TTL 60s и max size 1000</p></li>
+</ul>
+</li>
+<li><p><strong>Redis команды:</strong> <code class="docutils literal notranslate"><span class="pre">PUBLISH</span></code>, <code class="docutils literal notranslate"><span class="pre">SUBSCRIBE</span></code>, <code class="docutils literal notranslate"><span class="pre">ZADD</span></code>, <code class="docutils literal notranslate"><span class="pre">ZREMRANGEBYSCORE</span></code>, <code class="docutils literal notranslate"><span class="pre">ZCARD</span></code>, <code class="docutils literal notranslate"><span class="pre">ZREMRANGEBYRANK</span></code></p></li>
+</ul>
+</section>
+<section id="cache-service-cache-service-py">
+<h3>2. <strong>Cache Service</strong> (<code class="docutils literal notranslate"><span class="pre">cache_service.py</span></code>)<a class="headerlink" href="#cache-service-cache-service-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Паттерн:</strong> Read-Through Cache</p></li>
+<li><p><strong>Категории:</strong></p>
+<ul>
+<li><p>Reference data (articles, financial centers, cost centers) - TTL 300s</p></li>
+<li><p>Dashboard data (quick stats, balances) - TTL 30s</p></li>
+<li><p>Dynamic data (facts, recent transactions) - TTL 60s</p></li>
+</ul>
+</li>
+<li><p><strong>Redis команды:</strong> <code class="docutils literal notranslate"><span class="pre">GET</span></code>, <code class="docutils literal notranslate"><span class="pre">SET</span></code>, <code class="docutils literal notranslate"><span class="pre">DELETE</span></code>, <code class="docutils literal notranslate"><span class="pre">SCAN</span></code>, <code class="docutils literal notranslate"><span class="pre">KEYS</span></code></p></li>
+</ul>
+</section>
+<section id="write-behind-queue-write-behind-service-py">
+<h3>3. <strong>Write-Behind Queue</strong> (<code class="docutils literal notranslate"><span class="pre">write_behind_service.py</span></code>)<a class="headerlink" href="#write-behind-queue-write-behind-service-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Очередь:</strong> <code class="docutils literal notranslate"><span class="pre">write_queue:facts</span></code> (LIST)</p></li>
+<li><p><strong>Dead Letter Queue:</strong> <code class="docutils literal notranslate"><span class="pre">write_queue:facts:failed</span></code> (LIST)</p></li>
+<li><p><strong>Функции:</strong></p>
+<ul>
+<li><p>Асинхронная запись в PostgreSQL с авторетраями</p></li>
+<li><p>Exponential backoff (100ms → 5000ms)</p></li>
+<li><p>Lock-based processing (<code class="docutils literal notranslate"><span class="pre">NX</span> <span class="pre">EX</span></code>)</p></li>
+</ul>
+</li>
+<li><p><strong>Redis команды:</strong> <code class="docutils literal notranslate"><span class="pre">RPUSH</span></code>, <code class="docutils literal notranslate"><span class="pre">BLPOP</span></code>, <code class="docutils literal notranslate"><span class="pre">LLEN</span></code>, <code class="docutils literal notranslate"><span class="pre">LPOP</span></code>, <code class="docutils literal notranslate"><span class="pre">LINDEX</span></code>, <code class="docutils literal notranslate"><span class="pre">SET</span> <span class="pre">NX</span> <span class="pre">EX</span></code>, <code class="docutils literal notranslate"><span class="pre">EXPIRE</span></code></p></li>
+</ul>
+</section>
+<section id="rate-limiting-rate-limiter-py">
+<h3>4. <strong>Rate Limiting</strong> (<code class="docutils literal notranslate"><span class="pre">rate_limiter.py</span></code>)<a class="headerlink" href="#rate-limiting-rate-limiter-py" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Библиотека:</strong> slowapi (по умолчанию in-memory)</p></li>
+<li><p><strong>Примечание:</strong> Поддерживает Redis storage через <code class="docutils literal notranslate"><span class="pre">storage_uri</span></code> (закомментировано)</p></li>
+<li><p><strong>Лимиты:</strong></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">/auth/login</span></code>: 5/minute</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/auth/verify-2fa</span></code>: 5/minute</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/auth/register</span></code>: 3/hour</p></li>
+<li><p>Default: 200/minute</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="connection-health">
+<h3>5. <strong>Connection &amp; Health</strong><a class="headerlink" href="#connection-health" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Python клиент:</strong> <code class="docutils literal notranslate"><span class="pre">redis.asyncio</span></code> (async/await)</p></li>
+<li><p><strong>Connection pool:</strong> max_connections=20, decode_responses=True</p></li>
+<li><p><strong>Health checks:</strong> PING, INFO (memory, stats, keyspace)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id2">
+<h2>Альтернативы Redis<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<section id="dragonfly">
+<h3>1. <strong>Dragonfly</strong> ⭐ Рекомендуется<a class="headerlink" href="#dragonfly" title="Link to this heading">¶</a></h3>
+<p><strong>Описание:</strong>
+Современная замена Redis с мультитредной архитектурой, написанная на C++. Полностью совместима с Redis API.</p>
+<p><strong>Производительность:</strong></p>
+<ul class="simple">
+<li><p><strong>25x</strong> выше throughput чем Redis single process (3.8M QPS на c6gn.16xlarge)</p></li>
+<li><p><strong>12x</strong> ниже latency при snapshotting</p></li>
+<li><p>Использует все CPU cores параллельно (vs Redis single-threaded)</p></li>
+</ul>
+<p><strong>Совместимость:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>100% API compatible</strong> с Redis/Valkey/Memcached</p></li>
+<li><p>✅ ~185 Redis команд (эквивалентно Redis 5.0 API)</p></li>
+<li><p>✅ Работает с <code class="docutils literal notranslate"><span class="pre">redis.asyncio</span></code> без изменений кода</p></li>
+<li><p>✅ Поддержка Redis CLI для администрирования</p></li>
+</ul>
+<p><strong>Поддержка функционала Family Budget:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Функция</p></th>
+<th class="head"><p>Поддержка</p></th>
+<th class="head"><p>Примечание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pub/Sub</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Полная совместимость с PUBLISH/SUBSCRIBE</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cache (GET/SET/DELETE)</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Все команды поддерживаются</p></td>
+</tr>
+<tr class="row-even"><td><p>ZSET (event buffer)</p></td>
+<td><p>✅ Да</p></td>
+<td><p>ZADD, ZRANGEBYSCORE, ZREMRANGEBYSCORE</p></td>
+</tr>
+<tr class="row-odd"><td><p>LIST (write queue)</p></td>
+<td><p>✅ Да</p></td>
+<td><p>RPUSH, BLPOP, LLEN, LPOP</p></td>
+</tr>
+<tr class="row-even"><td><p>Locks (SET NX EX)</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Атомарные операции поддерживаются</p></td>
+</tr>
+<tr class="row-odd"><td><p>SCAN/KEYS</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Cache invalidation работает</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Python клиент:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Без изменений кода! Используйте redis-py как обычно</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">redis.asyncio</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">redis</span>
+
+<span class="n">pool</span> <span class="o">=</span> <span class="n">redis</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="o">.</span><span class="n">from_url</span><span class="p">(</span>
+    <span class="s2">&quot;redis://dragonfly:6379&quot;</span><span class="p">,</span>  <span class="c1"># Только URL меняется</span>
+    <span class="n">max_connections</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">decode_responses</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Docker Compose:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">dragonfly</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.dragonflydb.io/dragonflydb/dragonfly:latest</span>
+<span class="w">  </span><span class="nt">ulimits</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">memlock</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">-1</span>
+<span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;6379:6379&quot;</span>
+<span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dragonfly_data:/data</span>
+</pre></div>
+</div>
+<p><strong>Источники:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.dragonflydb.io/blog/scaling-performance-redis-vs-dragonfly">Dragonfly vs Redis Performance</a></p></li>
+<li><p><a class="reference external" href="https://github.com/dragonflydb/dragonfly">Dragonfly GitHub</a></p></li>
+<li><p><a class="reference external" href="https://www.dragonflydb.io/docs/development/sdks">Dragonfly SDK Documentation</a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="valkey">
+<h3>2. <strong>Valkey</strong> ⭐ Альтернатива с открытым управлением<a class="headerlink" href="#valkey" title="Link to this heading">¶</a></h3>
+<p><strong>Описание:</strong>
+Open-source форк Redis 7.2.4, созданный Linux Foundation в ответ на изменение лицензии Redis. Поддерживается AWS, Google, и Redis community.</p>
+<p><strong>Производительность:</strong></p>
+<ul class="simple">
+<li><p>Аналогична Redis (single-threaded архитектура)</p></li>
+<li><p>Постепенные улучшения от community contributors</p></li>
+</ul>
+<p><strong>Совместимость:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>100% совместимость</strong> с Redis 7.2.4 API</p></li>
+<li><p>✅ Бинарная совместимость с RDB/AOF файлами Redis</p></li>
+<li><p>✅ Drop-in replacement для Redis</p></li>
+</ul>
+<p><strong>Поддержка функционала Family Budget:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Функция</p></th>
+<th class="head"><p>Поддержка</p></th>
+<th class="head"><p>Примечание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pub/Sub</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Полная совместимость</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cache</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Все команды Redis 7.2</p></td>
+</tr>
+<tr class="row-even"><td><p>ZSET/LIST/Locks</p></td>
+<td><p>✅ Да</p></td>
+<td><p>100% совместимость</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python async</p></td>
+<td><p>✅ Да</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">valkey-py</span></code> + <code class="docutils literal notranslate"><span class="pre">valkey.asyncio</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Python клиенты:</strong></p>
+<p><strong>Вариант 1: valkey-py (официальный)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Замена redis.asyncio на valkey.asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">valkey.asyncio</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">valkey</span>
+
+<span class="n">pool</span> <span class="o">=</span> <span class="n">valkey</span><span class="o">.</span><span class="n">ConnectionPool</span><span class="o">.</span><span class="n">from_url</span><span class="p">(</span>
+    <span class="s2">&quot;valkey://valkey:6379&quot;</span><span class="p">,</span>
+    <span class="n">max_connections</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">decode_responses</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+
+<span class="c1"># Требует изменений импортов во всех файлах:</span>
+<span class="c1"># - redis_service.py</span>
+<span class="c1"># - redis_pubsub_service.py</span>
+<span class="c1"># - cache_service.py</span>
+<span class="c1"># - write_behind_service.py</span>
+</pre></div>
+</div>
+<p><strong>Вариант 2: redis-py (обратная совместимость)</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Redis-py продолжит работать с Valkey без изменений</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">redis.asyncio</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">redis</span>
+<span class="c1"># Valkey совместим с Redis protocol</span>
+</pre></div>
+</div>
+<p><strong>Docker Compose:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">valkey</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">valkey/valkey:latest</span>
+<span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;6379:6379&quot;</span>
+<span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">valkey_data:/data</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">valkey-server --save 60 1 --loglevel warning</span>
+</pre></div>
+</div>
+<p><strong>Источники:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://valkey.io/">Valkey Official Site</a></p></li>
+<li><p><a class="reference external" href="https://github.com/valkey-io/valkey-py">Valkey Python Client (valkey-py)</a></p></li>
+<li><p><a class="reference external" href="https://valkey-py.readthedocs.io/en/latest/examples/asyncio_examples.html">Valkey Async Examples</a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="keydb">
+<h3>3. <strong>KeyDB</strong><a class="headerlink" href="#keydb" title="Link to this heading">¶</a></h3>
+<p><strong>Описание:</strong>
+Мультитредный форк Redis (с 2019 года). Фокус на производительность.</p>
+<p><strong>Производительность:</strong></p>
+<ul class="simple">
+<li><p>5x выше throughput чем Redis (мультитредность)</p></li>
+<li><p>Эффективное использование multi-core CPU</p></li>
+</ul>
+<p><strong>Совместимость:</strong></p>
+<ul class="simple">
+<li><p>✅ Совместим с Redis API</p></li>
+<li><p>⚠️ <strong>Ограниченная активность разработки</strong> (concerns о долгосрочной поддержке)</p></li>
+</ul>
+<p><strong>Поддержка функционала Family Budget:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Функция</p></th>
+<th class="head"><p>Поддержка</p></th>
+<th class="head"><p>Примечание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pub/Sub</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Совместимость с Redis</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cache/ZSET/LIST</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Все Redis команды</p></td>
+</tr>
+<tr class="row-even"><td><p>Python async</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Работает с <code class="docutils literal notranslate"><span class="pre">redis.asyncio</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Риски:</strong></p>
+<ul class="simple">
+<li><p>⚠️ Отсутствие активного development с 2022 года</p></li>
+<li><p>⚠️ Неясная roadmap на будущее</p></li>
+<li><p>⚠️ Меньшее community по сравнению с Dragonfly/Valkey</p></li>
+</ul>
+<p><strong>Docker Compose:</strong></p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">keydb</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eqalpha/keydb:latest</span>
+<span class="w">  </span><span class="nt">ports</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;6379:6379&quot;</span>
+<span class="w">  </span><span class="nt">volumes</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">keydb_data:/data</span>
+</pre></div>
+</div>
+<p><strong>Источники:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://docs.keydb.dev/">KeyDB Documentation</a></p></li>
+<li><p><a class="reference external" href="https://blog.octabyte.io/topics/open-source-databases/redis-vs-valkey-vs-keydb/">Redis vs Valkey vs KeyDB Comparison</a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="garnet-microsoft-research">
+<h3>4. <strong>Garnet</strong> (Microsoft Research)<a class="headerlink" href="#garnet-microsoft-research" title="Link to this heading">¶</a></h3>
+<p><strong>Описание:</strong>
+Экспериментальный проект от Microsoft, написанный на C#. Фокус на высокую производительность и низкую latency.</p>
+<p><strong>Производительность:</strong></p>
+<ul class="simple">
+<li><p><strong>70% ниже latency</strong> чем Redis при 300-600 connections</p></li>
+<li><p><strong>100%+ выше throughput</strong> на read-heavy workloads (при 100 connections)</p></li>
+<li><p><strong>57% avg improvement</strong> vs Redis</p></li>
+<li><p>Multithreaded scheduling</p></li>
+</ul>
+<p><strong>Совместимость:</strong></p>
+<ul class="simple">
+<li><p>✅ Совместим с Redis protocol (RESP)</p></li>
+<li><p>⚠️ Экспериментальный статус, не production-ready</p></li>
+<li><p>⚠️ Неполная поддержка всех Redis команд</p></li>
+</ul>
+<p><strong>Поддержка функционала Family Budget:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Функция</p></th>
+<th class="head"><p>Поддержка</p></th>
+<th class="head"><p>Примечание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Pub/Sub</p></td>
+<td><p>⚠️ Частично</p></td>
+<td><p>Требует проверки</p></td>
+</tr>
+<tr class="row-odd"><td><p>Cache (GET/SET)</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Базовые операции</p></td>
+</tr>
+<tr class="row-even"><td><p>ZSET/LIST</p></td>
+<td><p>⚠️ Частично</p></td>
+<td><p>Неполная поддержка</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python async</p></td>
+<td><p>✅ Да</p></td>
+<td><p>Через <code class="docutils literal notranslate"><span class="pre">redis.asyncio</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Риски:</strong></p>
+<ul class="simple">
+<li><p>⚠️ Не рекомендуется для production</p></li>
+<li><p>⚠️ Отсутствие LTS (Long-Term Support)</p></li>
+<li><p>⚠️ Требует .NET Runtime</p></li>
+</ul>
+<p><strong>Источники:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://arxiv.org/html/2510.19805v1">Garnet Performance Benchmarks</a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="memcached">
+<h3>5. <strong>Memcached</strong> ❌ Не подходит<a class="headerlink" href="#memcached" title="Link to this heading">¶</a></h3>
+<p><strong>Описание:</strong>
+Простой in-memory key-value store с мультитредностью.</p>
+<p><strong>Ограничения:</strong></p>
+<ul class="simple">
+<li><p>❌ <strong>Только строки</strong> (нет ZSET, LIST, Hash)</p></li>
+<li><p>❌ <strong>Нет Pub/Sub</strong></p></li>
+<li><p>❌ <strong>Нет персистентности</strong></p></li>
+<li><p>❌ <strong>Нет транзакций</strong></p></li>
+</ul>
+<p><strong>Вердикт:</strong>
+Не подходит для Family Budget из-за отсутствия критичных функций (Pub/Sub, ZSET, LIST).</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id3">
+<h2>Сравнительная таблица<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Функционал</p></th>
+<th class="head"><p>Redis</p></th>
+<th class="head"><p>Dragonfly</p></th>
+<th class="head"><p>Valkey</p></th>
+<th class="head"><p>KeyDB</p></th>
+<th class="head"><p>Garnet</p></th>
+<th class="head"><p>Memcached</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Pub/Sub</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ZSET</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>LIST (queue)</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Locks (SET NX EX)</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>SCAN/KEYS</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Python async</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Drop-in replacement</strong></p></td>
+<td><p>-</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Production-ready</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>❌</p></td>
+<td><p>✅</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Active development</strong></p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️</p></td>
+<td><p>⚠️</p></td>
+<td><p>✅</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Throughput vs Redis</strong></p></td>
+<td><p>1x</p></td>
+<td><p><strong>25x</strong></p></td>
+<td><p>1x</p></td>
+<td><p>5x</p></td>
+<td><p>1.5x</p></td>
+<td><p>3x</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Latency vs Redis</strong></p></td>
+<td><p>1x</p></td>
+<td><p><strong>0.08x</strong></p></td>
+<td><p>1x</p></td>
+<td><p>0.5x</p></td>
+<td><p><strong>0.3x</strong></p></td>
+<td><p>0.7x</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Легенда:</strong></p>
+<ul class="simple">
+<li><p>✅ Полная поддержка</p></li>
+<li><p>⚠️ Частичная/экспериментальная поддержка</p></li>
+<li><p>❌ Не поддерживается</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="id4">
+<h2>Рекомендации<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
+<section id="id5">
+<h3>🥇 <strong>Dragonfly</strong> - Лучший выбор<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<p><strong>Почему:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>100% совместимость</strong> с текущим кодом (zero code changes)</p></li>
+<li><p>✅ <strong>25x производительность</strong> vs Redis</p></li>
+<li><p>✅ Поддержка ВСЕХ функций Family Budget</p></li>
+<li><p>✅ Production-ready с активным развитием</p></li>
+<li><p>✅ Работает с <code class="docutils literal notranslate"><span class="pre">redis.asyncio</span></code> без изменений</p></li>
+</ul>
+<p><strong>Миграция:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Обновить docker-compose.yml</span>
+services:
+<span class="w">  </span>redis:
+<span class="w">    </span>image:<span class="w"> </span>docker.dragonflydb.io/dragonflydb/dragonfly:latest
+<span class="w">    </span><span class="c1"># остальные настройки без изменений</span>
+
+<span class="c1"># 2. Restart services</span>
+docker<span class="w"> </span>compose<span class="w"> </span>down
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+
+<span class="c1"># 3. Verify</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>app<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import redis.asyncio as redis; print(&#39;OK&#39;)&quot;</span>
+</pre></div>
+</div>
+<p><strong>Нулевые изменения кода!</strong> Все сервисы продолжат работать.</p>
+</section>
+<hr class="docutils" />
+<section id="valkey-community-governance">
+<h3>🥈 <strong>Valkey</strong> - Альтернатива с community governance<a class="headerlink" href="#valkey-community-governance" title="Link to this heading">¶</a></h3>
+<p><strong>Почему:</strong></p>
+<ul class="simple">
+<li><p>✅ Открытое управление (Linux Foundation)</p></li>
+<li><p>✅ 100% совместимость с Redis 7.2</p></li>
+<li><p>✅ Долгосрочная поддержка от крупных компаний (AWS, Google)</p></li>
+<li><p>⚠️ Требует замены импортов (если использовать valkey-py)</p></li>
+</ul>
+<p><strong>Миграция:</strong></p>
+<p><strong>Вариант 1: Использовать redis-py (рекомендуется)</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Только изменить docker-compose.yml</span>
+services:
+<span class="w">  </span>redis:
+<span class="w">    </span>image:<span class="w"> </span>valkey/valkey:latest
+
+<span class="c1"># Код остается без изменений</span>
+</pre></div>
+</div>
+<p><strong>Вариант 2: Использовать valkey-py (опционально)</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Update requirements.txt</span>
+redis&gt;<span class="o">=</span><span class="m">5</span>.0.0<span class="w">  </span>→<span class="w">  </span>valkey&gt;<span class="o">=</span><span class="m">6</span>.0.0
+
+<span class="c1"># 2. Replace imports in all files</span>
+redis.asyncio<span class="w">  </span>→<span class="w">  </span>valkey.asyncio
+
+<span class="c1"># 3. Update docker-compose.yml</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="id6">
+<h3>⚠️ <strong>KeyDB</strong> - Не рекомендуется<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<p><strong>Причины:</strong></p>
+<ul class="simple">
+<li><p>Ограниченная активность разработки</p></li>
+<li><p>Неясная долгосрочная перспектива</p></li>
+<li><p>Dragonfly превосходит по производительности и поддержке</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="garnet-production">
+<h3>❌ <strong>Garnet</strong> - Не для production<a class="headerlink" href="#garnet-production" title="Link to this heading">¶</a></h3>
+<p><strong>Причины:</strong></p>
+<ul class="simple">
+<li><p>Экспериментальный статус</p></li>
+<li><p>Неполная поддержка Redis API</p></li>
+<li><p>Требует .NET Runtime</p></li>
+<li><p>Нет LTS гарантий</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="id7">
+<h3>❌ <strong>Memcached</strong> - Не подходит<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<p><strong>Причины:</strong></p>
+<ul class="simple">
+<li><p>Отсутствие Pub/Sub (critical для WebSocket)</p></li>
+<li><p>Отсутствие ZSET/LIST (critical для event buffer и write queue)</p></li>
+<li><p>Нет транзакций и locks</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id8">
+<h2>План миграции на Dragonfly<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<section id="development-environment">
+<h3>Этап 1: Тестирование (Development environment)<a class="headerlink" href="#development-environment" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Обновить docker-compose.yml</span>
+git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>feature/dragonfly-migration
+
+<span class="c1"># Заменить в docker-compose.yml:</span>
+redis:
+<span class="w">  </span>image:<span class="w"> </span>docker.dragonflydb.io/dragonflydb/dragonfly:v1.23.1
+<span class="w">  </span>container_name:<span class="w"> </span>familybudget-dragonfly
+<span class="w">  </span>restart:<span class="w"> </span>always
+<span class="w">  </span>ulimits:
+<span class="w">    </span>memlock:<span class="w"> </span>-1
+<span class="w">  </span>ports:
+<span class="w">    </span>-<span class="w"> </span><span class="s2">&quot;6379:6379&quot;</span>
+<span class="w">  </span>volumes:
+<span class="w">    </span>-<span class="w"> </span>dragonfly_data:/data
+<span class="w">  </span>healthcheck:
+<span class="w">    </span>test:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;CMD&quot;</span>,<span class="w"> </span><span class="s2">&quot;redis-cli&quot;</span>,<span class="w"> </span><span class="s2">&quot;ping&quot;</span><span class="o">]</span>
+<span class="w">    </span>interval:<span class="w"> </span>10s
+<span class="w">    </span>timeout:<span class="w"> </span>3s
+<span class="w">    </span>retries:<span class="w"> </span><span class="m">3</span>
+
+<span class="c1"># 2. Update .env</span>
+<span class="nv">REDIS_VERSION</span><span class="o">=</span>dragonfly-v1.23.1
+
+<span class="c1"># 3. Test migration</span>
+docker<span class="w"> </span>compose<span class="w"> </span>down<span class="w"> </span>-v<span class="w">  </span><span class="c1"># Удалить Redis data</span>
+docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>dragonfly
+
+<span class="c1"># 4. Run tests</span>
+pytest<span class="w"> </span>tests/
+npm<span class="w"> </span>run<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># 5. Manual testing</span>
+<span class="c1"># - WebSocket real-time updates</span>
+<span class="c1"># - Cache invalidation</span>
+<span class="c1"># - Write-behind queue</span>
+<span class="c1"># - Rate limiting</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-benchmarking">
+<h3>Этап 2: Performance benchmarking<a class="headerlink" href="#performance-benchmarking" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Тест 1: Cache hit ratio</span>
+<span class="c1"># Проверить Redis stats в /admin/monitoring</span>
+<span class="c1"># - Hit ratio &gt;= 80%</span>
+<span class="c1"># - Cache latency &lt; 5ms</span>
+
+<span class="c1"># Тест 2: WebSocket latency</span>
+<span class="c1"># Открыть 2+ tabs</span>
+<span class="c1"># Создать транзакцию</span>
+<span class="c1"># Проверить RTT в WebSocket diagnostics</span>
+<span class="c1"># - RTT &lt; 100ms</span>
+
+<span class="c1"># Тест 3: Write-behind queue throughput</span>
+<span class="c1"># Включить WRITE_BEHIND_ENABLED=true</span>
+<span class="c1"># Создать 100 транзакций</span>
+<span class="c1"># Проверить queue stats</span>
+<span class="c1"># - Queue length = 0 (processed)</span>
+<span class="c1"># - DLQ length = 0 (no failures)</span>
+</pre></div>
+</div>
+</section>
+<section id="production-deployment">
+<h3>Этап 3: Production deployment<a class="headerlink" href="#production-deployment" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Backup текущих данных Redis</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>redis<span class="w"> </span>redis-cli<span class="w"> </span>BGSAVE
+docker<span class="w"> </span>compose<span class="w"> </span>cp<span class="w"> </span>redis:/data/dump.rdb<span class="w"> </span>./backups/redis-dump-<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>.rdb
+
+<span class="c1"># 2. Deploy на staging</span>
+<span class="c1"># Тестирование в течение 24-48 часов</span>
+
+<span class="c1"># 3. Rollout на production</span>
+<span class="c1"># Blue-Green deployment:</span>
+<span class="c1"># - Запустить Dragonfly рядом с Redis</span>
+<span class="c1"># - Переключить REDIS_URL на Dragonfly</span>
+<span class="c1"># - Мониторить метрики</span>
+<span class="c1"># - Отключить старый Redis</span>
+
+<span class="c1"># 4. Rollback plan (если проблемы)</span>
+<span class="c1"># - Переключить REDIS_URL обратно на Redis</span>
+<span class="c1"># - Restart app services</span>
+</pre></div>
+</div>
+</section>
+<section id="cleanup">
+<h3>Этап 4: Cleanup<a class="headerlink" href="#cleanup" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># После 2 недель успешной работы на Dragonfly:</span>
+<span class="c1"># - Удалить старый Redis container</span>
+<span class="c1"># - Обновить документацию</span>
+<span class="c1"># - Закрыть миграционную issue</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>Заключение<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<section id="id10">
+<h3>Может ли альтернатива заменить ВЕСЬ функционал Redis?<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Альтернатива</p></th>
+<th class="head"><p>Полная замена?</p></th>
+<th class="head"><p>Примечание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Dragonfly</strong></p></td>
+<td><p>✅ <strong>Да</strong></p></td>
+<td><p>100% совместимость, zero code changes</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Valkey</strong></p></td>
+<td><p>✅ <strong>Да</strong></p></td>
+<td><p>100% совместимость, drop-in replacement</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>KeyDB</strong></p></td>
+<td><p>✅ Да (но не рекомендуется)</p></td>
+<td><p>Устаревшая разработка</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Garnet</strong></p></td>
+<td><p>❌ <strong>Нет</strong></p></td>
+<td><p>Экспериментальный, неполная поддержка</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Memcached</strong></p></td>
+<td><p>❌ <strong>Нет</strong></p></td>
+<td><p>Критичные функции отсутствуют</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id11">
+<h3>Итоговая рекомендация<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<p><strong>Используйте Dragonfly</strong> для Family Budget:</p>
+<ol class="arabic simple">
+<li><p><strong>Zero migration cost</strong> - нулевые изменения кода</p></li>
+<li><p><strong>25x performance boost</strong> - значительное улучшение производительности</p></li>
+<li><p><strong>100% compatibility</strong> - все функции работают</p></li>
+<li><p><strong>Production-ready</strong> - активная разработка и поддержка</p></li>
+<li><p><strong>Easy rollback</strong> - простой откат при проблемах</p></li>
+</ol>
+<p><strong>Альтернатива:</strong> Valkey (если важна community governance и долгосрочная open-source стратегия).</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id12">
+<h2>Источники<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
+<p><strong>Dragonfly:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://www.dragonflydb.io/blog/scaling-performance-redis-vs-dragonfly">Redis vs. Dragonfly Scalability and Performance</a></p></li>
+<li><p><a class="reference external" href="https://github.com/dragonflydb/dragonfly">Dragonfly GitHub Repository</a></p></li>
+<li><p><a class="reference external" href="https://www.dragonflydb.io/docs/development/sdks">Dragonfly SDK Documentation</a></p></li>
+<li><p><a class="reference external" href="https://medium.com/&#64;mohitdehuliya/dragonflydb-vs-redis-a-deep-dive-towards-the-next-gen-caching-infrastructure-23186397b3d3">DragonflyDB vs Redis: A Deep Dive</a></p></li>
+</ul>
+<p><strong>Valkey:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://valkey.io/">Valkey Official Site</a></p></li>
+<li><p><a class="reference external" href="https://github.com/valkey-io/valkey-py">Valkey Python Client (valkey-py)</a></p></li>
+<li><p><a class="reference external" href="https://valkey-py.readthedocs.io/en/latest/examples/asyncio_examples.html">Valkey Async Examples</a></p></li>
+<li><p><a class="reference external" href="https://thenewstack.io/why-now-is-the-time-to-migrate-from-redis-to-valkey/">Why Now Is the Time to Migrate From Redis to Valkey</a></p></li>
+</ul>
+<p><strong>Общие сравнения:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://medium.com/&#64;kaushalsinh73/10-redis-alternatives-when-keydb-valkey-or-dragonfly-win-e5bfa2c13d05">10 Redis Alternatives: When KeyDB, Valkey, or Dragonfly Win</a></p></li>
+<li><p><a class="reference external" href="https://blog.octabyte.io/topics/open-source-databases/redis-vs-valkey-vs-keydb/">Redis vs Valkey vs KeyDB Comparison</a></p></li>
+<li><p><a class="reference external" href="https://arxiv.org/html/2510.19805v1">Next Generation Cloud-native In-Memory Stores (Academic Research)</a></p></li>
+<li><p><a class="reference external" href="https://www.dragonflydb.io/guides/best-redis-alternatives-top-oss-and-managed-solutions">Best Redis Alternatives: Top 8 OSS and Managed Solutions</a></p></li>
+</ul>
+<p><strong>Performance Benchmarks:</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://github.com/centminmod/redis-comparison-benchmarks">Redis Comparison Benchmarks (GitHub)</a></p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Версия документа:</strong> 1.0
+<strong>Дата:</strong> 2026-02-03
+<strong>Автор:</strong> AI Analysis
+<strong>Следующий review:</strong> Q3 2026</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Redis Alternatives: Сравнительный анализ</a><ul>
+<li><a class="reference internal" href="#id1">Обзор</a></li>
+<li><a class="reference internal" href="#redis">Текущее использование Redis в проекте</a><ul>
+<li><a class="reference internal" href="#websocket-pub-sub-redis-pubsub-service-py">1. <strong>WebSocket Pub/Sub</strong> (<code class="docutils literal notranslate"><span class="pre">redis_pubsub_service.py</span></code>)</a></li>
+<li><a class="reference internal" href="#cache-service-cache-service-py">2. <strong>Cache Service</strong> (<code class="docutils literal notranslate"><span class="pre">cache_service.py</span></code>)</a></li>
+<li><a class="reference internal" href="#write-behind-queue-write-behind-service-py">3. <strong>Write-Behind Queue</strong> (<code class="docutils literal notranslate"><span class="pre">write_behind_service.py</span></code>)</a></li>
+<li><a class="reference internal" href="#rate-limiting-rate-limiter-py">4. <strong>Rate Limiting</strong> (<code class="docutils literal notranslate"><span class="pre">rate_limiter.py</span></code>)</a></li>
+<li><a class="reference internal" href="#connection-health">5. <strong>Connection &amp; Health</strong></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id2">Альтернативы Redis</a><ul>
+<li><a class="reference internal" href="#dragonfly">1. <strong>Dragonfly</strong> ⭐ Рекомендуется</a></li>
+<li><a class="reference internal" href="#valkey">2. <strong>Valkey</strong> ⭐ Альтернатива с открытым управлением</a></li>
+<li><a class="reference internal" href="#keydb">3. <strong>KeyDB</strong></a></li>
+<li><a class="reference internal" href="#garnet-microsoft-research">4. <strong>Garnet</strong> (Microsoft Research)</a></li>
+<li><a class="reference internal" href="#memcached">5. <strong>Memcached</strong> ❌ Не подходит</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">Сравнительная таблица</a></li>
+<li><a class="reference internal" href="#id4">Рекомендации</a><ul>
+<li><a class="reference internal" href="#id5">🥇 <strong>Dragonfly</strong> - Лучший выбор</a></li>
+<li><a class="reference internal" href="#valkey-community-governance">🥈 <strong>Valkey</strong> - Альтернатива с community governance</a></li>
+<li><a class="reference internal" href="#id6">⚠️ <strong>KeyDB</strong> - Не рекомендуется</a></li>
+<li><a class="reference internal" href="#garnet-production">❌ <strong>Garnet</strong> - Не для production</a></li>
+<li><a class="reference internal" href="#id7">❌ <strong>Memcached</strong> - Не подходит</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id8">План миграции на Dragonfly</a><ul>
+<li><a class="reference internal" href="#development-environment">Этап 1: Тестирование (Development environment)</a></li>
+<li><a class="reference internal" href="#performance-benchmarking">Этап 2: Performance benchmarking</a></li>
+<li><a class="reference internal" href="#production-deployment">Этап 3: Production deployment</a></li>
+<li><a class="reference internal" href="#cleanup">Этап 4: Cleanup</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id9">Заключение</a><ul>
+<li><a class="reference internal" href="#id10">Может ли альтернатива заменить ВЕСЬ функционал Redis?</a></li>
+<li><a class="reference internal" href="#id11">Итоговая рекомендация</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id12">Источники</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

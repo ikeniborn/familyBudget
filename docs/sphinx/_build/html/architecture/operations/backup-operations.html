@@ -1,0 +1,803 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Backup Operations Guide - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/backup-operations.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="backup-operations-guide">
+<h1>Backup Operations Guide<a class="headerlink" href="#backup-operations-guide" title="Link to this heading">¶</a></h1>
+<p>Регулярные операционные задачи для команды DevOps.</p>
+<p><strong>Содержание:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#%D0%B5%D0%B6%D0%B5%D0%B4%D0%BD%D0%B5%D0%B2%D0%BD%D1%8B%D0%B5-%D0%BF%D1%80%D0%BE%D0%B2%D0%B5%D1%80%D0%BA%D0%B8"><span class="xref myst">Ежедневные проверки</span></a></p></li>
+<li><p><a class="reference internal" href="#%D0%B5%D0%B6%D0%B5%D0%BD%D0%B5%D0%B4%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B5-%D0%BE%D0%B1%D1%81%D0%BB%D1%83%D0%B6%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5"><span class="xref myst">Еженедельное обслуживание</span></a></p></li>
+<li><p><a class="reference internal" href="#%D0%B5%D0%B6%D0%B5%D0%BC%D0%B5%D1%81%D1%8F%D1%87%D0%BD%D1%8B%D0%B5-%D0%B7%D0%B0%D0%B4%D0%B0%D1%87%D0%B8"><span class="xref myst">Ежемесячные задачи</span></a></p></li>
+<li><p><a class="reference internal" href="#%D0%BD%D0%B0%D1%81%D1%82%D1%80%D0%BE%D0%B9%D0%BA%D0%B0-%D0%BF%D1%80%D0%BE%D0%B8%D0%B7%D0%B2%D0%BE%D0%B4%D0%B8%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D1%81%D1%82%D0%B8"><span class="xref myst">Настройка производительности</span></a></p></li>
+</ul>
+<hr class="docutils" />
+<section id="id1">
+<h2>Ежедневные проверки<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<section id="id2">
+<h3>Проверка статуса бэкапа<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<p><strong>Утренний чек-лист (5 минут):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить что сегодняшний backup создан</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/backups/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>_*.sql.gz
+<span class="c1"># Expected: файл с сегодняшней датой</span>
+
+<span class="c1"># 2. Проверить размер (должен быть ~5-10 MB)</span>
+du<span class="w"> </span>-h<span class="w"> </span>/opt/budget/backups/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>_*.sql.gz
+<span class="c1"># Expected: 5.0M - 10M</span>
+
+<span class="c1"># 3. Проверить логи на errors</span>
+tail<span class="w"> </span>-20<span class="w"> </span>/opt/budget/backups/logs/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>error
+<span class="c1"># Expected: no errors</span>
+
+<span class="c1"># 4. Проверить cron status</span>
+systemctl<span class="w"> </span>status<span class="w"> </span>cron<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>Active
+<span class="c1"># Expected: Active: active (running)</span>
+
+<span class="c1"># 5. Проверить exit code последнего backup</span>
+tail<span class="w"> </span>-1<span class="w"> </span>/opt/budget/backups/logs/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>SUCCESS
+<span class="c1"># Expected: [SUCCESS] Backup completed successfully</span>
+</pre></div>
+</div>
+</section>
+<section id="s3">
+<h3>Проверка S3 синхронизации<a class="headerlink" href="#s3" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить что S3 upload прошел</span>
+grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s3&quot;</span><span class="w"> </span>/opt/budget/backups/logs/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>.log
+<span class="c1"># Expected: [SUCCESS] Uploaded to S3</span>
+
+<span class="c1"># 2. Список последних S3 backups</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
+<span class="c1"># Expected: Сегодняшний backup в списке</span>
+
+<span class="c1"># 3. Проверить S3 credentials validity (если upload failed)</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span>&gt;<span class="w"> </span>/dev/null
+<span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
+<span class="c1"># Expected: 0 (success)</span>
+</pre></div>
+</div>
+</section>
+<section id="disk-space">
+<h3>Проверка disk space<a class="headerlink" href="#disk-space" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить использование /opt/budget</span>
+df<span class="w"> </span>-h<span class="w"> </span>/opt/budget
+<span class="c1"># Expected: &lt; 80% used</span>
+
+<span class="c1"># 2. Размер директории backups</span>
+du<span class="w"> </span>-sh<span class="w"> </span>/opt/budget/backups/
+<span class="c1"># Expected: ~50-100 MB (7 дней × 5-10 MB)</span>
+
+<span class="c1"># 3. Количество backups</span>
+ls<span class="w"> </span>-1<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+<span class="c1"># Expected: 7-8 файлов</span>
+
+<span class="c1"># 4. Если &gt; 90% → cleanup старых backups</span>
+find<span class="w"> </span>/opt/budget/backups<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;backup_*.sql.gz&quot;</span><span class="w"> </span>-mtime<span class="w"> </span>+7<span class="w"> </span>-delete
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id3">
+<h2>Еженедельное обслуживание<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<section id="id4">
+<h3>Тест восстановления (Понедельник, 10:00)<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<p><strong>Цель:</strong> Проверить что backup можно восстановить</p>
+<p><strong>Процедура:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Выбрать последний backup</span>
+<span class="nv">LAST_BACKUP</span><span class="o">=</span><span class="k">$(</span>ls<span class="w"> </span>-t<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Testing restore of: </span><span class="nv">$LAST_BACKUP</span><span class="s2">&quot;</span>
+
+<span class="c1"># 2. Проверить целостность</span>
+gzip<span class="w"> </span>-t<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LAST_BACKUP</span><span class="s2">&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Integrity: </span><span class="nv">$?</span><span class="s2">&quot;</span><span class="w">  </span><span class="c1"># Expected: 0</span>
+
+<span class="c1"># 3. Проверить SQL structure</span>
+zcat<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LAST_BACKUP</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-100<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;PostgreSQL database dump&quot;</span>
+<span class="c1"># Expected: output with &quot;PostgreSQL database dump&quot;</span>
+
+<span class="c1"># 4. Тест восстановления в dev environment (опционально)</span>
+<span class="c1"># - Поднять отдельный PostgreSQL контейнер</span>
+<span class="c1"># - Восстановить туда backup</span>
+<span class="c1"># - Проверить данные</span>
+
+docker<span class="w"> </span>run<span class="w"> </span>--name<span class="w"> </span>test-postgres<span class="w"> </span>-e<span class="w"> </span><span class="nv">POSTGRES_PASSWORD</span><span class="o">=</span><span class="nb">test</span><span class="w"> </span>-d<span class="w"> </span>postgres:16
+sleep<span class="w"> </span><span class="m">5</span>
+zcat<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LAST_BACKUP</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-i<span class="w"> </span>test-postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>postgres
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>test-postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>postgres<span class="w"> </span>postgres<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT COUNT(*) FROM t_d_article;&quot;</span>
+docker<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>test-postgres
+
+<span class="c1"># 5. Записать результат</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>date<span class="k">)</span><span class="s2">: Restore test PASSED for </span><span class="nv">$LAST_BACKUP</span><span class="s2">&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/opt/budget/backups/logs/restore_tests.log
+</pre></div>
+</div>
+<p><strong>Длительность:</strong> 10 минут</p>
+</section>
+<section id="id5">
+<h3>Анализ логов<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить логи за неделю на warnings</span>
+grep<span class="w"> </span>-i<span class="w"> </span>warn<span class="w"> </span>/opt/budget/backups/logs/backup_*.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+
+<span class="c1"># 2. Trending backup duration</span>
+<span class="k">for</span><span class="w"> </span>log<span class="w"> </span><span class="k">in</span><span class="w"> </span>/opt/budget/backups/logs/backup_2025122*.log<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">duration</span><span class="o">=</span><span class="k">$(</span>grep<span class="w"> </span><span class="s2">&quot;Backup completed&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$log</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $NF}&#39;</span><span class="k">)</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>basename<span class="w"> </span><span class="nv">$log</span><span class="k">)</span><span class="s2">: </span><span class="nv">$duration</span><span class="s2">&quot;</span>
+<span class="k">done</span>
+<span class="c1"># Expected: стабильная длительность (~60-90s)</span>
+
+<span class="c1"># 3. Trending backup size</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/backups/backup_2025122*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $5, $9}&#39;</span>
+<span class="c1"># Expected: стабильный размер (~5-10 MB)</span>
+</pre></div>
+</div>
+</section>
+<section id="s3-verification">
+<h3>S3 verification<a class="headerlink" href="#s3-verification" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Количество S3 backups (должно быть ~28)</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+<span class="c1"># Expected: 28-30</span>
+
+<span class="c1"># 2. Проверить oldest backup (должен быть ~28 дней назад)</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-1
+<span class="c1"># Expected: дата ~28 days ago</span>
+
+<span class="c1"># 3. Test download (случайный backup)</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>download<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="k">$(</span>python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $3}&#39;</span><span class="k">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/tmp/test_s3_backup.sql.gz<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--bucket<span class="w"> </span>familybudget-backups
+
+<span class="c1"># 4. Verify downloaded file</span>
+gzip<span class="w"> </span>-t<span class="w"> </span>/tmp/test_s3_backup.sql.gz
+rm<span class="w"> </span>/tmp/test_s3_backup.sql.gz
+</pre></div>
+</div>
+</section>
+<section id="capacity-planning">
+<h3>Capacity planning<a class="headerlink" href="#capacity-planning" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Trend disk usage (last 7 days)</span>
+<span class="k">for</span><span class="w"> </span>i<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">{</span><span class="m">0</span>..6<span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">date</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$i</span><span class="s2"> days ago&quot;</span><span class="w"> </span>+%Y%m%d<span class="k">)</span>
+<span class="w">  </span><span class="nv">size</span><span class="o">=</span><span class="k">$(</span>du<span class="w"> </span>-b<span class="w"> </span>/opt/budget/backups/backup_<span class="si">${</span><span class="nv">date</span><span class="si">}</span>_*.sql.gz<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$date</span><span class="s2">: </span><span class="nv">$size</span><span class="s2"> bytes&quot;</span>
+<span class="k">done</span>
+
+<span class="c1"># 2. Calculate growth rate</span>
+<span class="c1"># Average size × 365 days = yearly storage need</span>
+<span class="nv">avg_size</span><span class="o">=</span><span class="k">$(</span>du<span class="w"> </span>-b<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{sum+=$1} END {print sum/NR}&#39;</span><span class="k">)</span>
+<span class="nv">yearly_local</span><span class="o">=</span><span class="k">$((</span><span class="nv">avg_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">365</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">1024</span><span class="k">))</span>
+<span class="nv">yearly_s3</span><span class="o">=</span><span class="k">$((</span><span class="nv">avg_size</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">365</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">1024</span><span class="k">))</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Projected yearly storage:&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;  Local (365 days): </span><span class="si">${</span><span class="nv">yearly_local</span><span class="si">}</span><span class="s2"> MB&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;  S3 (current retention): </span><span class="si">${</span><span class="nv">yearly_s3</span><span class="si">}</span><span class="s2"> MB&quot;</span>
+
+<span class="c1"># 3. Проверить доступное место</span>
+df<span class="w"> </span>-h<span class="w"> </span>/opt/budget<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;NR==2 {print &quot;Available:&quot;, $4}&#39;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id6">
+<h2>Ежемесячные задачи<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<section id="id7">
+<h3>Полный тест восстановления (1-е число месяца)<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<p><strong>Цель:</strong> End-to-end restore test</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Выбрать backup недельной давности</span>
+<span class="nv">BACKUP</span><span class="o">=</span><span class="k">$(</span>ls<span class="w"> </span>-t<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;7p&#39;</span><span class="k">)</span>
+
+<span class="c1"># 2. Создать safety backup текущей БД</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+./scripts/backup.sh
+
+<span class="c1"># 3. Полное восстановление (в production!)</span>
+<span class="c1"># ВНИМАНИЕ: Downtime ~5 минут</span>
+./scripts/restore.sh<span class="w"> </span>--backup-file<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$BACKUP</span><span class="s2">&quot;</span><span class="w"> </span>--yes
+
+<span class="c1"># 4. Измерить RTO</span>
+<span class="nv">start_time</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span>
+<span class="c1"># ... restore process ...</span>
+<span class="nv">end_time</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span>
+<span class="nv">rto</span><span class="o">=</span><span class="k">$((</span><span class="nv">end_time</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">start_time</span><span class="k">))</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;RTO: </span><span class="si">${</span><span class="nv">rto</span><span class="si">}</span><span class="s2">s&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/opt/budget/backups/logs/rto_tests.log
+
+<span class="c1"># 5. Full validation</span>
+curl<span class="w"> </span>http://localhost:8000/health/detailed
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;SELECT COUNT(*) FROM t_d_article;&quot;</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-50<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>error
+
+<span class="c1"># 6. Восстановить обратно из safety backup</span>
+./scripts/restore.sh<span class="w"> </span>--backup-file<span class="w"> </span>/opt/budget/backups/safety_backup_*.sql.gz<span class="w"> </span>--yes
+
+<span class="c1"># 7. Записать результат</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>date<span class="k">)</span><span class="s2">: Full restore test PASSED, RTO: </span><span class="si">${</span><span class="nv">rto</span><span class="si">}</span><span class="s2">s&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/opt/budget/backups/logs/monthly_tests.log
+</pre></div>
+</div>
+<p><strong>Длительность:</strong> 30 минут (включая downtime)
+<strong>Планировать:</strong> Во время maintenance window</p>
+</section>
+<section id="retention-policy-review">
+<h3>Retention policy review<a class="headerlink" href="#retention-policy-review" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить локальные backups</span>
+<span class="nv">actual_count</span><span class="o">=</span><span class="k">$(</span>ls<span class="w"> </span>-1<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Local backups count: </span><span class="nv">$actual_count</span><span class="s2"> (expected: 7-8)&quot;</span>
+
+<span class="c1"># 2. Проверить что rotation работает</span>
+<span class="nv">oldest_local</span><span class="o">=</span><span class="k">$(</span>ls<span class="w"> </span>-t<span class="w"> </span>/opt/budget/backups/backup_*.sql.gz<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-1<span class="k">)</span>
+<span class="nv">oldest_date</span><span class="o">=</span><span class="k">$(</span>stat<span class="w"> </span>-c<span class="w"> </span>%Y<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$oldest_local</span><span class="s2">&quot;</span><span class="k">)</span>
+<span class="nv">now</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span>
+<span class="nv">age_days</span><span class="o">=</span><span class="k">$((</span><span class="w"> </span><span class="o">(</span><span class="nv">now</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">oldest_date</span><span class="o">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="m">86400</span><span class="w"> </span><span class="k">))</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Oldest local backup age: </span><span class="si">${</span><span class="nv">age_days</span><span class="si">}</span><span class="s2"> days (expected: ≤7)&quot;</span>
+
+<span class="c1"># 3. Проверить S3 backups</span>
+<span class="nv">s3_count</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;S3 backups count: </span><span class="nv">$s3_count</span><span class="s2"> (expected: ~28)&quot;</span>
+
+<span class="c1"># 4. Проверить S3 cleanup работает</span>
+<span class="nv">oldest_s3</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-1<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Oldest S3 backup: </span><span class="nv">$oldest_s3</span><span class="s2"> (expected: ~28 days ago)&quot;</span>
+
+<span class="c1"># 5. Если cleanup не работает → manual cleanup</span>
+python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>cleanup<span class="w"> </span>--retention-days<span class="w"> </span><span class="m">28</span><span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups
+</pre></div>
+</div>
+</section>
+<section id="documentation-updates">
+<h3>Documentation updates<a class="headerlink" href="#documentation-updates" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Проверить что процедуры актуальны</span>
+cat<span class="w"> </span>~/familyBudget/docs/BACKUP_RESTORE.md<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Последнее обновление&quot;</span>
+
+<span class="c1"># 2. Добавить новые ошибки в troubleshooting (если нашли)</span>
+nano<span class="w"> </span>~/familyBudget/docs/BACKUP_RESTORE.md
+
+<span class="c1"># 3. Обновить performance baselines (если изменились)</span>
+<span class="c1"># - Backup duration</span>
+<span class="c1"># - Restore duration</span>
+<span class="c1"># - Compression ratio</span>
+
+<span class="c1"># 4. Commit changes</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>add<span class="w"> </span>docs/BACKUP_RESTORE.md
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs: update backup troubleshooting&quot;</span>
+git<span class="w"> </span>push
+</pre></div>
+</div>
+</section>
+<section id="performance-analysis">
+<h3>Performance analysis<a class="headerlink" href="#performance-analysis" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Backup duration trend (last 30 days)</span>
+<span class="k">for</span><span class="w"> </span>log<span class="w"> </span><span class="k">in</span><span class="w"> </span>/opt/budget/backups/logs/backup_202512*.log<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">duration</span><span class="o">=</span><span class="k">$(</span>grep<span class="w"> </span><span class="s2">&quot;duration:&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$log</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $NF}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;s&#39;</span><span class="k">)</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$duration</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>basename<span class="w"> </span><span class="nv">$log</span><span class="w"> </span>.log<span class="k">)</span><span class="s2">: </span><span class="si">${</span><span class="nv">duration</span><span class="si">}</span><span class="s2">s&quot;</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort
+
+<span class="c1"># 2. Average duration</span>
+<span class="nv">avg</span><span class="o">=</span><span class="k">$(for</span><span class="w"> </span>log<span class="w"> </span><span class="k">in</span><span class="w"> </span>/opt/budget/backups/logs/backup_202512*.log<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>grep<span class="w"> </span><span class="s2">&quot;duration:&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$log</span><span class="s2">&quot;</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $NF}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;s&#39;</span>
+<span class="k">done</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{sum+=$1; count++} END {print sum/count}&#39;</span><span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Average backup duration: </span><span class="si">${</span><span class="nv">avg</span><span class="si">}</span><span class="s2">s&quot;</span>
+
+<span class="c1"># 3. Compression ratio trend</span>
+<span class="k">for</span><span class="w"> </span>backup<span class="w"> </span><span class="k">in</span><span class="w"> </span>/opt/budget/backups/backup_202512*.sql.gz<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">compressed</span><span class="o">=</span><span class="k">$(</span>stat<span class="w"> </span>-c<span class="w"> </span>%s<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$backup</span><span class="s2">&quot;</span><span class="k">)</span>
+<span class="w">  </span><span class="nv">uncompressed</span><span class="o">=</span><span class="k">$(</span>zcat<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$backup</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-c<span class="k">)</span>
+<span class="w">  </span><span class="nv">ratio</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;scale=2; </span><span class="nv">$uncompressed</span><span class="s2"> / </span><span class="nv">$compressed</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>bc<span class="k">)</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>basename<span class="w"> </span><span class="nv">$backup</span><span class="k">)</span><span class="s2">: </span><span class="si">${</span><span class="nv">ratio</span><span class="si">}</span><span class="s2">:1&quot;</span>
+<span class="k">done</span>
+
+<span class="c1"># 4. S3 upload speed trend</span>
+grep<span class="w"> </span><span class="s2">&quot;Upload duration:&quot;</span><span class="w"> </span>/opt/budget/backups/logs/backup_202512*.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $NF}&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="cost-analysis">
+<h3>Cost analysis<a class="headerlink" href="#cost-analysis" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. S3 storage cost</span>
+<span class="nv">s3_total_size</span><span class="o">=</span><span class="k">$(</span>python3<span class="w"> </span>~/familyBudget/scripts/s3_backup.py<span class="w"> </span>list<span class="w"> </span>--bucket<span class="w"> </span>familybudget-backups<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>awk<span class="w"> </span><span class="s1">&#39;{sum+=$4} END {print sum}&#39;</span><span class="k">)</span>
+<span class="nv">s3_cost_monthly</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;scale=4; </span><span class="nv">$s3_total_size</span><span class="s2"> * 0.024 / 1024&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>bc<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;S3 monthly storage cost: \$</span><span class="si">${</span><span class="nv">s3_cost_monthly</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="c1"># 2. Network cost (upload)</span>
+<span class="nv">monthly_uploads</span><span class="o">=</span><span class="m">30</span>
+<span class="nv">avg_backup_size</span><span class="o">=</span><span class="m">5</span><span class="w">  </span><span class="c1"># MB</span>
+<span class="nv">total_upload_gb</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$monthly_uploads</span><span class="s2"> * </span><span class="nv">$avg_backup_size</span><span class="s2"> / 1024&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>bc<span class="w"> </span>-l<span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Monthly S3 upload: </span><span class="si">${</span><span class="nv">total_upload_gb</span><span class="si">}</span><span class="s2"> GB&quot;</span>
+
+<span class="c1"># 3. Total cost</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Total estimated monthly cost: \$</span><span class="si">${</span><span class="nv">s3_cost_monthly</span><span class="si">}</span><span class="s2"> (storage only)&quot;</span>
+
+<span class="c1"># 4. Trend (compare with last month)</span>
+<span class="c1"># ... similar calculations for previous month ...</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id8">
+<h2>Настройка производительности<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<section id="compression-optimization">
+<h3>Compression optimization<a class="headerlink" href="#compression-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Текущий:</strong> gzip -6 (balanced)</p>
+<p><strong>Опции:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Level</p></th>
+<th class="head"><p>Speed</p></th>
+<th class="head"><p>Size</p></th>
+<th class="head"><p>Recommendation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>gzip -1</p></td>
+<td><p>2x faster</p></td>
+<td><p>2x larger</p></td>
+<td><p>If CPU constrained</p></td>
+</tr>
+<tr class="row-odd"><td><p>gzip -6</p></td>
+<td><p>Balanced</p></td>
+<td><p>Balanced</p></td>
+<td><p><strong>Default (recommended)</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>gzip -9</p></td>
+<td><p>2x slower</p></td>
+<td><p>15% smaller</p></td>
+<td><p>If storage constrained</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Изменить:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Edit scripts/backup.sh</span>
+nano<span class="w"> </span>~/familyBudget/scripts/backup.sh
+
+<span class="c1"># Find line:</span>
+pg_dump<span class="w"> </span>...<span class="w"> </span><span class="p">|</span><span class="w"> </span>gzip<span class="w"> </span>-6<span class="w"> </span>&gt;<span class="w"> </span>backup.sql.gz
+
+<span class="c1"># Change to (example):</span>
+pg_dump<span class="w"> </span>...<span class="w"> </span><span class="p">|</span><span class="w"> </span>gzip<span class="w"> </span>-9<span class="w"> </span>&gt;<span class="w"> </span>backup.sql.gz
+
+<span class="c1"># Test</span>
+./scripts/backup.sh<span class="w"> </span>--verbose
+</pre></div>
+</div>
+</section>
+<section id="backup-window-optimization">
+<h3>Backup window optimization<a class="headerlink" href="#backup-window-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Текущий:</strong> 2:00 AM daily (в <code class="docutils literal notranslate"><span class="pre">/etc/cron.d/familybudget_backup</span></code>)</p>
+<p><strong>Изменить:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Edit cron job</span>
+sudo<span class="w"> </span>crontab<span class="w"> </span>-e
+
+<span class="c1"># Change from:</span>
+<span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/opt/budget/scripts/backup.sh
+
+<span class="c1"># To (example: 3:00 AM):</span>
+<span class="m">0</span><span class="w"> </span><span class="m">3</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/opt/budget/scripts/backup.sh
+</pre></div>
+</div>
+<p><strong>Рекомендации:</strong></p>
+<ul class="simple">
+<li><p>Выбрать время минимальной нагрузки</p></li>
+<li><p>Избегать одновременного backup с другими cron jobs</p></li>
+<li><p>Учитывать S3 upload time (~30-120s)</p></li>
+</ul>
+</section>
+<section id="s3-optimization">
+<h3>S3 optimization<a class="headerlink" href="#s3-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Multipart upload (для больших файлов):</strong></p>
+<p>Текущий <code class="docutils literal notranslate"><span class="pre">s3_backup.py</span></code> использует <code class="docutils literal notranslate"><span class="pre">upload_file</span></code> (автоматический multipart &gt; 5 MB).</p>
+<p><strong>Chunk size optimization:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># In scripts/s3_backup.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">boto3.s3.transfer</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransferConfig</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">TransferConfig</span><span class="p">(</span>
+    <span class="n">multipart_threshold</span><span class="o">=</span><span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>  <span class="c1"># 5 MB (default: 8 MB)</span>
+    <span class="n">multipart_chunksize</span><span class="o">=</span><span class="mi">5</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">,</span>  <span class="c1"># 5 MB chunks</span>
+    <span class="n">max_concurrency</span><span class="o">=</span><span class="mi">10</span>                     <span class="c1"># parallel uploads</span>
+<span class="p">)</span>
+
+<span class="n">s3_client</span><span class="o">.</span><span class="n">upload_file</span><span class="p">(</span><span class="n">local_file</span><span class="p">,</span> <span class="n">bucket</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">Config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Retry configuration:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">botocore.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">Config</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">Config</span><span class="p">(</span>
+    <span class="n">retries</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;max_attempts&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;adaptive&#39;</span>
+    <span class="p">},</span>
+    <span class="n">connect_timeout</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">read_timeout</span><span class="o">=</span><span class="mi">60</span>
+<span class="p">)</span>
+
+<span class="n">s3_client</span> <span class="o">=</span> <span class="n">boto3</span><span class="o">.</span><span class="n">client</span><span class="p">(</span><span class="s1">&#39;s3&#39;</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="database-optimization">
+<h3>Database optimization<a class="headerlink" href="#database-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Vacuum and Analyze (перед backup для consistency):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Добавить в backup.sh before pg_dump</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;VACUUM ANALYZE;&quot;</span>
+
+<span class="c1"># Проверит effect на backup size</span>
+</pre></div>
+</div>
+<p><strong>Exclude tables (если есть temp tables):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># В backup.sh</span>
+pg_dump<span class="w"> </span>...<span class="w"> </span>--exclude-table<span class="o">=</span><span class="s1">&#39;tmp_*&#39;</span><span class="w"> </span>--exclude-table<span class="o">=</span><span class="s1">&#39;staging_*&#39;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="automation-scripts">
+<h2>Automation Scripts<a class="headerlink" href="#automation-scripts" title="Link to this heading">¶</a></h2>
+<section id="daily-health-check-script">
+<h3>Daily health check script<a class="headerlink" href="#daily-health-check-script" title="Link to this heading">¶</a></h3>
+<p><strong><code class="docutils literal notranslate"><span class="pre">/opt/budget/scripts/backup_health_check.sh</span></code>:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-e
+
+<span class="nv">LOG_FILE</span><span class="o">=</span><span class="s2">&quot;/opt/budget/backups/logs/health_check_</span><span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span><span class="s2">.log&quot;</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Backup Health Check </span><span class="k">$(</span>date<span class="k">)</span><span class="s2"> ===&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+
+<span class="c1"># Check today&#39;s backup exists</span>
+<span class="k">if</span><span class="w"> </span>ls<span class="w"> </span>/opt/budget/backups/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>_*.sql.gz<span class="w"> </span><span class="p">&amp;</span>&gt;<span class="w"> </span>/dev/null<span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;[OK] Today&#39;s backup exists&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;[FAIL] Today&#39;s backup missing!&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="c1"># Send alert</span>
+<span class="w">  </span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>&lt;webhook_url&gt;<span class="w"> </span>-d<span class="w"> </span><span class="s2">&quot;Backup missing for </span><span class="k">$(</span>date<span class="w"> </span>+%Y-%m-%d<span class="k">)</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+
+<span class="c1"># Check disk space</span>
+<span class="nv">USAGE</span><span class="o">=</span><span class="k">$(</span>df<span class="w"> </span>-h<span class="w"> </span>/opt/budget<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;NR==2 {print $5}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">&#39;%&#39;</span><span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$USAGE</span><span class="w"> </span>-lt<span class="w"> </span><span class="m">80</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;[OK] Disk space: </span><span class="si">${</span><span class="nv">USAGE</span><span class="si">}</span><span class="s2">%&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+<span class="k">else</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;[WARN] Disk space high: </span><span class="si">${</span><span class="nv">USAGE</span><span class="si">}</span><span class="s2">%&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+<span class="k">fi</span>
+
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;=== Health Check Complete ===&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOG_FILE</span><span class="s2">&quot;</span>
+</pre></div>
+</div>
+<p><strong>Добавить в cron:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="m">0</span><span class="w"> </span><span class="m">9</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/opt/budget/scripts/backup_health_check.sh
+</pre></div>
+</div>
+<hr class="docutils" />
+<p><strong>Related Documentation:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../../BACKUP_RESTORE.html"><span class="std std-doc">Backup &amp; Restore Manual</span></a></p></li>
+<li><p><a class="reference internal" href="#../backup-system.md"><span class="xref myst">Backup System Architecture</span></a></p></li>
+<li><p><a class="reference internal" href="disaster-recovery.html"><span class="std std-doc">Disaster Recovery</span></a></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Backup Operations Guide</a><ul>
+<li><a class="reference internal" href="#id1">Ежедневные проверки</a><ul>
+<li><a class="reference internal" href="#id2">Проверка статуса бэкапа</a></li>
+<li><a class="reference internal" href="#s3">Проверка S3 синхронизации</a></li>
+<li><a class="reference internal" href="#disk-space">Проверка disk space</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">Еженедельное обслуживание</a><ul>
+<li><a class="reference internal" href="#id4">Тест восстановления (Понедельник, 10:00)</a></li>
+<li><a class="reference internal" href="#id5">Анализ логов</a></li>
+<li><a class="reference internal" href="#s3-verification">S3 verification</a></li>
+<li><a class="reference internal" href="#capacity-planning">Capacity planning</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id6">Ежемесячные задачи</a><ul>
+<li><a class="reference internal" href="#id7">Полный тест восстановления (1-е число месяца)</a></li>
+<li><a class="reference internal" href="#retention-policy-review">Retention policy review</a></li>
+<li><a class="reference internal" href="#documentation-updates">Documentation updates</a></li>
+<li><a class="reference internal" href="#performance-analysis">Performance analysis</a></li>
+<li><a class="reference internal" href="#cost-analysis">Cost analysis</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id8">Настройка производительности</a><ul>
+<li><a class="reference internal" href="#compression-optimization">Compression optimization</a></li>
+<li><a class="reference internal" href="#backup-window-optimization">Backup window optimization</a></li>
+<li><a class="reference internal" href="#s3-optimization">S3 optimization</a></li>
+<li><a class="reference internal" href="#database-optimization">Database optimization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#automation-scripts">Automation Scripts</a><ul>
+<li><a class="reference internal" href="#daily-health-check-script">Daily health check script</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>
