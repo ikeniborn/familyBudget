@@ -1111,30 +1111,41 @@ jobs:
             # ================================================================
             # PRE-TEST BACKUP: Snapshot live DB before pytest can modify it
             # ================================================================
-            # pytest conftest has autouse session fixture _clean_database_before_session
-            # that runs DELETE across all 37 tables before any test. This backup ensures
-            # full data recovery even if tests fail mid-run or cleanup is incomplete.
+            # pytest conftest._clean_database_before_session (autouse, session scope)
+            # runs DELETE across all 37 tables before any test starts.
+            # --clean --if-exists добавляет DROP TABLE IF EXISTS перед каждым CREATE,
+            # что гарантирует чистое восстановление без конфликтов дубликатов.
             BACKUP_FILE="/tmp/pre_test_backup_$(date +%Y%m%d_%H%M%S).sql"
             echo "Creating pre-test database backup: $BACKUP_FILE"
             sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
-              pg_dump -U familybudget familybudget > "$BACKUP_FILE"
-            echo "Backup created: $(wc -c < "$BACKUP_FILE") bytes"
+              pg_dump --clean --if-exists -U familybudget familybudget > "$BACKUP_FILE"
+            BACKUP_SIZE=$(wc -c < "$BACKUP_FILE")
+            echo "Backup created: ${BACKUP_SIZE} bytes"
+            if [ "$BACKUP_SIZE" -lt 1000 ]; then
+              echo "ERROR: Backup file is suspiciously small (${BACKUP_SIZE} bytes), aborting"
+              exit 1
+            fi
 
-            # Register restore trap: runs on EXIT (success AND failure)
-            # Ensures DB is always restored regardless of pytest outcome
+            # Register restore trap: runs on EXIT (success AND failure AND SIGTERM)
+            # --clean в дампе гарантирует: DROP TABLE IF EXISTS → CREATE TABLE → INSERT
+            # то есть полное восстановление без ошибок дубликатов
             restore_database() {
+              local EXIT_CODE=$?
+              echo "=== POST-TEST RESTORE (exit code: ${EXIT_CODE}) ==="
               echo "Restoring database from backup: $BACKUP_FILE"
-              # Drop all connections to allow restore
+              # Отключаем все активные соединения с БД перед восстановлением
               sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
                 psql -U familybudget -d postgres -c \
-                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='familybudget' AND pid <> pg_backend_pid();" \
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+                 WHERE datname='familybudget' AND pid <> pg_backend_pid();" \
                 2>/dev/null || true
-              # Restore: drop and recreate DB content from dump
+              # Восстанавливаем: DROP TABLE IF EXISTS + CREATE TABLE + INSERT (из --clean дампа)
               sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
                 psql -U familybudget familybudget < "$BACKUP_FILE"
               echo "Database restored successfully"
               rm -f "$BACKUP_FILE"
               echo "Backup file removed"
+              echo "=== RESTORE COMPLETE ==="
             }
             trap restore_database EXIT
 
