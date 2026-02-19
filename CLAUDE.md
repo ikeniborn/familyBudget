@@ -290,3 +290,14 @@ PHASE 5D → Task Summary
 
 **Git requests**
 - Only create requets to test branch from dev/* branches 
+
+## Documentation
+
+Project documentation for AI agents (pre-built, no Sphinx needed):
+
+- `docs/llms.txt` — structure and navigation index (read first for orientation)
+- `docs/llms-full.txt` — full documentation content for LLM context
+- `docs/sphinx/_build/html/` — HTML site (committed to git)
+
+**Usage in agents/skills:** Read `docs/llms.txt` at task start to understand
+project structure. Use `docs/llms-full.txt` for deep context when needed.
