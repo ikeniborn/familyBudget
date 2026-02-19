@@ -98,10 +98,13 @@
             const issues = [];
 
             // Check Cache Storage
+            // Exclude '__sw_update_mode__' signal cache - it is intentionally preserved
+            // for the new Service Worker to detect post-update mode during install
             try {
                 const cacheNames = await caches.keys();
-                if (cacheNames.length > 0) {
-                    issues.push(`Cache Storage not empty: ${cacheNames.length} caches remain`);
+                const filteredCaches = cacheNames.filter(name => name !== '__sw_update_mode__');
+                if (filteredCaches.length > 0) {
+                    issues.push(`Cache Storage not empty: ${filteredCaches.length} caches remain`);
                 }
             } catch (e) {
                 issues.push(`Cache verification failed: ${e.message}`);
@@ -136,7 +139,9 @@
             console.log('[SW_UPDATE] Retrying cleanup...');
 
             // Re-clear caches if needed
-            const cacheNamesRetry = await caches.keys();
+            // Exclude '__sw_update_mode__' signal cache - must survive to signal new SW on install
+            const allCachesRetry = await caches.keys();
+            const cacheNamesRetry = allCachesRetry.filter(name => name !== '__sw_update_mode__');
             if (cacheNamesRetry.length > 0) {
                 await Promise.all(cacheNamesRetry.map(name => caches.delete(name)));
                 console.log('[SW_UPDATE] Re-cleared', cacheNamesRetry.length, 'caches');

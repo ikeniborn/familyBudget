@@ -31,6 +31,8 @@ module.exports = [
       // Vendor libraries (third-party code)
       "frontend/**/static/js/vendor/**",
       "frontend/**/static/css/vendor/**",
+      // Sphinx documentation build artifacts (auto-generated, not source code)
+      "docs/sphinx/_build/**",
     ],
   },
   js.configs.recommended,

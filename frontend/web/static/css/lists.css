@@ -805,7 +805,8 @@
 }
 
 /* Desktop: use CSS variable heights for inputs/selects */
-.modal-box .form-control input,
+/* Exclude range inputs: min-height breaks DaisyUI range slider width in Dexie Diagnostics modal */
+.modal-box .form-control input:not([type=range]),
 .modal-box .form-control select {
     min-height: var(--select-height);
 }
@@ -879,7 +880,8 @@
     }
 
     /* Mobile inputs: touch-friendly but compact */
-    .modal-box .form-control input,
+    /* Exclude range inputs: min-height breaks DaisyUI range slider width in Dexie Diagnostics modal */
+    .modal-box .form-control input:not([type=range]),
     .modal-box .form-control select {
         min-height: var(--input-height);
         font-size: 1rem; /* Prevent iOS zoom on focus */
