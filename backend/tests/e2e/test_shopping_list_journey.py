@@ -254,11 +254,11 @@ async def test_hierarchy_view_journey(
 
     # Step 1: Create stores
     stores = []
-    for name in ["Walmart", "Target", "Whole Foods"]:
+    for idx, name in enumerate(["Walmart", "Target", "Whole Foods"], start=1):
         store = Store(
             creator_id=test_user.id,
             name=name,
-            code=f"STORE-{name}",
+            code=f"STORE-{idx}",
             is_active=True,
             is_current=True,
             valid_from=datetime.utcnow(),
@@ -276,7 +276,7 @@ async def test_hierarchy_view_journey(
         creator_id=test_user.id,
         parent_id=None,
         name="Food",
-        code="PGRP-FOOD",
+        code="PGRP-1",
         is_active=True,
         is_current=True,
         valid_from=datetime.utcnow(),
@@ -291,7 +291,7 @@ async def test_hierarchy_view_journey(
         creator_id=test_user.id,
         parent_id=food.id,
         name="Vegetables",
-        code="PGRP-VEG",
+        code="PGRP-2",
         is_active=True,
         is_current=True,
         valid_from=datetime.utcnow(),
@@ -301,7 +301,7 @@ async def test_hierarchy_view_journey(
         creator_id=test_user.id,
         parent_id=food.id,
         name="Fruits",
-        code="PGRP-FRUIT",
+        code="PGRP-3",
         is_active=True,
         is_current=True,
         valid_from=datetime.utcnow(),
